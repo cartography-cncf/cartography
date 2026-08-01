@@ -18,21 +18,40 @@ from cartography.models.ontology.labels import SECRET
 class NetlifyEnvVarNodeProperties(CartographyNodeProperties):
     # Composite `<account_id>|<site_id>|<key>`, built in transform(). The key is the only stable
     # natural identifier, and the same key can exist both team-wide and on an individual site.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite `<account_id>|<site_id>|<key>`, with `_account` in place of the site id for a team-wide variable. The key is the only stable natural identifier, and the same key can exist at both scopes.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key", extra_index=True)
+    key: PropertyRef = PropertyRef(
+        "key", extra_index=True, description="Variable name."
+    )
     # Empty for a team-wide variable, so it also distinguishes the two scopes.
-    site_id: PropertyRef = PropertyRef("site_id")
-    scope: PropertyRef = PropertyRef("scope")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site, empty for a team-wide variable."
+    )
+    scope: PropertyRef = PropertyRef("scope", description="`site` or `account`.")
     # Where the variable is readable: builds, functions, runtime, post_processing.
-    scopes: PropertyRef = PropertyRef("scopes")
+    scopes: PropertyRef = PropertyRef(
+        "scopes",
+        description="Where the variable is readable: `builds`, `functions`, `runtime`, `post_processing`.",
+    )
     # Deploy contexts the variable is set for, flattened from `values[].context`.
-    contexts: PropertyRef = PropertyRef("contexts")
-    is_secret: PropertyRef = PropertyRef("is_secret")
+    contexts: PropertyRef = PropertyRef(
+        "contexts", description="Deploy contexts the variable is set for."
+    )
+    is_secret: PropertyRef = PropertyRef(
+        "is_secret", description="Whether Netlify marks the variable secret."
+    )
     # String mirror of is_secret. Conditional extra labels are compared as Cypher strings, so a
     # real boolean would never match; see ExtraNodeLabel.when() in models/core/nodes.py.
-    is_secret_flag: PropertyRef = PropertyRef("is_secret_flag")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    is_secret_flag: PropertyRef = PropertyRef(
+        "is_secret_flag",
+        description="String mirror of `is_secret`. Conditional extra labels are compared as Cypher strings, so a real boolean would never match.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the variable was last changed."
+    )
 
 
 # --- Relationship Definitions ---
@@ -80,6 +99,8 @@ class NetlifyEnvVarToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:NetlifyEnvVar)-[:UPDATED_BY]->(:NetlifyUser)
 class NetlifyEnvVarToUserRel(CartographyRelSchema):
+    """The team member who last changed this variable."""
+
     target_node_label: str = "NetlifyUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("updated_by_user_id")},

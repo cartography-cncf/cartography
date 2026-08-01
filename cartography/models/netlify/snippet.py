@@ -17,18 +17,30 @@ class NetlifySnippetNodeProperties(CartographyNodeProperties):
     # Composite `<site_id>|<snippet_id>`, built in transform(). Netlify's snippet id is the
     # snippet's index in the site's list, so it is unique per site but not stable across
     # deletions: removing the first snippet renumbers the rest.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite `<site_id>|<snippet_index>`. Netlify's snippet id is the snippet's position in the site's list, so it collides across sites and is renumbered when an earlier snippet is deleted.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
-    snippet_index: PropertyRef = PropertyRef("snippet_index")
-    title: PropertyRef = PropertyRef("title")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site the snippet is injected into."
+    )
+    snippet_index: PropertyRef = PropertyRef(
+        "snippet_index", description="Netlify's positional snippet id."
+    )
+    title: PropertyRef = PropertyRef("title", description="Display title.")
     # Where in the served HTML the markup is injected: head or footer.
-    general_position: PropertyRef = PropertyRef("general_position")
-    goal_position: PropertyRef = PropertyRef("goal_position")
+    general_position: PropertyRef = PropertyRef(
+        "general_position",
+        description="Where the general markup is injected: `head` or `footer`.",
+    )
+    goal_position: PropertyRef = PropertyRef(
+        "goal_position", description="Where the goal markup is injected."
+    )
     # The injected markup is stored so that a rule can flag third-party script origins. It is
     # site configuration authored by the team, not a credential.
-    general: PropertyRef = PropertyRef("general")
-    goal: PropertyRef = PropertyRef("goal")
+    general: PropertyRef = PropertyRef("general", description="The injected markup.")
+    goal: PropertyRef = PropertyRef("goal", description="The goal-tracking markup.")
 
 
 # --- Relationship Definitions ---

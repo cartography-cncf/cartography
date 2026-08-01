@@ -14,18 +14,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyFormNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify form id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site the form was detected on."
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Form name, from the `name` attribute of the HTML form.",
+    )
     # The site paths the form was detected on.
-    paths: PropertyRef = PropertyRef("paths")
+    paths: PropertyRef = PropertyRef(
+        "paths", description="Site paths the form was detected on."
+    )
     # Netlify stores every submission, so a form is a data store holding whatever visitors typed
     # into it. The field names say what kind of data that is; the submissions themselves are not
     # ingested.
-    field_names: PropertyRef = PropertyRef("field_names")
-    submission_count: PropertyRef = PropertyRef("submission_count")
-    created_at: PropertyRef = PropertyRef("created_at")
+    field_names: PropertyRef = PropertyRef(
+        "field_names", description="Names of the form's input fields."
+    )
+    submission_count: PropertyRef = PropertyRef(
+        "submission_count", description="Number of submissions Netlify has stored."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the form was first detected."
+    )
 
 
 # --- Relationship Definitions ---

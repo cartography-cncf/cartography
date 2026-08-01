@@ -56,19 +56,31 @@ class NetlifyUserNodeProperties(CartographyNodeProperties):
 
     # Netlify returns two ids on a membership: `id` identifies the membership row and `user_id`
     # identifies the person. We key on `user_id` so one human is one node across teams.
-    id: PropertyRef = PropertyRef("user_id")
+    id: PropertyRef = PropertyRef(
+        "user_id", description="The Netlify user id of the person."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    full_name: PropertyRef = PropertyRef("full_name")
-    avatar: PropertyRef = PropertyRef("avatar")
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Email address."
+    )
+    full_name: PropertyRef = PropertyRef(
+        "full_name",
+        description="Display name. Netlify never splits this into first and last name.",
+    )
+    avatar: PropertyRef = PropertyRef("avatar", description="Avatar image URL.")
     # MFA is enrolled on the Netlify account itself, not per team.
-    mfa_enabled: PropertyRef = PropertyRef("mfa_enabled")
+    mfa_enabled: PropertyRef = PropertyRef(
+        "mfa_enabled", description="Whether the account has MFA enabled."
+    )
     # Netlify reports activity as a date string, not a timestamp.
-    last_activity_date: PropertyRef = PropertyRef("last_activity_date")
+    last_activity_date: PropertyRef = PropertyRef(
+        "last_activity_date", description="Date of last activity, as a date string."
+    )
     # Identity providers this account has linked (for example {"google": "user@example.com"}),
     # flattened by transform() to a sorted list of provider names.
     connected_account_providers: PropertyRef = PropertyRef(
         "connected_account_providers",
+        description='Identity providers linked to the account, e.g. `["google"]`.',
     )
 
 
@@ -86,6 +98,8 @@ class NetlifyUserToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:NetlifyAccount)-[:RESOURCE]->(:NetlifyUser)
 class NetlifyUserToAccountMatchLink(CartographyRelSchema):
+    """The team this person is a member of. The identity itself is shared across teams."""
+
     source_node_label: str = "NetlifyUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -105,16 +119,35 @@ class NetlifyUserMembershipRelProperties(CartographyRelProperties):
     # Membership-scoped facts live on the edge, not the node: the same person holds a different
     # role, a different site access grant and a different invitation state in every team they
     # belong to, and the timestamps are the membership row's rather than the account's.
-    membership_id: PropertyRef = PropertyRef("membership_id")
-    role: PropertyRef = PropertyRef("role")
-    site_access: PropertyRef = PropertyRef("site_access")
+    membership_id: PropertyRef = PropertyRef(
+        "membership_id", description="Id of the membership row in this team."
+    )
+    role: PropertyRef = PropertyRef(
+        "role", description="Role held in this team, e.g. `Owner`, `Collaborator`."
+    )
+    site_access: PropertyRef = PropertyRef(
+        "site_access",
+        description="Which of the team's sites this member can reach (`all`, `none`, ...).",
+    )
     # True while an invitation to this team is outstanding. An existing Netlify user invited to a
     # further team arrives here, not as a NetlifyInvite: the person already exists.
-    pending: PropertyRef = PropertyRef("pending")
-    invite_id: PropertyRef = PropertyRef("invite_id")
-    managed_by_directory_sync: PropertyRef = PropertyRef("managed_by_directory_sync")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    pending: PropertyRef = PropertyRef(
+        "pending",
+        description="Whether an invitation to this team is still outstanding.",
+    )
+    invite_id: PropertyRef = PropertyRef(
+        "invite_id", description="Id of the outstanding invitation, when there is one."
+    )
+    managed_by_directory_sync: PropertyRef = PropertyRef(
+        "managed_by_directory_sync",
+        description="Whether this membership is provisioned by directory sync.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the membership was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the membership was last modified."
+    )
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
@@ -125,6 +158,13 @@ class NetlifyUserMembershipRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:NetlifyUser)-[:MEMBER_OF]->(:NetlifyAccount)
 class NetlifyUserMemberOfAccountMatchLink(CartographyRelSchema):
+    """
+    Membership of a team. Everything that varies per team is carried here rather than on the
+    person, because the same human holds a different role, site access grant and invitation
+    state in every team they belong to. `pending` in particular is per team, so whether someone
+    is active is a fact about the membership, not about the identity.
+    """
+
     source_node_label: str = "NetlifyUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -143,7 +183,20 @@ class NetlifyUserMemberOfAccountMatchLink(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class NetlifyUserSchema(CartographyNodeSchema):
-    """A member of a Netlify team. Relationships are MatchLinks; see the module docstring."""
+    """
+    A member of a Netlify team, keyed on the person rather than on the membership row, so one
+    human is one node even when they belong to several teams.
+
+    The node is never deleted by a team's cleanup: other teams and other modules may still
+    reference the identity. Removing someone from a team drops that team's edges and leaves a
+    bare node behind, so ask who is on a team by traversing the membership edge rather than by
+    node existence.
+
+    A membership Netlify has not linked a user to becomes a NetlifyInvite instead. The split is
+    on whether a user exists, not on whether the membership is pending: someone who already has
+    a Netlify account and is invited to a further team stays a NetlifyUser with a pending
+    membership.
+    """
 
     label: str = "NetlifyUser"
     properties: NetlifyUserNodeProperties = NetlifyUserNodeProperties()

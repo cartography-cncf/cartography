@@ -20,17 +20,36 @@ class NetlifyCertificateNodeProperties(CartographyNodeProperties):
     # identifier of any kind, and a site has at most one, so the site scopes it. Note that
     # nothing time-varying goes into the id: folding `expires_at` in would give the node a new
     # identity on every renewal and defeat cleanup.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="`<site_id>_ssl`. Netlify's TLS endpoint returns a certificate with no identifier of any kind, and a site has at most one. Nothing time-varying goes into the id: folding `expires_at` in would give the node a new identity on every renewal and defeat cleanup.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site the certificate serves."
+    )
     # The primary domain, taken as the first entry of `domains` to satisfy the Certificate
     # ontology mapping's required `domain` field. The full SAN list stays in `domains`.
-    domain: PropertyRef = PropertyRef("domain", extra_index=True)
-    domains: PropertyRef = PropertyRef("domains")
-    state: PropertyRef = PropertyRef("state")
-    expires_at: PropertyRef = PropertyRef("expires_at")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    domain: PropertyRef = PropertyRef(
+        "domain",
+        extra_index=True,
+        description="Primary domain, the first entry of `domains`.",
+    )
+    domains: PropertyRef = PropertyRef(
+        "domains", description="Every domain the certificate covers."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Certificate state, e.g. `issued`, `provisioning`."
+    )
+    expires_at: PropertyRef = PropertyRef(
+        "expires_at", description="When the certificate expires."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the certificate was issued."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the certificate was last renewed."
+    )
 
 
 # --- Relationship Definitions ---

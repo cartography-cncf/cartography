@@ -14,14 +14,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyBuildHookNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify build hook id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
-    title: PropertyRef = PropertyRef("title")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site the hook deploys."
+    )
+    title: PropertyRef = PropertyRef("title", description="Display title.")
     # The branch this hook builds when triggered.
-    branch: PropertyRef = PropertyRef("branch")
-    draft: PropertyRef = PropertyRef("draft")
-    created_at: PropertyRef = PropertyRef("created_at")
+    branch: PropertyRef = PropertyRef(
+        "branch", description="Branch the hook builds when triggered."
+    )
+    draft: PropertyRef = PropertyRef(
+        "draft", description="Whether the hook produces a draft deploy."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the hook was created."
+    )
 
 
 # --- Relationship Definitions ---

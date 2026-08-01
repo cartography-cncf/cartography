@@ -34,12 +34,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyDeployKeyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify deploy key id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # The public half of the SSH keypair Netlify uses to clone a private repository. Safe to
     # store, and useful for matching against the deploy keys registered on the git provider.
-    public_key: PropertyRef = PropertyRef("public_key")
-    created_at: PropertyRef = PropertyRef("created_at")
+    public_key: PropertyRef = PropertyRef(
+        "public_key", description="Public half of the SSH keypair."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the key was created."
+    )
 
 
 # --- Relationship Definitions ---

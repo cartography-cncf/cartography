@@ -16,21 +16,39 @@ from cartography.models.ontology.labels import DNS_ZONE
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyDNSZoneNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify DNS zone id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    domain: PropertyRef = PropertyRef("domain")
+    name: PropertyRef = PropertyRef("name", extra_index=True, description="Zone name.")
+    domain: PropertyRef = PropertyRef("domain", description="Apex domain of the zone.")
     # Set when the zone is attached to a specific site rather than held at team level.
-    site_id: PropertyRef = PropertyRef("site_id")
-    dns_servers: PropertyRef = PropertyRef("dns_servers")
-    supported_record_types: PropertyRef = PropertyRef("supported_record_types")
-    ipv6_enabled: PropertyRef = PropertyRef("ipv6_enabled")
-    dedicated: PropertyRef = PropertyRef("dedicated")
+    site_id: PropertyRef = PropertyRef(
+        "site_id",
+        description="Id of the site the zone is attached to, when it is not held at team level.",
+    )
+    dns_servers: PropertyRef = PropertyRef(
+        "dns_servers", description="Nameservers the zone must be delegated to."
+    )
+    supported_record_types: PropertyRef = PropertyRef(
+        "supported_record_types", description="Record types the zone accepts."
+    )
+    ipv6_enabled: PropertyRef = PropertyRef(
+        "ipv6_enabled", description="Whether IPv6 records are enabled."
+    )
+    dedicated: PropertyRef = PropertyRef(
+        "dedicated", description="Whether the zone is on dedicated nameservers."
+    )
     # Delegation or validation problems Netlify reports on the zone. A zone in error is a
     # dangling-delegation candidate.
-    errors: PropertyRef = PropertyRef("errors")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    errors: PropertyRef = PropertyRef(
+        "errors",
+        description="Delegation or validation problems Netlify reports. A zone in error is a dangling-delegation candidate.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the zone was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the zone was last modified."
+    )
 
 
 # --- Relationship Definitions ---

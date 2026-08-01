@@ -16,17 +16,31 @@ from cartography.models.ontology.labels import THIRD_PARTY_APP
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyServiceInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify service instance id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site the add-on is installed on."
+    )
     # The add-on's slug is its stable identifier and doubles as the ThirdPartyApp client_id:
     # Netlify add-ons are identified by slug, not by an OAuth client id.
-    service_slug: PropertyRef = PropertyRef("service_slug", extra_index=True)
-    service_name: PropertyRef = PropertyRef("service_name")
-    service_path: PropertyRef = PropertyRef("service_path")
-    url: PropertyRef = PropertyRef("url")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    service_slug: PropertyRef = PropertyRef(
+        "service_slug",
+        extra_index=True,
+        description="Add-on slug, its stable identifier.",
+    )
+    service_name: PropertyRef = PropertyRef(
+        "service_name", description="Add-on display name."
+    )
+    service_path: PropertyRef = PropertyRef(
+        "service_path", description="Site path the add-on is mounted at."
+    )
+    url: PropertyRef = PropertyRef("url", description="Add-on URL.")
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the add-on was installed."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the add-on was last modified."
+    )
 
 
 # --- Relationship Definitions ---

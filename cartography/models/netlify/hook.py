@@ -14,16 +14,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class NetlifyHookNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The Netlify hook id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    site_id: PropertyRef = PropertyRef("site_id")
+    site_id: PropertyRef = PropertyRef(
+        "site_id", description="Id of the site whose events the hook reports."
+    )
     # Destination kind: url, slack, email, github_commit_status, gitlab_review_comment, ...
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Destination kind, e.g. `url`, `slack`, `email`, `github_commit_status`.",
+    )
     # The deploy lifecycle event that fires it, e.g. deploy_created, deploy_failed.
-    event: PropertyRef = PropertyRef("event")
-    disabled: PropertyRef = PropertyRef("disabled")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    event: PropertyRef = PropertyRef(
+        "event",
+        description="Deploy lifecycle event that fires it, e.g. `deploy_created`, `deploy_failed`.",
+    )
+    disabled: PropertyRef = PropertyRef(
+        "disabled", description="Whether the hook is turned off."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the hook was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the hook was last modified."
+    )
 
 
 # --- Relationship Definitions ---
