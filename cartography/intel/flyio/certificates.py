@@ -45,10 +45,10 @@ def get(
     certificates = []
     next_cursor = None
     while True:
+        current_cursor = next_cursor
         params = {}
-        if next_cursor:
-            params["cursor"] = next_cursor
-        previous_cursor = next_cursor
+        if current_cursor:
+            params["cursor"] = current_cursor
         response = get_json(
             api_session,
             f"{base_url}/v1/apps/{app_name}/certificates",
@@ -56,15 +56,15 @@ def get(
         )
         certificates.extend(response["certificates"])
         next_cursor = response.get("next_cursor")
+        if next_cursor and next_cursor == current_cursor:
+            raise ValueError(
+                "Fly.io certificates pagination returned a repeated next_cursor.",
+            )
         if not next_cursor:
             return {
                 "certificates": certificates,
                 "total_count": response.get("total_count", len(certificates)),
             }
-        if next_cursor == previous_cursor:
-            raise ValueError(
-                "Fly.io certificates pagination returned a repeated next_cursor.",
-            )
 
 
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
