@@ -26,7 +26,11 @@ import httpx
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.supply_chain import decode_attestation_blob_to_predicate
 from cartography.intel.supply_chain import extract_image_source_provenance
 from cartography.intel.supply_chain import extract_layers_from_oci_config
@@ -41,6 +45,15 @@ from cartography.models.scaleway.container_registry.image_layer import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+SCALEWAY_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="ScalewayContainerRegistryImage",
+    layer_label="ScalewayContainerRegistryImageLayer",
+    scope_label="ScalewayProject",
+    scope_properties=("id",),
+    image_layer_rel_types=("HAS_LAYER",),
+    stable_image_rel_types=(),
+)
 
 _HTTP_TIMEOUT = 30.0
 _MANIFEST_ACCEPT = ", ".join(
@@ -67,9 +80,44 @@ def sync(
     projects_id: list[str],
     update_tag: int,
 ) -> None:
-    raw, fetch_failed = get(neo4j_session, secret_key)
+    images_to_enrich = _get_images_to_enrich(neo4j_session)
+    skipped_by_project: dict[str, set[str]] = {}
+    for project_id in projects_id:
+        project_images = [
+            image for image in images_to_enrich if image.get("project_id") == project_id
+        ]
+        complete_digests = get_complete_layer_digests(
+            neo4j_session,
+            SCALEWAY_LAYER_GRAPH,
+            (str(image["digest"]) for image in project_images if image.get("digest")),
+            {"id": project_id},
+        )
+        skipped_by_project[project_id] = complete_digests
+
+    raw, fetch_failed = get(
+        neo4j_session,
+        secret_key,
+        images_to_enrich=images_to_enrich,
+        cached_layer_keys={
+            (project_id, digest)
+            for project_id, digests in skipped_by_project.items()
+            for digest in digests
+        },
+    )
     images_by_project, layers_by_project = transform(raw)
+    images_by_project = _merge_existing_image_enrichments(
+        neo4j_session,
+        images_by_project,
+    )
     load_supply_chain(neo4j_session, images_by_project, layers_by_project, update_tag)
+    for project_id, skipped_digests in skipped_by_project.items():
+        refresh_layer_closures(
+            neo4j_session,
+            SCALEWAY_LAYER_GRAPH,
+            skipped_digests,
+            {"id": project_id},
+            update_tag,
+        )
     if fetch_failed:
         # A transient registry error (timeout/401/5xx) on any image means we did
         # not refresh that image's layers this run. Skipping cleanup avoids
@@ -157,18 +205,27 @@ def fetch_image_supply_chain(
     repo_path: str,
     reference: str,
     secret_key: str,
-) -> tuple[dict[str, Any] | None, dict[str, str], dict[str, Any] | None]:
+    *,
+    fetch_config: bool = True,
+) -> tuple[
+    dict[str, Any] | None,
+    dict[str, str],
+    dict[str, Any] | None,
+    bool,
+]:
     """Fetch OCI supply-chain data for an image reference.
 
-    Returns ``(config, annotations, attestation_predicate)``, resolving a
-    multi-arch index to its runnable platform manifest and, if present, its
-    buildx SLSA attestation manifest. ``config``/``predicate`` are None when
-    absent; ``annotations`` merges index + platform manifest annotations.
+    Returns ``(config, annotations, attestation_predicate,
+    attestation_fetch_failed)``, resolving a multi-arch index to its runnable
+    platform manifest and, if present, its buildx SLSA attestation manifest.
+    ``config``/``predicate`` are None when absent; ``annotations`` merges index
+    + platform manifest annotations.
     """
     token = _registry_token(host, region, repo_path, secret_key)
     base = f"https://{host}/v2/{repo_path}"
     annotations: dict[str, str] = {}
     attestation_predicate: dict[str, Any] | None = None
+    attestation_fetch_failed = False
     # Blob reads 307-redirect to object storage; httpx drops the Authorization
     # header on the cross-host hop, so the presigned URL authenticates itself.
     with httpx.Client(
@@ -193,7 +250,12 @@ def fetch_image_supply_chain(
                             client, base, entry["digest"]
                         )
                     except httpx.HTTPError as exc:
-                        logger.debug("Attestation fetch failed for %s: %s", base, exc)
+                        logger.warning(
+                            "Attestation fetch failed for %s: %s",
+                            base,
+                            exc,
+                        )
+                        attestation_fetch_failed = True
                     continue
                 platform = entry.get("platform") or {}
                 if platform.get("os") in (None, "unknown"):
@@ -201,13 +263,25 @@ def fetch_image_supply_chain(
                 if platform_digest is None:
                     platform_digest = entry.get("digest")
             if platform_digest is None:
-                return None, annotations, attestation_predicate
+                return (
+                    None,
+                    annotations,
+                    attestation_predicate,
+                    attestation_fetch_failed,
+                )
+            if not fetch_config:
+                return (
+                    None,
+                    annotations,
+                    attestation_predicate,
+                    attestation_fetch_failed,
+                )
             manifest = _get_json(
                 client, f"{base}/manifests/{platform_digest}", _MANIFEST_ACCEPT
             )
             annotations.update(manifest.get("annotations") or {})
-        config = _fetch_config(client, base, manifest)
-    return config, annotations, attestation_predicate
+        config = _fetch_config(client, base, manifest) if fetch_config else None
+    return config, annotations, attestation_predicate, attestation_fetch_failed
 
 
 def _get_images_to_enrich(
@@ -232,7 +306,11 @@ def _get_images_to_enrich(
 
 @timeit
 def get(
-    neo4j_session: neo4j.Session, secret_key: str
+    neo4j_session: neo4j.Session,
+    secret_key: str,
+    *,
+    images_to_enrich: list[dict[str, Any]] | None = None,
+    cached_layer_keys: set[tuple[str, str]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """Fetch the OCI config for every Scaleway registry image.
 
@@ -242,7 +320,13 @@ def get(
     """
     enriched: list[dict[str, Any]] = []
     fetch_failed = False
-    for image in _get_images_to_enrich(neo4j_session):
+    candidates = (
+        images_to_enrich
+        if images_to_enrich is not None
+        else _get_images_to_enrich(neo4j_session)
+    )
+    cached_layer_keys = cached_layer_keys or set()
+    for image in candidates:
         uri = image.get("uri")
         digest = image.get("digest")
         if not uri or not digest:
@@ -253,8 +337,19 @@ def get(
             continue
         host, region, repo_path = parsed
         try:
-            config, annotations, attestation_predicate = fetch_image_supply_chain(
-                host, region, repo_path, digest, secret_key
+            (
+                config,
+                annotations,
+                attestation_predicate,
+                attestation_fetch_failed,
+            ) = fetch_image_supply_chain(
+                host,
+                region,
+                repo_path,
+                digest,
+                secret_key,
+                fetch_config=(str(image["project_id"]), str(digest))
+                not in cached_layer_keys,
             )
         except httpx.HTTPError as exc:
             logger.warning(
@@ -262,7 +357,12 @@ def get(
             )
             fetch_failed = True
             continue
-        if config is None:
+        fetch_failed = fetch_failed or attestation_fetch_failed
+        if (
+            config is None
+            and attestation_predicate is None
+            and not _provenance_from_annotations(annotations)
+        ):
             continue
         enriched.append(
             {
@@ -293,7 +393,11 @@ def _resolve_provenance(entry: dict[str, Any]) -> dict[str, str]:
     predicate = entry.get("attestation_predicate")
     sources = [
         extract_image_source_provenance(predicate) if predicate else {},
-        extract_provenance_from_oci_config(entry["config"]),
+        (
+            extract_provenance_from_oci_config(entry["config"])
+            if entry.get("config")
+            else {}
+        ),
         _provenance_from_annotations(entry.get("annotations") or {}),
     ]
     provenance: dict[str, str] = {}
@@ -313,21 +417,26 @@ def transform(
 
     for entry in raw:
         project_id = entry["project_id"]
-        config = entry["config"]
-        diff_ids, layer_history = extract_layers_from_oci_config(config)
+        config = entry.get("config")
         provenance = _resolve_provenance(entry)
-
-        # Skip images that yield neither layers nor provenance.
-        if not diff_ids and not provenance:
-            continue
 
         image_update: dict[str, Any] = {
             "digest": entry["digest"],
-            "layer_diff_ids": diff_ids,
-            "source_uri": provenance.get("source_uri"),
-            "source_revision": provenance.get("source_revision"),
-            "source_file": provenance.get("source_file"),
         }
+        if config:
+            diff_ids, layer_history = extract_layers_from_oci_config(config)
+            image_update["layer_diff_ids"] = diff_ids
+        else:
+            diff_ids, layer_history = [], []
+        image_update.update(
+            {
+                field: provenance[field]
+                for field in _PROVENANCE_FIELDS
+                if provenance.get(field)
+            },
+        )
+        if len(image_update) == 1:
+            continue
         images_by_project.setdefault(project_id, []).append(image_update)
 
         if not diff_ids:
@@ -353,6 +462,51 @@ def transform(
             idx += 1
 
     return images_by_project, layers_by_project
+
+
+def _merge_existing_image_enrichments(
+    neo4j_session: neo4j.Session,
+    images_by_project: dict[str, list[dict[str, Any]]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Preserve immutable layers and previously discovered provenance."""
+    merged_by_project: dict[str, list[dict[str, Any]]] = {}
+    fields = ("layer_diff_ids", *_PROVENANCE_FIELDS)
+    for project_id, updates in images_by_project.items():
+        digests = sorted(
+            {str(update["digest"]) for update in updates if update.get("digest")}
+        )
+        existing_rows = neo4j_session.execute_read(
+            read_list_of_dicts_tx,
+            """
+            MATCH (:ScalewayProject {id: $project_id})-[:RESOURCE]->
+                  (image:ScalewayContainerRegistryImage)
+            WHERE image.digest IN $digests
+            RETURN
+                image.digest AS digest,
+                image.layer_diff_ids AS layer_diff_ids,
+                image.source_uri AS source_uri,
+                image.source_revision AS source_revision,
+                image.source_file AS source_file
+            """,
+            project_id=project_id,
+            digests=digests,
+        )
+        existing_by_digest = {row["digest"]: row for row in existing_rows}
+        merged_updates = []
+        for update in updates:
+            merged = {
+                "digest": update["digest"],
+                **{
+                    field: existing_by_digest.get(update["digest"], {}).get(field)
+                    for field in fields
+                },
+            }
+            merged.update(
+                {field: value for field, value in update.items() if value is not None},
+            )
+            merged_updates.append(merged)
+        merged_by_project[project_id] = merged_updates
+    return merged_by_project
 
 
 @timeit

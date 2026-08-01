@@ -59,6 +59,13 @@ class _FakeAsyncHttpClient:
 
 
 def _load_example_ecr_image(neo4j_session, mocker):
+    # Credential-recovery tests must exercise the registry fetch path even if a
+    # previous test left a complete layer closure for this shared image digest.
+    mocker.patch.object(
+        ecr_layers,
+        "get_complete_layer_digests",
+        return_value=set(),
+    )
     mocker.patch.object(
         cartography.intel.aws.ecr,
         "get_ecr_repositories",
@@ -423,6 +430,41 @@ def test_sync_with_layers(
         == expected_tail_rels
     )
 
+    # A second inventory pass observes the same immutable digest. Layer sync
+    # must refresh the existing closure without another ECR manifest/config pull.
+    second_update_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        second_update_tag,
+        {"UPDATE_TAG": second_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    manifest_fetch_count = mock_batch_get_manifest.call_count
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        second_update_tag,
+        {"UPDATE_TAG": second_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert mock_batch_get_manifest.call_count == manifest_fetch_count
+    stale_rows = neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage {id: $digest})-[rel:HAS_LAYER|HEAD|TAIL]->(layer)
+        WHERE img.lastupdated <> $update_tag
+           OR rel.lastupdated <> $update_tag
+           OR layer.lastupdated <> $update_tag
+        RETURN img, rel, layer
+        """,
+        digest="sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        update_tag=second_update_tag,
+    ).data()
+    assert stale_rows == []
+
 
 def test_shared_layers_preserve_multiple_next_edges():
     """Test that shared base layers preserve NEXT edges to different successor layers."""
@@ -499,6 +541,48 @@ def test_shared_layers_preserve_multiple_next_edges():
     ) in membership_pairs
 
 
+def test_layer_cleanup_does_not_delete_stale_inventory_images(neo4j_session):
+    # Arrange
+    account_id = "layer-cleanup-account"
+    image_digest = "sha256:layer-cleanup-image"
+    layer_diff_id = "sha256:layer-cleanup-layer"
+    neo4j_session.run(
+        """
+        MERGE (account:AWSAccount {id: $account_id})
+        MERGE (image:AWSECRImage {id: $image_digest})
+        SET image.digest = $image_digest, image.lastupdated = 1
+        MERGE (account)-[image_resource:RESOURCE]->(image)
+        SET image_resource.lastupdated = 1
+        MERGE (layer:AWSECRImageLayer {id: $layer_diff_id})
+        SET layer.diff_id = $layer_diff_id, layer.lastupdated = 1
+        MERGE (account)-[layer_resource:RESOURCE]->(layer)
+        SET layer_resource.lastupdated = 1
+        MERGE (image)-[has_layer:HAS_LAYER]->(layer)
+        SET has_layer.lastupdated = 1
+        """,
+        account_id=account_id,
+        image_digest=image_digest,
+        layer_diff_id=layer_diff_id,
+    ).consume()
+
+    # Act
+    ecr_layers.cleanup(
+        neo4j_session,
+        {"AWS_ID": account_id, "UPDATE_TAG": 2},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSECRImage", ["id"]) >= {(image_digest,)}
+    relationship_count = neo4j_session.run(
+        """
+        MATCH (:AWSECRImage {id: $image_digest})-[relationship:HAS_LAYER]->()
+        RETURN count(relationship) AS count
+        """,
+        image_digest=image_digest,
+    ).single(strict=True)["count"]
+    assert relationship_count == 0
+
+
 def test_transform_marks_empty_layer():
     layers, _ = ecr_layers.transform_ecr_image_layers(
         {
@@ -561,6 +645,14 @@ def test_sync_built_from_relationship(
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+    neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage)
+        WHERE img.digest IN $digests
+        REMOVE img.layer_diff_ids
+        """,
+        digests=[parent_digest, child_digest],
+    ).consume()
 
     mock_get_ecr_images.return_value = {
         (
@@ -599,6 +691,7 @@ def test_sync_built_from_relationship(
                 "parent_image_digest": parent_digest,
             }
         },
+        True,
     )
 
     sync_ecr_layers(
@@ -678,6 +771,13 @@ def test_sync_circleci_label_provenance_links_github_repository(
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+    neo4j_session.run(
+        """
+        MATCH (img:AWSECRImage {digest: $digest})
+        REMOVE img.layer_diff_ids
+        """,
+        digest=image_digest,
+    ).consume()
 
     sync_ecr_layers(
         neo4j_session,
@@ -985,7 +1085,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1020,6 +1120,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     )
     # Verify child digest is in digest_map too
     assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
+    assert fetch_complete is True
 
 
 @pytest.mark.asyncio
@@ -1091,7 +1192,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
     mock_batch_get_manifest.side_effect = fake_batch_get_manifest
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, _, provenance_map = (
+    image_layers_data, digest_map, _, provenance_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1128,6 +1229,7 @@ async def test_fetch_image_layers_async_maps_manifest_child_label_provenance(
             "source_file": "Dockerfile",
         },
     }
+    assert fetch_complete is True
 
 
 @pytest.mark.asyncio
@@ -1151,7 +1253,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map, fetch_complete = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -1162,6 +1264,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
     assert image_layers_data == {}
     assert digest_map == {}
     assert history_map == {}
+    assert fetch_complete is True
 
 
 @patch("cartography.client.aws.ecr.get_ecr_images")
@@ -1311,6 +1414,7 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         {},
         # image_attestation_map (empty)
         {},
+        True,
     )
 
     sync_ecr_layers(
