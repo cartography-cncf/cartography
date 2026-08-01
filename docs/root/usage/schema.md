@@ -114,6 +114,9 @@
 ```{include} ../modules/lastpass/schema.md
 ```
 
+```{include} ../modules/modal/schema.md
+```
+
 ```{include} ../modules/oci/schema.md
 ```
 

@@ -94,6 +94,7 @@ PANEL_VERCEL = "Vercel Options"
 PANEL_SUPABASE = "Supabase Options"
 PANEL_RAILWAY = "Railway Options"
 PANEL_CIRCLECI = "CircleCI Options"
+PANEL_MODAL = "Modal Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -152,6 +153,7 @@ MODULE_PANELS = {
     "supabase": PANEL_SUPABASE,
     "railway": PANEL_RAILWAY,
     "circleci": PANEL_CIRCLECI,
+    "modal": PANEL_MODAL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -2312,6 +2314,43 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Modal Options
+            # =================================================================
+            modal_token_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-id",
+                    help=(
+                        "Modal API token id (ak-...). The workspace to sync is derived "
+                        "from the token itself."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_token_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-secret-env-var",
+                    help="Environment variable name containing the Modal API token secret (as-...).",
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_environments: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-environments",
+                    help=(
+                        "Comma-separated Modal environment names to sync. Defaults to every "
+                        "environment in the workspace. Environments outside this list are "
+                        "still inventoried as nodes, but their contents are not refreshed."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -2777,6 +2816,23 @@ class CLI:
                 else None
             )
 
+            # Read Modal token secret
+            modal_token_secret = None
+            if modal_token_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --modal-token-id is missing, so the module entry's guard sees the
+                # asymmetric configuration and fails loudly instead of silently skipping.
+                logger.debug(
+                    "Reading Modal token secret from environment variable %s",
+                    modal_token_secret_env_var,
+                )
+                modal_token_secret = os.environ.get(modal_token_secret_env_var)
+            modal_environment_list = (
+                [e.strip() for e in modal_environments.split(",") if e.strip()]
+                if modal_environments
+                else None
+            )
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -3156,6 +3212,9 @@ class CLI:
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,
+                modal_token_id=modal_token_id,
+                modal_token_secret=modal_token_secret,
+                modal_environments=modal_environment_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,

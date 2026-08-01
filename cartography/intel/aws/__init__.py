@@ -2,7 +2,9 @@ import datetime
 import logging
 import os
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -105,10 +107,8 @@ def _sync_one_account(
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
     aioboto3_session: aioboto3.Session | None = None,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
-    if aioboto3_session is None:
-        aioboto3_session = aioboto3.Session()
-
     migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
@@ -155,6 +155,17 @@ def _sync_one_account(
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
+        # `route53` creates DNS_POINTS_TO edges by matching already-existing target nodes,
+        # so selecting it without these produces zero such edges, and cleanup_route53 then
+        # deletes the ones a previous run had created. AWSESDomain is deliberately absent:
+        # `elasticsearch` runs after `route53`, so that edge is never created on a first run
+        # no matter what the user selects, and a warning here would not help.
+        "route53": [
+            "ec2:load_balancer",
+            "ec2:load_balancer_v2",
+            "ec2:instance",
+            "elastic_ip_addresses",
+        ],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -175,6 +186,10 @@ def _sync_one_account(
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
             # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+            if aioboto3_session is None:
+                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+                aioboto3_session = aioboto3_session_factory()
+
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
@@ -182,6 +197,7 @@ def _sync_one_account(
                 current_aws_account_id,
                 update_tag,
                 common_job_parameters,
+                aioboto3_session_factory=aioboto3_session_factory,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
@@ -615,7 +631,6 @@ def _sync_multiple_accounts(
         # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
-        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         try:
             _sync_one_account(
@@ -626,7 +641,10 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
-                aioboto3_session=aioboto3_session,
+                aioboto3_session_factory=partial(
+                    aioboto3.Session,
+                    **session_kwargs,
+                ),
             )
         except Exception as e:
             if aws_best_effort_mode:

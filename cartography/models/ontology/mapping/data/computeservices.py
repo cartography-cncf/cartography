@@ -165,6 +165,49 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+# Modal AppState. The shared canonical set is
+# {active, creating, updating, deleting, failed, unknown}, which has no "stopped": a stopped
+# Modal app collapses to "deleting", the same choice AWS ECS makes for INACTIVE. Modal has no
+# update state, and the disabled / disconnected / derived variants have no equivalent at all.
+_MODAL_APP_STATUS = {
+    "APP_STATE_UNSPECIFIED": "unknown",
+    "APP_STATE_INITIALIZING": "creating",
+    "APP_STATE_EPHEMERAL": "active",
+    "APP_STATE_DETACHED": "active",
+    "APP_STATE_DEPLOYED": "active",
+    "APP_STATE_STOPPING": "deleting",
+    "APP_STATE_STOPPED": "deleting",
+    "APP_STATE_DISABLED": "unknown",
+    "APP_STATE_DETACHED_DISCONNECTED": "unknown",
+    "APP_STATE_DERIVED": "unknown",
+}
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalApp",
+            fields=[
+                # Ephemeral apps have no name; the description is then the only human label.
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["description"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _MODAL_APP_STATUS},
+                ),
+                # region: a Modal app is multi-region; no single region is exposed.
+            ],
+        ),
+    ],
+)
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
@@ -172,4 +215,5 @@ COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "kubernetes": kubernetes_mapping,
     "railway": railway_mapping,
+    "modal": modal_mapping,
 }

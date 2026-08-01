@@ -27,6 +27,7 @@ DP -- CREATED_BY --> U
 FBR -- CREATED_BY --> U
 EV -- REFERENCES --> EC
 I -- CONFIGURED_FOR --> P
+U -- MEMBER_OF --> AG
 AG -- HAS_MEMBER --> U
 AG -- HAS_ACCESS_TO --> P
 W -- WATCHES --> P
@@ -327,7 +328,7 @@ Represents a third-party integration installed on the team.
 
 Represents a team access group used for RBAC.
 
-> **Ontology Mapping**: This node has the extra label `Group` to enable cross-platform queries for user groups across different systems (e.g., OktaGroup, GoogleWorkspaceGroup, AWSGroup).
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|-------------|
@@ -343,9 +344,12 @@ Represents a team access group used for RBAC.
 | member_ids | List of user IDs. |
 
 #### Relationships
-- An access group groups users.
+- An access group groups users. Membership is exposed through the canonical ontology edge; the
+  reverse `HAS_MEMBER` edge is deprecated and will be removed in v1.0.0.
     ```
-    (:VercelTeam)-[:RESOURCE]->(:VercelAccessGroup)-[:HAS_MEMBER]->(:VercelUser)
+    (:VercelTeam)-[:RESOURCE]->(:VercelAccessGroup)
+    (:VercelUser)-[:MEMBER_OF]->(:VercelAccessGroup)
+    (:VercelAccessGroup)-[:HAS_MEMBER]->(:VercelUser)
     ```
 - An access group grants access to projects. The `HAS_ACCESS_TO` relationship carries a `role` property (`ADMIN`, `PROJECT_DEVELOPER`, `PROJECT_VIEWER`, or `PROJECT_GUEST`) describing the per-project privilege level.
     ```

@@ -146,10 +146,35 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Every Modal function runs from a Modal image, never from a zip of source.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "container"},
+                ),
+                # runtime: Modal does not report the interpreter version of a deployed function.
+                # memory / timeout: write-only in Modal's API (see the ModalFunction model).
+                # image / image_digest: Modal image ids are neither digests nor pull URIs.
+            ],
+        ),
+    ],
+)
+
 FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "supabase": supabase_mapping,
+    "modal": modal_mapping,
 }

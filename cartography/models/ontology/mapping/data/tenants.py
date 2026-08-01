@@ -655,6 +655,31 @@ supabase_mapping = OntologyMapping(
 )
 
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalWorkspace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Modal exposes no workspace lifecycle state.
+                # domain: a Modal workspace has a URL slug, not a domain.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ModalEnvironment",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: environments have no lifecycle state either.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -706,4 +731,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "supabase": supabase_mapping,
+    "modal": modal_mapping,
 }
