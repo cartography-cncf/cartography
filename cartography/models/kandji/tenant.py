@@ -9,12 +9,14 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class KandjiTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Kandji tenant ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class KandjiTenantSchema(CartographyNodeSchema):
+    """A Kandji tenant containing managed devices."""
+
     label: str = "KandjiTenant"  # The label of the node
     properties: KandjiTenantNodeProperties = (
         KandjiTenantNodeProperties()

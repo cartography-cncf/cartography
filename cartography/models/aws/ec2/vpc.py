@@ -14,14 +14,33 @@ from cartography.models.ontology.labels import VIRTUAL_NETWORK
 
 @dataclass(frozen=True)
 class VPCNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("VpcId")
-    vpcid: PropertyRef = PropertyRef("VpcId", extra_index=True)
-    primary_cidr_block: PropertyRef = PropertyRef("PrimaryCIDRBlock")
-    instance_tenancy: PropertyRef = PropertyRef("InstanceTenancy")
-    state: PropertyRef = PropertyRef("State")
-    is_default: PropertyRef = PropertyRef("IsDefault")
-    dhcp_options_id: PropertyRef = PropertyRef("DhcpOptionsId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "VpcId", description="Unique identifier defined VPC node (vpcid)"
+    )
+    vpcid: PropertyRef = PropertyRef(
+        "VpcId", extra_index=True, description="The VPC unique identifier"
+    )
+    primary_cidr_block: PropertyRef = PropertyRef(
+        "PrimaryCIDRBlock", description="The primary IPv4 CIDR block for the VPC."
+    )
+    instance_tenancy: PropertyRef = PropertyRef(
+        "InstanceTenancy",
+        description="The allowed tenancy of instances launched into the VPC.",
+    )
+    state: PropertyRef = PropertyRef(
+        "State", description="The current state of the VPC."
+    )
+    is_default: PropertyRef = PropertyRef(
+        "IsDefault", description="Indicates whether the VPC is the default VPC."
+    )
+    dhcp_options_id: PropertyRef = PropertyRef(
+        "DhcpOptionsId", description="The ID of a set of DHCP options."
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="(optional) the region of this VPC.  This field is only available on VPCs in your account.  It is not available on VPCs that are external to your account and linked via a VPC peering relationship.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,6 +62,8 @@ class VPCToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSVpcSchema(CartographyNodeSchema):
+    """Representation of an [AWS VPC](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Vpc.html). More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html"""
+
     label: str = "AWSVpc"
     properties: VPCNodeProperties = VPCNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])

@@ -14,11 +14,24 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class SubImageTeamMemberNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    first_name: PropertyRef = PropertyRef("first_name")
-    last_name: PropertyRef = PropertyRef("last_name")
-    role: PropertyRef = PropertyRef("role")
+    id: PropertyRef = PropertyRef("id", description="Team member ID.")
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="Team member email address.",
+    )
+    first_name: PropertyRef = PropertyRef(
+        "first_name",
+        description="Team member first name.",
+    )
+    last_name: PropertyRef = PropertyRef(
+        "last_name",
+        description="Team member last name.",
+    )
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Team member role, such as admin or viewer.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +43,8 @@ class SubImageTeamMemberToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SubImageTenant)-[:RESOURCE]->(:SubImageTeamMember)
 class SubImageTeamMemberToTenantRel(CartographyRelSchema):
+    """The tenant contains the team member."""
+
     target_node_label: str = "SubImageTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -43,6 +58,8 @@ class SubImageTeamMemberToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SubImageTeamMemberSchema(CartographyNodeSchema):
+    """A team member in a SubImage tenant."""
+
     label: str = "SubImageTeamMember"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: SubImageTeamMemberNodeProperties = SubImageTeamMemberNodeProperties()

@@ -15,20 +15,44 @@ from cartography.models.ontology.labels import CONTAINER
 
 @dataclass(frozen=True)
 class RailwayDeploymentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway deployment.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    status: PropertyRef = PropertyRef("status", extra_index=True)
+    status: PropertyRef = PropertyRef(
+        "status", extra_index=True, description="Current deployment status."
+    )
     # "current" for the revision the service instance is serving, "historical" for a
     # superseded one. Drives the conditional Container label below.
-    lifecycle: PropertyRef = PropertyRef("lifecycle", extra_index=True)
-    status_updated_at: PropertyRef = PropertyRef("statusUpdatedAt")
-    project_id: PropertyRef = PropertyRef("projectId")
-    environment_id: PropertyRef = PropertyRef("environmentId", extra_index=True)
-    service_id: PropertyRef = PropertyRef("serviceId", extra_index=True)
-    url: PropertyRef = PropertyRef("url", extra_index=True)
-    static_url: PropertyRef = PropertyRef("staticUrl")
-    can_redeploy: PropertyRef = PropertyRef("canRedeploy")
-    created_at: PropertyRef = PropertyRef("createdAt")
+    lifecycle: PropertyRef = PropertyRef(
+        "lifecycle",
+        extra_index=True,
+        description="Whether this deployment is the current or a historical revision.",
+    )
+    status_updated_at: PropertyRef = PropertyRef(
+        "statusUpdatedAt", description="Time when the deployment status last changed."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "projectId", description="ID of the owning project."
+    )
+    environment_id: PropertyRef = PropertyRef(
+        "environmentId",
+        extra_index=True,
+        description="ID of the deployment environment.",
+    )
+    service_id: PropertyRef = PropertyRef(
+        "serviceId", extra_index=True, description="ID of the deployed service."
+    )
+    url: PropertyRef = PropertyRef(
+        "url", extra_index=True, description="URL associated with the deployment."
+    )
+    static_url: PropertyRef = PropertyRef(
+        "staticUrl", description="Stable URL associated with the deployment."
+    )
+    can_redeploy: PropertyRef = PropertyRef(
+        "canRedeploy", description="Whether the deployment can be redeployed."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Time when the deployment was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -39,6 +63,8 @@ class RailwayDeploymentToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayDeployment)
 class RailwayDeploymentToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a deployment that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -59,6 +85,8 @@ class RailwayDeploymentToServiceInstanceRelProperties(CartographyRelProperties):
 # (:RailwayDeployment)-[:WORKLOAD_PARENT]->(:RailwayServiceInstance)
 # Required by ONTOLOGY_REL_CONSTRAINTS: Container -> ComputeService must be WORKLOAD_PARENT.
 class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
+    """Identifies the service instance represented by a Railway deployment revision."""
+
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -83,6 +111,8 @@ class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
 # cross-provider container ontology with things that are not running. Superseded revisions
 # stay in the graph as plain RailwayDeployment nodes for deploy history.
 class RailwayDeploymentSchema(CartographyNodeSchema):
+    """A concrete deployment revision of a Railway service instance."""
+
     label: str = "RailwayDeployment"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [CONTAINER.when(lifecycle="current")],

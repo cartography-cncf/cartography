@@ -14,11 +14,20 @@ from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 @dataclass(frozen=True)
 class OpenAIServiceAccountNodeProperties(CartographyNodeProperties):
-    object: PropertyRef = PropertyRef("object")
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    role: PropertyRef = PropertyRef("role")
-    created_at: PropertyRef = PropertyRef("created_at")
+    object: PropertyRef = PropertyRef(
+        "object",
+        description='Object type, always "organization.project.service_account".',
+    )
+    id: PropertyRef = PropertyRef("id", description="OpenAI service account ID.")
+    name: PropertyRef = PropertyRef("name", description="Service account name.")
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Project role: owner or member.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Unix timestamp when the service account was created.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +39,8 @@ class OpenAIServiceAccountToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIServiceAccount)<-[:RESOURCE]-(:OpenAIProject)
 class OpenAIServiceAccountToProjectRel(CartographyRelSchema):
+    """The project contains the service account."""
+
     target_node_label: str = "OpenAIProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("project_id", set_in_kwargs=True)},
@@ -43,6 +54,8 @@ class OpenAIServiceAccountToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OpenAIServiceAccountSchema(CartographyNodeSchema):
+    """A service account in an OpenAI project."""
+
     label: str = "OpenAIServiceAccount"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SERVICE_ACCOUNT])
     properties: OpenAIServiceAccountNodeProperties = (

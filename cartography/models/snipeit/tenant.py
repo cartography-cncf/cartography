@@ -9,12 +9,14 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class SnipeitTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Snipe-IT tenant ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SnipeitTenantSchema(CartographyNodeSchema):
+    """A Snipe-IT tenant containing users and assets."""
+
     label: str = "SnipeitTenant"  # The label of the node
     properties: SnipeitTenantNodeProperties = (
         SnipeitTenantNodeProperties()

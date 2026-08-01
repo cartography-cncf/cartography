@@ -15,11 +15,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EventBridgeTargetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    rule_arn: PropertyRef = PropertyRef("RuleArn")
-    role_arn: PropertyRef = PropertyRef("RoleArn")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Id", description="System-assigned eventbridge target ID"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the target",
+    )
+    rule_arn: PropertyRef = PropertyRef(
+        "RuleArn", description="The arn of the rule which is associated with target"
+    )
+    role_arn: PropertyRef = PropertyRef(
+        "RoleArn",
+        description="The Amazon Resource Name (ARN) of the role that is used for target invocation",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the target"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,6 +74,8 @@ class EventBridgeTargetToEventBridgeRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EventBridgeTargetSchema(CartographyNodeSchema):
+    """Representation of an AWS [EventBridge Target](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListTargetsByRule.html)"""
+
     label: str = "AWSEventBridgeTarget"
     # DEPRECATED: legacy EventBridgeTarget node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EVENT_BRIDGE_TARGET])

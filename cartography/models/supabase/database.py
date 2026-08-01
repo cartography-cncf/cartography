@@ -17,26 +17,52 @@ class SupabaseDatabaseNodeProperties(CartographyNodeProperties):
     # Synthesised as "<project ref>/postgres": each project hosts exactly one
     # Postgres database, and the API exposes it as a sub-object of the project
     # rather than as an addressable resource with its own id.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Synthesised as `<project ref>/postgres`"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    host: PropertyRef = PropertyRef("host", extra_index=True)
-    version: PropertyRef = PropertyRef("version")
-    postgres_engine: PropertyRef = PropertyRef("postgres_engine")
-    release_channel: PropertyRef = PropertyRef("release_channel")
-    region: PropertyRef = PropertyRef("region")
+    name: PropertyRef = PropertyRef(
+        "name", description="Display name, derived from the project name"
+    )
+    host: PropertyRef = PropertyRef(
+        "host", extra_index=True, description="The database hostname"
+    )
+    version: PropertyRef = PropertyRef("version", description="The Postgres version")
+    postgres_engine: PropertyRef = PropertyRef(
+        "postgres_engine", description="The major Postgres engine version"
+    )
+    release_channel: PropertyRef = PropertyRef(
+        "release_channel", description="The release channel the database runs on"
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="The region hosting the database"
+    )
 
     # Posture, rolled up from /ssl-enforcement, /network-restrictions and
     # /database/backups.
-    ssl_enforced: PropertyRef = PropertyRef("ssl_enforced")
+    ssl_enforced: PropertyRef = PropertyRef(
+        "ssl_enforced", description="Whether TLS is required for database connections"
+    )
     network_restrictions_status: PropertyRef = PropertyRef(
         "network_restrictions_status",
+        description="Status of the project's network restriction configuration",
     )
-    db_allowed_cidrs: PropertyRef = PropertyRef("db_allowed_cidrs")
-    db_allowed_cidrs_v6: PropertyRef = PropertyRef("db_allowed_cidrs_v6")
-    pitr_enabled: PropertyRef = PropertyRef("pitr_enabled")
-    walg_enabled: PropertyRef = PropertyRef("walg_enabled")
-    latest_backup_at: PropertyRef = PropertyRef("latest_backup_at")
+    db_allowed_cidrs: PropertyRef = PropertyRef(
+        "db_allowed_cidrs",
+        description="IPv4 CIDRs allowed to reach the database. An empty or absent value means unrestricted",
+    )
+    db_allowed_cidrs_v6: PropertyRef = PropertyRef(
+        "db_allowed_cidrs_v6", description="IPv6 CIDRs allowed to reach the database"
+    )
+    pitr_enabled: PropertyRef = PropertyRef(
+        "pitr_enabled", description="Whether point-in-time recovery is enabled"
+    )
+    walg_enabled: PropertyRef = PropertyRef(
+        "walg_enabled", description="Whether WAL-G physical backups are enabled"
+    )
+    latest_backup_at: PropertyRef = PropertyRef(
+        "latest_backup_at", description="Timestamp of the most recent backup"
+    )
 
 
 @dataclass(frozen=True)
@@ -60,6 +86,8 @@ class SupabaseDatabaseToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseDatabaseSchema(CartographyNodeSchema):
+    """Represents the Postgres database backing a Supabase project, together with its network, TLS and backup posture."""
+
     label: str = "SupabaseDatabase"
     properties: SupabaseDatabaseNodeProperties = SupabaseDatabaseNodeProperties()
     sub_resource_relationship: SupabaseDatabaseToProjectRel = (

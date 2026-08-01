@@ -16,12 +16,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ELBListenerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    port: PropertyRef = PropertyRef("port")
-    protocol: PropertyRef = PropertyRef("protocol")
-    instance_port: PropertyRef = PropertyRef("instance_port")
-    instance_protocol: PropertyRef = PropertyRef("instance_protocol")
-    policy_names: PropertyRef = PropertyRef("policy_names")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSELBListener` node."
+    )
+    port: PropertyRef = PropertyRef(
+        "port",
+        description="Load balancer port on which the listener accepts connections.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol", description="Protocol used by the load balancer listener."
+    )
+    instance_port: PropertyRef = PropertyRef(
+        "instance_port",
+        description="Backend instance port to which the listener forwards traffic.",
+    )
+    instance_protocol: PropertyRef = PropertyRef(
+        "instance_protocol",
+        description="Protocol used to forward listener traffic to backend instances.",
+    )
+    policy_names: PropertyRef = PropertyRef(
+        "policy_names",
+        description="Names of load balancer policies enabled on the listener.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -63,6 +79,8 @@ class ELBListenerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBListenerSchema(CartographyNodeSchema):
+    """Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_Listener.html).  Here, an AWSELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html)."""
+
     label: str = "AWSELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     # DEPRECATED: legacy ELBListener node label will be removed in v1.0.0.

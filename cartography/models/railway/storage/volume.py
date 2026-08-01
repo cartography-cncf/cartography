@@ -12,11 +12,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RailwayVolumeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway volume.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    project_id: PropertyRef = PropertyRef("projectId", extra_index=True)
-    created_at: PropertyRef = PropertyRef("createdAt")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the volume."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "projectId", extra_index=True, description="ID of the owning project."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Time when the volume was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,8 @@ class RailwayVolumeToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayVolume)
 class RailwayVolumeToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a volume definition that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -42,6 +50,8 @@ class RailwayVolumeToProjectRel(CartographyRelSchema):
 # The project-scoped volume definition. The actual disk, with its size, region and state,
 # is the per-environment RailwayVolumeInstance.
 class RailwayVolumeSchema(CartographyNodeSchema):
+    """A Railway volume definition whose disks exist per environment."""
+
     label: str = "RailwayVolume"
     properties: RailwayVolumeNodeProperties = RailwayVolumeNodeProperties()
     sub_resource_relationship: RailwayVolumeToProjectRel = RailwayVolumeToProjectRel()

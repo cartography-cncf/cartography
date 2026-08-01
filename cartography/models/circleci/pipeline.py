@@ -16,25 +16,42 @@ from cartography.models.ontology.labels import CICD_PIPELINE
 class CircleCIPipelineNodeProperties(CartographyNodeProperties):
     # A pipeline definition (the config/source binding). Pipeline runs are not
     # ingested - they are high-volume ephemeral telemetry, not inventory.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="CircleCI pipeline ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    created_at: PropertyRef = PropertyRef("created_at")
-    config_source_provider: PropertyRef = PropertyRef("config_source_provider")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Pipeline name."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Pipeline description."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Pipeline creation timestamp."
+    )
+    config_source_provider: PropertyRef = PropertyRef(
+        "config_source_provider", description="Pipeline configuration provider."
+    )
     config_source_repo_full_name: PropertyRef = PropertyRef(
-        "config_source_repo_full_name"
+        "config_source_repo_full_name",
+        description="Full name of the configuration repository.",
     )
     config_source_repo_external_id: PropertyRef = PropertyRef(
-        "config_source_repo_external_id"
+        "config_source_repo_external_id",
+        description="External ID of the configuration repository.",
     )
-    config_source_file_path: PropertyRef = PropertyRef("config_source_file_path")
-    checkout_source_provider: PropertyRef = PropertyRef("checkout_source_provider")
+    config_source_file_path: PropertyRef = PropertyRef(
+        "config_source_file_path",
+        description="Path to the pipeline configuration file.",
+    )
+    checkout_source_provider: PropertyRef = PropertyRef(
+        "checkout_source_provider", description="Pipeline checkout provider."
+    )
     checkout_source_repo_full_name: PropertyRef = PropertyRef(
-        "checkout_source_repo_full_name"
+        "checkout_source_repo_full_name",
+        description="Full name of the checkout repository.",
     )
     checkout_source_repo_external_id: PropertyRef = PropertyRef(
-        "checkout_source_repo_external_id"
+        "checkout_source_repo_external_id",
+        description="External ID of the checkout repository.",
     )
 
 
@@ -46,6 +63,8 @@ class CircleCIPipelineToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CircleCIProject)-[:RESOURCE]->(:CircleCIPipeline)
 class CircleCIPipelineToProjectRel(CartographyRelSchema):
+    """The CircleCI project contains the pipeline definition."""
+
     target_node_label: str = "CircleCIProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -59,6 +78,8 @@ class CircleCIPipelineToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CircleCIPipelineSchema(CartographyNodeSchema):
+    """A CircleCI pipeline definition with the canonical CICDPipeline label."""
+
     label: str = "CircleCIPipeline"
     properties: CircleCIPipelineNodeProperties = CircleCIPipelineNodeProperties()
     # CICDPipeline label maps this node into the ontology alongside other CI/CD

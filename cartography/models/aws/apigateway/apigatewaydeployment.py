@@ -15,10 +15,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayDeploymentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    arn: PropertyRef = PropertyRef("id", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    region: PropertyRef = PropertyRef("region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="The identifier for the deployment resource as string of api id and deployment id",
+    )
+    arn: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="The identifier for the deployment resource.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The description for the deployment resource."
+    )
+    region: PropertyRef = PropertyRef(
+        "region",
+        set_in_kwargs=True,
+        description="The region for the deployment resource.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,6 +75,8 @@ class APIGatewayDeploymentToRestAPIRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayDeploymentSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/apigateway/latest/api/API_GetDeployments.html)."""
+
     label: str = "AWSAPIGatewayDeployment"
     # DEPRECATED: legacy APIGatewayDeployment node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

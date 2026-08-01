@@ -21,6 +21,8 @@ class AppServiceToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AppServiceToTagRel(CartographyRelSchema):
+    """An Azure App Service has the tag."""
+
     target_node_label: str = "AzureAppService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class AppServiceToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureAppServiceTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

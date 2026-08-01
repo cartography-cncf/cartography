@@ -21,6 +21,8 @@ class LogicAppToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class LogicAppToTagRel(CartographyRelSchema):
+    """An Azure Logic App has the tag."""
+
     target_node_label: str = "AzureLogicApp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class LogicAppToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureLogicAppTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

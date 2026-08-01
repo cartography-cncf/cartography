@@ -42,6 +42,7 @@ modules/keycloak/index
 modules/kubernetes/index
 modules/lastpass/index
 modules/microsoft/index
+modules/modal/index
 modules/netlify/index
 modules/oci/index
 modules/okta/index
@@ -62,6 +63,7 @@ modules/subimage/index
 modules/supabase/index
 modules/syft/index
 modules/tailscale/index
+modules/tenable/index
 modules/trivy/index
 modules/vercel/index
 modules/workday/index

@@ -17,20 +17,42 @@ from cartography.models.ontology.labels import API_KEY
 @dataclass(frozen=True)
 class AccountAccessKeyNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("accesskeyid")
-    accesskeyid: PropertyRef = PropertyRef("accesskeyid", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "accesskeyid", description="The access key ID (same as accesskeyid)"
+    )
+    accesskeyid: PropertyRef = PropertyRef(
+        "accesskeyid", extra_index=True, description="The ID for this access key"
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM access keys
-    createdate: PropertyRef = PropertyRef("createdate")
-    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
-    status: PropertyRef = PropertyRef("status")
-    lastuseddate: PropertyRef = PropertyRef("lastuseddate")
-    lastuseddate_dt: PropertyRef = PropertyRef("lastuseddate_dt")
-    lastusedservice: PropertyRef = PropertyRef("lastusedservice")
-    lastusedregion: PropertyRef = PropertyRef("lastusedregion")
+    createdate: PropertyRef = PropertyRef(
+        "createdate", description="Date when access key was created"
+    )
+    createdate_dt: PropertyRef = PropertyRef(
+        "createdate_dt",
+        description="Access-key creation timestamp normalized as a Neo4j datetime.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Active: valid for API calls.  Inactive: not valid for API calls",
+    )
+    lastuseddate: PropertyRef = PropertyRef(
+        "lastuseddate", description="Date when the key was last used"
+    )
+    lastuseddate_dt: PropertyRef = PropertyRef(
+        "lastuseddate_dt",
+        description="Most recent access-key use timestamp normalized as a Neo4j datetime.",
+    )
+    lastusedservice: PropertyRef = PropertyRef(
+        "lastusedservice",
+        description="The service that was last used with the access key",
+    )
+    lastusedregion: PropertyRef = PropertyRef(
+        "lastusedregion", description="The region where the access key was last used"
+    )
 
 
 @dataclass(frozen=True)
@@ -100,6 +122,8 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
+    """Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html)."""
+
     label: str = "AWSAccountAccessKey"
     # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

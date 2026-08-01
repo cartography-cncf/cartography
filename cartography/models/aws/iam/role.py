@@ -17,18 +17,35 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 @dataclass(frozen=True)
 class AWSRoleNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSRole` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSRole` node.",
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM roles
-    roleid: PropertyRef = PropertyRef("roleid", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    path: PropertyRef = PropertyRef("path")
-    createdate: PropertyRef = PropertyRef("createdate")
-    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
+    roleid: PropertyRef = PropertyRef(
+        "roleid",
+        extra_index=True,
+        description="Identifier of the roleid linked to this `AWSRole` node.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of this `AWSRole` node.")
+    path: PropertyRef = PropertyRef(
+        "path", description="IAM path under which the IAM role is organized."
+    )
+    createdate: PropertyRef = PropertyRef(
+        "createdate", description="Timestamp when the IAM role was created."
+    )
+    createdate_dt: PropertyRef = PropertyRef(
+        "createdate_dt",
+        description="Creation timestamp for the IAM role normalized as a Neo4j datetime.",
+    )
 
 
 @dataclass(frozen=True)
@@ -75,6 +92,8 @@ class AWSRoleToAWSPrincipalTrustRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSRoleSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Role.html). An AWS Role is a type of AWS Principal."""
+
     label: str = "AWSRole"
     properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
     sub_resource_relationship: AWSRoleToAWSAccountRel = AWSRoleToAWSAccountRel()

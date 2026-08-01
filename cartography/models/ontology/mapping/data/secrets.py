@@ -161,6 +161,26 @@ supabase_mapping = OntologyMapping(
 )
 
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # updated_at: Modal does not report when a secret was last modified.
+                # rotation_enabled: Modal has no secret rotation feature.
+            ],
+        ),
+    ],
+)
+
+
 netlify_mapping = OntologyMapping(
     module_name="netlify",
     nodes=[
@@ -188,5 +208,6 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "railway": railway_mapping,
     "supabase": supabase_mapping,
+    "modal": modal_mapping,
     "netlify": netlify_mapping,
 }

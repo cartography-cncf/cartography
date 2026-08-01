@@ -15,20 +15,49 @@ from cartography.models.ontology.labels import AI_MODEL
 
 @dataclass(frozen=True)
 class AWSSageMakerModelNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ModelArn")
-    arn: PropertyRef = PropertyRef("ModelArn", extra_index=True)
-    model_name: PropertyRef = PropertyRef("ModelName")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    execution_role_arn: PropertyRef = PropertyRef("ExecutionRoleArn")
-    primary_container_image: PropertyRef = PropertyRef("PrimaryContainerImage")
-    model_package_name: PropertyRef = PropertyRef("ModelPackageName")
-    model_artifacts_s3_bucket_id: PropertyRef = PropertyRef("ModelArtifactsS3BucketId")
-    enable_network_isolation: PropertyRef = PropertyRef("EnableNetworkIsolation")
-    vpc_config_security_group_ids: PropertyRef = PropertyRef(
-        "VpcConfig.SecurityGroupIds"
+    id: PropertyRef = PropertyRef("ModelArn", description="The ARN of the Model")
+    arn: PropertyRef = PropertyRef(
+        "ModelArn", extra_index=True, description="The ARN of the Model"
     )
-    vpc_config_subnets: PropertyRef = PropertyRef("VpcConfig.Subnets")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    model_name: PropertyRef = PropertyRef(
+        "ModelName", description="The name of the Model"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Model was created"
+    )
+    execution_role_arn: PropertyRef = PropertyRef(
+        "ExecutionRoleArn",
+        description="The IAM role ARN that SageMaker assumes to perform operations",
+    )
+    primary_container_image: PropertyRef = PropertyRef(
+        "PrimaryContainerImage",
+        description="The Docker image for the primary container",
+    )
+    model_package_name: PropertyRef = PropertyRef(
+        "ModelPackageName",
+        description="The Model Package name if the model is based on one",
+    )
+    model_artifacts_s3_bucket_id: PropertyRef = PropertyRef(
+        "ModelArtifactsS3BucketId",
+        description="The S3 bucket ID where model artifacts are stored",
+    )
+    enable_network_isolation: PropertyRef = PropertyRef(
+        "EnableNetworkIsolation",
+        description="Whether network isolation is enabled for model containers.",
+    )
+    vpc_config_security_group_ids: PropertyRef = PropertyRef(
+        "VpcConfig.SecurityGroupIds",
+        description="Identifiers of the VPC config security group linked to this `AWSSageMakerModel` node.",
+    )
+    vpc_config_subnets: PropertyRef = PropertyRef(
+        "VpcConfig.Subnets",
+        description="Subnet IDs used by the model's VPC configuration.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Model exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -106,6 +135,8 @@ class AWSSageMakerModelToModelPackageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference."""
+
     label: str = "AWSSageMakerModel"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])
     properties: AWSSageMakerModelNodeProperties = AWSSageMakerModelNodeProperties()

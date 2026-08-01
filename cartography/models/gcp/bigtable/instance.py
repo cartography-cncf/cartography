@@ -17,11 +17,21 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPBigtableInstanceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    name: PropertyRef = PropertyRef("name")
-    display_name: PropertyRef = PropertyRef("displayName")
-    state: PropertyRef = PropertyRef("state")
-    type: PropertyRef = PropertyRef("type")
+    id: PropertyRef = PropertyRef(
+        "name", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The full resource name of the Bigtable Instance."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "displayName", description="Human-readable name shown for this resource."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="The current state of the instance (e.g., `READY`)."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="The type of instance (e.g., `PRODUCTION`)."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -45,6 +55,8 @@ class ProjectToBigtableInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigtableInstanceSchema(CartographyNodeSchema):
+    """Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances)."""
+
     label: str = "GCPBigtableInstance"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABASE])
     properties: GCPBigtableInstanceProperties = GCPBigtableInstanceProperties()

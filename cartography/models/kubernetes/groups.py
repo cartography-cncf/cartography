@@ -15,9 +15,11 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class KubernetesGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    cluster_name: PropertyRef = PropertyRef("cluster_name")
+    id: PropertyRef = PropertyRef("id", description="Identifier for the group.")
+    name: PropertyRef = PropertyRef("name", description="Name of the Kubernetes group.")
+    cluster_name: PropertyRef = PropertyRef(
+        "cluster_name", description="Name of the cluster this group belongs to."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -28,6 +30,8 @@ class KubernetesGroupToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its groups."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -56,6 +60,8 @@ class KubernetesGroupToAWSUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
+    """Links an Okta group to the Kubernetes group it maps to."""
+
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("name")}
@@ -69,6 +75,8 @@ class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
+    """Links an AWS IAM role to the Kubernetes group it maps to."""
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_role_arn")}
@@ -82,6 +90,8 @@ class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupToAWSUserRel(CartographyRelSchema):
+    """Links an AWS IAM user to the Kubernetes group it maps to."""
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_user_arn")}
@@ -95,6 +105,8 @@ class KubernetesGroupToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesGroupSchema(CartographyNodeSchema):
+    "A group identity referenced by Kubernetes RBAC."
+
     label: str = "KubernetesGroup"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     properties: KubernetesGroupNodeProperties = KubernetesGroupNodeProperties()

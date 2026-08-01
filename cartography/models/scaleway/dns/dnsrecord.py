@@ -15,14 +15,28 @@ from cartography.models.ontology.labels import DNS_RECORD
 
 @dataclass(frozen=True)
 class ScalewayDnsRecordProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type_")
-    data: PropertyRef = PropertyRef("data")
-    ttl: PropertyRef = PropertyRef("ttl")
-    priority: PropertyRef = PropertyRef("priority")
-    comment: PropertyRef = PropertyRef("comment")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="Record unique ID."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Record name (relative to its zone)."
+    )
+    type: PropertyRef = PropertyRef(
+        "type_", description="Record type (`a`, `aaaa`, `cname`, `mx`, ...)."
+    )
+    data: PropertyRef = PropertyRef(
+        "data", description="Record data (target IP, hostname, value, ...)."
+    )
+    ttl: PropertyRef = PropertyRef("ttl", description="Record TTL in seconds.")
+    priority: PropertyRef = PropertyRef(
+        "priority", description="Record priority (relevant for MX/SRV)."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="Free-form record comment."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Record last update date."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +48,8 @@ class ScalewayDnsRecordToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayDnsRecord)
 class ScalewayDnsRecordToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayDnsRecord` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -53,6 +69,8 @@ class ScalewayDnsRecordToZoneRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayDnsZone)-[:HAS_RECORD]->(:ScalewayDnsRecord)
 class ScalewayDnsRecordToZoneRel(CartographyRelSchema):
+    """Connects `ScalewayDnsZone` to `ScalewayDnsRecord` through `HAS_RECORD`."""
+
     target_node_label: str = "ScalewayDnsZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("zone_id")},
@@ -66,6 +84,8 @@ class ScalewayDnsRecordToZoneRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayDnsRecordSchema(CartographyNodeSchema):
+    """Represents an individual DNS record within a `ScalewayDnsZone`."""
+
     label: str = "ScalewayDnsRecord"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     properties: ScalewayDnsRecordProperties = ScalewayDnsRecordProperties()

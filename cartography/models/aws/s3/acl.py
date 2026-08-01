@@ -15,15 +15,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class S3AclNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The ID of this ACL")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    owner: PropertyRef = PropertyRef("owner")
-    ownerid: PropertyRef = PropertyRef("ownerid")
-    type: PropertyRef = PropertyRef("type")
-    displayname: PropertyRef = PropertyRef("displayname")
-    granteeid: PropertyRef = PropertyRef("granteeid")
-    uri: PropertyRef = PropertyRef("uri")
-    permission: PropertyRef = PropertyRef("permission")
+    owner: PropertyRef = PropertyRef(
+        "owner", description="Display name of the S3 bucket owner."
+    )
+    ownerid: PropertyRef = PropertyRef(
+        "ownerid",
+        description="The ACL's owner ID as defined [here](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_S3ObjectOwner.html)",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="The type of the [grantee](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Grantee.html).  Either ``CanonicalUser | AmazonCustomerByEmail | Group``.",
+    )
+    displayname: PropertyRef = PropertyRef(
+        "displayname", description="Optional display name for the ACL"
+    )
+    granteeid: PropertyRef = PropertyRef(
+        "granteeid",
+        description="The ID of the grantee as defined [here](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_S3Grantee.html)",
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", description="URI identifying the predefined S3 grantee group."
+    )
+    permission: PropertyRef = PropertyRef(
+        "permission",
+        description="Valid values: ``FULL_CONTROL | READ | WRITE | READ_ACP | WRITE_ACP`` (ACP = Access Control Policy)",
+    )
 
 
 @dataclass(frozen=True)
@@ -60,6 +78,8 @@ class S3AclToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3AclSchema(CartographyNodeSchema):
+    """Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_S3AccessControlList.html)."""
+
     label: str = "AWSS3Acl"
     # DEPRECATED: legacy S3Acl node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_ACL])

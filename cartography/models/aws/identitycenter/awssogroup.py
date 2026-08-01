@@ -15,12 +15,24 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class AWSSSOGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId")
-    display_name: PropertyRef = PropertyRef("DisplayName")
-    description: PropertyRef = PropertyRef("Description")
-    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
-    external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "GroupId", description="Unique identifier for the SSO group"
+    )
+    display_name: PropertyRef = PropertyRef(
+        "DisplayName", description="The display name of the SSO group"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the SSO group"
+    )
+    identity_store_id: PropertyRef = PropertyRef(
+        "IdentityStoreId", description="The identity store ID of the SSO group"
+    )
+    external_id: PropertyRef = PropertyRef(
+        "ExternalId", extra_index=True, description="The external ID of the SSO group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -84,6 +96,8 @@ class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS SSO Group."""
+
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()

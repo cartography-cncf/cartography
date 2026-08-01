@@ -19,11 +19,19 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureKeyVaultSecretProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    enabled: PropertyRef = PropertyRef("enabled")
-    created_on: PropertyRef = PropertyRef("created_on")
-    updated_on: PropertyRef = PropertyRef("updated_on")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure Key Vault secret identifier."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the secret.")
+    enabled: PropertyRef = PropertyRef(
+        "enabled", description="Whether the secret is enabled."
+    )
+    created_on: PropertyRef = PropertyRef(
+        "created_on", description="Timestamp when the secret was created."
+    )
+    updated_on: PropertyRef = PropertyRef(
+        "updated_on", description="Timestamp when the secret was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,6 +43,8 @@ class AzureKeyVaultSecretToVaultRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKeyVaultSecretToVaultRel(CartographyRelSchema):
+    """An Azure key vault contains the secret."""
+
     target_node_label: str = "AzureKeyVault"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VAULT_ID", set_in_kwargs=True)},
@@ -53,6 +63,8 @@ class AzureKeyVaultSecretToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKeyVaultSecretToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the secret as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -67,6 +79,8 @@ class AzureKeyVaultSecretToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKeyVaultSecretSchema(CartographyNodeSchema):
+    """A secret managed in Azure Key Vault."""
+
     label: str = "AzureKeyVaultSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [SECRET]

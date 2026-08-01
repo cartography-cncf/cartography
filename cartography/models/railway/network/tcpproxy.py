@@ -13,17 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RailwayTCPProxyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway TCP proxy.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Exposure signal: a TCP proxy publishes a raw port on the public internet, with no TLS
     # termination or auth in front of it. This is the highest-signal Railway exposure.
-    domain: PropertyRef = PropertyRef("domain", extra_index=True)
-    proxy_port: PropertyRef = PropertyRef("proxyPort")
-    application_port: PropertyRef = PropertyRef("applicationPort")
-    sync_status: PropertyRef = PropertyRef("syncStatus")
-    service_id: PropertyRef = PropertyRef("service_id")
-    environment_id: PropertyRef = PropertyRef("environment_id")
-    created_at: PropertyRef = PropertyRef("createdAt")
+    domain: PropertyRef = PropertyRef(
+        "domain", extra_index=True, description="Public hostname of the proxy."
+    )
+    proxy_port: PropertyRef = PropertyRef(
+        "proxyPort", description="Public port to which clients connect."
+    )
+    application_port: PropertyRef = PropertyRef(
+        "applicationPort",
+        description="Service port to which the proxy forwards traffic.",
+    )
+    sync_status: PropertyRef = PropertyRef(
+        "syncStatus", description="Provisioning status of the proxy."
+    )
+    service_id: PropertyRef = PropertyRef(
+        "service_id", description="ID of the service behind the proxy."
+    )
+    environment_id: PropertyRef = PropertyRef(
+        "environment_id", description="ID of the environment served by the proxy."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Time when the proxy was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +49,8 @@ class RailwayTCPProxyToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayTCPProxy)
 class RailwayTCPProxyToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a TCP proxy that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -56,6 +73,8 @@ class RailwayTCPProxyToServiceInstanceRelProperties(CartographyRelProperties):
 # Gated on the proxy's syncStatus through exposed_*, exactly like the two domain types: a
 # proxy that is not serving yet, or is being torn down, is not a public entry point.
 class RailwayTCPProxyToServiceInstanceRel(CartographyRelSchema):
+    """Identifies the Railway service instance exposed by a serving TCP proxy."""
+
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -72,6 +91,8 @@ class RailwayTCPProxyToServiceInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayTCPProxySchema(CartographyNodeSchema):
+    """A public Railway TCP proxy forwarding traffic to a service."""
+
     label: str = "RailwayTCPProxy"
     properties: RailwayTCPProxyNodeProperties = RailwayTCPProxyNodeProperties()
     sub_resource_relationship: RailwayTCPProxyToProjectRel = (

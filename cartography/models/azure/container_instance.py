@@ -15,18 +15,44 @@ from cartography.models.ontology.labels import CONTAINER
 
 @dataclass(frozen=True)
 class AzureContainerInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    group_id: PropertyRef = PropertyRef("group_id")
-    image: PropertyRef = PropertyRef("image")
-    image_digest: PropertyRef = PropertyRef("image_digest")
-    architecture: PropertyRef = PropertyRef("architecture")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    state: PropertyRef = PropertyRef("state")
-    cpu_request: PropertyRef = PropertyRef("cpu_request")
-    memory_request_gb: PropertyRef = PropertyRef("memory_request_gb")
-    cpu_limit: PropertyRef = PropertyRef("cpu_limit")
-    memory_limit_gb: PropertyRef = PropertyRef("memory_limit_gb")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Identifier derived from the container group and container name.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the container.")
+    group_id: PropertyRef = PropertyRef(
+        "group_id",
+        description="Full Azure resource ID of the containing container group.",
+    )
+    image: PropertyRef = PropertyRef(
+        "image", description="Container image reference configured for the container."
+    )
+    image_digest: PropertyRef = PropertyRef(
+        "image_digest", description="Digest parsed from the container image reference."
+    )
+    architecture: PropertyRef = PropertyRef(
+        "architecture",
+        description="Container host architecture used by Azure Container Instances.",
+    )
+    architecture_normalized: PropertyRef = PropertyRef(
+        "architecture_normalized",
+        description="Normalized container host architecture.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Current runtime state of the container."
+    )
+    cpu_request: PropertyRef = PropertyRef(
+        "cpu_request", description="Requested CPU cores for the container."
+    )
+    memory_request_gb: PropertyRef = PropertyRef(
+        "memory_request_gb", description="Requested memory in gigabytes."
+    )
+    cpu_limit: PropertyRef = PropertyRef(
+        "cpu_limit", description="Maximum CPU cores available to the container."
+    )
+    memory_limit_gb: PropertyRef = PropertyRef(
+        "memory_limit_gb", description="Maximum memory available in gigabytes."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -37,6 +63,8 @@ class AzureContainerInstanceToSubscriptionRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AzureContainerInstanceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the container as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -56,6 +84,8 @@ class AzureGroupContainerToContainerInstanceRelProperties(CartographyRelProperti
 # DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 @dataclass(frozen=True)
 class AzureGroupContainerToContainerInstanceRel(CartographyRelSchema):
+    """Deprecated compatibility edge from a container group to its container."""
+
     target_node_label: str = "AzureGroupContainer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
@@ -77,6 +107,8 @@ class AzureContainerInstanceToGroupContainerWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:AzureContainerInstance)-[:WORKLOAD_PARENT]->(:AzureGroupContainer)
 class AzureContainerInstanceToGroupContainerWorkloadParentRel(CartographyRelSchema):
+    """A container runs within an Azure container group."""
+
     target_node_label: str = "AzureGroupContainer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
@@ -95,6 +127,8 @@ class AzureContainerInstanceToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureContainerInstanceToECRImageRel(CartographyRelSchema):
+    """An Azure container uses an Amazon ECR image with the same digest."""
+
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -115,6 +149,8 @@ class AzureContainerInstanceToGitLabContainerImageRelProperties(
 
 @dataclass(frozen=True)
 class AzureContainerInstanceToGitLabContainerImageRel(CartographyRelSchema):
+    """An Azure container uses a GitLab container image with the same digest."""
+
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -135,6 +171,8 @@ class AzureContainerInstanceToGCPArtifactRegistryImageRelProperties(
 
 @dataclass(frozen=True)
 class AzureContainerInstanceToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """An Azure container uses a Google Artifact Registry image with the same digest."""
+
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -155,6 +193,8 @@ class AzureContainerInstanceToGitHubContainerImageRelProperties(
 
 @dataclass(frozen=True)
 class AzureContainerInstanceToGitHubContainerImageRel(CartographyRelSchema):
+    """An Azure container uses a GitHub container image with the same digest."""
+
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("image_digest")},
@@ -168,6 +208,8 @@ class AzureContainerInstanceToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureContainerInstanceSchema(CartographyNodeSchema):
+    """An individual container running in an Azure container group."""
+
     label: str = "AzureContainerInstance"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CONTAINER])
     properties: AzureContainerInstanceNodeProperties = (

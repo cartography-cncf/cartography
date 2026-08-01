@@ -15,10 +15,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("IdentityPoolId")
-    arn: PropertyRef = PropertyRef("IdentityPoolId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    roles: PropertyRef = PropertyRef("Roles")
+    id: PropertyRef = PropertyRef(
+        "IdentityPoolId", description="The id of Cognito Identity Pool"
+    )
+    arn: PropertyRef = PropertyRef(
+        "IdentityPoolId",
+        extra_index=True,
+        description="The id of the Cognito Identity Pool. The API returns no ARN for identity pools, so the id is stored here for query convenience",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of the Cognito Identity Pool",
+    )
+    roles: PropertyRef = PropertyRef(
+        "Roles", description="list of aws roles associated with Cognito Identity Pool"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -60,6 +72,8 @@ class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
+    """Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cognitoidentity/latest/APIReference/API_ListIdentityPools.html)"""
+
     label: str = "AWSCognitoIdentityPool"
     # DEPRECATED: legacy CognitoIdentityPool node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_COGNITO_IDENTITY_POOL])

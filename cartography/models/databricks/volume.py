@@ -16,21 +16,61 @@ from cartography.models.ontology.labels import OBJECT_STORAGE
 
 @dataclass(frozen=True)
 class DatabricksVolumeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    volume_id: PropertyRef = PropertyRef("volume_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    full_name: PropertyRef = PropertyRef("full_name", extra_index=True)
-    catalog_name: PropertyRef = PropertyRef("catalog_name", extra_index=True)
-    schema_name: PropertyRef = PropertyRef("schema_name", extra_index=True)
-    metastore_id: PropertyRef = PropertyRef("metastore_id", extra_index=True)
-    volume_type: PropertyRef = PropertyRef("volume_type")
-    owner: PropertyRef = PropertyRef("owner", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    storage_location: PropertyRef = PropertyRef("storage_location")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    created_by: PropertyRef = PropertyRef("created_by")
-    updated_by: PropertyRef = PropertyRef("updated_by")
+    id: PropertyRef = PropertyRef(
+        "id", description="Metastore-scoped identifier for the volume."
+    )
+    volume_id: PropertyRef = PropertyRef(
+        "volume_id",
+        extra_index=True,
+        description="Databricks identifier for the volume.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the volume."
+    )
+    full_name: PropertyRef = PropertyRef(
+        "full_name",
+        extra_index=True,
+        description="Full catalog, schema, and volume name.",
+    )
+    catalog_name: PropertyRef = PropertyRef(
+        "catalog_name",
+        extra_index=True,
+        description="Name of the catalog that contains the volume.",
+    )
+    schema_name: PropertyRef = PropertyRef(
+        "schema_name",
+        extra_index=True,
+        description="Name of the schema that contains the volume.",
+    )
+    metastore_id: PropertyRef = PropertyRef(
+        "metastore_id",
+        extra_index=True,
+        description="Identifier of the metastore that contains the volume.",
+    )
+    volume_type: PropertyRef = PropertyRef(
+        "volume_type", description="Type of the volume."
+    )
+    owner: PropertyRef = PropertyRef(
+        "owner", extra_index=True, description="Principal that owns the volume."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="User-provided description of the volume."
+    )
+    storage_location: PropertyRef = PropertyRef(
+        "storage_location", description="Cloud storage location of the volume."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the volume was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the volume was last updated."
+    )
+    created_by: PropertyRef = PropertyRef(
+        "created_by", description="Principal that created the volume."
+    )
+    updated_by: PropertyRef = PropertyRef(
+        "updated_by", description="Principal that last updated the volume."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,6 +82,8 @@ class DatabricksVolumeToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksVolume)
 class DatabricksVolumeToWorkspaceRel(CartographyRelSchema):
+    """A Databricks volume is a resource within a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -61,6 +103,8 @@ class DatabricksVolumeToSchemaRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksSchema)-[:CONTAINS]->(:DatabricksVolume)
 class DatabricksVolumeToSchemaRel(CartographyRelSchema):
+    """A Databricks schema contains a volume."""
+
     target_node_label: str = "DatabricksSchema"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_schema_id")},
@@ -80,6 +124,8 @@ class DatabricksVolumeToS3RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksVolume)-[:BACKED_BY]->(:AWSS3Bucket)
 class DatabricksVolumeToS3Rel(CartographyRelSchema):
+    """A Databricks volume is backed by an Amazon S3 bucket."""
+
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_bucket")},
@@ -97,6 +143,8 @@ class DatabricksVolumeToGCSRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksVolume)-[:BACKED_BY]->(:GCPBucket)
 class DatabricksVolumeToGCSRel(CartographyRelSchema):
+    """A Databricks volume is backed by a Google Cloud Storage bucket."""
+
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gcs_bucket")},
@@ -110,6 +158,8 @@ class DatabricksVolumeToGCSRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksVolumeSchema(CartographyNodeSchema):
+    """A Unity Catalog volume for non-tabular data."""
+
     label: str = "DatabricksVolume"
     properties: DatabricksVolumeNodeProperties = DatabricksVolumeNodeProperties()
     # DatabricksSecurable: shared UC-grant target label. ObjectStorage: ontology

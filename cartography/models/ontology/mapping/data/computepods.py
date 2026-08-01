@@ -96,8 +96,34 @@ azure_aci_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalTask",
+            fields=[
+                # Modal does not name tasks; the task id is the only available label.
+                OntologyFieldMapping(ontology_field="name", node_field="id"),
+                # Modal's TaskList only ever returns live tasks, so a task in the graph is
+                # running by construction.
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "running"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="namespace", node_field="environment_name"
+                ),
+                # node: Modal does not expose the host a task is scheduled on.
+            ],
+        ),
+    ],
+)
+
 COMPUTEPODS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "kubernetes": kubernetes_mapping,
     "azure_aci": azure_aci_mapping,
+    "modal": modal_mapping,
 }

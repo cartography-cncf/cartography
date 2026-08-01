@@ -15,11 +15,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/archival")'
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    archival_date_time: PropertyRef = PropertyRef("ArchivalDateTime")
-    archival_reason: PropertyRef = PropertyRef("ArchivalReason")
-    archival_backup_arn: PropertyRef = PropertyRef("ArchivalBackupArn")
+    archival_date_time: PropertyRef = PropertyRef(
+        "ArchivalDateTime",
+        description="The date and time when table archival was initiated",
+    )
+    archival_reason: PropertyRef = PropertyRef(
+        "ArchivalReason", description="The reason for archiving the table"
+    )
+    archival_backup_arn: PropertyRef = PropertyRef(
+        "ArchivalBackupArn",
+        description="The ARN of the backup created when the table was archived",
+    )
 
 
 @dataclass(frozen=True)
@@ -78,6 +88,8 @@ class DynamoDBArchivalSummaryToBackupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBArchivalSummarySchema(CartographyNodeSchema):
+    """Representation of DynamoDB [Archival Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ArchivalSummary.html) for archived tables."""
+
     label: str = "AWSDynamoDBArchivalSummary"
     # DEPRECATED: legacy DynamoDBArchivalSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

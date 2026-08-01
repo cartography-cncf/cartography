@@ -16,20 +16,43 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 @dataclass(frozen=True)
 class AWSUserNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSUser` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSUser` node.",
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM users
-    userid: PropertyRef = PropertyRef("userid", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    path: PropertyRef = PropertyRef("path")
-    createdate: PropertyRef = PropertyRef("createdate")
-    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
-    passwordlastused: PropertyRef = PropertyRef("passwordlastused")
-    passwordlastused_dt: PropertyRef = PropertyRef("passwordlastused_dt")
+    userid: PropertyRef = PropertyRef(
+        "userid",
+        extra_index=True,
+        description="Identifier of the user linked to this `AWSUser` node.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of this `AWSUser` node.")
+    path: PropertyRef = PropertyRef(
+        "path", description="IAM path under which the IAM user is organized."
+    )
+    createdate: PropertyRef = PropertyRef(
+        "createdate", description="Timestamp when the IAM user was created."
+    )
+    createdate_dt: PropertyRef = PropertyRef(
+        "createdate_dt",
+        description="Creation timestamp for the IAM user normalized as a Neo4j datetime.",
+    )
+    passwordlastused: PropertyRef = PropertyRef(
+        "passwordlastused",
+        description="Timestamp when the IAM user's password was last used.",
+    )
+    passwordlastused_dt: PropertyRef = PropertyRef(
+        "passwordlastused_dt",
+        description="Last password-use timestamp normalized as a Neo4j datetime.",
+    )
 
 
 @dataclass(frozen=True)
@@ -52,6 +75,8 @@ class AWSUserToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSUserSchema(CartographyNodeSchema):
+    """Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal."""
+
     label: str = "AWSUser"
     properties: AWSUserNodeProperties = AWSUserNodeProperties()
     sub_resource_relationship: AWSUserToAWSAccountRel = AWSUserToAWSAccountRel()

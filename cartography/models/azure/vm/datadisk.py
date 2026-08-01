@@ -13,18 +13,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureDataDiskProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("managed_disk.id")
+    id: PropertyRef = PropertyRef(
+        "managed_disk.id", description="Azure resource ID of the managed disk."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    lun: PropertyRef = PropertyRef("lun")
-    vhd: PropertyRef = PropertyRef("vhd.uri")
-    image: PropertyRef = PropertyRef("image.uri")
-    size: PropertyRef = PropertyRef("disk_size_gb")
-    caching: PropertyRef = PropertyRef("caching")
-    createoption: PropertyRef = PropertyRef("create_option")
-    write_accelerator_enabled: PropertyRef = PropertyRef("write_accelerator_enabled")
+    name: PropertyRef = PropertyRef("name", description="Name of the data disk.")
+    lun: PropertyRef = PropertyRef(
+        "lun", description="Logical unit number of the data disk."
+    )
+    vhd: PropertyRef = PropertyRef(
+        "vhd.uri", description="URI of the virtual hard disk."
+    )
+    image: PropertyRef = PropertyRef(
+        "image.uri", description="URI of the source image."
+    )
+    size: PropertyRef = PropertyRef(
+        "disk_size_gb", description="Size of the data disk in GB."
+    )
+    caching: PropertyRef = PropertyRef(
+        "caching", description="Host caching mode for the data disk."
+    )
+    createoption: PropertyRef = PropertyRef(
+        "create_option", description="Source used to create or attach the data disk."
+    )
+    write_accelerator_enabled: PropertyRef = PropertyRef(
+        "write_accelerator_enabled",
+        description="Whether Write Accelerator is enabled for the data disk.",
+    )
     managed_disk_storage_type: PropertyRef = PropertyRef(
-        "managed_disk.storage_account_type"
+        "managed_disk.storage_account_type",
+        description="Storage account type of the managed disk.",
     )
 
 
@@ -36,6 +54,8 @@ class AzureDataDiskToVirtualMachineRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureVirtualMachine)-[:ATTACHED_TO]->(:AzureDataDisk)
 class AzureDataDiskToVirtualMachineRel(CartographyRelSchema):
+    """An Azure virtual machine has the data disk attached."""
+
     target_node_label: str = "AzureVirtualMachine"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vm_id")},
@@ -55,6 +75,8 @@ class AzureDataDiskToSubscriptionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureDataDisk)
 class AzureDataDiskToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the data disk as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -68,6 +90,8 @@ class AzureDataDiskToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureDataDiskSchema(CartographyNodeSchema):
+    """A data disk attached to an Azure virtual machine."""
+
     label: str = "AzureDataDisk"
     properties: AzureDataDiskProperties = AzureDataDiskProperties()
     sub_resource_relationship: AzureDataDiskToSubscriptionRel = (

@@ -15,19 +15,27 @@ from cartography.models.extra_labels import FIX
 
 @dataclass(frozen=True)
 class TrivyFixNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    version: PropertyRef = PropertyRef("FixedVersion")
+    id: PropertyRef = PropertyRef("id", description="Unique Trivy fix ID.")
+    version: PropertyRef = PropertyRef(
+        "FixedVersion",
+        description="Package version that fixes the vulnerability.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class TrivyFixToPackageRelProperties(CartographyRelProperties):
-    version: PropertyRef = PropertyRef("FixedVersion")
+    version: PropertyRef = PropertyRef(
+        "FixedVersion",
+        description="Package version that fixes the vulnerability.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class TrivyFixToPackageRel(CartographyRelSchema):
+    """Links a vulnerable package to the version that fixes it."""
+
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PackageId")},
@@ -44,6 +52,8 @@ class TrivyFixToFindingRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class TrivyFixToFindingRel(CartographyRelSchema):
+    """Links a Trivy fix to the finding it resolves."""
+
     target_node_label: str = "TrivyImageFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FindingId")},
@@ -55,6 +65,8 @@ class TrivyFixToFindingRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyFixSchema(CartographyNodeSchema):
+    """A package version that fixes a Trivy vulnerability finding."""
+
     label: str = "TrivyFix"
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FIX])

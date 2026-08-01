@@ -1472,7 +1472,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1528,12 +1528,14 @@ def build_create_index_queries_for_matchlink(
                 target_sub_resource_key,
             )
 
-    # Create a composite relationship index that matches the cleanup predicate shape.
-    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
-    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
+    # Create a composite relationship index on the two stable keys of the cleanup predicate.
+    # `lastupdated` is deliberately excluded: it is rewritten on every sync, so including it in
+    # the composite key made Neo4j delete and reinsert every index entry on every run (37.2s vs
+    # 17.8s on a 2.79M-relationship warm load). It could not help the cleanup anyway, since `<>`
+    # is not a seekable predicate.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
+        "ON (r._sub_resource_label, r._sub_resource_id);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(
@@ -1709,6 +1711,12 @@ def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) ->
     else:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
+    # `_module_name` identifies the module that owns this relationship's schema, so it is set once on
+    # create rather than rewritten on every sync. Everything else stays in the unconditional SET:
+    # `lastupdated` is the cleanup's liveness marker, `_module_version` tracks the cartography version
+    # that last wrote the relationship (as build_ingestion_query() does for nodes), and
+    # `_sub_resource_label`/`_sub_resource_id` must keep following the last writer, since a MatchLink
+    # is keyed only on its endpoints and label and so can be shared by several sub-resources.
     matchlink_cartesian_product_query_template = Template(
         """
         UNWIND $SourceValues AS source_value
@@ -1719,9 +1727,10 @@ def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) ->
         WITH sources, to
         UNWIND sources AS from
             MERGE $rel
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
             SET
-                r._module_name = "$module_name",
                 r._module_version = "$module_version",
                 $set_rel_properties_statement
         RETURN count(r) AS rel_count;
@@ -1782,7 +1791,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         >>> #     MATCH (from:User{id: item.user_id})
         >>> #     MATCH (to:Role{name: item.role_name})
         >>> #     MERGE (from)-[r:HAS_ROLE]->(to)
-        >>> #     ON CREATE SET r.firstseen = timestamp()
+        >>> #     ON CREATE SET r.firstseen = timestamp(), r._module_name = "cartography:..."
         >>> #     SET r._sub_resource_label = $_sub_resource_label, ...
 
     Note:
@@ -1817,6 +1826,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     target_sub_resource_var: str | None = None
     sub_resource_match_statements: list[str] = []
 
+    # See build_matchlink_cartesian_product_query() for why only `_module_name` is set on create.
     if source_sub_resource or target_sub_resource:
         matchlink_query_template = Template(
             """
@@ -1825,9 +1835,10 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             $source_match
             $target_match
             MERGE $rel
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
             SET
-                r._module_name = "$module_name",
                 r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """
@@ -1868,9 +1879,10 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             $source_match
             $target_match
             MERGE $rel
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
             SET
-                r._module_name = "$module_name",
                 r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """

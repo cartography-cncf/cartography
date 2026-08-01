@@ -21,6 +21,8 @@ class ApplicationGatewayToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ApplicationGatewayToTagRel(CartographyRelSchema):
+    """An Azure Application Gateway has the tag."""
+
     target_node_label: str = "AzureApplicationGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -34,6 +36,8 @@ class ApplicationGatewayToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

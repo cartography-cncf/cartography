@@ -14,15 +14,29 @@ from cartography.models.ontology.labels import IDENTITY_PROVIDER
 
 @dataclass(frozen=True)
 class SupabaseSSOProviderNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The provider id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    entity_id: PropertyRef = PropertyRef("entity_id", extra_index=True)
-    metadata_url: PropertyRef = PropertyRef("metadata_url")
-    name_id_format: PropertyRef = PropertyRef("name_id_format")
+    entity_id: PropertyRef = PropertyRef(
+        "entity_id",
+        extra_index=True,
+        description="The SAML entity id, which is also the trust identifier",
+    )
+    metadata_url: PropertyRef = PropertyRef(
+        "metadata_url", description="URL of the provider's SAML metadata"
+    )
+    name_id_format: PropertyRef = PropertyRef(
+        "name_id_format", description="The requested SAML NameID format"
+    )
     # The email domains routed to this identity provider.
-    domains: PropertyRef = PropertyRef("domains")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    domains: PropertyRef = PropertyRef(
+        "domains", description="Email domains routed to this provider"
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the provider was configured"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the provider was last changed"
+    )
 
 
 @dataclass(frozen=True)
@@ -46,6 +60,8 @@ class SupabaseSSOProviderToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseSSOProviderSchema(CartographyNodeSchema):
+    """Represents a SAML identity provider configured for a project's auth service."""
+
     label: str = "SupabaseSSOProvider"
     properties: SupabaseSSOProviderNodeProperties = SupabaseSSOProviderNodeProperties()
     sub_resource_relationship: SupabaseSSOProviderToProjectRel = (

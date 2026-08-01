@@ -1,187 +1,85 @@
 # Cartography Schema
 
-## ℹ️ Quick notes on notation
-- **Bolded words** in the schema tables indicate that this field is indexed, so your queries will run faster if you use these fields.
+Each module documents its own node labels, properties and relationships. Most pages are
+generated from Cartography's declarative data model; a few legacy modules still ship a
+hand-written page.
 
-- This isn't proper Neo4j syntax, but for the purpose of this document we will use this notation:
+## Quick notes on notation
 
-	```
-	(NodeTypeA)-[RELATIONSHIP_R]->(NodeTypeB, NodeTypeC, NodeTypeD, NodeTypeE)
-	```
+- Relationships are written as Cypher patterns, for example
+  `(:AWSAccount)-[:RESOURCE]->(:AWSEC2Instance)`.
 
-	to mean a shortened version of this:
+- A property marked `Yes` in the `Index` column is indexed, so queries filtering on it
+  run faster.
 
-	```
-	(NodeTypeA)-[RELATIONSHIP_R]->(NodeTypeB)
-	(NodeTypeA)-[RELATIONSHIP_R]->(NodeTypeC)
-	(NodeTypeA)-[RELATIONSHIP_R]->(NodeTypeD)
-	(NodeTypeA)-[RELATIONSHIP_R]->(NodeTypeE)
-	```
+- On the remaining hand-written pages, indexed fields are bolded instead, and a more
+  specific node may be written `GenericNode::SpecificNode`. For example a `RaceCar` node
+  that also carries the `Car` label is written `Car::RaceCar`.
 
-	In words, this means that `NodeTypeA` has `RELATIONSHIP_R` pointing to `NodeTypeB`, and `NodeTypeA` has `RELATIONSHIP_R` pointing to `NodeTypeC`.
+## Schema by module
 
-- In these docs, more specific nodes will be decorated with `GenericNode::SpecificNode` notation. For example, if we have a `Car` node and a `RaceCar` node, we will refer to the `RaceCar` as `Car::RaceCar`.
+Every other schema page is reachable through its own module index; these two modules have
+no index page of their own, so they are attached here to keep them out of the orphan list.
 
+```{toctree}
+:hidden:
 
-```{include} ../modules/_cartography-metadata/schema.md
+../modules/_cartography-metadata/schema
+../modules/ubuntu/schema
 ```
 
-```{include} ../modules/airbyte/schema.md
-```
-
-```{include} ../modules/aibom/schema.md
-```
-
-
-```{include} ../modules/anthropic/schema.md
-```
-
-```{include} ../modules/aws/schema.md
-```
-
-```{include} ../modules/azure/schema.md
-```
-
-```{include} ../modules/bigfix/schema.md
-```
-
-```{include} ../modules/circleci/schema.md
-```
-
-```{include} ../modules/cloudflare/schema.md
-```
-
-```{include} ../modules/crowdstrike/schema.md
-```
-
-```{include} ../modules/databricks/schema.md
-```
-
-```{include} ../modules/cve/schema.md
-```
-
-```{include} ../modules/cve_metadata/schema.md
-```
-
-```{include} ../modules/digitalocean/schema.md
-```
-
-```{include} ../modules/docker_scout/schema.md
-```
-
-```{include} ../modules/duo/schema.md
-```
-
-```{include} ../modules/microsoft/schema.md
-```
-
-```{include} ../modules/gcp/schema.md
-```
-
-```{include} ../modules/github/schema.md
-```
-
-```{include} ../modules/gitlab/schema.md
-```
-
-```{include} ../modules/googleworkspace/schema.md
-```
-
-```{include} ../modules/gsuite/schema.md
-```
-
-```{include} ../modules/jumpcloud/schema.md
-```
-
-```{include} ../modules/jamf/schema.md
-```
-
-```{include} ../modules/kandji/schema.md
-```
-
-```{include} ../modules/keycloak/schema.md
-```
-
-```{include} ../modules/railway/schema.md
-```
-
-```{include} ../modules/salesforce/schema.md
-```
-
-```{include} ../modules/kubernetes/schema.md
-```
-
-```{include} ../modules/lastpass/schema.md
-```
-
-```{include} ../modules/netlify/schema.md
-```
-
-```{include} ../modules/oci/schema.md
-```
-
-```{include} ../modules/okta/schema.md
-```
-
-```{include} ../modules/ontology/schema.md
-```
-
-```{include} ../modules/openai/schema.md
-```
-
-```{include} ../modules/pagerduty/schema.md
-```
-
-```{include} ../modules/scaleway/schema.md
-```
-
-```{include} ../modules/semgrep/schema.md
-```
-
-```{include} ../modules/sentinelone/schema.md
-```
-
-```{include} ../modules/sentry/schema.md
-```
-
-```{include} ../modules/slack/schema.md
-```
-
-```{include} ../modules/snipeit/schema.md
-```
-
-```{include} ../modules/socketdev/schema.md
-```
-
-```{include} ../modules/syft/schema.md
-```
-
-```{include} ../modules/spacelift/schema.md
-```
-
-```{include} ../modules/subimage/schema.md
-```
-
-```{include} ../modules/supabase/schema.md
-```
-
-```{include} ../modules/tailscale/schema.md
-```
-
-```{include} ../modules/tenable/schema.md
-```
-
-```{include} ../modules/trivy/schema.md
-```
-
-```{include} ../modules/ubuntu/schema.md
-```
-
-```{include} ../modules/vercel/schema.md
-```
-
-```{include} ../modules/workday/schema.md
-```
-
-```{include} ../modules/workos/schema.md
-```
+- [Cartography Metadata](../modules/_cartography-metadata/schema.md)
+- [AIBOM](../modules/aibom/schema.md)
+- [Airbyte](../modules/airbyte/schema.md)
+- [Anthropic](../modules/anthropic/schema.md)
+- [AWS](../modules/aws/schema.md)
+- [Azure](../modules/azure/schema.md)
+- [Bigfix](../modules/bigfix/schema.md)
+- [Circleci](../modules/circleci/schema.md)
+- [Cloudflare](../modules/cloudflare/schema.md)
+- [Crowdstrike](../modules/crowdstrike/schema.md)
+- [Cve](../modules/cve/schema.md)
+- [Cve Metadata](../modules/cve_metadata/schema.md)
+- [Databricks](../modules/databricks/schema.md)
+- [Digitalocean](../modules/digitalocean/schema.md)
+- [Docker Scout](../modules/docker_scout/schema.md)
+- [Duo](../modules/duo/schema.md)
+- [GCP](../modules/gcp/schema.md)
+- [Github](../modules/github/schema.md)
+- [Gitlab](../modules/gitlab/schema.md)
+- [Googleworkspace](../modules/googleworkspace/schema.md)
+- [Gsuite](../modules/gsuite/schema.md)
+- [Jamf](../modules/jamf/schema.md)
+- [Jumpcloud](../modules/jumpcloud/schema.md)
+- [Kandji](../modules/kandji/schema.md)
+- [Keycloak](../modules/keycloak/schema.md)
+- [Kubernetes](../modules/kubernetes/schema.md)
+- [Lastpass](../modules/lastpass/schema.md)
+- [Microsoft](../modules/microsoft/schema.md)
+- [Modal](../modules/modal/schema.md)
+- [Netlify](../modules/netlify/schema.md)
+- [Oci](../modules/oci/schema.md)
+- [Okta](../modules/okta/schema.md)
+- [Ontology](../modules/ontology/schema.md)
+- [Openai](../modules/openai/schema.md)
+- [Pagerduty](../modules/pagerduty/schema.md)
+- [Railway](../modules/railway/schema.md)
+- [Salesforce](../modules/salesforce/schema.md)
+- [Scaleway](../modules/scaleway/schema.md)
+- [Semgrep](../modules/semgrep/schema.md)
+- [SentinelOne](../modules/sentinelone/schema.md)
+- [Sentry](../modules/sentry/schema.md)
+- [Slack](../modules/slack/schema.md)
+- [Snipeit](../modules/snipeit/schema.md)
+- [Socket.dev](../modules/socketdev/schema.md)
+- [Spacelift](../modules/spacelift/schema.md)
+- [Subimage](../modules/subimage/schema.md)
+- [Supabase](../modules/supabase/schema.md)
+- [Syft](../modules/syft/schema.md)
+- [Tailscale](../modules/tailscale/schema.md)
+- [Tenable](../modules/tenable/schema.md)
+- [Trivy](../modules/trivy/schema.md)
+- [Ubuntu](../modules/ubuntu/schema.md)
+- [Vercel](../modules/vercel/schema.md)
+- [Workday](../modules/workday/schema.md)
+- [Workos](../modules/workos/schema.md)

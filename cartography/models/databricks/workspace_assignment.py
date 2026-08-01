@@ -17,10 +17,13 @@ class DatabricksWorkspaceAssignmentRelProperties(CartographyRelProperties):
         "_sub_resource_label", set_in_kwargs=True
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    permissions: PropertyRef = PropertyRef("permissions")
+    permissions: PropertyRef = PropertyRef(
+        "permissions",
+        description="Workspace permissions granted to the account principal.",
+    )
 
 
-# The three principal rels all match the source by ``principal_id`` — the
+# The three principal rels all match the source by ``principal_id``. The
 # account-scoped node id resolved from the assignment's SCIM ``principal_id`` in
 # the intel layer. Matching by the scoped id (not the bare name) keeps
 # assignments from two accounts that share an email / group name / application id
@@ -31,6 +34,8 @@ class DatabricksWorkspaceAssignmentRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccountUser)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
 class DatabricksAccountUserWorkspaceAssignmentRel(CartographyRelSchema):
+    """An account-level Databricks principal is assigned to a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspace_node_id")},
@@ -49,6 +54,8 @@ class DatabricksAccountUserWorkspaceAssignmentRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksAccountGroup)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
 class DatabricksAccountGroupWorkspaceAssignmentRel(CartographyRelSchema):
+    """An account-level Databricks principal is assigned to a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspace_node_id")},
@@ -67,6 +74,8 @@ class DatabricksAccountGroupWorkspaceAssignmentRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksAccountServicePrincipal)-[:ASSIGNED_TO {permissions}]->(:DatabricksWorkspace)
 class DatabricksAccountServicePrincipalWorkspaceAssignmentRel(CartographyRelSchema):
+    """An account-level Databricks principal is assigned to a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspace_node_id")},

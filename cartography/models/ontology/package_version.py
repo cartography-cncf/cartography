@@ -15,12 +15,21 @@ from cartography.models.ontology.labels import ONTOLOGY
 
 @dataclass(frozen=True)
 class PackageVersionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("normalized_id")
+    id: PropertyRef = PropertyRef(
+        "normalized_id",
+        description="Normalized identifier for this specific package version.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    version: PropertyRef = PropertyRef("version")
-    type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
+    name: PropertyRef = PropertyRef("name", description="Package name.")
+    version: PropertyRef = PropertyRef("version", description="Package version.")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Package ecosystem or type.",
+    )
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description="Package URL identifying this package version.",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +40,8 @@ class PackageVersionToNodeRelProperties(CartographyRelProperties):
 # (:PackageVersion)-[:DETECTED_AS]->(:TrivyPackage)
 @dataclass(frozen=True)
 class PackageVersionToTrivyPackageRel(CartographyRelSchema):
+    """A canonical package version was detected as a Trivy package."""
+
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -43,6 +54,8 @@ class PackageVersionToTrivyPackageRel(CartographyRelSchema):
 # (:PackageVersion)-[:DETECTED_AS]->(:SyftPackage)
 @dataclass(frozen=True)
 class PackageVersionToSyftPackageRel(CartographyRelSchema):
+    """A canonical package version was detected as a Syft package."""
+
     target_node_label: str = "SyftPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -55,6 +68,8 @@ class PackageVersionToSyftPackageRel(CartographyRelSchema):
 # (:PackageVersion)-[:DETECTED_AS]->(:SocketDevDependency)
 @dataclass(frozen=True)
 class PackageVersionToSocketDevDependencyRel(CartographyRelSchema):
+    """A canonical package version was detected as a Socket.dev dependency."""
+
     target_node_label: str = "SocketDevDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -67,6 +82,8 @@ class PackageVersionToSocketDevDependencyRel(CartographyRelSchema):
 # (:PackageVersion)-[:DETECTED_AS]->(:GitLabDependency)
 @dataclass(frozen=True)
 class PackageVersionToGitLabDependencyRel(CartographyRelSchema):
+    """A canonical package version was detected as a GitLab dependency."""
+
     target_node_label: str = "GitLabDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -79,6 +96,8 @@ class PackageVersionToGitLabDependencyRel(CartographyRelSchema):
 # (:PackageVersion)-[:DETECTED_AS]->(:GitHubDependency)
 @dataclass(frozen=True)
 class PackageVersionToGitHubDependencyRel(CartographyRelSchema):
+    """A canonical package version was detected as a GitHub dependency."""
+
     target_node_label: str = "GitHubDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -91,6 +110,8 @@ class PackageVersionToGitHubDependencyRel(CartographyRelSchema):
 # (:PackageVersion)-[:DETECTED_AS]->(:SemgrepDependency) (SemgrepGoLibrary / SemgrepNpmLibrary)
 @dataclass(frozen=True)
 class PackageVersionToSemgrepDependencyRel(CartographyRelSchema):
+    """A canonical package version was detected as a Semgrep dependency."""
+
     target_node_label: str = "SemgrepDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"normalized_id": PropertyRef("normalized_id")},
@@ -102,14 +123,7 @@ class PackageVersionToSemgrepDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageVersionToOntologyImageRel(CartographyRelSchema):
-    """
-    Cleanup-only relationship schema.
-
-    The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
-    only needs the relationship label and target node label to delete stale
-    DEPLOYED edges. Relationship creation happens via the ontology package analysis jobs
-    which traverses the scanner package path (PackageVersion -> DETECTED_AS -> TrivyPackage/SyftPackage -> DEPLOYED -> Image).
-    """
+    """A canonical package version is deployed on a container image."""
 
     target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -122,6 +136,8 @@ class PackageVersionToOntologyImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageVersionToTrivyFixRel(CartographyRelSchema):
+    """A canonical package version should be updated to an available Trivy fix."""
+
     target_node_label: str = "TrivyFix"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
@@ -133,6 +149,8 @@ class PackageVersionToTrivyFixRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageVersionToPackageVersionDependsOnRel(CartographyRelSchema):
+    """A canonical package version depends on another package version."""
+
     target_node_label: str = "PackageVersion"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
@@ -144,6 +162,8 @@ class PackageVersionToPackageVersionDependsOnRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyImageFindingToPackageVersionRel(CartographyRelSchema):
+    """A Trivy finding affects a canonical package version."""
+
     target_node_label: str = "TrivyImageFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("id")},
@@ -155,6 +175,8 @@ class TrivyImageFindingToPackageVersionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class PackageVersionSchema(CartographyNodeSchema):
+    """A canonical versioned software package aggregated across inventory sources."""
+
     label: str = "PackageVersion"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: PackageVersionNodeProperties = PackageVersionNodeProperties()

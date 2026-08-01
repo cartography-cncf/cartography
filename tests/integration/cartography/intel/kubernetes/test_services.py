@@ -6,6 +6,9 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_pods
 from cartography.intel.kubernetes.services import cleanup
 from cartography.intel.kubernetes.services import load_services
+from cartography.intel.kubernetes.services import transform_services
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LB_DNS_NAME
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DATA
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -16,6 +19,7 @@ from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.data.kubernetes.services import AWS_TEST_LB_DNS_NAME
 from tests.data.kubernetes.services import AWS_TEST_LB_DNS_NAME_2
 from tests.data.kubernetes.services import KUBERNETES_LOADBALANCER_SERVICE_DATA
+from tests.data.kubernetes.services import KUBERNETES_MIXED_CASE_LB_SERVICE_RAW
 from tests.data.kubernetes.services import KUBERNETES_MULTI_LB_SERVICE_DATA
 from tests.data.kubernetes.services import KUBERNETES_SERVICES_DATA
 from tests.integration.util import check_nodes
@@ -394,3 +398,53 @@ def test_clusterip_service_does_not_create_loadbalancer_relationship(
         )
         == set()
     )
+
+
+def test_load_services_with_mixed_case_aws_loadbalancer_relationship(
+    neo4j_session, _create_test_cluster
+):
+    """
+    AWS preserves the load balancer name's case in DNSName, and the in-cluster controller
+    copies it verbatim into the service status. Both sides are lowercased at ingestion so the
+    equality matcher still links them. Driven through transform_services so the normalization
+    is actually exercised.
+    """
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        MIXED_CASE_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    load_services(
+        neo4j_session,
+        transform_services(KUBERNETES_MIXED_CASE_LB_SERVICE_RAW, all_pods=[]),
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesService",
+        "name",
+        "AWSLoadBalancerV2",
+        "id",
+        "USES_LOAD_BALANCER",
+        rel_direction_right=True,
+    ) == {
+        ("mixed-case-lb-service", MIXED_CASE_LB_DNS_NAME),
+    }

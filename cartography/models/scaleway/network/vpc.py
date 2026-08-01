@@ -14,18 +14,30 @@ from cartography.models.ontology.labels import VIRTUAL_NETWORK
 
 @dataclass(frozen=True)
 class ScalewayVpcProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    region: PropertyRef = PropertyRef("region")
-    tags: PropertyRef = PropertyRef("tags")
-    is_default: PropertyRef = PropertyRef("is_default")
-    private_network_count: PropertyRef = PropertyRef("private_network_count")
-    routing_enabled: PropertyRef = PropertyRef("routing_enabled")
-    custom_routes_propagation_enabled: PropertyRef = PropertyRef(
-        "custom_routes_propagation_enabled"
+    id: PropertyRef = PropertyRef("id", description="VPC unique ID.")
+    name: PropertyRef = PropertyRef("name", description="VPC name.")
+    region: PropertyRef = PropertyRef("region", description="Region the VPC lives in.")
+    tags: PropertyRef = PropertyRef("tags", description="Tags associated with the VPC.")
+    is_default: PropertyRef = PropertyRef(
+        "is_default", description="True if it is the default VPC of the Project."
     )
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    private_network_count: PropertyRef = PropertyRef(
+        "private_network_count", description="Number of Private Networks in the VPC."
+    )
+    routing_enabled: PropertyRef = PropertyRef(
+        "routing_enabled",
+        description="True if routing between Private Networks is enabled.",
+    )
+    custom_routes_propagation_enabled: PropertyRef = PropertyRef(
+        "custom_routes_propagation_enabled",
+        description="True if custom routes are propagated.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="VPC creation date."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="VPC last update date."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -37,6 +49,8 @@ class ScalewayVpcToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayProject)-[:RESOURCE]->(:ScalewayVpc)
 class ScalewayVpcToProjectRel(CartographyRelSchema):
+    """Connects `ScalewayProject` to `ScalewayVpc` through `RESOURCE`."""
+
     target_node_label: str = "ScalewayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -48,6 +62,10 @@ class ScalewayVpcToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ScalewayVpcSchema(CartographyNodeSchema):
+    """A VPC (Virtual Private Cloud) is a regional, isolated network that groups Private
+    Networks.
+    """
+
     label: str = "ScalewayVpc"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])
     properties: ScalewayVpcProperties = ScalewayVpcProperties()

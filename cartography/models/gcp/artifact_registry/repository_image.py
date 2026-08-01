@@ -17,24 +17,80 @@ from cartography.models.ontology.labels import IMAGE_TAG
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryRepositoryImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    uri: PropertyRef = PropertyRef("uri", extra_index=True)
-    _ont_uri: PropertyRef = PropertyRef("uri")
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    tag: PropertyRef = PropertyRef("tag")
-    _ont_tag: PropertyRef = PropertyRef("tag")
-    tags: PropertyRef = PropertyRef("tags")
-    resource_name: PropertyRef = PropertyRef("resource_name", extra_index=True)
-    digest_uri: PropertyRef = PropertyRef("digest_uri")
-    image_size_bytes: PropertyRef = PropertyRef("image_size_bytes")
-    media_type: PropertyRef = PropertyRef("media_type")
-    upload_time: PropertyRef = PropertyRef("upload_time")
-    build_time: PropertyRef = PropertyRef("build_time")
-    update_time: PropertyRef = PropertyRef("update_time")
-    artifact_type: PropertyRef = PropertyRef("artifact_type")
-    repository_id: PropertyRef = PropertyRef("repository_id")
-    project_id: PropertyRef = PropertyRef("project_id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description=(
+            "Tag-scoped pull URI used as the node ID; untagged API records use "
+            "their digest-pinned URI."
+        ),
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Final segment of the DockerImage API resource name."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri",
+        extra_index=True,
+        description="Artifact Registry URI used to retrieve this artifact or tagged image.",
+    )
+    _ont_uri: PropertyRef = PropertyRef(
+        "uri", description="Normalized pull URI used by the ImageTag ontology."
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Digest that identifies the immutable artifact or image content.",
+    )
+    tag: PropertyRef = PropertyRef(
+        "tag", description="Tag represented by this repository-scoped image node."
+    )
+    _ont_tag: PropertyRef = PropertyRef(
+        "tag", description="Normalized tag used by the ImageTag ontology."
+    )
+    tags: PropertyRef = PropertyRef(
+        "tags",
+        description="Tag names associated with this artifact or image API record.",
+    )
+    resource_name: PropertyRef = PropertyRef(
+        "resource_name",
+        extra_index=True,
+        description="Artifact Registry DockerImage API resource name.",
+    )
+    digest_uri: PropertyRef = PropertyRef(
+        "digest_uri",
+        description="Pullable repository URI pinned to the immutable image digest.",
+    )
+    image_size_bytes: PropertyRef = PropertyRef(
+        "image_size_bytes",
+        description="Compressed image size reported by Artifact Registry, in bytes.",
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type",
+        description="OCI media type describing the manifest or artifact payload.",
+    )
+    upload_time: PropertyRef = PropertyRef(
+        "upload_time",
+        description="Timestamp when the image was uploaded to Artifact Registry.",
+    )
+    build_time: PropertyRef = PropertyRef(
+        "build_time",
+        description="Timestamp when the image was built, when reported.",
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time",
+        description="Timestamp when Google Cloud last changed this resource.",
+    )
+    artifact_type: PropertyRef = PropertyRef(
+        "artifact_type",
+        description="Artifact media type reported for the repository image.",
+    )
+    repository_id: PropertyRef = PropertyRef(
+        "repository_id",
+        description="Full resource name of the containing Artifact Registry repository.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="Google Cloud project that owns this resource."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -113,9 +169,13 @@ class GCPArtifactRegistryRepositoryImageToImageRel(CartographyRelSchema):
 class GCPArtifactRegistryRepositoryImageMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -188,6 +248,8 @@ class GCPArtifactRegistryRepositoryImageToImageMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryRepositoryImageSchema(CartographyNodeSchema):
+    """A Google Cloud Artifact Registry Repository Image resource."""
+
     label: str = "GCPArtifactRegistryRepositoryImage"
     properties: GCPArtifactRegistryRepositoryImageNodeProperties = (
         GCPArtifactRegistryRepositoryImageNodeProperties()

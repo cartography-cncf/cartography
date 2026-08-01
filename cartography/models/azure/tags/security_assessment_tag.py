@@ -21,6 +21,8 @@ class AssessmentToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AssessmentToTagRel(CartographyRelSchema):
+    """An Azure security assessment has the tag."""
+
     target_node_label: str = "AzureSecurityAssessment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class AssessmentToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSecurityAssessmentTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()
