@@ -308,6 +308,13 @@ class Config:
     :type circleci_project_slugs: list
     :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
         resources cannot be enumerated via API v2). Optional.
+    :type modal_token_id: str
+    :param modal_token_id: Modal API token id (ak-...). Optional.
+    :type modal_token_secret: str
+    :param modal_token_secret: Modal API token secret (as-...). Optional.
+    :type modal_environments: list
+    :param modal_environments: Modal environment names whose contents should be synced.
+        Defaults to every environment in the workspace. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -554,6 +561,9 @@ class Config:
         circleci_token=None,
         circleci_base_url=None,
         circleci_project_slugs=None,
+        modal_token_id=None,
+        modal_token_secret=None,
+        modal_environments=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -771,6 +781,9 @@ class Config:
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs
+        self.modal_token_id = modal_token_id
+        self.modal_token_secret = modal_token_secret
+        self.modal_environments = modal_environments
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id

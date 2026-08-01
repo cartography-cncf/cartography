@@ -102,6 +102,10 @@ Let's say we have the following data that maps principals with the S3Buckets the
 - `_sub_resource_label`: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
 - `_sub_resource_id`: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
+All three are rewritten on every sync. A MatchLink is keyed only on its two endpoints and its label,
+so two sub-resources reporting the same edge between the same nodes converge on one relationship, and
+the most recent writer owns it for cleanup purposes.
+
 1. Load the matchlinks to the graph
     ```python
     load_matchlinks(
@@ -114,7 +118,10 @@ Let's say we have the following data that maps principals with the S3Buckets the
     )
     ```
     This function automatically creates indexes for the nodes involved, as well for the relationship between
-    them (specifically, on the update tag, the sub-resource label, and the sub-resource id fields).
+    them (specifically, on the sub-resource label and the sub-resource id fields). `lastupdated` is
+    deliberately not part of that index key: it is rewritten on every sync, so including it made Neo4j
+    delete and reinsert every index entry on every run, and it could not help the cleanup anyway because
+    `<>` is not a seekable predicate.
 
 1. Run the cleanup to remove stale matchlinks
     ```python
