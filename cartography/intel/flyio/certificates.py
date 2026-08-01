@@ -55,11 +55,12 @@ def get(
             **params,
         )
         certificates.extend(response["certificates"])
-        next_cursor = response.get("next_cursor")
-        if next_cursor and next_cursor == current_cursor:
+        new_cursor = response.get("next_cursor")
+        if new_cursor and new_cursor == current_cursor:
             raise ValueError(
                 "Fly.io certificates pagination returned a repeated next_cursor.",
             )
+        next_cursor = new_cursor
         if not next_cursor:
             return {
                 "certificates": certificates,
