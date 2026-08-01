@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.netlify.util import paginated_get
 from cartography.models.netlify.invite import NetlifyInvitedToAccountMatchLink
 from cartography.models.netlify.invite import NetlifyInviteSchema
@@ -17,6 +18,8 @@ from cartography.models.netlify.user import NetlifyUserToAccountMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+ORPHANED_INVITE_CLEANUP_ITERATION_SIZE = 100
 
 
 @timeit
@@ -186,3 +189,33 @@ def cleanup_netlify_users(
             account_id,
             update_tag,
         ).run(neo4j_session)
+    cleanup_netlify_orphaned_invites(neo4j_session)
+
+
+@timeit
+def cleanup_netlify_orphaned_invites(neo4j_session: neo4j.Session) -> None:
+    """
+    Delete invitations that are no longer outstanding anywhere.
+
+    An invitation ends by being accepted or revoked, and either way the row leaves the members
+    list, so the edge cleanup above drops its INVITED_TO. Unlike NetlifyUser, the node has no
+    meaning once that happens: it stands for a pending invitation, not for a person, and an
+    accepted one is now a NetlifyUser keyed on the real user_id. Left behind it would duplicate
+    that person forever.
+
+    The predicate is the absence of any remaining INVITED_TO rather than a stale lastupdated, so
+    an address still invited to another team survives: that team's edge is untouched by this
+    team's sync, and it keeps the node alive.
+    """
+    # Delete iteratively in chunks so a large backlog doesn't exhaust transaction memory.
+    GraphStatement(
+        """
+        MATCH (i:NetlifyInvite)
+        WHERE NOT (i)-[:INVITED_TO]->(:NetlifyAccount)
+        WITH i LIMIT $LIMIT_SIZE
+        DETACH DELETE i;
+        """,
+        iterative=True,
+        iterationsize=ORPHANED_INVITE_CLEANUP_ITERATION_SIZE,
+        parent_job_name="NetlifyInvite",
+    ).run(neo4j_session)

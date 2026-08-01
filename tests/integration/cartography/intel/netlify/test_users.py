@@ -19,6 +19,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 _MEMBERSHIP_ID = "5f5a5d7053c60b4be4c8784e"
+_OTHER_ACCOUNT_ID = "5f5a5d7053c60b4be4c87850"
 
 
 @patch.object(
@@ -178,6 +179,85 @@ def test_an_unaccepted_invitation_becomes_its_own_node(
     ).single()
     assert invitation["role"] == "Collaborator"
     assert invitation["membership_id"] == "invite-row-1"
+
+
+def test_an_invitation_that_ended_is_deleted_unless_another_team_still_holds_it(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    An accepted or revoked invitation leaves the members list, so the edge cleanup drops its
+    INVITED_TO and the node has nothing left to stand for. It must go, or the person it named
+    lingers forever alongside the NetlifyUser they became. An address still invited to a second
+    team keeps its other INVITED_TO and so must survive this team's sync.
+    """
+    # Arrange: two addresses invited to this team, one of them also invited to a second team
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_netlify_account(neo4j_session)
+    create_test_netlify_account(neo4j_session, account_id=_OTHER_ACCOUNT_ID)
+    invited_twice = {
+        "id": "invite-row-1",
+        "user_id": None,
+        "email": "invited-twice@example.com",
+        "pending": True,
+        "role": "Collaborator",
+    }
+    ending = {
+        "id": "invite-row-2",
+        "user_id": None,
+        "email": "ending@example.com",
+        "pending": True,
+        "role": "Collaborator",
+    }
+    for account_id, members in (
+        (TEST_ACCOUNT_ID, [invited_twice, ending]),
+        (_OTHER_ACCOUNT_ID, [invited_twice]),
+    ):
+        _, invites = cartography.intel.netlify.users.transform_netlify_users(
+            members,
+            account_id,
+        )
+        cartography.intel.netlify.users.load_netlify_invites(
+            neo4j_session,
+            invites,
+            account_id,
+            TEST_UPDATE_TAG,
+        )
+    assert check_nodes(neo4j_session, "NetlifyInvite", ["id"]) == {
+        ("invited-twice@example.com",),
+        ("ending@example.com",),
+    }
+
+    # Act: re-sync only this team, with the second invitation gone from the members list
+    with patch.object(
+        cartography.intel.netlify.users,
+        "get_netlify_users",
+        return_value=[invited_twice],
+    ):
+        cartography.intel.netlify.users.sync_netlify_users(
+            neo4j_session,
+            MagicMock(spec=requests.Session),
+            TEST_BASE_URL,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT_SLUG,
+            TEST_UPDATE_TAG + 1,
+            common_job_parameters(update_tag=TEST_UPDATE_TAG + 1),
+        )
+
+    # Assert: the ended invitation is gone, the one the other team still holds is not
+    assert check_nodes(neo4j_session, "NetlifyInvite", ["id"]) == {
+        ("invited-twice@example.com",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "NetlifyInvite",
+        "id",
+        "NetlifyAccount",
+        "id",
+        "INVITED_TO",
+    ) == {
+        ("invited-twice@example.com", TEST_ACCOUNT_ID),
+        ("invited-twice@example.com", _OTHER_ACCOUNT_ID),
+    }
 
 
 def test_an_existing_user_invited_to_a_team_stays_a_user(
