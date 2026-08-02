@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -9,6 +10,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.firewallrule import CloudflareFirewallRuleSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 # Rules per API page, the documented maximum for the firewall rules API.
 _PER_PAGE = 50
@@ -27,9 +30,15 @@ def sync(
     # so an account with many zones never holds all rules in memory at once and
     # rules from zones not yet synced in this run are not deleted and recreated.
     for zone in zones:
+        rules = transform(get(client, zone["id"]))
+        logger.info(
+            "Loading %d firewall rules for zone '%s'.",
+            len(rules),
+            zone["id"],
+        )
         load_firewallrules(
             neo4j_session,
-            transform(get(client, zone["id"])),
+            rules,
             account_id,
             zone["id"],
             common_job_parameters["UPDATE_TAG"],
