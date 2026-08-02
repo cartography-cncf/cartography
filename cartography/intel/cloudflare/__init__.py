@@ -5,6 +5,7 @@ from cloudflare import Cloudflare
 
 import cartography.intel.cloudflare.accounts
 import cartography.intel.cloudflare.dnsrecords
+import cartography.intel.cloudflare.firewallrules
 import cartography.intel.cloudflare.members
 import cartography.intel.cloudflare.roles
 import cartography.intel.cloudflare.zones
@@ -74,6 +75,14 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         )
 
         cartography.intel.cloudflare.dnsrecords.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+            zones=zones,
+        )
+
+        cartography.intel.cloudflare.firewallrules.sync(
             neo4j_session,
             client,
             account_job_parameters,

@@ -8,6 +8,8 @@ A(CloudflareAccount) -- RESOURCE --> R(CloudflareRole)
 M -- HAS_ROLE --> R
 A(CloudflareAccount) -- RESOURCE --> D(CloudflareDNSRecord)
 Z -- HAS_RECORD --> D
+A(CloudflareAccount) -- RESOURCE --> F(CloudflareFirewallRule)
+Z -- HAS_FIREWALL_RULE --> F
 ```
 
 ### CloudflareAccount
@@ -30,13 +32,14 @@ Represents the Cloudflare Account (aka Tenant)
 
 
 #### Relationships
-- `CloudflareRole`, `CloudflareMember`, `CloudflareZone`, `CloudflareDNSRecord` belong to an `CloudflareAccount`.
+- `CloudflareRole`, `CloudflareMember`, `CloudflareZone`, `CloudflareDNSRecord`, `CloudflareFirewallRule` belong to an `CloudflareAccount`.
     ```
     (:CloudflareAccount)-[:RESOURCE]->(
         :CloudflareRole,
         :CloudflareMember,
         :CloudflareZone,
-        :CloudflareDNSRecord
+        :CloudflareDNSRecord,
+        :CloudflareFirewallRule
     )
     ```
 
@@ -167,4 +170,38 @@ Represents a DNS entry in Cloudflare.
 - `CloudflareDNSRecord` is hosted in a `CloudflareZone`. DEPRECATED: use `HAS_RECORD` instead, this edge will be removed in v1.0.0.
     ```
     (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareZone)
+    ```
+
+
+### CloudflareFirewallRule
+
+Represents a zone-level firewall rule in Cloudflare. Each rule pairs an
+`action` (e.g. `block`, `challenge`, `allow`, `log`) with a `filter`
+expression that matches the traffic it applies to.
+
+| Field | Description |
+|-------|-------------|
+| id | Rule identifier. |
+| lastupdated |  Timestamp of the last time the node was updated |
+| action | The action to apply to matched traffic: `block`, `challenge`, `js_challenge`, `managed_challenge`, `allow`, `log`, or `bypass`. |
+| description | A note about why the rule exists, if any. |
+| paused | Whether the rule is currently paused. |
+| priority | The order in which rules are evaluated. |
+| products | The Cloudflare products the rule applies to (e.g. `waf`, `rateLimit`, `zoneLockdown`). |
+| ref | An optional short identifier used for logging. |
+| filter_id | Identifier of the rule's filter expression. |
+| filter_description | A note about the filter expression, if any. |
+| filter_expression | The filter expression that traffic must match for the rule to apply. |
+| filter_paused | Whether the filter is currently paused. |
+| filter_ref | An optional short identifier for the filter. |
+
+
+#### Relationships
+- `CloudflareFirewallRule` belongs to a `CloudflareAccount`
+    ```
+    (:CloudflareFirewallRule)<-[:RESOURCE]-(:CloudflareAccount)
+    ```
+- `CloudflareZone` has `CloudflareFirewallRule`
+    ```
+    (:CloudflareZone)-[:HAS_FIREWALL_RULE]->(:CloudflareFirewallRule)
     ```
