@@ -13,9 +13,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TailscaleTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Tag ID (eg. `tag:example`).")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", description="The tag name (eg. `example`).")
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,8 @@ class TailscaleTagToTailnetRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleTag)
 class TailscaleTagToTailnetRel(CartographyRelSchema):
+    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org", set_in_kwargs=True)},
@@ -45,6 +47,8 @@ class TailscaleTagToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleUser)-[:OWNS]->(:TailscaleTag)
 class TailscaleTagToUserRel(CartographyRelSchema):
+    """Defines the OWNS relationship to TailscaleUser nodes."""
+
     target_node_label: str = "TailscaleUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"login_name": PropertyRef("owners", one_to_many=True)},
@@ -62,6 +66,8 @@ class TailscaleTagToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleGroup)-[:OWNS]->(:TailscaleTag)
 class TailscaleTagToGroupRel(CartographyRelSchema):
+    """Defines the OWNS relationship to TailscaleGroup nodes."""
+
     target_node_label: str = "TailscaleGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_owners", one_to_many=True)},
@@ -79,6 +85,8 @@ class TailscaleTagToDeviceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
 class TailscaleTagToDeviceRel(CartographyRelSchema):
+    """Defines the TAGGED relationship to TailscaleDevice nodes."""
+
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("devices", one_to_many=True)},
@@ -90,6 +98,8 @@ class TailscaleTagToDeviceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleTagSchema(CartographyNodeSchema):
+    """A tag in Tailscale (defined and used by ACL)."""
+
     label: str = "TailscaleTag"
     properties: TailscaleTagNodeProperties = TailscaleTagNodeProperties()
     sub_resource_relationship: TailscaleTagToTailnetRel = TailscaleTagToTailnetRel()

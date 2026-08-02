@@ -23,14 +23,39 @@ from cartography.models.ontology.labels import LOAD_BALANCER
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TargetGroupArn")
-    arn: PropertyRef = PropertyRef("TargetGroupArn", extra_index=True)
-    name: PropertyRef = PropertyRef("TargetGroupName")
-    target_type: PropertyRef = PropertyRef("TargetType")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    port: PropertyRef = PropertyRef("Port")
-    vpc_id: PropertyRef = PropertyRef("VpcId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "TargetGroupArn",
+        description="Unique identifier for this `AWSELBV2TargetGroup` node.",
+    )
+    arn: PropertyRef = PropertyRef(
+        "TargetGroupArn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSELBV2TargetGroup` node.",
+    )
+    name: PropertyRef = PropertyRef(
+        "TargetGroupName", description="Name of this `AWSELBV2TargetGroup` node."
+    )
+    target_type: PropertyRef = PropertyRef(
+        "TargetType",
+        description="Type of resource registered as a target in the target group.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "Protocol",
+        description="Protocol used by the listener or target group.",
+    )
+    port: PropertyRef = PropertyRef(
+        "Port",
+        description="Port on which the listener or target group receives traffic.",
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "VpcId",
+        description="Identifier of the VPC linked to this `AWSELBV2TargetGroup` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSELBV2TargetGroup` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -72,6 +97,8 @@ class ELBV2TargetGroupToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS Elastic Load Balancing v2 [Target Group](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroup.html)."""
+
     label: str = "AWSELBV2TargetGroup"
     # DEPRECATED: legacy ELBV2TargetGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_ELBV2_TARGET_GROUP])
@@ -95,13 +122,18 @@ class ELBV2TargetGroupToECSServiceRelProperties(CartographyRelProperties):
         set_in_kwargs=True,
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    container_name: PropertyRef = PropertyRef("ContainerName")
-    container_port: PropertyRef = PropertyRef("ContainerPort")
+    container_name: PropertyRef = PropertyRef(
+        "ContainerName",
+        description="Name of the container reached through this relationship.",
+    )
+    container_port: PropertyRef = PropertyRef(
+        "ContainerPort", description="Container port reached through this relationship."
+    )
 
 
 @dataclass(frozen=True)
 class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
-    """(:AWSELBV2TargetGroup)-[:TARGETS]->(:AWSECSService)"""
+    """Indicates that the target group routes traffic to an ECS service."""
 
     target_node_label: str = "AWSECSService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -123,23 +155,50 @@ class ELBV2TargetGroupToECSServiceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2NodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("DNSName")
+    id: PropertyRef = PropertyRef(
+        "DNSName",
+        description="The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("LoadBalancerName")
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the load balancer"
+    )
+    name: PropertyRef = PropertyRef(
+        "LoadBalancerName", description="The name of the load balancer"
+    )
     # Lowercased in _transform_load_balancer_v2_data. Route53 alias targets and Kubernetes
     # load balancer status hostnames are matched against this for equality, and AWS
     # preserves the load balancer name's case in DNSName. `id` deliberately keeps the raw
     # value: it is what listeners and target groups join against.
-    dnsname: PropertyRef = PropertyRef("DNSNameLower", extra_index=True)
-    canonicalhostedzonenameid: PropertyRef = PropertyRef("CanonicalHostedZoneId")
-    type: PropertyRef = PropertyRef("Type")
-    scheme: PropertyRef = PropertyRef("Scheme")
+    dnsname: PropertyRef = PropertyRef(
+        "DNSNameLower",
+        extra_index=True,
+        description="The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality.",
+    )
+    canonicalhostedzonenameid: PropertyRef = PropertyRef(
+        "CanonicalHostedZoneId",
+        description="The ID of the Amazon Route 53 hosted zone for the load balancer.",
+    )
+    type: PropertyRef = PropertyRef(
+        "Type", description="Can be `application` or `network`"
+    )
+    scheme: PropertyRef = PropertyRef(
+        "Scheme",
+        description="The type of load balancer.  If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address.",
+    )
     exposed_internet: PropertyRef = PropertyRef(
-        "exposed_internet", extra_index=True
+        "exposed_internet",
+        extra_index=True,
+        description="The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port.",
     )  # Populated by AWS_EC2_ASSET_EXPOSURE_JOBS.
-    arn: PropertyRef = PropertyRef("LoadBalancerArn", extra_index=True)
-    createdtime: PropertyRef = PropertyRef("CreatedTime")
+    arn: PropertyRef = PropertyRef(
+        "LoadBalancerArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the load balancer.",
+    )
+    createdtime: PropertyRef = PropertyRef(
+        "CreatedTime", description="The date and time the load balancer was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -198,10 +257,9 @@ class LoadBalancerV2ToEC2SubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2Schema(CartographyNodeSchema):
-    """
-    LoadBalancerV2 schema (Application and Network Load Balancers).
+    """An AWS Application or Network Load Balancer that distributes traffic to targets. See the [Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) and [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html) guides, and the [API reference](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
 
-    Target relationships (EXPOSE) are defined as MatchLinks below for introspection.
+    **Label rename:** in previous versions, ALB/NLB nodes used the label `LoadBalancerV2`. It was renamed to `AWSLoadBalancerV2` for consistency with other AWS resources, and existing nodes are relabeled automatically on upgrade.
     """
 
     label: str = "AWSLoadBalancerV2"
@@ -236,14 +294,22 @@ class LoadBalancerV2ToTargetRelProperties(CartographyRelProperties):
         set_in_kwargs=True,
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    port: PropertyRef = PropertyRef("Port")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    target_group_arn: PropertyRef = PropertyRef("TargetGroupArn")
+    port: PropertyRef = PropertyRef(
+        "Port",
+        description="Port on which the listener or target group receives traffic.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "Protocol", description="Protocol used by the listener or target group."
+    )
+    target_group_arn: PropertyRef = PropertyRef(
+        "TargetGroupArn",
+        description="ARN of the Elastic Load Balancing target group represented by this relationship.",
+    )
 
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2Instance)"""
+    """Indicates that the load balancer exposes an EC2 instance as a traffic target."""
 
     target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -262,7 +328,7 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSEC2PrivateIp)"""
+    """Indicates that the load balancer exposes a private IP address as a traffic target."""
 
     target_node_label: str = "AWSEC2PrivateIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -281,7 +347,7 @@ class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:AWSLambda)"""
+    """Indicates that the load balancer exposes a Lambda function as a traffic target."""
 
     target_node_label: str = "AWSLambda"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -300,7 +366,7 @@ class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToLoadBalancerV2MatchLink(CartographyRelSchema):
-    """(:LoadBalancerV2)-[:EXPOSE]->(:LoadBalancerV2) for ALB targets"""
+    """Indicates that the load balancer exposes another load balancer as a traffic target."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -322,22 +388,44 @@ class LoadBalancerV2ToLoadBalancerV2MatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2ListenerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ListenerArn")
+    id: PropertyRef = PropertyRef(
+        "ListenerArn", description="Unique identifier for this `AWSELBV2Listener` node."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    port: PropertyRef = PropertyRef("Port")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    ssl_policy: PropertyRef = PropertyRef("SslPolicy")
-    targetgrouparn: PropertyRef = PropertyRef("TargetGroupArn")
-    mutual_authentication_mode: PropertyRef = PropertyRef("MutualAuthenticationMode")
-    trust_store_arn: PropertyRef = PropertyRef("TrustStoreArn")
+    port: PropertyRef = PropertyRef(
+        "Port",
+        description="Port on which the listener or target group receives traffic.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "Protocol", description="Protocol used by the listener or target group."
+    )
+    ssl_policy: PropertyRef = PropertyRef(
+        "SslPolicy",
+        description="TLS security policy configured on the listener.",
+    )
+    targetgrouparn: PropertyRef = PropertyRef(
+        "TargetGroupArn",
+        description="ARN of the targetgrouparn linked to this `AWSELBV2Listener` node.",
+    )
+    mutual_authentication_mode: PropertyRef = PropertyRef(
+        "MutualAuthenticationMode",
+        description="Mutual TLS authentication mode configured on the listener.",
+    )
+    trust_store_arn: PropertyRef = PropertyRef(
+        "TrustStoreArn",
+        description="ARN of the trust store linked to this `AWSELBV2Listener` node.",
+    )
     ignore_client_certificate_expiry: PropertyRef = PropertyRef(
-        "IgnoreClientCertificateExpiry"
+        "IgnoreClientCertificateExpiry",
+        description="Whether this `AWSELBV2Listener` node ignores client certificate expiry.",
     )
     trust_store_association_status: PropertyRef = PropertyRef(
-        "TrustStoreAssociationStatus"
+        "TrustStoreAssociationStatus",
+        description="Current status of the listener trust-store association.",
     )
     advertise_trust_store_ca_names: PropertyRef = PropertyRef(
-        "AdvertiseTrustStoreCaNames"
+        "AdvertiseTrustStoreCaNames",
+        description="Whether the listener advertises certificate-authority names from its trust store.",
     )
 
 
@@ -379,9 +467,7 @@ class ELBV2ListenerToLoadBalancerV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ELBV2ListenerSchema(CartographyNodeSchema):
-    """
-    AWSELBV2Listener schema for load balancer listeners.
-    """
+    """Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html)."""
 
     label: str = "AWSELBV2Listener"
     # DEPRECATED: legacy ELBV2Listener node label will be removed in v1.0.0.

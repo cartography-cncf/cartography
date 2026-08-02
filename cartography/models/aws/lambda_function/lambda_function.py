@@ -15,38 +15,127 @@ from cartography.models.ontology.labels import FUNCTION
 
 @dataclass(frozen=True)
 class AWSLambdaNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("FunctionArn")
-    arn: PropertyRef = PropertyRef("FunctionArn", extra_index=True)
-    name: PropertyRef = PropertyRef("FunctionName")
-    modifieddate: PropertyRef = PropertyRef("LastModified")
-    runtime: PropertyRef = PropertyRef("Runtime")
-    description: PropertyRef = PropertyRef("Description")
-    timeout: PropertyRef = PropertyRef("Timeout")
-    memory: PropertyRef = PropertyRef("MemorySize")
-    codesize: PropertyRef = PropertyRef("CodeSize")
-    handler: PropertyRef = PropertyRef("Handler")
-    version: PropertyRef = PropertyRef("Version")
-    tracingconfigmode: PropertyRef = PropertyRef("TracingConfigMode")
-    revisionid: PropertyRef = PropertyRef("RevisionId")
-    state: PropertyRef = PropertyRef("State")
-    statereason: PropertyRef = PropertyRef("StateReason")
-    statereasoncode: PropertyRef = PropertyRef("StateReasonCode")
-    lastupdatestatus: PropertyRef = PropertyRef("LastUpdateStatus")
-    lastupdatestatusreason: PropertyRef = PropertyRef("LastUpdateStatusReason")
-    lastupdatestatusreasoncode: PropertyRef = PropertyRef("LastUpdateStatusReasonCode")
-    packagetype: PropertyRef = PropertyRef("PackageType")
-    image_uri: PropertyRef = PropertyRef("image_uri")
-    image_digest: PropertyRef = PropertyRef("image_digest")
-    signingprofileversionarn: PropertyRef = PropertyRef("SigningProfileVersionArn")
-    signingjobarn: PropertyRef = PropertyRef("SigningJobArn")
-    codesha256: PropertyRef = PropertyRef("CodeSha256")
-    architectures: PropertyRef = PropertyRef("Architectures")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    masterarn: PropertyRef = PropertyRef("MasterArn")
-    kmskeyarn: PropertyRef = PropertyRef("KMSKeyArn")
-    anonymous_access: PropertyRef = PropertyRef("AnonymousAccess")
-    anonymous_actions: PropertyRef = PropertyRef("AnonymousActions")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "FunctionArn", description="The arn of the lambda function"
+    )
+    arn: PropertyRef = PropertyRef(
+        "FunctionArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the lambda function",
+    )
+    name: PropertyRef = PropertyRef(
+        "FunctionName", description="The name of the lambda function"
+    )
+    modifieddate: PropertyRef = PropertyRef(
+        "LastModified",
+        description="Timestamp of the last time the function was last updated",
+    )
+    runtime: PropertyRef = PropertyRef(
+        "Runtime", description="The runtime environment for the Lambda function"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the Lambda function"
+    )
+    timeout: PropertyRef = PropertyRef(
+        "Timeout",
+        description="The amount of time in seconds that Lambda allows a function to run before stopping it",
+    )
+    memory: PropertyRef = PropertyRef(
+        "MemorySize", description="The memory that's allocated to the function"
+    )
+    codesize: PropertyRef = PropertyRef(
+        "CodeSize",
+        description="The size of the function's deployment package, in bytes.",
+    )
+    handler: PropertyRef = PropertyRef(
+        "Handler",
+        description="The function that Lambda calls to begin executing your function.",
+    )
+    version: PropertyRef = PropertyRef(
+        "Version", description="The version of the Lambda function."
+    )
+    tracingconfigmode: PropertyRef = PropertyRef(
+        "TracingConfigMode",
+        description="The function's AWS X-Ray tracing configuration mode.",
+    )
+    revisionid: PropertyRef = PropertyRef(
+        "RevisionId",
+        description="The latest updated revision of the function or alias.",
+    )
+    state: PropertyRef = PropertyRef(
+        "State", description="The current state of the function."
+    )
+    statereason: PropertyRef = PropertyRef(
+        "StateReason", description="The reason for the function's current state."
+    )
+    statereasoncode: PropertyRef = PropertyRef(
+        "StateReasonCode",
+        description="The reason code for the function's current state.",
+    )
+    lastupdatestatus: PropertyRef = PropertyRef(
+        "LastUpdateStatus",
+        description="The status of the last update that was performed on the function.",
+    )
+    lastupdatestatusreason: PropertyRef = PropertyRef(
+        "LastUpdateStatusReason",
+        description="The reason for the last update that was performed on the function.",
+    )
+    lastupdatestatusreasoncode: PropertyRef = PropertyRef(
+        "LastUpdateStatusReasonCode",
+        description="The reason code for the last update that was performed on the function.",
+    )
+    packagetype: PropertyRef = PropertyRef(
+        "PackageType",
+        description="The type of deployment package (`Zip` for source code, `Image` for container).",
+    )
+    image_uri: PropertyRef = PropertyRef(
+        "image_uri",
+        description="Container image reference (e.g., `123.dkr.ecr.us-east-1.amazonaws.com/repo@sha256:...`). Populated when `packagetype=Image`.",
+    )
+    image_digest: PropertyRef = PropertyRef(
+        "image_digest",
+        description="Content-addressable digest (`sha256:...`) extracted from `image_uri` when the reference is digest-pinned.",
+    )
+    signingprofileversionarn: PropertyRef = PropertyRef(
+        "SigningProfileVersionArn",
+        description="The ARN of the signing profile version.",
+    )
+    signingjobarn: PropertyRef = PropertyRef(
+        "SigningJobArn", description="The ARN of the signing job."
+    )
+    codesha256: PropertyRef = PropertyRef(
+        "CodeSha256",
+        description="The SHA256 hash of the function's deployment package.",
+    )
+    architectures: PropertyRef = PropertyRef(
+        "Architectures",
+        description="The instruction set architecture that the function supports. Architecture is a string array with one of the valid values.",
+    )
+    architecture_normalized: PropertyRef = PropertyRef(
+        "architecture_normalized",
+        description="Canonical architecture (`amd64`, `arm64`) derived from `architectures[0]`. Used by `RESOLVED_IMAGE` to pick the right child image when the Lambda runs a multi-architecture manifest list.",
+    )
+    masterarn: PropertyRef = PropertyRef(
+        "MasterArn",
+        description="For Lambda@Edge functions, the ARN of the main function.",
+    )
+    kmskeyarn: PropertyRef = PropertyRef(
+        "KMSKeyArn",
+        description="The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key.",
+    )
+    anonymous_access: PropertyRef = PropertyRef(
+        "AnonymousAccess",
+        description="True if this function has a policy applied to it that allows anonymous access or if it is open to the internet.",
+    )
+    anonymous_actions: PropertyRef = PropertyRef(
+        "AnonymousActions",
+        description="List of anonymous internet accessible actions that may be run on the function.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Lambda function is deployed.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -178,6 +267,8 @@ class AWSLambdaToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaSchema(CartographyNodeSchema):
+    """Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/latest/dg/API_FunctionConfiguration.html)."""
+
     label: str = "AWSLambda"
     properties: AWSLambdaNodeProperties = AWSLambdaNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FUNCTION])

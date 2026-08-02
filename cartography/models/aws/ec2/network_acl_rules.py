@@ -17,18 +17,51 @@ from cartography.models.extra_labels import IP_PERMISSION_INBOUND
 
 @dataclass(frozen=True)
 class EC2NetworkAclRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for this `AWSEC2NetworkAclRule` node."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    network_acl_id: PropertyRef = PropertyRef("NetworkAclId")
-    protocol: PropertyRef = PropertyRef("Protocol")
-    fromport: PropertyRef = PropertyRef("FromPort")
-    toport: PropertyRef = PropertyRef("ToPort")
-    cidrblock: PropertyRef = PropertyRef("CidrBlock")
-    ipv6cidrblock: PropertyRef = PropertyRef("Ipv6CidrBlock")
-    egress: PropertyRef = PropertyRef("Egress")
-    rulenumber: PropertyRef = PropertyRef("RuleNumber")
-    ruleaction: PropertyRef = PropertyRef("RuleAction")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    network_acl_id: PropertyRef = PropertyRef(
+        "NetworkAclId",
+        description="Identifier of the network ACL linked to this `AWSEC2NetworkAclRule` node.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "Protocol",
+        description="IP protocol number matched by the network ACL rule.",
+    )
+    fromport: PropertyRef = PropertyRef(
+        "FromPort",
+        description="Lowest transport-layer port matched by the network ACL rule.",
+    )
+    toport: PropertyRef = PropertyRef(
+        "ToPort",
+        description="Highest transport-layer port matched by the network ACL rule.",
+    )
+    cidrblock: PropertyRef = PropertyRef(
+        "CidrBlock",
+        description="IPv4 CIDR range matched by the network ACL rule.",
+    )
+    ipv6cidrblock: PropertyRef = PropertyRef(
+        "Ipv6CidrBlock",
+        description="IPv6 CIDR range matched by the network ACL rule.",
+    )
+    egress: PropertyRef = PropertyRef(
+        "Egress",
+        description="Whether this `AWSEC2NetworkAclRule` node applies to outbound traffic.",
+    )
+    rulenumber: PropertyRef = PropertyRef(
+        "RuleNumber",
+        description="Evaluation order of the network ACL rule.",
+    )
+    ruleaction: PropertyRef = PropertyRef(
+        "RuleAction",
+        description="Whether matching traffic is allowed or denied.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSEC2NetworkAclRule` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -67,9 +100,7 @@ class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """An inbound entry of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html). For additional explanation see the [network ACL rules guide](https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html)."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.
@@ -89,9 +120,7 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """An egress entry of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html). For additional explanation see the [network ACL rules guide](https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html)."""
 
     label: str = "AWSEC2NetworkAclRule"
     # DEPRECATED: legacy EC2NetworkAclRule node label will be removed in v1.0.0.

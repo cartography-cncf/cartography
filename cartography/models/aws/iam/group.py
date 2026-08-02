@@ -19,18 +19,34 @@ from cartography.models.ontology.labels import USER_GROUP
 @dataclass(frozen=True)
 class AWSGroupNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSGroup` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSGroup` node.",
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM groups
-    groupid: PropertyRef = PropertyRef("groupid")
-    name: PropertyRef = PropertyRef("name")
-    path: PropertyRef = PropertyRef("path")
-    createdate: PropertyRef = PropertyRef("createdate")
-    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
+    groupid: PropertyRef = PropertyRef(
+        "groupid",
+        description="Identifier of the group linked to this `AWSGroup` node.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of this `AWSGroup` node.")
+    path: PropertyRef = PropertyRef(
+        "path", description="IAM path under which the IAM group is organized."
+    )
+    createdate: PropertyRef = PropertyRef(
+        "createdate", description="Timestamp when the IAM group was created."
+    )
+    createdate_dt: PropertyRef = PropertyRef(
+        "createdate_dt",
+        description="Creation timestamp for the IAM group normalized as a Neo4j datetime.",
+    )
 
 
 @dataclass(frozen=True)
@@ -53,6 +69,8 @@ class AWSGroupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSGroupSchema(CartographyNodeSchema):
+    """Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html)."""
+
     label: str = "AWSGroup"
     properties: AWSGroupNodeProperties = AWSGroupNodeProperties()
     sub_resource_relationship: AWSGroupToAWSAccountRel = AWSGroupToAWSAccountRel()

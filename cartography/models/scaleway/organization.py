@@ -9,12 +9,14 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class ScalewayOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Scaleway Organization")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ScalewayOrganizationSchema(CartographyNodeSchema):
+    """Represents an Organization in Scaleway."""
+
     label: str = "ScalewayOrganization"
     properties: ScalewayOrganizationNodeProperties = (
         ScalewayOrganizationNodeProperties()

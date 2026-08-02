@@ -20,13 +20,30 @@ class SupabaseOrganizationMemberNodeProperties(CartographyNodeProperties):
     # two organizations therefore gets one node per organization, the same way
     # AWSUser is scoped per account; the canonical `User` ontology node is what
     # unifies them back into a single person.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Synthesised as `<org slug>/<user id>`. This node is a membership, not a person: `role_name` is per-organization, so a user belonging to several organizations gets one node per organization, the same way `AWSUser` is scoped per account",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    user_id: PropertyRef = PropertyRef("user_id", extra_index=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    user_name: PropertyRef = PropertyRef("user_name")
-    role_name: PropertyRef = PropertyRef("role_name")
-    mfa_enabled: PropertyRef = PropertyRef("mfa_enabled")
+    user_id: PropertyRef = PropertyRef(
+        "user_id",
+        extra_index=True,
+        description="The member's Supabase user id, shared across their memberships",
+    )
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="The member's email address"
+    )
+    user_name: PropertyRef = PropertyRef(
+        "user_name", description="The member's username"
+    )
+    role_name: PropertyRef = PropertyRef(
+        "role_name",
+        description="The member's role in the organization (Owner, Administrator, Developer, ...)",
+    )
+    mfa_enabled: PropertyRef = PropertyRef(
+        "mfa_enabled",
+        description="Whether the member has multi-factor authentication enabled on their Supabase account",
+    )
 
 
 @dataclass(frozen=True)
@@ -50,6 +67,8 @@ class SupabaseOrganizationMemberToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseOrganizationMemberSchema(CartographyNodeSchema):
+    """Represents a user who is a member of a Supabase organization."""
+
     label: str = "SupabaseOrganizationMember"
     properties: SupabaseOrganizationMemberNodeProperties = (
         SupabaseOrganizationMemberNodeProperties()

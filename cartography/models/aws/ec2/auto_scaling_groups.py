@@ -18,27 +18,74 @@ from cartography.models.ontology.labels import SUBNET
 
 @dataclass(frozen=True)
 class AutoScalingGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("AutoScalingGroupARN")
-    arn: PropertyRef = PropertyRef("AutoScalingGroupARN")
-    capacityrebalance: PropertyRef = PropertyRef("CapacityRebalance")
-    createdtime: PropertyRef = PropertyRef("CreatedTime")
-    defaultcooldown: PropertyRef = PropertyRef("DefaultCooldown")
-    desiredcapacity: PropertyRef = PropertyRef("DesiredCapacity")
-    healthcheckgraceperiod: PropertyRef = PropertyRef("HealthCheckGracePeriod")
-    healthchecktype: PropertyRef = PropertyRef("HealthCheckType")
-    launchconfigurationname: PropertyRef = PropertyRef("LaunchConfigurationName")
-    launchtemplatename: PropertyRef = PropertyRef("LaunchTemplateName")
-    launchtemplateid: PropertyRef = PropertyRef("LaunchTemplateId")
-    launchtemplateversion: PropertyRef = PropertyRef("LaunchTemplateVersion")
-    maxinstancelifetime: PropertyRef = PropertyRef("MaxInstanceLifetime")
-    maxsize: PropertyRef = PropertyRef("MaxSize")
-    minsize: PropertyRef = PropertyRef("MinSize")
-    name: PropertyRef = PropertyRef("AutoScalingGroupName")
+    id: PropertyRef = PropertyRef(
+        "AutoScalingGroupARN",
+        description="The ARN of the Auto Scaling Group (same as arn)",
+    )
+    arn: PropertyRef = PropertyRef(
+        "AutoScalingGroupARN", description="The ARN of the Auto Scaling Group"
+    )
+    capacityrebalance: PropertyRef = PropertyRef(
+        "CapacityRebalance",
+        description="Indicates whether Capacity Rebalancing is enabled.",
+    )
+    createdtime: PropertyRef = PropertyRef(
+        "CreatedTime", description="The date and time the group was created."
+    )
+    defaultcooldown: PropertyRef = PropertyRef(
+        "DefaultCooldown",
+        description="The duration of the default cooldown period, in seconds.",
+    )
+    desiredcapacity: PropertyRef = PropertyRef(
+        "DesiredCapacity", description="The desired size of the group."
+    )
+    healthcheckgraceperiod: PropertyRef = PropertyRef(
+        "HealthCheckGracePeriod",
+        description="The amount of time, in seconds, that Amazon EC2 Auto Scaling waits before checking the health status of an EC2 instance that has come into service.",
+    )
+    healthchecktype: PropertyRef = PropertyRef(
+        "HealthCheckType", description="The service to use for the health checks."
+    )
+    launchconfigurationname: PropertyRef = PropertyRef(
+        "LaunchConfigurationName",
+        description="The name of the associated launch configuration.",
+    )
+    launchtemplatename: PropertyRef = PropertyRef(
+        "LaunchTemplateName", description="The name of the launch template."
+    )
+    launchtemplateid: PropertyRef = PropertyRef(
+        "LaunchTemplateId", description="The ID of the launch template."
+    )
+    launchtemplateversion: PropertyRef = PropertyRef(
+        "LaunchTemplateVersion",
+        description="The version number of the launch template.",
+    )
+    maxinstancelifetime: PropertyRef = PropertyRef(
+        "MaxInstanceLifetime",
+        description="The maximum amount of time, in seconds, that an instance can be in service.",
+    )
+    maxsize: PropertyRef = PropertyRef(
+        "MaxSize", description="The maximum size of the group."
+    )
+    minsize: PropertyRef = PropertyRef(
+        "MinSize", description="The minimum size of the group."
+    )
+    name: PropertyRef = PropertyRef(
+        "AutoScalingGroupName", description="The name of the Auto Scaling group"
+    )
     newinstancesprotectedfromscalein: PropertyRef = PropertyRef(
         "NewInstancesProtectedFromScaleIn",
+        description="Indicates whether newly launched instances are protected from termination by Amazon EC2 Auto Scaling when scaling in.",
     )
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    status: PropertyRef = PropertyRef("Status")
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of the auto scaling group.",
+    )
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="The current state of the group when the DeleteAutoScalingGroup operation is in progress.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -81,14 +128,26 @@ class EC2InstanceToAutoScalingGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("InstanceId")
-    instanceid: PropertyRef = PropertyRef("InstanceId", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "InstanceId", description="Same as `instanceid` below."
+    )
+    instanceid: PropertyRef = PropertyRef(
+        "InstanceId",
+        extra_index=True,
+        description="The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203)",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region this Instance is running in",
+    )
 
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
+    """Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html)."""
+
     label: str = "AWSEC2Instance"
     # DEPRECATED: legacy EC2Instance node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_INSTANCE])
@@ -142,13 +201,17 @@ class EC2SubnetToAutoScalingGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("VPCZoneIdentifier")
-    subnetid: PropertyRef = PropertyRef("VPCZoneIdentifier", extra_index=True)
+    id: PropertyRef = PropertyRef("VPCZoneIdentifier", description="same as subnetid")
+    subnetid: PropertyRef = PropertyRef(
+        "VPCZoneIdentifier", extra_index=True, description="The ID of the subnet"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html)."""
+
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
@@ -220,6 +283,8 @@ class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AutoScalingGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AWSAutoScalingGroup.html)."""
+
     label: str = "AWSAutoScalingGroup"
     # DEPRECATED: legacy AutoScalingGroup node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_AUTO_SCALING_GROUP])

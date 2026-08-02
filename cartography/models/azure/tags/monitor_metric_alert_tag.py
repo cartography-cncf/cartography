@@ -21,6 +21,8 @@ class MonitorMetricAlertToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class MonitorMetricAlertToTagRel(CartographyRelSchema):
+    """An Azure Monitor metric alert has the tag."""
+
     target_node_label: str = "AzureMonitorMetricAlert"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -34,6 +36,8 @@ class MonitorMetricAlertToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureMonitorMetricAlertTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

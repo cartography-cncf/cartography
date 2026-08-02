@@ -13,18 +13,48 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ModelPackageArn")
-    arn: PropertyRef = PropertyRef("ModelPackageArn", extra_index=True)
-    model_package_name: PropertyRef = PropertyRef("ModelPackageName")
-    model_package_group_name: PropertyRef = PropertyRef("ModelPackageGroupName")
-    model_package_version: PropertyRef = PropertyRef("ModelPackageVersion")
-    model_package_description: PropertyRef = PropertyRef("ModelPackageDescription")
-    model_package_status: PropertyRef = PropertyRef("ModelPackageStatus")
-    model_approval_status: PropertyRef = PropertyRef("ModelApprovalStatus")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
-    model_artifacts_s3_bucket_id: PropertyRef = PropertyRef("ModelArtifactsS3BucketId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "ModelPackageArn", description="The ARN of the Model Package"
+    )
+    arn: PropertyRef = PropertyRef(
+        "ModelPackageArn", extra_index=True, description="The ARN of the Model Package"
+    )
+    model_package_name: PropertyRef = PropertyRef(
+        "ModelPackageName", description="The name of the Model Package"
+    )
+    model_package_group_name: PropertyRef = PropertyRef(
+        "ModelPackageGroupName",
+        description="The name of the group this package belongs to",
+    )
+    model_package_version: PropertyRef = PropertyRef(
+        "ModelPackageVersion", description="The version number of the Model Package"
+    )
+    model_package_description: PropertyRef = PropertyRef(
+        "ModelPackageDescription",
+        description="Human-readable description of the model package.",
+    )
+    model_package_status: PropertyRef = PropertyRef(
+        "ModelPackageStatus", description="The status of the Model Package"
+    )
+    model_approval_status: PropertyRef = PropertyRef(
+        "ModelApprovalStatus", description="The approval status of the Model Package"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Model Package was created"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime",
+        description="Timestamp when the model package was last modified.",
+    )
+    model_artifacts_s3_bucket_id: PropertyRef = PropertyRef(
+        "ModelArtifactsS3BucketId",
+        description="The S3 bucket ID where model artifacts are stored",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Model Package exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -86,6 +116,8 @@ class AWSSageMakerModelPackageToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model."""
+
     label: str = "AWSSageMakerModelPackage"
     properties: AWSSageMakerModelPackageNodeProperties = (
         AWSSageMakerModelPackageNodeProperties()

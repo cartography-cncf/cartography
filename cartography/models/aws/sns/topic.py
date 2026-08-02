@@ -14,18 +14,46 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SNSTopicNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TopicArn")
-    arn: PropertyRef = PropertyRef("TopicArn", extra_index=True)
-    name: PropertyRef = PropertyRef("TopicName")
-    displayname: PropertyRef = PropertyRef("DisplayName")
-    owner: PropertyRef = PropertyRef("Owner")
-    subscriptionspending: PropertyRef = PropertyRef("SubscriptionsPending")
-    subscriptionsconfirmed: PropertyRef = PropertyRef("SubscriptionsConfirmed")
-    subscriptionsdeleted: PropertyRef = PropertyRef("SubscriptionsDeleted")
-    deliverypolicy: PropertyRef = PropertyRef("DeliveryPolicy")
-    effectivedeliverypolicy: PropertyRef = PropertyRef("EffectiveDeliveryPolicy")
-    kmsmasterkeyid: PropertyRef = PropertyRef("KmsMasterKeyId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("TopicArn", description="The ARN of the SNS topic")
+    arn: PropertyRef = PropertyRef(
+        "TopicArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the topic",
+    )
+    name: PropertyRef = PropertyRef("TopicName", description="The name of the topic")
+    displayname: PropertyRef = PropertyRef(
+        "DisplayName", description="The display name of the topic"
+    )
+    owner: PropertyRef = PropertyRef(
+        "Owner", description="The AWS account ID of the topic's owner"
+    )
+    subscriptionspending: PropertyRef = PropertyRef(
+        "SubscriptionsPending",
+        description="The number of subscriptions pending confirmation",
+    )
+    subscriptionsconfirmed: PropertyRef = PropertyRef(
+        "SubscriptionsConfirmed", description="The number of confirmed subscriptions"
+    )
+    subscriptionsdeleted: PropertyRef = PropertyRef(
+        "SubscriptionsDeleted", description="The number of deleted subscriptions"
+    )
+    deliverypolicy: PropertyRef = PropertyRef(
+        "DeliveryPolicy",
+        description="The JSON serialization of the topic's delivery policy",
+    )
+    effectivedeliverypolicy: PropertyRef = PropertyRef(
+        "EffectiveDeliveryPolicy",
+        description="The JSON serialization of the effective delivery policy",
+    )
+    kmsmasterkeyid: PropertyRef = PropertyRef(
+        "KmsMasterKeyId",
+        description="The ID of an AWS managed customer master key (CMK) for Amazon SNS or a custom CMK",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the topic is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,6 +75,8 @@ class SNSTopicToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSchema(CartographyNodeSchema):
+    """Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)"""
+
     label: str = "AWSSNSTopic"
     # DEPRECATED: legacy SNSTopic node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SNS_TOPIC])

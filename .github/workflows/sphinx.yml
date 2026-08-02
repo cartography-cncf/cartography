@@ -2,6 +2,9 @@
 
 name: sphinx
 on:
+  pull_request:
+    branches:
+      - 'master'
   push:
     branches:
       - 'master'
@@ -13,16 +16,17 @@ env:
   DEFAULT_BRANCH: "master"
 
 jobs:
-  build-and-deploy:
-    name: Build and gh-pages
+  # Runs on pull requests too, so it executes untrusted code from the branch and is
+  # kept read-only. The rendered site travels to the deploy job as an artifact.
+  build:
+    name: Build docs
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       # https://github.com/marketplace/actions/checkout
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           lfs: true
           persist-credentials: false
       # https://github.com/marketplace/actions/setup-python
@@ -41,22 +45,45 @@ jobs:
       # Build
       - name: Build Sphinx docs
         run: uv run ./docs/build.sh
+      - name: Upload rendered docs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sphinx-docs
+          path: generated/docs/
+          if-no-files-found: error
+
+  # Only this job writes to the repository, and it never runs on a pull request.
+  deploy:
+    name: Deploy to gh-pages
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: write
+    steps:
+      # Full history so the feature-branch pruning below can resolve remote refs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          lfs: true
+          persist-credentials: false
+      - name: Download rendered docs
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sphinx-docs
+          path: generated/docs/
 
       # Clone and set up the old gh-pages branch
       - name: Clone old gh-pages
-        if: ${{ github.event_name == 'push' }}
         run: |
           set -x
           git fetch
           ( git branch gh-pages remotes/origin/gh-pages && git clone . --branch=gh-pages _gh-pages/ ) || mkdir _gh-pages
           rm -rf _gh-pages/.git/
           mkdir -p _gh-pages/branch/
-      # If a push and default branch, copy build to _gh-pages/ as the "main"
-      # deployment.
+      # On the default branch, copy build to _gh-pages/ as the "main" deployment.
       - name: Copy new build (default branch)
-        if: |
-          contains(github.event_name, 'push') &&
-          contains(github.ref, env.DEFAULT_BRANCH)
+        if: contains(github.ref, env.DEFAULT_BRANCH)
         run: |
           set -x
           # Delete everything under _gh-pages/ that is from the
@@ -65,12 +92,10 @@ jobs:
           # _gh-pages itself.
           find _gh-pages/ -mindepth 1 ! -path '_gh-pages/branch*' -delete
           rsync -a generated/docs/ _gh-pages/
-      # If a push and not on default branch, then copy the build to
-      # _gh-pages/branch/$brname (transforming '/' into '--')
+      # Off the default branch, copy the build to _gh-pages/branch/$brname
+      # (transforming '/' into '--')
       - name: Copy new build (branch)
-        if: |
-          contains(github.event_name, 'push') &&
-          !contains(github.ref, env.DEFAULT_BRANCH)
+        if: ${{ !contains(github.ref, env.DEFAULT_BRANCH) }}
         run: |
           set -x
           brname="$GITHUB_REF"
@@ -81,7 +106,6 @@ jobs:
       # Go through each branch in _gh-pages/branch/, if it's not a
       # ref, then delete it.
       - name: Delete old feature branches
-        if: ${{ github.event_name == 'push' }}
         run: |
           set -x
           for brdir in `ls _gh-pages/branch/` ; do
@@ -94,7 +118,6 @@ jobs:
 
       # Add the .nojekyll file
       - name: nojekyll
-        if: ${{ github.event_name == 'push' }}
         run: |
           touch _gh-pages/.nojekyll
 
@@ -102,7 +125,6 @@ jobs:
       # https://github.com/peaceiris/actions-gh-pages
       - name: Deploy
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
-        if: ${{ github.event_name == 'push' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -16,10 +16,16 @@ from cartography.models.ontology.labels import SECRET
 class SupabaseSecretNodeProperties(CartographyNodeProperties):
     # Synthesised as "<project ref>/<name>": secret names are only unique within
     # a project.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Synthesised as `<project ref>/<name>`"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the secret"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the secret was last changed"
+    )
     # The `value` returned by GET /v1/projects/{ref}/secrets is deliberately
     # dropped in transform and never written to the graph.
 
@@ -45,6 +51,8 @@ class SupabaseSecretToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseSecretSchema(CartographyNodeSchema):
+    """Represents an edge function secret. Only the name and last-updated timestamp are stored; the value returned by the API is dropped before ingestion."""
+
     label: str = "SupabaseSecret"
     properties: SupabaseSecretNodeProperties = SupabaseSecretNodeProperties()
     sub_resource_relationship: SupabaseSecretToProjectRel = SupabaseSecretToProjectRel()

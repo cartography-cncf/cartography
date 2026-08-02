@@ -17,16 +17,39 @@ from cartography.models.ontology.labels import ONTOLOGY
 
 @dataclass(frozen=True)
 class DeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("serial_number")
+    id: PropertyRef = PropertyRef(
+        "serial_number",
+        description="Canonical device identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    manufacturer: PropertyRef = PropertyRef("manufacturer")
-    os: PropertyRef = PropertyRef("os")
-    os_version: PropertyRef = PropertyRef("os_version")
-    model: PropertyRef = PropertyRef("model")
-    platform: PropertyRef = PropertyRef("platform")
-    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
+    hostname: PropertyRef = PropertyRef(
+        "hostname",
+        extra_index=True,
+        description="Device hostname.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Provider-specific instance identifier when available.",
+    )
+    manufacturer: PropertyRef = PropertyRef(
+        "manufacturer",
+        description="Device manufacturer.",
+    )
+    os: PropertyRef = PropertyRef("os", description="Operating system name.")
+    os_version: PropertyRef = PropertyRef(
+        "os_version",
+        description="Operating system version.",
+    )
+    model: PropertyRef = PropertyRef("model", description="Device model.")
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Platform or device family reported by the source.",
+    )
+    serial_number: PropertyRef = PropertyRef(
+        "serial_number",
+        extra_index=True,
+        description="Device serial number.",
+    )
 
 
 @dataclass(frozen=True)
@@ -57,6 +80,8 @@ class DeviceOwnedByUserRel(CartographyRelSchema):
 # (:S1AppFinding)-[:AFFECTS]->(:Device)
 @dataclass(frozen=True)
 class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
+    """Links a SentinelOne finding to the canonical device it affects."""
+
     target_node_label: str = "S1AppFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_cleanup_finding_id")},
@@ -160,6 +185,8 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
 @dataclass(frozen=True)
 class DeviceToS1AgentBySerialRel(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent, matched on serial number."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"serial_number": PropertyRef("serial_number")},
@@ -205,6 +232,8 @@ class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
+    """A canonical physical or virtual device aggregated across providers."""
+
     label: str = "Device"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: DeviceNodeProperties = DeviceNodeProperties()
@@ -381,6 +410,8 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
 @dataclass(frozen=True)
 class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent, matched on hostname when no serial number is available."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computer_name": PropertyRef("hostname")},

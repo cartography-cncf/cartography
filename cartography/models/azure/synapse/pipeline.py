@@ -13,8 +13,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureSynapsePipelineProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the pipeline."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the pipeline.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -25,6 +27,8 @@ class AzureSynapsePipelineToWorkspaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSynapsePipelineToWorkspaceRel(CartographyRelSchema):
+    """An Azure Synapse workspace contains this pipeline."""
+
     target_node_label: str = "AzureSynapseWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -43,6 +47,8 @@ class AzureSynapsePipelineToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSynapsePipelineToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this Synapse pipeline resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -56,6 +62,8 @@ class AzureSynapsePipelineToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSynapsePipelineSchema(CartographyNodeSchema):
+    """An Azure Synapse pipeline that groups activities into a data workflow."""
+
     label: str = "AzureSynapsePipeline"
     properties: AzureSynapsePipelineProperties = AzureSynapsePipelineProperties()
     sub_resource_relationship: AzureSynapsePipelineToSubscriptionRel = (

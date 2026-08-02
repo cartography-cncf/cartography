@@ -18,14 +18,26 @@ from cartography.models.ontology.labels import SECRET
 # but Cartography ingests names only and must never store secret material. The GraphQL
 # document in cartography/intel/railway/queries.py does not request values either.
 class RailwayVariableNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway variable.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the variable."
+    )
     # A sealed variable is write-only: not even the Railway dashboard can read it back.
-    is_sealed: PropertyRef = PropertyRef("isSealed")
-    service_id: PropertyRef = PropertyRef("serviceId")
-    environment_id: PropertyRef = PropertyRef("environmentId")
-    created_at: PropertyRef = PropertyRef("createdAt")
+    is_sealed: PropertyRef = PropertyRef(
+        "isSealed",
+        description="Whether the variable is write-only and cannot be read back.",
+    )
+    service_id: PropertyRef = PropertyRef(
+        "serviceId",
+        description="ID of the scoped service, or null for a shared variable.",
+    )
+    environment_id: PropertyRef = PropertyRef(
+        "environmentId", description="ID of the environment containing the variable."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Time when the variable was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -36,6 +48,8 @@ class RailwayVariableToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayVariable)
 class RailwayVariableToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a variable that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -57,6 +71,8 @@ class RailwayVariableToServiceInstanceRelProperties(CartographyRelProperties):
 # Only for service-scoped variables; shared variables have a null serviceId, so the matcher
 # finds nothing and the edge is simply not created for them.
 class RailwayVariableToServiceInstanceRel(CartographyRelSchema):
+    """Identifies a Railway service instance that consumes a service-scoped variable."""
+
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -80,6 +96,8 @@ class RailwayVariableToEnvironmentRelProperties(CartographyRelProperties):
 # (:RailwayEnvironment)-[:HAS]->(:RailwayVariable)
 # Every variable belongs to an environment, whether or not it is scoped to one service.
 class RailwayVariableToEnvironmentRel(CartographyRelSchema):
+    """Connects a Railway environment to a variable defined within it."""
+
     target_node_label: str = "RailwayEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("environmentId")},
@@ -93,6 +111,8 @@ class RailwayVariableToEnvironmentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayVariableSchema(CartographyNodeSchema):
+    """A named Railway environment variable whose value is not ingested."""
+
     label: str = "RailwayVariable"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECRET])
     properties: RailwayVariableNodeProperties = RailwayVariableNodeProperties()

@@ -19,37 +19,122 @@ from cartography.models.ontology.labels import SECURITY_ISSUE
 
 @dataclass(frozen=True)
 class AWSInspectorNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
-    awsaccount: PropertyRef = PropertyRef("awsaccount")
-    name: PropertyRef = PropertyRef("title")
-    instanceid: PropertyRef = PropertyRef("instanceid")
-    ecrimageid: PropertyRef = PropertyRef("ecrimageid")
-    ecrrepositoryid: PropertyRef = PropertyRef("ecrrepositoryid")
-    severity: PropertyRef = PropertyRef("severity")
-    firstobservedat: PropertyRef = PropertyRef("firstobservedat")
-    updatedat: PropertyRef = PropertyRef("updatedat")
-    description: PropertyRef = PropertyRef("description")
-    type: PropertyRef = PropertyRef("type")
-    cvssscore: PropertyRef = PropertyRef("cvssscore", extra_index=True)
-    protocol: PropertyRef = PropertyRef("protocol")
-    portrange: PropertyRef = PropertyRef("portrange")
-    portrangebegin: PropertyRef = PropertyRef("portrangebegin")
-    portrangeend: PropertyRef = PropertyRef("portrangeend")
-    vulnerabilityid: PropertyRef = PropertyRef("vulnerabilityid")
-    # Normalized CVE id, populated only for PACKAGE_VULNERABILITY findings; feeds
-    # the :CVE ontology label's _ont_cve_id and the CVEMetadata ENRICHES edge.
-    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    referenceurls: PropertyRef = PropertyRef("referenceurls")
-    relatedvulnerabilities: PropertyRef = PropertyRef("relatedvulnerabilities")
-    source: PropertyRef = PropertyRef("source")
-    sourceurl: PropertyRef = PropertyRef("sourceurl")
-    status: PropertyRef = PropertyRef("status")
-    vendorcreatedat: PropertyRef = PropertyRef("vendorcreatedat")
-    vendorseverity: PropertyRef = PropertyRef("vendorseverity")
-    vendorupdatedat: PropertyRef = PropertyRef("vendorupdatedat")
-    vulnerablepackageids: PropertyRef = PropertyRef("vulnerablepackageids")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSInspectorFinding` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSInspectorFinding` node.",
+    )
+    awsaccount: PropertyRef = PropertyRef(
+        "awsaccount",
+        description="AWS account ID containing the affected resource.",
+    )
+    name: PropertyRef = PropertyRef(
+        "title", description="Name of this `AWSInspectorFinding` node."
+    )
+    instanceid: PropertyRef = PropertyRef(
+        "instanceid",
+        description="Identifier of the instance linked to this `AWSInspectorFinding` node.",
+    )
+    ecrimageid: PropertyRef = PropertyRef(
+        "ecrimageid",
+        description="Identifier of the ecrimageid linked to this `AWSInspectorFinding` node.",
+    )
+    ecrrepositoryid: PropertyRef = PropertyRef(
+        "ecrrepositoryid",
+        description="Identifier of the ecrrepositoryid linked to this `AWSInspectorFinding` node.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Inspector severity assigned to the finding.",
+    )
+    firstobservedat: PropertyRef = PropertyRef(
+        "firstobservedat",
+        description="Timestamp when Inspector first observed the vulnerability.",
+    )
+    updatedat: PropertyRef = PropertyRef(
+        "updatedat",
+        description="Timestamp when Inspector last updated the finding.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of this `AWSInspectorFinding` node."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSInspectorFinding` node."
+    )
+    cvssscore: PropertyRef = PropertyRef(
+        "cvssscore",
+        extra_index=True,
+        description="CVSS base score assigned to the vulnerability.",
+    )
+    protocol: PropertyRef = PropertyRef(
+        "protocol",
+        description="Network protocol associated with the exposed port range.",
+    )
+    portrange: PropertyRef = PropertyRef(
+        "portrange",
+        description="Formatted network port range associated with the finding.",
+    )
+    portrangebegin: PropertyRef = PropertyRef(
+        "portrangebegin",
+        description="Lowest network port associated with the finding.",
+    )
+    portrangeend: PropertyRef = PropertyRef(
+        "portrangeend",
+        description="Highest network port associated with the finding.",
+    )
+    vulnerabilityid: PropertyRef = PropertyRef(
+        "vulnerabilityid",
+        description="Identifier of the vulnerabilityid linked to this `AWSInspectorFinding` node.",
+    )
+    # Normalized CVE ID for package vulnerability findings. This feeds the CVE
+    # ontology label and the CVEMetadata ENRICHES relationship.
+    cve_id: PropertyRef = PropertyRef(
+        "cve_id",
+        extra_index=True,
+        description="Normalized CVE identifier for package vulnerability findings.",
+    )
+    referenceurls: PropertyRef = PropertyRef(
+        "referenceurls",
+        description="Reference URLs describing the vulnerability.",
+    )
+    relatedvulnerabilities: PropertyRef = PropertyRef(
+        "relatedvulnerabilities",
+        description="Identifiers of vulnerabilities related to this finding.",
+    )
+    source: PropertyRef = PropertyRef(
+        "source", description="Advisory source that reported the vulnerability."
+    )
+    sourceurl: PropertyRef = PropertyRef(
+        "sourceurl",
+        description="URL of the source advisory for the vulnerability.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Current status of this `AWSInspectorFinding` node."
+    )
+    vendorcreatedat: PropertyRef = PropertyRef(
+        "vendorcreatedat",
+        description="Timestamp when the package vendor created the advisory.",
+    )
+    vendorseverity: PropertyRef = PropertyRef(
+        "vendorseverity",
+        description="Severity assigned by the package vendor.",
+    )
+    vendorupdatedat: PropertyRef = PropertyRef(
+        "vendorupdatedat",
+        description="Timestamp when the package vendor last updated the advisory.",
+    )
+    vulnerablepackageids: PropertyRef = PropertyRef(
+        "vulnerablepackageids",
+        description="Identifiers of packages affected by the vulnerability.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSInspectorFinding` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -152,11 +237,26 @@ class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     # The following properties live in vulnerablePackages from AWS API
     # Adding them here to avoid multiple repetion of packages
-    filepath: PropertyRef = PropertyRef("filePath")
-    fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
-    remediation: PropertyRef = PropertyRef("remediation")
-    sourcelayerhash: PropertyRef = PropertyRef("sourceLayerHash")
-    sourcelambdalayerarn: PropertyRef = PropertyRef("sourceLambdaLayerArn")
+    filepath: PropertyRef = PropertyRef(
+        "filePath",
+        description="Path of the vulnerable file associated with this relationship.",
+    )
+    fixedinversion: PropertyRef = PropertyRef(
+        "fixedInVersion",
+        description="Package version that fixes the vulnerability represented by this relationship.",
+    )
+    remediation: PropertyRef = PropertyRef(
+        "remediation",
+        description="Recommended remediation for the finding in this relationship.",
+    )
+    sourcelayerhash: PropertyRef = PropertyRef(
+        "sourceLayerHash",
+        description="Content hash of the Lambda layer from which this relationship originated.",
+    )
+    sourcelambdalayerarn: PropertyRef = PropertyRef(
+        "sourceLambdaLayerArn",
+        description="ARN of the Lambda layer from which this relationship originated.",
+    )
 
 
 @dataclass(frozen=True)
@@ -179,6 +279,11 @@ class InspectorFindingToPackageMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorFindingSchema(CartographyNodeSchema):
+    """Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
+
+    Depending on its `type`, the finding also carries an ontology finding label: `PACKAGE_VULNERABILITY` findings are labeled [`CVE`](#ontology-cve), and `NETWORK_REACHABILITY` findings are labeled `:SecurityIssue`.
+    """
+
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
     # Inspector findings are mixed: package vulnerabilities are CVE-backed while

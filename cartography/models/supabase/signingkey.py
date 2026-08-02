@@ -12,14 +12,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SupabaseSigningKeyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The signing key id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # The JWT signing key used to mint project access tokens. Only the public
     # metadata is stored: algorithm, rotation status and timestamps.
-    algorithm: PropertyRef = PropertyRef("algorithm")
-    status: PropertyRef = PropertyRef("status")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    algorithm: PropertyRef = PropertyRef(
+        "algorithm", description="Signing algorithm (`ES256`, `RS256`, `HS256`, ...)"
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Rotation status of the key (`in_use`, `standby`, `revoked`, ...)",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="When the key was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the key was last changed"
+    )
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,8 @@ class SupabaseSigningKeyToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseSigningKeySchema(CartographyNodeSchema):
+    """Represents a JWT signing key used to mint the project's access tokens. Only public metadata is stored."""
+
     label: str = "SupabaseSigningKey"
     properties: SupabaseSigningKeyNodeProperties = SupabaseSigningKeyNodeProperties()
     sub_resource_relationship: SupabaseSigningKeyToProjectRel = (

@@ -14,16 +14,29 @@ from cartography.models.ontology.labels import IDENTITY_PROVIDER
 
 @dataclass(frozen=True)
 class SupabaseThirdPartyAuthIntegrationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The integration id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="The integration type (`firebase`, `auth0`, `awsCognito`, ...)",
+    )
     # An external issuer whose JWTs this project accepts, so it is a trust edge
     # into the project's auth surface.
-    oidc_issuer_url: PropertyRef = PropertyRef("oidc_issuer_url", extra_index=True)
-    jwks_url: PropertyRef = PropertyRef("jwks_url")
-    inserted_at: PropertyRef = PropertyRef("inserted_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    resolved_at: PropertyRef = PropertyRef("resolved_at")
+    oidc_issuer_url: PropertyRef = PropertyRef(
+        "oidc_issuer_url", extra_index=True, description="The trusted OIDC issuer URL"
+    )
+    jwks_url: PropertyRef = PropertyRef(
+        "jwks_url", description="URL of the issuer's JWKS"
+    )
+    inserted_at: PropertyRef = PropertyRef(
+        "inserted_at", description="When the integration was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="When the integration was last changed"
+    )
+    resolved_at: PropertyRef = PropertyRef(
+        "resolved_at", description="When the issuer's JWKS was last resolved"
+    )
 
 
 @dataclass(frozen=True)
@@ -47,6 +60,8 @@ class SupabaseThirdPartyAuthIntegrationToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseThirdPartyAuthIntegrationSchema(CartographyNodeSchema):
+    """Represents an external OIDC issuer whose JWTs the project's auth service accepts, which is a trust edge into the project."""
+
     label: str = "SupabaseThirdPartyAuthIntegration"
     properties: SupabaseThirdPartyAuthIntegrationNodeProperties = (
         SupabaseThirdPartyAuthIntegrationNodeProperties()

@@ -15,13 +15,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2NetworkAclNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn")
-    network_acl_id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Arn", description="Unique identifier for this `AWSEC2NetworkAcl` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn", description="Amazon Resource Name (ARN) of this `AWSEC2NetworkAcl` node."
+    )
+    network_acl_id: PropertyRef = PropertyRef(
+        "Id",
+        description="Identifier of the network ACL linked to this `AWSEC2NetworkAcl` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    is_default: PropertyRef = PropertyRef("IsDefault")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    vpc_id: PropertyRef = PropertyRef("VpcId")
+    is_default: PropertyRef = PropertyRef(
+        "IsDefault", description="Whether this `AWSEC2NetworkAcl` node default."
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSEC2NetworkAcl` node.",
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "VpcId",
+        description="Identifier of the VPC linked to this `AWSEC2NetworkAcl` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -80,9 +96,7 @@ class EC2NetworkAclToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkAclSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)"""
 
     label: str = "AWSEC2NetworkAcl"
     # DEPRECATED: legacy EC2NetworkAcl node label will be removed in v1.0.0.

@@ -15,29 +15,75 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudTrailTrailNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TrailARN")
-    arn: PropertyRef = PropertyRef("TrailARN")
-    name: PropertyRef = PropertyRef("Name")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "TrailARN", description="The ARN of the trail (same as arn)"
+    )
+    arn: PropertyRef = PropertyRef("TrailARN", description="The ARN of the trail")
+    name: PropertyRef = PropertyRef(
+        "Name", description="The name of the AWSCloudTrailTrail."
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     cloudwatch_logs_log_group_arn: PropertyRef = PropertyRef(
-        "CloudWatchLogsLogGroupArn"
+        "CloudWatchLogsLogGroupArn",
+        description="The ARN identifier representing the log group where the AWSCloudTrailTrail delivers logs.",
     )
-    cloudwatch_logs_role_arn: PropertyRef = PropertyRef("CloudWatchLogsRoleArn")
-    event_selectors: PropertyRef = PropertyRef("EventSelectors")
-    advanced_event_selectors: PropertyRef = PropertyRef("AdvancedEventSelectors")
-    has_custom_event_selectors: PropertyRef = PropertyRef("HasCustomEventSelectors")
-    has_insight_selectors: PropertyRef = PropertyRef("HasInsightSelectors")
-    home_region: PropertyRef = PropertyRef("HomeRegion")
+    cloudwatch_logs_role_arn: PropertyRef = PropertyRef(
+        "CloudWatchLogsRoleArn",
+        description="The role ARN that the AWSCloudTrailTrail's CloudWatch Logs endpoint assumes.",
+    )
+    event_selectors: PropertyRef = PropertyRef(
+        "EventSelectors",
+        description="JSON array of event selectors configured for the AWSCloudTrailTrail.",
+    )
+    advanced_event_selectors: PropertyRef = PropertyRef(
+        "AdvancedEventSelectors",
+        description="JSON array of advanced event selectors configured for the AWSCloudTrailTrail.",
+    )
+    has_custom_event_selectors: PropertyRef = PropertyRef(
+        "HasCustomEventSelectors",
+        description="Indicates if the AWSCloudTrailTrail has custom event selectors.",
+    )
+    has_insight_selectors: PropertyRef = PropertyRef(
+        "HasInsightSelectors",
+        description="Indicates if the AWSCloudTrailTrail has insight types specified.",
+    )
+    home_region: PropertyRef = PropertyRef(
+        "HomeRegion", description="The Region where the AWSCloudTrailTrail was created."
+    )
     include_global_service_events: PropertyRef = PropertyRef(
-        "IncludeGlobalServiceEvents"
+        "IncludeGlobalServiceEvents",
+        description="Indicates if the AWSCloudTrailTrail includes AWS API calls from global services.",
     )
-    is_multi_region_trail: PropertyRef = PropertyRef("IsMultiRegionTrail")
-    is_organization_trail: PropertyRef = PropertyRef("IsOrganizationTrail")
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
-    log_file_validation_enabled: PropertyRef = PropertyRef("LogFileValidationEnabled")
-    s3_bucket_name: PropertyRef = PropertyRef("S3BucketName")
-    s3_key_prefix: PropertyRef = PropertyRef("S3KeyPrefix")
-    sns_topic_arn: PropertyRef = PropertyRef("SnsTopicARN")
+    is_multi_region_trail: PropertyRef = PropertyRef(
+        "IsMultiRegionTrail",
+        description="Indicates if the AWSCloudTrailTrail exists in one or all Regions.",
+    )
+    is_organization_trail: PropertyRef = PropertyRef(
+        "IsOrganizationTrail",
+        description="Indicates if the AWSCloudTrailTrail is an organization trail.",
+    )
+    kms_key_id: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="The AWS KMS key ID that encrypts the AWSCloudTrailTrail's delivered logs.",
+    )
+    log_file_validation_enabled: PropertyRef = PropertyRef(
+        "LogFileValidationEnabled",
+        description="Indicates if log file validation is enabled for the AWSCloudTrailTrail.",
+    )
+    s3_bucket_name: PropertyRef = PropertyRef(
+        "S3BucketName",
+        description="The Amazon S3 bucket name where the AWSCloudTrailTrail delivers files.",
+    )
+    s3_key_prefix: PropertyRef = PropertyRef(
+        "S3KeyPrefix",
+        description="The S3 key prefix used after the bucket name for the AWSCloudTrailTrail's log files.",
+    )
+    sns_topic_arn: PropertyRef = PropertyRef(
+        "SnsTopicARN",
+        description="The ARN of the SNS topic used by the AWSCloudTrailTrail for delivery notifications.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -99,6 +145,8 @@ class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
+    """Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_Trail.html)."""
+
     label: str = "AWSCloudTrailTrail"
     # DEPRECATED: legacy CloudTrailTrail node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_CLOUD_TRAIL_TRAIL])

@@ -16,17 +16,39 @@ from cartography.models.ontology.labels import CERTIFICATE
 
 @dataclass(frozen=True)
 class ACMCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    domainname: PropertyRef = PropertyRef("DomainName")
-    type: PropertyRef = PropertyRef("Type")
-    status: PropertyRef = PropertyRef("Status")
-    key_algorithm: PropertyRef = PropertyRef("KeyAlgorithm")
-    signature_algorithm: PropertyRef = PropertyRef("SignatureAlgorithm")
-    not_before: PropertyRef = PropertyRef("NotBefore")
-    not_after: PropertyRef = PropertyRef("NotAfter")
-    in_use_by: PropertyRef = PropertyRef("InUseBy")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("Arn", description="The ARN of the certificate")
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the certificate",
+    )
+    domainname: PropertyRef = PropertyRef(
+        "DomainName", description="The primary domain name of the certificate"
+    )
+    type: PropertyRef = PropertyRef("Type", description="The source of the certificate")
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the certificate"
+    )
+    key_algorithm: PropertyRef = PropertyRef(
+        "KeyAlgorithm", description="The key algorithm used"
+    )
+    signature_algorithm: PropertyRef = PropertyRef(
+        "SignatureAlgorithm", description="The signature algorithm"
+    )
+    not_before: PropertyRef = PropertyRef(
+        "NotBefore", description="The time before which the certificate is invalid"
+    )
+    not_after: PropertyRef = PropertyRef(
+        "NotAfter", description="The time after which the certificate expires"
+    )
+    in_use_by: PropertyRef = PropertyRef(
+        "InUseBy", description="List of ARNs of resources that use this certificate"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the certificate is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -68,6 +90,8 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html)."""
+
     label: str = "AWSACMCertificate"
     # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

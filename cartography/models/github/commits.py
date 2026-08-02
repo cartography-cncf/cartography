@@ -32,9 +32,17 @@ class GitHubUserCommittedToRepoRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # Rich relationship properties
-    commit_count: PropertyRef = PropertyRef("commit_count")
-    last_commit_date: PropertyRef = PropertyRef("last_commit_date")
-    first_commit_date: PropertyRef = PropertyRef("first_commit_date")
+    commit_count: PropertyRef = PropertyRef(
+        "commit_count", description="Number of commits observed in the last 30 days."
+    )
+    last_commit_date: PropertyRef = PropertyRef(
+        "last_commit_date",
+        description="Timestamp of the most recent commit observed in the last 30 days.",
+    )
+    first_commit_date: PropertyRef = PropertyRef(
+        "first_commit_date",
+        description="Timestamp of the earliest commit observed in the last 30 days.",
+    )
 
 
 @dataclass(frozen=True)

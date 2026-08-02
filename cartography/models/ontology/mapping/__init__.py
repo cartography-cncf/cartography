@@ -236,6 +236,14 @@ SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
     "vpcs": VIRTUAL_NETWORK,
 }
 
+
+SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
+    "ImageAttestation",
+    "ImageLayer",
+    "ImageManifestList",
+    "ImageTag",
+)
+
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,

@@ -15,10 +15,24 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class DatabricksAccountGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    scim_id: PropertyRef = PropertyRef("scim_id", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name", extra_index=True)
-    external_id: PropertyRef = PropertyRef("external_id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks SCIM group ID.",
+    )
+    scim_id: PropertyRef = PropertyRef(
+        "scim_id",
+        extra_index=True,
+        description="Databricks account SCIM group ID.",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name",
+        extra_index=True,
+        description="Group display name.",
+    )
+    external_id: PropertyRef = PropertyRef(
+        "external_id",
+        description="External identity provider ID for the group.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +44,8 @@ class DatabricksAccountGroupToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountGroup)
 class DatabricksAccountGroupToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -49,6 +65,8 @@ class DatabricksAccountGroupToParentGroupRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:DatabricksAccountGroup)-[:MEMBER_OF]->(:DatabricksAccountGroup)
 class DatabricksAccountGroupToParentGroupRel(CartographyRelSchema):
+    """A Databricks account group is a member of another account group."""
+
     target_node_label: str = "DatabricksAccountGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_group_ids", one_to_many=True)},
@@ -62,6 +80,8 @@ class DatabricksAccountGroupToParentGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksAccountGroupSchema(CartographyNodeSchema):
+    """A Databricks account-level SCIM group."""
+
     label: str = "DatabricksAccountGroup"
     properties: DatabricksAccountGroupNodeProperties = (
         DatabricksAccountGroupNodeProperties()

@@ -372,6 +372,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # global `name|requirements` id and is referenced by repos across orgs, so
     # it uses unscoped cleanup like PythonLibrary.
     "GitHubDependency",
+    # A Modal user keeps the same `us-...` id in every workspace they belong to. Anchoring the
+    # identity to one workspace would let that workspace's cleanup DETACH DELETE someone who
+    # merely left it, destroying the other workspaces' memberships, so the workspace link is a
+    # MatchLink carrying the membership instead (same reasoning as GitHubUser and RailwayUser).
+    "ModalUser",
     "ProgrammingLanguage",
     "PythonLibrary",
     # A Railway user can belong to several workspaces, and project members need not be

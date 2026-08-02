@@ -14,11 +14,23 @@ from cartography.models.ontology.labels import DNS_ZONE
 
 @dataclass(frozen=True)
 class AWSDNSZoneNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("zoneid")
-    zoneid: PropertyRef = PropertyRef("zoneid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    privatezone: PropertyRef = PropertyRef("privatezone")
+    id: PropertyRef = PropertyRef(
+        "zoneid", description="Unique identifier for this `AWSDNSZone` node."
+    )
+    zoneid: PropertyRef = PropertyRef(
+        "zoneid",
+        description="Identifier of the zoneid linked to this `AWSDNSZone` node.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of this `AWSDNSZone` node."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="Comment attached to the Route 53 hosted zone."
+    )
+    privatezone: PropertyRef = PropertyRef(
+        "privatezone",
+        description="Whether the hosted zone is private and associated with one or more VPCs.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,6 +54,8 @@ class AWSDNSZoneToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSDNSZoneSchema(CartographyNodeSchema):
+    """Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/latest/APIReference/API_HostedZone.html)."""
+
     label: str = "AWSDNSZone"
     properties: AWSDNSZoneNodeProperties = AWSDNSZoneNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_ZONE])

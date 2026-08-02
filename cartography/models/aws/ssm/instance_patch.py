@@ -15,17 +15,45 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SSMInstancePatchNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
-    instance_id: PropertyRef = PropertyRef("_instance_id", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Id",
+        description="Composite key built as `{instance_id}-{Title}`, since SSM exposes no identifier for an instance patch",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "_instance_id", extra_index=True, description="The managed node ID."
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the instance patch."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    title: PropertyRef = PropertyRef("Title", extra_index=True)
-    kb_id: PropertyRef = PropertyRef("KBId", extra_index=True)
-    classification: PropertyRef = PropertyRef("Classification")
-    severity: PropertyRef = PropertyRef("Severity")
-    state: PropertyRef = PropertyRef("State")
-    installed_time: PropertyRef = PropertyRef("InstalledTime")
-    cve_ids: PropertyRef = PropertyRef("CVEIds")
+    title: PropertyRef = PropertyRef(
+        "Title", extra_index=True, description="The title of the patch."
+    )
+    kb_id: PropertyRef = PropertyRef(
+        "KBId",
+        extra_index=True,
+        description="The operating system-specific ID of the patch.",
+    )
+    classification: PropertyRef = PropertyRef(
+        "Classification",
+        description="The classification of the patch, such as SecurityUpdates, Updates, and CriticalUpdates.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "Severity",
+        description="The severity of the patch such as Critical, Important, and Moderate.",
+    )
+    state: PropertyRef = PropertyRef(
+        "State",
+        description="The state of the patch on the managed node, such as INSTALLED or FAILED.",
+    )
+    installed_time: PropertyRef = PropertyRef(
+        "InstalledTime",
+        description="The date/time the patch was installed on the managed node. Not all operating systems provide this level of information.",
+    )
+    cve_ids: PropertyRef = PropertyRef(
+        "CVEIds",
+        description="The IDs of one or more Common Vulnerabilities and Exposure (CVE) issues that are resolved by the patch.",
+    )
 
 
 @dataclass(frozen=True)
@@ -66,6 +94,8 @@ class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMInstancePatchSchema(CartographyNodeSchema):
+    """Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PatchComplianceData.html)"""
+
     label: str = "AWSSSMInstancePatch"
     # DEPRECATED: legacy SSMInstancePatch node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SSM_INSTANCE_PATCH])

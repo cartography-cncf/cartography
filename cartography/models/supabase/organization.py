@@ -12,18 +12,37 @@ class SupabaseOrganizationNodeProperties(CartographyNodeProperties):
     # The Management API keys organizations by slug, and projects reference their
     # parent via `organization_slug`, so slug is the stable join key here. The
     # opaque `id` is kept as a property.
-    id: PropertyRef = PropertyRef("slug")
+    id: PropertyRef = PropertyRef(
+        "slug",
+        description="The organization slug, which is how every organization-scoped API path addresses it",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    slug: PropertyRef = PropertyRef("slug", extra_index=True)
-    organization_id: PropertyRef = PropertyRef("organization_id")
-    name: PropertyRef = PropertyRef("name")
-    plan: PropertyRef = PropertyRef("plan")
-    opt_in_tags: PropertyRef = PropertyRef("opt_in_tags")
-    allowed_release_channels: PropertyRef = PropertyRef("allowed_release_channels")
+    slug: PropertyRef = PropertyRef(
+        "slug", extra_index=True, description="The organization slug"
+    )
+    organization_id: PropertyRef = PropertyRef(
+        "organization_id",
+        description="The opaque organization identifier returned by the API",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Display name of the organization"
+    )
+    plan: PropertyRef = PropertyRef(
+        "plan", description="The organization's subscription plan"
+    )
+    opt_in_tags: PropertyRef = PropertyRef(
+        "opt_in_tags", description="Feature opt-in tags set on the organization"
+    )
+    allowed_release_channels: PropertyRef = PropertyRef(
+        "allowed_release_channels",
+        description="Release channels this organization may deploy projects on",
+    )
 
 
 @dataclass(frozen=True)
 class SupabaseOrganizationSchema(CartographyNodeSchema):
+    """Represents a Supabase organization: the billing and membership boundary that owns projects."""
+
     label: str = "SupabaseOrganization"
     properties: SupabaseOrganizationNodeProperties = (
         SupabaseOrganizationNodeProperties()

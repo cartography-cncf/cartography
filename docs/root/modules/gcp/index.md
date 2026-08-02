@@ -15,7 +15,49 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 - **Secret Manager**: Secrets, Secret Versions
 - **Cloud Run**: Services, Revisions, Jobs, Executions
 
+## Cloud Asset Inventory behavior
+
+Cartography uses the Cloud Asset Inventory API as a fallback for service
+accounts and project-level custom roles when the IAM API is disabled on a
+project. It also uses Cloud Asset Inventory to sync effective IAM policy
+bindings, including policies inherited from organizations and folders.
+
+Permission relationship syncs depend on policy bindings from the current run.
+If Cloud Asset Inventory is unavailable or the Cartography identity lacks
+`roles/cloudasset.viewer`, Cartography skips those relationships for the
+affected project. Other resource syncs continue.
+
+The fallback covers service accounts and project-level custom roles. Predefined
+roles and organization-level custom roles are synced separately through the IAM
+API.
+
+## BigQuery permission grains
+
+A permission relationship on a `GCPBigQueryTable` means an IAM binding placed
+**directly on that table**. Grants held at the project, folder, organization or
+dataset level are not expanded into one relationship per table: they land on the
+`GCPBigQueryDataset` and reach the tables through `HAS_TABLE`. Nothing table-level
+is consulted when evaluating them (no table ACL, no row or column level security,
+no authorized view), so expanding them per table added no information while writing
+millions of relationships on large projects.
+
+Query effective access as the union of the two grains:
+
+```cypher
+MATCH (p:GCPPrincipal)-[:CAN_READ]->(t:GCPBigQueryTable)
+RETURN p.email AS principal, t.id AS table, 'table binding' AS grain
+UNION
+MATCH (p:GCPPrincipal)-[:CAN_READ]->(:GCPBigQueryDataset)-[:HAS_TABLE]->(t:GCPBigQueryTable)
+RETURN p.email AS principal, t.id AS table, 'dataset grant' AS grain
+```
+
+Each relationship carries its own `has_condition`, `condition_title` and
+`condition_expression`, so a conditional binding on one table and an unconditional
+grant on its dataset are both represented, each on its own grain.
+
 ```{toctree}
 config
+artifact-registry
+cloud-run
 schema
 ```

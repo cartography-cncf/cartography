@@ -4,7 +4,7 @@ Once everything has been installed and synced, you can follow this tutorial on q
 
 View the Neo4j web interface at http://localhost:7474. You can view the reference on this [here](https://neo4j.com/developer/guide-neo4j-browser/#_installing_and_starting_neo4j_browser).
 
-If you already know Neo4j and just need to know what are the nodes, attributes, and graph relationships for our representation of infrastructure assets, you can view our [sample queries](samplequeries.html). More sample queries are available at https://github.com/marco-lancini/cartography-queries.
+If you already know Neo4j and just need to know what are the nodes, attributes, and graph relationships for our representation of infrastructure assets, you can view our [sample queries](samplequeries.md). More sample queries are available at https://github.com/marco-lancini/cartography-queries.
 
 Otherwise, read on for this handhold-y tutorial filled with examples. Suppose we wanted to find out:
 
@@ -62,7 +62,7 @@ RETURN s
 
 ![S3 buckets that allow anon access](../images/anonbuckets.png)
 
-These S3 buckets allow for any user to read data from them anonymously. Similar to the EC2 instance example above, S3 buckets returned by the S3 API [don't actually have an anonymous_access field](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html) and this field is added by one of Cartography's [data augmentation steps](#data-augmentation).
+These S3 buckets allow for any user to read data from them anonymously. Similar to the EC2 instance example above, S3 buckets returned by the S3 API [don't actually have an anonymous_access field](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html) and this field is added by one of Cartography's [data augmentation steps](#data-enrichment).
 
 A couple of other things to notice: instead of using the "{}" notation to filter for anonymous buckets, we can use SQL-style `WHERE` clauses. Also, we used the SQL-style `AS` operator to relabel our output header rows.
 
@@ -108,7 +108,7 @@ return distinct labels(n);
 
 And then you can continue building your query.
 
-We also include [full schema docs](schema.html), but this way of building a query can be faster and more interactive.
+We also include [full schema docs](schema.md), but this way of building a query can be faster and more interactive.
 
 
 ### Given a node label, what are the possible property names defined on it?
@@ -142,7 +142,7 @@ The result will look like this:
 }
 ```
 
-Our [full schema docs](schema.html) describe all possible fields, but listing out properties this way lets you avoid switching between browser tabs.
+Our [full schema docs](schema.md) describe all possible fields, but listing out properties this way lets you avoid switching between browser tabs.
 
 
 ### Learning more
@@ -174,10 +174,10 @@ Cartography adds custom attributes to nodes and relationships to point out secur
 	- **S3 buckets**: `anonymous_access` is set to `True` on an S3 bucket if this bucket has an AWSS3Acl with a policy applied to it that allows the [predefined AWS "Authenticated Users" or "All Users" groups](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#specifying-grantee-predefined-groups) to access it. These determinations are made by using the [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse) library.
 
 ### Extending Cartography with Analysis Jobs
-You can add your own custom attributes and relationships without writing Python code!  Here's [how](../dev/writing-analysis-jobs.html).
+You can add your own custom attributes and relationships without writing Python code!  Here's [how](../dev/writing-analysis-jobs.md).
 
 ### Mapping AWS Access Permissions
-Cartography can map permissions between IAM Principals and resources in the graph. Here's [how](../modules/aws/permissions-mapping.html).
+Cartography can map permissions between IAM Principals and resources in the graph. Here's [how](../modules/aws/permissions-mapping.md).
 
 
 ### Permalinking Bookmarklet

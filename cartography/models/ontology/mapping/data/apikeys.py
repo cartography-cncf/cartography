@@ -273,6 +273,40 @@ supabase_mapping = OntologyMapping(
 )
 
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalApiToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                # updated_at: not exposed.
+                # expires_at: Modal API tokens do not expire.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ModalProxyToken",
+            fields=[
+                # Modal proxy tokens are unnamed, so the token id is the only stable label.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="token_id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
     "github": github_mapping,
@@ -284,4 +318,5 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "railway": railway_mapping,
     "supabase": supabase_mapping,
+    "modal": modal_mapping,
 }

@@ -15,16 +15,45 @@ from cartography.models.extra_labels import DEPENDENCY
 
 @dataclass(frozen=True)
 class SocketDevDependencyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique Socket.dev dependency identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    version: PropertyRef = PropertyRef("version")
-    ecosystem: PropertyRef = PropertyRef("type")
-    namespace: PropertyRef = PropertyRef("namespace")
-    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
-    direct: PropertyRef = PropertyRef("direct")
-    repo_slug: PropertyRef = PropertyRef("repository")
-    repo_fullname: PropertyRef = PropertyRef("repository_fullname")
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Package name.",
+    )
+    version: PropertyRef = PropertyRef(
+        "version",
+        description="Package version.",
+    )
+    ecosystem: PropertyRef = PropertyRef(
+        "type",
+        description="Package ecosystem.",
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        description="Package namespace, when applicable.",
+    )
+    normalized_id: PropertyRef = PropertyRef(
+        "normalized_id",
+        extra_index=True,
+        description="Normalized package identifier used for cross-tool matching.",
+    )
+    direct: PropertyRef = PropertyRef(
+        "direct",
+        description="Whether this is a direct dependency.",
+    )
+    repo_slug: PropertyRef = PropertyRef(
+        "repository",
+        description="Slug of the repository containing the dependency.",
+    )
+    repo_fullname: PropertyRef = PropertyRef(
+        "repository_fullname",
+        description="Full path of the repository containing the dependency.",
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +64,8 @@ class SocketDevOrgToDependencyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SocketDevOrganization)-[:RESOURCE]->(:SocketDevDependency)
 class SocketDevOrgToDependencyRel(CartographyRelSchema):
+    """Links a Socket.dev organization to one of its dependencies."""
+
     target_node_label: str = "SocketDevOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -54,6 +85,8 @@ class SocketDevDependencyToRepoRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SocketDevDependency)-[:FOUND_IN]->(:SocketDevRepository)
 class SocketDevDependencyToRepoRel(CartographyRelSchema):
+    """Links a dependency to the Socket.dev repository containing it."""
+
     target_node_label: str = "SocketDevRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"fullname": PropertyRef("repository_fullname")},
@@ -67,6 +100,8 @@ class SocketDevDependencyToRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SocketDevDependencySchema(CartographyNodeSchema):
+    """An open source dependency tracked by Socket.dev."""
+
     label: str = "SocketDevDependency"
     properties: SocketDevDependencyNodeProperties = SocketDevDependencyNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DEPENDENCY])
