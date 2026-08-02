@@ -31,7 +31,7 @@ def sync(
     # rules from zones not yet synced in this run are not deleted and recreated.
     for zone in zones:
         rules = transform(get(client, zone["id"]))
-        logger.info(
+        logger.debug(
             "Loading %d firewall rules for zone '%s'.",
             len(rules),
             zone["id"],
