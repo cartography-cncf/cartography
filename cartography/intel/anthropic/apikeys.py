@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
+from cartography.intel.anthropic.util import resolve_org_id
 from cartography.models.anthropic.apikey import AnthropicApiKeySchema
 from cartography.util import timeit
 
@@ -20,10 +21,11 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    org_id, apikeys = get(
+    header_org_id, apikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
     )
+    org_id = resolve_org_id(common_job_parameters, header_org_id)
     common_job_parameters["ORG_ID"] = org_id
     load_apikeys(
         neo4j_session,

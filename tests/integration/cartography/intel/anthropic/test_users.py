@@ -4,6 +4,9 @@ import requests
 
 import cartography.intel.anthropic.users
 import tests.data.anthropic.users
+from tests.integration.cartography.intel.anthropic.test_organization import (
+    _ensure_local_neo4j_has_test_organization,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -12,6 +15,8 @@ TEST_ORG_ID = "8834c225-ea27-405a-aea9-5ed5f07f4858"
 
 
 def _ensure_local_neo4j_has_test_users(neo4j_session):
+    # The organization sync owns the org node that users hang off.
+    _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.anthropic.users.load_users(
         neo4j_session,
         tests.data.anthropic.users.ANTHROPIC_USERS,
@@ -37,16 +42,12 @@ def test_load_anthropic_users(mock_api, neo4j_session):
     }
 
     # Act
+    _ensure_local_neo4j_has_test_organization(neo4j_session)
     cartography.intel.anthropic.users.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
     )
-
-    # Assert Organization exists
-    assert check_nodes(neo4j_session, "AnthropicOrganization", ["id"]) == {
-        (TEST_ORG_ID,)
-    }
 
     # Assert Users exist
     expected_nodes = {

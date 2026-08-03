@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
+from cartography.intel.anthropic.util import resolve_org_id
 from cartography.models.anthropic.workspace import AnthropicWorkspaceSchema
 from cartography.util import timeit
 
@@ -20,12 +21,14 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
 ) -> list[dict]:
-    org_id, workspaces = get(
+    header_org_id, workspaces = get(
         api_session,
         common_job_parameters["BASE_URL"],
     )
+    org_id = resolve_org_id(common_job_parameters, header_org_id)
     common_job_parameters["ORG_ID"] = org_id
     for workspace in workspaces:
+        transform_workspace(workspace)
         workspace["users"] = []
         workspace["admins"] = []
         for user in get_workspace_users(
@@ -65,6 +68,24 @@ def get_workspace_users(
         timeout=_TIMEOUT,
     )
     return result
+
+
+def transform_workspace(workspace: dict[str, Any]) -> None:
+    """Flatten the nested data_residency object into scalar properties.
+
+    Neo4j node properties cannot hold maps. `tags` is dropped for the same reason:
+    it is an arbitrary string map with no fixed keys to flatten onto.
+    """
+    data_residency = workspace.pop("data_residency", None) or {}
+    workspace["workspace_geo"] = data_residency.get("workspace_geo")
+    workspace["default_inference_geo"] = data_residency.get("default_inference_geo")
+    # Either a list of geo names or the literal string "unrestricted"; normalise both
+    # to a list so the property has a single type in the graph.
+    allowed = data_residency.get("allowed_inference_geos")
+    if isinstance(allowed, str):
+        allowed = [allowed]
+    workspace["allowed_inference_geos"] = allowed
+    workspace.pop("tags", None)
 
 
 @timeit

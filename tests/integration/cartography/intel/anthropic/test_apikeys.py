@@ -44,15 +44,34 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert AdminApiKeys exist
-    expected_nodes = {("apikey_01Rj2N8SVvo6BePZj99NhmiT", "Homer Assistant")}
+    # Assert AdminApiKeys exist, carrying expiry and the principal they act as
+    expected_nodes = {
+        (
+            "apikey_01Rj2N8SVvo6BePZj99NhmiT",
+            "Homer Assistant",
+            None,
+            "user",
+        ),
+        (
+            "apikey_01Wq7X2ZTbn4LcVpM8sKdYhE",
+            "Reactor Telemetry Collector",
+            "2026-01-14T08:12:03.114509Z",
+            "service_account",
+        ),
+    }
     assert (
-        check_nodes(neo4j_session, "AnthropicApiKey", ["id", "name"]) == expected_nodes
+        check_nodes(
+            neo4j_session,
+            "AnthropicApiKey",
+            ["id", "name", "expires_at", "principal_type"],
+        )
+        == expected_nodes
     )
 
     # Assert apikey are linked to the correct org
     expected_rels = {
         ("apikey_01Rj2N8SVvo6BePZj99NhmiT", TEST_ORG_ID),
+        ("apikey_01Wq7X2ZTbn4LcVpM8sKdYhE", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -69,7 +88,8 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
 
     # Assert apikeys are linked to the correct user
     expected_rels = {
-        ("apikey_01Rj2N8SVvo6BePZj99NhmiT", "user_EneequohSheesh3Ohtaefu8we2aite")
+        ("apikey_01Rj2N8SVvo6BePZj99NhmiT", "user_EneequohSheesh3Ohtaefu8we2aite"),
+        ("apikey_01Wq7X2ZTbn4LcVpM8sKdYhE", "user_Oov3aYewo6ZuoGh8thaiV1uNoy1aXe"),
     }
     assert (
         check_rels(
@@ -101,6 +121,10 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
     expected_rels = {
         (
             "apikey_01Rj2N8SVvo6BePZj99NhmiT",
+            "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ",
+        ),
+        (
+            "apikey_01Wq7X2ZTbn4LcVpM8sKdYhE",
             "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ",
         ),
     }
