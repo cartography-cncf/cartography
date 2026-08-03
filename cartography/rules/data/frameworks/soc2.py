@@ -8,9 +8,7 @@ edition while the criteria identifiers stay those of 2017.
 
 from cartography.rules.spec.model import Framework
 
-SOC2_FRAMEWORK_NAME = (
-    "AICPA 2017 Trust Services Criteria (With Revised Points of Focus - 2022)"
-)
+SOC2_FRAMEWORK_NAME = "SOC 2: Trust Services Criteria"
 SOC2_SHORT_NAME = "SOC2"
 SOC2_SCOPE = "TSC"
 SOC2_REVISION = "2022"
