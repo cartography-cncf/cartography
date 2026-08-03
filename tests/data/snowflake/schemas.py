@@ -1,0 +1,51 @@
+"""Raw Snowflake schema payloads, as `GET /api/v2/databases/{db}/schemas` returns them."""
+
+from typing import Any
+
+SNOWFLAKE_SCHEMAS: list[dict[str, Any]] = [
+    {
+        "name": "NUCLEAR_PLANT",
+        "database_name": "SPRINGFIELD",
+        "kind": "PERMANENT",
+        "managed_access": True,
+        "owner": "SYSADMIN",
+        "owner_role_type": "ROLE",
+        "options": "MANAGED ACCESS",
+        "retention_time": 1,
+        "comment": "Sector 7-G telemetry",
+        "external_volume": "MONORAIL_VOLUME",
+        "catalog": "",
+        "created_on": "2026-08-03T15:45:00.000+00:00",
+        "dropped_on": None,
+    },
+    {
+        "name": "KWIK_E_MART",
+        "database_name": "SPRINGFIELD",
+        "kind": "PERMANENT",
+        "managed_access": False,
+        "owner": "SHOPKEEPER",
+        "owner_role_type": "ROLE",
+        "options": "",
+        "retention_time": 1,
+        "comment": None,
+        "external_volume": "",
+        "catalog": "",
+        "created_on": "2026-08-03T15:46:00.000+00:00",
+        "dropped_on": None,
+    },
+    {
+        "name": "PUBLIC",
+        "database_name": "MONORAIL",
+        "kind": "PERMANENT",
+        "managed_access": False,
+        "owner": "PLANT_ENGINEER",
+        "owner_role_type": "ROLE",
+        "options": "",
+        "retention_time": 0,
+        "comment": None,
+        "external_volume": "",
+        "catalog": "",
+        "created_on": "2026-08-03T15:47:00.000+00:00",
+        "dropped_on": None,
+    },
+]

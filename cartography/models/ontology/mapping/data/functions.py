@@ -231,4 +231,45 @@ FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "modal": modal_mapping,
     "netlify": netlify_mapping,
     "cloudflare": cloudflare_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeFunction",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="runtime", node_field="runtime_version"
+                    ),
+                    # A Snowflake UDF is always source code; there is no
+                    # container-based deployment form.
+                    OntologyFieldMapping(
+                        ontology_field="deployment_type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "code"},
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeProcedure",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="runtime", node_field="runtime_version"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="deployment_type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "code"},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

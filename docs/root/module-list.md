@@ -48,6 +48,7 @@ modules/sentinelone/index
 modules/sentry/index
 modules/slack/index
 modules/snipeit/index
+modules/snowflake/index
 modules/socketdev/index
 modules/spacelift/index
 modules/subimage/index

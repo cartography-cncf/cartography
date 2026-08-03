@@ -98,6 +98,7 @@ PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
+PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
+    "snowflake": PANEL_SNOWFLAKE,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1651,6 +1653,81 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Snowflake Options
+            # =================================================================
+            snowflake_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-account",
+                    help="Snowflake account identifier, e.g. MYORG-MYACCOUNT.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_user: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-user",
+                    help="Snowflake user Cartography authenticates as.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-pat-env-var",
+                    help="Environment variable name containing the Snowflake programmatic access token (PAT).",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded RSA private key for key-pair (JWT) authentication.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_passphrase_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-passphrase-env-var",
+                    help="Environment variable name containing the passphrase protecting the Snowflake private key.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_role: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-role",
+                    help="Snowflake role used for SQL API statements. Should match the user's default role, which is what the object API uses.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_warehouse: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-warehouse",
+                    help="Snowflake warehouse used to run SQL API statements.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_databases: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-databases",
+                    help="Comma-separated list of Snowflake databases to sync. If unset, every readable database is synced.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -2973,6 +3050,34 @@ class CLI:
                     databricks_account_client_secret_env_var,
                 )
 
+            snowflake_pat = None
+            if snowflake_pat_env_var:
+                logger.debug(
+                    "Reading Snowflake programmatic access token from environment variable %s",
+                    snowflake_pat_env_var,
+                )
+                snowflake_pat = os.environ.get(snowflake_pat_env_var)
+            snowflake_private_key = None
+            if snowflake_private_key_env_var:
+                # Read the key whenever the env-var flag is set, even if the
+                # passphrase is missing, so the module entry's credential guard
+                # sees the asymmetric configuration and fails loudly instead of
+                # silently skipping ingestion.
+                logger.debug(
+                    "Reading Snowflake private key from environment variable %s",
+                    snowflake_private_key_env_var,
+                )
+                snowflake_private_key = os.environ.get(snowflake_private_key_env_var)
+            snowflake_private_key_passphrase = None
+            if snowflake_private_key_passphrase_env_var:
+                logger.debug(
+                    "Reading Snowflake private key passphrase from environment variable %s",
+                    snowflake_private_key_passphrase_env_var,
+                )
+                snowflake_private_key_passphrase = os.environ.get(
+                    snowflake_private_key_passphrase_env_var,
+                )
+
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -3283,6 +3388,14 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                snowflake_account=snowflake_account,
+                snowflake_user=snowflake_user,
+                snowflake_pat=snowflake_pat,
+                snowflake_private_key=snowflake_private_key,
+                snowflake_private_key_passphrase=snowflake_private_key_passphrase,
+                snowflake_role=snowflake_role,
+                snowflake_warehouse=snowflake_warehouse,
+                snowflake_databases=snowflake_databases,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
