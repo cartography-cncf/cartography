@@ -341,6 +341,9 @@ class Config:
     :type anthropic_organization_id: string
     :param anthropic_organization_id: Anthropic organization UUID used during the Workload Identity
         Federation token exchange. Optional.
+    :type anthropic_workspace_federation_rule_id: string
+    :param anthropic_workspace_federation_rule_id: Anthropic federation rule id (fdrl_...) granting
+        the workspace:developer scope, used to reach per-workspace resources. Optional.
     :type anthropic_service_account_id: string
     :param anthropic_service_account_id: Anthropic service account id (svac_...) that federated
         tokens act as. Optional.
@@ -592,6 +595,7 @@ class Config:
         anthropic_identity_token_file=None,
         anthropic_identity_token_env_var=None,
         anthropic_federation_rule_id=None,
+        anthropic_workspace_federation_rule_id=None,
         anthropic_organization_id=None,
         anthropic_service_account_id=None,
         subimage_client_id=None,
@@ -823,6 +827,9 @@ class Config:
         self.anthropic_identity_token_file = anthropic_identity_token_file
         self.anthropic_identity_token_env_var = anthropic_identity_token_env_var
         self.anthropic_federation_rule_id = anthropic_federation_rule_id
+        self.anthropic_workspace_federation_rule_id = (
+            anthropic_workspace_federation_rule_id
+        )
         self.anthropic_organization_id = anthropic_organization_id
         self.anthropic_service_account_id = anthropic_service_account_id
         self.subimage_client_id = subimage_client_id

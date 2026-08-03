@@ -16,6 +16,7 @@ a federated token in `Authorization: Bearer`.
 
 import logging
 import os
+import random
 import time
 from typing import Any
 
@@ -29,6 +30,11 @@ logger = logging.getLogger(__name__)
 _TOKEN_REFRESH_BUFFER_SECONDS = 300
 _TIMEOUT = (60, 60)
 _JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+
+# The token endpoint publishes no rate limit, and enumerating a large organization
+# means one exchange per workspace. Back off with jitter rather than assume a budget.
+_EXCHANGE_MAX_ATTEMPTS = 4
+_EXCHANGE_BACKOFF_SECONDS = 2
 
 
 class AssertionSource:
@@ -147,16 +153,28 @@ class WorkloadIdentityCredential(AnthropicCredential):
         if self._workspace_id:
             body["workspace_id"] = self._workspace_id
 
-        response = requests.post(
-            f"{self._base_url}/oauth/token",
-            json=body,
-            timeout=_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
+        data = self._exchange(body)
         self._token = data["access_token"]
         self._token_expires_at = time.time() + data["expires_in"]
         logger.debug("Anthropic access token minted with scope %s", data.get("scope"))
+
+    def _exchange(self, body: dict[str, Any]) -> dict[str, Any]:
+        for attempt in range(_EXCHANGE_MAX_ATTEMPTS):
+            response = requests.post(
+                f"{self._base_url}/oauth/token",
+                json=body,
+                timeout=_TIMEOUT,
+            )
+            if response.status_code != 429 or attempt == _EXCHANGE_MAX_ATTEMPTS - 1:
+                response.raise_for_status()
+                result: dict[str, Any] = response.json()
+                return result
+            delay = (_EXCHANGE_BACKOFF_SECONDS**attempt) + random.uniform(0, 1)
+            logger.debug(
+                "Anthropic token exchange was throttled, retrying in %.1fs", delay
+            )
+            time.sleep(delay)
+        raise AssertionError("unreachable: the loop returns or raises on every path")
 
 
 class AnthropicAuth(AuthBase):

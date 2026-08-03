@@ -1508,6 +1508,20 @@ class CLI:
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
             ] = None,
+            anthropic_workspace_federation_rule_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-workspace-federation-rule-id",
+                    help=(
+                        "Anthropic federation rule id (fdrl_...) granting the "
+                        "workspace:developer scope. Required to ingest skills, agents "
+                        "and other per-workspace resources, which an org:admin token "
+                        "cannot reach."
+                    ),
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
             anthropic_organization_id: Annotated[
                 str | None,
                 typer.Option(
@@ -3321,6 +3335,7 @@ class CLI:
                 anthropic_identity_token_file=anthropic_identity_token_file,
                 anthropic_identity_token_env_var=anthropic_identity_token_env_var,
                 anthropic_federation_rule_id=anthropic_federation_rule_id,
+                anthropic_workspace_federation_rule_id=anthropic_workspace_federation_rule_id,
                 anthropic_organization_id=anthropic_organization_id,
                 anthropic_service_account_id=anthropic_service_account_id,
                 sentry_token=sentry_token,

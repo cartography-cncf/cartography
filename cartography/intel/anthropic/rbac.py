@@ -148,7 +148,13 @@ def transform_permissions(
         resource = permission.get("resource") or {}
         resource_key = "/".join(
             str(resource[field])
-            for field in ("type", "organization_id", "connector_id", "tool_name", "scope")
+            for field in (
+                "type",
+                "organization_id",
+                "connector_id",
+                "tool_name",
+                "scope",
+            )
             if resource.get(field)
         )
         results.append(

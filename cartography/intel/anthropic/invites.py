@@ -27,9 +27,7 @@ def sync(
     )
     org_id = resolve_org_id(common_job_parameters, header_org_id)
     common_job_parameters["ORG_ID"] = org_id
-    load_invites(
-        neo4j_session, invites, org_id, common_job_parameters["UPDATE_TAG"]
-    )
+    load_invites(neo4j_session, invites, org_id, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
 
 
