@@ -67,6 +67,37 @@ If both an Admin API key and a federation configuration are supplied, cartograph
 federation and logs a warning. A federation configuration missing one of its three ids
 is treated as an operator mistake and fails loudly rather than silently falling back.
 
+### Per-workspace resources
+
+Skills, agents, environments, deployments, vaults and memory stores are scoped to a
+workspace and have no organization-wide listing. An `org:admin` token cannot reach
+them, and there is no way to downscope one: the token endpoint accepts only the
+`jwt-bearer` grant, so each workspace needs its own exchange.
+
+Set up a second federation rule to ingest them:
+
+1. Create a rule with `oauth_scope: workspace:developer` and
+   `applies_to_all_workspaces: true`. One rule covers every workspace; cartography
+   varies the workspace on each exchange.
+2. Add its target service account as an explicit member of every workspace you want
+   covered. Enabling a rule for a workspace does not create that membership, and
+   `applies_to_all_workspaces` does not either. Every service account is implicitly a
+   member of the default workspace only.
+
+Then pass the rule with `--anthropic-workspace-federation-rule-id`, alongside the
+`org:admin` configuration above. Without it, cartography syncs the organization plane
+and logs that it is skipping the rest.
+
+Cartography never writes, so it will not add those workspace memberships for you even
+though the Admin API can.
+
+A workspace whose exchange fails is skipped with a warning and the sync continues.
+Consider giving the workspace rule its own federation issuer with `check_jti: false`:
+otherwise, replay protection can reject the second and later exchanges when your
+identity token carries a `jti` and does not rotate between them. A dedicated issuer
+also keeps it updatable through the API, which an issuer backing an `org:admin` rule
+is not.
+
 ### Troubleshooting
 
 Every credential-level rejection from the token exchange returns an opaque

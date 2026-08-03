@@ -6,6 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+import cartography.intel.anthropic.agents
 import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.federation
 import cartography.intel.anthropic.invites
@@ -13,16 +14,80 @@ import cartography.intel.anthropic.organization
 import cartography.intel.anthropic.ratelimits
 import cartography.intel.anthropic.rbac
 import cartography.intel.anthropic.serviceaccounts
+import cartography.intel.anthropic.skills
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
 from cartography.intel.anthropic.auth import AnthropicAuth
+from cartography.intel.anthropic.auth import AnthropicCredential
 from cartography.intel.anthropic.auth import is_federated
 from cartography.intel.anthropic.auth import make_assertion_source
 from cartography.intel.anthropic.auth import make_credential
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _build_api_session(credential: AnthropicCredential) -> requests.Session:
+    api_session = requests.session()
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    api_session.auth = AnthropicAuth(credential)
+    api_session.headers.update({"anthropic-version": "2023-06-01"})
+    return api_session
+
+
+def _sync_workspace_plane(
+    neo4j_session: neo4j.Session,
+    config: Config,
+    common_job_parameters: dict[str, Any],
+    workspaces: list[dict[str, Any]],
+) -> None:
+    """Sync the per-workspace resources, one federated token per workspace.
+
+    Skills, agents and the rest have no organization-wide listing and are out of
+    reach of an org:admin token, so each workspace needs its own exchange against a
+    workspace:developer federation rule. There is no way to downscope the org:admin
+    token already in hand: the only grant type the token endpoint accepts is
+    jwt-bearer, so every workspace re-presents the original identity token.
+    """
+    for workspace in workspaces:
+        workspace_id = workspace["id"]
+        try:
+            credential = make_credential(
+                identity_token_file=config.anthropic_identity_token_file,
+                identity_token_env_var=config.anthropic_identity_token_env_var,
+                federation_rule_id=config.anthropic_workspace_federation_rule_id,
+                organization_id=config.anthropic_organization_id,
+                service_account_id=config.anthropic_service_account_id,
+                workspace_id=workspace_id,
+            )
+            api_session = _build_api_session(credential)
+            workspace_job_parameters = {
+                **common_job_parameters,
+                "WORKSPACE_ID": workspace_id,
+            }
+            cartography.intel.anthropic.skills.sync(
+                neo4j_session, api_session, workspace_job_parameters
+            )
+            cartography.intel.anthropic.agents.sync(
+                neo4j_session, api_session, workspace_job_parameters
+            )
+        except requests.exceptions.HTTPError as exc:
+            # A failed exchange is expected and undiagnosable: the service account
+            # may not be a member of this workspace, or replay protection may have
+            # rejected a reused assertion. Both surface as an opaque 400
+            # invalid_grant. Skip the workspace rather than abandon the others.
+            logger.warning(
+                "Skipping the workspace plane for Anthropic workspace %s: %s",
+                workspace_id,
+                exc,
+            )
 
 
 def _sync_enterprise_rbac(
@@ -80,17 +145,7 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         service_account_id=config.anthropic_service_account_id,
     )
 
-    # Create requests sessions
-    api_session = requests.session()
-    retry_policy = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    api_session.auth = AnthropicAuth(credential)
-    api_session.headers.update({"anthropic-version": "2023-06-01"})
+    api_session = _build_api_session(credential)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
@@ -161,3 +216,12 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         api_session,
         common_job_parameters,
     )
+
+    if config.anthropic_workspace_federation_rule_id:
+        _sync_workspace_plane(neo4j_session, config, common_job_parameters, workspaces)
+    else:
+        logger.info(
+            "Skipping Anthropic skills, agents and other per-workspace resources: "
+            "they need a workspace:developer credential. Set "
+            "--anthropic-workspace-federation-rule-id to ingest them.",
+        )
