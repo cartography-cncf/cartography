@@ -65,7 +65,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             soc2_tsc("CC6.6"),
-            "soc 2: trust services critera",
+            "soc 2: trust services criteria",
             "soc2",
             "tsc",
             "2022",
