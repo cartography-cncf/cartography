@@ -161,8 +161,8 @@ containing data you need.
 For a targeted test:
 
 ```bash
-uv run pytest tests/integration/cartography/intel/aws/test_iam.py
-uv run pytest tests/integration/cartography/intel/aws/test_iam.py::test_load_groups
+uv run pytest tests/integration/cartography/intel/aws/iam/test_iam.py
+uv run pytest tests/integration/cartography/intel/aws/iam/test_iam.py::test_load_groups
 ```
 
 ### Build documentation
