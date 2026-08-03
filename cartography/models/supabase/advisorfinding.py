@@ -22,21 +22,51 @@ class SupabaseSecurityAdvisorFindingNodeProperties(CartographyNodeProperties):
 
     # Synthesised as "<project ref>/<cache_key>": cache_key identifies the lint
     # plus the specific entity it fired on.
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Synthesised as `<project ref>/<cache key>`"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    title: PropertyRef = PropertyRef("title")
-    level: PropertyRef = PropertyRef("level")
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="The lint identifier (e.g. `rls_disabled_in_public`)",
+    )
+    title: PropertyRef = PropertyRef(
+        "title", description="Human-readable title of the finding"
+    )
+    level: PropertyRef = PropertyRef(
+        "level", description="Advisor severity (`ERROR`, `WARN`, `INFO`)"
+    )
     # "EXTERNAL" means the affected object is reachable from outside the project.
-    facing: PropertyRef = PropertyRef("facing")
-    categories: PropertyRef = PropertyRef("categories")
-    description: PropertyRef = PropertyRef("description")
-    detail: PropertyRef = PropertyRef("detail")
-    remediation: PropertyRef = PropertyRef("remediation")
-    entity: PropertyRef = PropertyRef("entity")
-    entity_schema: PropertyRef = PropertyRef("entity_schema")
-    entity_name: PropertyRef = PropertyRef("entity_name")
-    entity_type: PropertyRef = PropertyRef("entity_type")
+    facing: PropertyRef = PropertyRef(
+        "facing",
+        description="Exposure of the affected object. `EXTERNAL` means it is reachable from outside the project",
+    )
+    categories: PropertyRef = PropertyRef(
+        "categories", description="Advisor categories the lint belongs to"
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="What the lint checks"
+    )
+    detail: PropertyRef = PropertyRef(
+        "detail", description="Details of this particular occurrence"
+    )
+    remediation: PropertyRef = PropertyRef(
+        "remediation", description="Link to remediation guidance"
+    )
+    entity: PropertyRef = PropertyRef(
+        "entity", description="Fully-qualified name of the affected database object"
+    )
+    entity_schema: PropertyRef = PropertyRef(
+        "entity_schema", description="Schema of the affected object"
+    )
+    entity_name: PropertyRef = PropertyRef(
+        "entity_name", description="Name of the affected object"
+    )
+    entity_type: PropertyRef = PropertyRef(
+        "entity_type",
+        description="Type of the affected object (table, view, function, ...)",
+    )
 
 
 @dataclass(frozen=True)
@@ -79,6 +109,8 @@ class SupabaseSecurityAdvisorFindingToDatabaseRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseSecurityAdvisorFindingSchema(CartographyNodeSchema):
+    """Represents a finding from Supabase's own security advisor, for example a public table with row level security disabled, or a security-definer view."""
+
     label: str = "SupabaseSecurityAdvisorFinding"
     properties: SupabaseSecurityAdvisorFindingNodeProperties = (
         SupabaseSecurityAdvisorFindingNodeProperties()

@@ -233,6 +233,50 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+# Modal sandbox state. SandboxInfo has no state field, so cartography derives one from the
+# task result plus readiness: PENDING and RUNNING are synthetic, the rest are raw
+# GENERIC_STATUS_* values. A sandbox that ran to completion is "terminated" rather than
+# "stopped", since Modal sandboxes are not restartable.
+_MODAL_SANDBOX_STATE = {
+    "PENDING": "pending",
+    "RUNNING": "running",
+    "GENERIC_STATUS_UNSPECIFIED": "unknown",
+    "GENERIC_STATUS_SUCCESS": "terminated",
+    "GENERIC_STATUS_TERMINATED": "terminated",
+    "GENERIC_STATUS_IDLE_TIMEOUT": "terminated",
+    "GENERIC_STATUS_FAILURE": "error",
+    "GENERIC_STATUS_TIMEOUT": "error",
+    "GENERIC_STATUS_INIT_FAILURE": "error",
+    "GENERIC_STATUS_INTERNAL_FAILURE": "error",
+}
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalSandbox",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _MODAL_SANDBOX_STATE},
+                ),
+                OntologyFieldMapping(ontology_field="memory", node_field="memory_mb"),
+                # Set only for a single-region sandbox; null when several are allowed.
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="namespace", node_field="environment_name"
+                ),
+                # cpu: milli_cpu is millicores, which is not the ontology's vCPU unit.
+                # image / image_digest: Modal image ids are neither digests nor pull URIs.
+                # health_status: readiness_probe is a probe spec, not an observed result.
+            ],
+        ),
+    ],
+)
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
@@ -240,4 +284,5 @@ CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "modal": modal_mapping,
 }

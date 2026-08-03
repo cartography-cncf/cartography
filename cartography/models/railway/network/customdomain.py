@@ -13,19 +13,40 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RailwayCustomDomainNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway custom domain.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    domain: PropertyRef = PropertyRef("domain", extra_index=True)
-    target_port: PropertyRef = PropertyRef("targetPort")
-    is_railway_domain: PropertyRef = PropertyRef("isRailwayDomain")
-    sync_status: PropertyRef = PropertyRef("syncStatus")
+    domain: PropertyRef = PropertyRef(
+        "domain",
+        extra_index=True,
+        description="Fully qualified customer-owned domain name.",
+    )
+    target_port: PropertyRef = PropertyRef(
+        "targetPort", description="Port on the service to which the domain routes."
+    )
+    is_railway_domain: PropertyRef = PropertyRef(
+        "isRailwayDomain", description="Whether Railway manages the domain."
+    )
+    sync_status: PropertyRef = PropertyRef(
+        "syncStatus", description="Provisioning status of the domain."
+    )
     # Flattened from the nested `status` object. An unverified domain does not resolve yet,
     # so it is not an exposure; a bad certificate_status is worth alerting on.
-    verified: PropertyRef = PropertyRef("verified")
-    certificate_status: PropertyRef = PropertyRef("certificate_status")
-    verification_dns_host: PropertyRef = PropertyRef("verification_dns_host")
-    service_id: PropertyRef = PropertyRef("service_id")
-    environment_id: PropertyRef = PropertyRef("environment_id")
+    verified: PropertyRef = PropertyRef(
+        "verified", description="Whether DNS verification has succeeded."
+    )
+    certificate_status: PropertyRef = PropertyRef(
+        "certificate_status", description="TLS certificate provisioning status."
+    )
+    verification_dns_host: PropertyRef = PropertyRef(
+        "verification_dns_host",
+        description="DNS host Railway expects for domain verification.",
+    )
+    service_id: PropertyRef = PropertyRef(
+        "service_id", description="ID of the service fronted by the domain."
+    )
+    environment_id: PropertyRef = PropertyRef(
+        "environment_id", description="ID of the environment fronted by the domain."
+    )
 
 
 @dataclass(frozen=True)
@@ -36,6 +57,8 @@ class RailwayCustomDomainToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayCustomDomain)
 class RailwayCustomDomainToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a custom domain that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -62,6 +85,8 @@ class RailwayCustomDomainToServiceInstanceRelProperties(CartographyRelProperties
 # is verified, so no edge is created for one that is not. The plain service_id and
 # environment_id properties stay on the node, so the association is still queryable.
 class RailwayCustomDomainToServiceInstanceRel(CartographyRelSchema):
+    """Identifies the Railway service instance exposed by a verified custom domain."""
+
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -78,6 +103,8 @@ class RailwayCustomDomainToServiceInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayCustomDomainSchema(CartographyNodeSchema):
+    """A customer-owned domain configured for a Railway service."""
+
     label: str = "RailwayCustomDomain"
     properties: RailwayCustomDomainNodeProperties = RailwayCustomDomainNodeProperties()
     sub_resource_relationship: RailwayCustomDomainToProjectRel = (

@@ -13,8 +13,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksNotebookNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    path: PropertyRef = PropertyRef("path", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the notebook."
+    )
+    path: PropertyRef = PropertyRef(
+        "path", extra_index=True, description="Workspace path of the notebook."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -26,6 +30,8 @@ class DatabricksNotebookToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksNotebook)
 class DatabricksNotebookToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the notebook as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -50,6 +56,8 @@ class DatabricksNotebookToJobTaskRelProperties(CartographyRelProperties):
 # path-keyed node (no content / permissions) derived only from the workloads
 # that reference it, so there is no full workspace walk.
 class DatabricksNotebookToJobTaskRel(CartographyRelSchema):
+    """A Databricks job task runs the notebook."""
+
     target_node_label: str = "DatabricksJobTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"notebook_scoped_id": PropertyRef("id")},
@@ -63,6 +71,8 @@ class DatabricksNotebookToJobTaskRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksNotebookSchema(CartographyNodeSchema):
+    """A Databricks notebook referenced by a job task."""
+
     label: str = "DatabricksNotebook"
     properties: DatabricksNotebookNodeProperties = DatabricksNotebookNodeProperties()
     sub_resource_relationship: DatabricksNotebookToWorkspaceRel = (

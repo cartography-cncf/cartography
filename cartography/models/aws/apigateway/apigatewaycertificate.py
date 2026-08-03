@@ -15,9 +15,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("clientCertificateId")
-    createddate: PropertyRef = PropertyRef("createdDate")
-    expirationdate: PropertyRef = PropertyRef("expirationDate")
+    id: PropertyRef = PropertyRef(
+        "clientCertificateId", description="The identifier of the client certificate"
+    )
+    createddate: PropertyRef = PropertyRef(
+        "createdDate",
+        description="The timestamp when the client certificate was created",
+    )
+    expirationdate: PropertyRef = PropertyRef(
+        "expirationDate",
+        description="The timestamp when the client certificate will expire",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,6 +70,8 @@ class APIGatewayClientCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazon.com/apigateway/api-reference/resource/client-certificate/)."""
+
     label: str = "AWSAPIGatewayClientCertificate"
     # DEPRECATED: legacy APIGatewayClientCertificate node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

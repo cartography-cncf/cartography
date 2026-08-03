@@ -15,11 +15,21 @@ from cartography.models.ontology.labels import API_KEY
 
 @dataclass(frozen=True)
 class WorkOSApplicationClientSecretNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    secret_hint: PropertyRef = PropertyRef("secret_hint")
-    last_used_at: PropertyRef = PropertyRef("last_used_at")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef(
+        "id", description="WorkOS application client secret ID."
+    )
+    secret_hint: PropertyRef = PropertyRef(
+        "secret_hint", description="Last characters of the client secret value."
+    )
+    last_used_at: PropertyRef = PropertyRef(
+        "last_used_at", description="RFC 3339 timestamp when the secret was last used."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="RFC 3339 timestamp when the secret was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="RFC 3339 timestamp when the secret was updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +41,8 @@ class WorkOSApplicationClientSecretToEnvironmentRelProperties(CartographyRelProp
 @dataclass(frozen=True)
 # (:WorkOSEnvironment)-[:RESOURCE]->(:WorkOSApplicationClientSecret)
 class WorkOSApplicationClientSecretToEnvironmentRel(CartographyRelSchema):
+    """The WorkOS environment contains this client secret as a resource."""
+
     target_node_label: str = "WorkOSEnvironment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKOS_CLIENT_ID", set_in_kwargs=True)},
@@ -50,6 +62,8 @@ class WorkOSApplicationClientSecretToApplicationRelProperties(CartographyRelProp
 @dataclass(frozen=True)
 # (:WorkOSApplication)-[:HAS_SECRET]->(:WorkOSApplicationClientSecret)
 class WorkOSApplicationClientSecretToApplicationRel(CartographyRelSchema):
+    """The WorkOS application has this client secret."""
+
     target_node_label: str = "WorkOSApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_id")},
@@ -63,6 +77,8 @@ class WorkOSApplicationClientSecretToApplicationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class WorkOSApplicationClientSecretSchema(CartographyNodeSchema):
+    """A WorkOS application client secret with the canonical APIKey label."""
+
     label: str = "WorkOSApplicationClientSecret"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     properties: WorkOSApplicationClientSecretNodeProperties = (

@@ -15,15 +15,31 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class CloudflareMemberNodeProperties(CartographyNodeProperties):
-    status: PropertyRef = PropertyRef("status")
-    email: PropertyRef = PropertyRef("user.email")
-    firstname: PropertyRef = PropertyRef("user.first_name")
-    user_id: PropertyRef = PropertyRef("user.id")
-    lastname: PropertyRef = PropertyRef("user.last_name")
-    two_factor_authentication_enabled: PropertyRef = PropertyRef(
-        "user.two_factor_authentication_enabled"
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Membership status in the account.",
     )
-    id: PropertyRef = PropertyRef("id")
+    email: PropertyRef = PropertyRef(
+        "user.email",
+        description="Related user's email address.",
+    )
+    firstname: PropertyRef = PropertyRef(
+        "user.first_name",
+        description="Related user's first name.",
+    )
+    user_id: PropertyRef = PropertyRef(
+        "user.id",
+        description="Related user's ID.",
+    )
+    lastname: PropertyRef = PropertyRef(
+        "user.last_name",
+        description="Related user's last name.",
+    )
+    two_factor_authentication_enabled: PropertyRef = PropertyRef(
+        "user.two_factor_authentication_enabled",
+        description="Whether the related user enabled two-factor authentication.",
+    )
+    id: PropertyRef = PropertyRef("id", description="Membership ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,6 +51,8 @@ class CloudflareMemberToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CloudflareMember)<-[:RESOURCE]-(:CloudflareAccount)
 class CloudflareMemberToAccountRel(CartographyRelSchema):
+    """The account contains the member."""
+
     target_node_label: str = "CloudflareAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
@@ -54,6 +72,8 @@ class CloudflareMemberToCloudflareRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:CloudflareRole)<-[:HAS_ROLE]-(:CloudflareMember)
 class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
+    """The member has the assigned role."""
+
     target_node_label: str = "CloudflareRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -72,6 +92,8 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudflareMemberSchema(CartographyNodeSchema):
+    """A user membership in a Cloudflare account."""
+
     label: str = "CloudflareMember"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [USER_ACCOUNT]

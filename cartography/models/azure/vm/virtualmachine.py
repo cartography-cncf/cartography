@@ -17,24 +17,58 @@ from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 @dataclass(frozen=True)
 class AzureVirtualMachineProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    resourcegroup: PropertyRef = PropertyRef("resource_group")
-    type: PropertyRef = PropertyRef("type")
-    plan: PropertyRef = PropertyRef("plan.product")
-    size: PropertyRef = PropertyRef("hardware_profile.vm_size")
-    license_type: PropertyRef = PropertyRef("license_type")
-    computer_name: PropertyRef = PropertyRef("os_profile.computer_name")
-    identity_type: PropertyRef = PropertyRef("identity.type")
-    identity_principal_ids: PropertyRef = PropertyRef("identity_principal_ids")
-    zones: PropertyRef = PropertyRef("zones")
-    ultra_ssd_enabled: PropertyRef = PropertyRef(
-        "additional_capabilities.ultra_ssd_enabled"
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID of the virtual machine."
     )
-    priority: PropertyRef = PropertyRef("priority")
-    eviction_policy: PropertyRef = PropertyRef("eviction_policy")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef("name", description="Name of the virtual machine.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region of the virtual machine."
+    )
+    resourcegroup: PropertyRef = PropertyRef(
+        "resource_group",
+        description="Resource group containing the virtual machine.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Azure resource type of the virtual machine."
+    )
+    plan: PropertyRef = PropertyRef(
+        "plan.product", description="Marketplace plan product for the virtual machine."
+    )
+    size: PropertyRef = PropertyRef(
+        "hardware_profile.vm_size",
+        description="Hardware size of the virtual machine.",
+    )
+    license_type: PropertyRef = PropertyRef(
+        "license_type",
+        description="Azure Hybrid Benefit license type for the virtual machine.",
+    )
+    computer_name: PropertyRef = PropertyRef(
+        "os_profile.computer_name",
+        description="Host name assigned to the virtual machine.",
+    )
+    identity_type: PropertyRef = PropertyRef(
+        "identity.type",
+        description="Managed identity type configured for the virtual machine.",
+    )
+    identity_principal_ids: PropertyRef = PropertyRef(
+        "identity_principal_ids",
+        description="Microsoft Entra principal IDs of the managed identities.",
+    )
+    zones: PropertyRef = PropertyRef(
+        "zones", description="Availability zones of the virtual machine."
+    )
+    ultra_ssd_enabled: PropertyRef = PropertyRef(
+        "additional_capabilities.ultra_ssd_enabled",
+        description="Whether Ultra Disk support is enabled.",
+    )
+    priority: PropertyRef = PropertyRef(
+        "priority", description="Allocation priority of the virtual machine."
+    )
+    eviction_policy: PropertyRef = PropertyRef(
+        "eviction_policy",
+        description="Eviction policy for a Spot virtual machine.",
+    )
 
 
 @dataclass(frozen=True)
@@ -45,6 +79,8 @@ class AzureVirtualMachineToSubscriptionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureVirtualMachine)
 class AzureVirtualMachineToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the virtual machine as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -66,6 +102,8 @@ class AzureVirtualMachineToServicePrincipalRelProperties(CartographyRelPropertie
 # The VM's managed identity (system- or user-assigned) surfaces in Entra as a
 # service principal whose object id equals the identity's principalId.
 class AzureVirtualMachineToServicePrincipalRel(CartographyRelSchema):
+    """The virtual machine runs as a managed identity's service principal."""
+
     target_node_label: str = "EntraServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("identity_principal_ids", one_to_many=True)},
@@ -79,6 +117,8 @@ class AzureVirtualMachineToServicePrincipalRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureVirtualMachineSchema(CartographyNodeSchema):
+    """An Azure virtual machine."""
+
     label: str = "AzureVirtualMachine"
     properties: AzureVirtualMachineProperties = AzureVirtualMachineProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
@@ -108,6 +148,8 @@ class AzureVirtualMachineToRoleAssumesRelProperties(CartographyRelProperties):
 # AzureRoleAssignment -> AzureRoleDefinition after the RBAC sync, so it is loaded
 # as a MatchLink rather than a direct edge on the node.
 class AzureVirtualMachineToRoleAssumesMatchLink(CartographyRelSchema):
+    """The virtual machine assumes an Azure role through its managed identity."""
+
     rel_label: str = "ASSUMES"
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: AzureVirtualMachineToRoleAssumesRelProperties = (

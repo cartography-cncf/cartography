@@ -15,14 +15,34 @@ from cartography.models.ontology.labels import LOAD_BALANCER
 
 @dataclass(frozen=True)
 class LoadBalancerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    dnsname: PropertyRef = PropertyRef("dnsname", extra_index=True)
-    canonicalhostedzonename: PropertyRef = PropertyRef("canonicalhostedzonename")
-    canonicalhostedzonenameid: PropertyRef = PropertyRef("canonicalhostedzonenameid")
-    scheme: PropertyRef = PropertyRef("scheme", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    createdtime: PropertyRef = PropertyRef("createdtime")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="The load balancer's DNS name exactly as AWS returned it, case preserved. Unlike `dnsname` it is not lowercased, because listeners and target groups join against it.",
+    )
+    name: PropertyRef = PropertyRef("name", description="The name of the load balancer")
+    dnsname: PropertyRef = PropertyRef(
+        "dnsname",
+        extra_index=True,
+        description="The DNS name of the load balancer, lowercased at ingestion. AWS preserves the load balancer name's case here, while Route53 alias targets and Kubernetes load balancer status hostnames are lowercase, and those are matched against this property for equality.",
+    )
+    canonicalhostedzonename: PropertyRef = PropertyRef(
+        "canonicalhostedzonename", description="The DNS name of the load balancer"
+    )
+    canonicalhostedzonenameid: PropertyRef = PropertyRef(
+        "canonicalhostedzonenameid",
+        description="The ID of the Amazon Route 53 hosted zone for the load balancer.",
+    )
+    scheme: PropertyRef = PropertyRef(
+        "scheme",
+        extra_index=True,
+        description="The type of load balancer. Valid only for load balancers in a VPC. If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the load balancer"
+    )
+    createdtime: PropertyRef = PropertyRef(
+        "createdtime", description="The date and time the load balancer was created."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -100,6 +120,11 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
+    """Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
+
+    **Label rename:** in previous versions, classic ELB nodes used the label `LoadBalancer`. It was renamed to `AWSLoadBalancer` for consistency with other AWS resources, and existing nodes are relabeled automatically on upgrade.
+    """
+
     label: str = "AWSLoadBalancer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()

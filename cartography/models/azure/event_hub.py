@@ -16,11 +16,20 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureEventHubProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    status: PropertyRef = PropertyRef("status")
-    partition_count: PropertyRef = PropertyRef("partition_count")
-    message_retention_in_days: PropertyRef = PropertyRef("message_retention_in_days")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the event hub."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the event hub.")
+    status: PropertyRef = PropertyRef(
+        "status", description="Current operational status of the event hub."
+    )
+    partition_count: PropertyRef = PropertyRef(
+        "partition_count", description="Number of partitions in the event hub."
+    )
+    message_retention_in_days: PropertyRef = PropertyRef(
+        "message_retention_in_days",
+        description="Number of days that events are retained.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +40,8 @@ class AzureEventHubToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureEventHubToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the event hub as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -50,6 +61,8 @@ class AzureEventHubToNamespaceRelProperties(CartographyRelProperties):
 # Other relationship to Namespace
 @dataclass(frozen=True)
 class AzureEventHubToNamespaceRel(CartographyRelSchema):
+    """An Event Hubs namespace contains the event hub."""
+
     target_node_label: str = "AzureEventHubsNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("namespace_id", set_in_kwargs=True)},
@@ -63,6 +76,8 @@ class AzureEventHubToNamespaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureEventHubSchema(CartographyNodeSchema):
+    """An event stream within an Azure Event Hubs namespace."""
+
     label: str = "AzureEventHub"
     properties: AzureEventHubProperties = AzureEventHubProperties()
     sub_resource_relationship: AzureEventHubToSubscriptionRel = (

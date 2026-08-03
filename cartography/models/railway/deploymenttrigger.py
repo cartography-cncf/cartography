@@ -13,14 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RailwayDeploymentTriggerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="ID of the Railway deployment trigger."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    provider: PropertyRef = PropertyRef("provider", extra_index=True)
+    provider: PropertyRef = PropertyRef(
+        "provider",
+        extra_index=True,
+        description="Source-control provider for the trigger.",
+    )
     # owner/name form, matching GitHubRepository.fullname.
-    repository: PropertyRef = PropertyRef("repository", extra_index=True)
-    branch: PropertyRef = PropertyRef("branch")
-    service_id: PropertyRef = PropertyRef("serviceId")
-    environment_id: PropertyRef = PropertyRef("environmentId")
+    repository: PropertyRef = PropertyRef(
+        "repository", extra_index=True, description="Repository in owner/name form."
+    )
+    branch: PropertyRef = PropertyRef(
+        "branch", description="Branch that triggers a deployment."
+    )
+    service_id: PropertyRef = PropertyRef(
+        "serviceId", description="ID of the service that is redeployed."
+    )
+    environment_id: PropertyRef = PropertyRef(
+        "environmentId", description="ID of the environment that is redeployed."
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +45,8 @@ class RailwayDeploymentTriggerToProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayProject)-[:RESOURCE]->(:RailwayDeploymentTrigger)
 class RailwayDeploymentTriggerToProjectRel(CartographyRelSchema):
+    """Connects a Railway project to a deployment trigger that it contains."""
+
     target_node_label: str = "RailwayProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -50,6 +66,8 @@ class RailwayDeploymentTriggerToServiceInstanceRelProperties(CartographyRelPrope
 @dataclass(frozen=True)
 # (:RailwayServiceInstance)-[:HAS]->(:RailwayDeploymentTrigger)
 class RailwayDeploymentTriggerToServiceInstanceRel(CartographyRelSchema):
+    """Connects a Railway service instance to the trigger that redeploys it."""
+
     target_node_label: str = "RailwayServiceInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -73,6 +91,8 @@ class RailwayDeploymentTriggerToGitHubRepositoryRelProperties(CartographyRelProp
 # (:RailwayDeploymentTrigger)-[:TRACKS]->(:GitHubRepository), joined on owner/name.
 # Best-effort: only created if the GitHub repo has also been ingested (OPTIONAL MATCH).
 class RailwayDeploymentTriggerToGitHubRepositoryRel(CartographyRelSchema):
+    """Identifies the GitHub repository and branch watched by a deployment trigger."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"fullname": PropertyRef("repository")},
@@ -86,6 +106,8 @@ class RailwayDeploymentTriggerToGitHubRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayDeploymentTriggerSchema(CartographyNodeSchema):
+    """A source-control trigger that redeploys a Railway service."""
+
     label: str = "RailwayDeploymentTrigger"
     properties: RailwayDeploymentTriggerNodeProperties = (
         RailwayDeploymentTriggerNodeProperties()

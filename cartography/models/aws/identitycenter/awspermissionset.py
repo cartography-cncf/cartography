@@ -17,13 +17,32 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 
 @dataclass(frozen=True)
 class PermissionSetProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("PermissionSetArn")
-    name: PropertyRef = PropertyRef("Name")
-    arn: PropertyRef = PropertyRef("PermissionSetArn")
-    description: PropertyRef = PropertyRef("Description")
-    session_duration: PropertyRef = PropertyRef("SessionDuration")
-    instance_arn: PropertyRef = PropertyRef("InstanceArn", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "PermissionSetArn", description="Unique identifier for the Permission Set"
+    )
+    name: PropertyRef = PropertyRef(
+        "Name", description="The name of the Permission Set"
+    )
+    arn: PropertyRef = PropertyRef(
+        "PermissionSetArn",
+        description="The Amazon Resource Name (ARN) of the Permission Set",
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the Permission Set"
+    )
+    session_duration: PropertyRef = PropertyRef(
+        "SessionDuration", description="The session duration of the Permission Set"
+    )
+    instance_arn: PropertyRef = PropertyRef(
+        "InstanceArn",
+        set_in_kwargs=True,
+        description="The ARN of the Identity Center instance the Permission Set belongs to",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Permission Set is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -96,7 +115,10 @@ class RoleAssignmentAllowedByRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # Role assignment specific properties
-    permission_set_arn: PropertyRef = PropertyRef("PermissionSetArn")
+    permission_set_arn: PropertyRef = PropertyRef(
+        "PermissionSetArn",
+        description="ARN of the IAM Identity Center permission set that grants this relationship.",
+    )
 
 
 @dataclass(frozen=True)
@@ -157,6 +179,8 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSPermissionSetSchema(CartographyNodeSchema):
+    """Representation of an AWS Identity Center Permission Set."""
+
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])

@@ -14,22 +14,43 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class SupabasePoolerNodeProperties(CartographyNodeProperties):
     # Synthesised as "<project ref>/<identifier>".
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Synthesised as `<project ref>/<identifier>`"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    identifier: PropertyRef = PropertyRef("identifier")
-    database_type: PropertyRef = PropertyRef("database_type")
+    identifier: PropertyRef = PropertyRef(
+        "identifier", description="The pooler identifier"
+    )
+    database_type: PropertyRef = PropertyRef(
+        "database_type",
+        description="Whether the pooler fronts the primary or a read replica",
+    )
     # Supavisor is a second reachable endpoint onto the same Postgres database, so
     # its host, port and auth mode matter for network exposure. The
     # `connection_string` field the API also returns is dropped: it embeds
     # credentials.
-    db_host: PropertyRef = PropertyRef("db_host", extra_index=True)
-    db_port: PropertyRef = PropertyRef("db_port")
-    db_name: PropertyRef = PropertyRef("db_name")
-    db_user: PropertyRef = PropertyRef("db_user")
-    pool_mode: PropertyRef = PropertyRef("pool_mode")
-    is_using_scram_auth: PropertyRef = PropertyRef("is_using_scram_auth")
-    default_pool_size: PropertyRef = PropertyRef("default_pool_size")
-    max_client_conn: PropertyRef = PropertyRef("max_client_conn")
+    db_host: PropertyRef = PropertyRef(
+        "db_host", extra_index=True, description="Hostname clients connect to"
+    )
+    db_port: PropertyRef = PropertyRef("db_port", description="Port clients connect to")
+    db_name: PropertyRef = PropertyRef(
+        "db_name", description="The database name behind the pooler"
+    )
+    db_user: PropertyRef = PropertyRef(
+        "db_user", description="The database user the pooler authenticates as"
+    )
+    pool_mode: PropertyRef = PropertyRef(
+        "pool_mode", description="Pooling mode (`transaction` or `session`)"
+    )
+    is_using_scram_auth: PropertyRef = PropertyRef(
+        "is_using_scram_auth", description="Whether SCRAM authentication is in use"
+    )
+    default_pool_size: PropertyRef = PropertyRef(
+        "default_pool_size", description="Default server-side pool size"
+    )
+    max_client_conn: PropertyRef = PropertyRef(
+        "max_client_conn", description="Maximum client connections"
+    )
 
 
 @dataclass(frozen=True)
@@ -72,6 +93,8 @@ class SupabasePoolerToDatabaseRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabasePoolerSchema(CartographyNodeSchema):
+    """Represents a Supavisor connection pooler: a second network endpoint onto the project's Postgres database."""
+
     label: str = "SupabasePooler"
     properties: SupabasePoolerNodeProperties = SupabasePoolerNodeProperties()
     sub_resource_relationship: SupabasePoolerToProjectRel = SupabasePoolerToProjectRel()

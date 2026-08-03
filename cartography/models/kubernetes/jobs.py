@@ -15,19 +15,48 @@ from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 @dataclass(frozen=True)
 class KubernetesJobNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    completions: PropertyRef = PropertyRef("completions")
-    parallelism: PropertyRef = PropertyRef("parallelism")
-    active: PropertyRef = PropertyRef("active")
-    succeeded: PropertyRef = PropertyRef("succeeded")
-    failed: PropertyRef = PropertyRef("failed")
-    labels: PropertyRef = PropertyRef("labels")
+    id: PropertyRef = PropertyRef("uid", description="UID of the Kubernetes Job.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Kubernetes Job."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="Kubernetes namespace containing the Job.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the Kubernetes Job was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the Kubernetes Job was marked for deletion.",
+    )
+    completions: PropertyRef = PropertyRef(
+        "completions",
+        description="Desired number of successfully completed pods.",
+    )
+    parallelism: PropertyRef = PropertyRef(
+        "parallelism", description="Maximum number of pods that may run in parallel."
+    )
+    active: PropertyRef = PropertyRef(
+        "active", description="Number of pods currently running for the Job."
+    )
+    succeeded: PropertyRef = PropertyRef(
+        "succeeded", description="Number of pods that completed successfully."
+    )
+    failed: PropertyRef = PropertyRef(
+        "failed", description="Number of pods that completed unsuccessfully."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Metadata labels on the Job, stored as a JSON-encoded string.",
+    )
     cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster containing the Job.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -40,6 +69,8 @@ class KubernetesJobToKubernetesClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesJob)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesJobToKubernetesClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its jobs."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -64,6 +95,8 @@ class KubernetesJobToKubernetesCronJobWorkloadParentRelProperties(
 # `_workload_parent_cronjob_id` from the Job's controller ownerReference).
 # Standalone Jobs fall through to the namespace edge below.
 class KubernetesJobToKubernetesCronJobWorkloadParentRel(CartographyRelSchema):
+    """Links a job to the cron job that created it."""
+
     target_node_label: str = "KubernetesCronJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_workload_parent_cronjob_id")}
@@ -88,6 +121,8 @@ class KubernetesJobToKubernetesNamespaceWorkloadParentRelProperties(
 # on `_workload_parent_namespace_name`, which the loader sets only when the Job
 # has no CronJob owner, so CronJob-owned Jobs don't get a duplicate edge.
 class KubernetesJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
+    """Links a job to the namespace that owns it."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -104,6 +139,8 @@ class KubernetesJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesJobSchema(CartographyNodeSchema):
+    "A Kubernetes Job that runs pods to completion."
+
     label: str = "KubernetesJob"
     # ComputeService is the cross-provider "logical workload / controller" label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])

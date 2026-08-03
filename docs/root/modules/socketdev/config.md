@@ -1,15 +1,27 @@
-## Socket.dev Configuration
+# Socket.dev Configuration
 
-Follow these steps to ingest Socket.dev data with Cartography.
+## Authentication
 
-1. Create an API token in the Socket.dev dashboard under **Settings > API Tokens**. See [Socket.dev API Tokens](https://docs.socket.dev/docs/api-keys) for details.
-1. Grant all **read** scopes to the token, including list scopes (e.g. `repo:list`, `repo:read`, `alert:list`, `alert:read`, `dependencies:read`). Cartography only reads data — no write scopes (`create`, `edit`, `delete`) are required.
-1. Populate an environment variable with the token value.
-1. Pass the environment variable name to the `--socketdev-token-env-var` CLI arg.
+Create an API token in the Socket.dev dashboard under **Settings > API
+Tokens**. See [Socket.dev API
+Tokens](https://docs.socket.dev/docs/api-keys) for details.
+
+## Required Permissions
+
+Cartography requires a Socket.dev API token with read access to the resources
+being ingested. Grant all read scopes, including the list and read scopes for
+repositories, alerts, and dependencies. Cartography does not require create,
+edit, or delete scopes.
+
+## Configure Cartography
+
+Store the token in an environment variable and pass that variable's name with
+`--socketdev-token-env-var`.
+
+## Run Cartography
 
 ```bash
-export SOCKETDEV_TOKEN="your-socket-dev-api-token"
+export SOCKETDEV_TOKEN="<token>"
+
 cartography --socketdev-token-env-var SOCKETDEV_TOKEN --selected-modules socketdev
 ```
-
-The module will automatically discover your organization and sync repositories, dependencies, and security alerts.

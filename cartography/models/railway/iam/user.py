@@ -51,11 +51,18 @@ _USER_LABELS = ExtraNodeLabels([USER_ACCOUNT, RAILWAY_PRINCIPAL])
 
 @dataclass(frozen=True)
 class RailwayUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway user.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    two_factor_auth_enabled: PropertyRef = PropertyRef("twoFactorAuthEnabled")
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Email address of the user."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Display name of the user."
+    )
+    two_factor_auth_enabled: PropertyRef = PropertyRef(
+        "twoFactorAuthEnabled",
+        description="Whether the user has two-factor authentication enabled.",
+    )
 
 
 @dataclass(frozen=True)
@@ -66,15 +73,19 @@ class RailwayProjectMemberUserNodeProperties(CartographyNodeProperties):
     established for the same person.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="ID of the Railway user.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Email address of the user."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Display name of the user."
+    )
 
 
 @dataclass(frozen=True)
 class RailwayUserSchema(CartographyNodeSchema):
-    """Members of the workspace itself. Relationships are MatchLinks; see the docstring."""
+    """A Railway user who is a member of a workspace."""
 
     label: str = "RailwayUser"
     extra_node_labels: ExtraNodeLabels = _USER_LABELS
@@ -84,7 +95,7 @@ class RailwayUserSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class RailwayProjectMemberUserSchema(CartographyNodeSchema):
-    """People reachable only through a project's member list."""
+    """A Railway user discovered through project membership."""
 
     label: str = "RailwayUser"
     extra_node_labels: ExtraNodeLabels = _USER_LABELS
@@ -108,6 +119,8 @@ class RailwayUserToWorkspaceRelProperties(CartographyRelProperties):
 # (:RailwayWorkspace)-[:RESOURCE]->(:RailwayUser)
 # Every user the workspace's sync saw, whether a workspace member or only a project member.
 class RailwayUserToWorkspaceMatchLink(CartographyRelSchema):
+    """Connects a Railway workspace to a user discovered within its scope."""
+
     source_node_label: str = "RailwayUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -126,7 +139,10 @@ class RailwayUserToWorkspaceMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 class RailwayWorkspaceMembershipRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    role: PropertyRef = PropertyRef("role")
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Role granted to the user in the workspace.",
+    )
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
@@ -139,6 +155,8 @@ class RailwayWorkspaceMembershipRelProperties(CartographyRelProperties):
 # Only for actual workspace members. A project-only member gets the RESOURCE edge above but
 # not this one, and their project role rides on the project membership MatchLink instead.
 class RailwayUserMemberOfWorkspaceMatchLink(CartographyRelSchema):
+    """Represents a Railway user's membership and role in a workspace."""
+
     source_node_label: str = "RailwayUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},

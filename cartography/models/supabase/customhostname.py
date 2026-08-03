@@ -16,16 +16,32 @@ from cartography.models.ontology.labels import DNS_RECORD
 @dataclass(frozen=True)
 class SupabaseCustomHostnameNodeProperties(CartographyNodeProperties):
     # Synthesised as "<project ref>/<hostname>".
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Synthesised as `<project ref>/<hostname>`"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
+    hostname: PropertyRef = PropertyRef(
+        "hostname", extra_index=True, description="The custom hostname"
+    )
     # A custom hostname always fronts the project's own *.supabase.co endpoint, so
     # the record type is always CNAME.
-    type: PropertyRef = PropertyRef("type")
-    status: PropertyRef = PropertyRef("status")
-    ssl_status: PropertyRef = PropertyRef("ssl_status")
-    verification_errors: PropertyRef = PropertyRef("verification_errors")
-    custom_origin_server: PropertyRef = PropertyRef("custom_origin_server")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Always `CNAME`: a custom hostname always fronts the project's own endpoint",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Status of the custom hostname configuration"
+    )
+    ssl_status: PropertyRef = PropertyRef(
+        "ssl_status", description="Status of the hostname's TLS certificate"
+    )
+    verification_errors: PropertyRef = PropertyRef(
+        "verification_errors", description="Any outstanding domain verification errors"
+    )
+    custom_origin_server: PropertyRef = PropertyRef(
+        "custom_origin_server",
+        description="The custom origin server, when one is configured",
+    )
 
 
 @dataclass(frozen=True)
@@ -68,6 +84,8 @@ class SupabaseCustomHostnamePointsToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SupabaseCustomHostnameSchema(CartographyNodeSchema):
+    """Represents a custom domain fronting a Supabase project's API endpoint."""
+
     label: str = "SupabaseCustomHostname"
     properties: SupabaseCustomHostnameNodeProperties = (
         SupabaseCustomHostnameNodeProperties()

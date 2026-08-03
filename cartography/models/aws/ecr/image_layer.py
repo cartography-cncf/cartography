@@ -16,11 +16,17 @@ from cartography.models.ontology.labels import IMAGE_LAYER
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
+    id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
+    diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    is_empty: PropertyRef = PropertyRef("is_empty")
-    history: PropertyRef = PropertyRef("history")
+    is_empty: PropertyRef = PropertyRef(
+        "is_empty",
+        description="Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`).",
+    )
+    history: PropertyRef = PropertyRef(
+        "history",
+        description="The `created_by` command from the image config that created this layer (e.g., `/bin/sh -c pip install flask`). Used for Dockerfile matching.",
+    )
 
 
 @dataclass(frozen=True)
@@ -95,6 +101,8 @@ class ECRImageLayerTailOfImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerSchema(CartographyNodeSchema):
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
+
     label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
     sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
@@ -115,7 +123,10 @@ class ECRImageLayerSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerNodeSchema(CartographyNodeSchema):
-    """Load AWSECRImageLayer nodes without high-fanout one-to-many relationships."""
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
+
+    # Implementation note:
+    # Load AWSECRImageLayer nodes without high-fanout one-to-many relationships.
 
     label: str = "AWSECRImageLayer"
     properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
@@ -130,14 +141,17 @@ class ECRImageLayerNodeSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerRelLoadProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
+    id: PropertyRef = PropertyRef("diff_id", description="Same as `diff_id`")
+    diff_id: PropertyRef = PropertyRef("diff_id", description="Digest of the layer")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class ECRImageLayerNextRelSchema(CartographyNodeSchema):
-    """Load bounded NEXT relationship rows without reloading layer metadata."""
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
+
+    # Implementation note:
+    # Load bounded NEXT relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
@@ -150,7 +164,10 @@ class ECRImageLayerNextRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
-    """Load bounded HEAD relationship rows without reloading layer metadata."""
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
+
+    # Implementation note:
+    # Load bounded HEAD relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.
@@ -163,7 +180,10 @@ class ECRImageLayerHeadRelSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageLayerTailRelSchema(CartographyNodeSchema):
-    """Load bounded TAIL relationship rows without reloading layer metadata."""
+    """Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `AWSECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)"""
+
+    # Implementation note:
+    # Load bounded TAIL relationship rows without reloading layer metadata.
 
     label: str = "AWSECRImageLayer"
     # DEPRECATED: legacy ECRImageLayer node label will be removed in v1.0.0.

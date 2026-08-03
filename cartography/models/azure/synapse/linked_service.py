@@ -13,9 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureSynapseLinkedServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    target_resource_id: PropertyRef = PropertyRef("target_resource_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the linked service."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the linked service.")
+    target_resource_id: PropertyRef = PropertyRef(
+        "target_resource_id",
+        description="Full Azure resource ID of the service connection target, when available.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -26,6 +31,8 @@ class AzureSynapseLinkedServiceToWorkspaceRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AzureSynapseLinkedServiceToWorkspaceRel(CartographyRelSchema):
+    """An Azure Synapse workspace contains this linked service."""
+
     target_node_label: str = "AzureSynapseWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -44,6 +51,8 @@ class AzureSynapseLinkedServiceToSubscriptionRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class AzureSynapseLinkedServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this Synapse linked service resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -57,6 +66,8 @@ class AzureSynapseLinkedServiceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSynapseLinkedServiceSchema(CartographyNodeSchema):
+    """An Azure Synapse connection to a data store or compute service."""
+
     label: str = "AzureSynapseLinkedService"
     properties: AzureSynapseLinkedServiceProperties = (
         AzureSynapseLinkedServiceProperties()

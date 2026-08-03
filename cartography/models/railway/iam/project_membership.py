@@ -21,7 +21,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class RailwayProjectMembershipRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    role: PropertyRef = PropertyRef("role")
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Role granted to the user in the project.",
+    )
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
@@ -32,6 +35,8 @@ class RailwayProjectMembershipRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:RailwayUser)-[:MEMBER_OF]->(:RailwayProject)
 class RailwayUserToProjectMatchLink(CartographyRelSchema):
+    """Represents a Railway user's membership and role in a project."""
+
     source_node_label: str = "RailwayUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},

@@ -16,10 +16,18 @@ from cartography.models.extra_labels import IP_RULE
 
 @dataclass(frozen=True)
 class AzureSQLServerFirewallRuleProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    start_ip_address: PropertyRef = PropertyRef("start_ip_address")
-    end_ip_address: PropertyRef = PropertyRef("end_ip_address")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID for the SQL server firewall rule."
+    )
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    start_ip_address: PropertyRef = PropertyRef(
+        "start_ip_address",
+        description="First IPv4 address in the allowed range.",
+    )
+    end_ip_address: PropertyRef = PropertyRef(
+        "end_ip_address",
+        description="Last IPv4 address in the allowed range.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +39,8 @@ class AzureSQLServerFirewallRuleToSubscriptionRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureSQLServerFirewallRule)
 class AzureSQLServerFirewallRuleToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this SQL server firewall rule resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -50,6 +60,8 @@ class AzureSQLServerFirewallRuleToSQLServerRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:AzureSQLServerFirewallRule)-[:MEMBER_OF_AZURE_SQL_SERVER]->(:AzureSQLServer)
 class AzureSQLServerFirewallRuleToSQLServerRel(CartographyRelSchema):
+    """This firewall rule applies to an Azure SQL logical server."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -63,8 +75,7 @@ class AzureSQLServerFirewallRuleToSQLServerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSQLServerFirewallRuleSchema(CartographyNodeSchema):
-    """SQL Server firewall rules are inbound IP allowlists, so they carry the
-    cross-cloud `IpRule` and `IpPermissionInbound` labels."""
+    """An Azure SQL server firewall rule for an allowed IPv4 address range."""
 
     label: str = "AzureSQLServerFirewallRule"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

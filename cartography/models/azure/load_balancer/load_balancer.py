@@ -17,10 +17,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureLoadBalancerProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    sku_name: PropertyRef = PropertyRef("sku_name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID of the load balancer."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the load balancer.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region containing the load balancer."
+    )
+    sku_name: PropertyRef = PropertyRef(
+        "sku_name", description="Name of the load balancer SKU."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +37,8 @@ class AzureLoadBalancerToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the load balancer as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -44,6 +52,8 @@ class AzureLoadBalancerToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerSchema(CartographyNodeSchema):
+    """An Azure Load Balancer that distributes network traffic across backend targets."""
+
     label: str = "AzureLoadBalancer"
     properties: AzureLoadBalancerProperties = AzureLoadBalancerProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])

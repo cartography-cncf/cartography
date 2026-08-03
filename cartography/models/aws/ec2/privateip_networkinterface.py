@@ -19,13 +19,29 @@ class EC2PrivateIpNetworkInterfaceNodeProperties(CartographyNodeProperties):
     Selection of properties of a private IP as known by an EC2 network interface
     """
 
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description="Unique identifier for the private IP"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")
-    primary: PropertyRef = PropertyRef("Primary")
-    private_ip_address: PropertyRef = PropertyRef("PrivateIpAddress")
-    public_ip: PropertyRef = PropertyRef("PublicIp")
-    ip_owner_id: PropertyRef = PropertyRef("IpOwnerId")
+    network_interface_id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId",
+        description="id of the network interface with which the IP is associated with",
+    )
+    primary: PropertyRef = PropertyRef(
+        "Primary",
+        description="Indicates whether this IPv4 address is the primary private IP address of the network interface.",
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "PrivateIpAddress",
+        description="The private IPv4 address of the network interface.",
+    )
+    public_ip: PropertyRef = PropertyRef(
+        "PublicIp",
+        description="The public IP address or Elastic IP address bound to the network interface.",
+    )
+    ip_owner_id: PropertyRef = PropertyRef(
+        "IpOwnerId", description="Id of the owner, e.g. `amazon-elb` for ELBs"
+    )
 
 
 @dataclass(frozen=True)
@@ -66,9 +82,7 @@ class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
-    """
-    PrivateIp as known by a Network Interface
-    """
+    """Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstancePrivateIpAddress.html)"""
 
     label: str = "AWSEC2PrivateIp"
     # DEPRECATED: legacy EC2PrivateIp node label will be removed in v1.0.0.

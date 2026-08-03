@@ -15,11 +15,21 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class AWSSSOUserProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("UserId")
-    user_name: PropertyRef = PropertyRef("UserName")
-    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
-    external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "UserId", description="Unique identifier for the SSO user"
+    )
+    user_name: PropertyRef = PropertyRef(
+        "UserName", description="The username of the SSO user"
+    )
+    identity_store_id: PropertyRef = PropertyRef(
+        "IdentityStoreId", description="The identity store ID of the SSO user"
+    )
+    external_id: PropertyRef = PropertyRef(
+        "ExternalId", extra_index=True, description="The external ID of the SSO user"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -140,6 +150,8 @@ class AWSSSOUserToPermissionSetHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSSOUserSchema(CartographyNodeSchema):
+    """Representation of an AWS SSO User."""
+
     label: str = "AWSSSOUser"
     properties: AWSSSOUserProperties = AWSSSOUserProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

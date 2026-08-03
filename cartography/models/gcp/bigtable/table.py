@@ -16,10 +16,20 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPBigtableTableProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    name: PropertyRef = PropertyRef("name")
-    granularity: PropertyRef = PropertyRef("granularity")
-    instance_id: PropertyRef = PropertyRef("instance_id")
+    id: PropertyRef = PropertyRef(
+        "name", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The full resource name of the Bigtable Table."
+    )
+    granularity: PropertyRef = PropertyRef(
+        "granularity",
+        description="The granularity at which timestamps are stored (e.g., `MILLIS`).",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Identifier of the parent service instance.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -59,6 +69,8 @@ class TableToInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigtableTableSchema(CartographyNodeSchema):
+    """Representation of a GCP [Bigtable Table](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.tables)."""
+
     label: str = "GCPBigtableTable"
     properties: GCPBigtableTableProperties = GCPBigtableTableProperties()
     sub_resource_relationship: ProjectToBigtableTableRel = ProjectToBigtableTableRel()

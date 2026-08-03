@@ -15,14 +15,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KMSGrantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GrantId")
-    grant_id: PropertyRef = PropertyRef("GrantId", extra_index=True)
-    name: PropertyRef = PropertyRef("Name")
-    grantee_principal: PropertyRef = PropertyRef("GranteePrincipal")
-    creation_date: PropertyRef = PropertyRef("CreationDate")
-    key_id: PropertyRef = PropertyRef("KeyId")
-    issuing_account: PropertyRef = PropertyRef("IssuingAccount")
-    operations: PropertyRef = PropertyRef("Operations")
+    id: PropertyRef = PropertyRef(
+        "GrantId", description="The unique identifier of the key grant"
+    )
+    grant_id: PropertyRef = PropertyRef(
+        "GrantId",
+        extra_index=True,
+        description="The grant identifier (indexed for performance)",
+    )
+    name: PropertyRef = PropertyRef("Name", description="The name of the key grant")
+    grantee_principal: PropertyRef = PropertyRef(
+        "GranteePrincipal", description="The principal associated with the key grant"
+    )
+    creation_date: PropertyRef = PropertyRef(
+        "CreationDate", description="Epoch timestamp when the grant was created"
+    )
+    key_id: PropertyRef = PropertyRef(
+        "KeyId", description="The key identifier that the grant applies to"
+    )
+    issuing_account: PropertyRef = PropertyRef(
+        "IssuingAccount", description="The AWS account that issued the grant"
+    )
+    operations: PropertyRef = PropertyRef(
+        "Operations", description="List of operations that the grant allows"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -59,6 +75,8 @@ class KMSGrantToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
+    """Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/APIReference/API_GrantListEntry.html)."""
+
     label: str = "AWSKMSGrant"
     # DEPRECATED: legacy KMSGrant node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_KMS_GRANT])
