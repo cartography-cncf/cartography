@@ -4,6 +4,9 @@ import requests
 
 import cartography.intel.anthropic.apikeys
 import tests.data.anthropic.apikeys
+from tests.integration.cartography.intel.anthropic.test_serviceaccounts import (
+    _ensure_local_neo4j_has_test_service_accounts,
+)
 from tests.integration.cartography.intel.anthropic.test_users import (
     _ensure_local_neo4j_has_test_users,
 )
@@ -36,6 +39,7 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
     }
     _ensure_local_neo4j_has_test_users(neo4j_session)
     _ensure_local_neo4j_has_test_workspaces(neo4j_session)
+    _ensure_local_neo4j_has_test_service_accounts(neo4j_session)
 
     # Act
     cartography.intel.anthropic.apikeys.sync(
@@ -116,6 +120,18 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+    # Assert the service-account-owned key edges to its principal, and the
+    # human-owned one does not
+    assert check_rels(
+        neo4j_session,
+        "AnthropicApiKey",
+        "id",
+        "AnthropicServiceAccount",
+        "id",
+        "OWNED_BY",
+        rel_direction_right=True,
+    ) == {("apikey_01Wq7X2ZTbn4LcVpM8sKdYhE", "svac_01Nb5RtYuIoPaSdFgHjKlZxC")}
 
     # Assert apikeys are linked to the correct workspaces
     expected_rels = {

@@ -16,6 +16,41 @@ def resolve_org_id(
     return common_job_parameters.get("ORG_ID") or header_org_id
 
 
+def paginated_get_by_page(
+    api_session: requests.Session,
+    url: str,
+    timeout: tuple[int, int],
+    headers: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Helper function to get data from the Anthropic API's page-cursor endpoints.
+
+    The Anthropic API has two pagination families. The older organization endpoints
+    use the `after_id` cursor handled by `paginated_get`; service accounts,
+    federation resources and the workspace-scoped endpoints use an opaque `page`
+    cursor instead, returning the next one in `next_page`.
+
+    Args:
+        api_session (requests.Session): The requests session to use for making API calls.
+        url (str): The URL to make the API call to.
+        timeout (tuple[int, int]): The timeout for the API call.
+        headers (dict[str, str] | None): Extra headers for this call, e.g. a beta
+            opt-in. Beta headers are per-call because some are mutually exclusive.
+    Returns:
+        list[dict[str, Any]]: The results across every page.
+    """
+    results: list[dict[str, Any]] = []
+    page: str | None = None
+    while True:
+        params = {"page": page} if page else {}
+        req = api_session.get(url, params=params, timeout=timeout, headers=headers)
+        req.raise_for_status()
+        result = req.json()
+        results.extend(result.get("data", []))
+        page = result.get("next_page")
+        if not page:
+            return results
+
+
 def paginated_get(
     api_session: requests.Session,
     url: str,
