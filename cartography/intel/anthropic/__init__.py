@@ -9,6 +9,9 @@ import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
+from cartography.intel.anthropic.auth import AnthropicAuth
+from cartography.intel.anthropic.auth import make_assertion_source
+from cartography.intel.anthropic.auth import make_credential
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -23,12 +26,28 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    if not config.anthropic_apikey:
+    # Resolve the identity token source first: a Workload Identity Federation setup
+    # missing one of its parts is an operator mistake (typo in the flag, unpopulated
+    # environment variable) and must fail loudly rather than silently skip the module.
+    assertion_source = make_assertion_source(
+        config.anthropic_identity_token_file,
+        config.anthropic_identity_token_env_var,
+    )
+    if not config.anthropic_apikey and assertion_source is None:
         logger.info(
             "Anthropic import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
+
+    credential = make_credential(
+        apikey=config.anthropic_apikey,
+        identity_token_file=config.anthropic_identity_token_file,
+        identity_token_env_var=config.anthropic_identity_token_env_var,
+        federation_rule_id=config.anthropic_federation_rule_id,
+        organization_id=config.anthropic_organization_id,
+        service_account_id=config.anthropic_service_account_id,
+    )
 
     # Create requests sessions
     api_session = requests.session()
@@ -39,12 +58,8 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         allowed_methods=["GET"],
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    api_session.headers.update(
-        {
-            "X-Api-Key": config.anthropic_apikey,
-            "anthropic-version": "2023-06-01",
-        }
-    )
+    api_session.auth = AnthropicAuth(credential)
+    api_session.headers.update({"anthropic-version": "2023-06-01"})
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
