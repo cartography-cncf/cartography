@@ -47,7 +47,11 @@ def _skip_walk_reason(database: dict[str, Any], allowed: set[str] | None) -> str
     if allowed is not None:
         # An explicit allowlist is exhaustive, so an operator can deliberately
         # include Snowflake's own databases or a shared one.
-        if name not in allowed:
+        #
+        # Matched case-insensitively: Snowflake returns an unquoted identifier
+        # upper-cased but preserves the case of a quoted one, and the operator has
+        # no way to signal which they meant, so both spellings have to match.
+        if name.casefold() not in {allowed_name.casefold() for allowed_name in allowed}:
             return "it is not in the configured database allowlist"
         return None
     if name in DEFAULT_SKIPPED_DATABASES:

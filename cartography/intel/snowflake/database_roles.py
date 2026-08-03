@@ -34,7 +34,11 @@ def get(
         database_name = database["name"]
         try:
             roles = client.list_all(
-                f"/api/v2/databases/{sf_fqn(database_name)}/database-roles",
+                # The path segment carries the raw database name, matching every
+                # other schema-scoped call in this module. Passing it through sf_fqn
+                # would embed literal double quotes in the URL, which Snowflake
+                # answers with a 404 for any database that needs quoting.
+                f"/api/v2/databases/{database_name}/database-roles",
             )
         except requests.HTTPError as error:
             skip_or_raise_http(error, 403, 404)

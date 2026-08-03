@@ -100,6 +100,10 @@ def test_sync_snowflake_pipes(mock_get, neo4j_session):
 
     # The cross-cloud edge: the pipe is driven by a topic the aws module ingested,
     # matched on the topic ARN Snowflake reports.
+    #
+    # The edge runs topic -> pipe, not pipe -> topic. NOTIFIES means the source sends
+    # notifications to the target everywhere in the codebase, and an auto-ingest pipe
+    # is the recipient: the topic is what tells it a file has arrived.
     assert check_rels(
         neo4j_session,
         "SnowflakePipe",
@@ -107,4 +111,5 @@ def test_sync_snowflake_pipes(mock_get, neo4j_session):
         "AWSSNSTopic",
         "arn",
         "NOTIFIES",
+        rel_direction_right=False,
     ) == {("DONUT_DELIVERY_PIPE", TEST_SNS_TOPIC_ARN)}

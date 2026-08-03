@@ -28,14 +28,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
@@ -177,9 +175,13 @@ class SnowflakeCredentialToServiceUserRel(CartographyRelSchema):
 class SnowflakeCredentialSchema(CartographyNodeSchema):
     """Represents one authentication factor registered against a Snowflake user."""
 
+    # Deliberately not labelled APIKey. This node covers every factor kind, including
+    # passwords, passkeys and TOTP, so labelling it would make cross-provider
+    # `MATCH (:APIKey)` queries count MFA factors as API keys. The one factor that
+    # genuinely is an API key, a programmatic access token, is already carried by
+    # SnowflakeProgrammaticAccessToken, which does hold the label.
     label: str = "SnowflakeCredential"
     properties: SnowflakeCredentialNodeProperties = SnowflakeCredentialNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     sub_resource_relationship: SnowflakeCredentialToAccountRel = (
         SnowflakeCredentialToAccountRel()
     )

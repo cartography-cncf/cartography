@@ -157,7 +157,7 @@ def test_transform_grants_aggregates_one_edge_per_object():
     # account-level privileges arrive as three separate rows.
     # Act
     grants, unmodelled = cartography.intel.snowflake.grants.transform_grants(
-        {"SYSADMIN": SNOWFLAKE_ROLE_GRANTS["SYSADMIN"]}, SNOWFLAKE_ACCOUNT_ID
+        {"SYSADMIN": SNOWFLAKE_ROLE_GRANTS["SYSADMIN"]}, set(), SNOWFLAKE_ACCOUNT_ID
     )
 
     # Assert they collapse into a single edge carrying a sorted privilege list,
@@ -178,6 +178,7 @@ def test_transform_grants_counts_unmodelled_object_types():
     # Act
     grants, unmodelled = cartography.intel.snowflake.grants.transform_grants(
         {"SAFETY_INSPECTOR": SNOWFLAKE_ROLE_GRANTS["SAFETY_INSPECTOR"]},
+        set(),
         SNOWFLAKE_ACCOUNT_ID,
     )
 

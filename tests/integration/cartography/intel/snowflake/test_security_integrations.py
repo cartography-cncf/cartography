@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.snowflake.security_integrations
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
-from tests.data.snowflake.security_integrations import SNOWFLAKE_SAML_CERTIFICATE
+from tests.data.snowflake.security_integrations import SNOWFLAKE_SAML_CERTIFICATE_DER
 from tests.data.snowflake.security_integrations import (
     SNOWFLAKE_SECURITY_INTEGRATION_DETAILS,
 )
@@ -93,9 +93,9 @@ def test_sync_snowflake_security_integrations(mock_get, mock_details, neo4j_sess
         (SPRINGFIELD_SCIM_ID, "SPRINGFIELD_SCIM", "SCIM", True, None, None),
     }
     # Only the fingerprint of the signing certificate is stored, never the body.
-    expected_fingerprint = hashlib.sha256(
-        SNOWFLAKE_SAML_CERTIFICATE.encode()
-    ).hexdigest()
+    # Hashed over the decoded certificate bytes, not over the base64 text, so the
+    # value matches `openssl x509 -noout -fingerprint -sha256`.
+    expected_fingerprint = hashlib.sha256(SNOWFLAKE_SAML_CERTIFICATE_DER).hexdigest()
     assert check_nodes(
         neo4j_session,
         "SnowflakeSecurityIntegration",

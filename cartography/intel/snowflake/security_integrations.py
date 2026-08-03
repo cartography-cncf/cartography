@@ -11,6 +11,8 @@ certificate body (only its SHA-256 fingerprint is kept, which is enough to detec
 rotation or a mismatch) and ``OAUTH_CLIENT_SECRET``.
 """
 
+import base64
+import binascii
 import hashlib
 import logging
 from typing import Any
@@ -58,16 +60,36 @@ def protocol_of(integration_type: str | None) -> str | None:
 
 
 def certificate_fingerprint(certificate: str | None) -> str | None:
-    """Return the SHA-256 fingerprint of a base64 SAML signing certificate.
+    """Return the SHA-256 fingerprint of a SAML signing certificate.
 
     The certificate body itself is never stored: it is large, it is not a secret but
     it is not useful in the graph either, and the fingerprint is what an operator
     compares when checking whether the identity provider's key has rotated.
+
+    The digest is taken over the certificate's DER bytes, not over its base64 text,
+    so the value matches the standard X.509 fingerprint that
+    ``openssl x509 -noout -fingerprint -sha256`` reports (which prints the same hex
+    colon-separated and upper-cased). Hashing the base64 instead would produce a
+    stable but non-comparable value, which is worse than none for an audit check.
+
+    Returns None when the value does not decode, rather than a digest of something
+    that is not a certificate.
     """
     if not certificate:
         return None
-    normalized = "".join(certificate.split())
-    return hashlib.sha256(normalized.encode()).hexdigest()
+    body = "".join(line for line in certificate.splitlines() if "-----" not in line)
+    body = "".join(body.split())
+    if not body:
+        return None
+    try:
+        der = base64.b64decode(body, validate=True)
+    except (binascii.Error, ValueError):
+        logger.debug(
+            "A Snowflake security integration certificate did not decode as base64; "
+            "storing no fingerprint for it.",
+        )
+        return None
+    return hashlib.sha256(der).hexdigest()
 
 
 @timeit
@@ -213,7 +235,16 @@ def sync(
             continue
         details_by_name[name] = details
 
-    transformed = transform(integrations, details_by_name, client.account_id)
+    # Only load the integrations whose DESCRIBE succeeded. An integration listed by
+    # SHOW but not describable has none of its interesting properties, and loading it
+    # anyway would overwrite the values a previous run collected with nulls. Skipping
+    # cleanup is not enough on its own, because load() still rewrites the node.
+    describable = [
+        integration
+        for integration in integrations
+        if integration["name"] in details_by_name
+    ]
+    transformed = transform(describable, details_by_name, client.account_id)
     logger.info(
         "Loading %d Snowflake security integrations for account %s.",
         len(transformed),

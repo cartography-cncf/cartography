@@ -37,7 +37,7 @@ SNOWFLAKE_ACCESS_TOKENS: list[dict[str, Any]] = [
         # A token whose user is not in the graph, so its ownership edge is omitted
         # rather than dangling.
         "name": "retired_contractor",
-        "user_name": "FRINK",
+        "user_name": "SMITHERS",
         "role_restriction": "",
         "expires_at": None,
         "status": "EXPIRED",

@@ -160,6 +160,7 @@ def transform(listings: list[dict[str, Any]], account_id: str) -> list[dict[str,
             name = stream["name"]
             qualified_name = sf_fqn(database_name, schema_name, name)
             source_name = _source_name(stream)
+            source_type = _source_type(stream)
             transformed.append(
                 {
                     "id": sf_id(account_id, "stream", qualified_name),
@@ -169,12 +170,19 @@ def transform(listings: list[dict[str, Any]], account_id: str) -> list[dict[str,
                     "schema_name": schema_name,
                     "parent_schema_id": parent_schema_id,
                     # Snowflake has named this field both ways across API versions.
-                    "source_type": _source_type(stream),
+                    "source_type": source_type,
                     "source_name": source_name,
                     # Null when the source is not a table, or when its reference
-                    # cannot be split, which suppresses the READS_FROM edge.
-                    "source_table_id": _source_table_id(
-                        source_name, database_name, schema_name, account_id
+                    # cannot be split, which suppresses the READS_FROM edge. A
+                    # stream can also sit on a view or a stage, and those ids are
+                    # type-tagged differently, so resolving them as a table would
+                    # point the edge at an object that does not exist.
+                    "source_table_id": (
+                        _source_table_id(
+                            source_name, database_name, schema_name, account_id
+                        )
+                        if str(source_type or "").lower() == "table"
+                        else None
                     ),
                     "mode": stream.get("mode"),
                     "stream_type": stream.get("type"),

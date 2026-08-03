@@ -67,11 +67,16 @@ def transform(
             database_name, schema_name, name, signature
         )
         owner = procedure.get("owner")
-        # A caller-rights procedure runs with the caller's own privileges, so
-        # there is no single role to point at and the edge is suppressed.
+        # A caller-rights procedure runs with the caller's own privileges, so there
+        # is no single role to point at and the edge is suppressed. A procedure owned
+        # by a database role is suppressed too: that owner is a SnowflakeDatabaseRole,
+        # so resolving it as an account role would point ASSUMES at the wrong
+        # principal type or at nothing at all.
         owner_role_id = (
             sf_id(account_id, "role", owner)
-            if owner and procedure.get("execute_as") == "OWNER"
+            if owner
+            and procedure.get("execute_as") == "OWNER"
+            and procedure.get("owner_role_type") != "DATABASE_ROLE"
             else None
         )
         transformed.append(

@@ -248,6 +248,7 @@ scaleway_kapsule_mapping = OntologyMapping(
 _SNOWFLAKE_WAREHOUSE_STATUS = {
     "STARTED": "active",
     "RESUMING": "creating",
+    "RESIZING": "updating",
     "SUSPENDING": "updating",
     "SUSPENDED": "unknown",
 }

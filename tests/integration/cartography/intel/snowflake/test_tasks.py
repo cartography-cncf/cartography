@@ -184,7 +184,12 @@ def test_sync_snowflake_tasks(mock_get, neo4j_session):
         "SnowflakeNotificationIntegration",
         "name",
         "NOTIFIES",
-    ) == {("SCRAM_CHECK", "MELTDOWN_ALERTS")}
+    ) == {
+        # Both notification channels are modelled: the error integration and the
+        # success integration reference the same kind of resource.
+        ("SCRAM_CHECK", "MELTDOWN_ALERTS"),
+        ("COOLANT_TOPUP", "DONUT_NOTIFY"),
+    }
 
 
 @patch.object(cartography.intel.snowflake.tasks, "get", return_value=None)

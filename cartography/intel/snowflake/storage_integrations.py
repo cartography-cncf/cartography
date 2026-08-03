@@ -160,7 +160,16 @@ def sync(
             continue
         details_by_name[name] = details
 
-    transformed = transform(integrations, details_by_name, client.account_id)
+    # Only load the integrations whose DESCRIBE succeeded. An integration listed by
+    # SHOW but not describable has none of its interesting properties, and loading it
+    # anyway would overwrite the values a previous run collected with nulls. Skipping
+    # cleanup is not enough on its own, because load() still rewrites the node.
+    describable = [
+        integration
+        for integration in integrations
+        if integration["name"] in details_by_name
+    ]
+    transformed = transform(describable, details_by_name, client.account_id)
     logger.info(
         "Loading %d Snowflake storage integrations for account %s.",
         len(transformed),

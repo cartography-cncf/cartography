@@ -62,7 +62,7 @@ def transform(
                 "repository_type": repository.get("repository_type"),
                 "api_integration": api_integration,
                 "api_integration_id": (
-                    sf_id(account_id, "api_integration", api_integration)
+                    sf_id(account_id, "api_integration", sf_fqn(api_integration))
                     if api_integration
                     else None
                 ),

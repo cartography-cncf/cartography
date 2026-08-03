@@ -244,6 +244,27 @@ class SnowflakeTaskToErrorIntegrationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SnowflakeTaskToSuccessIntegrationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SnowflakeTask)-[:NOTIFIES]->(:SnowflakeNotificationIntegration)
+class SnowflakeTaskToSuccessIntegrationRel(CartographyRelSchema):
+    """A Snowflake task sends its success notifications through this integration."""
+
+    target_node_label: str = "SnowflakeNotificationIntegration"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("success_integration_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "NOTIFIES"
+    properties: SnowflakeTaskToSuccessIntegrationRelProperties = (
+        SnowflakeTaskToSuccessIntegrationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SnowflakeTaskSchema(CartographyNodeSchema):
     """Represents a Snowflake task: scheduled or DAG-triggered SQL running inside the account."""
 
@@ -258,5 +279,6 @@ class SnowflakeTaskSchema(CartographyNodeSchema):
             SnowflakeTaskToPredecessorRel(),
             SnowflakeTaskToOwnerRoleRel(),
             SnowflakeTaskToErrorIntegrationRel(),
+            SnowflakeTaskToSuccessIntegrationRel(),
         ],
     )

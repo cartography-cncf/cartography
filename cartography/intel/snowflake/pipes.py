@@ -62,7 +62,7 @@ def transform(
                 "pattern": pipe.get("pattern"),
                 "integration": integration,
                 "integration_id": (
-                    sf_id(account_id, "notification_integration", integration)
+                    sf_id(account_id, "notification_integration", sf_fqn(integration))
                     if integration
                     else None
                 ),
