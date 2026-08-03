@@ -68,7 +68,9 @@ def transform(
                 "target_lag": service.get("target_lag"),
                 "warehouse": warehouse,
                 "warehouse_id": (
-                    sf_id(account_id, "warehouse", warehouse) if warehouse else None
+                    sf_id(account_id, "warehouse", sf_fqn(warehouse))
+                    if warehouse
+                    else None
                 ),
                 "source": source,
                 "source_table_id": (

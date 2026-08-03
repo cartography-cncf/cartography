@@ -22,9 +22,16 @@ from tests.integration.util import check_rels
 # What `users.sync()` hands to the token sync: the name Snowflake reports the token
 # against, plus the node id the user was actually loaded under.
 TEST_USERS = [
-    {"name": "HOMER", "id": sf_id(SNOWFLAKE_ACCOUNT_ID, "user", "HOMER")},
-    {"name": "SCRAM_BOT", "id": sf_id(SNOWFLAKE_ACCOUNT_ID, "user", "SCRAM_BOT")},
+    {"name": name, "id": sf_id(SNOWFLAKE_ACCOUNT_ID, "user", name)}
+    for name in ("HOMER", "BURNS", "SCRAM_BOT", "SMITHERS")
 ]
+
+
+def _tokens_for_user(client, user_name):
+    """Stand in for the per-user SHOW, which only ever returns that user's tokens."""
+    return [
+        token for token in SNOWFLAKE_ACCESS_TOKENS if token["user_name"] == user_name
+    ]
 
 
 def _token_id(user_name: str, name: str) -> str:
@@ -33,8 +40,8 @@ def _token_id(user_name: str, name: str) -> str:
 
 @patch.object(
     cartography.intel.snowflake.access_tokens,
-    "get",
-    return_value=SNOWFLAKE_ACCESS_TOKENS,
+    "get_for_user",
+    side_effect=_tokens_for_user,
 )
 def test_sync_snowflake_access_tokens(mock_get, neo4j_session):
     # Arrange
@@ -71,7 +78,7 @@ def test_sync_snowflake_access_tokens(mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "APIKey", ["id"]) == {
         (_token_id("HOMER", "donut_dashboard"),),
         (_token_id("SCRAM_BOT", "scram_ingest"),),
-        (_token_id("FRINK", "retired_contractor"),),
+        (_token_id("SMITHERS", "retired_contractor"),),
     }
 
     assert check_rels(
@@ -108,7 +115,11 @@ def test_sync_snowflake_access_tokens(mock_get, neo4j_session):
         "name",
         "OWNED_BY",
         rel_direction_right=True,
-    ) == {("donut_dashboard", "HOMER")}
+    ) == {
+        ("donut_dashboard", "HOMER"),
+        # An expired token still owned by a disabled user: worth seeing in the graph.
+        ("retired_contractor", "SMITHERS"),
+    }
 
     # Only the restricted token is confined to a role; the unrestricted ones inherit
     # every role their user holds and so get no edge.
@@ -123,7 +134,9 @@ def test_sync_snowflake_access_tokens(mock_get, neo4j_session):
     ) == {("scram_ingest", "SAFETY_INSPECTOR")}
 
 
-@patch.object(cartography.intel.snowflake.access_tokens, "get", return_value=None)
+@patch.object(
+    cartography.intel.snowflake.access_tokens, "get_for_user", return_value=None
+)
 def test_sync_reports_incomplete_when_tokens_cannot_be_read(mock_get, neo4j_session):
     """An unreadable surface must report incomplete and write nothing.
 

@@ -59,7 +59,9 @@ def transform(
                 "parent_schema_id": schema["id"],
                 "warehouse": warehouse,
                 "warehouse_id": (
-                    sf_id(account_id, "warehouse", warehouse) if warehouse else None
+                    sf_id(account_id, "warehouse", sf_fqn(warehouse))
+                    if warehouse
+                    else None
                 ),
                 "schedule": schedule_to_text(alert.get("schedule")),
                 "state": alert.get("state"),

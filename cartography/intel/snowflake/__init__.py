@@ -210,10 +210,17 @@ def _build_client(config: Config) -> SnowflakeClient:
 
 
 def _parse_databases(raw: str | None) -> set[str] | None:
-    """Parse the comma-separated database allowlist, or None for every database."""
+    """Parse the comma-separated database allowlist, or None for every database.
+
+    Names are kept as the operator wrote them. Snowflake folds an unquoted
+    identifier to uppercase but preserves the case of a quoted one, so
+    upper-casing here would silently drop a database that was created quoted and
+    lower-case. The membership test in ``databases._skip_walk_reason`` is
+    case-insensitive instead, which matches either form.
+    """
     if not raw:
         return None
-    names = {name.strip().upper() for name in raw.split(",") if name.strip()}
+    names = {name.strip() for name in raw.split(",") if name.strip()}
     return names or None
 
 

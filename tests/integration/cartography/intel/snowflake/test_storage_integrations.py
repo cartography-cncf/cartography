@@ -149,14 +149,20 @@ def test_sync_snowflake_storage_integrations_undescribable(neo4j_session):
             {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID},
         )
 
-    # Assert: the integrations are still recorded from SHOW alone, but the sync reports
-    # itself incomplete so cleanup does not run on half-read data.
+    # Assert: the sync reports itself incomplete so cleanup does not run on half-read
+    # data, and the integrations keep the values the previous test collected.
+    #
+    # This is the point of the fix. An integration listed by SHOW but not describable
+    # has none of its interesting properties, so loading it anyway would write null
+    # over the IAM role ARN, the allowed locations and the external id an earlier run
+    # had. Skipping cleanup does not protect them, because load() still rewrites
+    # whatever node it is handed.
     assert complete is False
     assert check_nodes(
         neo4j_session,
         "SnowflakeStorageIntegration",
         ["id", "storage_provider"],
     ) == {
-        (PLANT_S3_INTEGRATION_ID, None),
-        (SQUISHEE_AZURE_INTEGRATION_ID, None),
+        (PLANT_S3_INTEGRATION_ID, "S3"),
+        (SQUISHEE_AZURE_INTEGRATION_ID, "AZURE"),
     }

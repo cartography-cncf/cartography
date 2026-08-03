@@ -81,6 +81,7 @@ def transform(
         qualified_name = sf_fqn(database_name, schema_name, name)
         warehouse = task.get("warehouse")
         error_integration = task.get("error_integration")
+        success_integration = task.get("success_integration")
         owner = task.get("owner")
         # A caller-rights task runs with whatever privileges the resuming role
         # holds, so no single role can be named and the edge is suppressed. A task
@@ -102,7 +103,9 @@ def transform(
                 "parent_schema_id": schema["id"],
                 "warehouse": warehouse,
                 "warehouse_id": (
-                    sf_id(account_id, "warehouse", warehouse) if warehouse else None
+                    sf_id(account_id, "warehouse", sf_fqn(warehouse))
+                    if warehouse
+                    else None
                 ),
                 "schedule": schedule_to_text(task.get("schedule")),
                 "state": task.get("state"),
@@ -115,11 +118,24 @@ def transform(
                 "allow_overlapping_execution": task.get("allow_overlapping_execution"),
                 "error_integration": error_integration,
                 "error_integration_id": (
-                    sf_id(account_id, "notification_integration", error_integration)
+                    sf_id(
+                        account_id,
+                        "notification_integration",
+                        sf_fqn(error_integration),
+                    )
                     if error_integration
                     else None
                 ),
-                "success_integration": task.get("success_integration"),
+                "success_integration": success_integration,
+                "success_integration_id": (
+                    sf_id(
+                        account_id,
+                        "notification_integration",
+                        sf_fqn(success_integration),
+                    )
+                    if success_integration
+                    else None
+                ),
                 "execute_as": task.get("execute_as"),
                 "suspend_task_after_num_failures": task.get(
                     "suspend_task_after_num_failures"

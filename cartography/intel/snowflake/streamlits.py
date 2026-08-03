@@ -63,11 +63,13 @@ def transform(
                 "url_id": streamlit.get("url_id"),
                 "query_warehouse": warehouse,
                 "warehouse_id": (
-                    sf_id(account_id, "warehouse", warehouse) if warehouse else None
+                    sf_id(account_id, "warehouse", sf_fqn(warehouse))
+                    if warehouse
+                    else None
                 ),
                 "compute_pool": compute_pool,
                 "compute_pool_id": (
-                    sf_id(account_id, "compute_pool", compute_pool)
+                    sf_id(account_id, "compute_pool", sf_fqn(compute_pool))
                     if compute_pool
                     else None
                 ),

@@ -104,9 +104,11 @@ def test_parse_databases_normalizes_and_drops_blanks():
     # Act
     parsed = cartography.intel.snowflake._parse_databases(" springfield , ,monorail ")
 
-    # Assert: Snowflake folds unquoted identifiers to uppercase, so the allowlist
-    # has to compare in that form.
-    assert parsed == {"SPRINGFIELD", "MONORAIL"}
+    # Assert: the operator's casing is preserved. Snowflake folds an unquoted
+    # identifier to uppercase but keeps the case of a quoted one, so upper-casing here
+    # would drop a database created as "springfield"; the membership test in
+    # databases._skip_walk_reason is case-insensitive instead.
+    assert parsed == {"springfield", "monorail"}
     assert cartography.intel.snowflake._parse_databases(None) is None
     assert cartography.intel.snowflake._parse_databases("") is None
     assert cartography.intel.snowflake._parse_databases("  ,  ") is None

@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.names import external_access_integration_ids
 from cartography.intel.snowflake.names import name_list
+from cartography.intel.snowflake.names import secret_ids
 from cartography.intel.snowflake.names import secret_references
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
@@ -63,11 +64,13 @@ def transform(
                 "title": notebook.get("title"),
                 "query_warehouse": warehouse,
                 "warehouse_id": (
-                    sf_id(account_id, "warehouse", warehouse) if warehouse else None
+                    sf_id(account_id, "warehouse", sf_fqn(warehouse))
+                    if warehouse
+                    else None
                 ),
                 "compute_pool": compute_pool,
                 "compute_pool_id": (
-                    sf_id(account_id, "compute_pool", compute_pool)
+                    sf_id(account_id, "compute_pool", sf_fqn(compute_pool))
                     if compute_pool
                     else None
                 ),
@@ -80,6 +83,12 @@ def transform(
                 ),
                 "external_access_secrets": secret_references(
                     notebook.get("external_access_secrets"),
+                ),
+                "secret_ids": secret_ids(
+                    notebook.get("external_access_secrets"),
+                    database_name,
+                    schema_name,
+                    account_id,
                 ),
                 "runtime_name": notebook.get("runtime_name"),
                 "default_version": notebook.get("default_version"),

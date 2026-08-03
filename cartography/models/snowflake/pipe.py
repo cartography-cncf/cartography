@@ -155,7 +155,12 @@ class SnowflakePipeToSnsTopicRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_sns_topic")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    # INWARD, so the edge reads (:AWSSNSTopic)-[:NOTIFIES]->(:SnowflakePipe).
+    # Everywhere else in the codebase NOTIFIES means the source sends notifications to
+    # the target, and an auto-ingest pipe is the *recipient*: the topic tells it a file
+    # has arrived. Pointing the edge the other way would invert the data flow the
+    # ingestion path is meant to show.
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "NOTIFIES"
     properties: SnowflakePipeToSnsTopicRelProperties = (
         SnowflakePipeToSnsTopicRelProperties()

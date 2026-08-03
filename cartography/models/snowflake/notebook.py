@@ -192,6 +192,27 @@ class SnowflakeNotebookToExternalAccessIntegrationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SnowflakeNotebookToSecretRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SnowflakeNotebook)-[:USES_SECRET]->(:SnowflakeSecret)
+class SnowflakeNotebookToSecretRel(CartographyRelSchema):
+    """A Snowflake notebook is allowed to read this secret when calling out."""
+
+    target_node_label: str = "SnowflakeSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("secret_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET"
+    properties: SnowflakeNotebookToSecretRelProperties = (
+        SnowflakeNotebookToSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SnowflakeNotebookSchema(CartographyNodeSchema):
     """Represents a Snowflake notebook: interactive code and SQL stored as an account object."""
 
@@ -206,6 +227,7 @@ class SnowflakeNotebookSchema(CartographyNodeSchema):
             SnowflakeNotebookToSchemaRel(),
             SnowflakeNotebookToWarehouseRel(),
             SnowflakeNotebookToComputePoolRel(),
+            SnowflakeNotebookToSecretRel(),
             SnowflakeNotebookToExternalAccessIntegrationRel(),
         ],
     )

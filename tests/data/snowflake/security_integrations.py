@@ -9,7 +9,14 @@ from typing import Any
 
 # A throwaway base64 blob standing in for an identity provider's signing certificate.
 # Only its SHA-256 fingerprint is ever stored on the node.
-SNOWFLAKE_SAML_CERTIFICATE = "MIIDpDCCAoygAwIBAgIGAVSPRINGFIELD"
+# Base64 of some stand-in DER bytes. It has to actually decode, because the
+# fingerprint is taken over the certificate bytes rather than over this text, so
+# that it matches the standard X.509 SHA-256 fingerprint an operator would
+# compare against.
+SNOWFLAKE_SAML_CERTIFICATE_DER = b"springfield-nuclear-saml-signing-certificate-der"
+SNOWFLAKE_SAML_CERTIFICATE = (
+    "c3ByaW5nZmllbGQtbnVjbGVhci1zYW1sLXNpZ25pbmctY2VydGlmaWNhdGUtZGVy"
+)
 
 SNOWFLAKE_SECURITY_INTEGRATIONS: list[dict[str, Any]] = [
     {

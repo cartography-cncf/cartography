@@ -66,6 +66,7 @@ SECURABLE_TYPE_TO_OBJECT_TYPE = {
     "FUNCTION": "function",
     "ICEBERG TABLE": "iceberg_table",
     "IMAGE REPOSITORY": "image_repository",
+    "JOIN POLICY": "data_policy",
     # Snowflake names each integration kind explicitly ("API INTEGRATION",
     # "SECURITY INTEGRATION", ...), and this module models them as separate labels,
     # so there is deliberately no generic "INTEGRATION" entry: mapping it would
@@ -170,8 +171,37 @@ def get_role_grants_of(
         return None
 
 
+@timeit
+def get_database_role_grants(
+    client: SnowflakeClient, database_name: str, role_name: str
+) -> list[dict[str, Any]] | None:
+    """Privileges held by one database role, or None when it is not readable."""
+    try:
+        return client.list_all(
+            f"/api/v2/databases/{database_name}/database-roles/{role_name}/grants",
+        )
+    except requests.HTTPError as error:
+        skip_or_raise_http(error, 403, 404)
+        return None
+
+
+@timeit
+def get_database_role_grants_of(
+    client: SnowflakeClient, database_name: str, role_name: str
+) -> list[dict[str, Any]] | None:
+    """Grantees a database role has been granted to, or None when not readable."""
+    try:
+        return client.list_all(
+            f"/api/v2/databases/{database_name}/database-roles/{role_name}/grants-of",
+        )
+    except requests.HTTPError as error:
+        skip_or_raise_http(error, 403, 404)
+        return None
+
+
 def transform_grants(
     grants_by_role: dict[str, list[dict[str, Any]]],
+    database_role_names: set[str],
     account_id: str,
 ) -> tuple[list[dict[str, Any]], int]:
     """Aggregate per-privilege grant rows into one edge per (role, object).
@@ -189,7 +219,13 @@ def transform_grants(
     unmodelled = 0
 
     for role_name, grants in grants_by_role.items():
-        principal_id = sf_id(account_id, "role", role_name)
+        # A database role is keyed by its database-qualified name and is a different
+        # node label, so it cannot be resolved as an account role.
+        principal_id = sf_id(
+            account_id,
+            "database_role" if role_name in database_role_names else "role",
+            role_name,
+        )
         for grant in grants:
             target_id = securable_id(
                 grant.get("securable") or {},
@@ -381,7 +417,31 @@ def sync(
         else:
             grants_of_by_role[name].extend(grants_of)
 
-    grants, unmodelled = transform_grants(grants_by_role, account_id)
+    # Database roles carry their own privileges and their own hierarchy, and they are
+    # enumerated per database rather than under /roles, so they need their own walk.
+    # Without it a database role appears in the graph holding nothing.
+    for database_role in database_roles:
+        qualified_name = database_role["qualified_name"]
+        database_name = database_role["database_name"]
+        role_name = database_role["name"]
+
+        database_grants = get_database_role_grants(client, database_name, role_name)
+        if database_grants is None:
+            complete = False
+        else:
+            grants_by_role[qualified_name] = database_grants
+
+        database_grants_of = get_database_role_grants_of(
+            client, database_name, role_name
+        )
+        if database_grants_of is None:
+            complete = False
+        else:
+            grants_of_by_role[qualified_name].extend(database_grants_of)
+
+    grants, unmodelled = transform_grants(
+        grants_by_role, database_role_names, account_id
+    )
     if unmodelled:
         logger.info(
             "Skipped %d Snowflake grants on object types Cartography does not model.",

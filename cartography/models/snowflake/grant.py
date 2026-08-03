@@ -14,8 +14,8 @@ and because the edges carry their own properties. MatchLink cleanup is scoped by
 ``_sub_resource_id`` to the account being synced, so one account's sync cannot
 delete another's grant edges.
 
-Using the shared labels here costs nothing in verification: ``HAS_PRIVILEGE`` and
-``OWNS`` are Snowflake-specific edges with no entry in
+Using the shared labels here costs nothing in verification: ``HAS_PRIVILEGE`` is a
+Snowflake-specific edge with no entry in
 ``ONTOLOGY_REL_CONSTRAINTS``, so the CI guard has nothing to check either way.
 That is not true of the role edges in ``role_grant.py``, which name concrete
 labels for exactly that reason.
@@ -73,36 +73,3 @@ class SnowflakeGrantMatchLink(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_PRIVILEGE"
     properties: SnowflakeGrantRelProperties = SnowflakeGrantRelProperties()
-
-
-@dataclass(frozen=True)
-class SnowflakeOwnershipRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
-    )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:SnowflakePrincipal)-[:OWNS]->(:SnowflakeSecurable)
-class SnowflakeOwnershipMatchLink(CartographyRelSchema):
-    """A Snowflake role owns the object, which confers full control over it.
-
-    Ownership is materialised as its own edge rather than folded into
-    HAS_PRIVILEGE because in Snowflake the owning role holds every privilege on the
-    object implicitly, including the right to drop it and to re-grant it, and that
-    is not represented in the object's grant list.
-    """
-
-    target_node_label: str = "SnowflakeSecurable"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("securable_id")},
-    )
-    source_node_label: str = "SnowflakePrincipal"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("principal_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OWNS"
-    properties: SnowflakeOwnershipRelProperties = SnowflakeOwnershipRelProperties()

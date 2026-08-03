@@ -83,7 +83,9 @@ def transform(
             },
         )
 
-    edges, unmodelled = transform_grants(dict(grants_by_role), account_id)
+    # SHOW GRANTS ON ACCOUNT only ever names account roles, so there are no
+    # database-role grantees to distinguish here.
+    edges, unmodelled = transform_grants(dict(grants_by_role), set(), account_id)
     if unmodelled:
         logger.debug(
             "Skipped %d account-level Snowflake grant rows that did not resolve.",

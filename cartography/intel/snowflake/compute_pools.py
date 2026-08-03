@@ -2,13 +2,16 @@ import logging
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
+from cartography.intel.snowflake.util import warn_unavailable
 from cartography.models.snowflake.compute_pool import SnowflakeComputePoolSchema
 from cartography.util import timeit
 
@@ -16,8 +19,18 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get(client: SnowflakeClient) -> list[dict[str, Any]]:
-    return client.list_all("/api/v2/compute-pools")
+def get(client: SnowflakeClient) -> list[dict[str, Any]] | None:
+    """List compute pools, or None when the account cannot answer.
+
+    Snowpark Container Services is not enabled on every account or in every
+    region, and listing pools needs a privilege a read-only role may not hold.
+    Either way Snowflake answers 403 or 404, which must not fail the whole sync.
+    """
+    try:
+        return client.list_all("/api/v2/compute-pools")
+    except requests.HTTPError as error:
+        skip_or_raise_http(error, 403, 404)
+        return None
 
 
 def transform(
@@ -82,7 +95,15 @@ def sync(
     Runs before services so a service's WORKLOAD_PARENT edge resolves against a
     pool node already in the graph.
     """
-    compute_pools = transform(get(client), client.account_id)
+    raw_compute_pools = get(client)
+    if raw_compute_pools is None:
+        warn_unavailable(
+            "compute pools",
+            "Snowpark Container Services is unavailable or not permitted",
+        )
+        return False
+
+    compute_pools = transform(raw_compute_pools, client.account_id)
     logger.info(
         "Loading %d Snowflake compute pools for account %s.",
         len(compute_pools),

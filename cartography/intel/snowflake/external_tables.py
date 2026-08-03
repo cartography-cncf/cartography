@@ -16,6 +16,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.names import split_qualified_name
 from cartography.intel.snowflake.util import is_sql_unavailable
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
@@ -36,21 +37,15 @@ def _reference_id(
 
     ``SHOW EXTERNAL TABLES`` reports the stage and the file format as plain dotted
     text, quoting only the components that need it, and prefixes a stage reference
-    with ``@``. A component that itself contains a dot cannot be recovered from that
-    text, so such a reference stays unresolved and the caller draws no edge rather
-    than pointing one at the wrong object.
+    with ``@``. Splitting is quote-aware, so a dot inside a quoted component stays
+    part of the name instead of being read as a separator. A reference that is not a
+    three-part name stays unresolved and the caller draws no edge rather than
+    pointing one at the wrong object.
     """
     if not reference:
         return None
-    parts = [
-        (
-            part[1:-1]
-            if len(part) > 1 and part.startswith('"') and part.endswith('"')
-            else part
-        )
-        for part in reference.lstrip("@").split(".")
-    ]
-    if len(parts) != 3 or any(not part or '"' in part for part in parts):
+    parts = split_qualified_name(reference.lstrip("@"))
+    if len(parts) != 3 or any(not part for part in parts):
         return None
     return sf_id(account_id, object_type, sf_fqn(*parts))
 

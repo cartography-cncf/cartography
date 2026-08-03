@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.names import split_qualified_name
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -60,7 +61,7 @@ def _rule_ids(
         )
         if not name:
             continue
-        parts = str(name).split(".")
+        parts = split_qualified_name(str(name))
         if len(parts) == 3:
             resolved.append(sf_id(account_id, "network_rule", sf_fqn(*parts)))
             continue

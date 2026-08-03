@@ -23,6 +23,7 @@ from cartography.intel.snowflake.names import secret_ids
 from cartography.intel.snowflake.names import secret_references
 from cartography.intel.snowflake.util import datatype_of
 from cartography.intel.snowflake.util import iso_to_datetime
+from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
@@ -100,7 +101,7 @@ def transform(
             "is_builtin": function.get("is_builtin"),
             "api_integration": api_integration,
             "api_integration_id": (
-                sf_id(account_id, "api_integration", api_integration)
+                sf_id(account_id, "api_integration", sf_fqn(api_integration))
                 if api_integration
                 else None
             ),
