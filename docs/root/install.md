@@ -68,7 +68,7 @@ machine to pull data from AWS.
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker-compose run --rm cartography cartography-rules run all --uri bolt://cartography-neo4j-1:7687
+    docker-compose run --rm --entrypoint cartography-rules cartography run all --uri bolt://cartography-neo4j-1:7687
     ```
 
     Full docs [here](usage/rules).
@@ -144,7 +144,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v ~/.aws:/var/cartography/.aws/ \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
+        ghcr.io/cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
      ```
 
    If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:
@@ -159,12 +159,12 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
       - `AWS_DEFAULT_REGION` must be specified.
       - Our docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container, so the container has access to AWS profile and credential files.
-    - You can view a full list of Cartography's CLI arguments by running `docker run cartography-cncf/cartography --help`.
+    - You can view a full list of Cartography's CLI arguments by running `docker run ghcr.io/cartography-cncf/cartography --help`.
 
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker run --rm --network cartography-network cartography-cncf/cartography cartography-rules run all --uri bolt://cartography-neo4j:7687
+    docker run --rm --network cartography-network --entrypoint cartography-rules ghcr.io/cartography-cncf/cartography run all --uri bolt://cartography-neo4j:7687
     ```
 
     Full docs [here](usage/rules).

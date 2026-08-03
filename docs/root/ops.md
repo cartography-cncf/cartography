@@ -17,14 +17,25 @@ The simplest production deployment involving Cartography looks something like th
   from the Neo4j database.
 
 ### Parallel jobs
-If a single cartography job takes longer than you would like, you can configure jobs to run in parallel where each job syncs different resources.
+If a single Cartography job takes longer than you would like, an orchestrator
+can split ingestion into jobs that sync different resource families.
 
 ![parallel-crons.png](images/parallel-crons.png)
 
-Making sure that 2 resources of the same type never run at the same time is critical: you will encounter race conditions where one job may delete the resources synced by the other.
+Cartography does not provide a distributed lock for concurrent syncs. Never run
+the same resource type for the same account, project, or tenant concurrently.
+Its cleanup can treat data written by the other job as stale and delete it.
 
-The above diagram shows AWS and GitHub running on different jobs, but you can get more granular than that: as an example, you can have job 1 run AWS S3 and job 2 run AWS RDS in parallel with no negative effects.
+The diagram shows AWS and GitHub in separate jobs because their node schemas and
+cleanup scopes are independent. More granular parallelism is an advanced
+deployment pattern, not a general guarantee. Before splitting one provider,
+verify that the jobs do not manage the same nodes, relationships, sub-resource
+cleanup scope, or analysis output.
 
+Each process creates its own update tag. Keep each job's ingestion and cleanup
+under that same tag, and do not pass one job's tag into another independently
+scheduled run. Run cross-resource analysis only after all of its required
+ingestion jobs complete.
 
 ## Maintaining a up-to-date picture of your infrastructure
 

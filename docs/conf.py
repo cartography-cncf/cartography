@@ -180,14 +180,11 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "globaltoc_depth": 0,
     "globaltoc_collapse": True,
     "github_url": "https://github.com/cartography-cncf/cartography",
-    "repo_name": "cartography",
-    "repo_type": "github",
     "page_layout": "default",
     "accent_color": "cyan",
-    "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
+    "slack_url": "https://slack.cncf.io/",
 }
 
 html_context = {

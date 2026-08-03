@@ -61,7 +61,6 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
 | last_name | User's last name |
 | login | Username used for login (typically an email address) |
 | second_email | User's secondary email address, if configured |
-| mobile_phone | User's mobile phone number, if configured |
 | created | ISO 8601 timestamp when the user was created in Okta |
 | activated | ISO 8601 timestamp when the user was activated |
 | status_changed | ISO 8601 timestamp of the last status change |
@@ -125,7 +124,7 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
 
 | Field | Description |
 |-------|--------------|
-| id | application id  |
+| id | Unique Okta group ID |
 | name | group name |
 | description | group description |
 | sam_account_name | windows SAM account name mapped
@@ -183,7 +182,7 @@ Representation of an [Okta Application](https://developer.okta.com/docs/referenc
 
   - OktaApplication is a resource of an OktaOrganization
     ```
-    (OktaApplication)<-[RESOURCE]->(OktaOrganization)
+    (OktaOrganization)-[RESOURCE]->(OktaApplication)
     ```
  - OktaGroups can be assigned OktaApplications
 
@@ -198,7 +197,7 @@ Representation of an [Okta Application](https://developer.okta.com/docs/referenc
 - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```
 
 ### OktaUserFactor
@@ -234,7 +233,7 @@ Representation of an [Okta Trusted Origin](https://developer.okta.com/docs/refer
 | scopes | array of scope |
 | status | status |
 | created | date & time of creation in okta |
-| create_by | id of user who created the trusted origin |
+| created_by | id of user who created the trusted origin |
 | okta_last_updated | date and time of last property changes |
 | okta_last_updated_by | id of user who last updated the trusted origin |
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -286,7 +285,6 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
 |-------|--------------|
 | id | uri the app can send the reply to |
 | uri | uri the app can send the reply to |
-| valid | is the DNS of the reply uri valid. Invalid replyuris can lead to oath phishing |
 | firstseen| Timestamp of when a sync job first discovered this node |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -295,5 +293,5 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
  - OktaApplications have ReplyUris
 
     ```
-    (ReplyUri)-[REPLYURI]->(OktaApplication)
+    (OktaApplication)-[REPLYURI]->(ReplyUri)
     ```
