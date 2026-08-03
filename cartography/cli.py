@@ -1471,7 +1471,59 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--anthropic-apikey-env-var",
-                    help="Environment variable name containing Anthropic API key.",
+                    help="Environment variable name containing Anthropic Admin API key.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_identity_token_file: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-identity-token-file",
+                    help=(
+                        "Path to the file containing the OIDC identity token for Anthropic "
+                        "Workload Identity Federation, e.g. a Kubernetes projected service "
+                        "account token."
+                    ),
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_identity_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-identity-token-env-var",
+                    help=(
+                        "Environment variable name containing the OIDC identity token for "
+                        "Anthropic Workload Identity Federation."
+                    ),
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_federation_rule_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-federation-rule-id",
+                    help="Anthropic federation rule id (fdrl_...) granting the org:admin scope.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_organization_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-organization-id",
+                    help="Anthropic organization UUID used for the federated token exchange.",
+                    rich_help_panel=PANEL_ANTHROPIC,
+                    hidden=PANEL_ANTHROPIC not in visible_panels,
+                ),
+            ] = None,
+            anthropic_service_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--anthropic-service-account-id",
+                    help="Anthropic service account id (svac_...) that federated tokens act as.",
                     rich_help_panel=PANEL_ANTHROPIC,
                     hidden=PANEL_ANTHROPIC not in visible_panels,
                 ),
@@ -3265,6 +3317,14 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                # The identity token is deliberately not resolved here: unlike a static
+                # secret it rotates on disk mid-sync, so the env var name (not its value)
+                # is passed through and read at each token exchange.
+                anthropic_identity_token_file=anthropic_identity_token_file,
+                anthropic_identity_token_env_var=anthropic_identity_token_env_var,
+                anthropic_federation_rule_id=anthropic_federation_rule_id,
+                anthropic_organization_id=anthropic_organization_id,
+                anthropic_service_account_id=anthropic_service_account_id,
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
