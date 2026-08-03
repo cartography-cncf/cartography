@@ -109,6 +109,31 @@ class AnthropicApiKeyToUserOwnedByRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AnthropicApiKeyToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+class AnthropicApiKeyToServiceAccountRel(CartographyRelSchema):
+    """An API key is owned by a service account.
+
+    Only set when the key's principal is a service account; keys bound to a human
+    edge to an AnthropicUser instead.
+    """
+
+    target_node_label: str = "AnthropicServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("principal.id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: AnthropicApiKeyToServiceAccountRelProperties = (
+        AnthropicApiKeyToServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AnthropicApiKeyToWorkspaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -145,6 +170,7 @@ class AnthropicApiKeySchema(CartographyNodeSchema):
         [
             AnthropicApiKeyToUserRel(),
             AnthropicApiKeyToUserOwnedByRel(),
+            AnthropicApiKeyToServiceAccountRel(),
             AnthropicApiKeyToWorkspaceRel(),
         ],
     )

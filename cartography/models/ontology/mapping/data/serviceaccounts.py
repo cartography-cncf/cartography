@@ -132,7 +132,25 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+anthropic_mapping = OntologyMapping(
+    module_name="anthropic",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AnthropicServiceAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # email: Not available
+                # active: Not available. Archival is exposed as `archived_at`, but a
+                # timestamp is not the boolean this field expects.
+            ],
+        ),
+    ],
+)
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "anthropic": anthropic_mapping,
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
     "openai": openai_mapping,

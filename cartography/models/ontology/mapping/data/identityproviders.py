@@ -159,7 +159,33 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+anthropic_mapping = OntologyMapping(
+    module_name="anthropic",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AnthropicFederationIssuer",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # A federation issuer is an OIDC issuer by construction: Anthropic
+                # verifies assertions against a JWKS and accepts no other protocol.
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "OIDC"},
+                ),
+                OntologyFieldMapping(ontology_field="issuer", node_field="issuer_url"),
+                # enabled: An issuer has no enable/disable state; it is either live
+                # or archived, and `archived_at` already carries that.
+            ],
+        ),
+    ],
+)
+
 IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "anthropic": anthropic_mapping,
     "aws": aws_mapping,
     "kubernetes": kubernetes_mapping,
     "keycloak": keycloak_mapping,

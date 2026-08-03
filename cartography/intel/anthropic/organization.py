@@ -20,9 +20,7 @@ def sync(
     """Load the organization node and return its id, which scopes every other sync."""
     organization = get(api_session, common_job_parameters["BASE_URL"])
     common_job_parameters["ORG_ID"] = organization["id"]
-    load_organization(
-        neo4j_session, organization, common_job_parameters["UPDATE_TAG"]
-    )
+    load_organization(neo4j_session, organization, common_job_parameters["UPDATE_TAG"])
     # No cleanup: the organization is the sub-resource every other node hangs off, so
     # it has no parent to scope a cleanup job to.
     return organization["id"]

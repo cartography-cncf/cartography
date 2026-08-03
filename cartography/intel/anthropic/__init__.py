@@ -6,11 +6,14 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 import cartography.intel.anthropic.apikeys
+import cartography.intel.anthropic.federation
 import cartography.intel.anthropic.organization
+import cartography.intel.anthropic.serviceaccounts
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
 from cartography.intel.anthropic.auth import AnthropicAuth
+from cartography.intel.anthropic.auth import is_federated
 from cartography.intel.anthropic.auth import make_assertion_source
 from cartography.intel.anthropic.auth import make_credential
 from cartography.util import timeit
@@ -86,6 +89,28 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         api_session,
         common_job_parameters,
     )
+
+    # Service accounts and federation resources reject Admin API keys with a 403;
+    # they are only readable with an org:admin OAuth token. Must run before the API
+    # key sync, which edges service-account-owned keys to their principal.
+    if is_federated(credential):
+        cartography.intel.anthropic.serviceaccounts.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+
+        cartography.intel.anthropic.federation.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+    else:
+        logger.info(
+            "Skipping Anthropic service accounts and federation resources: those "
+            "endpoints reject Admin API keys. Configure Workload Identity "
+            "Federation to ingest them.",
+        )
 
     cartography.intel.anthropic.apikeys.sync(
         neo4j_session,
