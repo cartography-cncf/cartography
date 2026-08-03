@@ -31,13 +31,25 @@ def sync(
         # buckets. Skipping cleanup as well leaves the ones from earlier runs in
         # place instead of deleting the whole inventory on a permission error.
         return
-    exposure = get_exposure(client, buckets, account_id)
+    exposure, exposure_complete = get_exposure(client, buckets, account_id)
     load_r2buckets(
         neo4j_session,
         transform_buckets(buckets, account_id, exposure),
         account_id,
         common_job_parameters["UPDATE_TAG"],
     )
+    if not exposure_complete:
+        # Cleanup deletes anything this run did not refresh, so running it on a
+        # partial exposure read would drop the HAS_R2_CUSTOM_DOMAIN edges of the
+        # buckets whose domains could not be listed. The buckets are still
+        # ingested; only the deletion pass is held back.
+        logger.warning(
+            "Skipping the R2 cleanup for account %s: at least one bucket's domains "
+            "could not be read, and cleanup would delete the custom domain "
+            "relationships this run knows nothing about.",
+            account_id,
+        )
+        return
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -127,32 +139,36 @@ def get_exposure(
     client: Cloudflare,
     buckets: List[Dict[str, Any]],
     account_id: str,
-) -> Dict[str, Dict[str, Any]]:
+) -> tuple[Dict[str, Dict[str, Any]], bool]:
     """
     Resolve the internet exposure of each bucket from its managed and custom
     domains, keyed by bucket name. R2 buckets are private by default: they are
     only reachable from the internet through their managed r2.dev domain or an
     enabled custom domain, neither of which the bucket listing reports.
+
+    Also return whether every bucket's exposure was read in full. A bucket is
+    only reported as private when *both* domain sources were read: either one on
+    its own can hold the only enabled domain, so a partial read must not
+    downgrade a publicly reachable bucket to `public=False`.
     """
     exposure: Dict[str, Dict[str, Any]] = {}
+    all_complete = True
     for bucket in buckets:
+        managed_domain = get_managed_domain(client, account_id, bucket["name"])
+        custom_domains = get_custom_domains(client, account_id, bucket["name"])
+        complete = managed_domain is not None and custom_domains is not None
+        all_complete = all_complete and complete
+
         public_domains: List[str] = []
         zone_ids: List[str] = []
-        r2_dev_enabled: bool | None = None
-        # `public` stays None when neither domain source could be read, so an
-        # unknown exposure is never reported as a private bucket.
-        exposure_known = False
 
-        managed_domain = get_managed_domain(client, account_id, bucket["name"])
+        r2_dev_enabled: bool | None = None
         if managed_domain is not None:
-            exposure_known = True
             r2_dev_enabled = managed_domain["enabled"]
             if managed_domain["enabled"]:
                 public_domains.append(managed_domain["domain"])
 
-        custom_domains = get_custom_domains(client, account_id, bucket["name"])
         if custom_domains is not None:
-            exposure_known = True
             for domain in custom_domains:
                 if not domain["enabled"]:
                     continue
@@ -161,12 +177,14 @@ def get_exposure(
                     zone_ids.append(domain["zoneId"])
 
         exposure[bucket["name"]] = {
-            "public": bool(public_domains) if exposure_known else None,
-            "public_domains": public_domains,
+            "public": bool(public_domains) if complete else None,
+            # A partial hostname list reads as authoritative once it is in the
+            # graph, so it is left unknown rather than published half-filled.
+            "public_domains": public_domains if complete else None,
             "r2_dev_enabled": r2_dev_enabled,
-            "zone_ids": zone_ids,
+            "zone_ids": zone_ids if custom_domains is not None else [],
         }
-    return exposure
+    return exposure, all_complete
 
 
 def transform_buckets(

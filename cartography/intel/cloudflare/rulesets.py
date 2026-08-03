@@ -11,8 +11,9 @@ from cartography.models.cloudflare.ruleset import CloudflareRulesetSchema
 from cartography.models.cloudflare.rulesetrule import CloudflareRulesetRuleSchema
 from cartography.util import timeit
 
-# Phases whose rules perform access control. The other phases configure caching,
-# transforms, redirects and custom errors, which are not firewall behaviour.
+# Phases whose rules decide whether traffic is allowed, blocked or challenged.
+# The other phases configure caching, transforms, redirects and custom errors,
+# which are not firewall behaviour.
 # See https://developers.cloudflare.com/ruleset-engine/reference/phases-list/
 _SECURITY_PHASES = frozenset(
     {
@@ -23,6 +24,12 @@ _SECURITY_PHASES = frozenset(
         "http_request_firewall_managed",
         "http_request_sbfm",
         "http_response_firewall_managed",
+        # Magic Firewall, the network-layer equivalent for Magic Transit.
+        "magic_transit",
+        "magic_transit_managed",
+        "magic_transit_ratelimit",
+        # magic_transit_ids_managed is deliberately absent: Magic Firewall IDS
+        # detects and alerts on traffic without deciding whether it passes.
     }
 )
 
@@ -232,9 +239,9 @@ def load_ruleset_rules(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        CloudflareRulesetRuleSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(CloudflareRulesetRuleSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_node_schema(CloudflareRulesetSchema(), common_job_parameters).run(
         neo4j_session
     )

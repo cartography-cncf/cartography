@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -9,6 +10,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.workerscript import CloudflareWorkerScriptSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -31,7 +34,8 @@ def sync(
 @timeit
 def get(client: Cloudflare, account_id: str) -> List[Dict[str, Any]]:
     return [
-        script.to_dict() for script in client.workers.scripts.list(account_id=account_id)
+        script.to_dict()
+        for script in client.workers.scripts.list(account_id=account_id)
     ]
 
 
@@ -45,9 +49,19 @@ def transform_scripts(
     """
     transformed = []
     for script in scripts:
+        name = script.get("id")
+        if not name:
+            # Without a name there is no identity to build on: every such record
+            # would qualify to the same `<account_id>/` and merge into one node.
+            logger.warning(
+                "Skipping a Worker script of account %s: the API returned no script "
+                "name to identify it by.",
+                account_id,
+            )
+            continue
         row = script.copy()
-        row["name"] = script["id"]
-        row["id"] = f"{account_id}/{script['id']}"
+        row["name"] = name
+        row["id"] = f"{account_id}/{name}"
         transformed.append(row)
     return transformed
 

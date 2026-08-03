@@ -184,16 +184,23 @@ def test_load_cloudflare_rulesets(
         (ZONE_CACHE_DEPLOYMENT, ZONE_ID),
     }
 
-    # Assert the rules of the customer-authored rulesets exist, and that the
-    # vendor-owned contents of the managed ruleset were never fetched in either
-    # scope
-    mock_rules.assert_any_call(
-        mock_cloudflare, ACCOUNT_ID, None, ACCOUNT_WAF_RULESET_ID
+    # Assert the vendor-owned contents of the managed ruleset were not ingested in
+    # either scope: both of its deployments hold no rule at all, while the
+    # customer-authored deployments do
+    result = neo4j_session.run(
+        """
+        MATCH (r:CloudflareRuleset)
+        OPTIONAL MATCH (r)-[:HAS_RULE]->(rule:CloudflareRulesetRule)
+        RETURN r.id AS id, count(rule) AS rules
+        """
     )
-    mock_rules.assert_any_call(
-        mock_cloudflare, ACCOUNT_ID, ZONE_ID, CUSTOM_FIREWALL_RULESET_ID
-    )
-    assert MANAGED_RULESET_ID not in {call.args[3] for call in mock_rules.call_args_list}
+    assert {(record["id"], record["rules"]) for record in result} == {
+        (ACCOUNT_WAF_DEPLOYMENT, 1),
+        (ACCOUNT_MANAGED_DEPLOYMENT, 0),
+        (ZONE_FIREWALL_DEPLOYMENT, 3),
+        (ZONE_MANAGED_DEPLOYMENT, 0),
+        (ZONE_CACHE_DEPLOYMENT, 1),
+    }
 
     # Rule IDs are qualified by their deployment too: a rule only exists as part
     # of one, and its API ID is only unique within one.
@@ -246,7 +253,10 @@ def test_load_cloudflare_rulesets(
         (f"{ACCOUNT_WAF_DEPLOYMENT}/{ACCOUNT_EXECUTE_RULE_ID}", ACCOUNT_WAF_DEPLOYMENT),
         (f"{ZONE_FIREWALL_DEPLOYMENT}/{BLOCK_RULE_ID}", ZONE_FIREWALL_DEPLOYMENT),
         (f"{ZONE_FIREWALL_DEPLOYMENT}/{CHALLENGE_RULE_ID}", ZONE_FIREWALL_DEPLOYMENT),
-        (f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_RULE_ID}", ZONE_FIREWALL_DEPLOYMENT),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_RULE_ID}",
+            ZONE_FIREWALL_DEPLOYMENT,
+        ),
         (f"{ZONE_CACHE_DEPLOYMENT}/{CACHE_RULE_ID}", ZONE_CACHE_DEPLOYMENT),
     }
 
@@ -366,6 +376,7 @@ def test_cloudflare_rulesets_ontology_label_is_scoped_to_security_phases(
         (ZONE_FIREWALL_DEPLOYMENT, "Simpson custom firewall"),
         (ZONE_MANAGED_DEPLOYMENT, "Cloudflare Managed Ruleset"),
     }
+
 
 @patch.object(
     cartography.intel.cloudflare.rulesets,
