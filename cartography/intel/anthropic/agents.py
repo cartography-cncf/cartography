@@ -132,7 +132,9 @@ def transform_agent(agent: dict[str, Any]) -> None:
         server["url"] for server in agent.get("mcp_servers") or [] if server.get("url")
     ]
     agent["skill_ids"] = [
-        skill["skill_id"] for skill in agent.get("skills") or [] if skill.get("skill_id")
+        skill["skill_id"]
+        for skill in agent.get("skills") or []
+        if skill.get("skill_id")
     ]
     always_allow: list[str] = []
     always_ask: list[str] = []

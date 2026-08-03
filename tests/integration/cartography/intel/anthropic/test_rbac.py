@@ -136,8 +136,7 @@ def test_load_anthropic_rbac(
     }
 
     # Assert the group with roles holds them. The group whose roles came back null
-    # gets no edge: null means the data was unavailable, and inventing an edge would
-    # be worse than reporting none.
+    # has none in the graph to carry forward, so it gets no edge.
     assert check_rels(
         neo4j_session,
         "AnthropicRbacGroup",
@@ -191,3 +190,93 @@ def test_load_anthropic_rbac(
                 rel_direction_right=False,
             )
         } == {TEST_ORG_ID}
+
+
+def _sync_rbac(neo4j_session, groups, update_tag):
+    """Run a full RBAC sync against the given group payload."""
+    common_job_parameters = {
+        "UPDATE_TAG": update_tag,
+        "BASE_URL": "https://api.anthropic.com/v1",
+        "ORG_ID": TEST_ORG_ID,
+    }
+    with (
+        patch.object(
+            cartography.intel.anthropic.rbac,
+            "get_roles",
+            return_value=copy.deepcopy(tests.data.anthropic.rbac.ANTHROPIC_RBAC_ROLES),
+        ),
+        patch.object(
+            cartography.intel.anthropic.rbac,
+            "get_role_permissions",
+            side_effect=lambda _session, _url, role_id: (
+                tests.data.anthropic.rbac.ANTHROPIC_RBAC_ROLE_PERMISSIONS[role_id]
+            ),
+        ),
+        patch.object(
+            cartography.intel.anthropic.rbac, "get_groups", return_value=groups
+        ),
+        patch.object(
+            cartography.intel.anthropic.rbac,
+            "get_group_members",
+            side_effect=lambda _session, _url, group_id: (
+                tests.data.anthropic.rbac.ANTHROPIC_RBAC_GROUP_MEMBERS[group_id]
+            ),
+        ),
+    ):
+        cartography.intel.anthropic.rbac.sync(
+            neo4j_session,
+            requests.Session(),
+            common_job_parameters,
+        )
+
+
+def _has_role_rels(neo4j_session):
+    return check_rels(
+        neo4j_session,
+        "AnthropicRbacGroup",
+        "id",
+        "AnthropicRbacRole",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=True,
+    )
+
+
+def test_null_roles_preserves_known_role_edges(neo4j_session):
+    """
+    A transient null roles field must not silently drop a group's known roles.
+
+    The API returns null when role data was momentarily unavailable, which is not
+    the same as the group holding no roles. Writing an empty list would let the
+    cleanup job delete the real edges, under-reporting the group's permissions until
+    the next healthy sync.
+    """
+    # Arrange: a first sync where both groups report their roles
+    _ensure_local_neo4j_has_test_organization(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+
+    healthy_groups = copy.deepcopy(tests.data.anthropic.rbac.ANTHROPIC_RBAC_GROUPS)
+    healthy_groups[1]["roles"] = ["rbac_role_02Tf7NqWrBz5Xk1LcPd8Ju6M"]
+    _sync_rbac(neo4j_session, healthy_groups, TEST_UPDATE_TAG)
+
+    expected_rels = {
+        (
+            "rbac_group_012rppKaSVsmTo6NqRDXQXNF",
+            "rbac_role_016J8xVtKpDq3Wy9ZmN2hR4s",
+        ),
+        (
+            "rbac_group_03Yh4MjXsQe7Rv2BnKt9Wz5D",
+            "rbac_role_02Tf7NqWrBz5Xk1LcPd8Ju6M",
+        ),
+    }
+    assert _has_role_rels(neo4j_session) == expected_rels
+
+    # Act: a second sync at a new update tag where the second group's roles are
+    # unavailable. The cleanup job runs against the new tag, so an edge that is not
+    # rewritten is deleted.
+    degraded_groups = copy.deepcopy(tests.data.anthropic.rbac.ANTHROPIC_RBAC_GROUPS)
+    assert degraded_groups[1]["roles"] is None
+    _sync_rbac(neo4j_session, degraded_groups, TEST_UPDATE_TAG + 1)
+
+    # Assert: the edge survived the outage
+    assert _has_role_rels(neo4j_session) == expected_rels

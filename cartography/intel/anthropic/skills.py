@@ -112,9 +112,9 @@ def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     # Versions before skills: they hang off the skills.
-    GraphJob.from_node_schema(
-        AnthropicSkillVersionSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(AnthropicSkillVersionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_node_schema(AnthropicSkillSchema(), common_job_parameters).run(
         neo4j_session
     )
