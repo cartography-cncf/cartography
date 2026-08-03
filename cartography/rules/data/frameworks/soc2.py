@@ -8,7 +8,7 @@ edition while the criteria identifiers stay those of 2017.
 
 from cartography.rules.spec.model import Framework
 
-SOC2_FRAMEWORK_NAME = "SOC 2: Trust Services Critera"
+SOC2_FRAMEWORK_NAME = "SOC 2: Trust Services Criteria"
 SOC2_SHORT_NAME = "SOC2"
 SOC2_SCOPE = "TSC"
 SOC2_REVISION = "2022"
