@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import neo4j
 import requests
@@ -7,7 +8,10 @@ from urllib3 import Retry
 
 import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.federation
+import cartography.intel.anthropic.invites
 import cartography.intel.anthropic.organization
+import cartography.intel.anthropic.ratelimits
+import cartography.intel.anthropic.rbac
 import cartography.intel.anthropic.serviceaccounts
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
@@ -19,6 +23,29 @@ from cartography.intel.anthropic.auth import make_credential
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _sync_enterprise_rbac(
+    neo4j_session: neo4j.Session,
+    api_session: requests.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Sync the Claude Enterprise RBAC beta, tolerating organizations without it."""
+    try:
+        cartography.intel.anthropic.rbac.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+    except requests.exceptions.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response is not None else None
+        if status_code not in (403, 404):
+            raise
+        logger.info(
+            "Skipping Anthropic RBAC groups and roles (HTTP %s): the RBAC API is a "
+            "Claude Enterprise beta and is not available to this organization.",
+            status_code,
+        )
 
 
 @timeit
@@ -84,10 +111,27 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         common_job_parameters,
     )
 
-    cartography.intel.anthropic.workspaces.sync(
+    workspaces = cartography.intel.anthropic.workspaces.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
+    )
+
+    # Enterprise-only beta. A non-Enterprise organization is refused rather than
+    # returned an empty list, so this must not fail the module.
+    _sync_enterprise_rbac(neo4j_session, api_session, common_job_parameters)
+
+    cartography.intel.anthropic.invites.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+
+    cartography.intel.anthropic.ratelimits.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+        [workspace["id"] for workspace in workspaces],
     )
 
     # Service accounts and federation resources reject Admin API keys with a 403;

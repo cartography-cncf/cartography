@@ -390,7 +390,25 @@ salesforce_mapping = OntologyMapping(
     ],
 )
 
+# Anthropic
+anthropic_mapping = OntologyMapping(
+    module_name="anthropic",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AnthropicRbacGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "anthropic": anthropic_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
     "salesforce": salesforce_mapping,

@@ -1,0 +1,68 @@
+from typing import Any
+from typing import Tuple
+
+import neo4j
+import requests
+
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.anthropic.util import paginated_get
+from cartography.intel.anthropic.util import resolve_org_id
+from cartography.models.anthropic.invite import AnthropicInviteSchema
+from cartography.util import timeit
+
+# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (60, 60)
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    api_session: requests.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    header_org_id, invites = get(
+        api_session,
+        common_job_parameters["BASE_URL"],
+    )
+    org_id = resolve_org_id(common_job_parameters, header_org_id)
+    common_job_parameters["ORG_ID"] = org_id
+    load_invites(
+        neo4j_session, invites, org_id, common_job_parameters["UPDATE_TAG"]
+    )
+    cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
+def get(
+    api_session: requests.Session,
+    base_url: str,
+) -> Tuple[str, list[dict[str, Any]]]:
+    return paginated_get(
+        api_session, f"{base_url}/organizations/invites", timeout=_TIMEOUT
+    )
+
+
+@timeit
+def load_invites(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    ORG_ID: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AnthropicInviteSchema(),
+        data,
+        lastupdated=update_tag,
+        ORG_ID=ORG_ID,
+    )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(AnthropicInviteSchema(), common_job_parameters).run(
+        neo4j_session
+    )
