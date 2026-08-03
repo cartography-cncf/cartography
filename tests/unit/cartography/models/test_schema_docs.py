@@ -306,6 +306,7 @@ def test_module_titles_use_display_overrides():
         "aibom": "AIBOM",
         "aws": "AWS",
         "gcp": "GCP",
+        "oci": "OCI",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
         "docker_scout": "Docker Scout",

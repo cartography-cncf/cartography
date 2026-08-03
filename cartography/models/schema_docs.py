@@ -806,6 +806,7 @@ def _module_title(module: str) -> str:
         "aibom": "AIBOM",
         "aws": "AWS",
         "gcp": "GCP",
+        "oci": "OCI",
         "sentinelone": "SentinelOne",
         "socketdev": "Socket.dev",
     }
