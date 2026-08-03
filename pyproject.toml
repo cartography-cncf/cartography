@@ -26,7 +26,6 @@ classifiers = [
   'Natural Language :: English',
   'Programming Language :: Python',
   'Programming Language :: Python :: 3',
-  'Programming Language :: Python :: 3.10',
   'Programming Language :: Python :: 3.11',
   'Programming Language :: Python :: 3.12',
   'Programming Language :: Python :: 3.13',
@@ -34,7 +33,7 @@ classifiers = [
   'Topic :: Software Development :: Libraries',
   'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 # By convention (per pip/uv recommendations), dependencies should use a loose
 # lower bound and no upper bound unless explicitly needed. Exact pinning is
 # handled by the lockfile (uv.lock).
@@ -119,9 +118,6 @@ dependencies = [
     # is not a Modal API error, so it would abort the whole module rather than skip a
     # resource. Every other RPC used is present from 1.5.0.
     "modal>=1.5.3,<2",
-    # tomllib is stdlib on 3.11+; tomli provides it on 3.10 (used by the GitHub
-    # lockfile fallback parser).
-    "tomli>=2.0.0; python_version < '3.11'",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
