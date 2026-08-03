@@ -61,6 +61,10 @@ def sync(
     )
 
     groups = get_groups(api_session, common_job_parameters["BASE_URL"])
+    known_roles = get_known_role_ids(
+        neo4j_session,
+        [group["id"] for group in groups if group.get("roles") is None],
+    )
     for group in groups:
         transform_group(
             group,
@@ -69,6 +73,7 @@ def sync(
                 common_job_parameters["BASE_URL"],
                 group["id"],
             ),
+            known_roles.get(group["id"]),
         )
     load_groups(
         neo4j_session,
@@ -167,23 +172,53 @@ def transform_permissions(
     return results
 
 
-def transform_group(group: dict[str, Any], members: list[dict[str, Any]]) -> None:
+@timeit
+def get_known_role_ids(
+    neo4j_session: neo4j.Session,
+    group_ids: list[str],
+) -> dict[str, list[str]]:
+    """Read back the roles the graph already holds for these groups.
+
+    Used only when the API reports a group's roles as unavailable. Re-writing the
+    known ids keeps the existing edges and refreshes their lastupdated, which is what
+    stops the cleanup job from deleting them.
+    """
+    if not group_ids:
+        return {}
+    records = neo4j_session.run(
+        """
+        MATCH (g:AnthropicRbacGroup)-[:HAS_ROLE]->(r:AnthropicRbacRole)
+        WHERE g.id IN $group_ids
+        RETURN g.id AS group_id, collect(r.id) AS role_ids
+        """,
+        group_ids=group_ids,
+    )
+    return {record["group_id"]: record["role_ids"] for record in records}
+
+
+def transform_group(
+    group: dict[str, Any],
+    members: list[dict[str, Any]],
+    known_role_ids: list[str] | None = None,
+) -> None:
     """Attach member ids, and normalise the roles field.
 
     A null `roles` means the role data was temporarily unavailable, not that the
-    group holds no roles. Treating it as empty would let the cleanup job delete the
-    group's real HAS_ROLE edges, so warn loudly when it happens: the edges will be
-    dropped until a sync reads the field successfully.
+    group holds no roles. Writing an empty list would let the cleanup job delete the
+    group's real HAS_ROLE edges, turning a transient API failure into an
+    under-reported set of permissions. Carry forward what the graph already knows
+    instead, so the edges survive until a sync reads the field successfully.
     """
     group["members"] = [m["user_id"] for m in members]
     if group.get("roles") is None:
         logger.warning(
             "Anthropic RBAC group %s returned null roles, meaning the role data was "
-            "temporarily unavailable. Its HAS_ROLE edges will be removed until a "
-            "later sync reads them.",
+            "temporarily unavailable. Carrying forward the %d role(s) already in the "
+            "graph.",
             group["id"],
+            len(known_role_ids or []),
         )
-        group["roles"] = []
+        group["roles"] = known_role_ids or []
 
 
 @timeit

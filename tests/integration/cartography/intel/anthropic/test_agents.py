@@ -91,9 +91,7 @@ def test_load_anthropic_agents(
 
     # Assert the agent exists with its tools split by permission policy: the
     # always_allow ones run unsupervised
-    assert check_nodes(
-        neo4j_session, "AnthropicAgent", ["id", "name", "model_id"]
-    ) == {
+    assert check_nodes(neo4j_session, "AnthropicAgent", ["id", "name", "model_id"]) == {
         ("agent_01Rn5Wx9Kt3Bm7Qd2Vz8Lp6J", "reactor-monitor", "claude-opus-5"),
     }
     agent = neo4j_session.run(
