@@ -195,6 +195,33 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareWorkerScript",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Workers are JavaScript, TypeScript or WASM source deployments,
+                # never containers.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+                # runtime: every Worker runs on workerd, which says nothing about
+                # the language and does not compare to the per-provider language
+                # runtimes the other modules report. `compatibility_date` carries
+                # the runtime version instead.
+                # memory / timeout: not exposed by the Workers API.
+            ],
+        ),
+    ],
+)
+
 FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -203,4 +230,5 @@ FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "supabase": supabase_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "cloudflare": cloudflare_mapping,
 }

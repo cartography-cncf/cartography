@@ -6,7 +6,11 @@ from cloudflare import Cloudflare
 import cartography.intel.cloudflare.accounts
 import cartography.intel.cloudflare.dnsrecords
 import cartography.intel.cloudflare.members
+import cartography.intel.cloudflare.r2buckets
 import cartography.intel.cloudflare.roles
+import cartography.intel.cloudflare.rulesets
+import cartography.intel.cloudflare.workerroutes
+import cartography.intel.cloudflare.workerscripts
 import cartography.intel.cloudflare.zones
 from cartography.config import Config
 from cartography.util import timeit
@@ -74,6 +78,38 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         )
 
         cartography.intel.cloudflare.dnsrecords.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+            zones=zones,
+        )
+
+        cartography.intel.cloudflare.r2buckets.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+        )
+
+        # Runs before the route sync, which links each route to the script it
+        # invokes.
+        cartography.intel.cloudflare.workerscripts.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+        )
+
+        cartography.intel.cloudflare.workerroutes.sync(
+            neo4j_session,
+            client,
+            account_job_parameters,
+            account_id=account["id"],
+            zones=zones,
+        )
+
+        cartography.intel.cloudflare.rulesets.sync(
             neo4j_session,
             client,
             account_job_parameters,
