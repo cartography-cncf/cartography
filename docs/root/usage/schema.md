@@ -71,6 +71,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Sentry](../modules/sentry/schema.md)
 - [Slack](../modules/slack/schema.md)
 - [Snipeit](../modules/snipeit/schema.md)
+- [Snowflake](../modules/snowflake/schema.md)
 - [Socket.dev](../modules/socketdev/schema.md)
 - [Spacelift](../modules/spacelift/schema.md)
 - [Subimage](../modules/subimage/schema.md)

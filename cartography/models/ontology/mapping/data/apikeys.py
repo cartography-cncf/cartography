@@ -319,4 +319,46 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "railway": railway_mapping,
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeProgrammaticAccessToken",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="created_on"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="expires_at", node_field="expires_at"
+                    ),
+                    # last_used_at: SHOW USER PROGRAMMATIC ACCESS TOKENS does not
+                    # report it; the SnowflakeCredential node sourced from
+                    # ACCOUNT_USAGE carries last_used_on instead.
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeCredential",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="created_on"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="updated_at", node_field="last_altered"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="expires_at", node_field="expiration_date"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="last_used_at", node_field="last_used_on"
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

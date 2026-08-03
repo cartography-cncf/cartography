@@ -353,6 +353,23 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type snowflake_account: str
+    :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
+    :type snowflake_user: str
+    :param snowflake_user: Snowflake user Cartography authenticates as. Optional.
+    :type snowflake_pat: str
+    :param snowflake_pat: Snowflake programmatic access token (PAT). Optional.
+    :type snowflake_private_key: str
+    :param snowflake_private_key: PEM-encoded RSA private key for key-pair (JWT) authentication. Optional.
+    :type snowflake_private_key_passphrase: str
+    :param snowflake_private_key_passphrase: Passphrase protecting the Snowflake private key. Optional.
+    :type snowflake_role: str
+    :param snowflake_role: Snowflake role used for SQL API statements. Optional.
+    :type snowflake_warehouse: str
+    :param snowflake_warehouse: Snowflake warehouse used to run SQL API statements. Optional.
+    :type snowflake_databases: str
+    :param snowflake_databases: Comma-separated list of Snowflake databases to sync. If unset, every
+        readable database is synced. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -661,6 +678,14 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        snowflake_account=None,
+        snowflake_user=None,
+        snowflake_pat=None,
+        snowflake_private_key=None,
+        snowflake_private_key_passphrase=None,
+        snowflake_role=None,
+        snowflake_warehouse=None,
+        snowflake_databases=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -903,3 +928,11 @@ class Config:
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.snowflake_account = snowflake_account
+        self.snowflake_user = snowflake_user
+        self.snowflake_pat = snowflake_pat
+        self.snowflake_private_key = snowflake_private_key
+        self.snowflake_private_key_passphrase = snowflake_private_key_passphrase
+        self.snowflake_role = snowflake_role
+        self.snowflake_warehouse = snowflake_warehouse
+        self.snowflake_databases = snowflake_databases
