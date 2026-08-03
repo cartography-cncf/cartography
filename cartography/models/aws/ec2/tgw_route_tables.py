@@ -27,11 +27,24 @@ class TGWRouteRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTableNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TransitGatewayRouteTableId")
+    id: PropertyRef = PropertyRef(
+        "TransitGatewayRouteTableId",
+        description="Unique identifier of the Transit Gateway Route Table (same as `transit_gateway_route_table_id`)",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    transit_gateway_id: PropertyRef = PropertyRef("TransitGatewayId")
-    state: PropertyRef = PropertyRef("State")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    transit_gateway_id: PropertyRef = PropertyRef(
+        "TransitGatewayId",
+        description="The ID of the Transit Gateway this route table belongs to",
+    )
+    state: PropertyRef = PropertyRef(
+        "State",
+        description="Can be one of ``pending | available | deleting | deleted``",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of this Transit Gateway Route Table",
+    )
 
 
 @dataclass(frozen=True)
@@ -75,6 +88,8 @@ class AWSTransitGatewayRouteTableToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTableSchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway Route Table](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGatewayRouteTable.html)."""
+
     label: str = "AWSTransitGatewayRouteTable"
     properties: AWSTransitGatewayRouteTableNodeProperties = (
         AWSTransitGatewayRouteTableNodeProperties()
@@ -100,18 +115,46 @@ class AWSTransitGatewayRouteTableSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Unique identifier of the Transit Gateway Route, of the format "
+            "`{transit_gateway_route_table_id}|{destination_cidr_block}`"
+        ),
+    )
     transit_gateway_route_table_id: PropertyRef = PropertyRef(
-        "transit_gateway_route_table_id"
+        "transit_gateway_route_table_id",
+        description="The ID of the Transit Gateway Route Table this route belongs to",
     )
-    destination_cidr_block: PropertyRef = PropertyRef("destination_cidr_block")
+    destination_cidr_block: PropertyRef = PropertyRef(
+        "destination_cidr_block",
+        description="The IPv4 CIDR block used for destination matches",
+    )
     destination_ipv6_cidr_block: PropertyRef = PropertyRef(
-        "destination_ipv6_cidr_block"
+        "destination_ipv6_cidr_block",
+        description="The IPv6 CIDR block used for destination matches",
     )
-    target: PropertyRef = PropertyRef("target")
-    state: PropertyRef = PropertyRef("state")
-    origin: PropertyRef = PropertyRef("origin")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    target: PropertyRef = PropertyRef(
+        "target",
+        description="The ID of the Transit Gateway Attachment this route points to, if any",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="Can be one of ``pending | active | blackhole | deleting | deleted``",
+    )
+    origin: PropertyRef = PropertyRef(
+        "origin",
+        description=(
+            "Currently unpopulated: the underlying `SearchTransitGatewayRoutes` API "
+            "returns this as `Type` (``static | propagated``), not `Origin`, so this "
+            "field is always null"
+        ),
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of this Transit Gateway Route",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -192,6 +235,8 @@ class AWSTransitGatewayRouteToRouteTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway Route](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGatewayRoute.html)."""
+
     label: str = "AWSTransitGatewayRoute"
     properties: AWSTransitGatewayRouteNodeProperties = (
         AWSTransitGatewayRouteNodeProperties()
@@ -217,13 +262,40 @@ class AWSTransitGatewayRouteSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTableAssociationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    route_table_id: PropertyRef = PropertyRef("route_table_id")
-    attachment_id: PropertyRef = PropertyRef("attachment_id")
-    resource_id: PropertyRef = PropertyRef("resource_id")
-    resource_type: PropertyRef = PropertyRef("resource_type")
-    state: PropertyRef = PropertyRef("state")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Unique identifier of the association. The API does not return an "
+            "association id, so this is synthesized as `{route_table_id}|{attachment_id}`"
+        ),
+    )
+    route_table_id: PropertyRef = PropertyRef(
+        "route_table_id",
+        description="The ID of the Transit Gateway Route Table this association belongs to",
+    )
+    attachment_id: PropertyRef = PropertyRef(
+        "attachment_id",
+        description="The ID of the Transit Gateway Attachment that is associated",
+    )
+    resource_id: PropertyRef = PropertyRef(
+        "resource_id",
+        description="The ID of the resource (e.g. VPC) behind the attachment",
+    )
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type",
+        description="Can be one of ``vpc | vpn | direct-connect-gateway | tgw-peering``",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description=(
+            "Can be one of ``associating | associated | disassociating | disassociated``"
+        ),
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of this Transit Gateway Route Table Association",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -269,6 +341,8 @@ class AWSTransitGatewayRouteTableAssociationToAWSAccountRel(CartographyRelSchema
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTableAssociationSchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway Route Table Association](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGatewayRouteTableAssociation.html)."""
+
     label: str = "AWSTransitGatewayRouteTableAssociation"
     properties: AWSTransitGatewayRouteTableAssociationNodeProperties = (
         AWSTransitGatewayRouteTableAssociationNodeProperties()
@@ -290,11 +364,30 @@ class AWSTransitGatewayRouteTableAssociationSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTablePropagationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    route_table_id: PropertyRef = PropertyRef("route_table_id")
-    attachment_id: PropertyRef = PropertyRef("attachment_id")
-    state: PropertyRef = PropertyRef("state")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Unique identifier of the propagation. The API does not return a "
+            "propagation id, so this is synthesized as `{route_table_id}|{attachment_id}`"
+        ),
+    )
+    route_table_id: PropertyRef = PropertyRef(
+        "route_table_id",
+        description="The ID of the Transit Gateway Route Table this propagation belongs to",
+    )
+    attachment_id: PropertyRef = PropertyRef(
+        "attachment_id",
+        description="The ID of the Transit Gateway Attachment that is propagating routes",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="Can be one of ``enabling | enabled | disabling | disabled``",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of this Transit Gateway Route Table Propagation",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -342,6 +435,8 @@ class AWSTransitGatewayRouteTablePropagationToAWSAccountRel(CartographyRelSchema
 
 @dataclass(frozen=True)
 class AWSTransitGatewayRouteTablePropagationSchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway Route Table Propagation](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGatewayRouteTablePropagation.html)."""
+
     label: str = "AWSTransitGatewayRouteTablePropagation"
     properties: AWSTransitGatewayRouteTablePropagationNodeProperties = (
         AWSTransitGatewayRouteTablePropagationNodeProperties()
