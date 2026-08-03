@@ -182,7 +182,7 @@ class AWSTransitGatewayRouteToRouteTableRel(CartographyRelSchema):
         {"id": PropertyRef("transit_gateway_route_table_id")},
     )
     # INWARD so the edge reads (RouteTable)-[:HAS_ROUTE]->(Route): active verb,
-    # parent->child, replacing the passive/unclear ROUTE_OF.
+    # parent->child.
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ROUTE"
     properties: AWSTransitGatewayRouteToRouteTableRelRelProperties = (
