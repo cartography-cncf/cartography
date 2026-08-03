@@ -395,7 +395,37 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+# Anthropic
+anthropic_mapping = OntologyMapping(
+    module_name="anthropic",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AnthropicRbacRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # The RBAC roles endpoint only returns custom roles; Anthropic's
+                # built-in organization roles are a separate enum on the user object.
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "custom"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "org"},
+                ),
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "anthropic": anthropic_mapping,
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,

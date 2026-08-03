@@ -3,17 +3,25 @@ from unittest.mock import patch
 
 import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.federation
+import cartography.intel.anthropic.invites
 import cartography.intel.anthropic.organization
+import cartography.intel.anthropic.ratelimits
+import cartography.intel.anthropic.rbac
 import cartography.intel.anthropic.serviceaccounts
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 import tests.data.anthropic.apikeys
 import tests.data.anthropic.federation
+import tests.data.anthropic.invites
 import tests.data.anthropic.organization
+import tests.data.anthropic.ratelimits
+import tests.data.anthropic.rbac
 import tests.data.anthropic.serviceaccounts
 import tests.data.anthropic.users
 import tests.data.anthropic.workspaces
 from demo.seeds.base import Seed
+
+WORKSPACE_ID = "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ"
 
 ORG_ID = "8834c225-ea27-405a-aea9-5ed5f07f4858"
 
@@ -77,14 +85,94 @@ class AnthropicSeed(Seed):
         "get_issuers",
         return_value=tests.data.anthropic.federation.ANTHROPIC_FEDERATION_ISSUERS,
     )
+    @patch.object(
+        cartography.intel.anthropic.ratelimits,
+        "get_workspace_rate_limits",
+        side_effect=lambda _session, _url, workspace_id: (
+            tests.data.anthropic.ratelimits.ANTHROPIC_WORKSPACE_RATE_LIMITS[
+                workspace_id
+            ]
+        ),
+    )
+    @patch.object(
+        cartography.intel.anthropic.ratelimits,
+        "get",
+        return_value=tests.data.anthropic.ratelimits.ANTHROPIC_RATE_LIMITS,
+    )
+    @patch.object(
+        cartography.intel.anthropic.invites,
+        "get",
+        return_value=(ORG_ID, tests.data.anthropic.invites.ANTHROPIC_INVITES),
+    )
+    @patch.object(
+        cartography.intel.anthropic.rbac,
+        "get_group_members",
+        side_effect=lambda _session, _url, group_id: (
+            tests.data.anthropic.rbac.ANTHROPIC_RBAC_GROUP_MEMBERS[group_id]
+        ),
+    )
+    @patch.object(
+        cartography.intel.anthropic.rbac,
+        "get_groups",
+        return_value=tests.data.anthropic.rbac.ANTHROPIC_RBAC_GROUPS,
+    )
+    @patch.object(
+        cartography.intel.anthropic.rbac,
+        "get_role_permissions",
+        side_effect=lambda _session, _url, role_id: (
+            tests.data.anthropic.rbac.ANTHROPIC_RBAC_ROLE_PERMISSIONS[role_id]
+        ),
+    )
+    @patch.object(
+        cartography.intel.anthropic.rbac,
+        "get_roles",
+        return_value=tests.data.anthropic.rbac.ANTHROPIC_RBAC_ROLES,
+    )
     def seed(self, *args) -> None:
         api_session = Mock()
         self._seed_organization(api_session)
         self._seed_users(api_session)
         self._seed_workspaces(api_session)
+        self._seed_rbac(api_session)
+        self._seed_invites(api_session)
+        self._seed_rate_limits(api_session)
         self._seed_service_accounts(api_session)
         self._seed_federation(api_session)
         self._seed_apikeys(api_session)
+
+    def _seed_rbac(self, api_session: Mock) -> None:
+        cartography.intel.anthropic.rbac.sync(
+            self.neo4j_session,
+            api_session,
+            common_job_parameters={
+                "UPDATE_TAG": self.update_tag,
+                "BASE_URL": "https://api.anthropic.com/v1",
+                "ORG_ID": ORG_ID,
+            },
+        )
+
+    def _seed_invites(self, api_session: Mock) -> None:
+        cartography.intel.anthropic.invites.sync(
+            self.neo4j_session,
+            api_session,
+            common_job_parameters={
+                "UPDATE_TAG": self.update_tag,
+                "BASE_URL": "https://api.anthropic.com/v1",
+                "ORG_ID": ORG_ID,
+            },
+        )
+
+    def _seed_rate_limits(self, api_session: Mock) -> None:
+        cartography.intel.anthropic.ratelimits.sync(
+            self.neo4j_session,
+            api_session,
+            common_job_parameters={
+                "UPDATE_TAG": self.update_tag,
+                "BASE_URL": "https://api.anthropic.com/v1",
+                "ORG_ID": ORG_ID,
+            },
+            workspace_ids=[WORKSPACE_ID],
+        )
 
     def _seed_service_accounts(self, api_session: Mock) -> None:
         cartography.intel.anthropic.serviceaccounts.sync(
