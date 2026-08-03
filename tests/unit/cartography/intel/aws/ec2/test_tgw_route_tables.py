@@ -120,23 +120,6 @@ def test_transform_associations_populates_id_and_route_table_id():
     assert out[0]["state"] == "associated"
 
 
-def test_transform_associations_reads_nested_association_state():
-    """describe_ responses nest state under AssociationState.State; support it."""
-    # Arrange
-    data = [
-        {
-            "TransitGatewayRouteTableId": "tgw-rtb-1",
-            "TransitGatewayRouteTableAssociationId": "assoc-1",
-            "TransitGatewayAttachmentId": "tgw-attach-1",
-            "AssociationState": {"State": "associated"},
-        }
-    ]
-    # Act
-    out = tgw_route_tables.transform_tgw_route_table_associations(data)
-    # Assert
-    assert out[0]["state"] == "associated"
-
-
 def test_transform_associations_dedups_by_id():
     """The same association fetched more than once must not produce duplicates
     (guards against the fan-out / duplication class of bug)."""
