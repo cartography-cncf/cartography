@@ -30,6 +30,35 @@ class AnthropicWorkspaceNodeProperties(CartographyNodeProperties):
         "display_color",
         description="Hex color representing the workspace in the Anthropic Console.",
     )
+    compartment_id: PropertyRef = PropertyRef(
+        "compartment_id",
+        description=(
+            "ID of the compartment the workspace belongs to, referenced by "
+            "customer-managed encryption key policy conditions."
+        ),
+    )
+    external_key_id: PropertyRef = PropertyRef(
+        "external_key_id",
+        description=(
+            "ID of the customer-managed encryption key bound to the workspace. "
+            "Write-once; empty when the workspace uses Anthropic-managed encryption."
+        ),
+    )
+    workspace_geo: PropertyRef = PropertyRef(
+        "workspace_geo",
+        description="Geography the workspace's data is resident in.",
+    )
+    default_inference_geo: PropertyRef = PropertyRef(
+        "default_inference_geo",
+        description="Geography inference runs in by default for this workspace.",
+    )
+    allowed_inference_geos: PropertyRef = PropertyRef(
+        "allowed_inference_geos",
+        description=(
+            "Geographies inference is allowed to run in, or a single entry "
+            "'unrestricted' when the workspace places no restriction."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

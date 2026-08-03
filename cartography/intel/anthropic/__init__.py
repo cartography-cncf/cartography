@@ -6,6 +6,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 import cartography.intel.anthropic.apikeys
+import cartography.intel.anthropic.organization
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
@@ -66,7 +67,14 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         "BASE_URL": "https://api.anthropic.com/v1",
     }
 
-    # Organization node is created during the users sync
+    # Must run first: it creates the organization node that scopes every other node,
+    # and resolves the ORG_ID the remaining syncs read from common_job_parameters.
+    cartography.intel.anthropic.organization.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+
     cartography.intel.anthropic.users.sync(
         neo4j_session,
         api_session,

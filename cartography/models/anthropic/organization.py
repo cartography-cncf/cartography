@@ -10,6 +10,7 @@ from cartography.models.ontology.labels import TENANT
 @dataclass(frozen=True)
 class AnthropicOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Anthropic organization ID.")
+    name: PropertyRef = PropertyRef("name", description="Organization name.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

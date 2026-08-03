@@ -8,5 +8,19 @@ ANTHROPIC_APIKEYS = [
         "created_by": {"id": "user_EneequohSheesh3Ohtaefu8we2aite", "type": "user"},
         "partial_key_hint": "sk-ant-api03-R2D...igAA",
         "status": "active",
-    }
+        "expires_at": None,
+        "principal": {"id": "user_EneequohSheesh3Ohtaefu8we2aite", "type": "user"},
+    },
+    {
+        "id": "apikey_01Wq7X2ZTbn4LcVpM8sKdYhE",
+        "type": "api_key",
+        "name": "Reactor Telemetry Collector",
+        "workspace_id": "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ",
+        "created_at": "2025-01-14T08:12:03.114509Z",
+        "created_by": {"id": "user_Oov3aYewo6ZuoGh8thaiV1uNoy1aXe", "type": "user"},
+        "partial_key_hint": "sk-ant-api03-K9F...twQA",
+        "status": "active",
+        "expires_at": "2026-01-14T08:12:03.114509Z",
+        "principal": {"id": "svac_01Nb5RtYuIoPaSdFgHjKlZxC", "type": "service_account"},
+    },
 ]

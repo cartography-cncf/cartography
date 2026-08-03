@@ -2,9 +2,11 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import cartography.intel.anthropic.apikeys
+import cartography.intel.anthropic.organization
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 import tests.data.anthropic.apikeys
+import tests.data.anthropic.organization
 import tests.data.anthropic.users
 import tests.data.anthropic.workspaces
 from demo.seeds.base import Seed
@@ -33,11 +35,27 @@ class AnthropicSeed(Seed):
         "get",
         return_value=(ORG_ID, tests.data.anthropic.apikeys.ANTHROPIC_APIKEYS),
     )
+    @patch.object(
+        cartography.intel.anthropic.organization,
+        "get",
+        return_value=tests.data.anthropic.organization.ANTHROPIC_ORGANIZATION,
+    )
     def seed(self, *args) -> None:
         api_session = Mock()
+        self._seed_organization(api_session)
         self._seed_users(api_session)
         self._seed_workspaces(api_session)
         self._seed_apikeys(api_session)
+
+    def _seed_organization(self, api_session: Mock) -> None:
+        cartography.intel.anthropic.organization.sync(
+            self.neo4j_session,
+            api_session,
+            common_job_parameters={
+                "UPDATE_TAG": self.update_tag,
+                "BASE_URL": "https://api.anthropic.com/v1",
+            },
+        )
 
     def _seed_users(self, api_session: Mock) -> None:
         cartography.intel.anthropic.users.sync(

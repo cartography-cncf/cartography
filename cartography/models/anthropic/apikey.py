@@ -25,6 +25,20 @@ class AnthropicApiKeyNodeProperties(CartographyNodeProperties):
         "created_at",
         description="RFC 3339 timestamp when the API key was created.",
     )
+    expires_at: PropertyRef = PropertyRef(
+        "expires_at",
+        description=(
+            "RFC 3339 timestamp when the API key expires. Empty when the key never "
+            "expires."
+        ),
+    )
+    principal_type: PropertyRef = PropertyRef(
+        "principal.type",
+        description=(
+            "Type of principal the API key acts as: user or service_account. Empty "
+            "when the key is not bound to a principal."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

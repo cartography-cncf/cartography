@@ -3,6 +3,19 @@ from typing import Any
 import requests
 
 
+def resolve_org_id(
+    common_job_parameters: dict[str, Any],
+    header_org_id: str,
+) -> str:
+    """Prefer the organization id resolved by the organization sync.
+
+    That id comes from GET /organizations/me and is authoritative. The
+    `anthropic-organization-id` response header is only a fallback, for syncs run in
+    isolation (tests, seeds) where the organization sync has not populated ORG_ID.
+    """
+    return common_job_parameters.get("ORG_ID") or header_org_id
+
+
 def paginated_get(
     api_session: requests.Session,
     url: str,
