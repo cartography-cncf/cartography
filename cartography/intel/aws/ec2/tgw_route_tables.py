@@ -172,18 +172,18 @@ def cleanup_transit_gateway_route_tables(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.debug("Running TGW route tables cleanup")
-    GraphJob.from_node_schema(
-        AWSTransitGatewayRouteTableSchema(), common_job_parameters
-    ).run(neo4j_session)
+    # Clean up leaf nodes before their parent AWSTransitGatewayRouteTable.
     GraphJob.from_node_schema(
         AWSTransitGatewayRouteSchema(), common_job_parameters
     ).run(neo4j_session)
-    # Cleanup for associations and propagations
     GraphJob.from_node_schema(
         AWSTransitGatewayRouteTableAssociationSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_node_schema(
         AWSTransitGatewayRouteTablePropagationSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSTransitGatewayRouteTableSchema(), common_job_parameters
     ).run(neo4j_session)
 
 
