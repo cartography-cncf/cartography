@@ -170,6 +170,58 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
+                OntologyFieldMapping(ontology_field="memory", node_field="memory_mb"),
+                # timeout: not on the function payload. It is a site-wide setting, carried on
+                # NetlifySite.functions_timeout.
+                # Netlify functions are always built from source; there is no container form.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+            ],
+        ),
+    ],
+)
+
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareWorkerScript",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Workers are JavaScript, TypeScript or WASM source deployments,
+                # never containers.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+                # runtime: every Worker runs on workerd, which says nothing about
+                # the language and does not compare to the per-provider language
+                # runtimes the other modules report. `compatibility_date` carries
+                # the runtime version instead.
+                # memory / timeout: not exposed by the Workers API.
+            ],
+        ),
+    ],
+)
+
 FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -177,4 +229,6 @@ FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "netlify": netlify_mapping,
+    "cloudflare": cloudflare_mapping,
 }

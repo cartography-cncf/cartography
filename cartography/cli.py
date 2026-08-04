@@ -93,6 +93,7 @@ PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
 PANEL_SUPABASE = "Supabase Options"
 PANEL_RAILWAY = "Railway Options"
+PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_STATSD = "StatsD Metrics"
@@ -152,6 +153,7 @@ MODULE_PANELS = {
     "vercel": PANEL_VERCEL,
     "supabase": PANEL_SUPABASE,
     "railway": PANEL_RAILWAY,
+    "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
     "analysis": PANEL_ANALYSIS,
@@ -2279,6 +2281,36 @@ class CLI:
                 ),
             ] = "https://backboard.railway.com/graphql/v2",
             # =================================================================
+            # Netlify Options
+            # =================================================================
+            netlify_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-token-env-var",
+                    help="Environment variable name containing a Netlify personal access token.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_account_slug: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-account-slug",
+                    help="Netlify team slug to sync. Required for the Netlify module.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--netlify-base-url",
+                    help="Netlify API base URL.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = "https://api.netlify.com/api/v1",
+            # =================================================================
             # CircleCI Options
             # =================================================================
             circleci_token_env_var: Annotated[
@@ -2802,6 +2834,15 @@ class CLI:
                 )
                 railway_token = os.environ.get(railway_token_env_var)
 
+            # Read Netlify token
+            netlify_token = None
+            if netlify_token_env_var:
+                logger.debug(
+                    "Reading Netlify API token from environment variable %s",
+                    netlify_token_env_var,
+                )
+                netlify_token = os.environ.get(netlify_token_env_var)
+
             # Read CircleCI token
             circleci_token = None
             if circleci_token_env_var:
@@ -3209,6 +3250,9 @@ class CLI:
                 railway_token=railway_token,
                 railway_workspace_id=railway_workspace_id,
                 railway_base_url=railway_base_url,
+                netlify_token=netlify_token,
+                netlify_account_slug=netlify_account_slug,
+                netlify_base_url=netlify_base_url,
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,

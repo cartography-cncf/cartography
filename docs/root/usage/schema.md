@@ -57,6 +57,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Lastpass](../modules/lastpass/schema.md)
 - [Microsoft](../modules/microsoft/schema.md)
 - [Modal](../modules/modal/schema.md)
+- [Netlify](../modules/netlify/schema.md)
 - [Oci](../modules/oci/schema.md)
 - [Okta](../modules/okta/schema.md)
 - [Ontology](../modules/ontology/schema.md)

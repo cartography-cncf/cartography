@@ -180,6 +180,26 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyEnvVar",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="key", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # created_at: Netlify only reports the last update of an environment variable.
+                # rotation_enabled: Netlify has no rotation feature for environment variables.
+            ],
+        ),
+    ],
+)
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -189,4 +209,5 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "railway": railway_mapping,
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "netlify": netlify_mapping,
 }

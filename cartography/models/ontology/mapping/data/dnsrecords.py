@@ -95,10 +95,28 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+# Netlify
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDNSRecord",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
+            ],
+        ),
+    ],
+)
+
 DNSRECORDS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
     "vercel": vercel_mapping,
     "supabase": supabase_mapping,
+    "netlify": netlify_mapping,
 }

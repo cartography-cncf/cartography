@@ -181,6 +181,35 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareR2Bucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # R2 encrypts every object at rest with no way to turn it off, so
+                # report encrypted=True statically (as GCP and Scaleway do).
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                # `public` combines the managed r2.dev domain with the enabled
+                # custom domains, and stays null when neither could be read, so
+                # it is mapped directly to preserve the unknown state.
+                OntologyFieldMapping(ontology_field="public", node_field="public"),
+                # versioning: R2 supports it but no `r2.buckets.*` endpoint
+                # exposes the bucket's versioning state.
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -188,4 +217,5 @@ OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
+    "cloudflare": cloudflare_mapping,
 }
