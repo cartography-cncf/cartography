@@ -17,6 +17,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.schema import SnowflakeSchemaSchema
@@ -31,7 +32,9 @@ def get_database_schemas(
 ) -> list[dict[str, Any]] | None:
     """Schemas of one database, or None when the role cannot read that database."""
     try:
-        return client.list_all(f"/api/v2/databases/{database_name}/schemas")
+        return client.list_all(
+            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas"
+        )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)
         logger.warning(

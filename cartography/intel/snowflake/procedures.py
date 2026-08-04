@@ -23,6 +23,7 @@ from cartography.intel.snowflake.names import secret_references
 from cartography.intel.snowflake.util import datatype_of
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.procedure import SnowflakeProcedureSchema
@@ -40,7 +41,7 @@ def get(
     """Stored procedures in one schema, or None when the schema is not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/schemas/{schema_name}/procedures",
+            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/procedures",
         )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)

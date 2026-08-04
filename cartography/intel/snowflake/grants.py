@@ -22,6 +22,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.grant import SnowflakeGrantMatchLink
@@ -153,7 +154,7 @@ def securable_id(
 def get_role_grants(client: SnowflakeClient, role: str) -> list[dict[str, Any]] | None:
     """Privileges held by one role, or None when the role is not readable."""
     try:
-        return client.list_all(f"/api/v2/roles/{role}/grants")
+        return client.list_all(f"/api/v2/roles/{sf_path_segment(role)}/grants")
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)
         return None
@@ -165,7 +166,7 @@ def get_role_grants_of(
 ) -> list[dict[str, Any]] | None:
     """Grantees a role has been granted to, or None when not readable."""
     try:
-        return client.list_all(f"/api/v2/roles/{role}/grants-of")
+        return client.list_all(f"/api/v2/roles/{sf_path_segment(role)}/grants-of")
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)
         return None
@@ -178,7 +179,7 @@ def get_database_role_grants(
     """Privileges held by one database role, or None when it is not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/database-roles/{role_name}/grants",
+            f"/api/v2/databases/{sf_path_segment(database_name)}/database-roles/{sf_path_segment(role_name)}/grants",
         )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)
@@ -192,7 +193,7 @@ def get_database_role_grants_of(
     """Grantees a database role has been granted to, or None when not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/database-roles/{role_name}/grants-of",
+            f"/api/v2/databases/{sf_path_segment(database_name)}/database-roles/{sf_path_segment(role_name)}/grants-of",
         )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)

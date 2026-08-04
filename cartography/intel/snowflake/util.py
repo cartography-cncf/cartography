@@ -22,6 +22,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from typing import Any
+from urllib.parse import quote
 
 import jwt
 import requests
@@ -200,6 +201,22 @@ def sf_fqn(*parts: str) -> str:
     if not parts or any(not part for part in parts):
         raise ValueError(f"Cannot build a Snowflake FQN from parts={parts!r}")
     return ".".join(_quote_identifier(part) for part in parts)
+
+
+def sf_path_segment(name: str) -> str:
+    """Percent-encode a Snowflake object name for use as one REST path segment.
+
+    A quoted Snowflake identifier may legally contain characters that are
+    structural in a URL, so a name like ``my/db`` or ``prod?1`` interpolated raw
+    would address a different endpoint than intended. Every character outside the
+    unreserved set is escaped, including ``/``, so the name always stays a single
+    segment.
+
+    Deliberately not ``sf_fqn``: the REST path wants the *raw* Snowflake name,
+    not the dotted quoted form. ``sf_fqn`` would embed literal double quotes,
+    which Snowflake answers with a 404 for any database that needs quoting.
+    """
+    return quote(name, safe="")
 
 
 def parse_stage_url(url: str | None) -> tuple[str | None, str | None]:

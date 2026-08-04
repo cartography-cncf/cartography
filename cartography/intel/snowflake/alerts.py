@@ -12,6 +12,7 @@ from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import schedule_to_text
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.alert import SnowflakeAlertSchema
@@ -29,7 +30,7 @@ def get(
     """Alerts in one schema, or None when the schema is not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/schemas/{schema_name}/alerts",
+            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/alerts",
         )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)

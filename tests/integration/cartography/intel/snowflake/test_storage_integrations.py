@@ -127,8 +127,10 @@ def test_sync_snowflake_storage_integrations(mock_get, mock_details, neo4j_sessi
 
 
 def test_sync_snowflake_storage_integrations_undescribable(neo4j_session):
-    # Arrange: SHOW succeeds but DESC is not permitted for any integration.
-    _ensure_local_neo4j_has_test_account(neo4j_session)
+    # Arrange: a previous run collected both integrations in full, then SHOW succeeds
+    # but DESC is not permitted for any of them. Seeding explicitly rather than relying
+    # on the preceding test's leftover graph keeps this runnable on its own.
+    _ensure_local_neo4j_has_test_storage_integrations(neo4j_session)
 
     # Act
     with (
@@ -150,7 +152,7 @@ def test_sync_snowflake_storage_integrations_undescribable(neo4j_session):
         )
 
     # Assert: the sync reports itself incomplete so cleanup does not run on half-read
-    # data, and the integrations keep the values the previous test collected.
+    # data, and the integrations keep the values the earlier run collected.
     #
     # This is the point of the fix. An integration listed by SHOW but not describable
     # has none of its interesting properties, so loading it anyway would write null
