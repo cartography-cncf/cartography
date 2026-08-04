@@ -191,7 +191,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 1. **Ensure that you have Python 3.13 set up on your machine.**
 
-    Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
+    Python 3.11 and 3.12 may work but are not tested. Python 3.10 and older are not supported.
 
 1. **Run Neo4j graph database version 5.23 or higher.** Cartography emits scoped subqueries (`CALL (var) { ... }`) that earlier 5.x releases do not support.
 
