@@ -194,7 +194,9 @@ def get_ruleset_rules(
     # require fetching the ruleset itself.
     scope_params = {"zone_id": zone_id} if zone_id else {"account_id": account_id}
     ruleset = client.rulesets.get(ruleset_id, **scope_params)
-    return [rule.to_dict() for rule in ruleset.rules]
+    # The SDK types `rules` as required, but the API omits it for a ruleset with
+    # no rules configured, so it arrives as None.
+    return [rule.to_dict() for rule in ruleset.rules or []]
 
 
 def deployment_id(account_id: str, zone_id: str | None, ruleset_id: str) -> str:
@@ -253,7 +255,9 @@ def transform_ruleset_rules(
         row = rule.copy()
         row["rule_id"] = rule["id"]
         row["id"] = f"{ruleset_deployment_id}/{rule['id']}"
-        executed_ruleset_id = rule.get("action_parameters", {}).get("id")
+        # `action_parameters` is optional, and a rule that carries none comes back
+        # with the key absent or explicitly null, as executed_ruleset_ids() sees.
+        executed_ruleset_id = (rule.get("action_parameters") or {}).get("id")
         row["executed_deployment_id"] = (
             deployment_id(account_id, zone_id, executed_ruleset_id)
             if executed_ruleset_id
