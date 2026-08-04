@@ -11,6 +11,7 @@ from cartography.intel.miradore.util import get_nested
 from cartography.intel.miradore.util import get_paginated_miradore_items
 from cartography.intel.miradore.util import parse_datetime
 from cartography.intel.miradore.util import parse_int
+from cartography.intel.miradore.util import required_int_id
 from cartography.intel.miradore.util import scoped_id
 from cartography.models.miradore.organization import MiradoreOrganizationSchema
 from cartography.util import timeit
@@ -51,7 +52,7 @@ def get(
 def transform(api_result: list[dict[str, Any]], site_name: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for organization in api_result:
-        miradore_id = parse_int(organization.get("ID"))
+        miradore_id = required_int_id(organization, "Organization")
         result.append(
             {
                 "id": scoped_id(site_name, miradore_id),

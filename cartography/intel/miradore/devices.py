@@ -13,6 +13,7 @@ from cartography.intel.miradore.util import get_paginated_miradore_items
 from cartography.intel.miradore.util import parse_bool
 from cartography.intel.miradore.util import parse_datetime
 from cartography.intel.miradore.util import parse_int
+from cartography.intel.miradore.util import required_int_id
 from cartography.intel.miradore.util import scoped_id
 from cartography.models.miradore.config_profile_deployment import (
     MiradoreConfigProfileDeploymentSchema,
@@ -85,7 +86,7 @@ def _get_serial_number(device: dict[str, Any], inv_device: dict[str, Any]) -> An
 def transform(api_result: list[dict[str, Any]], site_name: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for device in api_result:
-        miradore_id = parse_int(device.get("ID"))
+        miradore_id = required_int_id(device, "Device")
         inv_device = device.get("InvDevice") or {}
         inv_os = device.get("InvOS") or {}
         client = device.get("Client") or {}
@@ -237,13 +238,11 @@ def transform_deployments(
     """
     result: list[dict[str, Any]] = []
     for device in api_result:
-        device_id = parse_int(device.get("ID"))
+        device_id = required_int_id(device, "Device")
         for deployment in as_list(device.get("ConfigProfileDeployment")):
             if not isinstance(deployment, dict):
                 continue
-            deployment_id = parse_int(deployment.get("ID"))
-            if deployment_id is None:
-                continue
+            deployment_id = required_int_id(deployment, "ConfigProfileDeployment")
             result.append(
                 {
                     "id": scoped_id(site_name, deployment_id),

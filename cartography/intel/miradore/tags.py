@@ -38,10 +38,10 @@ def get(
 def transform(api_result: list[dict[str, Any]], site_name: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for tag in api_result:
-        name = tag.get("Name")
+        # The Tag item has no ID attribute, so the name is the required natural key.
+        name = tag["Name"]
         if not name:
-            continue
-        # The Tag item has no ID attribute, so the name is the natural key.
+            raise ValueError("Miradore returned a Tag with an empty name")
         result.append({"id": scoped_id(site_name, name), "name": name})
     return result
 

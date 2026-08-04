@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from cartography.intel.miradore.devices import transform
 from cartography.intel.miradore.devices import transform_deployments
 from tests.data.miradore.devices import DEVICES
@@ -113,3 +115,17 @@ def test_transform_deployments_flattens_every_device() -> None:
 def test_transform_handles_an_empty_result() -> None:
     assert transform([], TEST_SITE_NAME) == []
     assert transform_deployments([], TEST_SITE_NAME) == []
+
+
+def test_transform_rejects_a_device_without_an_id() -> None:
+    """A null graph identity would reach the ingestion MERGE, so fail at the boundary."""
+    with pytest.raises(KeyError):
+        transform([{"InvDevice": {"DeviceName": "no-id-device"}}], TEST_SITE_NAME)
+
+
+def test_transform_deployments_rejects_a_deployment_without_an_id() -> None:
+    with pytest.raises(KeyError):
+        transform_deployments(
+            [{"ID": "1001", "ConfigProfileDeployment": {"Status": "Installed"}}],
+            TEST_SITE_NAME,
+        )

@@ -9,7 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.miradore.tenant import load_tenant
 from cartography.intel.miradore.util import get_paginated_miradore_items
 from cartography.intel.miradore.util import parse_datetime
-from cartography.intel.miradore.util import parse_int
+from cartography.intel.miradore.util import required_int_id
 from cartography.intel.miradore.util import scoped_id
 from cartography.models.miradore.user import MiradoreUserSchema
 from cartography.util import timeit
@@ -56,7 +56,7 @@ def transform(api_result: list[dict[str, Any]], site_name: str) -> list[dict[str
     result: list[dict[str, Any]] = []
     for user in api_result:
         status = user.get("Status")
-        miradore_id = parse_int(user.get("ID"))
+        miradore_id = required_int_id(user, "User")
         result.append(
             {
                 "id": scoped_id(site_name, miradore_id),

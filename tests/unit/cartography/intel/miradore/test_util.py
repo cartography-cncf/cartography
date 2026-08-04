@@ -1,12 +1,17 @@
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
+from requests.adapters import HTTPAdapter
+
 from cartography.intel.miradore.util import as_list
+from cartography.intel.miradore.util import create_miradore_api_session
 from cartography.intel.miradore.util import get_nested
 from cartography.intel.miradore.util import get_paginated_miradore_items
 from cartography.intel.miradore.util import parse_bool
 from cartography.intel.miradore.util import parse_datetime
 from cartography.intel.miradore.util import parse_int
+from cartography.intel.miradore.util import required_int_id
 from cartography.intel.miradore.util import scoped_id
 
 _BASE_URI = "https://online.miradore.com"
@@ -106,6 +111,34 @@ def test_get_paginated_miradore_items_handles_an_empty_result() -> None:
     )
 
     assert results == []
+
+
+def test_required_int_id_parses_the_identifier() -> None:
+    assert required_int_id({"ID": "1001"}, "Device") == 1001
+
+
+def test_required_int_id_raises_when_the_attribute_is_absent() -> None:
+    """A required field must fail loudly rather than yield a null graph identity."""
+    with pytest.raises(KeyError):
+        required_int_id({"Name": "no id here"}, "Device")
+
+
+def test_required_int_id_raises_when_the_identifier_is_not_an_integer() -> None:
+    with pytest.raises(ValueError, match="Device whose ID is not an integer"):
+        required_int_id({"ID": "not-a-number"}, "Device")
+
+
+def test_create_miradore_api_session_retries_transient_failures() -> None:
+    """A blip on one page must not abort the whole sync; every call is an idempotent GET."""
+    session = create_miradore_api_session()
+
+    adapter = session.get_adapter("https://online.miradore.com")
+    assert isinstance(adapter, HTTPAdapter)
+    retries = adapter.max_retries
+    assert retries.total == 5
+    assert 429 in retries.status_forcelist
+    assert 503 in retries.status_forcelist
+    assert retries.allowed_methods == ["GET"]
 
 
 def test_scoped_id_prefixes_the_site_name() -> None:

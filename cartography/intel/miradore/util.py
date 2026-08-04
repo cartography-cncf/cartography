@@ -4,6 +4,8 @@ from typing import Any
 
 import requests
 import xmltodict
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from cartography.util import timeit
 
@@ -30,6 +32,15 @@ def get_http_status_code(err: requests.HTTPError) -> int | None:
 def create_miradore_api_session() -> requests.Session:
     session = requests.Session()
     session.headers.update({"Accept": "application/xml"})
+    # A single transient blip on any page would otherwise abort the whole Miradore sync.
+    # Every call this module makes is an idempotent GET, so bounded retries are safe.
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
 
 
@@ -97,6 +108,23 @@ def get_paginated_miradore_items(
         if len(page_results) < page_size:
             return results
         page += 1
+
+
+def required_int_id(item: dict[str, Any], item_type: str) -> int:
+    """Return the required `ID` of a Miradore item, failing loudly when it is unusable.
+
+    The ID becomes the graph identity, so a null one would reach the ingestion `MERGE` as
+    `id: None` and corrupt the graph. Reject the record at the API boundary instead.
+    Indexing directly raises `KeyError` when the attribute is absent, and the explicit
+    check covers an `ID` that is present but not the documented Int32.
+    """
+    raw_id = item["ID"]
+    parsed = parse_int(raw_id)
+    if parsed is None:
+        raise ValueError(
+            f"Miradore returned a {item_type} whose ID is not an integer: {raw_id!r}"
+        )
+    return parsed
 
 
 def scoped_id(site_name: str, native_id: Any) -> str | None:
