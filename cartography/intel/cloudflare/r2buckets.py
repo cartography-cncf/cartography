@@ -207,7 +207,9 @@ def get_custom_domains(
             exc_info=True,
         )
         return None
-    return [domain.to_dict() for domain in response.domains]
+    # Like the bucket listing above, the SDK types `domains` as required but the
+    # API omits it for a bucket without any custom domain.
+    return [domain.to_dict() for domain in response.domains or []]
 
 
 def bucket_id(account_id: str, jurisdiction: str, bucket_name: str) -> str:

@@ -130,6 +130,22 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
         "vulnerablepackageids",
         description="Identifiers of packages affected by the vulnerability.",
     )
+    fixavailable: PropertyRef = PropertyRef(
+        "fixavailable",
+        description="Whether a fix is available through a version update: `YES`, `NO`, or `PARTIAL`.",
+    )
+    exploitavailable: PropertyRef = PropertyRef(
+        "exploitavailable",
+        description="Whether an exploit is available for the finding: `YES` or `NO`.",
+    )
+    lastknownexploitat: PropertyRef = PropertyRef(
+        "lastknownexploitat",
+        description="Timestamp of the last known exploit associated with the finding.",
+    )
+    epss_score_inspector: PropertyRef = PropertyRef(
+        "epss_score_inspector",
+        description="Exploit Prediction Scoring System (EPSS) score for the finding, as reported by Inspector.",
+    )
     region: PropertyRef = PropertyRef(
         "Region",
         set_in_kwargs=True,
