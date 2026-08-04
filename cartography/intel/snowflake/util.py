@@ -146,6 +146,21 @@ def normalize_account_id(account_id: str) -> str:
     return f"{organization.upper()}.{account.upper()}"
 
 
+def hyphenated_account_id(account_id: str) -> str:
+    """Return the ``ORGNAME-ACCOUNTNAME`` form used in key-pair JWT claims.
+
+    The JWT ``iss`` and ``sub`` claims are ``<account_identifier>.<user>``, where
+    the period is only the delimiter before the user name. Snowflake documents the
+    account identifier itself as hyphen-separated and uppercase
+    (``MYORGANIZATION-MYACCOUNT.MYUSER``), so passing the dotted SQL form would
+    produce ``MYORG.MYACCT.SVC``, which Snowflake rejects.
+
+    The graph keeps the dotted form for node ids; only the claims use this one.
+    """
+    organization, _, account = normalize_account_id(account_id).partition(".")
+    return f"{organization}-{account}"
+
+
 def account_host(account_id: str) -> str:
     """Return the API hostname for a Snowflake account identifier.
 
@@ -217,6 +232,29 @@ def sf_path_segment(name: str) -> str:
     which Snowflake answers with a 404 for any database that needs quoting.
     """
     return quote(name, safe="")
+
+
+def untag_image_path(reference: str | None) -> str | None:
+    """Strip the tag or digest suffix from an image reference.
+
+    The images endpoint reports ``image_path`` and ``SHOW SERVICE CONTAINERS``
+    reports ``image_name``, both as ``/db/schema/repo/image:tag``. The two can carry
+    different tags while pinning the same digest, so the tag has to come off before
+    the paths can be compared. Matching on the untagged path together with the digest
+    is what keeps a container attached to the one repository it actually pulled from,
+    rather than to every repository holding a copy of the same bytes.
+
+    A digest-pinned reference (``...@sha256:...``) is handled too. A colon is only
+    treated as a tag separator when it follows the last ``/``, since a registry host
+    may carry a port.
+    """
+    if not reference:
+        return None
+    path = reference.split("@", 1)[0]
+    separator = path.rfind(":")
+    if separator > path.rfind("/"):
+        path = path[:separator]
+    return path or None
 
 
 def parse_stage_url(url: str | None) -> tuple[str | None, str | None]:
@@ -387,7 +425,7 @@ class SnowflakeClient:
         """Return a freshly signed ``(assertion, expiry)`` pair."""
         private_key = self._load_private_key()
         fingerprint = self._public_key_fingerprint(private_key)
-        qualified_user = f"{self.account_id}.{self.user}"
+        qualified_user = f"{hyphenated_account_id(self.account_id)}.{self.user.upper()}"
         now = datetime.now(tz=timezone.utc)
         expiry = now + _JWT_LIFETIME
         token = jwt.encode(

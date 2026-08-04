@@ -35,6 +35,11 @@ DONUT_IMAGE_ID = (
     "SPRINGFIELD.NUCLEAR/image/SPRINGFIELD.NUCLEAR_PLANT.PLANT_IMAGES."
     f'"donut-forecaster"@{SNOWFLAKE_DONUT_IMAGE_DIGEST}'
 )
+# The same image bytes promoted into a second repository: same digest, different node.
+PROMOTED_MONORAIL_IMAGE_ID = (
+    "SPRINGFIELD.NUCLEAR/image/SPRINGFIELD.KWIK_E_MART.SQUISHEE_IMAGES."
+    f'"monorail-telemetry"@{SNOWFLAKE_MONORAIL_IMAGE_DIGEST}'
+)
 
 # The bundles the per-schema and per-repository listings produce together.
 TEST_IMAGE_REPOSITORY_BUNDLES = [
@@ -118,6 +123,27 @@ def test_sync_snowflake_image_repositories(mock_get, neo4j_session):
             148000000,
         ),
         (DONUT_IMAGE_ID, "donut-forecaster", SNOWFLAKE_DONUT_IMAGE_DIGEST, 92000000),
+        (
+            PROMOTED_MONORAIL_IMAGE_ID,
+            "monorail-telemetry",
+            SNOWFLAKE_MONORAIL_IMAGE_DIGEST,
+            148000000,
+        ),
+    }
+    # The untagged path is what disambiguates the two copies of the same digest, so a
+    # container resolves to the repository it actually pulled from.
+    assert check_nodes(
+        neo4j_session, "SnowflakeImage", ["id", "untagged_image_path"]
+    ) == {
+        (
+            MONORAIL_IMAGE_ID,
+            "/springfield/nuclear_plant/plant_images/monorail-telemetry",
+        ),
+        (DONUT_IMAGE_ID, "/springfield/nuclear_plant/plant_images/donut-forecaster"),
+        (
+            PROMOTED_MONORAIL_IMAGE_ID,
+            "/springfield/kwik_e_mart/squishee_images/monorail-telemetry",
+        ),
     }
     assert check_nodes(neo4j_session, "Image", ["id"]) >= {
         (MONORAIL_IMAGE_ID,),
@@ -146,4 +172,5 @@ def test_sync_snowflake_image_repositories(mock_get, neo4j_session):
     ) == {
         (PLANT_IMAGES_ID, MONORAIL_IMAGE_ID),
         (PLANT_IMAGES_ID, DONUT_IMAGE_ID),
+        (SQUISHEE_IMAGES_ID, PROMOTED_MONORAIL_IMAGE_ID),
     }

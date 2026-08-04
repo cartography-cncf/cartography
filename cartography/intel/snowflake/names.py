@@ -85,6 +85,49 @@ def schema_object_fqn(
     return sf_fqn(*parts)
 
 
+def share_key(provider_account: str | None, share_name: str) -> str:
+    """Build the qualified-name half of a share's node id.
+
+    A share name is only unique within the account that owns it. ``SHOW SHARES``
+    reports the bare name plus a separate ``owner_account``, so two providers can
+    both expose a share called ``SAMPLE_DATA`` to this account; keying on the name
+    alone would merge them onto one node.
+
+    The provider account is reduced to its last component because the two sources
+    that name a share qualify it differently: ``owner_account`` may be
+    organization-qualified (``SNOW.MY_TEST_ACCOUNT``) while a database's ``origin``
+    carries only the account token. Taking the account token from each is what makes
+    a share's own id and the id recomputed from ``origin`` agree.
+
+    Falls back to the bare name when the provider is unknown, which keeps a share
+    addressable rather than dropping it.
+    """
+    account_token = (
+        split_qualified_name(provider_account)[-1] if provider_account else ""
+    )
+    if not account_token:
+        return sf_fqn(share_name)
+    return sf_fqn(account_token, share_name)
+
+
+def share_key_from_origin(origin: str | None) -> str | None:
+    """Recompute a share's key from a database's ``origin`` reference.
+
+    ``origin`` is ``<provider_account>.<share_name>``, where the provider account
+    may itself be dotted, so the share name is taken as the final component and the
+    provider as the one before it. Returns None when ``origin`` is absent or has no
+    share component, so the caller suppresses the edge instead of pointing it at a
+    node that does not exist.
+    """
+    if not origin:
+        return None
+    parts = split_qualified_name(origin)
+    if not parts or not parts[-1]:
+        return None
+    provider = parts[-2] if len(parts) >= 2 else None
+    return share_key(provider, parts[-1])
+
+
 def name_list(value: Any) -> list[str]:
     """Normalise a Snowflake list-of-names field into a list of plain strings.
 

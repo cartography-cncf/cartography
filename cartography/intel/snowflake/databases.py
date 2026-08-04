@@ -13,6 +13,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.names import share_key_from_origin
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -78,14 +79,14 @@ def transform(databases: list[dict[str, Any]], account_id: str) -> list[dict[str
                 "kind": database.get("kind"),
                 "origin": origin,
                 "is_from_share": origin is not None,
-                # `origin` is a two-part PROVIDER_ACCOUNT.SHARE_NAME reference, so it
-                # is split before being rebuilt through sf_fqn; feeding it in whole
-                # would quote the dot and stop matching the share's own id. Null when
-                # the database is local, which suppresses the CREATED_FROM_SHARE edge
-                # instead of pointing it at nothing.
+                # `origin` is a PROVIDER_ACCOUNT.SHARE_NAME reference. It goes through
+                # the same share_key() the shares sync uses, so the id matches the
+                # share's own however each side qualifies the provider account. Null
+                # when the database is local, which suppresses the CREATED_FROM_SHARE
+                # edge instead of pointing it at nothing.
                 "share_id": (
-                    sf_id(account_id, "share", sf_fqn(*origin.split(".")))
-                    if origin
+                    sf_id(account_id, "share", share_qualified_name)
+                    if (share_qualified_name := share_key_from_origin(origin))
                     else None
                 ),
                 "owner": database.get("owner"),

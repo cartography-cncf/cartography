@@ -137,6 +137,15 @@ class SnowflakeImageNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Full registry path a container specification references the image by.",
     )
+    untagged_image_path: PropertyRef = PropertyRef(
+        "untagged_image_path",
+        extra_index=True,
+        description=(
+            "Registry path with the tag removed. A running container is resolved to "
+            "this plus the digest, so the same image bytes pushed to two repositories "
+            "stay two distinct images."
+        ),
+    )
     tags: PropertyRef = PropertyRef(
         "tags", description="Tags currently pointing at this image."
     )

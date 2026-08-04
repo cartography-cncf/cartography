@@ -13,6 +13,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.names import share_key
 from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.sql_values import to_text
 from cartography.intel.snowflake.util import is_sql_unavailable
@@ -64,10 +65,12 @@ def transform(
                 "is_targeted": to_bool(listing.get("is_targeted")),
                 "is_limited_trial": to_bool(listing.get("is_limited_trial")),
                 "share_name": share_name,
-                # Null for an application listing that publishes no share, which
-                # suppresses the edge instead of pointing it at a nonexistent node.
+                # A listing only ever publishes a share this account owns, so this
+                # account is the provider the share is keyed under. Null for an
+                # application listing that publishes no share, which suppresses the
+                # edge instead of pointing it at a nonexistent node.
                 "share_id": (
-                    sf_id(account_id, "share", sf_fqn(share_name))
+                    sf_id(account_id, "share", share_key(account_id, share_name))
                     if share_name
                     else None
                 ),

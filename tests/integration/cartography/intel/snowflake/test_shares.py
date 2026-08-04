@@ -1,11 +1,13 @@
 from unittest.mock import patch
 
 import cartography.intel.snowflake.account
+import cartography.intel.snowflake.databases
 import cartography.intel.snowflake.shares
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
 from tests.data.snowflake.account import SNOWFLAKE_MANAGED_ACCOUNTS
+from tests.data.snowflake.databases import SNOWFLAKE_DATABASES
 from tests.data.snowflake.shares import SNOWFLAKE_SHARE_CONSUMERS
 from tests.data.snowflake.shares import SNOWFLAKE_SHARE_GRANTS
 from tests.data.snowflake.shares import SNOWFLAKE_SHARES
@@ -81,13 +83,22 @@ def test_sync_snowflake_shares(mock_shares, mock_grants, mock_consumers, neo4j_s
 
     # Assert
     assert complete is True
+    # The two inbound shares are both called SAMPLE_DATA and come from different
+    # providers. They must stay two nodes, distinguished by owner_account: keying a
+    # share on its name alone would merge one provider's data into the other's.
     assert check_nodes(
         neo4j_session,
         "SnowflakeShare",
-        ["name", "share_kind", "shared_with_account_count"],
+        ["name", "owner_account", "share_kind", "shared_with_account_count"],
     ) == {
-        ("REACTOR_FEED", "OUTBOUND", 2),
-        ("SNOWFLAKE_SAMPLE_DATA_SHARE", "INBOUND", 0),
+        ("REACTOR_FEED", "SPRINGFIELD.NUCLEAR", "OUTBOUND", 2),
+        ("SAMPLE_DATA", "SNOW.SFC_SAMPLES", "INBOUND", 0),
+        ("SAMPLE_DATA", "SHELBYVILLE.CITYHALL", "INBOUND", 0),
+    }
+    assert check_nodes(neo4j_session, "SnowflakeShare", ["id"]) == {
+        (f"{SNOWFLAKE_ACCOUNT_ID}/share/NUCLEAR.REACTOR_FEED",),
+        (f"{SNOWFLAKE_ACCOUNT_ID}/share/SFC_SAMPLES.SAMPLE_DATA",),
+        (f"{SNOWFLAKE_ACCOUNT_ID}/share/CITYHALL.SAMPLE_DATA",),
     }
 
     # A consumer outside the organization has no node, so the raw list is the only
@@ -110,7 +121,7 @@ def test_sync_snowflake_shares(mock_shares, mock_grants, mock_consumers, neo4j_s
         rel_direction_right=False,
     ) == {
         ("REACTOR_FEED", SNOWFLAKE_ACCOUNT_ID),
-        ("SNOWFLAKE_SAMPLE_DATA_SHARE", SNOWFLAKE_ACCOUNT_ID),
+        ("SAMPLE_DATA", SNOWFLAKE_ACCOUNT_ID),
     }
 
     # The exposure edge is what turns a share into a traversable egress path.
@@ -142,6 +153,70 @@ def test_sync_snowflake_shares(mock_shares, mock_grants, mock_consumers, neo4j_s
         "SHARED_WITH",
         rel_direction_right=True,
     ) == {("REACTOR_FEED", "SHELBYVILLE_READER")}
+
+
+@patch.object(
+    cartography.intel.snowflake.databases,
+    "get",
+    return_value=SNOWFLAKE_DATABASES,
+)
+@patch.object(
+    cartography.intel.snowflake.shares,
+    "get_share_consumers",
+    side_effect=lambda client, name: SNOWFLAKE_SHARE_CONSUMERS.get(name, []),
+)
+@patch.object(
+    cartography.intel.snowflake.shares,
+    "get_share_grants",
+    side_effect=lambda client, name: SNOWFLAKE_SHARE_GRANTS.get(name, []),
+)
+@patch.object(
+    cartography.intel.snowflake.shares, "get_shares", return_value=SNOWFLAKE_SHARES
+)
+def test_inbound_share_database_links_to_the_share_the_shares_sync_built(
+    mock_shares, mock_grants, mock_consumers, mock_databases, neo4j_session
+):
+    """Run both real syncs so the two sides of CREATED_FROM_SHARE must agree.
+
+    The share id is computed from ``SHOW SHARES``' ``owner_account`` plus name, and
+    the database id from that database's ``origin``. Nothing here seeds a share node
+    by hand, so if the two derivations disagree the edge simply does not appear.
+    """
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    _ensure_local_neo4j_has_test_managed_accounts(neo4j_session)
+    _seed_shared_objects(neo4j_session)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+    }
+
+    # Act
+    cartography.intel.snowflake.shares.sync(
+        neo4j_session, client, common_job_parameters
+    )
+    cartography.intel.snowflake.databases.sync(
+        neo4j_session, client, None, common_job_parameters
+    )
+
+    # Assert: SNOWFLAKE_SAMPLE_DATA has origin SFC_SAMPLES.SAMPLE_DATA, and the share
+    # it names was reported by SHOW SHARES as name=SAMPLE_DATA with
+    # owner_account=SNOW.SFC_SAMPLES. The edge resolving proves both sides reduce the
+    # provider account the same way.
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeDatabase",
+        "name",
+        "SnowflakeShare",
+        "id",
+        "CREATED_FROM_SHARE",
+    ) == {
+        (
+            "SNOWFLAKE_SAMPLE_DATA",
+            f"{SNOWFLAKE_ACCOUNT_ID}/share/SFC_SAMPLES.SAMPLE_DATA",
+        )
+    }
 
 
 @patch.object(cartography.intel.snowflake.shares, "get_shares", return_value=None)

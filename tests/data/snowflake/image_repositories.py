@@ -70,5 +70,19 @@ SNOWFLAKE_IMAGES_BY_REPOSITORY: dict[str, Any] = {
             "uploaded_on": "2026-08-03T17:46:00.000+00:00",
         },
     ],
-    "SQUISHEE_IMAGES": [],
+    # The same image bytes promoted into a second repository, so the digest is shared
+    # with PLANT_IMAGES. A container pulling from plant_images must attach only to the
+    # plant_images copy, which is why HAS_IMAGE matches on the untagged path too.
+    "SQUISHEE_IMAGES": [
+        {
+            "image_name": "monorail-telemetry",
+            "tags": ["v3"],
+            "digest": SNOWFLAKE_MONORAIL_IMAGE_DIGEST,
+            "image_path": (
+                "/springfield/kwik_e_mart/squishee_images/monorail-telemetry:v3"
+            ),
+            "size": 148000000,
+            "uploaded_on": "2026-08-03T17:47:00.000+00:00",
+        },
+    ],
 }

@@ -223,7 +223,10 @@ def test_sync_snowflake_services(mock_get, neo4j_session):
         "USES_INTEGRATION",
         rel_direction_right=True,
     ) == {(MONORAIL_SERVICE_ID, DUFF_API_ACCESS_ID)}
-    # Matching on digest is what ties running code to the exact image it came from.
+    # Matching on the untagged registry path *and* the digest ties running code to the
+    # exact image it came from. The seeded repositories hold two copies of this digest,
+    # one in PLANT_IMAGES and one promoted into SQUISHEE_IMAGES; a digest-only matcher
+    # would attach both containers to both copies and double this set.
     assert check_rels(
         neo4j_session,
         "SnowflakeServiceContainer",
