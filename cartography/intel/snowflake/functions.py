@@ -25,6 +25,7 @@ from cartography.intel.snowflake.util import datatype_of
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.function import SnowflakeFunctionSchema
@@ -48,7 +49,7 @@ def get(
         try:
             functions.extend(
                 client.list_all(
-                    f"/api/v2/databases/{database_name}/schemas/{schema_name}/{endpoint}",
+                    f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/{endpoint}",
                 ),
             )
         except requests.HTTPError as error:

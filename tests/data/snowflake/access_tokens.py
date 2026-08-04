@@ -34,8 +34,9 @@ SNOWFLAKE_ACCESS_TOKENS: list[dict[str, Any]] = [
         "rotated_to": "scram_ingest_v2",
     },
     {
-        # A token whose user is not in the graph, so its ownership edge is omitted
-        # rather than dangling.
+        # An expired token still owned by a disabled user, which is the shape a
+        # leftover contractor credential takes. It proves the ownership edge is
+        # built from the token's own user_name rather than only for active users.
         "name": "retired_contractor",
         "user_name": "SMITHERS",
         "role_restriction": "",

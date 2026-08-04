@@ -21,6 +21,7 @@ from cartography.intel.snowflake.util import normalize_account_id
 from cartography.intel.snowflake.util import parse_stage_url
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.intel.snowflake.util import SnowflakeSqlError
@@ -381,6 +382,20 @@ def test_sf_fqn_quotes_only_non_uppercase_identifiers():
     assert sf_fqn("PROD", "1DB") == 'PROD."1DB"'
     with pytest.raises(ValueError):
         sf_fqn("PROD", "")
+
+
+def test_sf_path_segment_escapes_url_significant_characters():
+    # A plain identifier is left alone, so the common case produces a readable URL.
+    assert sf_path_segment("PROD") == "PROD"
+    assert sf_path_segment("MY_DB$1") == "MY_DB%241"
+    # A quoted Snowflake name may contain characters that are structural in a URL.
+    # Each has to be escaped, or the request addresses a different endpoint.
+    assert sf_path_segment("my/db") == "my%2Fdb"
+    assert sf_path_segment("prod?1") == "prod%3F1"
+    assert sf_path_segment("a b") == "a%20b"
+    assert sf_path_segment("d#1") == "d%231"
+    # Not the dotted quoted form: the REST path wants the raw name.
+    assert sf_path_segment("sales") == "sales"
 
 
 def test_parse_stage_url():

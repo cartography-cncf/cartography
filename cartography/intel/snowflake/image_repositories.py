@@ -21,6 +21,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.image_repository import SnowflakeImageRepositorySchema
@@ -39,7 +40,7 @@ def get_schema_image_repositories(
     """Image repositories of one schema, or None when the schema is not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/schemas/{schema_name}"
+            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}"
             "/image-repositories",
         )
     except requests.HTTPError as error:
@@ -63,8 +64,8 @@ def get_repository_images(
     """Images of one repository, or None when the repository is not readable."""
     try:
         return client.list_all(
-            f"/api/v2/databases/{database_name}/schemas/{schema_name}"
-            f"/image-repositories/{repository_name}/images",
+            f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}"
+            f"/image-repositories/{sf_path_segment(repository_name)}/images",
         )
     except requests.HTTPError as error:
         skip_or_raise_http(error, 403, 404)

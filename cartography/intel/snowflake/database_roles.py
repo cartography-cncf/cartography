@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
+from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.models.snowflake.role import SnowflakeDatabaseRoleSchema
@@ -34,11 +35,7 @@ def get(
         database_name = database["name"]
         try:
             roles = client.list_all(
-                # The path segment carries the raw database name, matching every
-                # other schema-scoped call in this module. Passing it through sf_fqn
-                # would embed literal double quotes in the URL, which Snowflake
-                # answers with a 404 for any database that needs quoting.
-                f"/api/v2/databases/{database_name}/database-roles",
+                f"/api/v2/databases/{sf_path_segment(database_name)}/database-roles",
             )
         except requests.HTTPError as error:
             skip_or_raise_http(error, 403, 404)
