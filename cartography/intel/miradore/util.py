@@ -1,0 +1,173 @@
+import logging
+from datetime import datetime
+from typing import Any
+
+import requests
+import xmltodict
+
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
+# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (60, 60)
+_DEFAULT_PAGE_SIZE = 500
+# Miradore formats dates with a .NET format string. Pin it to an unambiguous, sortable
+# layout instead of the default `dd.MM.yyyy HH:mm:ss`. A literal `T` would need escaping
+# in a .NET format string, so use a space separator.
+_API_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss"
+_PYTHON_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+_TRUE_VALUES = {"true", "1", "yes"}
+_FALSE_VALUES = {"false", "0", "no"}
+
+
+def get_http_status_code(err: requests.HTTPError) -> int | None:
+    if err.response is None:
+        return None
+    return err.response.status_code
+
+
+@timeit
+def create_miradore_api_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update({"Accept": "application/xml"})
+    return session
+
+
+def _build_item_uri(base_uri: str, site_name: str, item: str) -> str:
+    return f"{base_uri.rstrip('/')}/{site_name}/API/{item}"
+
+
+def _build_options(page: int, page_size: int) -> str:
+    return f"rows={page_size},page={page},dateformat={_API_DATE_FORMAT}"
+
+
+def _extract_items(payload: dict[str, Any], item: str) -> list[dict[str, Any]]:
+    """Pull the `<Item>` elements out of a parsed `<Content><Items>` document.
+
+    xmltodict collapses a single repeated element into a dict rather than a one-element
+    list, and omits the key entirely when the page is empty, so normalize both here.
+    """
+    items = (payload.get("Content") or {}).get("Items")
+    if not items:
+        return []
+    entries = items.get(item)
+    if entries is None:
+        return []
+    if isinstance(entries, list):
+        return entries
+    return [entries]
+
+
+@timeit
+def get_paginated_miradore_items(
+    api_session: requests.Session,
+    base_uri: str,
+    site_name: str,
+    api_key: str,
+    item: str,
+    select: str,
+    page_size: int = _DEFAULT_PAGE_SIZE,
+) -> list[dict[str, Any]]:
+    """Fetch every page of a Miradore API v1 `get` operation for the given item type."""
+    uri = _build_item_uri(base_uri, site_name, item)
+    page = 1
+    results: list[dict[str, Any]] = []
+
+    while True:
+        # The API key travels in the query string, so it must only ever be passed via
+        # `params`. Never interpolate it into a URI that could reach a log line.
+        params = {
+            "auth": api_key,
+            "select": select,
+            "options": _build_options(page, page_size),
+        }
+        try:
+            response = api_session.get(uri, params=params, timeout=_TIMEOUT)
+        except requests.exceptions.Timeout:
+            logger.warning(
+                "Miradore: requests.get('%s') timed out on page %d.",
+                uri,
+                page,
+            )
+            raise
+        response.raise_for_status()
+
+        page_results = _extract_items(xmltodict.parse(response.text), item)
+        results.extend(page_results)
+        if len(page_results) < page_size:
+            return results
+        page += 1
+
+
+def scoped_id(site_name: str, native_id: Any) -> str | None:
+    """Build a graph identity that is unique across Miradore tenants.
+
+    Miradore numbers items per tenant, so `Device` 1001 exists in every site. The graph
+    merges nodes on `id` alone, so the raw API identifier would make two sites overwrite
+    each other's devices and cross-wire their relationships. Prefix it with the site name,
+    which cannot itself contain a `/`, so the composition stays unambiguous.
+    """
+    if native_id is None:
+        return None
+    return f"{site_name}/{native_id}"
+
+
+def get_nested(data: dict[str, Any], *keys: str) -> Any:
+    current: Any = data
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def as_list(value: Any) -> list[Any]:
+    """Normalize a Miradore `List` typed attribute into a list.
+
+    xmltodict returns a dict for a single child element and omits the key when the list
+    is empty, so callers cannot assume a list.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def parse_datetime(value: Any) -> datetime | None:
+    """Parse a Miradore date-time rendered with `_API_DATE_FORMAT`."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.strptime(value.strip(), _PYTHON_DATE_FORMAT)
+    except ValueError:
+        logger.warning("Miradore: could not parse '%s' as a date-time.", value)
+        return None
+
+
+def parse_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return int(value.strip())
+    except ValueError:
+        logger.warning("Miradore: could not parse '%s' as an integer.", value)
+        return None
+
+
+def parse_bool(value: Any) -> bool | None:
+    """Parse a Miradore `Boolean` attribute, which xmltodict surfaces as a string."""
+    if isinstance(value, bool):
+        return value
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    if normalized in _TRUE_VALUES:
+        return True
+    if normalized in _FALSE_VALUES:
+        return False
+    return None

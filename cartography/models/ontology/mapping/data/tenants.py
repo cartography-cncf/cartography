@@ -720,6 +720,23 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+miradore_mapping = OntologyMapping(
+    module_name="miradore",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="MiradoreTenant",
+            fields=[
+                # The site name is the only identity Miradore exposes for a tenant.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -741,6 +758,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
+    "miradore": miradore_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,

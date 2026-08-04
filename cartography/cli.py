@@ -58,6 +58,7 @@ PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
+PANEL_MIRADORE = "Miradore Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
@@ -118,6 +119,7 @@ MODULE_PANELS = {
     "crowdstrike": PANEL_CROWDSTRIKE,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
+    "miradore": PANEL_MIRADORE,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
@@ -1030,6 +1032,36 @@ class CLI:
                     help="Environment variable name containing Kandji API token.",
                     rich_help_panel=PANEL_KANDJI,
                     hidden=PANEL_KANDJI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Miradore Options
+            # =================================================================
+            miradore_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-base-uri",
+                    help="Miradore base URI. Defaults to https://online.miradore.com.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_site_name: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-site-name",
+                    help="Miradore site name, which identifies the tenant.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-api-key-env-var",
+                    help="Environment variable name containing the Miradore API authentication key.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2606,6 +2638,25 @@ class CLI:
                         "A Kandji base URI was provided but a token was not."
                     )
 
+            # Read Miradore API key
+            miradore_api_key = None
+            if miradore_site_name:
+                if miradore_api_key_env_var:
+                    logger.debug(
+                        "Reading Miradore API key from environment variable %s",
+                        miradore_api_key_env_var,
+                    )
+                    miradore_api_key = os.environ.get(miradore_api_key_env_var)
+                elif os.environ.get("MIRADORE_API_KEY"):
+                    logger.debug(
+                        "Reading Miradore API key from environment variable MIRADORE_API_KEY",
+                    )
+                    miradore_api_key = os.environ.get("MIRADORE_API_KEY")
+                else:
+                    logger.warning(
+                        "A Miradore site name was provided but an API key was not."
+                    )
+
             if statsd_enabled:
                 logger.debug(
                     "statsd enabled. Sending metrics to server %s:%d. Metrics have prefix '%s'.",
@@ -3194,6 +3245,9 @@ class CLI:
                 kandji_base_uri=kandji_base_uri,
                 kandji_tenant_id=kandji_tenant_id,
                 kandji_token=kandji_token,
+                miradore_base_uri=miradore_base_uri,
+                miradore_site_name=miradore_site_name,
+                miradore_api_key=miradore_api_key,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
