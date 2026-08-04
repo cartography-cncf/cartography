@@ -37,6 +37,7 @@ from typing import Any
 from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.sql_values import to_text
 from cartography.intel.snowflake.util import is_sql_unavailable
+from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.intel.snowflake.util import SnowflakeSqlError
 from cartography.intel.snowflake.util import warn_unavailable
@@ -175,12 +176,20 @@ def split_grants(
     grants_of_by_role: dict[str, list[dict[str, Any]]] = {}
 
     for row in grants_to_roles:
-        grantee = to_text(row.get("grantee_name"))
+        raw_grantee = to_text(row.get("grantee_name"))
         privilege = to_text(row.get("privilege"))
         granted_on = to_text(row.get("granted_on"))
         name = to_text(row.get("name"))
-        if not grantee or not privilege or not granted_on or not name:
+        if not raw_grantee or not privilege or not granted_on or not name:
             continue
+        # The grantee keys both structures and is turned into a node id downstream,
+        # so it has to be spelled the way the role node's own id was built. GRANTED_TO
+        # says which kind it is, which is more reliable than looking for a dot: an
+        # account role name may legally contain one.
+        grantee = normalize_role_reference(
+            raw_grantee,
+            is_database_role=to_text(row.get("granted_to")) == DATABASE_ROLE,
+        )
 
         grants_by_role.setdefault(grantee, []).append(
             {
@@ -211,14 +220,16 @@ def split_grants(
             )
 
     for row in grants_to_users:
+        # GRANTS_TO_USERS only ever grants account roles, whose ids are built from the
+        # bare name, so neither value needs requalifying.
         role = to_text(row.get("role"))
-        grantee = to_text(row.get("grantee_name"))
-        if not role or not grantee:
+        user_name = to_text(row.get("grantee_name"))
+        if not role or not user_name:
             continue
         grants_of_by_role.setdefault(role, []).append(
             {
                 "role": role,
-                "grantee_name": grantee,
+                "grantee_name": user_name,
                 # This view holds nothing but user assignments, and older rows leave
                 # granted_to empty, so it is asserted rather than read.
                 "granted_to": "USER",
@@ -239,4 +250,37 @@ def _granted_role_name(row: dict[str, Any], granted_on: str, name: str) -> str:
     if granted_on != DATABASE_ROLE:
         return name
     database = to_text(row.get("table_catalog"))
-    return f"{database}.{name}" if database and "." not in name else name
+    if not database:
+        # Already database-qualified in NAME, so only the quoting has to be rebuilt.
+        return normalize_role_reference(name, is_database_role=True)
+    return sf_fqn(database, name)
+
+
+def normalize_role_reference(reference: str, is_database_role: bool) -> str:
+    """Spell a role reference the way the role node's own id was built.
+
+    The two role kinds are keyed differently, so this cannot be uniform:
+
+    - An account role's id is built from its bare name exactly as reported, so the
+      reference is returned untouched.
+    - A database role's id is built from ``sf_fqn(database, name)``, which quotes any
+      component that is not a plain uppercase identifier. ``ACCOUNT_USAGE`` reports
+      the pair unquoted as ``mydb.myrole``, so without rebuilding it through
+      ``sf_fqn`` a database role created with a quoted, non-uppercase name silently
+      loses every hierarchy and privilege edge: the MatchLink matches nothing.
+
+    The components are the *stored* names rather than SQL source text, so they are
+    split on the dot and passed to ``sf_fqn`` verbatim. They are deliberately not run
+    through ``split_qualified_name``, which folds an unquoted component to uppercase
+    and would corrupt a legitimately lowercase stored name.
+
+    A stored name containing a literal dot cannot be told apart from the
+    database/role separator in this view, so it is left as reported rather than
+    guessed at.
+    """
+    if not is_database_role:
+        return reference
+    parts = reference.split(".")
+    if len(parts) != 2 or not all(parts):
+        return reference
+    return sf_fqn(*parts)
