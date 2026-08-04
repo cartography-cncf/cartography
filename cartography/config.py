@@ -301,6 +301,12 @@ class Config:
         visible to the token is synced. Optional.
     :type railway_base_url: str
     :param railway_base_url: Railway GraphQL API base URL. Optional.
+    :type netlify_token: str
+    :param netlify_token: Netlify personal access token. Optional.
+    :type netlify_account_slug: str
+    :param netlify_account_slug: Netlify team slug to sync. Optional.
+    :type netlify_base_url: str
+    :param netlify_base_url: Netlify API base URL. Optional.
     :type circleci_token: str
     :param circleci_token: CircleCI personal API token. Optional.
     :type circleci_base_url: str
@@ -652,6 +658,9 @@ class Config:
         microsoft_tenant_id=None,
         microsoft_client_id=None,
         microsoft_client_secret=None,
+        netlify_token=None,
+        netlify_account_slug=None,
+        netlify_base_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -778,6 +787,9 @@ class Config:
         self.railway_token = railway_token
         self.railway_workspace_id = railway_workspace_id
         self.railway_base_url = railway_base_url
+        self.netlify_token = netlify_token
+        self.netlify_account_slug = netlify_account_slug
+        self.netlify_base_url = netlify_base_url
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs

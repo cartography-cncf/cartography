@@ -559,6 +559,35 @@ workos_useraccounts_mapping = OntologyMapping(
 # inactive
 # lastactivity
 
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="full_name"),
+                # Netlify returns one `full_name` string and never splits it, so firstname and
+                # lastname stay unmapped rather than guessed from a space.
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="mfa_enabled"
+                ),
+                # active: not available at the identity level. Netlify's only signal is
+                # `pending`, which is true while an invitation to one specific team is
+                # outstanding. It lives on the MEMBER_OF edge, because a shared identity may be
+                # pending in one team and accepted in another, so projecting it onto the node
+                # would let whichever team synced last decide the answer. Ask
+                # `(:NetlifyUser)-[r:MEMBER_OF]->(:NetlifyAccount) WHERE NOT r.pending` instead.
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_activity_date"
+                ),
+            ],
+        ),
+    ],
+)
+
 subimage_mapping = OntologyMapping(
     module_name="subimage",
     nodes=[
@@ -733,6 +762,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,
+    "netlify": netlify_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
         nodes=[
