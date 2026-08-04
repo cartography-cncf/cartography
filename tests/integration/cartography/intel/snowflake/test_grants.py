@@ -7,6 +7,10 @@ import cartography.intel.snowflake.roles
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
 from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
 from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS
+from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE
+from tests.data.snowflake.roles import (
+    SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE_GRANTS,
+)
 from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_ROLES
 from tests.data.snowflake.roles import SNOWFLAKE_ROLE_GRANTS
 from tests.data.snowflake.roles import SNOWFLAKE_ROLE_GRANTS_OF
@@ -445,3 +449,100 @@ def test_database_roles_sync_reads_account_usage_for_every_database(
         neo4j_session, "SnowflakeDatabaseRole", ["name", "qualified_name"]
     ) == {("TELEMETRY_READER", "SPRINGFIELD_DB.TELEMETRY_READER")}
     assert len(database_roles) == 1
+
+
+def test_both_grant_paths_produce_the_same_edges():
+    """The two sources must agree, or the fallback silently changes the graph.
+
+    The ACCOUNT_USAGE fixture describes the same account as the REST fixture, so
+    running each through its own reshaping and then the shared transform has to yield
+    identical edge sets. This is what stops the two paths drifting apart.
+    """
+    # Arrange
+    rest_grants, _ = cartography.intel.snowflake.grants.transform_grants(
+        SNOWFLAKE_ROLE_GRANTS, set(), SNOWFLAKE_ACCOUNT_ID
+    )
+    account_usage_by_role, _ = cartography.intel.snowflake.account_usage.split_grants(
+        SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES, []
+    )
+
+    # Act
+    usage_grants, _ = cartography.intel.snowflake.grants.transform_grants(
+        account_usage_by_role, set(), SNOWFLAKE_ACCOUNT_ID
+    )
+
+    # Assert: the same (principal, securable, privileges) triples from both sources.
+    # The REST fixture carries one grant on an object type Cartography does not model,
+    # which both paths drop, so it is absent from each side rather than excluded here.
+    def as_set(edges):
+        return {
+            (edge["principal_id"], edge["securable_id"], tuple(edge["privileges"]))
+            for edge in edges
+        }
+
+    # The role-hierarchy USAGE-on-ROLE rows only exist in the ACCOUNT_USAGE view, so
+    # compare the object privileges the two sources both describe.
+    role_securables = {
+        f"{SNOWFLAKE_ACCOUNT_ID}/role/SYSADMIN",
+        f"{SNOWFLAKE_ACCOUNT_ID}/role/SAFETY_INSPECTOR",
+    }
+    assert as_set(rest_grants) == {
+        edge for edge in as_set(usage_grants) if edge[1] not in role_securables
+    }
+
+
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_users",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_roles",
+    return_value=SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE_GRANTS,
+)
+def test_quoted_database_role_keeps_its_grant_edges(
+    mock_to_roles, mock_to_users, neo4j_session
+):
+    """A database role created with a quoted, lowercase name must still resolve.
+
+    ACCOUNT_USAGE reports the pair unquoted (`springfield_db.telemetry_peek`) while
+    the node id is built through sf_fqn as `"springfield_db"."telemetry_peek"`. Without
+    requalifying, the principal never matches and the privilege edge vanishes.
+    """
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+    database_roles = cartography.intel.snowflake.database_roles.transform(
+        cartography.intel.snowflake.account_usage.split_roles(
+            SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE
+        )[1],
+        SNOWFLAKE_ACCOUNT_ID,
+    )
+    cartography.intel.snowflake.database_roles.load_database_roles(
+        neo4j_session, database_roles, SNOWFLAKE_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+
+    # Act
+    cartography.intel.snowflake.grants.sync(
+        neo4j_session,
+        client,
+        [],
+        service_user_names=set(),
+        database_roles=database_roles,
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+        },
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeDatabaseRole",
+        "qualified_name",
+        "SnowflakeTable",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {('"springfield_db"."telemetry_peek"', "REACTOR_READINGS")}

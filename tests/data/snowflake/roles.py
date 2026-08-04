@@ -271,6 +271,30 @@ SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES: list[dict[str, Any]] = [
         "created_on": "2026-08-03T15:28:07.568+00:00",
     },
     {
+        "privilege": "CREATE COMPUTE POOL",
+        "granted_on": "ACCOUNT",
+        "name": SNOWFLAKE_ACCOUNT_LOCATOR,
+        "table_catalog": None,
+        "table_schema": None,
+        "granted_to": "ACCOUNT ROLE",
+        "grantee_name": "SYSADMIN",
+        "grant_option": "false",
+        "granted_by": "",
+        "created_on": "2026-08-03T15:28:07.567+00:00",
+    },
+    {
+        "privilege": "USAGE",
+        "granted_on": "DATABASE",
+        "name": "SPRINGFIELD_DB",
+        "table_catalog": None,
+        "table_schema": None,
+        "granted_to": "ACCOUNT ROLE",
+        "grantee_name": "SAFETY_INSPECTOR",
+        "grant_option": "false",
+        "granted_by": "USERADMIN",
+        "created_on": "2026-08-03T15:42:00.000+00:00",
+    },
+    {
         "privilege": "SELECT",
         "granted_on": "TABLE",
         "name": "REACTOR_READINGS",
@@ -330,5 +354,36 @@ SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS: list[dict[str, Any]] = [
         "grantee_name": "SCRAM_BOT",
         "granted_by": "USERADMIN",
         "created_on": "2026-08-03T15:47:00.000+00:00",
+    },
+]
+
+# A database role whose stored name is lowercase, meaning it was created quoted.
+# ACCOUNT_USAGE reports the pair unquoted as `springfield_db.telemetry_peek`, while
+# the role node's id is built through sf_fqn as `"springfield_db"."telemetry_peek"`.
+# Requalifying is what keeps its grant edges attached.
+SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE: list[dict[str, Any]] = [
+    {
+        "name": "telemetry_peek",
+        "role_type": "DATABASE_ROLE",
+        "role_database_name": "springfield_db",
+        "owner": "USERADMIN",
+        "owner_role_type": "ROLE",
+        "comment": "Created with a quoted, lowercase name",
+        "created_on": "2026-08-03T15:50:00.000+00:00",
+    },
+]
+
+SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE_GRANTS: list[dict[str, Any]] = [
+    {
+        "privilege": "SELECT",
+        "granted_on": "TABLE",
+        "name": "REACTOR_READINGS",
+        "table_catalog": "SPRINGFIELD_DB",
+        "table_schema": "NUCLEAR_PLANT",
+        "granted_to": "DATABASE_ROLE",
+        "grantee_name": "springfield_db.telemetry_peek",
+        "grant_option": "false",
+        "granted_by": "USERADMIN",
+        "created_on": "2026-08-03T15:51:00.000+00:00",
     },
 ]
