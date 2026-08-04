@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def extract_identity_principal_ids(identity: Any) -> list[str]:
     return list(dict.fromkeys(ids))
 
 
-def copy_properties(data: dict, mapping: dict[str, tuple[str, ...]]) -> dict:
+def copy_properties(data: dict, mapping: Mapping[str, tuple[str, ...]]) -> dict:
     """
     Lift fields out of an ARM `properties` block onto the top level of `data`.
 
@@ -55,7 +56,7 @@ def copy_properties(data: dict, mapping: dict[str, tuple[str, ...]]) -> dict:
     return data
 
 
-def rename_keys(data: Any, mapping: dict[str, str]) -> Any:
+def rename_keys(data: Any, mapping: Mapping[str, str]) -> Any:
     """
     Alias camelCase wire keys of a nested ARM object to the snake_case names the graph
     models read. Returns `data` untouched when it is not a dict, so callers can pipe
