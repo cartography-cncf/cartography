@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake import account_usage
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import SnowflakeClient
@@ -83,18 +84,42 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 def sync(
     neo4j_session: neo4j.Session,
     client: SnowflakeClient,
+    account_usage_roles: list[dict[str, Any]] | None,
     common_job_parameters: dict,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """Sync Snowflake account roles and return them for the grant syncs to walk.
 
     Runs early: users, the role hierarchy and every grant edge resolve against
     role nodes, and the grant syncs need the role list to know what to enumerate.
+
+    Returns ``(roles, complete)``. ``complete`` is only True on the ACCOUNT_USAGE
+    path, because ``/api/v2/roles`` follows ``SHOW ROLES`` visibility: without
+    ``MANAGE GRANTS`` it returns a successful but partial list, indistinguishable
+    from a full one. Reporting that as complete is what would let cleanup delete
+    roles the collector simply could not see, so the REST path reports incomplete
+    and the caller skips role cleanup.
     """
-    roles = transform(get(client), client.account_id)
+    if account_usage_roles is not None:
+        raw_roles, _ = account_usage.split_roles(account_usage_roles)
+        complete = True
+        logger.info(
+            "Reading Snowflake roles from ACCOUNT_USAGE, which is account-wide.",
+        )
+    else:
+        raw_roles = get(client)
+        complete = False
+        logger.warning(
+            "Reading Snowflake roles from the object API, which only returns roles "
+            "visible to the collector role. Completeness cannot be established, so "
+            "role cleanup will be skipped. Grant IMPORTED PRIVILEGES ON DATABASE "
+            "SNOWFLAKE to read the account-wide ACCOUNT_USAGE views instead.",
+        )
+
+    roles = transform(raw_roles, client.account_id)
     logger.info(
         "Loading %d Snowflake roles for account %s.", len(roles), client.account_id
     )
     load_roles(
         neo4j_session, roles, client.account_id, common_job_parameters["UPDATE_TAG"]
     )
-    return roles
+    return roles, complete

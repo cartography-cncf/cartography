@@ -8,6 +8,7 @@ from cartography.intel.snowflake import access_tokens
 from cartography.intel.snowflake import account
 from cartography.intel.snowflake import account_grants
 from cartography.intel.snowflake import account_parameters
+from cartography.intel.snowflake import account_usage
 from cartography.intel.snowflake import alerts
 from cartography.intel.snowflake import api_integrations
 from cartography.intel.snowflake import artifact_repositories
@@ -343,9 +344,23 @@ def start_snowflake_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     # Identity. Roles precede users and database roles, and both precede the grant
     # sync that connects them.
-    role_list = roles.sync(neo4j_session, client, common_job_parameters)
+    #
+    # ACCOUNT_USAGE.ROLES is read once here and handed to both role syncs. It is the
+    # authoritative source: the object API follows SHOW ROLES visibility and so can
+    # return a partial list that looks complete, which would let cleanup delete roles
+    # the collector merely could not see. None means the views are unreadable, and
+    # both syncs then fall back to the object API and report incomplete.
+    account_usage_roles = account_usage.get_roles(client)
+    role_list, complete = roles.sync(
+        neo4j_session, client, account_usage_roles, common_job_parameters
+    )
+    record("roles", complete)
     database_role_list, complete = database_roles.sync(
-        neo4j_session, client, walkable_databases, common_job_parameters
+        neo4j_session,
+        client,
+        walkable_databases,
+        account_usage_roles,
+        common_job_parameters,
     )
     record("database_roles", complete)
     humans, service_users = users.sync(neo4j_session, client, common_job_parameters)

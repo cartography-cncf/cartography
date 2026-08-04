@@ -19,6 +19,7 @@ import requests
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake import account_usage
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -380,41 +381,42 @@ def cleanup(
 
 
 @timeit
-def sync(
-    neo4j_session: neo4j.Session,
+def _walk_rest(
     client: SnowflakeClient,
     roles: list[dict[str, Any]],
-    service_user_names: set[str],
     database_roles: list[dict[str, Any]],
-    common_job_parameters: dict,
-) -> bool:
-    """Materialise every grant, role assignment and role-hierarchy edge.
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    bool,
+]:
+    """Read every grant through the per-role REST endpoints.
 
-    Runs last, after every principal and grantable object is in the graph, so the
-    edges resolve on the first pass.
+    Two requests per account role and two per database role, so this is the
+    expensive path as well as the incomplete one: it only sees what the collector's
+    role can see. It exists for accounts where ``ACCOUNT_USAGE`` is not readable.
 
-    Returns whether the walk was complete. When any role could not be read, the
-    caller skips grant cleanup rather than deleting edges it merely failed to
-    re-read this run.
+    The third return value says whether every request *succeeded*, which is not the
+    same as whether the result is complete: a role the collector cannot see is absent
+    from the role list in the first place, so no request is ever made for it. It is
+    reported only so the caller can log the difference between "some reads were
+    refused" and "the reads worked but cannot be trusted to be exhaustive".
     """
-    account_id = client.account_id
-    database_role_names = {role["qualified_name"] for role in database_roles}
-
     grants_by_role: dict[str, list[dict[str, Any]]] = {}
     grants_of_by_role: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    complete = True
+    all_requests_succeeded = True
 
     for role in roles:
         name = role["name"]
         grants = get_role_grants(client, name)
         if grants is None:
-            complete = False
+            all_requests_succeeded = False
         else:
             grants_by_role[name] = grants
 
         grants_of = get_role_grants_of(client, name)
         if grants_of is None:
-            complete = False
+            all_requests_succeeded = False
         else:
             grants_of_by_role[name].extend(grants_of)
 
@@ -428,7 +430,7 @@ def sync(
 
         database_grants = get_database_role_grants(client, database_name, role_name)
         if database_grants is None:
-            complete = False
+            all_requests_succeeded = False
         else:
             grants_by_role[qualified_name] = database_grants
 
@@ -436,9 +438,73 @@ def sync(
             client, database_name, role_name
         )
         if database_grants_of is None:
-            complete = False
+            all_requests_succeeded = False
         else:
             grants_of_by_role[qualified_name].extend(database_grants_of)
+
+    return grants_by_role, grants_of_by_role, all_requests_succeeded
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    client: SnowflakeClient,
+    roles: list[dict[str, Any]],
+    service_user_names: set[str],
+    database_roles: list[dict[str, Any]],
+    common_job_parameters: dict,
+    use_account_usage: bool = True,
+) -> bool:
+    """Materialise every grant, role assignment and role-hierarchy edge.
+
+    Runs last, after every principal and grantable object is in the graph, so the
+    edges resolve on the first pass.
+
+    Two queries against ``ACCOUNT_USAGE`` replace the per-role REST walk when the
+    views are readable. That is both complete, because the views are account-wide
+    rather than visibility-filtered, and dramatically cheaper: the REST path issues
+    two requests per role, which on a large account is thousands of paginated calls.
+
+    Returns whether the grant graph is known to be complete. On the REST path a role
+    the collector cannot see produces no rows and no error, so completeness cannot be
+    established and the caller skips grant cleanup rather than deleting edges that are
+    still valid.
+    """
+    account_id = client.account_id
+    database_role_names = {role["qualified_name"] for role in database_roles}
+
+    grants_to_roles = (
+        account_usage.get_grants_to_roles(client) if use_account_usage else None
+    )
+    grants_to_users = (
+        account_usage.get_grants_to_users(client) if use_account_usage else None
+    )
+
+    if grants_to_roles is not None and grants_to_users is not None:
+        grants_by_role, grants_of_by_role = account_usage.split_grants(
+            grants_to_roles, grants_to_users
+        )
+        complete = True
+        logger.info(
+            "Read %d Snowflake grant rows and %d role assignment rows from "
+            "ACCOUNT_USAGE for account %s.",
+            len(grants_to_roles),
+            len(grants_to_users),
+            account_id,
+        )
+    else:
+        grants_by_role, grants_of_by_role, complete = _walk_rest(
+            client, roles, database_roles
+        )
+        logger.warning(
+            "Reading Snowflake grants through the per-role object API because "
+            "ACCOUNT_USAGE is not readable. This only sees grants visible to the "
+            "collector role, so grant cleanup will be skipped. Grant IMPORTED "
+            "PRIVILEGES ON DATABASE SNOWFLAKE for the account-wide view.",
+        )
+        # A partial REST walk cannot be told apart from a complete one, so it never
+        # claims completeness even when every request happened to succeed.
+        complete = False
 
     grants, unmodelled = transform_grants(
         grants_by_role, database_role_names, account_id
@@ -465,7 +531,7 @@ def sync(
 
     if not complete:
         logger.warning(
-            "Some Snowflake roles could not be read; skipping grant cleanup so "
-            "still-valid edges are not deleted.",
+            "The Snowflake grant graph is not known to be complete; skipping grant "
+            "cleanup so still-valid edges are not deleted.",
         )
     return complete

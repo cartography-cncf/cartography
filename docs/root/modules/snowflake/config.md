@@ -158,21 +158,33 @@ GRANT USAGE ON FUTURE SCHEMAS IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON FUTURE TABLES IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
 ```
 
-This set is entirely read-only. With it, Cartography reads users, roles, the role
-hierarchy and grants from `SNOWFLAKE.ACCOUNT_USAGE`, which lags real time by up
-to two hours but requires no privilege that can modify anything.
+This set is entirely read-only. With it, Cartography reads roles, database roles,
+the role hierarchy and every grant from `SNOWFLAKE.ACCOUNT_USAGE`
+(`ROLES`, `GRANTS_TO_ROLES` and `GRANTS_TO_USERS`), which lags real time by up to
+two hours but requires no privilege that can modify anything.
+
+`IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE` is the one grant in that list you
+should not drop. The object API and `SHOW ROLES` return only the roles the
+collector's own role can see, and a partial answer is indistinguishable from a
+complete one, so without the `ACCOUNT_USAGE` views Cartography cannot establish
+that it saw every role. It then keeps the data it has and skips role, database
+role and grant cleanup rather than risk deleting roles it merely could not see.
+The graph stays correct, but stale roles are never removed.
 
 ## Optional Permissions
 
 | Privilege | Enables | Cost of granting |
 |---|---|---|
-| `MANAGE GRANTS ON ACCOUNT` | Real-time users, roles and grants through the object API and `SHOW GRANTS`, instead of `ACCOUNT_USAGE` with up to two hours of lag. Also enables enumerating other users' programmatic access tokens. | Not read-only: a role with `MANAGE GRANTS` can also grant and revoke privileges account-wide. Grant it only if the staleness matters more than the blast radius. |
+| `MANAGE GRANTS ON ACCOUNT` | Makes the object API and `SHOW GRANTS` account-wide, so roles and grants are current rather than up to two hours stale. Also enables enumerating other users' programmatic access tokens. | Not read-only: a role with `MANAGE GRANTS` can also grant and revoke privileges account-wide. Grant it only if the staleness matters more than the blast radius. |
 | `ORGADMIN` | Listing the other accounts in the organization, so they appear as `SnowflakeAccount` nodes. | A highly privileged organization-level role. Usually not worth it; Cartography syncs the connected account either way. |
 
-Without `MANAGE GRANTS`, Cartography falls back to the `ACCOUNT_USAGE` views and
-logs which path it used. Without `ORGADMIN`, it syncs only the connected account.
-Every other surface Snowflake refuses is skipped, along with its cleanup, so a
-missing privilege never deletes previously collected data.
+Cartography prefers the `ACCOUNT_USAGE` views for roles and grants and logs which
+path it used. It falls back to the per-role object API only when those views are
+unreadable; that path costs two requests per role and, as above, cannot establish
+completeness, so the affected cleanups are skipped. Without `ORGADMIN`, only the
+connected account is synced. Every other surface Snowflake refuses is skipped
+along with its cleanup, so a missing privilege never deletes previously collected
+data.
 
 ## Configure Cartography
 
