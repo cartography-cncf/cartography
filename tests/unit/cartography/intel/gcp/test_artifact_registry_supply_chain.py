@@ -1,4 +1,5 @@
 import json
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
 import httpx
@@ -95,7 +96,8 @@ def test_extract_source_from_spdx_sbom_reads_described_package_golang_purl():
                         "referenceCategory": "PACKAGE-MANAGER",
                         "referenceType": "purl",
                         "referenceLocator": (
-                            "pkg:golang/github.com/example/widgets@v0.0.0?type=module"
+                            "pkg:golang/github.com/example/widgets@v0.0.0"
+                            "?type=module"
                         ),
                     }
                 ],
@@ -423,6 +425,22 @@ def test_build_layer_dicts_aligns_history_skipping_empty_layers():
 
     assert layers["sha256:a"]["history"] == "FROM scratch"
     assert layers["sha256:b"]["history"] == "RUN apt-get install foo"
+    assert layers["sha256:a"]["next_diff_ids"] == ["sha256:b"]
+    assert layers["sha256:b"]["next_diff_ids"] == []
+
+
+def test_build_layer_dicts_keeps_all_shared_layer_successors():
+    # Arrange
+    enrichments = [
+        {"layer_diff_ids": ["sha256:a", "sha256:b"]},
+        {"layer_diff_ids": ["sha256:a", "sha256:c"]},
+    ]
+
+    # Act
+    layers = {layer["diff_id"]: layer for layer in _build_layer_dicts(enrichments)}
+
+    # Assert
+    assert layers["sha256:a"]["next_diff_ids"] == ["sha256:b", "sha256:c"]
 
 
 def test_build_layer_dicts_creates_layer_when_history_truncated():
@@ -517,6 +535,12 @@ def patched_sync(monkeypatch):
     )
     monkeypatch.setattr(supply_chain, "load_image_layers", MagicMock())
     monkeypatch.setattr(supply_chain, "load_image_layer_relationships", MagicMock())
+    monkeypatch.setattr(
+        supply_chain,
+        "get_complete_layer_digests",
+        MagicMock(return_value=set()),
+    )
+    monkeypatch.setattr(supply_chain, "refresh_layer_closures", MagicMock())
 
     def _set_enrichments(enrichments, fetch_failures=0):
         async def _fake_fetch(*_args, **_kwargs):
@@ -610,11 +634,9 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
         "sha256:b",
     }
     assert layer_call_args[2:] == ("proj", 1)
-    provenance_call_args = supply_chain.load_image_provenance.call_args.args
     supply_chain.load_image_layer_relationships.assert_called_once_with(
         neo4j_session,
-        provenance_call_args[1],
-        "proj",
+        supply_chain.load_image_provenance.call_args.args[1],
         1,
     )
 
@@ -670,9 +692,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
         },
     ]
 
-    merged_updates = supply_chain.load_image_provenance(
-        neo4j_session, updates, "proj", 1
-    )
+    supply_chain.load_image_provenance(neo4j_session, updates, "proj", 1)
 
     neo4j_session.execute_read.assert_called_once()
     load_nodes_without_relationships.assert_called_once()
@@ -697,7 +717,6 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
             "layer_diff_ids": ["sha256:a"],
         },
     ]
-    assert merged_updates == call.args[2]
     load_matchlinks_with_progress.assert_called_once()
     assert "provenance updates" in call.kwargs["progress_description"]
     assert call.kwargs["lastupdated"] == 1
@@ -707,6 +726,7 @@ def test_load_image_provenance_preserves_existing_values(monkeypatch):
 def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch):
     load_nodes_without_relationships = MagicMock()
     load_matchlinks_with_progress = MagicMock()
+    load = MagicMock()
     monkeypatch.setattr(
         supply_chain,
         "load_nodes_without_relationships",
@@ -717,6 +737,7 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
         "load_matchlinks_with_progress",
         load_matchlinks_with_progress,
     )
+    monkeypatch.setattr(supply_chain, "load", load)
     neo4j_session = MagicMock()
     layers = [{"diff_id": "sha256:a", "history": "FROM scratch"}]
 
@@ -741,113 +762,52 @@ def test_load_image_layers_uses_node_and_matchlink_progress_loaders(monkeypatch)
     assert rel_call.kwargs["PROJECT_ID"] == "proj"
     assert rel_call.kwargs["_sub_resource_label"] == "GCPProject"
     assert rel_call.kwargs["_sub_resource_id"] == "proj"
-
-
-def test_build_image_layer_relationship_dicts_preserves_order_and_dedupes_next():
-    updates = [
-        {
-            "digest": "sha256:img-1",
-            "type": "image",
-            "layer_diff_ids": ["sha256:a", "sha256:b", "sha256:c"],
-        },
-        {
-            "digest": "sha256:img-2",
-            "type": "image",
-            "layer_diff_ids": ["sha256:a", "sha256:b"],
-        },
-        {
-            "digest": "sha256:index",
-            "type": "manifest_list",
-            "layer_diff_ids": ["sha256:manifest-layer"],
-        },
-    ]
-
-    (
-        has_layer_relationships,
-        head_relationships,
-        tail_relationships,
-        next_relationships,
-    ) = supply_chain._build_image_layer_relationship_dicts(updates)
-
-    assert has_layer_relationships == [
-        {"digest": "sha256:img-1", "layer_diff_id": "sha256:a"},
-        {"digest": "sha256:img-1", "layer_diff_id": "sha256:b"},
-        {"digest": "sha256:img-1", "layer_diff_id": "sha256:c"},
-        {"digest": "sha256:img-2", "layer_diff_id": "sha256:a"},
-        {"digest": "sha256:img-2", "layer_diff_id": "sha256:b"},
-    ]
-    assert head_relationships == [
-        {"digest": "sha256:img-1", "head_layer_diff_id": "sha256:a"},
-        {"digest": "sha256:img-2", "head_layer_diff_id": "sha256:a"},
-    ]
-    assert tail_relationships == [
-        {"digest": "sha256:img-1", "tail_layer_diff_id": "sha256:c"},
-        {"digest": "sha256:img-2", "tail_layer_diff_id": "sha256:b"},
-    ]
-    assert next_relationships == [
-        {"diff_id": "sha256:a", "next_diff_id": "sha256:b"},
-        {"diff_id": "sha256:b", "next_diff_id": "sha256:c"},
-    ]
-
-
-def test_load_image_layer_relationships_uses_matchlink_progress_loaders(monkeypatch):
-    load_matchlinks_with_progress = MagicMock()
-    monkeypatch.setattr(
-        supply_chain,
-        "load_matchlinks_with_progress",
-        load_matchlinks_with_progress,
+    assert load.call_args.args[0] == neo4j_session
+    assert load.call_args.args[2] == layers
+    assert load.call_args.args[1].__class__.__name__ == (
+        "GCPArtifactRegistryImageLayerNextRelSchema"
     )
+    assert load.call_args.kwargs["lastupdated"] == 1
+
+
+def test_load_image_layer_relationships_uses_standard_schema(monkeypatch):
+    # Arrange
+    load = MagicMock()
+    monkeypatch.setattr(supply_chain, "load", load)
     neo4j_session = MagicMock()
-    updates = [
+
+    # Act
+    supply_chain.load_image_layer_relationships(
+        neo4j_session,
+        [
+            {
+                "digest": "sha256:image",
+                "type": "image",
+                "layer_diff_ids": ["sha256:a", "sha256:b"],
+            },
+            {
+                "digest": "sha256:index",
+                "type": "manifest_list",
+                "layer_diff_ids": ["sha256:ignored"],
+            },
+        ],
+        1,
+    )
+
+    # Assert
+    assert load.call_args.args[0] == neo4j_session
+    assert load.call_args.args[1].__class__.__name__ == (
+        "GCPArtifactRegistryImageLayerRelSchema"
+    )
+    assert load.call_args.args[2] == [
         {
-            "digest": "sha256:img-1",
-            "type": "image",
+            "digest": "sha256:image",
             "layer_diff_ids": ["sha256:a", "sha256:b"],
-        },
-        {
-            "digest": "sha256:index",
-            "type": "manifest_list",
-            "layer_diff_ids": ["sha256:manifest-layer"],
-        },
-        {
-            "digest": "sha256:img-2",
-            "type": "image",
-            "layer_diff_ids": [],
+            "head_layer_diff_id": "sha256:a",
+            "tail_layer_diff_id": "sha256:b",
         },
     ]
-
-    supply_chain.load_image_layer_relationships(neo4j_session, updates, "proj", 1)
-
-    assert load_matchlinks_with_progress.call_count == 4
-    schema_names = [
-        call.args[1].__class__.__name__
-        for call in load_matchlinks_with_progress.call_args_list
-    ]
-    assert schema_names == [
-        "GCPArtifactRegistryImageToLayerMatchLink",
-        "GCPArtifactRegistryImageToHeadLayerMatchLink",
-        "GCPArtifactRegistryImageToTailLayerMatchLink",
-        "GCPArtifactRegistryImageLayerToNextMatchLink",
-    ]
-    assert load_matchlinks_with_progress.call_args_list[0].args[2] == [
-        {"digest": "sha256:img-1", "layer_diff_id": "sha256:a"},
-        {"digest": "sha256:img-1", "layer_diff_id": "sha256:b"},
-    ]
-    assert load_matchlinks_with_progress.call_args_list[1].args[2] == [
-        {"digest": "sha256:img-1", "head_layer_diff_id": "sha256:a"}
-    ]
-    assert load_matchlinks_with_progress.call_args_list[2].args[2] == [
-        {"digest": "sha256:img-1", "tail_layer_diff_id": "sha256:b"}
-    ]
-    assert load_matchlinks_with_progress.call_args_list[3].args[2] == [
-        {"diff_id": "sha256:a", "next_diff_id": "sha256:b"}
-    ]
-    for call in load_matchlinks_with_progress.call_args_list:
-        assert call.args[0] == neo4j_session
-        assert call.kwargs["lastupdated"] == 1
-        assert call.kwargs["PROJECT_ID"] == "proj"
-        assert call.kwargs["_sub_resource_label"] == "GCPProject"
-        assert call.kwargs["_sub_resource_id"] == "proj"
+    assert load.call_args.kwargs["lastupdated"] == 1
 
 
 def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
@@ -864,7 +824,7 @@ def test_sync_runs_cleanup_when_safe_and_no_failures(patched_sync):
         cleanup_safe=True,
     )
 
-    assert len(cleanup_runs) == 7
+    assert len(cleanup_runs) == 3
 
 
 def test_sync_skips_cleanup_when_fetch_failures(patched_sync):
@@ -904,6 +864,72 @@ def test_sync_skips_cleanup_when_discovery_unsafe(patched_sync):
     )
 
     assert cleanup_runs == []
+
+
+def test_sync_skips_config_fetch_for_complete_digest(patched_sync, monkeypatch):
+    # Arrange
+    digest = "sha256:" + ("a" * 64)
+    fetch = AsyncMock(return_value=([], 0))
+    supply_chain.get_complete_layer_digests.return_value = {digest}
+    monkeypatch.setattr(supply_chain, "_fetch_all_image_provenance", fetch)
+
+    # Act
+    supply_chain.sync(
+        neo4j_session=MagicMock(),
+        credentials=MagicMock(),
+        docker_artifacts_raw=[
+            {
+                "name": f"projects/p/locations/l/repositories/r/dockerImages/i@{digest}",
+                "uri": f"us-docker.pkg.dev/p/r/i@{digest}",
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            },
+        ],
+        project_id="proj",
+        update_tag=1,
+        common_job_parameters={},
+        cleanup_safe=True,
+    )
+
+    # Assert
+    assert fetch.await_args.kwargs["cached_layer_digests"] == {digest}
+    supply_chain.refresh_layer_closures.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cached_digest_rechecks_provenance_without_fetching_config(monkeypatch):
+    config_fetch = AsyncMock()
+    provenance_fetch = AsyncMock(
+        return_value={"source_uri": "https://github.com/example/repository"},
+    )
+    monkeypatch.setattr(supply_chain, "_fetch_image_config", config_fetch)
+    monkeypatch.setattr(
+        supply_chain,
+        "_fetch_attestation_provenance",
+        provenance_fetch,
+    )
+
+    result, fetch_failed = await _process_single_image(
+        MagicMock(),
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        fetch_config=False,
+    )
+
+    config_fetch.assert_not_awaited()
+    provenance_fetch.assert_awaited_once()
+    assert fetch_failed is False
+    assert result == {
+        "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+        "source_uri": "https://github.com/example/repository",
+    }
+
+
+def test_gcp_layer_graph_uses_indexed_layer_id():
+    assert supply_chain.GCP_ARTIFACT_REGISTRY_LAYER_GRAPH.layer_id_property == "id"
 
 
 # ---------------------------------------------------------------------------
@@ -1124,6 +1150,7 @@ async def test_process_single_image_returns_parent_only_spdx_provenance():
         "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         "type": "image",
         "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "layer_diff_ids": [],
         "parent_image_uri": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_URI,
         "parent_image_digest": MOCK_SUPPLY_CHAIN_PARENT_IMAGE_DIGEST,
     }

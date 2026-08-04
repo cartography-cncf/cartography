@@ -13,7 +13,7 @@ The simplest production deployment involving Cartography looks something like th
 - Configure a Neo4j database. Specifics on this are out of scope of this document; refer to Neo4j's resources on how to
   do this.
 - Configure a scheduled task (e.g. a cron job) to be able to access one or more data providers. See the
-  [modules](../root/modules) section for specifics on each. We recommend that you run the cron job on a separate machine
+  [modules](module-list.md) section for specifics on each. We recommend that you run the cron job on a separate machine
   from the Neo4j database.
 
 ### Parallel jobs

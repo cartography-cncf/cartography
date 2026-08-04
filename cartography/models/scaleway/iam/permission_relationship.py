@@ -44,6 +44,8 @@ class ScalewayHasRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:ScalewayUser)-[:HAS_ROLE]->(:ScalewayPermissionSet)
 class ScalewayUserToPermissionSetMatchLink(CartographyRelSchema):
+    """Connects `ScalewayUser` to `ScalewayPermissionSet` through `HAS_ROLE`."""
+
     source_node_label: str = "ScalewayUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -60,6 +62,8 @@ class ScalewayUserToPermissionSetMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:ScalewayApplication)-[:HAS_ROLE]->(:ScalewayPermissionSet)
 class ScalewayApplicationToPermissionSetMatchLink(CartographyRelSchema):
+    """Connects `ScalewayApplication` to `ScalewayPermissionSet` through `HAS_ROLE`."""
+
     source_node_label: str = "ScalewayApplication"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("application_id")},
@@ -76,6 +80,8 @@ class ScalewayApplicationToPermissionSetMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:ScalewayGroup)-[:HAS_ROLE]->(:ScalewayPermissionSet)
 class ScalewayGroupToPermissionSetMatchLink(CartographyRelSchema):
+    """Connects `ScalewayGroup` to `ScalewayPermissionSet` through `HAS_ROLE`."""
+
     source_node_label: str = "ScalewayGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("group_id")},
@@ -100,12 +106,17 @@ class ScalewayCanAccessRelProperties(CartographyRelProperties):
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     # True when every grant path to this project is gated by an IAM rule condition.
-    has_condition: PropertyRef = PropertyRef("has_condition")
+    has_condition: PropertyRef = PropertyRef(
+        "has_condition",
+        description="Whether every grant path to the project is gated by an IAM rule condition.",
+    )
 
 
 @dataclass(frozen=True)
 # (:ScalewayUser)-[:CAN_ACCESS]->(:ScalewayProject)
 class ScalewayUserToProjectMatchLink(CartographyRelSchema):
+    """Connects `ScalewayUser` to `ScalewayProject` through `CAN_ACCESS`."""
+
     source_node_label: str = "ScalewayUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -122,6 +133,8 @@ class ScalewayUserToProjectMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:ScalewayApplication)-[:CAN_ACCESS]->(:ScalewayProject)
 class ScalewayApplicationToProjectMatchLink(CartographyRelSchema):
+    """Connects `ScalewayApplication` to `ScalewayProject` through `CAN_ACCESS`."""
+
     source_node_label: str = "ScalewayApplication"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("application_id")},
@@ -138,6 +151,8 @@ class ScalewayApplicationToProjectMatchLink(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:ScalewayGroup)-[:CAN_ACCESS]->(:ScalewayProject)
 class ScalewayGroupToProjectMatchLink(CartographyRelSchema):
+    """Connects `ScalewayGroup` to `ScalewayProject` through `CAN_ACCESS`."""
+
     source_node_label: str = "ScalewayGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("group_id")},

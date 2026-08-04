@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_API_GATEWAY_RESOURCE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,10 +15,15 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayResourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    path: PropertyRef = PropertyRef("path")
-    pathpart: PropertyRef = PropertyRef("pathPart")
-    parentid: PropertyRef = PropertyRef("parentId")
+    id: PropertyRef = PropertyRef("id", description="The id of the resource")
+    path: PropertyRef = PropertyRef("path", description="The full path of the resource")
+    pathpart: PropertyRef = PropertyRef(
+        "pathPart", description="The last path segment of the resource"
+    )
+    parentid: PropertyRef = PropertyRef(
+        "parentId",
+        description="The id of the parent resource",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,9 +67,11 @@ class APIGatewayResourceToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayResourceSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apigateway/api-reference/resource/resource/)."""
+
     label: str = "AWSAPIGatewayResource"
     # DEPRECATED: legacy APIGatewayResource node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIGatewayResource"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_RESOURCE])
     properties: APIGatewayResourceNodeProperties = APIGatewayResourceNodeProperties()
     sub_resource_relationship: APIGatewayResourceToAWSAccountRel = (
         APIGatewayResourceToAWSAccountRel()

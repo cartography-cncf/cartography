@@ -16,13 +16,27 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureDataFactoryDatasetProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    type: PropertyRef = PropertyRef("type")
-    linked_service_id: PropertyRef = PropertyRef("linked_service_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the dataset."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the dataset.")
+    type: PropertyRef = PropertyRef(
+        "type", description="Data format or storage type represented by the dataset."
+    )
+    linked_service_id: PropertyRef = PropertyRef(
+        "linked_service_id",
+        description="Full Azure resource ID of the linked service used by the dataset.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    factory_id: PropertyRef = PropertyRef("factory_id")
-    subscription_id: PropertyRef = PropertyRef("subscription_id", set_in_kwargs=True)
+    factory_id: PropertyRef = PropertyRef(
+        "factory_id",
+        description="Full Azure resource ID of the data factory that contains the dataset.",
+    )
+    subscription_id: PropertyRef = PropertyRef(
+        "subscription_id",
+        set_in_kwargs=True,
+        description="Azure subscription ID that contains the dataset.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +46,8 @@ class AzureDataFactoryDatasetToFactoryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureDataFactoryDatasetToFactoryRel(CartographyRelSchema):
+    """An Azure Data Factory contains this dataset."""
+
     target_node_label: str = "AzureDataFactory"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("factory_id")},
@@ -50,6 +66,8 @@ class AzureDataFactoryDatasetToSubscriptionRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class AzureDataFactoryDatasetToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this data factory dataset resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("subscription_id", set_in_kwargs=True)},
@@ -68,6 +86,8 @@ class DatasetUsesLinkedServiceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DatasetUsesLinkedServiceRel(CartographyRelSchema):
+    """A data factory dataset uses a linked service to access data."""
+
     target_node_label: str = "AzureDataFactoryLinkedService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("linked_service_id")},
@@ -81,6 +101,8 @@ class DatasetUsesLinkedServiceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureDataFactoryDatasetSchema(CartographyNodeSchema):
+    """A named Azure Data Factory dataset that describes data for activities."""
+
     label: str = "AzureDataFactoryDataset"
     properties: AzureDataFactoryDatasetProperties = AzureDataFactoryDatasetProperties()
     sub_resource_relationship: AzureDataFactoryDatasetToSubscriptionRel = (

@@ -17,12 +17,22 @@ class InstanceProfileNodeProperties(CartographyNodeProperties):
     Schema describing a InstanceProfile.
     """
 
-    arn: PropertyRef = PropertyRef("Arn")
-    createdate: PropertyRef = PropertyRef("CreateDate")
-    id: PropertyRef = PropertyRef("Arn")
-    instance_profile_id: PropertyRef = PropertyRef("InstanceProfileId")
-    instance_profile_name: PropertyRef = PropertyRef("InstanceProfileName")
-    path: PropertyRef = PropertyRef("Path")
+    arn: PropertyRef = PropertyRef("Arn", description="The arn")
+    createdate: PropertyRef = PropertyRef(
+        "CreateDate",
+        description="Timestamp when the IAM instance profile was created.",
+    )
+    id: PropertyRef = PropertyRef("Arn", description="The arn")
+    instance_profile_id: PropertyRef = PropertyRef(
+        "InstanceProfileId", description="The instance profile id"
+    )
+    instance_profile_name: PropertyRef = PropertyRef(
+        "InstanceProfileName", description="The instance profile name"
+    )
+    path: PropertyRef = PropertyRef(
+        "Path",
+        description="IAM path under which the IAM instance profile is organized.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -64,6 +74,8 @@ class InstanceProfileToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class InstanceProfileSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/APIReference/API_InstanceProfile.html)"""
+
     label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
     sub_resource_relationship: InstanceProfileToAWSAccountRel = (

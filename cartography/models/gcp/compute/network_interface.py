@@ -10,14 +10,23 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import NETWORK_INTERFACE
 
 
 @dataclass(frozen=True)
 class GCPNetworkInterfaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("nic_id")
+    id: PropertyRef = PropertyRef(
+        "nic_id",
+        description="A partial resource URI representing this network interface.  Note: GCP does not define a partial resource URI for network interfaces, so we create one so we can uniquely identify GCP network interfaces.  Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network interface name}`.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    private_ip: PropertyRef = PropertyRef("networkIP")
-    name: PropertyRef = PropertyRef("name")
+    private_ip: PropertyRef = PropertyRef(
+        "networkIP",
+        description="The private IP address of this network interface.  This IP is valid on the network interface's VPC.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The name of the network interface."
+    )
 
 
 @dataclass(frozen=True)
@@ -82,9 +91,11 @@ class GCPNetworkInterfaceToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkInterfaceSchema(CartographyNodeSchema):
+    """Representation of a GCP Instance's [network interface](https://cloud.google.com/compute/docs/reference/rest/v1/instances/list) (scroll down to the fields on "networkInterface")."""
+
     label: str = "GCPNetworkInterface"
     properties: GCPNetworkInterfaceNodeProperties = GCPNetworkInterfaceNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkInterface"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_INTERFACE])
     sub_resource_relationship: GCPNetworkInterfaceToProjectRel = (
         GCPNetworkInterfaceToProjectRel()
     )

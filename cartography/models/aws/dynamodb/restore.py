@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_RESTORE_SUMMARY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,12 +15,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/restore")'
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    restore_date_time: PropertyRef = PropertyRef("RestoreDateTime")
-    restore_in_progress: PropertyRef = PropertyRef("RestoreInProgress")
-    source_backup_arn: PropertyRef = PropertyRef("SourceBackupArn")
-    source_table_arn: PropertyRef = PropertyRef("SourceTableArn")
+    restore_date_time: PropertyRef = PropertyRef(
+        "RestoreDateTime",
+        description="Point in time or source backup time for the restore",
+    )
+    restore_in_progress: PropertyRef = PropertyRef(
+        "RestoreInProgress",
+        description="Indicates whether a restore is currently in progress",
+    )
+    source_backup_arn: PropertyRef = PropertyRef(
+        "SourceBackupArn",
+        description="The ARN of the backup from which the table was restored",
+    )
+    source_table_arn: PropertyRef = PropertyRef(
+        "SourceTableArn",
+        description="The ARN of the source table from which the table was restored",
+    )
 
 
 @dataclass(frozen=True)
@@ -96,9 +111,13 @@ class DynamoDBRestoreSummaryToSourceTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBRestoreSummarySchema(CartographyNodeSchema):
+    """Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_RestoreSummary.html) for restored tables."""
+
     label: str = "AWSDynamoDBRestoreSummary"
     # DEPRECATED: legacy DynamoDBRestoreSummary node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DynamoDBRestoreSummary"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_DYNAMO_DB_RESTORE_SUMMARY]
+    )
     properties: DynamoDBRestoreSummaryNodeProperties = (
         DynamoDBRestoreSummaryNodeProperties()
     )

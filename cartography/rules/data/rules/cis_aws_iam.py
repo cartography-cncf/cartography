@@ -15,6 +15,7 @@ from pydantic import BeforeValidator
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -109,6 +110,7 @@ aws_access_keys_not_rotated = Rule(
     frameworks=(
         cis_aws("2.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -264,6 +266,7 @@ aws_users_with_direct_policy_attachments = Rule(
     frameworks=(
         cis_aws("2.14"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -337,6 +340,7 @@ aws_users_with_multiple_active_access_keys = Rule(
     frameworks=(
         cis_aws("2.12"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -410,6 +414,7 @@ aws_expired_ssl_tls_certificates = Rule(
     frameworks=(
         cis_aws("2.18"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.7"),
     ),
 )
 
@@ -477,6 +482,8 @@ aws_root_user_access_keys = Rule(
         cis_aws("2.3"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -544,6 +551,7 @@ aws_root_user_mfa_disabled = Rule(
         cis_aws("2.4"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -679,6 +687,7 @@ aws_policies_with_full_administrative_privileges = Rule(
         cis_aws("2.15"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

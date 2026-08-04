@@ -1,119 +1,87 @@
-## Salesforce Configuration
+# Salesforce Configuration
 
-Follow these steps to enable the Salesforce integration with Cartography.
+## Prerequisites
 
-Cartography reads Salesforce data through the REST API using SOQL. It authenticates
-with an OAuth 2.0 app (an **External Client App**, or the classic **Connected App** on
-older orgs). Two flows are supported; pick whichever fits your org:
+In Salesforce Setup, open **My Domain** and deploy a domain. Note its URL, such as `https://mycompany.my.salesforce.com`. The client credentials flow requires this host as the login URL.
 
-- **Client credentials** (simplest, server-to-server): consumer key + consumer secret.
-- **JWT bearer**: consumer key + integration username + a signed private key.
+Create a dedicated read-only integration user. The Salesforce Integration user license is designed for API-only access, although a standard license also works.
 
-### 1. Enable My Domain
+## Authentication
 
-In Setup, go to **My Domain** and make sure a domain is deployed. Note the URL, e.g.
-`https://mycompany.my.salesforce.com`. The client credentials flow **requires** the
-My Domain host as the login URL; `login.salesforce.com` will not work for it.
+Cartography authenticates to the Salesforce REST API with an OAuth 2.0 External Client App, or a classic Connected App on older organizations.
 
-### 2. Create the app
+In **App Manager**, create an External Client App:
 
-In Setup, go to **App Manager** → **New External Client App** (on older orgs, use
-**New Connected App**):
+1. Set a name and contact email.
+1. Under **API (Enable OAuth Settings)**, enable OAuth.
+1. Set a callback URL, such as `https://login.salesforce.com/services/oauth2/callback`. Salesforce requires this even though Cartography does not use it for these flows.
+1. Add the **Manage user data via APIs (api)** OAuth scope. Also add `refresh_token` or `offline_access` for the JWT bearer flow.
+1. Create the app and allow a few minutes for it to propagate.
 
-1. Set a name (e.g. `Cartography`) and a contact email.
-1. Under **API (Enable OAuth Settings)**, check **Enable OAuth**.
-1. Set a **Callback URL** (required even though the flows below don't use it), e.g.
-   `https://login.salesforce.com/services/oauth2/callback`.
-1. Add the **Manage user data via APIs (api)** OAuth scope (add `refresh_token` /
-   `offline_access` as well if you use the JWT bearer flow).
-1. Create the app, then wait a few minutes for it to propagate.
+### Client Credentials
 
-### 3. Configure a flow
+1. Open **Settings** > **OAuth Settings** > **Edit**. Under **Flow Enablement**, enable the client credentials flow. For a classic Connected App, this setting is directly in the OAuth settings.
+1. Open **Policies** > **Edit** and set **Run As** to the dedicated integration user. For a classic Connected App, use **Manage** > **Edit Policies**.
+1. Open **Settings** > **OAuth Settings** > **Consumer Key and Secret** and copy the consumer key and secret. A classic Connected App exposes these under **Manage Consumer Details**.
 
-**Client credentials flow (recommended for a quick start):**
+### JWT Bearer
 
-On an **External Client App** the flow is enabled in **Settings** first, then the
-run-as user is set in **Policies** (the flow only appears under Policies once enabled):
+1. Generate an RSA key pair and upload the certificate under **Use digital signatures** in the app's OAuth settings.
+1. Set **Permitted Users** to **Admin approved users are pre-authorized**, then assign the integration user or profile.
+1. Copy the app's consumer key.
 
-1. Open the app's **Settings** tab → **OAuth Settings** → **Edit** → under **Flow
-   Enablement**, check **Enable Client Credentials Flow**. Save. (On a classic
-   Connected App, this checkbox lives directly in the OAuth settings instead.)
-1. Open the **Policies** tab → **Edit**. A **Client Credentials Flow** section now
-   appears → set **Run As** to the dedicated read-only integration user (see
-   [Permissions](#permissions-least-privilege) below). Save. (On a classic
-   Connected App this is under **Manage** → **Edit Policies**.)
-1. Pass:
-   - `--salesforce-client-id` : the app **Consumer Key**
-   - the consumer secret in the environment variable named by
-     `--salesforce-client-secret-env-var` (default `SALESFORCE_CLIENT_SECRET`)
+## Required Permissions
 
-```{note}
-If **Enable Client Credentials Flow** is greyed out, deploy **My Domain** first and
-make sure **Allow OAuth Client Credentials Flows** is enabled under Setup → **OAuth
-and OpenID Connect Settings**.
-```
+Create a permission set for the integration user with:
 
-**JWT bearer flow (server-to-server, no stored secret):**
+- **API Enabled**.
+- **View Setup and Configuration**, to read `Profile`, `PermissionSet`, `PermissionSetAssignment`, and `ConnectedApplication`.
+- **Manage Users**, so `OAuthToken` returns all users' tokens. Without it, the query is limited to the integration user's tokens and produces incomplete `AUTHORIZED` relationships.
+- Read access to `Organization`, `User`, `UserRole`, `Group`, and `GroupMember`.
 
-1. Generate an RSA key pair and upload the certificate to the app's OAuth settings
-   (**Use digital signatures**).
-1. Pre-authorize the integration user (set **Permitted Users** to *Admin approved
-   users are pre-authorized* and assign the user/profile).
-1. Pass:
-   - `--salesforce-client-id` : the app **Consumer Key**
-   - `--salesforce-username` : the integration username
-   - the PEM-encoded private key in the environment variable named by
-     `--salesforce-private-key-env-var` (default `SALESFORCE_PRIVATE_KEY`)
+Do not grant create, edit, delete, or **Modify All Data** permissions. Assign the permission set to the integration user and use that user as the app's **Run As** user or `--salesforce-username`.
 
-### 4. Get the consumer key and secret
+## Configure Cartography
 
-On the app, open **Settings** → **OAuth Settings** → **Consumer Key and Secret** (a
-classic Connected App exposes these under **Manage Consumer Details**). Verify your
-identity when prompted and copy the values.
+### Client Credentials
 
-### 5. Set the login URL
+Provide:
 
-Use `--salesforce-login-url` to point at the right token endpoint:
+- `--salesforce-client-id`: App consumer key.
+- `--salesforce-client-secret-env-var`: Name of the environment variable containing the consumer secret. The default is `SALESFORCE_CLIENT_SECRET`.
+- `--salesforce-login-url`: My Domain URL.
 
-- Production / Developer edition (JWT bearer): `https://login.salesforce.com` (default)
-- Sandbox (JWT bearer): `https://test.salesforce.com`
-- Client credentials flow: your My Domain URL, e.g. `https://mycompany.my.salesforce.com`
+### JWT Bearer
 
-Cartography resolves the org's instance URL automatically from the token response.
+Provide:
 
-### Permissions (least privilege)
+- `--salesforce-client-id`: App consumer key.
+- `--salesforce-username`: Integration username.
+- `--salesforce-private-key-env-var`: Name of the environment variable containing the PEM-encoded private key. The default is `SALESFORCE_PRIVATE_KEY`.
 
-Cartography only **reads** from Salesforce (SOQL `SELECT` queries); it never creates,
-updates, or deletes anything. Grant it a dedicated, read-only identity rather than a
-human's admin account:
+## Run Cartography
 
-1. **Create a dedicated integration user** (e.g. `cartography@yourco.com`). The
-   **Salesforce Integration** user license is purpose-built for this (API-only, no UI
-   login) and a small number are included at no extra cost; a standard license also
-   works.
-1. **Create a permission set** granting only:
-   - **API Enabled** (system permission)
-   - **View Setup and Configuration** (to read `Profile`, `PermissionSet`,
-     `PermissionSetAssignment`, `ConnectedApplication`)
-   - **Manage Users** (so `OAuthToken` returns *all* users' tokens; without it the
-     query is silently limited to the run-as user's own tokens, producing incomplete
-     `AUTHORIZED` edges)
-   - Read on the ingested objects: `Organization`, `User`, `UserRole`, `Group`,
-     `GroupMember`
-   Do not grant any Create/Edit/Delete or Modify All Data permissions.
-1. **Assign** the permission set to the integration user and use that user as the
-   connected app's **Run As** (client credentials) or JWT `--salesforce-username`.
-
-On a throwaway test org you can shortcut this by running as a System Administrator, but
-that is over-privileged (read-write) and should not be used in production.
-
-### Example
+This client credentials example uses a My Domain URL:
 
 ```bash
-export SALESFORCE_CLIENT_SECRET='<consumer secret>'
+export SALESFORCE_CLIENT_SECRET='<consumer-secret>'
 cartography \
   --selected-modules salesforce \
-  --neo4j-uri bolt://localhost:7687 \
   --salesforce-login-url 'https://mycompany.my.salesforce.com' \
-  --salesforce-client-id '<consumer key>'
+  --salesforce-client-id '<consumer-key>' \
+  --salesforce-client-secret-env-var SALESFORCE_CLIENT_SECRET
 ```
+
+## Advanced Configuration
+
+Set `--salesforce-login-url` according to the authentication flow and organization:
+
+- Production or Developer edition with JWT bearer: `https://login.salesforce.com`, which is the default.
+- Sandbox with JWT bearer: `https://test.salesforce.com`.
+- Client credentials: Your My Domain URL.
+
+Cartography resolves the organization's instance URL from the token response.
+
+## Troubleshooting
+
+If **Enable Client Credentials Flow** is unavailable, deploy **My Domain** and enable **Allow OAuth Client Credentials Flows** under **OAuth and OpenID Connect Settings**.

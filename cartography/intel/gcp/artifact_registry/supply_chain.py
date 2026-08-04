@@ -8,9 +8,13 @@ import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
+from cartography.intel.container_image_layers import get_complete_layer_digests
+from cartography.intel.container_image_layers import refresh_layer_closures
 from cartography.intel.gcp.artifact_registry.manifest import build_blob_url
 from cartography.intel.gcp.artifact_registry.manifest import build_manifest_url
 from cartography.intel.gcp.artifact_registry.manifest import parse_docker_image_uri
@@ -31,22 +35,16 @@ from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageBuiltFromMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image import (
+    GCPArtifactRegistryImageLayerRelSchema,
+)
+from cartography.models.gcp.artifact_registry.image import (
     GCPArtifactRegistryImageProvenanceSchema,
 )
-from cartography.models.gcp.artifact_registry.image import (
-    GCPArtifactRegistryImageToHeadLayerMatchLink,
-)
-from cartography.models.gcp.artifact_registry.image import (
-    GCPArtifactRegistryImageToLayerMatchLink,
-)
-from cartography.models.gcp.artifact_registry.image import (
-    GCPArtifactRegistryImageToTailLayerMatchLink,
+from cartography.models.gcp.artifact_registry.image_layer import (
+    GCPArtifactRegistryImageLayerNextRelSchema,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryImageLayerSchema,
-)
-from cartography.models.gcp.artifact_registry.image_layer import (
-    GCPArtifactRegistryImageLayerToNextMatchLink,
 )
 from cartography.models.gcp.artifact_registry.image_layer import (
     GCPArtifactRegistryProjectToImageLayerRel,
@@ -59,6 +57,19 @@ SINGLE_IMAGE_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.v2+json",
     "application/vnd.oci.image.manifest.v1+json",
 }
+
+GCP_ARTIFACT_REGISTRY_LAYER_GRAPH = ContainerImageLayerGraphShape(
+    image_label="GCPArtifactRegistryImage",
+    layer_label="GCPArtifactRegistryImageLayer",
+    scope_label="GCPProject",
+    scope_properties=("id",),
+    image_scoped=False,
+    image_layer_rel_types=("HAS_LAYER", "HEAD", "TAIL"),
+    stable_image_rel_types=("BUILT_FROM",),
+    stable_image_rels_are_matchlinks=True,
+    has_next=True,
+    layer_id_property="id",
+)
 
 ALL_MANIFEST_ACCEPT = ", ".join(
     [
@@ -75,6 +86,16 @@ GITHUB_URL_PREFIXES = (
     "ssh://git@github.com/",
 )
 GOLANG_GITHUB_PURL_PREFIX = "pkg:golang/github.com/"
+
+
+def _artifact_digest(artifact: dict[str, Any]) -> str | None:
+    for reference in (artifact.get("uri"), artifact.get("name")):
+        if not isinstance(reference, str) or "@" not in reference:
+            continue
+        digest = reference.rsplit("@", 1)[1]
+        if digest.startswith("sha256:"):
+            return digest
+    return None
 
 
 class _TokenManager:
@@ -718,6 +739,8 @@ async def _process_single_image(
     token_manager: _TokenManager,
     artifact: dict[str, Any],
     sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
+    *,
+    fetch_config: bool = True,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -740,30 +763,23 @@ async def _process_single_image(
 
     registry, image_path, reference = parsed
 
-    try:
-        config, manifest_digest = await _fetch_image_config(
-            http_client, token_manager, registry, image_path, reference
-        )
-    except (httpx.HTTPError, json.JSONDecodeError) as e:
-        logger.warning(
-            "Failed to fetch image config for %s: %s",
-            uri or name,
-            e,
-        )
-        return None, True
-    if not config:
-        return None, False
-
-    raw_architecture = config.get("architecture")
-    architecture = (
-        normalize_architecture(raw_architecture)
-        if raw_architecture is not None
-        else None
-    )
-    os_name = config.get("os")
-    variant = config.get("variant")
-    provenance = extract_provenance_from_oci_config(config)
     fetch_failed = False
+    config: dict[str, Any] | None = None
+    manifest_digest: str | None = None
+    if fetch_config:
+        try:
+            config, manifest_digest = await _fetch_image_config(
+                http_client, token_manager, registry, image_path, reference
+            )
+        except (httpx.HTTPError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Failed to fetch image config for %s: %s",
+                uri or name,
+                e,
+            )
+            fetch_failed = True
+
+    provenance = extract_provenance_from_oci_config(config) if config else {}
     subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
     subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
 
@@ -867,40 +883,41 @@ async def _process_single_image(
             if not _needs_more_spdx_provenance(provenance):
                 break
 
-    diff_ids, layer_history = extract_layers_from_oci_config(config)
-    has_platform = any(value is not None for value in (architecture, os_name, variant))
-
-    if (
-        not provenance.get("source_uri")
-        and not provenance.get("parent_image_digest")
-        and not diff_ids
-        and not has_platform
-    ):
-        return None, fetch_failed
-
     digest = subject_digest_str
     if not digest:
         return None, fetch_failed
 
     result: dict[str, Any] = {
         "digest": digest,
-        "type": "image",
-        "media_type": artifact.get("mediaType"),
     }
-    if architecture is not None:
-        result["architecture"] = architecture
-    if os_name is not None:
-        result["os"] = os_name
-    if variant is not None:
-        result["variant"] = variant
+    if config:
+        raw_architecture = config.get("architecture")
+        architecture = (
+            normalize_architecture(raw_architecture)
+            if raw_architecture is not None
+            else None
+        )
+        diff_ids, layer_history = extract_layers_from_oci_config(config)
+        result.update(
+            {
+                "type": "image",
+                "media_type": artifact.get("mediaType"),
+                "layer_diff_ids": diff_ids,
+            },
+        )
+        if architecture is not None:
+            result["architecture"] = architecture
+        if config.get("os") is not None:
+            result["os"] = config["os"]
+        if config.get("variant") is not None:
+            result["variant"] = config["variant"]
+        if diff_ids:
+            result["layer_history"] = layer_history
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
-    if diff_ids:
-        result["layer_diff_ids"] = diff_ids
-        result["layer_history"] = layer_history
 
-    return result, fetch_failed
+    return (result if len(result) > 1 else None), fetch_failed
 
 
 async def _fetch_all_image_provenance(
@@ -908,6 +925,7 @@ async def _fetch_all_image_provenance(
     docker_artifacts_raw: list[dict[str, Any]],
     project_id: str,
     max_concurrent: int = 50,
+    cached_layer_digests: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Run enrichment for all single-image artifacts.
 
@@ -921,6 +939,7 @@ async def _fetch_all_image_provenance(
     token_manager = _TokenManager(resolved)
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
+    cached_layer_digests = cached_layer_digests or set()
     single_images = [
         a
         for a in docker_artifacts_raw
@@ -942,6 +961,7 @@ async def _fetch_all_image_provenance(
                 token_manager,
                 artifact,
                 sbom_artifacts_by_digest,
+                fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
             )
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -990,8 +1010,8 @@ def _build_layer_dicts(
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
 
     for enrichment in enrichments:
-        diff_ids = enrichment.get("layer_diff_ids", [])
-        history_entries = enrichment.get("layer_history", [])
+        diff_ids = enrichment.get("layer_diff_ids") or []
+        history_entries = enrichment.get("layer_history") or []
 
         history_by_idx: dict[int, str | None] = {}
         non_empty_idx = 0
@@ -1008,56 +1028,33 @@ def _build_layer_dicts(
                 layers_by_diff_id[diff_id] = {
                     "diff_id": diff_id,
                     "history": history,
+                    "next_diff_ids": set(),
                 }
             elif existing.get("history") is None and history is not None:
                 existing["history"] = history
+            if idx + 1 < len(diff_ids):
+                layers_by_diff_id[diff_id]["next_diff_ids"].add(diff_ids[idx + 1])
 
+    for layer in layers_by_diff_id.values():
+        layer["next_diff_ids"] = sorted(layer["next_diff_ids"])
     return list(layers_by_diff_id.values())
 
 
 def _build_image_layer_relationship_dicts(
     provenance_updates: list[dict[str, Any]],
-) -> tuple[
-    list[dict[str, Any]],
-    list[dict[str, Any]],
-    list[dict[str, Any]],
-    list[dict[str, Any]],
-]:
-    has_layer_relationships: list[dict[str, Any]] = []
-    head_relationships: list[dict[str, Any]] = []
-    tail_relationships: list[dict[str, Any]] = []
-    next_relationships: list[dict[str, Any]] = []
-    seen_next_relationships: set[tuple[str, str]] = set()
-
-    for update in provenance_updates:
-        digest = update.get("digest")
-        diff_ids = update.get("layer_diff_ids") or []
-        if update.get("type") != "image" or not digest or not diff_ids:
-            continue
-
-        has_layer_relationships.extend(
-            {"digest": digest, "layer_diff_id": diff_id} for diff_id in diff_ids
-        )
-        head_relationships.append({"digest": digest, "head_layer_diff_id": diff_ids[0]})
-        tail_relationships.append(
-            {"digest": digest, "tail_layer_diff_id": diff_ids[-1]}
-        )
-
-        for diff_id, next_diff_id in zip(diff_ids, diff_ids[1:]):
-            pair = (diff_id, next_diff_id)
-            if pair in seen_next_relationships:
-                continue
-            seen_next_relationships.add(pair)
-            next_relationships.append(
-                {"diff_id": diff_id, "next_diff_id": next_diff_id}
-            )
-
-    return (
-        has_layer_relationships,
-        head_relationships,
-        tail_relationships,
-        next_relationships,
-    )
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "digest": update["digest"],
+            "layer_diff_ids": diff_ids,
+            "head_layer_diff_id": diff_ids[0],
+            "tail_layer_diff_id": diff_ids[-1],
+        }
+        for update in provenance_updates
+        if update.get("type") == "image"
+        and update.get("digest")
+        and (diff_ids := update.get("layer_diff_ids"))
+    ]
 
 
 PROVENANCE_UPDATE_FIELDS = (
@@ -1236,75 +1233,28 @@ def load_image_layers(
         _sub_resource_label="GCPProject",
         _sub_resource_id=project_id,
     )
+    load(
+        neo4j_session,
+        GCPArtifactRegistryImageLayerNextRelSchema(),
+        layer_dicts,
+        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
 def load_image_layer_relationships(
     neo4j_session: neo4j.Session,
     provenance_updates: list[dict[str, Any]],
-    project_id: str,
     update_tag: int,
 ) -> None:
-    (
-        has_layer_relationships,
-        head_relationships,
-        tail_relationships,
-        next_relationships,
-    ) = _build_image_layer_relationship_dicts(provenance_updates)
-    if not has_layer_relationships:
-        return
-
-    load_matchlinks_with_progress(
+    relationship_dicts = _build_image_layer_relationship_dicts(provenance_updates)
+    load(
         neo4j_session,
-        GCPArtifactRegistryImageToLayerMatchLink(),
-        has_layer_relationships,
+        GCPArtifactRegistryImageLayerRelSchema(),
+        relationship_dicts,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry image HAS_LAYER relationships for project {project_id}"
-        ),
         lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
-    load_matchlinks_with_progress(
-        neo4j_session,
-        GCPArtifactRegistryImageToHeadLayerMatchLink(),
-        head_relationships,
-        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry image HEAD relationships for project {project_id}"
-        ),
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
-    load_matchlinks_with_progress(
-        neo4j_session,
-        GCPArtifactRegistryImageToTailLayerMatchLink(),
-        tail_relationships,
-        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry image TAIL relationships for project {project_id}"
-        ),
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
-    )
-    load_matchlinks_with_progress(
-        neo4j_session,
-        GCPArtifactRegistryImageLayerToNextMatchLink(),
-        next_relationships,
-        batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        progress_description=(
-            f"Artifact Registry image layer NEXT relationships for project {project_id}"
-        ),
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-        _sub_resource_label="GCPProject",
-        _sub_resource_id=project_id,
     )
 
 
@@ -1330,6 +1280,24 @@ def sync(
     logger.info("Starting supply chain sync for GCP project %s", project_id)
     merged_provenance_updates: list[dict[str, Any]] = []
 
+    candidate_digests = {
+        digest
+        for artifact in docker_artifacts_raw
+        if artifact.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        if (digest := _artifact_digest(artifact))
+    }
+    complete_digests = get_complete_layer_digests(
+        neo4j_session,
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        candidate_digests,
+        {"id": project_id},
+    )
+    if complete_digests:
+        logger.info(
+            "Skipping OCI config fetches for %d already-enriched GAR digests",
+            len(complete_digests),
+        )
+
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
@@ -1337,7 +1305,12 @@ def sync(
         asyncio.set_event_loop(loop)
 
     enrichments, fetch_failures = loop.run_until_complete(
-        _fetch_all_image_provenance(credentials, docker_artifacts_raw, project_id),
+        _fetch_all_image_provenance(
+            credentials,
+            docker_artifacts_raw,
+            project_id,
+            cached_layer_digests=complete_digests,
+        ),
     )
 
     if enrichments:
@@ -1370,13 +1343,18 @@ def sync(
     layer_dicts = _build_layer_dicts(enrichments)
     if layer_dicts:
         load_image_layers(neo4j_session, layer_dicts, project_id, update_tag)
-    if merged_provenance_updates:
-        load_image_layer_relationships(
-            neo4j_session,
-            merged_provenance_updates,
-            project_id,
-            update_tag,
-        )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        update_tag,
+    )
+    refresh_layer_closures(
+        neo4j_session,
+        GCP_ARTIFACT_REGISTRY_LAYER_GRAPH,
+        complete_digests,
+        {"id": project_id},
+        update_tag,
+    )
 
     # Stale-layer cleanup is only safe when artifact discovery was complete AND
     # the enrichment pass had no fetch failures. Discovery completeness governs
@@ -1415,30 +1393,6 @@ def sync(
         ).run(neo4j_session)
         GraphJob.from_matchlink(
             GCPArtifactRegistryImageBuiltFromMatchLink(),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
-        GraphJob.from_matchlink(
-            GCPArtifactRegistryImageToLayerMatchLink(),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
-        GraphJob.from_matchlink(
-            GCPArtifactRegistryImageToHeadLayerMatchLink(),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
-        GraphJob.from_matchlink(
-            GCPArtifactRegistryImageToTailLayerMatchLink(),
-            "GCPProject",
-            project_id,
-            update_tag,
-        ).run(neo4j_session)
-        GraphJob.from_matchlink(
-            GCPArtifactRegistryImageLayerToNextMatchLink(),
             "GCPProject",
             project_id,
             update_tag,

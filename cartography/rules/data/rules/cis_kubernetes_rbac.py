@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -108,6 +109,7 @@ kubernetes_cluster_admin_role_usage = Rule(
         cis_kubernetes("5.1.1"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -220,6 +222,7 @@ kubernetes_roles_grant_secret_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.2"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -342,6 +345,7 @@ kubernetes_wildcard_roles = Rule(
         cis_kubernetes("5.1.3"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -470,6 +474,7 @@ kubernetes_roles_grant_pod_creation = Rule(
     frameworks=(
         cis_kubernetes("5.1.4"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -682,6 +687,7 @@ kubernetes_default_service_account_bindings = Rule(
         cis_kubernetes("5.1.5"),
         iso27001_annex_a("5.16"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -795,6 +801,7 @@ kubernetes_system_masters_group_usage = Rule(
     frameworks=(
         cis_kubernetes("5.1.7"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -907,6 +914,7 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
         cis_kubernetes("5.1.8"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1020,6 +1028,7 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
     frameworks=(
         cis_kubernetes("5.1.9"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1094,6 +1103,7 @@ kubernetes_node_proxy_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.10"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1169,6 +1179,7 @@ kubernetes_csr_approval_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.11"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1258,6 +1269,7 @@ kubernetes_webhook_configuration_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.12"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -1339,6 +1351,7 @@ kubernetes_service_account_token_creation_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

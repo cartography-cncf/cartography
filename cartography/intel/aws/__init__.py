@@ -2,7 +2,9 @@ import datetime
 import logging
 import os
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -105,10 +107,8 @@ def _sync_one_account(
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
     aioboto3_session: aioboto3.Session | None = None,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
-    if aioboto3_session is None:
-        aioboto3_session = aioboto3.Session()
-
     migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
@@ -155,6 +155,17 @@ def _sync_one_account(
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
+        # `route53` creates DNS_POINTS_TO edges by matching already-existing target nodes,
+        # so selecting it without these produces zero such edges, and cleanup_route53 then
+        # deletes the ones a previous run had created. AWSESDomain is deliberately absent:
+        # `elasticsearch` runs after `route53`, so that edge is never created on a first run
+        # no matter what the user selects, and a warning here would not help.
+        "route53": [
+            "ec2:load_balancer",
+            "ec2:load_balancer_v2",
+            "ec2:instance",
+            "elastic_ip_addresses",
+        ],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -175,6 +186,10 @@ def _sync_one_account(
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
             # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+            if aioboto3_session is None:
+                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+                aioboto3_session = aioboto3_session_factory()
+
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
@@ -182,6 +197,7 @@ def _sync_one_account(
                 current_aws_account_id,
                 update_tag,
                 common_job_parameters,
+                aioboto3_session_factory=aioboto3_session_factory,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
@@ -207,15 +223,6 @@ def _sync_one_account(
         neo4j_session,
         common_job_parameters,
     )
-
-    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
-        requested_syncs_set
-    ):
-        run_typed_analysis_job(
-            AWS_LB_CONTAINER_EXPOSURE,
-            neo4j_session,
-            common_job_parameters,
-        )
 
     if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
         run_typed_analysis_job(
@@ -624,7 +631,6 @@ def _sync_multiple_accounts(
         # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
-        aioboto3_session = aioboto3.Session(**session_kwargs)
 
         try:
             _sync_one_account(
@@ -635,7 +641,10 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
-                aioboto3_session=aioboto3_session,
+                aioboto3_session_factory=partial(
+                    aioboto3.Session,
+                    **session_kwargs,
+                ),
             )
         except Exception as e:
             if aws_best_effort_mode:
@@ -674,6 +683,31 @@ def _sync_multiple_accounts(
     return False
 
 
+# Resource syncs that feed the `exposed_internet` flag: AWS_EC2_ASSET_EXPOSURE_JOBS (which sets it on
+# load balancers, instances, etc.) only runs when all of these were requested this cycle.
+AWS_EC2_ASSET_EXPOSURE_DEPS = {
+    "ec2:instance",
+    "ec2:security_group",
+    "ec2:load_balancer",
+    "ec2:load_balancer_v2",
+}
+# Both the ECS internet-exposure property and the LB->container edge gate on lb.exposed_internet, so
+# they must require the full producer dependency set above: otherwise a partial sync that skips the
+# producer would leave a stale exposed_internet flag and let these consumers label/link containers
+# from it. On top of that they read the ECS graph, the LB EXPOSE edges, and the ENI chain directly
+# (the ECS "direct" statement also reads security-group inbound rules), so add those syncs too.
+AWS_ECS_ASSET_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ecs",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+}
+AWS_LB_CONTAINER_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ecs",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+}
+
+
 @timeit
 def _perform_aws_analysis(
     requested_syncs: List[str],
@@ -696,12 +730,7 @@ def _perform_aws_analysis(
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         run_typed_analysis_and_ensure_deps(
             job,
-            {
-                "ec2:instance",
-                "ec2:security_group",
-                "ec2:load_balancer",
-                "ec2:load_balancer_v2",
-            },
+            AWS_EC2_ASSET_EXPOSURE_DEPS,
             requested_syncs_as_set,
             common_job_parameters,
             neo4j_session,
@@ -732,9 +761,22 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    # Both the ECS container internet-exposure property and the LB->container EXPOSE edge gate on
+    # lb.exposed_internet, so they run here (after AWS_EC2_ASSET_EXPOSURE_JOBS) rather than in the
+    # per-account phase. Their dependency sets (see above) require the exposed_internet producer's
+    # syncs plus the ECS / ENI / SG data they read, so a partial sync skips them instead of labelling
+    # containers from a stale exposed_internet flag, security group, or ENI.
     run_typed_analysis_and_ensure_deps(
         AWS_ECS_ASSET_EXPOSURE,
-        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
+        AWS_ECS_ASSET_EXPOSURE_DEPS,
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    run_typed_analysis_and_ensure_deps(
+        AWS_LB_CONTAINER_EXPOSURE,
+        AWS_LB_CONTAINER_EXPOSURE_DEPS,
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,

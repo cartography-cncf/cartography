@@ -338,10 +338,12 @@ def test_sync_gcp_permission_relationships(
         ("alice@example.com", "projects/project-abc/datasets/test_dataset"),
     }
 
-    # alice@example.com gets project-level access to every table.
-    # bob@example.com is bound at resource scope to a SPECIFIC events table
-    # in dataset_a; the engine must NOT extend that to the homonymous events
-    # table in dataset_b — we expose that regression here.
+    # A table relationship means an IAM binding placed directly on that table.
+    # alice@example.com holds project-level access, which stays on the dataset and
+    # is read through HAS_TABLE, so she gets no table relationship at all.
+    # bob@example.com is bound at resource scope to a SPECIFIC events table in
+    # dataset_a; the engine must NOT extend that to the homonymous events table in
+    # dataset_b — we expose that regression here.
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
@@ -351,18 +353,6 @@ def test_sync_gcp_permission_relationships(
         "CAN_READ",
         rel_direction_right=True,
     ) == {
-        (
-            "alice@example.com",
-            "projects/project-abc/datasets/test_dataset/tables/test_table",
-        ),
-        (
-            "alice@example.com",
-            "projects/project-abc/datasets/dataset_a/tables/events",
-        ),
-        (
-            "alice@example.com",
-            "projects/project-abc/datasets/dataset_b/tables/events",
-        ),
         (
             "bob@example.com",
             "projects/project-abc/datasets/dataset_a/tables/events",
@@ -433,12 +423,29 @@ def test_sync_gcp_permission_relationships(
             "permissions": ["bigquery.tables.delete"],
             "relationship_name": "CAN_DELETE",
         },
+        {
+            "target_label": "GCPBigQueryDataset",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+        {
+            "target_label": "GCPBigQueryDataset",
+            "permissions": ["bigquery.tables.updateData"],
+            "relationship_name": "CAN_WRITE",
+        },
     ],
 )
-def test_sync_bigquery_table_permission_relationship_fast_paths(
+def test_sync_bigquery_broad_grants_stay_on_the_dataset(
     mock_parse_yaml,
     neo4j_session,
 ):
+    """
+    Project- and dataset-scope BigQuery grants are represented on the dataset and
+    are never expanded into one relationship per table: that expansion carried no
+    information (nothing table-level is consulted) and cost millions of MERGEs.
+    Only a binding placed directly on a table produces a table relationship, and
+    the tables covered by a broad grant stay reachable in one HAS_TABLE hop.
+    """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session)
@@ -554,31 +561,57 @@ def test_sync_bigquery_table_permission_relationship_fast_paths(
     )
 
     # Assert
+    # The project-wide reader gets its dataset relationships and NO table
+    # relationship: the broad grant is not expanded per table.
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
         "email",
-        "GCPBigQueryTable",
+        "GCPBigQueryDataset",
         "id",
         "CAN_READ",
         rel_direction_right=True,
     ) == {
-        ("project-reader@example.com", "project-abc:analytics.events"),
-        ("project-reader@example.com", "project-abc:analytics.orders"),
-        ("project-reader@example.com", "project-abc:logs.audit"),
+        ("project-reader@example.com", "project-abc:analytics"),
+        ("project-reader@example.com", "project-abc:logs"),
     }
+    # Same for the dataset-scoped writer, on its dataset only.
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
         "email",
-        "GCPBigQueryTable",
+        "GCPBigQueryDataset",
         "id",
         "CAN_WRITE",
         rel_direction_right=True,
     ) == {
-        ("dataset-writer@example.com", "project-abc:analytics.events"),
-        ("dataset-writer@example.com", "project-abc:analytics.orders"),
+        ("dataset-writer@example.com", "project-abc:analytics"),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPPrincipal",
+            "email",
+            "GCPBigQueryTable",
+            "id",
+            "CAN_READ",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPPrincipal",
+            "email",
+            "GCPBigQueryTable",
+            "id",
+            "CAN_WRITE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    # Only the binding placed directly on a table produces a table relationship.
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
@@ -590,6 +623,27 @@ def test_sync_bigquery_table_permission_relationship_fast_paths(
     ) == {
         ("table-deleter@example.com", "project-abc:analytics.events"),
     }
+
+    # Losslessness: the one HAS_TABLE hop recovers exactly the tables the per-table
+    # expansion used to write for each broad grant.
+    reachable_tables = {
+        (record["email"], record["table_id"])
+        for record in neo4j_session.run(
+            """
+            MATCH (p:GCPPrincipal)-[:CAN_READ]->(:GCPBigQueryDataset)
+                  -[:HAS_TABLE]->(t:GCPBigQueryTable)
+            RETURN p.email AS email, t.id AS table_id
+            """,
+        )
+    }
+    assert reachable_tables == {
+        ("project-reader@example.com", "project-abc:analytics.events"),
+        ("project-reader@example.com", "project-abc:analytics.orders"),
+        ("project-reader@example.com", "project-abc:logs.audit"),
+    }
+
+    # The fan-out relationships written by a previous sync are still cleaned up:
+    # cleanup_rpr runs per YAML entry regardless of which load path ran.
     stale_count = neo4j_session.run(
         """
         MATCH (:GCPPrincipal{email: "stale@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable)
@@ -832,17 +886,25 @@ def test_sync_gcp_permission_relationships_clears_stale_condition_on_transition(
             "permissions": ["bigquery.tables.getData"],
             "relationship_name": "CAN_READ",
         },
+        {
+            "target_label": "GCPBigQueryDataset",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
     ],
 )
-def test_sync_gcp_permission_relationships_unconditional_dataset_beats_conditional_table(
+def test_sync_gcp_permission_relationships_separates_dataset_and_table_grains(
     mock_parse_yaml,
     neo4j_session,
 ):
     """
-    A principal with an unconditional dataset-scope grant AND a conditional binding on
-    a table in that dataset must end up with an unconditional edge (has_condition=false):
-    the broad unconditional grant wins over the conditional table binding for the same
-    principal/table. Regression for PR #2891 review (kunaals).
+    A principal with an unconditional dataset-scope grant AND a conditional binding
+    on one table in that dataset gets both grains, each stating its own truth:
+    an unconditional dataset relationship, and a table relationship flagged
+    has_condition=true because the binding on that table IS conditional. Effective
+    access is the union of the two paths, so the broad grant no longer overwrites
+    the condition metadata of the narrow one (contrast PR #2891, when both grains
+    landed on the same table edge).
     """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -855,13 +917,15 @@ def test_sync_gcp_permission_relationships_unconditional_dataset_beats_condition
         SET ds.lastupdated = $update_tag
         MERGE (project)-[dr:RESOURCE]->(ds)
         SET dr.lastupdated = $update_tag
-        WITH project
+        WITH project, ds
         UNWIND ["project-abc:analytics.events", "project-abc:analytics.orders"] AS tid
             MERGE (t:GCPBigQueryTable{id: tid})
             ON CREATE SET t.firstseen = timestamp()
             SET t.lastupdated = $update_tag
             MERGE (project)-[tr:RESOURCE]->(t)
             SET tr.lastupdated = $update_tag
+            MERGE (ds)-[hr:HAS_TABLE]->(t)
+            SET hr.lastupdated = $update_tag
         WITH project
         MERGE (p:GCPPrincipal{email: "dev@example.com"})
         ON CREATE SET p.firstseen = timestamp()
@@ -905,11 +969,158 @@ def test_sync_gcp_permission_relationships_unconditional_dataset_beats_condition
         },
     )
 
-    # Assert: the events edge is unconditional (dataset grant wins), not conditional.
-    events_has_condition = neo4j_session.run(
+    # Assert: the dataset relationship carries the unconditional grant.
+    dataset_edge = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBigQueryDataset{id: "project-abc:analytics"})
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title
+        """,
+    ).single()
+    assert dataset_edge["has_condition"] is False
+    assert dataset_edge["condition_title"] is None
+
+    # Only the table carrying a direct binding gets a table relationship, and it
+    # keeps its own condition metadata.
+    assert check_rels(
+        neo4j_session,
+        "GCPPrincipal",
+        "email",
+        "GCPBigQueryTable",
+        "id",
+        "CAN_READ",
+        rel_direction_right=True,
+    ) == {
+        ("dev@example.com", "project-abc:analytics.events"),
+    }
+    events_edge = neo4j_session.run(
         """
         MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBigQueryTable{id: "project-abc:analytics.events"})
-        RETURN r.has_condition AS has_condition
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title
         """,
-    ).single()["has_condition"]
-    assert events_has_condition is False
+    ).single()
+    assert events_edge["has_condition"] is True
+    assert events_edge["condition_title"] == "business-hours"
+
+    # Unconditional access to every table in the dataset remains readable in one hop.
+    reachable_tables = {
+        record["table_id"]
+        for record in neo4j_session.run(
+            """
+            MATCH (:GCPPrincipal{email: "dev@example.com"})-[r:CAN_READ]->(:GCPBigQueryDataset)
+                  -[:HAS_TABLE]->(t:GCPBigQueryTable)
+            WHERE r.has_condition = false
+            RETURN t.id AS table_id
+            """,
+        )
+    }
+    assert reachable_tables == {
+        "project-abc:analytics.events",
+        "project-abc:analytics.orders",
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=[
+        {
+            "target_label": "GCPBigQueryTable",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+        {
+            "target_label": "GCPBigQueryDataset",
+            "permissions": ["bigquery.tables.getData"],
+            "relationship_name": "CAN_READ",
+        },
+    ],
+)
+def test_sync_conditional_project_wide_grant_writes_no_table_relationships(
+    mock_parse_yaml,
+    neo4j_session,
+):
+    """
+    A conditional project-wide binding is broad too. Its scope pattern ends in a
+    wildcard, so it matches every table scope and used to be expanded per table by
+    the row-by-row path. It must now stop at the dataset like any other broad grant.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (project:GCPProject{id: $project_id})
+        MERGE (ds:GCPBigQueryDataset{id: "project-abc:analytics"})
+        ON CREATE SET ds.firstseen = timestamp()
+        SET ds.lastupdated = $update_tag
+        MERGE (project)-[dr:RESOURCE]->(ds)
+        SET dr.lastupdated = $update_tag
+        WITH project, ds
+        UNWIND ["project-abc:analytics.events", "project-abc:analytics.orders"] AS tid
+            MERGE (t:GCPBigQueryTable{id: tid})
+            ON CREATE SET t.firstseen = timestamp()
+            SET t.lastupdated = $update_tag
+            MERGE (project)-[tr:RESOURCE]->(t)
+            SET tr.lastupdated = $update_tag
+            MERGE (ds)-[hr:HAS_TABLE]->(t)
+            SET hr.lastupdated = $update_tag
+        WITH project
+        MERGE (p:GCPPrincipal{email: "oncall@example.com"})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $update_tag
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.gcp.permission_relationships.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        {
+            "oncall@example.com": {
+                "binding-project-conditional": {
+                    "permissions": cartography.intel.gcp.permission_relationships.compile_permissions(
+                        {
+                            "permissions": ["bigquery.tables.getData"],
+                            "denied_permissions": [],
+                        }
+                    ),
+                    "scope": cartography.intel.gcp.permission_relationships.compile_gcp_regex(
+                        "project/project-abc/*"
+                    ),
+                    "has_condition": True,
+                    "condition_title": "incident-only",
+                    "condition_expression": "request.time.getHours() < 18",
+                },
+            },
+        },
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPPrincipal",
+            "email",
+            "GCPBigQueryTable",
+            "id",
+            "CAN_READ",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    # The dataset relationship still carries the grant, with its condition.
+    dataset_edge = neo4j_session.run(
+        """
+        MATCH (:GCPPrincipal{email: "oncall@example.com"})-[r:CAN_READ]->(:GCPBigQueryDataset{id: "project-abc:analytics"})
+        RETURN r.has_condition AS has_condition,
+               r.condition_title AS condition_title
+        """,
+    ).single()
+    assert dataset_edge["has_condition"] is True
+    assert dataset_edge["condition_title"] == "incident-only"

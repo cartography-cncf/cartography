@@ -1,37 +1,51 @@
 # Syft Configuration
 
-## CLI Arguments
+## Prerequisites
 
-| Argument | Description |
-|----------|-------------|
-| `--syft-source` | Syft report source. Accepts a local path, `s3://bucket/prefix`, `gs://bucket/prefix`, or `azblob://account/container/prefix`. |
+Install [Syft](https://github.com/anchore/syft) to generate software bill of
+materials reports.
 
-Deprecated local and S3 report-source flags remain accepted until Cartography v1.0.0 and emit warnings when used. New configurations should use `--syft-source`.
+## Configure Cartography
 
-## Examples
+Set `--syft-source` to a local path, `s3://bucket/prefix`,
+`gs://bucket/prefix`, or `azblob://account/container/prefix`.
 
-### Local Files
+## Run Cartography
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
+            --selected-modules syft \
             --syft-source /path/to/syft/results
 ```
 
-### S3 Storage
+For reports stored in S3:
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
+            --selected-modules syft \
             --syft-source s3://my-security-bucket/scans/syft/
 ```
 
-## File Format
+## Input Artifacts
 
-Syft JSON files should be in Syft's native JSON format (not CycloneDX):
+### Generate Input Artifacts
+
+Generate reports in Syft's native JSON format, not CycloneDX:
 
 ```bash
 syft <image> -o syft-json=output.json
 ```
 
-Required fields in the JSON:
-- `artifacts`: List of package objects with `id`, `name`, `version`
-- `artifactRelationships`: List of dependency relationships (optional but recommended)
+### Input Format
+
+Required fields in the JSON are:
+
+- `artifacts`: List of package objects with `id`, `name`, and `version`.
+- `artifactRelationships`: List of dependency relationships. This field is
+  optional but recommended.
+
+## Advanced Configuration
+
+Deprecated local and S3 report-source flags remain accepted until Cartography
+v1.0.0 and emit warnings when used. New configurations should use
+`--syft-source`.

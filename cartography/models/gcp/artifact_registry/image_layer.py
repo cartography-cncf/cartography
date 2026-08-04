@@ -9,16 +9,30 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IMAGE_LAYER
 
 
 @dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id")
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description=(
+            "Uncompressed OCI layer digest used as the node ID; compressed "
+            "manifest digest and size are not stored."
+        ),
+    )
+    diff_id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed OCI layer digest from rootfs.diff_ids; compressed manifest digest and size are not stored.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    history: PropertyRef = PropertyRef("history")
+    history: PropertyRef = PropertyRef(
+        "history",
+        description="OCI created_by command aligned to this diff ID after empty-layer history entries are skipped.",
+    )
 
 
 @dataclass(frozen=True)
@@ -40,12 +54,31 @@ class GCPArtifactRegistryImageLayerToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerToNextRel(CartographyRelSchema):
+    """Links a layer to each layer observed immediately after it in an image."""
+
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "NEXT"
+    properties: GCPArtifactRegistryImageLayerToProjectRelProperties = (
+        GCPArtifactRegistryImageLayerToProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -68,24 +101,9 @@ class GCPArtifactRegistryProjectToImageLayerRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageLayerToNextMatchLink(CartographyRelSchema):
-    source_node_label: str = "GCPArtifactRegistryImageLayer"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"diff_id": PropertyRef("diff_id")}
-    )
-    target_node_label: str = "GCPArtifactRegistryImageLayer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("next_diff_id")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "NEXT"
-    properties: GCPArtifactRegistryImageLayerMatchLinkProperties = (
-        GCPArtifactRegistryImageLayerMatchLinkProperties()
-    )
-
-
-@dataclass(frozen=True)
 class GCPArtifactRegistryImageLayerSchema(CartographyNodeSchema):
+    """A Google Cloud Artifact Registry Image Layer resource."""
+
     label: str = "GCPArtifactRegistryImageLayer"
     properties: GCPArtifactRegistryImageLayerNodeProperties = (
         GCPArtifactRegistryImageLayerNodeProperties()
@@ -93,4 +111,34 @@ class GCPArtifactRegistryImageLayerSchema(CartographyNodeSchema):
     sub_resource_relationship: GCPArtifactRegistryImageLayerToProjectRel = (
         GCPArtifactRegistryImageLayerToProjectRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerRelNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description=(
+            "Uncompressed OCI layer digest used as the node ID; compressed "
+            "manifest digest and size are not stored."
+        ),
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerNextRelSchema(CartographyNodeSchema):
+    """Relationship-only writes for immutable Artifact Registry layer order.
+
+    NEXT is a global adjacency DAG over content-addressed layers, matching the
+    ECR, GHCR, and GitLab models. It is not project-cleaned because layer pairs
+    can be shared across projects; incomplete image closures are reloaded.
+    """
+
+    label: str = "GCPArtifactRegistryImageLayer"
+    properties: GCPArtifactRegistryImageLayerRelNodeProperties = (
+        GCPArtifactRegistryImageLayerRelNodeProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPArtifactRegistryImageLayerToNextRel()],
+    )

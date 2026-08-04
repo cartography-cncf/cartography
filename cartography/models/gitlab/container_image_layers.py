@@ -23,17 +23,41 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IMAGE_LAYER
 
 
 @dataclass(frozen=True)
 class GitLabContainerImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("diff_id")
-    diff_id: PropertyRef = PropertyRef("diff_id", extra_index=True)
-    digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    media_type: PropertyRef = PropertyRef("media_type")
-    size: PropertyRef = PropertyRef("size")
-    is_empty: PropertyRef = PropertyRef("is_empty")
-    history: PropertyRef = PropertyRef("history")
+    id: PropertyRef = PropertyRef(
+        "diff_id",
+        description="Uncompressed layer digest from the image config.",
+    )
+    diff_id: PropertyRef = PropertyRef(
+        "diff_id",
+        extra_index=True,
+        description="Uncompressed layer digest used for cross-registry deduplication.",
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Compressed layer digest from the image manifest.",
+    )
+    media_type: PropertyRef = PropertyRef(
+        "media_type",
+        description="OCI or Docker media type of the compressed layer.",
+    )
+    size: PropertyRef = PropertyRef(
+        "size",
+        description="Compressed layer size in bytes.",
+    )
+    is_empty: PropertyRef = PropertyRef(
+        "is_empty",
+        description="Whether the layer represents an empty filesystem change.",
+    )
+    history: PropertyRef = PropertyRef(
+        "history",
+        description="Image build command associated with the layer.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -111,4 +135,4 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
             GitLabContainerImageLayerToNextRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_LAYER])

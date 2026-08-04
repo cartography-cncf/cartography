@@ -1,7 +1,45 @@
 import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.ontology.device import DeviceSchema
+from cartography.models.ontology.labels import AI_MODEL
+from cartography.models.ontology.labels import API_KEY
+from cartography.models.ontology.labels import BLOCK_STORAGE
+from cartography.models.ontology.labels import CERTIFICATE
+from cartography.models.ontology.labels import CICD_PIPELINE
+from cartography.models.ontology.labels import CODE_REPOSITORY
+from cartography.models.ontology.labels import COMPUTE_CLUSTER
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
+from cartography.models.ontology.labels import COMPUTE_NAMESPACE
+from cartography.models.ontology.labels import COMPUTE_POD
+from cartography.models.ontology.labels import COMPUTE_SERVICE
+from cartography.models.ontology.labels import CONTAINER
+from cartography.models.ontology.labels import CONTAINER_REGISTRY
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import DATABASE
+from cartography.models.ontology.labels import DNS_RECORD
+from cartography.models.ontology.labels import DNS_ZONE
+from cartography.models.ontology.labels import ENCRYPTION_KEY
+from cartography.models.ontology.labels import FILE_STORAGE
+from cartography.models.ontology.labels import FUNCTION
+from cartography.models.ontology.labels import IDENTITY_PROVIDER
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import LOAD_BALANCER
+from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
+from cartography.models.ontology.labels import OBJECT_STORAGE
+from cartography.models.ontology.labels import PERMISSION_ROLE
+from cartography.models.ontology.labels import SECRET
+from cartography.models.ontology.labels import SECURITY_ISSUE
+from cartography.models.ontology.labels import SERVICE_ACCOUNT
+from cartography.models.ontology.labels import SNAPSHOT
+from cartography.models.ontology.labels import SUBNET
+from cartography.models.ontology.labels import TAG
+from cartography.models.ontology.labels import TENANT
+from cartography.models.ontology.labels import THIRD_PARTY_APP
+from cartography.models.ontology.labels import USER_ACCOUNT
+from cartography.models.ontology.labels import USER_GROUP
+from cartography.models.ontology.labels import VIRTUAL_NETWORK
 from cartography.models.ontology.mapping.data.aimodels import AIMODELS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.blockstorage import (
@@ -96,6 +134,7 @@ from cartography.models.ontology.mapping.data.vpcs import VPCS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.models.ontology.package import PackageSchema
+from cartography.models.ontology.package_version import PackageVersionSchema
 from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.models.ontology.user import UserSchema
 
@@ -153,12 +192,76 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "cves": CVES_ONTOLOGY_MAPPING,
 }
 
+# The ontology extra label carried by every node mapped in a given semantic category.
+# Provider schemas mapped into a category must declare that label (enforced by
+# tests/unit/cartography/intel/ontology/test_ontology_mapping.py), otherwise their nodes get
+# normalized `_ont_*` properties while staying invisible to `MATCH (n:<Label>)` queries.
+SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
+    "aimodels": AI_MODEL,
+    "apikeys": API_KEY,
+    "blockstorage": BLOCK_STORAGE,
+    "certificates": CERTIFICATE,
+    "cicdpipelines": CICD_PIPELINE,
+    "coderepositories": CODE_REPOSITORY,
+    "computeclusters": COMPUTE_CLUSTER,
+    "computeinstance": COMPUTE_INSTANCE,
+    "computenamespaces": COMPUTE_NAMESPACE,
+    "computepods": COMPUTE_POD,
+    "computeservices": COMPUTE_SERVICE,
+    "containerregistries": CONTAINER_REGISTRY,
+    "containers": CONTAINER,
+    "cves": CVE,
+    "databases": DATABASE,
+    "dnsrecords": DNS_RECORD,
+    "dnszones": DNS_ZONE,
+    "encryptionkeys": ENCRYPTION_KEY,
+    "filestorage": FILE_STORAGE,
+    "firewalls": NETWORK_ACCESS_CONTROL,
+    "functions": FUNCTION,
+    "groups": USER_GROUP,
+    "identityproviders": IDENTITY_PROVIDER,
+    "images": IMAGE,
+    "loadbalancers": LOAD_BALANCER,
+    "objectstorage": OBJECT_STORAGE,
+    "roles": PERMISSION_ROLE,
+    "secrets": SECRET,
+    "securityissues": SECURITY_ISSUE,
+    "serviceaccounts": SERVICE_ACCOUNT,
+    "snapshots": SNAPSHOT,
+    "subnets": SUBNET,
+    "tags": TAG,
+    "tenants": TENANT,
+    "thirdpartyapps": THIRD_PARTY_APP,
+    "useraccounts": USER_ACCOUNT,
+    "vpcs": VIRTUAL_NETWORK,
+}
+
+
+SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
+    "ImageAttestation",
+    "ImageLayer",
+    "ImageManifestList",
+    "ImageTag",
+)
+
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,
-    "packages": PackageSchema,
+    "packages": PackageVersionSchema,
     "publicips": PublicIPSchema,
 }
+
+# Primary labels owned by canonical ontology schemas. Provider schemas must never
+# reuse them (enforced by tests/unit/cartography/intel/ontology/test_ontology_mapping.py).
+# This is a superset of ONTOLOGY_MODELS: Package is not built from an ontology mapping,
+# it is derived from the PackageVersion rows by the ontology packages sync.
+ONTOLOGY_CANONICAL_SCHEMAS: tuple[type[CartographyNodeSchema], ...] = (
+    UserSchema,
+    DeviceSchema,
+    PackageSchema,
+    PackageVersionSchema,
+    PublicIPSchema,
+)
 
 
 def get_semantic_label_mapping_from_node_schema(
