@@ -65,8 +65,7 @@ def test_framework_helpers_preserve_framework_metadata():
         ),
         (
             soc2_tsc("CC6.6"),
-            "aicpa 2017 trust services criteria "
-            "(with revised points of focus - 2022)",
+            "soc 2: trust services criteria",
             "soc2",
             "tsc",
             "2022",
