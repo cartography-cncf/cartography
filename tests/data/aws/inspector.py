@@ -4,8 +4,16 @@ LIST_FINDINGS_NETWORK = [
     {
         "awsAccountId": "123456789011",
         "description": "string",
+        "epss": {
+            "score": 123.0,
+        },
+        "exploitAvailable": "NO",
+        "exploitabilityDetails": {
+            "lastKnownExploitAt": datetime(2015, 1, 1),
+        },
         "findingArn": "arn:aws:test123",
         "firstObservedAt": datetime(2015, 1, 1),
+        "fixAvailable": "YES",
         "inspectorScore": 123.0,
         "inspectorScoreDetails": {
             "adjustedCvss": {
@@ -101,8 +109,16 @@ LIST_FINDINGS_EC2_PACKAGE = [
         "(resource consumption) by leveraging improper channel "
         "callback shutdown when unmounting an NFSv4 filesystem, aka "
         'a "module reference and kernel daemon" leak.',
+        "epss": {
+            "score": 0.42,
+        },
+        "exploitAvailable": "YES",
+        "exploitabilityDetails": {
+            "lastKnownExploitAt": datetime(2022, 5, 4, 16, 23, 3, 692000),
+        },
         "findingArn": "arn:aws:test456",
         "firstObservedAt": datetime(2022, 5, 4, 16, 23, 3, 692000),
+        "fixAvailable": "PARTIAL",
         "inspectorScore": 5.5,
         "inspectorScoreDetails": {
             "adjustedCvss": {
