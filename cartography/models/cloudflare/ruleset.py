@@ -134,10 +134,14 @@ class CloudflareRulesetToZoneRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudflareRulesetSchema(CartographyNodeSchema):
     """
-    A Cloudflare ruleset. Rulesets are the engine behind the Cloudflare WAF: the
-    security phases carry the request filtering, rate limiting and bot
-    mitigation configuration, while other phases handle caching, transforms and
-    redirects.
+    A Cloudflare ruleset, as deployed in one scope. Rulesets are the engine behind
+    the Cloudflare WAF: the security phases carry the request filtering, rate
+    limiting and bot mitigation configuration, while other phases handle caching,
+    transforms and redirects.
+
+    Only deployed rulesets are ingested, that is the phase entry point rulesets of
+    a scope and whatever an enabled `execute` rule in them turns on. A ruleset that
+    merely exists, such as a Cloudflare-provided one nothing executes, has no node.
     """
 
     label: str = "CloudflareRuleset"

@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cloudflare import APIError
+from cloudflare import NotFoundError
+from cloudflare import PermissionDeniedError
 
 import cartography.intel.cloudflare.r2buckets
 import tests.data.cloudflare.accounts
@@ -20,13 +22,28 @@ ACCOUNT_ID = tests.data.cloudflare.accounts.CLOUDFLARE_ACCOUNTS[0]["id"]
 ZONE_ID = "be68b067-5b2b-49f7-ad89-943d501dc900"
 R2_DEV_DOMAIN = "pub-3f8b1c2d4e5a6b7c8d9e0f1a2b3c4d5e.r2.dev"
 
+DONUTS_DEFAULT = f"{ACCOUNT_ID}/default/donut-photos"
+DONUTS_EU = f"{ACCOUNT_ID}/eu/donut-photos"
+REPORTS_DEFAULT = f"{ACCOUNT_ID}/default/nuclear-safety-reports"
 
-def _fake_managed_domain(client, account_id, bucket_name):
-    return tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_MANAGED_DOMAINS[bucket_name]
+# What get() returns when only the default jurisdiction could be listed.
+DEFAULT_ONLY_BUCKETS = [
+    bucket
+    for bucket in tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS
+    if bucket["jurisdiction"] == "default"
+]
 
 
-def _fake_custom_domains(client, account_id, bucket_name):
-    return tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_CUSTOM_DOMAINS[bucket_name]
+def _fake_managed_domain(client, account_id, bucket_name, jurisdiction):
+    return tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_MANAGED_DOMAINS[
+        (jurisdiction, bucket_name)
+    ]
+
+
+def _fake_custom_domains(client, account_id, bucket_name, jurisdiction):
+    return tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_CUSTOM_DOMAINS[
+        (jurisdiction, bucket_name)
+    ]
 
 
 def _patch_domain_api():
@@ -46,6 +63,30 @@ def _patch_domain_api():
             side_effect=_fake_custom_domains,
         ),
     )
+
+
+def _mock_client_listing_every_jurisdiction(failures=None):
+    """
+    Build a Cloudflare client mock whose bucket listing answers per jurisdiction,
+    raising for the jurisdictions named in `failures`.
+    """
+    failures = failures or {}
+
+    def _list(account_id, per_page, jurisdiction, **kwargs):
+        if jurisdiction in failures:
+            raise failures[jurisdiction]
+        page = MagicMock()
+        page.buckets = [
+            MagicMock(to_dict=MagicMock(return_value=dict(bucket)))
+            for bucket in tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS_BY_JURISDICTION[
+                jurisdiction
+            ]
+        ]
+        return page
+
+    mock_client = MagicMock()
+    mock_client.r2.buckets.list.side_effect = _list
+    return mock_client
 
 
 def _ensure_local_neo4j_has_test_r2buckets(neo4j_session):
@@ -71,7 +112,7 @@ def _ensure_local_neo4j_has_test_r2buckets(neo4j_session):
 @patch.object(
     cartography.intel.cloudflare.r2buckets,
     "get",
-    return_value=tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS,
+    return_value=(tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS, True),
 )
 @patch("cloudflare.Cloudflare")
 def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
@@ -98,23 +139,19 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
             ACCOUNT_ID,
         )
 
-    # Assert buckets exist. donut-photos is served on both its r2.dev domain and
-    # an enabled custom domain; nuclear-safety-reports on neither.
+    # Assert buckets exist. The default donut-photos is served on both its r2.dev
+    # domain and an enabled custom domain; nuclear-safety-reports and the EU
+    # donut-photos on neither. The two donut-photos buckets are distinct nodes.
     expected_nodes = {
-        (f"{ACCOUNT_ID}/donut-photos", "donut-photos", "wnam", True, True),
-        (
-            f"{ACCOUNT_ID}/nuclear-safety-reports",
-            "nuclear-safety-reports",
-            "enam",
-            False,
-            False,
-        ),
+        (DONUTS_DEFAULT, "donut-photos", "default", "wnam", True, True),
+        (REPORTS_DEFAULT, "nuclear-safety-reports", "default", "enam", False, False),
+        (DONUTS_EU, "donut-photos", "eu", "eeur", False, False),
     }
     assert (
         check_nodes(
             neo4j_session,
             "CloudflareR2Bucket",
-            ["id", "name", "location", "public", "r2_dev_enabled"],
+            ["id", "name", "jurisdiction", "location", "public", "r2_dev_enabled"],
         )
         == expected_nodes
     )
@@ -123,9 +160,10 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
     # domain (old-photos.simpson.corp) was left out
     result = neo4j_session.run(
         """
-        MATCH (b:CloudflareR2Bucket {name: 'donut-photos'})
+        MATCH (b:CloudflareR2Bucket {id: $id})
         RETURN b.public_domains AS domains
-        """
+        """,
+        id=DONUTS_DEFAULT,
     )
     assert sorted(result.single()["domains"]) == [
         "photos.simpson.corp",
@@ -134,8 +172,9 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
 
     # Assert buckets are connected with Account
     expected_rels = {
-        (f"{ACCOUNT_ID}/donut-photos", ACCOUNT_ID),
-        (f"{ACCOUNT_ID}/nuclear-safety-reports", ACCOUNT_ID),
+        (DONUTS_DEFAULT, ACCOUNT_ID),
+        (REPORTS_DEFAULT, ACCOUNT_ID),
+        (DONUTS_EU, ACCOUNT_ID),
     }
     assert (
         check_rels(
@@ -159,29 +198,39 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
         "id",
         "HAS_R2_CUSTOM_DOMAIN",
         rel_direction_right=False,
-    ) == {(f"{ACCOUNT_ID}/donut-photos", ZONE_ID)}
+    ) == {(DONUTS_DEFAULT, ZONE_ID)}
 
     # Assert the ObjectStorage ontology label and its normalized properties land
     result = neo4j_session.run(
         """
         MATCH (b:CloudflareR2Bucket:ObjectStorage)
-        RETURN b._ont_name AS name,
+        RETURN b.id AS id,
+               b._ont_name AS name,
                b._ont_location AS location,
                b._ont_encrypted AS encrypted,
                b._ont_public AS public
-        ORDER BY name
+        ORDER BY id
         """
     )
     assert [dict(record) for record in result] == [
         {
+            "id": DONUTS_DEFAULT,
             "name": "donut-photos",
             "location": "wnam",
             "encrypted": True,
             "public": True,
         },
         {
+            "id": REPORTS_DEFAULT,
             "name": "nuclear-safety-reports",
             "location": "enam",
+            "encrypted": True,
+            "public": False,
+        },
+        {
+            "id": DONUTS_EU,
+            "name": "donut-photos",
+            "location": "eeur",
             "encrypted": True,
             "public": False,
         },
@@ -189,7 +238,7 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
 
 
 @patch.object(cartography.intel.cloudflare.r2buckets, "cleanup")
-@patch.object(cartography.intel.cloudflare.r2buckets, "get", return_value=None)
+@patch.object(cartography.intel.cloudflare.r2buckets, "get", return_value=([], False))
 @patch("cloudflare.Cloudflare")
 def test_r2buckets_sync_skips_cleanup_when_listing_fails(
     mock_cloudflare, mock_api, mock_cleanup, neo4j_session
@@ -217,9 +266,53 @@ def test_r2buckets_sync_skips_cleanup_when_listing_fails(
 
     # Assert the previously ingested buckets survived
     mock_cleanup.assert_not_called()
-    assert check_nodes(neo4j_session, "CloudflareR2Bucket", ["name"]) == {
-        ("donut-photos",),
-        ("nuclear-safety-reports",),
+    assert check_nodes(neo4j_session, "CloudflareR2Bucket", ["id"]) == {
+        (DONUTS_DEFAULT,),
+        (REPORTS_DEFAULT,),
+        (DONUTS_EU,),
+    }
+
+
+@patch.object(cartography.intel.cloudflare.r2buckets, "cleanup")
+@patch.object(
+    cartography.intel.cloudflare.r2buckets,
+    "get",
+    return_value=(DEFAULT_ONLY_BUCKETS, False),
+)
+@patch("cloudflare.Cloudflare")
+def test_r2buckets_sync_skips_cleanup_when_one_jurisdiction_is_unreadable(
+    mock_cloudflare, mock_api, mock_cleanup, neo4j_session
+):
+    """
+    Ensure that an unreadable jurisdiction holds the cleanup back: the buckets of
+    the jurisdictions that were listed still ingest, but the ones this run knows
+    nothing about must not be deleted
+    """
+
+    # Arrange: an earlier, complete run ingested every jurisdiction
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "account_id": ACCOUNT_ID,
+    }
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
+    _ensure_local_neo4j_has_test_r2buckets(neo4j_session)
+    managed_patch, custom_patch = _patch_domain_api()
+
+    # Act: this run could only list the default jurisdiction
+    with managed_patch, custom_patch:
+        cartography.intel.cloudflare.r2buckets.sync(
+            neo4j_session,
+            mock_cloudflare,
+            common_job_parameters,
+            ACCOUNT_ID,
+        )
+
+    # Assert the EU bucket from the earlier run survived
+    mock_cleanup.assert_not_called()
+    assert check_nodes(neo4j_session, "CloudflareR2Bucket", ["id"]) == {
+        (DONUTS_DEFAULT,),
+        (REPORTS_DEFAULT,),
+        (DONUTS_EU,),
     }
 
 
@@ -237,7 +330,7 @@ def test_r2buckets_sync_skips_cleanup_when_listing_fails(
 @patch.object(
     cartography.intel.cloudflare.r2buckets,
     "get",
-    return_value=tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS,
+    return_value=(tests.data.cloudflare.r2buckets.CLOUDFLARE_R2_BUCKETS, True),
 )
 @patch("cloudflare.Cloudflare")
 def test_r2buckets_sync_keeps_custom_domain_rels_on_partial_read(
@@ -286,48 +379,125 @@ def test_r2buckets_sync_keeps_custom_domain_rels_on_partial_read(
         "id",
         "HAS_R2_CUSTOM_DOMAIN",
         rel_direction_right=False,
-    ) == {(f"{ACCOUNT_ID}/donut-photos", ZONE_ID)}
+    ) == {(DONUTS_DEFAULT, ZONE_ID)}
 
     # Assert the exposure is reported as unknown rather than private: the source
     # that could not be read is the one holding the custom domains
     result = neo4j_session.run(
         """
         MATCH (b:CloudflareR2Bucket)
-        RETURN b.name AS name,
+        RETURN b.id AS id,
                b.public AS public,
                b.public_domains AS domains,
                b.r2_dev_enabled AS r2_dev
-        ORDER BY name
+        ORDER BY id
         """
     )
     assert [dict(record) for record in result] == [
-        {"name": "donut-photos", "public": None, "domains": None, "r2_dev": True},
-        {
-            "name": "nuclear-safety-reports",
-            "public": None,
-            "domains": None,
-            "r2_dev": False,
-        },
+        {"id": DONUTS_DEFAULT, "public": None, "domains": None, "r2_dev": True},
+        {"id": REPORTS_DEFAULT, "public": None, "domains": None, "r2_dev": False},
+        {"id": DONUTS_EU, "public": None, "domains": None, "r2_dev": False},
     ]
 
 
-def test_get_returns_none_when_the_api_refuses_the_listing():
+def test_get_lists_every_jurisdiction():
     """
-    Ensure that an APIError on the bucket listing is turned into None rather than
-    propagating
+    Ensure that every R2 jurisdiction is listed and that each bucket carries the
+    jurisdiction it was listed in: one listing only reports one jurisdiction, and
+    the API omits the field on the default one
     """
 
     # Arrange
-    mock_client = MagicMock()
-    mock_client.r2.buckets.list.side_effect = APIError(
-        "Unauthorized", request=MagicMock(), body=None
+    mock_client = _mock_client_listing_every_jurisdiction()
+
+    # Act
+    buckets, complete = cartography.intel.cloudflare.r2buckets.get(
+        mock_client, ACCOUNT_ID
+    )
+
+    # Assert
+    assert complete is True
+    assert [
+        call.kwargs["jurisdiction"]
+        for call in mock_client.r2.buckets.list.call_args_list
+    ] == ["default", "eu", "fedramp"]
+    assert {(bucket["jurisdiction"], bucket["name"]) for bucket in buckets} == {
+        ("default", "donut-photos"),
+        ("default", "nuclear-safety-reports"),
+        ("eu", "donut-photos"),
+    }
+
+
+def test_get_treats_an_ungranted_jurisdiction_as_empty():
+    """
+    Ensure that a jurisdiction the account was never granted is reported as
+    holding no bucket rather than as a failed read: it is granted on request, so
+    treating it as a failure would hold back the cleanup of every other account
+    """
+
+    # Arrange
+    mock_client = _mock_client_listing_every_jurisdiction(
+        failures={
+            "fedramp": NotFoundError("Not found", response=MagicMock(), body=None),
+        }
     )
 
     # Act
-    result = cartography.intel.cloudflare.r2buckets.get(mock_client, ACCOUNT_ID)
+    buckets, complete = cartography.intel.cloudflare.r2buckets.get(
+        mock_client, ACCOUNT_ID
+    )
 
     # Assert
-    assert result is None
+    assert complete is True
+    assert len(buckets) == 3
+
+
+def test_get_reports_an_unreadable_jurisdiction_as_incomplete():
+    """
+    Ensure that an unexpected error on a jurisdiction listing is reported as a
+    partial read, so the caller holds the cleanup back
+    """
+
+    # Arrange
+    mock_client = _mock_client_listing_every_jurisdiction(
+        failures={
+            "eu": APIError("Server error", request=MagicMock(), body=None),
+        }
+    )
+
+    # Act
+    buckets, complete = cartography.intel.cloudflare.r2buckets.get(
+        mock_client, ACCOUNT_ID
+    )
+
+    # Assert: the default jurisdiction still came through
+    assert complete is False
+    assert {bucket["jurisdiction"] for bucket in buckets} == {"default"}
+
+
+def test_get_reports_no_buckets_when_the_default_listing_is_refused():
+    """
+    Ensure that a token without the R2 scope yields no bucket and a partial read,
+    so the R2 stage is skipped instead of deleting the whole inventory
+    """
+
+    # Arrange: the default jurisdiction exists for every R2 account, so a refusal
+    # there is a permission problem rather than a missing grant
+    refusal = PermissionDeniedError("Forbidden", response=MagicMock(), body=None)
+    mock_client = _mock_client_listing_every_jurisdiction(
+        failures={
+            jurisdiction: refusal for jurisdiction in ("default", "eu", "fedramp")
+        }
+    )
+
+    # Act
+    buckets, complete = cartography.intel.cloudflare.r2buckets.get(
+        mock_client, ACCOUNT_ID
+    )
+
+    # Assert
+    assert buckets == []
+    assert complete is False
 
 
 def test_get_exposure_resolves_public_domains():
@@ -347,16 +517,23 @@ def test_get_exposure_resolves_public_domains():
             ACCOUNT_ID,
         )
 
-    # Assert: old-photos.simpson.corp is disabled and must not appear
+    # Assert: old-photos.simpson.corp is disabled and must not appear, and the two
+    # same-named buckets are keyed apart by their jurisdiction
     assert complete is True
     assert exposure == {
-        "donut-photos": {
+        DONUTS_DEFAULT: {
             "public": True,
             "public_domains": [R2_DEV_DOMAIN, "photos.simpson.corp"],
             "r2_dev_enabled": True,
             "zone_ids": [ZONE_ID],
         },
-        "nuclear-safety-reports": {
+        REPORTS_DEFAULT: {
+            "public": False,
+            "public_domains": [],
+            "r2_dev_enabled": False,
+            "zone_ids": [],
+        },
+        DONUTS_EU: {
             "public": False,
             "public_domains": [],
             "r2_dev_enabled": False,
@@ -372,7 +549,7 @@ def test_get_exposure_leaves_public_unknown_when_one_source_fails():
     """
 
     # Arrange: the r2.dev domain is disabled, but the custom domains are unknown
-    buckets = [{"name": "donut-photos"}]
+    buckets = [{"name": "donut-photos", "jurisdiction": "default"}]
 
     # Act
     with (
@@ -393,7 +570,7 @@ def test_get_exposure_leaves_public_unknown_when_one_source_fails():
 
     # Assert
     assert complete is False
-    assert exposure["donut-photos"]["public"] is None
-    assert exposure["donut-photos"]["public_domains"] is None
+    assert exposure[DONUTS_DEFAULT]["public"] is None
+    assert exposure[DONUTS_DEFAULT]["public_domains"] is None
     # The managed domain was read, so its own state is still reported
-    assert exposure["donut-photos"]["r2_dev_enabled"] is False
+    assert exposure[DONUTS_DEFAULT]["r2_dev_enabled"] is False

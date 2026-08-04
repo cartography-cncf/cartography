@@ -6,6 +6,20 @@ import cartography.intel.cloudflare.zones
 import tests.data.cloudflare.accounts
 import tests.data.cloudflare.rulesets
 import tests.data.cloudflare.zones
+from tests.data.cloudflare.rulesets import ACCOUNT_EXECUTE_RULE_ID
+from tests.data.cloudflare.rulesets import ACCOUNT_WAF_RULESET_ID
+from tests.data.cloudflare.rulesets import BLOCK_RULE_ID
+from tests.data.cloudflare.rulesets import BOT_RULE_ID
+from tests.data.cloudflare.rulesets import BOT_RULESET_ID
+from tests.data.cloudflare.rulesets import CACHE_RULE_ID
+from tests.data.cloudflare.rulesets import CACHE_RULESET_ID
+from tests.data.cloudflare.rulesets import CHALLENGE_RULE_ID
+from tests.data.cloudflare.rulesets import CUSTOM_FIREWALL_RULESET_ID
+from tests.data.cloudflare.rulesets import MANAGED_RULESET_ID
+from tests.data.cloudflare.rulesets import OWASP_RULESET_ID
+from tests.data.cloudflare.rulesets import ZONE_DISABLED_EXECUTE_RULE_ID
+from tests.data.cloudflare.rulesets import ZONE_EXECUTE_BOT_RULE_ID
+from tests.data.cloudflare.rulesets import ZONE_EXECUTE_RULE_ID
 from tests.integration.cartography.intel.cloudflare.test_accounts import (
     _ensure_local_neo4j_has_test_accounts,
 )
@@ -24,24 +38,13 @@ ZONE_ID = tests.data.cloudflare.zones.CLOUDFLARE_ZONES[0]["id"]
 OTHER_ACCOUNT = {"id": "9b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e", "name": "Flanders Org"}
 OTHER_ZONE = {"id": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d", "name": "flanders.corp"}
 
-ACCOUNT_WAF_RULESET_ID = "c4e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4"
-CUSTOM_FIREWALL_RULESET_ID = "d5f1a2b3c4e5d6f7a8b9c0d1e2f3a4b5"
-MANAGED_RULESET_ID = "e6a2b3c4d5f6a7b8c9d0e1f2a3b4c5d6"
-CACHE_RULESET_ID = "f7b3c4d5e6a7b8c9d0e1f2a3b4c5d6e7"
-
 # Deployments, keyed by the scope they apply to.
 ACCOUNT_WAF_DEPLOYMENT = f"{ACCOUNT_ID}/{ACCOUNT_WAF_RULESET_ID}"
 ACCOUNT_MANAGED_DEPLOYMENT = f"{ACCOUNT_ID}/{MANAGED_RULESET_ID}"
 ZONE_FIREWALL_DEPLOYMENT = f"{ZONE_ID}/{CUSTOM_FIREWALL_RULESET_ID}"
 ZONE_MANAGED_DEPLOYMENT = f"{ZONE_ID}/{MANAGED_RULESET_ID}"
 ZONE_CACHE_DEPLOYMENT = f"{ZONE_ID}/{CACHE_RULESET_ID}"
-
-# Rule IDs as the API returns them, before they are qualified by deployment.
-ACCOUNT_EXECUTE_RULE_ID = "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e701"
-BLOCK_RULE_ID = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c501"
-CHALLENGE_RULE_ID = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c502"
-ZONE_EXECUTE_RULE_ID = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c503"
-CACHE_RULE_ID = "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d601"
+ZONE_BOT_DEPLOYMENT = f"{ZONE_ID}/{BOT_RULESET_ID}"
 
 
 def _fake_rulesets(client, account_id, zone_id):
@@ -103,8 +106,10 @@ def test_load_cloudflare_rulesets(
         tests.data.cloudflare.zones.CLOUDFLARE_ZONES,
     )
 
-    # Assert rulesets from both scopes exist, each keyed by its deployment. The
-    # managed ruleset is deployed twice and keeps its API ID in both nodes.
+    # Assert the deployments of both scopes exist, each keyed by the scope it
+    # applies to. The managed ruleset is deployed twice and keeps its API ID in
+    # both nodes; the account's own entry point, listed in the zone too, is only
+    # deployed at the account level.
     expected_nodes = {
         (
             ACCOUNT_WAF_DEPLOYMENT,
@@ -128,6 +133,13 @@ def test_load_cloudflare_rulesets(
             "zone",
         ),
         (
+            ZONE_CACHE_DEPLOYMENT,
+            CACHE_RULESET_ID,
+            "Simpson cache settings",
+            "zone",
+            "zone",
+        ),
+        (
             ZONE_MANAGED_DEPLOYMENT,
             MANAGED_RULESET_ID,
             "Cloudflare Managed Ruleset",
@@ -135,10 +147,10 @@ def test_load_cloudflare_rulesets(
             "zone",
         ),
         (
-            ZONE_CACHE_DEPLOYMENT,
-            CACHE_RULESET_ID,
-            "Simpson cache settings",
-            "zone",
+            ZONE_BOT_DEPLOYMENT,
+            BOT_RULESET_ID,
+            "Springfield bot mitigation",
+            "custom",
             "zone",
         ),
     }
@@ -164,8 +176,9 @@ def test_load_cloudflare_rulesets(
         (ACCOUNT_WAF_DEPLOYMENT, ACCOUNT_ID),
         (ACCOUNT_MANAGED_DEPLOYMENT, ACCOUNT_ID),
         (ZONE_FIREWALL_DEPLOYMENT, ACCOUNT_ID),
-        (ZONE_MANAGED_DEPLOYMENT, ACCOUNT_ID),
         (ZONE_CACHE_DEPLOYMENT, ACCOUNT_ID),
+        (ZONE_MANAGED_DEPLOYMENT, ACCOUNT_ID),
+        (ZONE_BOT_DEPLOYMENT, ACCOUNT_ID),
     }
 
     # Assert only the zone-level deployments are attached to the Zone: an
@@ -180,8 +193,9 @@ def test_load_cloudflare_rulesets(
         rel_direction_right=False,
     ) == {
         (ZONE_FIREWALL_DEPLOYMENT, ZONE_ID),
-        (ZONE_MANAGED_DEPLOYMENT, ZONE_ID),
         (ZONE_CACHE_DEPLOYMENT, ZONE_ID),
+        (ZONE_MANAGED_DEPLOYMENT, ZONE_ID),
+        (ZONE_BOT_DEPLOYMENT, ZONE_ID),
     }
 
     # Assert the vendor-owned contents of the managed ruleset were not ingested in
@@ -197,9 +211,10 @@ def test_load_cloudflare_rulesets(
     assert {(record["id"], record["rules"]) for record in result} == {
         (ACCOUNT_WAF_DEPLOYMENT, 1),
         (ACCOUNT_MANAGED_DEPLOYMENT, 0),
-        (ZONE_FIREWALL_DEPLOYMENT, 3),
-        (ZONE_MANAGED_DEPLOYMENT, 0),
+        (ZONE_FIREWALL_DEPLOYMENT, 5),
         (ZONE_CACHE_DEPLOYMENT, 1),
+        (ZONE_MANAGED_DEPLOYMENT, 0),
+        (ZONE_BOT_DEPLOYMENT, 1),
     }
 
     # Rule IDs are qualified by their deployment too: a rule only exists as part
@@ -225,11 +240,24 @@ def test_load_cloudflare_rulesets(
             True,
         ),
         (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_BOT_RULE_ID}",
+            ZONE_EXECUTE_BOT_RULE_ID,
+            "execute",
+            True,
+        ),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_DISABLED_EXECUTE_RULE_ID}",
+            ZONE_DISABLED_EXECUTE_RULE_ID,
+            "execute",
+            False,
+        ),
+        (
             f"{ZONE_CACHE_DEPLOYMENT}/{CACHE_RULE_ID}",
             CACHE_RULE_ID,
             "set_cache_settings",
             True,
         ),
+        (f"{ZONE_BOT_DEPLOYMENT}/{BOT_RULE_ID}", BOT_RULE_ID, "js_challenge", True),
     }
     assert (
         check_nodes(
@@ -257,12 +285,22 @@ def test_load_cloudflare_rulesets(
             f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_RULE_ID}",
             ZONE_FIREWALL_DEPLOYMENT,
         ),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_BOT_RULE_ID}",
+            ZONE_FIREWALL_DEPLOYMENT,
+        ),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_DISABLED_EXECUTE_RULE_ID}",
+            ZONE_FIREWALL_DEPLOYMENT,
+        ),
         (f"{ZONE_CACHE_DEPLOYMENT}/{CACHE_RULE_ID}", ZONE_CACHE_DEPLOYMENT),
+        (f"{ZONE_BOT_DEPLOYMENT}/{BOT_RULE_ID}", ZONE_BOT_DEPLOYMENT),
     }
 
     # Assert each `execute` rule turns on exactly one deployment, the one in its
     # own scope: the account-level rule targets the account-level deployment of
-    # the managed ruleset, the zone-level rule the zone-level one
+    # the managed ruleset, the zone-level rule the zone-level one. The disabled
+    # rule deploys nothing, so it has no target to point at.
     assert check_rels(
         neo4j_session,
         "CloudflareRulesetRule",
@@ -277,9 +315,14 @@ def test_load_cloudflare_rulesets(
             ACCOUNT_MANAGED_DEPLOYMENT,
         ),
         (f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_RULE_ID}", ZONE_MANAGED_DEPLOYMENT),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_BOT_RULE_ID}",
+            ZONE_BOT_DEPLOYMENT,
+        ),
     }
 
-    # Assert the raw API ID is still recorded alongside the resolved target
+    # Assert the raw API ID is still recorded alongside the resolved target, on the
+    # disabled rule too: it says what would run if it were turned back on
     result = neo4j_session.run(
         """
         MATCH (r:CloudflareRulesetRule)
@@ -303,6 +346,16 @@ def test_load_cloudflare_rulesets(
             MANAGED_RULESET_ID,
             ZONE_MANAGED_DEPLOYMENT,
         ),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_EXECUTE_BOT_RULE_ID}",
+            BOT_RULESET_ID,
+            ZONE_BOT_DEPLOYMENT,
+        ),
+        (
+            f"{ZONE_FIREWALL_DEPLOYMENT}/{ZONE_DISABLED_EXECUTE_RULE_ID}",
+            OWASP_RULESET_ID,
+            f"{ZONE_ID}/{OWASP_RULESET_ID}",
+        ),
     }
 
     # Assert the rate limit is captured
@@ -322,6 +375,95 @@ def test_load_cloudflare_rulesets(
             "requests": 10,
         },
     ]
+
+
+@patch.object(
+    cartography.intel.cloudflare.rulesets,
+    "get_ruleset_rules",
+    side_effect=_fake_ruleset_rules,
+)
+@patch.object(
+    cartography.intel.cloudflare.rulesets,
+    "get_rulesets",
+    side_effect=_fake_rulesets,
+)
+@patch("cloudflare.Cloudflare")
+def test_cloudflare_rulesets_only_ingests_the_deployed_ones(
+    mock_cloudflare, mock_rulesets, mock_rules, neo4j_session
+):
+    """
+    Ensure that a ruleset which is merely available at a scope is not reported as
+    running there. The listing returns the Cloudflare-provided rulesets in every
+    account and zone, the account-level rulesets a zone may deploy, and custom
+    rulesets that nothing references; only an enabled `execute` rule in a phase
+    entry point deploys one
+    """
+
+    # Arrange
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "account_id": ACCOUNT_ID,
+    }
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
+    _ensure_local_neo4j_has_test_zones(neo4j_session)
+
+    # Act
+    cartography.intel.cloudflare.rulesets.sync(
+        neo4j_session,
+        mock_cloudflare,
+        common_job_parameters,
+        ACCOUNT_ID,
+        tests.data.cloudflare.zones.CLOUDFLARE_ZONES,
+    )
+
+    # Assert the OWASP core ruleset has no node anywhere: it is listed in both
+    # scopes, and the only rule referencing it is disabled
+    result = neo4j_session.run(
+        """
+        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
+        RETURN r.id AS id
+        """,
+        ruleset_id=OWASP_RULESET_ID,
+    )
+    assert [dict(record) for record in result] == []
+
+    # Assert the account's own entry point was not duplicated as a zone deployment,
+    # even though the zone listing carries it
+    result = neo4j_session.run(
+        """
+        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
+        RETURN r.id AS id
+        """,
+        ruleset_id=ACCOUNT_WAF_RULESET_ID,
+    )
+    assert [record["id"] for record in result] == [ACCOUNT_WAF_DEPLOYMENT]
+
+    # Assert the account-level custom ruleset is deployed only where an enabled
+    # rule executes it, which is the zone, and never at the account level
+    result = neo4j_session.run(
+        """
+        MATCH (r:CloudflareRuleset {ruleset_id: $ruleset_id})
+        RETURN r.id AS id
+        """,
+        ruleset_id=BOT_RULESET_ID,
+    )
+    assert [record["id"] for record in result] == [ZONE_BOT_DEPLOYMENT]
+
+    # Assert no zone claims a ruleset it does not run
+    assert check_rels(
+        neo4j_session,
+        "CloudflareRuleset",
+        "id",
+        "CloudflareZone",
+        "id",
+        "HAS_RULESET",
+        rel_direction_right=False,
+    ) == {
+        (ZONE_FIREWALL_DEPLOYMENT, ZONE_ID),
+        (ZONE_CACHE_DEPLOYMENT, ZONE_ID),
+        (ZONE_MANAGED_DEPLOYMENT, ZONE_ID),
+        (ZONE_BOT_DEPLOYMENT, ZONE_ID),
+    }
 
 
 @patch.object(
@@ -375,6 +517,7 @@ def test_cloudflare_rulesets_ontology_label_is_scoped_to_security_phases(
         (ACCOUNT_MANAGED_DEPLOYMENT, "Cloudflare Managed Ruleset"),
         (ZONE_FIREWALL_DEPLOYMENT, "Simpson custom firewall"),
         (ZONE_MANAGED_DEPLOYMENT, "Cloudflare Managed Ruleset"),
+        (ZONE_BOT_DEPLOYMENT, "Springfield bot mitigation"),
     }
 
 

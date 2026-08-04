@@ -29,6 +29,13 @@ run; buckets from earlier runs are left in place rather than deleted. If only th
 per-bucket domain lookups are refused, the buckets are ingested with their
 internet exposure (`public`, `public_domains`) left unresolved.
 
+R2 buckets are listed once per jurisdiction (`default`, `eu` and `fedramp`), since
+each jurisdiction is a separate namespace that a single listing does not cover. The
+`eu` and `fedramp` jurisdictions are granted on request, so an account without the
+grant answers `403` or `404` there and is treated as holding no bucket in it. Any
+other error on a jurisdiction listing holds the R2 cleanup back for that run, so
+buckets Cartography could not re-read are not deleted.
+
 ## Configure Cartography
 
 Pass the token environment variable name with `--cloudflare-token-env-var`.

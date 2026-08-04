@@ -22,7 +22,7 @@ def test_start_cloudflare_ingestion_requires_token():
 @patch.object(cartography.intel.cloudflare.rulesets, "sync")
 @patch.object(cartography.intel.cloudflare.workerroutes, "sync")
 @patch.object(cartography.intel.cloudflare.workerscripts, "sync")
-@patch.object(cartography.intel.cloudflare.r2buckets, "get", return_value=None)
+@patch.object(cartography.intel.cloudflare.r2buckets, "get", return_value=([], False))
 @patch.object(cartography.intel.cloudflare.dnsrecords, "sync")
 @patch.object(cartography.intel.cloudflare.dnsrecords, "migrate_account_resource_edges")
 @patch.object(

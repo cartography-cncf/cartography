@@ -41,6 +41,13 @@ _VENDOR_RULESET_KIND = "managed"
 _ACCOUNT_SCOPE = "account"
 _ZONE_SCOPE = "zone"
 
+# The phase entry point rulesets of a scope: `root` at the account level, `zone`
+# at the zone level. They are the rulesets Cloudflare evaluates directly, and the
+# only place a rule can deploy another ruleset from.
+_ENTRY_POINT_KIND_BY_SCOPE = {_ACCOUNT_SCOPE: "root", _ZONE_SCOPE: _ZONE_SCOPE}
+
+_EXECUTE_ACTION = "execute"
+
 
 @timeit
 def sync(
@@ -82,26 +89,68 @@ def sync_scope(
     update_tag: int,
 ) -> None:
     """
-    Load the rulesets of a single scope, and the rules of the customer-authored
-    ones. A `zone_id` of None reads the account-level rulesets.
+    Load the rulesets deployed in a single scope, and the rules of the
+    customer-authored ones. A `zone_id` of None reads the account level.
+
+    The listing endpoint returns every ruleset *available* at the scope rather
+    than the deployed ones: the Cloudflare-provided rulesets are listed in every
+    account and every zone, a zone listing also carries the account-level rulesets
+    one may want to deploy to that zone, and creating a custom ruleset does not
+    activate it. What deploys a ruleset is an enabled rule with the `execute`
+    action in one of the scope's phase entry point rulesets, so the deployments of
+    a scope are its entry points plus what those enable.
+    See https://developers.cloudflare.com/ruleset-engine/managed-rulesets/deploy-managed-ruleset/
     """
-    rulesets = get_rulesets(client, account_id, zone_id)
+    scope = _ZONE_SCOPE if zone_id else _ACCOUNT_SCOPE
+    available = get_rulesets(client, account_id, zone_id)
+    entry_points = [
+        ruleset
+        for ruleset in available
+        if ruleset["kind"] == _ENTRY_POINT_KIND_BY_SCOPE[scope]
+    ]
+
+    # The entry point rules come first: they are what names the rulesets deployed
+    # in this scope. Keyed by ruleset API ID, since that is what an execute rule
+    # refers to.
+    rules_by_ruleset: Dict[str, List[Dict[str, Any]]] = {
+        ruleset["id"]: get_ruleset_rules(client, account_id, zone_id, ruleset["id"])
+        for ruleset in entry_points
+    }
+    entry_point_ids = {ruleset["id"] for ruleset in entry_points}
+    executed_ids = executed_ruleset_ids(
+        [rule for rules in rules_by_ruleset.values() for rule in rules]
+    )
+    executed = [
+        ruleset
+        for ruleset in available
+        if ruleset["id"] in executed_ids and ruleset["id"] not in entry_point_ids
+    ]
+
     load_rulesets(
         neo4j_session,
-        transform_rulesets(rulesets, account_id, zone_id),
+        transform_rulesets(entry_points + executed, account_id, zone_id),
         account_id,
         zone_id,
         update_tag,
     )
-    for ruleset in rulesets:
+
+    for ruleset in executed:
+        # A vendor-owned ruleset holds hundreds of rules that are not customer
+        # configuration. The customer's choice is the execute rule that turns it
+        # on, and that one lives in an entry point already read above.
         if ruleset["kind"] == _VENDOR_RULESET_KIND:
             continue
+        rules_by_ruleset[ruleset["id"]] = get_ruleset_rules(
+            client, account_id, zone_id, ruleset["id"]
+        )
+
+    for ruleset_id, rules in rules_by_ruleset.items():
         # The rules hang off the deployment, not off the shared API ID.
-        ruleset_deployment_id = deployment_id(account_id, zone_id, ruleset["id"])
+        ruleset_deployment_id = deployment_id(account_id, zone_id, ruleset_id)
         load_ruleset_rules(
             neo4j_session,
             transform_ruleset_rules(
-                get_ruleset_rules(client, account_id, zone_id, ruleset["id"]),
+                rules,
                 account_id,
                 zone_id,
                 ruleset_deployment_id,
@@ -110,6 +159,22 @@ def sync_scope(
             ruleset_deployment_id,
             update_tag,
         )
+
+
+def executed_ruleset_ids(rules: List[Dict[str, Any]]) -> set[str]:
+    """
+    Return the API IDs of the rulesets the given rules deploy: the target of every
+    enabled `execute` rule. A disabled rule deploys nothing, so its target is not
+    reported as running in the scope.
+    """
+    executed = set()
+    for rule in rules:
+        if rule.get("action") != _EXECUTE_ACTION or not rule.get("enabled"):
+            continue
+        target = (rule.get("action_parameters") or {}).get("id")
+        if target:
+            executed.add(target)
+    return executed
 
 
 @timeit

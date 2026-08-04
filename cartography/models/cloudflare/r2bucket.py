@@ -15,11 +15,13 @@ from cartography.models.ontology.labels import OBJECT_STORAGE
 
 @dataclass(frozen=True)
 class CloudflareR2BucketNodeProperties(CartographyNodeProperties):
-    # The R2 API does not assign bucket IDs and bucket names are only unique
-    # within an account, so the graph ID is qualified with the account ID.
+    # The R2 API does not assign bucket IDs, and a bucket name is only unique
+    # within one jurisdiction of one account: jurisdictions are separate
+    # namespaces, so the same account can hold a `default` and an `eu` bucket
+    # under the same name. Both qualify the graph ID.
     id: PropertyRef = PropertyRef(
         "id",
-        description="Bucket ID, built as `<account_id>/<bucket name>`.",
+        description="Bucket ID, built as `<account_id>/<jurisdiction>/<bucket name>`.",
     )
     name: PropertyRef = PropertyRef(
         "name",
