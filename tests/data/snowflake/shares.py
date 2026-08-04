@@ -6,6 +6,7 @@ SNOWFLAKE_SHARES: list[dict[str, Any]] = [
     {
         "created_on": "1782000000.000",
         "kind": "OUTBOUND",
+        "owner_account": "SPRINGFIELD.NUCLEAR",
         "name": "REACTOR_FEED",
         "database_name": "SPRINGFIELD",
         "to": "SPRINGFIELD.SHELBYVILLE_READER, SHELBYVILLE.CITYHALL",
@@ -18,8 +19,23 @@ SNOWFLAKE_SHARES: list[dict[str, Any]] = [
         # from here and must not be requested.
         "created_on": "1782500000.000",
         "kind": "INBOUND",
-        "name": "SNOWFLAKE_SAMPLE_DATA_SHARE",
+        "owner_account": "SNOW.SFC_SAMPLES",
+        "name": "SAMPLE_DATA",
         "database_name": "SNOWFLAKE_SAMPLE_DATA",
+        "to": "",
+        "owner": "",
+        "comment": None,
+        "listing_global_name": None,
+    },
+    {
+        # A second inbound share carrying the *same* name from a different provider.
+        # Keyed on the name alone these two would collapse onto one node, and neither
+        # would match the id rebuilt from its database's `origin`.
+        "created_on": "1782600000.000",
+        "kind": "INBOUND",
+        "owner_account": "SHELBYVILLE.CITYHALL",
+        "name": "SAMPLE_DATA",
+        "database_name": "SHELBYVILLE_SAMPLE_DATA",
         "to": "",
         "owner": "",
         "comment": None,

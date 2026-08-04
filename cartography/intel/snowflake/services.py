@@ -26,6 +26,7 @@ from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
+from cartography.intel.snowflake.util import untag_image_path
 from cartography.models.snowflake.service import SnowflakeServiceContainerSchema
 from cartography.models.snowflake.service import SnowflakeServiceEndpointSchema
 from cartography.models.snowflake.service import SnowflakeServiceRoleSchema
@@ -218,6 +219,9 @@ def transform(
                     "parent_service_id": service_id,
                     "status": container.get("status"),
                     "image_name": container.get("image_name"),
+                    "untagged_image_path": untag_image_path(
+                        container.get("image_name")
+                    ),
                     "image_digest": container.get("image_digest"),
                     "restart_count": container.get("restart_count"),
                     "message": container.get("message"),

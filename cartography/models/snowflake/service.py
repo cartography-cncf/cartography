@@ -264,6 +264,13 @@ class SnowflakeServiceContainerNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Image reference the container was started from.",
     )
+    untagged_image_path: PropertyRef = PropertyRef(
+        "untagged_image_path",
+        description=(
+            "Image reference with the tag removed, used together with the digest to "
+            "resolve the one repository image the container is running."
+        ),
+    )
     image_digest: PropertyRef = PropertyRef(
         "image_digest",
         extra_index=True,
@@ -330,11 +337,22 @@ class SnowflakeServiceContainerToImageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SnowflakeServiceContainer)-[:HAS_IMAGE]->(:SnowflakeImage)
 class SnowflakeServiceContainerToImageRel(CartographyRelSchema):
-    """A Snowflake service container runs this image from an account image repository."""
+    """A Snowflake service container runs this image from an account image repository.
+
+    Matched on the untagged registry path as well as the digest. The digest alone
+    identifies the image *bytes*, not the image object: the same bytes pushed to two
+    repositories are two ``SnowflakeImage`` nodes, and a digest-only matcher would
+    attach the container to every one of them. Pairing the path with the digest picks
+    the single repository the container actually pulled from, while staying tolerant
+    of the container and the repository listing reporting different tags.
+    """
 
     target_node_label: str = "SnowflakeImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {
+            "untagged_image_path": PropertyRef("untagged_image_path"),
+            "digest": PropertyRef("image_digest"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"

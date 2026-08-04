@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from cartography.intel.snowflake.util import account_host
+from cartography.intel.snowflake.util import hyphenated_account_id
 from cartography.intel.snowflake.util import is_sql_unavailable
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import normalize_account_id
@@ -25,6 +26,7 @@ from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.intel.snowflake.util import SnowflakeSqlError
+from cartography.intel.snowflake.util import untag_image_path
 
 TEST_ACCOUNT = "MYORG.MYACCT"
 
@@ -299,10 +301,13 @@ def test_mint_jwt_signs_the_claims_snowflake_expects():
     token, expiry = client._mint_jwt()
     claims = jwt.decode(token, private_key.public_key(), algorithms=["RS256"])
 
-    # Assert: Snowflake requires an uppercase <ACCOUNT>.<USER> subject and an
-    # issuer suffixed with the public key's SHA256 fingerprint.
-    assert claims["sub"] == "MYORG.MYACCT.SVC"
-    assert claims["iss"].startswith("MYORG.MYACCT.SVC.SHA256:")
+    # Assert: Snowflake requires an uppercase <ACCOUNT_IDENTIFIER>.<USER> subject and
+    # an issuer suffixed with the public key's SHA256 fingerprint. The account
+    # identifier is hyphen-separated (MYORGANIZATION-MYACCOUNT.MYUSER in Snowflake's
+    # own example); the dotted SQL form is rejected, so the client must not use the
+    # account id it keys graph nodes on.
+    assert claims["sub"] == "MYORG-MYACCT.SVC"
+    assert claims["iss"].startswith("MYORG-MYACCT.SVC.SHA256:")
     # Snowflake caps the assertion at one hour, so never request more.
     assert expiry - datetime.now(tz=timezone.utc) <= timedelta(hours=1)
 
@@ -396,6 +401,31 @@ def test_sf_path_segment_escapes_url_significant_characters():
     assert sf_path_segment("d#1") == "d%231"
     # Not the dotted quoted form: the REST path wants the raw name.
     assert sf_path_segment("sales") == "sales"
+
+
+def test_hyphenated_account_id_accepts_either_input_form():
+    # Both spellings of the same account produce the one form the JWT claims need.
+    assert hyphenated_account_id("MYORG.MYACCT") == "MYORG-MYACCT"
+    assert hyphenated_account_id("myorg-myacct") == "MYORG-MYACCT"
+    # An account name may itself contain a hyphen; only the first separator splits.
+    assert hyphenated_account_id("MYORG.MY-ACCT") == "MYORG-MY-ACCT"
+
+
+def test_untag_image_path_strips_tags_and_digests():
+    assert untag_image_path("/db/schema/repo/img:latest") == "/db/schema/repo/img"
+    assert untag_image_path("/db/schema/repo/img:v3") == "/db/schema/repo/img"
+    # A digest-pinned reference resolves to the same path as a tagged one, so a
+    # container written either way matches the same image.
+    assert untag_image_path("/db/schema/repo/img@sha256:abc") == "/db/schema/repo/img"
+    # An untagged reference is already the answer.
+    assert untag_image_path("/db/schema/repo/img") == "/db/schema/repo/img"
+    # A registry host port is not a tag: the colon precedes the last slash.
+    assert (
+        untag_image_path("registry.example.com:5000/db/repo/img")
+        == "registry.example.com:5000/db/repo/img"
+    )
+    assert untag_image_path(None) is None
+    assert untag_image_path("") is None
 
 
 def test_parse_stage_url():

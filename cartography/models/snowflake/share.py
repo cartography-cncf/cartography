@@ -39,6 +39,15 @@ class SnowflakeShareNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="The share name."
     )
+    owner_account: PropertyRef = PropertyRef(
+        "owner_account",
+        extra_index=True,
+        description=(
+            "Account that owns the share. For an INBOUND share this is the provider "
+            "the data arrives from, which is what distinguishes two shares that "
+            "happen to carry the same name."
+        ),
+    )
     share_kind: PropertyRef = PropertyRef(
         "share_kind",
         description=(

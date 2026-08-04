@@ -2,8 +2,9 @@
 
 Image repositories are listed per schema, and the images in each repository come from a
 second listing per repository. The images are what a service container's HAS_IMAGE edge
-resolves against, matched on digest, which is what turns "a container is running" into
-"this exact image, pushed on this date, is running".
+resolves against, matched on the untagged registry path plus the digest, which is what
+turns "a container is running" into "this exact image, from this repository, pushed on
+this date, is running".
 
 ``get`` returns one bundle per repository, pairing the raw repository payload with the
 schema it was found in and with its own image listing, so ``transform`` can key each
@@ -24,6 +25,7 @@ from cartography.intel.snowflake.util import sf_id
 from cartography.intel.snowflake.util import sf_path_segment
 from cartography.intel.snowflake.util import skip_or_raise_http
 from cartography.intel.snowflake.util import SnowflakeClient
+from cartography.intel.snowflake.util import untag_image_path
 from cartography.models.snowflake.image_repository import SnowflakeImageRepositorySchema
 from cartography.models.snowflake.image_repository import SnowflakeImageSchema
 from cartography.util import timeit
@@ -165,6 +167,7 @@ def transform(
                     "name": image_name,
                     "digest": digest,
                     "image_path": image.get("image_path"),
+                    "untagged_image_path": untag_image_path(image.get("image_path")),
                     "tags": image.get("tags"),
                     "size": image.get("size"),
                     "repository_name": qualified_name,

@@ -20,6 +20,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake.grants import securable_id
 from cartography.intel.snowflake.names import name_list
+from cartography.intel.snowflake.names import share_key
 from cartography.intel.snowflake.names import split_qualified_name
 from cartography.intel.snowflake.sql_values import to_text
 from cartography.intel.snowflake.util import is_sql_unavailable
@@ -121,6 +122,7 @@ def transform(
 
     for share in shares:
         name = share["name"]
+        owner_account = to_text(share.get("owner_account"))
         grants = grants_by_share.get(name, [])
         shared_object_ids: list[str] = []
         for grant in grants:
@@ -147,8 +149,9 @@ def transform(
 
         transformed.append(
             {
-                "id": sf_id(account_id, "share", sf_fqn(name)),
+                "id": sf_id(account_id, "share", share_key(owner_account, name)),
                 "name": name,
+                "owner_account": owner_account,
                 "share_kind": to_text(share.get("kind")),
                 "database_name": to_text(share.get("database_name")),
                 "owner": to_text(share.get("owner")),
