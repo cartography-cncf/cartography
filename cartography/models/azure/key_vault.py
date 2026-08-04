@@ -16,11 +16,19 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureKeyVaultProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    tenant_id: PropertyRef = PropertyRef("tenant_id")
-    sku_name: PropertyRef = PropertyRef("sku_name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the vault."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the vault.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the vault is deployed."
+    )
+    tenant_id: PropertyRef = PropertyRef(
+        "tenant_id", description="Microsoft tenant ID associated with the vault."
+    )
+    sku_name: PropertyRef = PropertyRef(
+        "sku_name", description="Name of the vault pricing SKU."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +40,8 @@ class AzureKeyVaultToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKeyVaultToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the key vault as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -46,6 +56,8 @@ class AzureKeyVaultToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKeyVaultSchema(CartographyNodeSchema):
+    """An Azure Key Vault for keys, secrets, and certificates."""
+
     label: str = "AzureKeyVault"
     properties: AzureKeyVaultProperties = AzureKeyVaultProperties()
     sub_resource_relationship: AzureKeyVaultToSubscriptionRel = (

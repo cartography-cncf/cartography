@@ -191,10 +191,98 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Railway deployment status; see also _RAILWAY_SERVICE_STATUS in computeservices.py.
+_RAILWAY_DEPLOYMENT_STATE = {
+    "QUEUED": "pending",
+    "INITIALIZING": "pending",
+    "BUILDING": "pending",
+    "DEPLOYING": "pending",
+    "WAITING": "pending",
+    "NEEDS_APPROVAL": "pending",
+    "SUCCESS": "running",
+    # A sleeping deployment is scaled to zero but still configured, which is the same
+    # distinction Scaleway draws with "locked" -> suspended.
+    "SLEEPING": "suspended",
+    "REMOVING": "stopping",
+    "REMOVED": "terminated",
+    "FAILED": "error",
+    "CRASHED": "error",
+    "SKIPPED": "unknown",
+}
+
+# A Railway deployment is one concrete running revision of a service instance, the same
+# role GCPCloudRunServiceContainer plays for a Cloud Run service. Railway exposes no name,
+# image reference, resource limits or health probe on the deployment itself - the image
+# lives on the parent RailwayServiceInstance - so only the lifecycle state is mapped.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayDeployment",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _RAILWAY_DEPLOYMENT_STATE},
+                ),
+                # name / image / image_digest / cpu / memory / region / health_status:
+                # Not available on Railway's Deployment type.
+            ],
+        ),
+    ],
+)
+
+# Modal sandbox state. SandboxInfo has no state field, so cartography derives one from the
+# task result plus readiness: PENDING and RUNNING are synthetic, the rest are raw
+# GENERIC_STATUS_* values. A sandbox that ran to completion is "terminated" rather than
+# "stopped", since Modal sandboxes are not restartable.
+_MODAL_SANDBOX_STATE = {
+    "PENDING": "pending",
+    "RUNNING": "running",
+    "GENERIC_STATUS_UNSPECIFIED": "unknown",
+    "GENERIC_STATUS_SUCCESS": "terminated",
+    "GENERIC_STATUS_TERMINATED": "terminated",
+    "GENERIC_STATUS_IDLE_TIMEOUT": "terminated",
+    "GENERIC_STATUS_FAILURE": "error",
+    "GENERIC_STATUS_TIMEOUT": "error",
+    "GENERIC_STATUS_INIT_FAILURE": "error",
+    "GENERIC_STATUS_INTERNAL_FAILURE": "error",
+}
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalSandbox",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _MODAL_SANDBOX_STATE},
+                ),
+                OntologyFieldMapping(ontology_field="memory", node_field="memory_mb"),
+                # Set only for a single-region sandbox; null when several are allowed.
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="namespace", node_field="environment_name"
+                ),
+                # cpu: milli_cpu is millicores, which is not the ontology's vCPU unit.
+                # image / image_digest: Modal image ids are neither digests nor pull URIs.
+                # health_status: readiness_probe is a probe spec, not an observed result.
+            ],
+        ),
+    ],
+)
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_mapping,
+    "railway": railway_mapping,
+    "modal": modal_mapping,
 }

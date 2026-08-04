@@ -10,15 +10,25 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
 class OpenAIAdminApiKeyNodeProperties(CartographyNodeProperties):
-    object: PropertyRef = PropertyRef("object")
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    created_at: PropertyRef = PropertyRef("created_at")
-    last_used_at: PropertyRef = PropertyRef("last_used_at")
+    object: PropertyRef = PropertyRef(
+        "object",
+        description='Object type, always "organization.admin_api_key".',
+    )
+    id: PropertyRef = PropertyRef("id", description="OpenAI admin API key ID.")
+    name: PropertyRef = PropertyRef("name", description="Admin API key name.")
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Unix timestamp when the admin API key was created.",
+    )
+    last_used_at: PropertyRef = PropertyRef(
+        "last_used_at",
+        description="Unix timestamp when the admin API key was last used.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +40,8 @@ class OpenAIAdminApiKeyToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIAdminApiKey)
 class OpenAIAdminApiKeyToOrganizationRel(CartographyRelSchema):
+    """The organization contains the admin API key."""
+
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -52,6 +64,8 @@ class OpenAIAdminApiKeyToUserRelProperties(CartographyRelProperties):
 # will be removed in v1.0.0.
 # (:OpenAIUser)-[:OWNS]->(:OpenAIAdminApiKey)
 class OpenAIAdminApiKeyToUserRel(CartographyRelSchema):
+    """Deprecated compatibility edge for a user that owns an admin API key."""
+
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_user_id")},
@@ -74,6 +88,8 @@ class OpenAIAdminApiKeyToSARelProperties(CartographyRelProperties):
 # will be removed in v1.0.0.
 # (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIAdminApiKey)
 class OpenAIAdminApiKeyToSARel(CartographyRelSchema):
+    """Deprecated compatibility edge for a service account that owns an admin API key."""
+
     target_node_label: str = "OpenAIServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_sa_id")},
@@ -93,6 +109,8 @@ class OpenAIAdminApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
 class OpenAIAdminApiKeyToUserOwnedByRel(CartographyRelSchema):
+    """An admin API key is owned by a user account."""
+
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_user_id")},
@@ -112,6 +130,8 @@ class OpenAIAdminApiKeyToSAOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
 class OpenAIAdminApiKeyToSAOwnedByRel(CartographyRelSchema):
+    """An admin API key is owned by a service account."""
+
     target_node_label: str = "OpenAIServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_sa_id")},
@@ -125,9 +145,11 @@ class OpenAIAdminApiKeyToSAOwnedByRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OpenAIAdminApiKeySchema(CartographyNodeSchema):
+    """An admin API key in an OpenAI organization."""
+
     label: str = "OpenAIAdminApiKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["APIKey"]
+        [API_KEY]
     )  # APIKey label is used for ontology mapping
     properties: OpenAIAdminApiKeyNodeProperties = OpenAIAdminApiKeyNodeProperties()
     sub_resource_relationship: OpenAIAdminApiKeyToOrganizationRel = (

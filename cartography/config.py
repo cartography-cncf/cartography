@@ -285,6 +285,28 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type supabase_access_token: str
+    :param supabase_access_token: Supabase personal access token used against the
+        Management API. Optional.
+    :type supabase_organizations: str
+    :param supabase_organizations: Comma-separated list of Supabase organization
+        slugs to restrict the sync to. When unset, every organization the token can
+        see is synced. Optional.
+    :type supabase_base_url: str
+    :param supabase_base_url: Supabase Management API base URL. Optional.
+    :type railway_token: str
+    :param railway_token: Railway account or workspace API token. Optional.
+    :type railway_workspace_id: str
+    :param railway_workspace_id: Railway workspace ID to sync. If unset, every workspace
+        visible to the token is synced. Optional.
+    :type railway_base_url: str
+    :param railway_base_url: Railway GraphQL API base URL. Optional.
+    :type netlify_token: str
+    :param netlify_token: Netlify personal access token. Optional.
+    :type netlify_account_slug: str
+    :param netlify_account_slug: Netlify team slug to sync. Optional.
+    :type netlify_base_url: str
+    :param netlify_base_url: Netlify API base URL. Optional.
     :type circleci_token: str
     :param circleci_token: CircleCI personal API token. Optional.
     :type circleci_base_url: str
@@ -292,6 +314,13 @@ class Config:
     :type circleci_project_slugs: list
     :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
         resources cannot be enumerated via API v2). Optional.
+    :type modal_token_id: str
+    :param modal_token_id: Modal API token id (ak-...). Optional.
+    :type modal_token_secret: str
+    :param modal_token_secret: Modal API token secret (as-...). Optional.
+    :type modal_environments: list
+    :param modal_environments: Modal environment names whose contents should be synced.
+        Defaults to every environment in the workspace. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -529,9 +558,18 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        supabase_access_token=None,
+        supabase_organizations=None,
+        supabase_base_url=None,
+        railway_token=None,
+        railway_workspace_id=None,
+        railway_base_url=None,
         circleci_token=None,
         circleci_base_url=None,
         circleci_project_slugs=None,
+        modal_token_id=None,
+        modal_token_secret=None,
+        modal_environments=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -620,6 +658,9 @@ class Config:
         microsoft_tenant_id=None,
         microsoft_client_id=None,
         microsoft_client_secret=None,
+        netlify_token=None,
+        netlify_account_slug=None,
+        netlify_base_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -740,9 +781,21 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.supabase_access_token = supabase_access_token
+        self.supabase_organizations = supabase_organizations
+        self.supabase_base_url = supabase_base_url
+        self.railway_token = railway_token
+        self.railway_workspace_id = railway_workspace_id
+        self.railway_base_url = railway_base_url
+        self.netlify_token = netlify_token
+        self.netlify_account_slug = netlify_account_slug
+        self.netlify_base_url = netlify_base_url
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs
+        self.modal_token_id = modal_token_id
+        self.modal_token_secret = modal_token_secret
+        self.modal_environments = modal_environments
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id

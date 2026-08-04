@@ -13,11 +13,25 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSInternetGatewayNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("InternetGatewayId")
+    id: PropertyRef = PropertyRef(
+        "InternetGatewayId",
+        description="Unique identifier for this `AWSInternetGateway` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    ownerid: PropertyRef = PropertyRef("OwnerId")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSInternetGateway` node.",
+    )
+    ownerid: PropertyRef = PropertyRef(
+        "OwnerId",
+        description="Identifier of the owner linked to this `AWSInternetGateway` node.",
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSInternetGateway` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -58,6 +72,8 @@ class AWSInternetGatewayToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInternetGatewaySchema(CartographyNodeSchema):
+    """Representation of an AWS [Interent Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InternetGateway.html)."""
+
     label: str = "AWSInternetGateway"
     properties: AWSInternetGatewayNodeProperties = AWSInternetGatewayNodeProperties()
     sub_resource_relationship: AWSInternetGatewayToAWSAccountRel = (

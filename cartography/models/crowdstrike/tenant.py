@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -15,16 +16,21 @@ class CrowdstrikeTenantNodeProperties(CartographyNodeProperties):
     nodes.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="CrowdStrike customer ID for the tenant.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CrowdstrikeTenantSchema(CartographyNodeSchema):
+    """A CrowdStrike customer tenant that scopes imported Falcon resources."""
+
     label: str = "CrowdstrikeTenant"
     # Mirrors the ontology pattern used by other tenant roots (KandjiTenant,
     # GoogleWorkspaceTenant, etc.): expose the shared `Tenant` label so
     # cross-module queries that match (:Tenant) discover this organizational
     # boundary.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
     properties: CrowdstrikeTenantNodeProperties = CrowdstrikeTenantNodeProperties()

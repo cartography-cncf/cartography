@@ -127,6 +127,12 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "lambda_function": lambda_function.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
+        # `route53` matches already-existing nodes to create DNS_POINTS_TO edges, so it must
+        # run after `ec2:load_balancer`, `ec2:load_balancer_v2`, `ec2:instance` and
+        # `elastic_ip_addresses`. It runs before `elasticsearch` on purpose: `elasticsearch`
+        # ingests its endpoint's DNS record with raw Cypher and its cleanup DETACH DELETEs
+        # any stale DNSRecord pointing at an AWSESDomain, which would churn the route53-owned
+        # record node if route53 had already attached one.
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
         # `cloudformation` must run before `permission_relationships` so that AWSCloudFormationStack

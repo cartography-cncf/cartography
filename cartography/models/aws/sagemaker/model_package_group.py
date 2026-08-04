@@ -12,15 +12,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ModelPackageGroupArn")
-    arn: PropertyRef = PropertyRef("ModelPackageGroupArn", extra_index=True)
-    model_package_group_name: PropertyRef = PropertyRef("ModelPackageGroupName")
-    model_package_group_description: PropertyRef = PropertyRef(
-        "ModelPackageGroupDescription"
+    id: PropertyRef = PropertyRef(
+        "ModelPackageGroupArn", description="The ARN of the Model Package Group"
     )
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    model_package_group_status: PropertyRef = PropertyRef("ModelPackageGroupStatus")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "ModelPackageGroupArn",
+        extra_index=True,
+        description="The ARN of the Model Package Group",
+    )
+    model_package_group_name: PropertyRef = PropertyRef(
+        "ModelPackageGroupName", description="The name of the Model Package Group"
+    )
+    model_package_group_description: PropertyRef = PropertyRef(
+        "ModelPackageGroupDescription",
+        description="Human-readable description of the model package group.",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Model Package Group was created"
+    )
+    model_package_group_status: PropertyRef = PropertyRef(
+        "ModelPackageGroupStatus", description="The status of the Model Package Group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Model Package Group exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,6 +61,8 @@ class AWSSageMakerModelPackageGroupToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerModelPackageGroupSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry."""
+
     label: str = "AWSSageMakerModelPackageGroup"
     properties: AWSSageMakerModelPackageGroupNodeProperties = (
         AWSSageMakerModelPackageGroupNodeProperties()

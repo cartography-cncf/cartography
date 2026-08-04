@@ -17,19 +17,43 @@ class AzureFirewallIPConfigurationProperties(CartographyNodeProperties):
     Properties for Azure Firewall IP Configuration nodes
     """
 
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    private_ip_address: PropertyRef = PropertyRef("private_ip_address")
-    private_ip_allocation_method: PropertyRef = PropertyRef(
-        "private_ip_allocation_method"
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID of the firewall IP configuration."
     )
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
-    type: PropertyRef = PropertyRef("type")
-    etag: PropertyRef = PropertyRef("etag")
-    subnet_id: PropertyRef = PropertyRef("subnet_id")
-    public_ip_address_id: PropertyRef = PropertyRef("public_ip_address_id")
-    firewall_id: PropertyRef = PropertyRef("firewall_id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the firewall IP configuration."
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "private_ip_address",
+        description="Private IP address assigned to the configuration.",
+    )
+    private_ip_allocation_method: PropertyRef = PropertyRef(
+        "private_ip_allocation_method",
+        description="Allocation method for the private IP address.",
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the IP configuration.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Azure resource type of the IP configuration."
+    )
+    etag: PropertyRef = PropertyRef(
+        "etag",
+        description="Entity tag that changes when the IP configuration is updated.",
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "subnet_id", description="Azure resource ID of the associated subnet."
+    )
+    public_ip_address_id: PropertyRef = PropertyRef(
+        "public_ip_address_id",
+        description="Azure resource ID of the associated public IP address.",
+    )
+    firewall_id: PropertyRef = PropertyRef(
+        "firewall_id",
+        description="Azure resource ID of the firewall that owns the configuration.",
+    )
 
 
 @dataclass(frozen=True)
@@ -41,6 +65,8 @@ class AzureFirewallIPConfigurationToAzureSubscriptionRelProperties(
 
 @dataclass(frozen=True)
 class AzureFirewallIPConfigurationToAzureSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the firewall IP configuration as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -61,6 +87,8 @@ class AzureFirewallIPConfigurationToAzureFirewallRelProperties(
 
 @dataclass(frozen=True)
 class AzureFirewallIPConfigurationToAzureFirewallRel(CartographyRelSchema):
+    """An Azure Firewall has the IP configuration."""
+
     target_node_label: str = "AzureFirewall"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("firewall_id")},
@@ -79,6 +107,8 @@ class AzureFirewallIPConfigurationToSubnetRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 class AzureFirewallIPConfigurationToSubnetRel(CartographyRelSchema):
+    """An Azure Firewall IP configuration is assigned to a subnet."""
+
     target_node_label: str = "AzureSubnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("subnet_id")},
@@ -97,6 +127,8 @@ class AzureFirewallIPConfigurationToPublicIPRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class AzureFirewallIPConfigurationToPublicIPRel(CartographyRelSchema):
+    """An Azure Firewall IP configuration uses a public IP address."""
+
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("public_ip_address_id")},
@@ -110,6 +142,8 @@ class AzureFirewallIPConfigurationToPublicIPRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureFirewallIPConfigurationSchema(CartographyNodeSchema):
+    """An IP configuration assigned to an Azure Firewall."""
+
     label: str = "AzureFirewallIPConfiguration"
     properties: AzureFirewallIPConfigurationProperties = (
         AzureFirewallIPConfigurationProperties()

@@ -1,73 +1,28 @@
-## Google Workspace Configuration
+# Google Workspace Configuration
 
-This module allows authentication from a service account or via OAuth tokens.
+## Prerequisites
 
+1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
+2. Enable the **Admin SDK API** and **Cloud Identity API**.
+3. For domain-wide delegation, create a service account.
+4. For OAuth, create an OAuth client ID with the application type
+   **Desktop app**.
 
-### Create a Google Cloud Project and Service Account
+## Authentication
 
-1. Create an App on [Google Cloud Console](https://console.cloud.google.com/)
-1. Enable the **Admin SDK API** for your project and the **Cloud Identity API**.
-1. Create a Service Account
+### Service account with domain-wide delegation
 
-### Create credentials
+1. [Configure Google Workspace domain-wide delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)
+   for the service account.
+2. Download the service account credentials as a JSON file.
+3. Set `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS` to the credential file
+   path.
+4. Set `GOOGLE_DELEGATED_ADMIN` to the delegated administrator email address.
 
-#### Method 1: Using service account and domain-wide delegation (legacy)
+### OAuth
 
-1. [Perform Google Workspace Domain-Wide Delegation of Authority](https://developers.google.com/admin-sdk/directory/v1/guides/delegation) with following scopes:
-    - `https://www.googleapis.com/auth/admin.directory.customer.readonly`
-    - `https://www.googleapis.com/auth/admin.directory.user.readonly`
-    - `https://www.googleapis.com/auth/admin.directory.user.security`
-    - `https://www.googleapis.com/auth/cloud-identity.groups.readonly`
-    - `https://www.googleapis.com/auth/cloud-identity.devices.readonly`
-    - `https://www.googleapis.com/auth/cloud-platform`
-1. Download the service account's credentials (JSON file).
-1. Export the environmental variables:
-    1. `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS` - location of the credentials file.
-    1. `GOOGLE_DELEGATED_ADMIN` - email address that you created in step 2
+Use the following helper to complete the OAuth flow and obtain a refresh token:
 
-#### Method 2: Using OAuth
-
-
-1. Create an OAuth Client ID in the Google Cloud Console with application type "Desktop app".
-1. Use helper script below for OAuth flow to obtain refresh_token
-1. Serialize needed secret
-    ```python
-    import json
-    import base64
-    auth_json = json.dumps({"client_id":"xxxxx.apps.googleusercontent.com","client_secret":"ChangeMe", "refresh_token":"ChangeMe", "token_uri": "https://oauth2.googleapis.com/token"})
-    base64.b64encode(auth_json.encode())
-    ```
-1. Populate an environment variable of your choice with the contents of the base64 output from the previous step.
-1. Call the `cartography` CLI with `--googleworkspace-tokens-env-var YOUR_ENV_VAR_HERE` and `--googleworkspace-auth-method oauth`.
-
-##### Optional: Custom Scopes
-
-By default, cartography requests all supported scopes. If you need to use a subset of scopes (for example, if you don't have Cloud Identity Premium and cannot use the `cloud-identity.devices.readonly` scope), you can specify a custom `scopes` field in the OAuth JSON payload:
-
-```python
-import json
-import base64
-auth_json = json.dumps({
-    "client_id": "xxxxx.apps.googleusercontent.com",
-    "client_secret": "ChangeMe",
-    "refresh_token": "ChangeMe",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "scopes": [
-        "https://www.googleapis.com/auth/admin.directory.customer.readonly",
-        "https://www.googleapis.com/auth/admin.directory.user.readonly",
-        "https://www.googleapis.com/auth/admin.directory.user.security",
-        "https://www.googleapis.com/auth/cloud-identity.groups.readonly"
-    ]
-})
-base64.b64encode(auth_json.encode())
-```
-
-Note: The `scopes` field is a cartography-specific extension and is not part of the standard Google OAuth token format. When the `cloud-identity.devices.readonly` scope is omitted, device sync will be automatically skipped.
-
-
-
-
-Google Oauth Helper :
 ```python
 from __future__ import print_function
 import json
@@ -109,7 +64,7 @@ print(f'Please go to this URL: {auth_url}')
 code = input('Enter the authorization code: ')
 flow.fetch_token(code=code)
 creds = flow.credentials
-print('Testing your credentials by gettings first 10 users in the domain ...')
+print('Testing your credentials by getting the first 10 users in the domain ...')
 service = build('admin', 'directory_v1', credentials=creds)
 print('Getting the first 10 users in the domain')
 results = service.users().list(customer='my_customer', maxResults=10,
@@ -127,25 +82,116 @@ print(json.dumps(creds.to_json(), indent=2))
 os.remove('credentials.json')
 ```
 
-### Migration from GSuite module
+Serialize the OAuth credentials as base64-encoded JSON:
 
-If you are migrating from the deprecated `gsuite` module, here are the key changes to configuration:
+```python
+import base64
+import json
 
-1. **Environment Variables**:
+auth_json = json.dumps({
+    "client_id": "xxxxx.apps.googleusercontent.com",
+    "client_secret": "ChangeMe",
+    "refresh_token": "ChangeMe",
+    "token_uri": "https://oauth2.googleapis.com/token",
+})
+print(base64.b64encode(auth_json.encode()).decode())
+```
+
+Store the output in an environment variable of your choice.
+
+## Required Permissions
+
+Configure domain-wide delegation or OAuth consent with these scopes:
+
+- `https://www.googleapis.com/auth/admin.directory.customer.readonly`
+- `https://www.googleapis.com/auth/admin.directory.user.readonly`
+- `https://www.googleapis.com/auth/admin.directory.user.security`
+- `https://www.googleapis.com/auth/cloud-identity.groups.readonly`
+
+## Optional Permissions
+
+Add `https://www.googleapis.com/auth/cloud-identity.devices.readonly` to enable
+device sync. If Cloud Identity Premium is unavailable, omit this scope and
+Cartography skips device sync.
+
+Legacy domain-wide delegation configurations may also include
+`https://www.googleapis.com/auth/cloud-platform`.
+
+## Configure Cartography
+
+For delegated service account authentication:
+
+```bash
+export GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS="/path/to/credentials.json"
+export GOOGLE_DELEGATED_ADMIN="admin@example.com"
+```
+
+For OAuth authentication:
+
+```bash
+export GOOGLEWORKSPACE_OAUTH_TOKENS="<base64-encoded-json>"
+```
+
+## Run Cartography
+
+With delegated service account authentication:
+
+```bash
+cartography \
+  --selected-modules googleworkspace \
+  --googleworkspace-auth-method delegated \
+  --googleworkspace-tokens-env-var GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS
+```
+
+With OAuth authentication:
+
+```bash
+cartography \
+  --selected-modules googleworkspace \
+  --googleworkspace-auth-method oauth \
+  --googleworkspace-tokens-env-var GOOGLEWORKSPACE_OAUTH_TOKENS
+```
+
+## Advanced Configuration
+
+By default, Cartography requests all supported scopes. To use a subset, add a
+`scopes` field to the OAuth JSON payload:
+
+```python
+import base64
+import json
+
+auth_json = json.dumps({
+    "client_id": "xxxxx.apps.googleusercontent.com",
+    "client_secret": "ChangeMe",
+    "refresh_token": "ChangeMe",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "scopes": [
+        "https://www.googleapis.com/auth/admin.directory.customer.readonly",
+        "https://www.googleapis.com/auth/admin.directory.user.readonly",
+        "https://www.googleapis.com/auth/admin.directory.user.security",
+        "https://www.googleapis.com/auth/cloud-identity.groups.readonly",
+    ],
+})
+print(base64.b64encode(auth_json.encode()).decode())
+```
+
+The `scopes` field is a Cartography-specific extension and is not part of the
+standard Google OAuth token format.
+
+When migrating from the deprecated `gsuite` module:
+
+1. Update the environment variables:
    - `GSUITE_GOOGLE_APPLICATION_CREDENTIALS` -> `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS`
    - `GSUITE_DELEGATED_ADMIN` -> `GOOGLE_DELEGATED_ADMIN`
    - `GSUITE_TOKENS_ENV_VAR` -> `GOOGLEWORKSPACE_TOKENS_ENV_VAR`
    - `GSUITE_AUTH_METHOD` -> `GOOGLEWORKSPACE_AUTH_METHOD`
+2. Enable the **Cloud Identity API** in addition to the Admin SDK API.
+3. Add the scopes listed under **Required Permissions**.
+4. Remove `https://www.googleapis.com/auth/admin.directory.group.readonly`,
+   which is no longer needed.
 
-2. **APIs**:
-   - Ensure the **Cloud Identity API** is enabled in addition to the Admin SDK API.
+## References
 
-3. **Scopes**:
-   - The new module requires additional scopes. Ensure your service account or OAuth app has the following:
-     - `https://www.googleapis.com/auth/admin.directory.customer.readonly` (New)
-     - `https://www.googleapis.com/auth/admin.directory.user.readonly`
-     - `https://www.googleapis.com/auth/admin.directory.user.security` (New)
-     - `https://www.googleapis.com/auth/cloud-identity.groups.readonly` (New)
-     - `https://www.googleapis.com/auth/cloud-identity.devices.readonly` (New)
-     - `https://www.googleapis.com/auth/cloud-platform`
-   - You can also delete the `https://www.googleapis.com/auth/admin.directory.group.readonly` scope that is no longer needed.
+- [Google Cloud Console](https://console.cloud.google.com/)
+- [Google Workspace domain-wide delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)

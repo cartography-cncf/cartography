@@ -46,6 +46,7 @@ from cartography.models.github.branch_protection_rules import (
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
+from cartography.models.github.repos import GITHUB_COLLABORATOR_REL_LABELS
 from cartography.models.github.repos import GitHubBranchSchema
 from cartography.models.github.repos import GitHubOwnerOrganizationSchema
 from cartography.models.github.repos import GitHubOwnerUserSchema
@@ -2413,12 +2414,11 @@ def cleanup_github_collaborators(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    for affiliation in ("DIRECT", "OUTSIDE"):
-        for permission in ("ADMIN", "MAINTAIN", "READ", "TRIAGE", "WRITE"):
-            GraphJob.from_node_schema(
-                make_github_collaborator_schema(f"{affiliation}_COLLAB_{permission}"),
-                common_job_parameters,
-            ).run(neo4j_session)
+    for _, _, rel_label in GITHUB_COLLABORATOR_REL_LABELS:
+        GraphJob.from_node_schema(
+            make_github_collaborator_schema(rel_label),
+            common_job_parameters,
+        ).run(neo4j_session)
 
 
 @timeit

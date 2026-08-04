@@ -115,9 +115,54 @@ gcp_mapping = OntologyMapping(
     ],
 )
 
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseSSOProvider",
+            fields=[
+                # The SAML entity ID is the only human-meaningful identifier the
+                # endpoint returns; there is no display name.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="entity_id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "SAML"},
+                ),
+                OntologyFieldMapping(ontology_field="issuer", node_field="entity_id"),
+                # enabled: A configured SSO provider is always active; Supabase has
+                # no disabled state for one.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="SupabaseThirdPartyAuthIntegration",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="oidc_issuer_url",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "OIDC"},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="issuer", node_field="oidc_issuer_url"
+                ),
+            ],
+        ),
+    ],
+)
+
 IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "kubernetes": kubernetes_mapping,
     "keycloak": keycloak_mapping,
     "gcp": gcp_mapping,
+    "supabase": supabase_mapping,
 }

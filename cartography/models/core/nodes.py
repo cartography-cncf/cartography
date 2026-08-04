@@ -1,8 +1,10 @@
 import abc
+from collections.abc import Iterable
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
+from enum import Enum
 from typing import Optional
-from typing import Union
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelSchema
@@ -68,73 +70,106 @@ class CartographyNodeProperties(abc.ABC):
             )
 
 
-@dataclass(frozen=True)
-class ConditionalNodeLabel:
+class LabelKind(str, Enum):
     """
-    A conditional label that is applied to nodes only when specific field conditions are met.
-
-    Conditional labels allow you to dynamically apply labels to nodes based on their property values.
-    During ingestion, after the main node creation/update, a separate query is run to match nodes
-    that meet the specified conditions and apply the label.
+    Semantic role of an additional Cartography node label.
 
     Attributes:
-        label (str): The label to apply to matching nodes.
-        conditions (Dict[str, str]): A dictionary of field_name -> value pairs that must all match
-            for the label to be applied. All conditions must be satisfied (AND logic).
+        STANDARD: A provider-local or shared graph interface label.
+        ONTOLOGY: A cross-provider semantic label from Cartography's ontology.
+        COMPATIBILITY: A temporary alias retained for backward compatibility.
+    """
 
-    Examples:
-        >>> # Apply 'Critical' label to nodes where severity is 'high'
-        >>> conditional = ConditionalNodeLabel(
-        ...     label='Critical',
-        ...     conditions={'severity': 'high'}
-        ... )
+    STANDARD = "standard"
+    ONTOLOGY = "ontology"
+    COMPATIBILITY = "compatibility"
 
-        >>> # Apply 'PublicResource' label to nodes matching multiple conditions
-        >>> conditional = ConditionalNodeLabel(
-        ...     label='PublicResource',
-        ...     conditions={'is_public': 'true', 'exposed_to_internet': 'true'}
-        ... )
 
-    Note:
-        - The conditions are matched using exact string equality
-        - All conditions must be met for the label to be applied (AND logic)
-        - The query generated is: MATCH (n:<primary_label> {field: value, ...}) SET n:<conditional_label>
+@dataclass(frozen=True, slots=True)
+class ExtraNodeLabel:
+    """
+    Declarative additional label applied to a Cartography node.
+
+    Empty conditions apply the label unconditionally; nonempty conditions require
+    every named node property to equal its configured value.
+
+    Attributes:
+        label: The Neo4j label name.
+        description: Human-readable documentation for the label.
+        kind: The label's semantic role.
+        conditions: Sorted node property names and exact string values that must match.
+        remove_in: Optional removal version for compatibility labels.
+        replacement_label: Optional replacement for a compatibility label.
     """
 
     label: str
-    conditions: dict[str, str]
+    description: str
+    kind: LabelKind = LabelKind.STANDARD
+    conditions: tuple[tuple[str, str], ...] = ()
+    remove_in: str | None = None
+    replacement_label: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.label:
+            raise ValueError("label must not be empty.")
+        if not self.description:
+            raise ValueError("description must not be empty.")
+        if not isinstance(self.kind, LabelKind):
+            raise TypeError("kind must be a LabelKind.")
+        if self.remove_in is not None and self.kind is not LabelKind.COMPATIBILITY:
+            raise ValueError(
+                "remove_in can only be set for compatibility labels.",
+            )
+        if (
+            self.replacement_label is not None
+            and self.kind is not LabelKind.COMPATIBILITY
+        ):
+            raise ValueError(
+                "replacement_label can only be set for compatibility labels.",
+            )
+        if self.replacement_label == "":
+            raise ValueError("replacement_label must not be empty.")
+
+        for condition in self.conditions:
+            if (
+                len(condition) != 2
+                or not isinstance(condition[0], str)
+                or not isinstance(condition[1], str)
+            ):
+                raise TypeError(
+                    "conditions must contain (field_name, value) string pairs.",
+                )
+
+        object.__setattr__(self, "conditions", tuple(sorted(self.conditions)))
+
+    def when(self, **conditions: str) -> "ExtraNodeLabel":
+        """Return this label definition with deterministic matching conditions."""
+        return replace(self, conditions=tuple(sorted(conditions.items())))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ExtraNodeLabels:
     """
-    Encapsulates a list of labels for the CartographyNodeSchema.
+    Encapsulates an immutable collection of labels for CartographyNodeSchema.
 
-    This wrapper class is used to ensure dataclass immutability for the CartographyNodeSchema
-    while providing additional Neo4j labels beyond the primary node label.
-
-    Labels can be either:
-    - Simple strings: Applied unconditionally to all nodes
-    - ConditionalNodeLabel objects: Applied only to nodes matching specific conditions
+    Input iterables are normalized to a tuple while providing additional Neo4j
+    labels beyond the primary node label.
 
     Attributes:
-        labels (List[Union[str, ConditionalNodeLabel]]): A list of labels to be applied to the node.
-            String labels are applied unconditionally, ConditionalNodeLabel objects are applied
-            only when their conditions are met.
-
-    Examples:
-        >>> # Simple string labels (applied to all nodes)
-        >>> extra_labels = ExtraNodeLabels(['Resource', 'AWSResource'])
-
-        >>> # Mix of simple and conditional labels
-        >>> extra_labels = ExtraNodeLabels([
-        ...     'Resource',
-        ...     'AWSResource',
-        ...     ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
-        ... ])
+        labels (tuple[ExtraNodeLabel, ...]): Declarative labels to apply to the node.
     """
 
-    labels: list[Union[str, ConditionalNodeLabel]]
+    labels: tuple[ExtraNodeLabel, ...]
+
+    def __init__(self, labels: Iterable[ExtraNodeLabel]) -> None:
+        immutable_labels = tuple(labels)
+        for label in immutable_labels:
+            if not isinstance(label, ExtraNodeLabel):
+                raise TypeError(
+                    "ExtraNodeLabels accepts only ExtraNodeLabel instances; "
+                    f"got {type(label).__name__}."
+                )
+        object.__setattr__(self, "labels", immutable_labels)
 
 
 @dataclass(frozen=True)
