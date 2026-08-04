@@ -1785,7 +1785,7 @@ wheels = [
 
 [[package]]
 name = "google-cloud-aiplatform"
-version = "1.162.0"
+version = "1.163.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1802,9 +1802,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/fa/20a86701f1d3bcbedfe03a965bd4ae000ba79863fb1c2b4b658965f1057d/google_cloud_aiplatform-1.162.0.tar.gz", hash = "sha256:2403f75e6e44e879aecc0eab2d8c26e972507e4b4414d873b31cd4f4b49c9edb", size = 11218765, upload-time = "2026-07-21T23:17:44.419Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/ea/257c5fc5d04bff5b237a10761c89564828e98c2c80aedb1531465c80bedb/google_cloud_aiplatform-1.163.0.tar.gz", hash = "sha256:b570d22b145504e66f3f50f4bdeeae3c818ba46f330276566e80a42937ff53ef", size = 11235221, upload-time = "2026-07-28T17:34:06.4Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/b8/6f10db46713d03d4e889d569b8b0e10e4334d2cab26b9f865c78b1e4e4d9/google_cloud_aiplatform-1.162.0-py2.py3-none-any.whl", hash = "sha256:07ac79932b8f7a683c3bec6dcc21dd05234b55d01636b5a622ec93c18aad15fd", size = 9391054, upload-time = "2026-07-21T23:17:41.173Z" },
+    { url = "https://files.pythonhosted.org/packages/33/4b/8e45c1b9e404d42c66bf231d62eae5236855fa428a0d5c6d02ac72dc4514/google_cloud_aiplatform-1.163.0-py2.py3-none-any.whl", hash = "sha256:23855d261aadcf949fa6102f94d0d0dbd9af879dc4e3f651e7f4e27296af8cca", size = 9401645, upload-time = "2026-07-28T17:34:02.71Z" },
 ]
 
 [[package]]
@@ -2898,7 +2898,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.182.1"
+version = "2.183.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2911,9 +2911,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/55/1316c21a03ae3f84e0b3b73f7d6f0cefbe2ebac60de0771cc15f6e7c0036/oci-2.182.1.tar.gz", hash = "sha256:9862de221f2abe9cf8319393eec58ea59c014fd9b61afaf0a3cca163e2a508b0", size = 17635695, upload-time = "2026-07-21T05:22:52.992Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/2a/77bd6cbf1c69b2f368fe3d6462d84369b0cba15e37ce713cdc08d459b95a/oci-2.183.0.tar.gz", hash = "sha256:ff572ef5f2030a788796bb509d257e6a41c6510ef9b4b6a75a079efd06e533ce", size = 17759723, upload-time = "2026-07-28T06:02:29.76Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/49/b77ee6877540b07e48d6defb48fb444c3eafd7558473c70a43c7beeb0cd8/oci-2.182.1-py3-none-any.whl", hash = "sha256:0c616a6bc3bc458464bc3456469d8da63a1a2d2277e9314b41a1c4e76d5df523", size = 35985050, upload-time = "2026-07-21T05:22:42.379Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/de/8574b3e527996a099d196e87794a4652d91a0c3185fcc7fdbb5649b75a8a/oci-2.183.0-py3-none-any.whl", hash = "sha256:bd789c98a94d7c5ea08c20d11dcf68c9cd1ad479b134727d80a930b84387070b", size = 36133501, upload-time = "2026-07-28T06:02:18.239Z" },
 ]
 
 [[package]]
@@ -4115,7 +4115,7 @@ wheels = [
 
 [[package]]
 name = "testcontainers"
-version = "4.14.2"
+version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docker" },
@@ -4124,9 +4124,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/ac/a597c3a0e02b26cbed6dd07df68be1e57684766fd1c381dee9b170a99690/testcontainers-4.14.2.tar.gz", hash = "sha256:1340ccf16fe3acd9389a6c9e1d9ab21d9fe99a8afdf8165f89c3e69c1967d239", size = 166841, upload-time = "2026-03-18T05:19:16.696Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/13/2cc466bddf26d0085f30a2b2bd56b7f8708b54a54db833eec97c5c69129b/testcontainers-4.15.0.tar.gz", hash = "sha256:085cde086337632e19002719460b7b80bbab2bdd51bb3ea04f77d0de96504706", size = 95340, upload-time = "2026-07-24T23:08:01.731Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/2d/26b8b30067d94339afee62c3edc9b803a6eb9332f521ba77d8aaab5de873/testcontainers-4.14.2-py3-none-any.whl", hash = "sha256:0d0522c3cd8f8d9627cda41f7a6b51b639fa57bdc492923c045117933c668d68", size = 125712, upload-time = "2026-03-18T05:19:15.29Z" },
+    { url = "https://files.pythonhosted.org/packages/00/7e/424aac8b355597835deb333e757a0e94b5ccf38ad00f07fe6ed1f4e17c88/testcontainers-4.15.0-py3-none-any.whl", hash = "sha256:8796c14e76604031ad39cf0ed3b8e9806283a1fbf5270965c2b1c594caa31b74", size = 160771, upload-time = "2026-07-24T23:08:00.13Z" },
 ]
 
 [[package]]
