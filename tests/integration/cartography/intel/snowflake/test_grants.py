@@ -1,8 +1,13 @@
 from unittest.mock import patch
 
+import cartography.intel.snowflake.account_usage
+import cartography.intel.snowflake.database_roles
 import cartography.intel.snowflake.grants
 import cartography.intel.snowflake.roles
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
+from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
+from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS
+from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_ROLES
 from tests.data.snowflake.roles import SNOWFLAKE_ROLE_GRANTS
 from tests.data.snowflake.roles import SNOWFLAKE_ROLE_GRANTS_OF
 from tests.data.snowflake.roles import SNOWFLAKE_ROLES
@@ -78,6 +83,7 @@ def test_sync_snowflake_roles(neo4j_session):
     side_effect=lambda client, role: SNOWFLAKE_ROLE_GRANTS.get(role, []),
 )
 def test_sync_snowflake_grants(mock_grants, mock_grants_of, neo4j_session):
+    """The per-role object API path, selected when ACCOUNT_USAGE is unreadable."""
     # Arrange
     client = build_test_client()
     _ensure_local_neo4j_has_test_account(neo4j_session)
@@ -97,10 +103,13 @@ def test_sync_snowflake_grants(mock_grants, mock_grants_of, neo4j_session):
         service_user_names={"SCRAM_BOT"},
         database_roles=[],
         common_job_parameters=common_job_parameters,
+        use_account_usage=False,
     )
 
-    # Assert the walk reported success, which is what allows cleanup to run.
-    assert complete is True
+    # Assert: every edge is built, but the walk never claims completeness. SHOW GRANTS
+    # only reports what the collector role can see, and a role it cannot see produces
+    # no row and no error, so cleanup must not run off the back of this path.
+    assert complete is False
 
     # Assert the role hierarchy. ACCOUNTADMIN inherits SYSADMIN which inherits
     # SAFETY_INSPECTOR, so the composite role is the edge source and privilege
@@ -208,8 +217,231 @@ def test_sync_reports_incomplete_when_a_role_cannot_be_read(neo4j_session, mocke
         service_user_names=set(),
         database_roles=[],
         common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
+        use_account_usage=False,
     )
 
     # Assert: the caller must skip grant cleanup, or edges it merely failed to
     # re-read this run would be deleted.
     assert complete is False
+
+
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_users",
+    return_value=SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS,
+)
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_roles",
+    return_value=SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES,
+)
+def test_sync_snowflake_grants_from_account_usage(
+    mock_to_roles, mock_to_users, neo4j_session
+):
+    """The ACCOUNT_USAGE path builds the same graph, and may claim completeness.
+
+    Two queries replace the per-role walk. Because the views are account-wide rather
+    than filtered by what the collector role can see, this is the only path that can
+    honestly report a complete grant graph and so let cleanup run.
+    """
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+
+    # Act
+    complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session,
+        client,
+        roles,
+        service_user_names={"SCRAM_BOT"},
+        database_roles=[],
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+        },
+    )
+
+    # Assert
+    assert complete is True
+    # The role hierarchy comes out of GRANTS_TO_ROLES, where `GRANT ROLE a TO ROLE b`
+    # is recorded as USAGE on ROLE a held by b.
+    assert check_rels(
+        neo4j_session, "SnowflakeRole", "name", "SnowflakeRole", "name", "INCLUDES"
+    ) == {
+        ("ACCOUNTADMIN", "SYSADMIN"),
+        ("SYSADMIN", "SAFETY_INSPECTOR"),
+    }
+    # User assignments come out of GRANTS_TO_USERS, and still split by principal kind.
+    assert check_rels(
+        neo4j_session, "SnowflakeUser", "name", "SnowflakeRole", "name", "HAS_ROLE"
+    ) == {
+        ("BURNS", "ACCOUNTADMIN"),
+        ("HOMER", "SAFETY_INSPECTOR"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeServiceUser",
+        "name",
+        "SnowflakeRole",
+        "name",
+        "HAS_ROLE",
+    ) == {("SCRAM_BOT", "REACTOR_READER")}
+    # Privilege edges resolve the same way, including the account-level one.
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeAccount",
+        "id",
+        "HAS_PRIVILEGE",
+    ) == {("SYSADMIN", SNOWFLAKE_ACCOUNT_ID)}
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeTable",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
+
+
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_users",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.snowflake.account_usage,
+    "get_grants_to_roles",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.snowflake.grants,
+    "get_role_grants_of",
+    side_effect=lambda client, role: SNOWFLAKE_ROLE_GRANTS_OF.get(role, []),
+)
+@patch.object(
+    cartography.intel.snowflake.grants,
+    "get_role_grants",
+    side_effect=lambda client, role: SNOWFLAKE_ROLE_GRANTS.get(role, []),
+)
+def test_sync_falls_back_to_the_object_api_when_account_usage_is_unreadable(
+    mock_grants, mock_grants_of, mock_to_roles, mock_to_users, neo4j_session
+):
+    """An unreadable ACCOUNT_USAGE must degrade to the REST walk, not to nothing."""
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+
+    # Act
+    complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session,
+        client,
+        roles,
+        service_user_names={"SCRAM_BOT"},
+        database_roles=[],
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+        },
+    )
+
+    # Assert: the edges are still built from the object API, but completeness is not
+    # claimed, so cleanup stays off.
+    assert complete is False
+    assert check_rels(
+        neo4j_session, "SnowflakeRole", "name", "SnowflakeRole", "name", "INCLUDES"
+    ) == {
+        ("ACCOUNTADMIN", "SYSADMIN"),
+        ("SYSADMIN", "SAFETY_INSPECTOR"),
+    }
+
+
+@patch.object(cartography.intel.snowflake.roles, "get")
+def test_roles_sync_prefers_account_usage_and_reports_complete(mock_get, neo4j_session):
+    """ACCOUNT_USAGE is authoritative, so the roles sync may claim completeness."""
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    neo4j_session.run("MATCH (r:SnowflakeRole) DETACH DELETE r")
+
+    # Act
+    roles, complete = cartography.intel.snowflake.roles.sync(
+        neo4j_session,
+        client,
+        SNOWFLAKE_ACCOUNT_USAGE_ROLES,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID},
+    )
+
+    # Assert: the object API is never called, only ROLE_TYPE='ROLE' rows become
+    # account roles, and the application role is left out entirely.
+    mock_get.assert_not_called()
+    assert complete is True
+    assert check_nodes(neo4j_session, "SnowflakeRole", ["name"]) == {
+        ("ACCOUNTADMIN",),
+        ("SYSADMIN",),
+        ("SAFETY_INSPECTOR",),
+        ("REACTOR_READER",),
+    }
+    assert len(roles) == 4
+
+
+def test_roles_sync_reports_incomplete_on_the_object_api(neo4j_session, mocker):
+    """SHOW ROLES visibility means the object API can never claim completeness.
+
+    This is the regression guard: reporting True here is what let cleanup delete
+    roles the collector could not see.
+    """
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    mocker.patch.object(
+        cartography.intel.snowflake.roles, "get", return_value=SNOWFLAKE_ROLES
+    )
+
+    # Act
+    _, complete = cartography.intel.snowflake.roles.sync(
+        neo4j_session,
+        client,
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert complete is False
+
+
+@patch.object(cartography.intel.snowflake.database_roles, "get")
+def test_database_roles_sync_reads_account_usage_for_every_database(
+    mock_get, neo4j_session
+):
+    """The database-role half of the same view, covering databases this run cannot walk."""
+    # Arrange
+    client = build_test_client()
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    neo4j_session.run("MATCH (r:SnowflakeDatabaseRole) DETACH DELETE r")
+
+    # Act: no walkable databases at all, which on the object API path would mean no
+    # database roles could be enumerated.
+    database_roles, complete = cartography.intel.snowflake.database_roles.sync(
+        neo4j_session,
+        client,
+        [],
+        SNOWFLAKE_ACCOUNT_USAGE_ROLES,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID},
+    )
+
+    # Assert: the database role is still found, qualified by its database, and no
+    # per-database request was made.
+    mock_get.assert_not_called()
+    assert complete is True
+    assert check_nodes(
+        neo4j_session, "SnowflakeDatabaseRole", ["name", "qualified_name"]
+    ) == {("TELEMETRY_READER", "SPRINGFIELD_DB.TELEMETRY_READER")}
+    assert len(database_roles) == 1

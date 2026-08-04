@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake import account_usage
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -105,6 +106,7 @@ def sync(
     neo4j_session: neo4j.Session,
     client: SnowflakeClient,
     databases: list[dict[str, Any]],
+    account_usage_roles: list[dict[str, Any]] | None,
     common_job_parameters: dict,
 ) -> tuple[list[dict[str, Any]], bool]:
     """Sync database roles and return them so the grant sync can resolve hierarchy.
@@ -112,8 +114,15 @@ def sync(
     Runs after databases (the CONTAINS edge needs the database node) and before
     grants, which needs the qualified names to tell a database role apart from an
     account role in ``grants-of`` output.
+
+    ACCOUNT_USAGE covers every database at once, including the ones this sync does
+    not walk, so it is both complete and cheaper than one request per database.
     """
-    raw, complete = get(client, databases)
+    if account_usage_roles is not None:
+        _, raw = account_usage.split_roles(account_usage_roles)
+        complete = True
+    else:
+        raw, complete = get(client, databases)
     database_roles = transform(raw, client.account_id)
     logger.info(
         "Loading %d Snowflake database roles for account %s.",
