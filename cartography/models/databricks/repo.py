@@ -13,13 +13,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksRepoNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    repo_id: PropertyRef = PropertyRef("repo_id", extra_index=True)
-    url: PropertyRef = PropertyRef("url", extra_index=True)
-    provider: PropertyRef = PropertyRef("provider")
-    branch: PropertyRef = PropertyRef("branch")
-    head_commit_id: PropertyRef = PropertyRef("head_commit_id")
-    path: PropertyRef = PropertyRef("path", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the repo."
+    )
+    repo_id: PropertyRef = PropertyRef(
+        "repo_id", extra_index=True, description="Databricks repo identifier."
+    )
+    url: PropertyRef = PropertyRef(
+        "url", extra_index=True, description="Remote Git repository URL."
+    )
+    provider: PropertyRef = PropertyRef(
+        "provider", description="Git provider hosting the remote repository."
+    )
+    branch: PropertyRef = PropertyRef(
+        "branch", description="Git branch checked out in the repo."
+    )
+    head_commit_id: PropertyRef = PropertyRef(
+        "head_commit_id", description="Commit identifier currently checked out."
+    )
+    path: PropertyRef = PropertyRef(
+        "path", extra_index=True, description="Workspace path of the repo."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +45,8 @@ class DatabricksRepoToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksRepo)
 class DatabricksRepoToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the repo as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -50,6 +66,8 @@ class DatabricksRepoToGitHubRepositoryRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksRepo)-[:SOURCED_FROM]->(:GitHubRepository)
 class DatabricksRepoToGitHubRepositoryRel(CartographyRelSchema):
+    """A Databricks repo is sourced from a GitHub repository."""
+
     target_node_label: str = "GitHubRepository"
     # ``github_url`` is the repo URL with a trailing ``.git`` trimmed, matching
     # the GitHubRepository html url; the edge forms only when that repo has been
@@ -66,6 +84,8 @@ class DatabricksRepoToGitHubRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksRepoSchema(CartographyNodeSchema):
+    """A Git repository checked out in a Databricks workspace."""
+
     label: str = "DatabricksRepo"
     properties: DatabricksRepoNodeProperties = DatabricksRepoNodeProperties()
     sub_resource_relationship: DatabricksRepoToWorkspaceRel = (

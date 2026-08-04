@@ -73,11 +73,33 @@ def transform_scan_results(
                     data_source_id = result["DataSource"].get("ID")
                     data_source_name = result["DataSource"].get("Name")
 
+                # Trivy reports more than CVEs: GHSA-, DLA-/DSA-, TEMP-, RUSTSEC-, etc.
+                # The primary identifier lives in VulnerabilityID, and vendor advisory
+                # ids (e.g. RHSA-, DSA-) in VendorIDs. Keep the whole set on the finding
+                # and classify it, so an identifier is recognised whichever slot it
+                # appears in and no authority is dropped for lack of a dedicated field.
+                # cve_id gates the :CVE label.
+                vuln_id = result["VulnerabilityID"]
+                vulnerability_ids = list(
+                    dict.fromkeys([vuln_id, *(result.get("VendorIDs") or [])]),
+                )
+                cve_id = next(
+                    (vid for vid in vulnerability_ids if vid.startswith("CVE-")),
+                    None,
+                )
+                ghsa_id = next(
+                    (vid for vid in vulnerability_ids if vid.startswith("GHSA-")),
+                    None,
+                )
+
                 # Transform finding data
                 finding = {
-                    "id": f'TIF|{result["VulnerabilityID"]}',
-                    "VulnerabilityID": result["VulnerabilityID"],
-                    "cve_id": result["VulnerabilityID"],
+                    "id": f"TIF|{vuln_id}",
+                    "VulnerabilityID": vuln_id,
+                    "vulnerability_ids": vulnerability_ids,
+                    "cve_id": cve_id,
+                    "ghsa_id": ghsa_id,
+                    "has_cve": "true" if cve_id else "false",
                     "Description": result.get("Description"),
                     "LastModifiedDate": result.get("LastModifiedDate"),
                     "PrimaryURL": result.get("PrimaryURL"),

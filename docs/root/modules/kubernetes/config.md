@@ -1,12 +1,13 @@
-## Kubernetes Configuration
+# Kubernetes Configuration
 
-Follow these steps to analyze Kubernetes objects in Cartography.
+## Authentication
 
 1. Configure a [kubeconfig file](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) specifying access to one or multiple clusters.
-    - Access to multiple Kubernetes clusters can be organized in a single kubeconfig file. Cartography's Kubernetes intel module will automatically detect that and attempt to sync each cluster.
-2. Note down the path of configured kubeconfig file and pass it to cartography CLI with `--k8s-kubeconfig` parameter.
+   Access to multiple Kubernetes clusters can be organized in one kubeconfig
+   file. Cartography automatically detects and attempts to sync each cluster.
+2. Note the path to the kubeconfig file.
 
-### Required Permissions
+## Required Permissions
 
 Cartography's Kubernetes module requires read-only access to the following Kubernetes API calls:
 
@@ -26,13 +27,21 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 - `list gateways` and `list httproutes` in the `gateway.networking.k8s.io` group: required to ingest `KubernetesGateway` and `KubernetesHTTPRoute` and the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path. The Gateway API CRDs are not installed on every cluster; when the CRDs are absent Cartography logs an info message and treats Gateway API as empty for that sync (previously synced `KubernetesGateway`/`KubernetesHTTPRoute` nodes are cleaned up as stale), which is expected and stays supported. Until v1.0.0, if the CRDs are present but the verbs are missing Cartography logs a warning and skips Gateway API ingestion and cleanup so previously synced nodes are preserved; from v1.0.0 a missing verb (with the CRDs present) will be a hard failure.
 - `get configmaps` (EKS only): required to ingest legacy IAM identity mappings from the `aws-auth` ConfigMap in `kube-system`. Cartography processes the `mapRoles`, `mapUsers`, and `mapAccounts` fields. For `mapAccounts`, every IAM principal already synced from a listed AWS account (users, roles, and the account root principal) is mapped to a `KubernetesUser` named after the principal ARN (with no Kubernetes groups), so the AWS account must be synced for these mappings to resolve. When the ConfigMap does not exist (clusters using [EKS Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) exclusively), Cartography logs an info message and continues with Access Entries and external OIDC providers, which is expected and stays supported. Until v1.0.0, if the verb is missing Cartography logs a warning and continues without legacy mappings; from v1.0.0 a missing verb will be a hard failure. Note that the EKS identity sync still runs its cleanup over `KubernetesUser` and `KubernetesGroup`: mappings that previously came only from `aws-auth` (not re-asserted by Access Entries in the current run) are removed from the graph.
 
-### Optional Permissions
+## Optional Permissions
 
 The permission below is genuinely optional: withholding it is a supported long-term configuration (not a transitional grace period), because it carries a data-exposure trade-off. Cartography logs a warning and skips the corresponding step, including its cleanup, so previously synced nodes are preserved.
 
-- `list secrets` — enables ingestion of `KubernetesSecret` metadata (name, namespace, type, owner references). Kubernetes RBAC has no verb that exposes secret metadata without also exposing the content: granting `list secrets` also authorizes reading the base64-encoded `data` field of every secret in scope. Cartography never reads or stores secret content, but any identity with this permission can. Operators who prefer not to grant cluster-wide read access to secret content can omit this verb. When omitted, Cartography skips `sync_secrets` entirely — including the cleanup step — so previously synced `KubernetesSecret` nodes are preserved.
+- `list secrets` enables ingestion of `KubernetesSecret` metadata (name,
+  namespace, type, and owner references). Kubernetes RBAC has no verb that
+  exposes secret metadata without also exposing the content. Granting
+  `list secrets` also authorizes reading the base64-encoded `data` field of
+  every secret in scope. Cartography never reads or stores secret content,
+  but any identity with this permission can. When omitted, Cartography skips
+  `sync_secrets`, including cleanup, so previously synced
+  `KubernetesSecret` nodes are preserved.
 
-Create a ClusterRole and bind it to the identity used by Cartography:
+Create a ClusterRole and bind it to the identity used by Cartography. The
+example includes both required and recommended optional permissions:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -53,7 +62,7 @@ rules:
     - services
     - serviceaccounts
   verbs: ["list"]
-# Secrets (optional) — omit if you don't want to grant cluster-wide read access
+# Secrets (optional): omit if you don't want to grant cluster-wide read access
 # to secret contents. Kubernetes RBAC has no metadata-only verb: `list secrets`
 # also exposes the base64 `data` field. Cartography ingests metadata only, but any
 # identity with this permission can read the content. See the Optional Permissions
@@ -112,9 +121,10 @@ rules:
   verbs: ["get"]
 ```
 
-The `/version` endpoint (used to detect the cluster version) requires no additional RBAC — it is accessible by default via the `system:public-info-viewer` ClusterRole.
+The `/version` endpoint (used to detect the cluster version) requires no additional RBAC: it is accessible by default via the `system:public-info-viewer` ClusterRole.
 
-### Additional AWS Permissions for EKS
+For Amazon EKS, additional AWS permissions are optional unless you set
+`--managed-kubernetes eks`.
 
 If you run Cartography against Amazon EKS and set `--managed-kubernetes eks`, Cartography also enriches cluster access metadata by calling the EKS API for:
 
@@ -147,11 +157,31 @@ Notes:
 - Cartography derives the EKS region from the `cluster` field of each kubeconfig context entry. When using `aws eks update-kubeconfig`, this field is automatically set to the cluster ARN.
 - If you use `aws eks update-kubeconfig` to generate the kubeconfig that Cartography consumes, that command also requires `eks:DescribeCluster`.
 
-### TLS Troubleshooting and Validation
+## Configure Cartography
+
+Pass the kubeconfig path with `--k8s-kubeconfig`. To enrich Amazon EKS access
+metadata, also set `--managed-kubernetes eks`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules kubernetes \
+  --k8s-kubeconfig /path/to/kubeconfig
+```
+
+For Amazon EKS:
+
+```bash
+cartography \
+  --selected-modules kubernetes \
+  --k8s-kubeconfig /path/to/kubeconfig \
+  --managed-kubernetes eks
+```
+
+## Troubleshooting
 
 When Kubernetes API server cert settings are misconfigured, sync failures can be difficult to diagnose from raw kubeconfig alone. Cartography writes kubeconfig TLS posture fields onto `KubernetesCluster` so operators can quickly reason about configuration risk.
-
-#### Preflight checks
 
 Run these commands before syncing:
 
@@ -164,15 +194,10 @@ Pay attention to contexts where:
 - `insecure-skip-tls-verify=true`
 - neither `certificate-authority` nor `certificate-authority-data` is set
 
-#### Graph query for TLS posture
+Use the [Kubernetes query guide](queries.md) to inspect the captured TLS posture
+after a successful sync.
 
-```cypher
-MATCH (k:KubernetesCluster)
-RETURN k.name, k.api_server_url, k.kubeconfig_tls_configuration_status,
-       k.kubeconfig_insecure_skip_tls_verify,
-       k.kubeconfig_has_certificate_authority_data,
-       k.kubeconfig_has_certificate_authority_file,
-       k.kubeconfig_has_client_certificate,
-       k.kubeconfig_has_client_key
-ORDER BY k.name;
-```
+## References
+
+- [Kubernetes kubeconfig documentation](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
+- [Amazon EKS access entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html)

@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TAG
 
 
 @dataclass(frozen=True)
@@ -16,16 +17,18 @@ class AWSTagNodeProperties(CartographyNodeProperties):
     The id is computed as "Key:Value" during ingestion.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSTag` node."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
+    key: PropertyRef = PropertyRef("key", extra_index=True, description="Tag key.")
+    value: PropertyRef = PropertyRef("value", description="Tag value.")
 
 
 @dataclass(frozen=True)
 class AWSTagSchema(CartographyNodeSchema):
     """
-    AWSTag schema.
+    Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_Tag.html). AWS Tags can be applied to many objects.
 
     Note: This schema is for documentation purposes. The actual node creation uses
     template-based queries because AWSTag has dynamic TAGGED relationships to many
@@ -37,6 +40,6 @@ class AWSTagSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSTag"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AWSTagNodeProperties = AWSTagNodeProperties()
     sub_resource_relationship: None = None

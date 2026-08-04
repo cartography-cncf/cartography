@@ -109,6 +109,7 @@ INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/c
 ...
 ```
 
+(dev-dockerfile)=
 ## dev.Dockerfile
 
 We include a dev.Dockerfile that can help streamline common dev tasks. It is different from the main Dockerfile in that

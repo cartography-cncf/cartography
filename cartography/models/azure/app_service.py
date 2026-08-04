@@ -16,13 +16,25 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureAppServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    kind: PropertyRef = PropertyRef("kind")
-    location: PropertyRef = PropertyRef("location")
-    state: PropertyRef = PropertyRef("state")
-    default_host_name: PropertyRef = PropertyRef("default_host_name")
-    https_only: PropertyRef = PropertyRef("https_only")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the app."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the app.")
+    kind: PropertyRef = PropertyRef(
+        "kind", description="Azure App Service resource kind."
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the app is deployed."
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Current operational state of the app."
+    )
+    default_host_name: PropertyRef = PropertyRef(
+        "default_host_name", description="Default host name assigned to the app."
+    )
+    https_only: PropertyRef = PropertyRef(
+        "https_only", description="Whether the app accepts only HTTPS requests."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +46,8 @@ class AzureAppServiceToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureAppServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the App Service app as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -48,9 +62,7 @@ class AzureAppServiceToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureAppServiceSchema(CartographyNodeSchema):
-    """
-    The schema for an Azure App Service.
-    """
+    """An application hosted by Azure App Service."""
 
     label: str = "AzureAppService"
     properties: AzureAppServiceProperties = AzureAppServiceProperties()

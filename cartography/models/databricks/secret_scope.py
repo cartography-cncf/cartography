@@ -9,17 +9,29 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DATABRICKS_ACL_OBJECT
 
 
 @dataclass(frozen=True)
 class DatabricksSecretScopeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    backend_type: PropertyRef = PropertyRef("backend_type")
-    keyvault_resource_id: PropertyRef = PropertyRef(
-        "keyvault_resource_id", extra_index=True
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the Databricks secret scope."
     )
-    keyvault_dns_name: PropertyRef = PropertyRef("keyvault_dns_name")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the secret scope."
+    )
+    backend_type: PropertyRef = PropertyRef(
+        "backend_type", description="Backend used to store secrets in the scope."
+    )
+    keyvault_resource_id: PropertyRef = PropertyRef(
+        "keyvault_resource_id",
+        extra_index=True,
+        description="Azure Key Vault resource identifier for a Key Vault-backed scope.",
+    )
+    keyvault_dns_name: PropertyRef = PropertyRef(
+        "keyvault_dns_name",
+        description="Azure Key Vault DNS name for a Key Vault-backed scope.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +43,8 @@ class DatabricksSecretScopeToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksSecretScope)
 class DatabricksSecretScopeToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this secret scope resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -44,6 +58,8 @@ class DatabricksSecretScopeToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksSecretScopeSchema(CartographyNodeSchema):
+    """A Databricks secret scope."""
+
     label: str = "DatabricksSecretScope"
     properties: DatabricksSecretScopeNodeProperties = (
         DatabricksSecretScopeNodeProperties()
@@ -52,4 +68,4 @@ class DatabricksSecretScopeSchema(CartographyNodeSchema):
         DatabricksSecretScopeToWorkspaceRel()
     )
     # ACL-target ontology label so the HAS_PERMISSION MatchLinks can target it.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksAclObject"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_ACL_OBJECT])

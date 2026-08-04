@@ -1,6 +1,12 @@
+import pytest
+
+from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
+from cartography.rules.spec.model import RESERVED_FINDING_FIELDS
+from cartography.rules.spec.model import returned_aliases
 from cartography.sync import TOP_LEVEL_MODULES
 
 
@@ -182,3 +188,101 @@ def test_mapping_values_exists():
         assert (
             intel_name in TOP_LEVEL_MODULES
         ), f"Value for {module} ('{intel_name}') should be a valid Cartography INTEL module"
+
+
+def _fact_kwargs(**overrides) -> dict:
+    """Minimal valid Fact kwargs, overridable per test."""
+    kwargs = dict(
+        id="example-fact",
+        name="Example",
+        description="Example",
+        module=Module.AWS,
+        maturity=Maturity.EXPERIMENTAL,
+        cypher_query="MATCH (u:AWSUser) RETURN u.arn AS user_arn",
+        cypher_visual_query="MATCH (u:AWSUser) RETURN *",
+        cypher_count_query="MATCH (u:AWSUser) RETURN COUNT(u) AS count",
+        identity_fields=("user_arn",),
+        asset_label="AWSUser",
+        asset_id_field="user_arn",
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_fact_accepts_a_coherent_declaration():
+    """The baseline used by the negative cases below must itself be valid."""
+    assert Fact(**_fact_kwargs()).asset_label == "AWSUser"
+
+
+def test_fact_rejects_reserved_finding_field_aliases():
+    """`source` and `extra` belong to the Finding base and must not be aliased."""
+    for reserved in sorted(RESERVED_FINDING_FIELDS):
+        query = f"MATCH (u:AWSUser) RETURN u.arn AS user_arn, u.name AS {reserved}"
+        with pytest.raises(ValueError, match="reserved Finding field"):
+            Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_fact_allows_reserved_name_as_intermediate_with_alias():
+    """Only output columns are reserved; query-internal bindings are not.
+
+    `WITH x AS source` never reaches the Finding model, so rejecting it would be
+    a false positive.
+    """
+    query = "MATCH (u:AWSUser) WITH u, u.name AS source RETURN u.arn AS user_arn"
+    assert Fact(**_fact_kwargs(cypher_query=query)).asset_id_field == "user_arn"
+
+
+def test_fact_rejects_asset_label_not_bound_by_query():
+    """A fact cannot claim an asset label its own query never binds."""
+    with pytest.raises(ValueError, match="never binds a variable to that label"):
+        Fact(**_fact_kwargs(asset_label="UserAccount"))
+
+
+def test_fact_rejects_asset_id_field_only_bound_in_intermediate_with():
+    """An alias produced by a `WITH` is query state, not an output column."""
+    query = "MATCH (u:AWSUser) WITH u, u.arn AS user_arn RETURN u.name AS other"
+    with pytest.raises(ValueError, match="is not returned by its cypher_query"):
+        Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_fact_rejects_asset_id_field_from_a_different_node():
+    """The (label, id) anchor must describe one node, not two."""
+    query = "MATCH (u:AWSUser) MATCH (r:AWSRole) RETURN r.arn AS user_arn"
+    with pytest.raises(ValueError, match="reads no property off"):
+        Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_fact_ignores_return_inside_a_call_subquery():
+    """A nested `CALL { ... RETURN ... }` is not the fact's projection."""
+    query = (
+        "MATCH (u:AWSUser) CALL { MATCH (x:AWSRole) RETURN count(x) AS n } "
+        "RETURN u.arn AS user_arn, n"
+    )
+    assert Fact(**_fact_kwargs(cypher_query=query)).asset_id_field == "user_arn"
+
+
+def test_returned_aliases_reads_only_the_final_projection():
+    """Aliases come from the final RETURN: `AS x` or a bare carried variable."""
+    query = """
+    MATCH (c:KubernetesCluster)-[:RESOURCE]->(p:KubernetesPod)
+    WITH c.name AS cluster_name, p.namespace AS namespace, p.name AS pod_name
+    ORDER BY pod_name
+    WITH cluster_name, namespace, collect(pod_name) AS pod_names
+    MATCH (ns:KubernetesNamespace)
+    RETURN DISTINCT
+        ns.id AS namespace_id,
+        coalesce(ns.friendly_name, 'a, b') AS label,
+        CASE WHEN size(pod_names) > 1 THEN 'many' ELSE 'one' END AS kind,
+        namespace,
+        pod_names,
+        cluster_name
+    ORDER BY namespace_id LIMIT 10
+    """
+    assert returned_aliases(query) == {
+        "namespace_id",
+        "label",
+        "kind",
+        "namespace",
+        "pod_names",
+        "cluster_name",
+    }

@@ -13,14 +13,41 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksLogDeliveryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    config_id: PropertyRef = PropertyRef("config_id", extra_index=True)
-    config_name: PropertyRef = PropertyRef("config_name", extra_index=True)
-    log_type: PropertyRef = PropertyRef("log_type")
-    output_format: PropertyRef = PropertyRef("output_format")
-    status: PropertyRef = PropertyRef("status")
-    s3_bucket_name: PropertyRef = PropertyRef("s3_bucket_name", extra_index=True)
-    delivery_path_prefix: PropertyRef = PropertyRef("delivery_path_prefix")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks log delivery configuration ID.",
+    )
+    config_id: PropertyRef = PropertyRef(
+        "config_id",
+        extra_index=True,
+        description="Databricks log delivery configuration ID.",
+    )
+    config_name: PropertyRef = PropertyRef(
+        "config_name",
+        extra_index=True,
+        description="Log delivery configuration name.",
+    )
+    log_type: PropertyRef = PropertyRef(
+        "log_type",
+        description="Type of logs delivered by the configuration.",
+    )
+    output_format: PropertyRef = PropertyRef(
+        "output_format",
+        description="Output format for delivered logs.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Log delivery configuration status.",
+    )
+    s3_bucket_name: PropertyRef = PropertyRef(
+        "s3_bucket_name",
+        extra_index=True,
+        description="Name of the destination Amazon S3 bucket.",
+    )
+    delivery_path_prefix: PropertyRef = PropertyRef(
+        "delivery_path_prefix",
+        description="Path prefix for delivered logs within the bucket.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +59,8 @@ class DatabricksLogDeliveryToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksLogDelivery)
 class DatabricksLogDeliveryToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -51,6 +80,8 @@ class DatabricksLogDeliveryToS3RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksLogDelivery)-[:DELIVERS_TO]->(:AWSS3Bucket)
 class DatabricksLogDeliveryToS3Rel(CartographyRelSchema):
+    """A Databricks log delivery configuration delivers logs to an S3 bucket."""
+
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("s3_bucket_name")},
@@ -64,6 +95,8 @@ class DatabricksLogDeliveryToS3Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksLogDeliverySchema(CartographyNodeSchema):
+    """A Databricks account log delivery configuration."""
+
     label: str = "DatabricksLogDelivery"
     properties: DatabricksLogDeliveryNodeProperties = (
         DatabricksLogDeliveryNodeProperties()

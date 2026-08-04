@@ -10,18 +10,25 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DNS_RECORD
 
 
 @dataclass(frozen=True)
 class VercelDNSRecordNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="DNS record ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    value: PropertyRef = PropertyRef("value")
-    ttl: PropertyRef = PropertyRef("ttl")
-    priority: PropertyRef = PropertyRef("priority")
-    created_at: PropertyRef = PropertyRef("createdAt")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="DNS record name."
+    )
+    type: PropertyRef = PropertyRef("type", description="DNS record type.")
+    value: PropertyRef = PropertyRef("value", description="DNS record value.")
+    ttl: PropertyRef = PropertyRef("ttl", description="DNS record time to live.")
+    priority: PropertyRef = PropertyRef(
+        "priority", description="DNS record priority when applicable."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="Timestamp when the DNS record was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +39,8 @@ class VercelDNSRecordToTeamRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelTeam)-[:RESOURCE]->(:VercelDNSRecord)
 class VercelDNSRecordToTeamRel(CartographyRelSchema):
+    """The Vercel team contains this DNS record as a resource."""
+
     target_node_label: str = "VercelTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TEAM_ID", set_in_kwargs=True)},
@@ -51,6 +60,8 @@ class VercelDNSRecordToDomainRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:VercelDomain)-[:HAS_DNS_RECORD]->(:VercelDNSRecord)
 class VercelDNSRecordToDomainRel(CartographyRelSchema):
+    """The Vercel domain contains this DNS record."""
+
     target_node_label: str = "VercelDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("domain_name", set_in_kwargs=True)},
@@ -64,9 +75,11 @@ class VercelDNSRecordToDomainRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class VercelDNSRecordSchema(CartographyNodeSchema):
+    """A Vercel DNS record with the canonical DNSRecord label."""
+
     label: str = "VercelDNSRecord"
     properties: VercelDNSRecordNodeProperties = VercelDNSRecordNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     sub_resource_relationship: VercelDNSRecordToTeamRel = VercelDNSRecordToTeamRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [VercelDNSRecordToDomainRel()],

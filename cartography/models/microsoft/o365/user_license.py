@@ -24,9 +24,11 @@ class EntraUserToM365LicenseRelProperties(CartographyRelProperties):
     )
 
 
-@dataclass(frozen=True)
 # (:EntraUser)-[:ASSIGNED_LICENSE]->(:M365License)
+@dataclass(frozen=True)
 class EntraUserToM365LicenseRel(CartographyRelSchema):
+    """Links an Entra user to a Microsoft 365 license assigned to them."""
+
     target_node_label: str = "M365License"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"sku_id": PropertyRef("sku_id")},

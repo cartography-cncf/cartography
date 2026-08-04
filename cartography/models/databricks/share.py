@@ -13,16 +13,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksShareNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    share_id: PropertyRef = PropertyRef("share_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    metastore_id: PropertyRef = PropertyRef("metastore_id", extra_index=True)
-    owner: PropertyRef = PropertyRef("owner", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    created_at: PropertyRef = PropertyRef("created_at")
-    created_by: PropertyRef = PropertyRef("created_by")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    updated_by: PropertyRef = PropertyRef("updated_by")
+    id: PropertyRef = PropertyRef(
+        "id", description="Metastore-scoped identifier for the Delta Sharing share."
+    )
+    share_id: PropertyRef = PropertyRef(
+        "share_id", extra_index=True, description="Databricks share identifier."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the share."
+    )
+    metastore_id: PropertyRef = PropertyRef(
+        "metastore_id",
+        extra_index=True,
+        description="Identifier of the containing Unity Catalog metastore.",
+    )
+    owner: PropertyRef = PropertyRef(
+        "owner", extra_index=True, description="Owner of the share."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="Comment associated with the share."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the share was created."
+    )
+    created_by: PropertyRef = PropertyRef(
+        "created_by", description="Principal that created the share."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the share was last updated."
+    )
+    updated_by: PropertyRef = PropertyRef(
+        "updated_by", description="Principal that last updated the share."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +56,8 @@ class DatabricksShareToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksShare)
 class DatabricksShareToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this share resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -53,6 +77,8 @@ class DatabricksShareToMetastoreRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksShare)
 class DatabricksShareToMetastoreRel(CartographyRelSchema):
+    """A Unity Catalog metastore contains a Delta Sharing share."""
+
     target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("metastore_id")},
@@ -74,6 +100,8 @@ class DatabricksShareToRecipientRelProperties(CartographyRelProperties):
 # Materialised from the share's permission assignments: which recipients have
 # been granted access to the share.
 class DatabricksShareToRecipientRel(CartographyRelSchema):
+    """A Delta Sharing share is shared with a recipient."""
+
     target_node_label: str = "DatabricksRecipient"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("recipient_scoped_ids", one_to_many=True)},
@@ -87,6 +115,8 @@ class DatabricksShareToRecipientRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksShareSchema(CartographyNodeSchema):
+    """A Delta Sharing share registered in Unity Catalog."""
+
     label: str = "DatabricksShare"
     properties: DatabricksShareNodeProperties = DatabricksShareNodeProperties()
     sub_resource_relationship: DatabricksShareToWorkspaceRel = (

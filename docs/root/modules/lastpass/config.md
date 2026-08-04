@@ -1,7 +1,30 @@
-## Lastpass Configuration
+# LastPass Configuration
 
-Follow these steps to analyze Lastpass objects with Cartography.
+## Authentication
 
-1. Prepare your Lastpass CID & ProvHash key.
-    1. Get your CID (account number) and ProvHash from Lastpass [Where can I find the CID and API secret?](https://support.lastpass.com/help/where-can-i-find-the-cid-and-api-secret)
-    1. Populate an environment variable with the CID and Provhash. You can pass the environment variable name via CLI with the `--lastpass-cid-env-var` and `--lastpass-provhash-env-var` parameter.
+Obtain your LastPass CID (account number) and ProvHash by following
+[Where can I find the CID and API secret?](https://support.lastpass.com/help/where-can-i-find-the-cid-and-api-secret).
+Store each value in a separate environment variable.
+
+```bash
+export LASTPASS_CID="<your-cid>"
+export LASTPASS_PROVHASH="<your-provhash>"
+```
+
+## Configure Cartography
+
+Pass the names of the environment variables with `--lastpass-cid-env-var` and
+`--lastpass-provhash-env-var`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules lastpass \
+  --lastpass-cid-env-var LASTPASS_CID \
+  --lastpass-provhash-env-var LASTPASS_PROVHASH
+```
+
+## References
+
+- [LastPass CID and API secret documentation](https://support.lastpass.com/help/where-can-i-find-the-cid-and-api-secret)

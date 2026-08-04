@@ -12,9 +12,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksAccountSettingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    setting_name: PropertyRef = PropertyRef("setting_name", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks setting ID.",
+    )
+    setting_name: PropertyRef = PropertyRef(
+        "setting_name",
+        extra_index=True,
+        description="Account setting name.",
+    )
+    value: PropertyRef = PropertyRef(
+        "value",
+        description="Account setting value.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -26,6 +36,8 @@ class DatabricksAccountSettingToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountSetting)
 class DatabricksAccountSettingToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -39,6 +51,8 @@ class DatabricksAccountSettingToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksAccountSettingSchema(CartographyNodeSchema):
+    """A security-relevant Databricks account setting."""
+
     label: str = "DatabricksAccountSetting"
     properties: DatabricksAccountSettingNodeProperties = (
         DatabricksAccountSettingNodeProperties()

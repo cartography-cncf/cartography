@@ -16,11 +16,21 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureEventGridTopicProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    provisioning_state: PropertyRef = PropertyRef("provisioningState")
-    public_network_access: PropertyRef = PropertyRef("publicNetworkAccess")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the topic."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the topic.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the topic is deployed."
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioningState",
+        description="Current provisioning state of the topic.",
+    )
+    public_network_access: PropertyRef = PropertyRef(
+        "publicNetworkAccess",
+        description="Configured public network access state for the topic.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +42,8 @@ class AzureEventGridTopicToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureEventGridTopicToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the Event Grid topic as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -46,9 +58,7 @@ class AzureEventGridTopicToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureEventGridTopicSchema(CartographyNodeSchema):
-    """
-    The schema for an Azure Event Grid Topic.
-    """
+    """A custom Azure Event Grid topic."""
 
     label: str = "AzureEventGridTopic"
     properties: AzureEventGridTopicProperties = AzureEventGridTopicProperties()

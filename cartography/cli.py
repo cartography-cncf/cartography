@@ -91,7 +91,11 @@ PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
+PANEL_SUPABASE = "Supabase Options"
+PANEL_RAILWAY = "Railway Options"
+PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
+PANEL_MODAL = "Modal Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -147,7 +151,11 @@ MODULE_PANELS = {
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "supabase": PANEL_SUPABASE,
+    "railway": PANEL_RAILWAY,
+    "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
+    "modal": PANEL_MODAL,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -2210,6 +2218,99 @@ class CLI:
                 ),
             ] = "https://api.vercel.com",
             # =================================================================
+            # Supabase Options
+            # =================================================================
+            supabase_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-access-token-env-var",
+                    help="Environment variable name containing a Supabase personal access token.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_organizations: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-organizations",
+                    help=(
+                        "Comma-separated list of Supabase organization slugs to sync. "
+                        "Defaults to every organization the access token can see."
+                    ),
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--supabase-base-url",
+                    help="Supabase Management API base URL.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = "https://api.supabase.com",
+            # =================================================================
+            # Railway Options
+            # =================================================================
+            railway_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-token-env-var",
+                    help="Environment variable name containing a Railway account or workspace API token.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_workspace_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-workspace-id",
+                    help="Railway workspace ID to sync. If unset, every workspace visible to the token is synced.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--railway-base-url",
+                    help="Railway GraphQL API base URL.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = "https://backboard.railway.com/graphql/v2",
+            # =================================================================
+            # Netlify Options
+            # =================================================================
+            netlify_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-token-env-var",
+                    help="Environment variable name containing a Netlify personal access token.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_account_slug: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-account-slug",
+                    help="Netlify team slug to sync. Required for the Netlify module.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--netlify-base-url",
+                    help="Netlify API base URL.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = "https://api.netlify.com/api/v1",
+            # =================================================================
             # CircleCI Options
             # =================================================================
             circleci_token_env_var: Annotated[
@@ -2242,6 +2343,43 @@ class CLI:
                     ),
                     rich_help_panel=PANEL_CIRCLECI,
                     hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Modal Options
+            # =================================================================
+            modal_token_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-id",
+                    help=(
+                        "Modal API token id (ak-...). The workspace to sync is derived "
+                        "from the token itself."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_token_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-secret-env-var",
+                    help="Environment variable name containing the Modal API token secret (as-...).",
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_environments: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-environments",
+                    help=(
+                        "Comma-separated Modal environment names to sync. Defaults to every "
+                        "environment in the workspace. Environments outside this list are "
+                        "still inventoried as nodes, but their contents are not refreshed."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2679,6 +2817,32 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read Supabase access token
+            supabase_access_token = None
+            if supabase_access_token_env_var:
+                logger.debug(
+                    "Reading Supabase access token from environment variable %s",
+                    supabase_access_token_env_var,
+                )
+                supabase_access_token = os.environ.get(supabase_access_token_env_var)
+            # Read Railway token
+            railway_token = None
+            if railway_token_env_var:
+                logger.debug(
+                    "Reading Railway API token from environment variable %s",
+                    railway_token_env_var,
+                )
+                railway_token = os.environ.get(railway_token_env_var)
+
+            # Read Netlify token
+            netlify_token = None
+            if netlify_token_env_var:
+                logger.debug(
+                    "Reading Netlify API token from environment variable %s",
+                    netlify_token_env_var,
+                )
+                netlify_token = os.environ.get(netlify_token_env_var)
+
             # Read CircleCI token
             circleci_token = None
             if circleci_token_env_var:
@@ -2690,6 +2854,23 @@ class CLI:
             circleci_project_slug_list = (
                 [s.strip() for s in circleci_project_slugs.split(",") if s.strip()]
                 if circleci_project_slugs
+                else None
+            )
+
+            # Read Modal token secret
+            modal_token_secret = None
+            if modal_token_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --modal-token-id is missing, so the module entry's guard sees the
+                # asymmetric configuration and fails loudly instead of silently skipping.
+                logger.debug(
+                    "Reading Modal token secret from environment variable %s",
+                    modal_token_secret_env_var,
+                )
+                modal_token_secret = os.environ.get(modal_token_secret_env_var)
+            modal_environment_list = (
+                [e.strip() for e in modal_environments.split(",") if e.strip()]
+                if modal_environments
                 else None
             )
 
@@ -3063,9 +3244,21 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                supabase_access_token=supabase_access_token,
+                supabase_organizations=supabase_organizations,
+                supabase_base_url=supabase_base_url,
+                railway_token=railway_token,
+                railway_workspace_id=railway_workspace_id,
+                railway_base_url=railway_base_url,
+                netlify_token=netlify_token,
+                netlify_account_slug=netlify_account_slug,
+                netlify_base_url=netlify_base_url,
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,
+                modal_token_id=modal_token_id,
+                modal_token_secret=modal_token_secret,
+                modal_environments=modal_environment_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,

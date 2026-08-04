@@ -16,10 +16,20 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    private_ip_address: PropertyRef = PropertyRef("private_ip_address")
-    public_ip_address_id: PropertyRef = PropertyRef("public_ip_address_id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Azure resource ID of the load balancer frontend IP configuration.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the load balancer frontend IP configuration."
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "private_ip_address", description="Private IP address assigned to the frontend."
+    )
+    public_ip_address_id: PropertyRef = PropertyRef(
+        "public_ip_address_id",
+        description="Azure resource ID of the associated public IP address.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +40,8 @@ class AzureLoadBalancerFrontendIPToLBRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPToLBRel(CartographyRelSchema):
+    """An Azure Load Balancer contains the frontend IP configuration."""
+
     target_node_label: str = "AzureLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LOAD_BALANCER_ID", set_in_kwargs=True)},
@@ -48,6 +60,8 @@ class AzureLoadBalancerFrontendIPToPublicIPRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPToPublicIPRel(CartographyRelSchema):
+    """A load balancer frontend IP configuration uses a public IP address."""
+
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("public_ip_address_id")},
@@ -66,6 +80,8 @@ class AzureLoadBalancerFrontendIPToSubscriptionRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the load balancer frontend IP configuration as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -79,6 +95,8 @@ class AzureLoadBalancerFrontendIPToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerFrontendIPSchema(CartographyNodeSchema):
+    """A frontend IP configuration that receives traffic for an Azure Load Balancer."""
+
     label: str = "AzureLoadBalancerFrontendIPConfiguration"
     properties: AzureLoadBalancerFrontendIPProperties = (
         AzureLoadBalancerFrontendIPProperties()

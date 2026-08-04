@@ -13,10 +13,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureStorageBlobServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
-    name: PropertyRef = PropertyRef("name")
+    type: PropertyRef = PropertyRef("type", description="Azure resource type.")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,8 @@ class AzureStorageBlobServiceToStorageAccountRelProperties(CartographyRelPropert
 @dataclass(frozen=True)
 # (:AzureStorageAccount)-[:USES]->(:AzureStorageBlobService)
 class AzureStorageBlobServiceToStorageAccountRel(CartographyRelSchema):
+    """An Azure Storage account uses the blob service."""
+
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("storage_account_id")},
@@ -46,6 +48,8 @@ class AzureStorageBlobServiceToSubscriptionRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureStorageBlobService)
 class AzureStorageBlobServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the blob service as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -59,6 +63,8 @@ class AzureStorageBlobServiceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageBlobServiceSchema(CartographyNodeSchema):
+    """The Blob Storage service of an Azure Storage account."""
+
     label: str = "AzureStorageBlobService"
     properties: AzureStorageBlobServiceProperties = AzureStorageBlobServiceProperties()
     sub_resource_relationship: AzureStorageBlobServiceToSubscriptionRel = (

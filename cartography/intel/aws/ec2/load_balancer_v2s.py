@@ -223,6 +223,11 @@ def _transform_load_balancer_v2_data(
         lb_data.append(
             {
                 "DNSName": dns_name,
+                # `DNSName` stays raw: it is this node's id and the LoadBalancerId that
+                # listeners and target groups join against. The `dnsname` property reads
+                # the lowercased copy so equality matchers survive AWS preserving the
+                # load balancer name's case.
+                "DNSNameLower": dns_name.lower(),
                 "LoadBalancerName": lb["LoadBalancerName"],
                 "CanonicalHostedZoneId": lb.get("CanonicalHostedZoneNameID")
                 or lb.get("CanonicalHostedZoneId"),

@@ -9,23 +9,53 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
 class JumpCloudUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="JumpCloud user ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    username: PropertyRef = PropertyRef("username", extra_index=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    firstname: PropertyRef = PropertyRef("firstname")
-    lastname: PropertyRef = PropertyRef("lastname")
-    displayname: PropertyRef = PropertyRef("displayname")
-    activated: PropertyRef = PropertyRef("activated")
-    suspended: PropertyRef = PropertyRef("suspended")
-    account_locked: PropertyRef = PropertyRef("account_locked")
-    mfa_configured: PropertyRef = PropertyRef("mfa_configured")
-    created: PropertyRef = PropertyRef("created")
-    lastlogin: PropertyRef = PropertyRef("lastlogin")
+    username: PropertyRef = PropertyRef(
+        "username",
+        extra_index=True,
+        description="Username.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="User email address.",
+    )
+    firstname: PropertyRef = PropertyRef("firstname", description="First name.")
+    lastname: PropertyRef = PropertyRef("lastname", description="Last name.")
+    displayname: PropertyRef = PropertyRef(
+        "displayname",
+        description="Display name.",
+    )
+    activated: PropertyRef = PropertyRef(
+        "activated",
+        description="Whether the account is activated.",
+    )
+    suspended: PropertyRef = PropertyRef(
+        "suspended",
+        description="Whether the account is suspended.",
+    )
+    account_locked: PropertyRef = PropertyRef(
+        "account_locked",
+        description="Whether the account is locked.",
+    )
+    mfa_configured: PropertyRef = PropertyRef(
+        "mfa_configured",
+        description="Whether MFA is configured for the user.",
+    )
+    created: PropertyRef = PropertyRef(
+        "created",
+        description="Timestamp when the account was created.",
+    )
+    lastlogin: PropertyRef = PropertyRef(
+        "lastlogin",
+        description="Timestamp of the last login.",
+    )
 
 
 @dataclass(frozen=True)
@@ -36,6 +66,8 @@ class JumpCloudTenantToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:JumpCloudTenant)-[:RESOURCE]->(:JumpCloudUser)
 class JumpCloudTenantToUserRel(CartographyRelSchema):
+    """The tenant contains the user."""
+
     target_node_label: str = "JumpCloudTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -49,7 +81,9 @@ class JumpCloudTenantToUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class JumpCloudUserSchema(CartographyNodeSchema):
+    """A user account in JumpCloud."""
+
     label: str = "JumpCloudUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: JumpCloudUserNodeProperties = JumpCloudUserNodeProperties()
     sub_resource_relationship: JumpCloudTenantToUserRel = JumpCloudTenantToUserRel()
