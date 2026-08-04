@@ -1,3 +1,5 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -42,6 +44,7 @@ _gcp_cloud_run_public_ingress = Fact(
     MATCH (svc:GCPCloudRunService)
     RETURN COUNT(svc) AS count
     """,
+    asset_label="GCPCloudRunService",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -94,6 +97,7 @@ _gcp_cloud_function_http_trigger = Fact(
     MATCH (fn:GCPCloudFunction)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="GCPCloudFunction",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -132,6 +136,7 @@ _aws_lambda_anonymous_access = Fact(
     MATCH (fn:AWSLambda)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="AWSLambda",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
@@ -174,6 +179,7 @@ _scaleway_serverless_function_public = Fact(
     MATCH (fn:ScalewayServerlessFunction)
     RETURN COUNT(fn) AS count
     """,
+    asset_label="ScalewayServerlessFunction",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
@@ -209,9 +215,49 @@ _scaleway_serverless_container_public = Fact(
     MATCH (c:ScalewayServerlessContainer)
     RETURN COUNT(c) AS count
     """,
+    asset_label="ScalewayServerlessContainer",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_railway_service_instance_public = Fact(
+    id="railway_service_instance_public",
+    name="Internet-Accessible Railway Service Attack Surface",
+    description=(
+        "Railway service instances reachable from the public internet. A "
+        "Railway-generated *.up.railway.app domain, a DNS-verified custom "
+        "domain, or a TCP proxy all route anonymous internet traffic straight "
+        "to the workload; Railway puts no authentication in front of any of "
+        "them. TCP proxies are the sharpest case, publishing a raw port with "
+        "no TLS termination, which is how managed databases end up internet-"
+        "facing."
+    ),
+    cypher_query="""
+    MATCH (prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)
+    WHERE si.is_publicly_exposed = true
+    RETURN
+        si.id AS id,
+        si.service_name AS name,
+        si.region AS region,
+        null AS runtime,
+        'railway_service_instance_public' AS exposure_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)-[:EXPOSE]->(entrypoint)
+    WHERE si.is_publicly_exposed = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (si:RailwayServiceInstance)
+    RETURN COUNT(si) AS count
+    """,
+    asset_label="RailwayServiceInstance",
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.RAILWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -232,7 +278,8 @@ serverless_workload_exposed = Rule(
         "Serverless compute reachable from the public internet via "
         "permissive ingress, anonymous IAM bindings, or unauthenticated "
         "Function URLs. Covers GCP Cloud Run, GCP Cloud Functions, "
-        "AWS Lambda, and Scaleway Serverless Functions / Containers."
+        "AWS Lambda, Scaleway Serverless Functions / Containers, and "
+        "Railway service instances."
     ),
     output_model=ServerlessWorkloadExposed,
     facts=(
@@ -241,6 +288,7 @@ serverless_workload_exposed = Rule(
         _gcp_cloud_function_http_trigger,
         _scaleway_serverless_function_public,
         _scaleway_serverless_container_public,
+        _railway_service_instance_public,
     ),
     tags=(
         "infrastructure",
@@ -250,4 +298,8 @@ serverless_workload_exposed = Rule(
         "stride:elevation_of_privilege",
     ),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )

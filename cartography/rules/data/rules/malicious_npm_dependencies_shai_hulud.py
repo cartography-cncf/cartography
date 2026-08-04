@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -134,6 +135,7 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
       AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repo",
     identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
@@ -2192,6 +2194,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
       AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repo",
     identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
@@ -3068,6 +3071,7 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
       AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repo",
     identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
@@ -3132,5 +3136,7 @@ malicious_npm_dependencies_shai_hulud = Rule(
     frameworks=(
         iso27001_annex_a("5.21"),
         iso27001_annex_a("8.8"),
+        soc2_tsc("CC6.8"),
+        soc2_tsc("CC7.1"),
     ),
 )

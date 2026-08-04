@@ -1,40 +1,84 @@
-## Tailscale Configuration
+# Tailscale Configuration
 
-Cartography supports two ways to authenticate to the Tailscale API:
+## Authentication
 
-- **OAuth client (recommended)** — tag-scoped, not tied to a user, exchanged at sync time for a short-lived bearer token. Matches Tailscale's [recommended pattern for service integrations](https://tailscale.com/kb/1215/oauth-clients).
-- **API access token** — long-lived, tied to a user account.
+### OAuth client
 
-In both cases, pass `--tailscale-org <tailnet-name>` (find it under [Settings → General](https://login.tailscale.com/admin/settings/general)). For self-hosted instances, set `--tailscale-base-url` (default `https://api.tailscale.com/api/v2`); the same base URL is used for the OAuth token endpoint.
+An OAuth client is recommended because it is tag-scoped, is not tied to a user,
+and is exchanged at sync time for a short-lived bearer token. This matches
+Tailscale's [recommended pattern for service
+integrations](https://tailscale.com/kb/1215/oauth-clients).
 
-### OAuth client (recommended)
-
-1. Create an OAuth client at [Settings → OAuth clients](https://login.tailscale.com/admin/settings/oauth) with the read-only scopes cartography needs:
-
-    - `devices:core:read` — `/tailnet/:org/devices`
-    - `devices:posture_attributes:read` — `/device/:id/attributes`
-    - `users:read` — `/tailnet/:org/users`
-    - `policy_file:read` — `/tailnet/:org/acl`
-    - `feature_settings:read` — `/tailnet/:org/settings` and `/tailnet/:org/posture/integrations`
-
-    See [trust credentials](https://tailscale.com/docs/reference/trust-credentials) for the canonical scope list.
-2. Put the client ID and secret in two environment variables and pass their names to cartography:
-
-    ```bash
-    export TS_OAUTH_CLIENT_ID="<client id>"
-    export TS_OAUTH_CLIENT_SECRET="<client secret>"
-
-    cartography \
-      --tailscale-oauth-client-id-env-var TS_OAUTH_CLIENT_ID \
-      --tailscale-oauth-client-secret-env-var TS_OAUTH_CLIENT_SECRET \
-      --tailscale-org example.com
-    ```
-
-Cartography will exchange the credentials at `{base_url}/oauth/token` (RFC 6749 `client_credentials` grant) and use the returned access token for the rest of the sync.
+Create an OAuth client at [Settings > OAuth
+clients](https://login.tailscale.com/admin/settings/oauth). Put the client ID
+and secret in two environment variables.
 
 ### API access token
 
-1. Create an API access token at [Settings → Keys](https://login.tailscale.com/admin/settings/keys).
-2. Export it (e.g. `TAILSCALE_TOKEN`) and pass `--tailscale-token-env-var TAILSCALE_TOKEN`.
+Create a long-lived API access token tied to a user account at [Settings >
+Keys](https://login.tailscale.com/admin/settings/keys). Export it in an
+environment variable.
 
-If both `--tailscale-token-env-var` and the OAuth client flags are set, the OAuth client is used and a warning is logged.
+## Required Permissions
+
+An OAuth client needs these read-only scopes:
+
+- `devices:core:read`: `/tailnet/:org/devices`
+- `devices:posture_attributes:read`: `/device/:id/attributes`
+- `users:read`: `/tailnet/:org/users`
+- `policy_file:read`: `/tailnet/:org/acl`
+- `feature_settings:read`: `/tailnet/:org/settings` and
+  `/tailnet/:org/posture/integrations`
+
+See [trust credentials](https://tailscale.com/docs/reference/trust-credentials)
+for the canonical scope list.
+
+## Configure Cartography
+
+Pass `--tailscale-org <tailnet-name>` for either authentication method. Find
+the tailnet name under [Settings >
+General](https://login.tailscale.com/admin/settings/general).
+
+For OAuth, pass the environment variable names with
+`--tailscale-oauth-client-id-env-var` and
+`--tailscale-oauth-client-secret-env-var`. For an API access token, pass the
+environment variable name with `--tailscale-token-env-var`.
+
+## Run Cartography
+
+With an OAuth client:
+
+```bash
+export TS_OAUTH_CLIENT_ID="<client id>"
+export TS_OAUTH_CLIENT_SECRET="<client secret>"
+
+cartography \
+  --selected-modules tailscale \
+  --tailscale-oauth-client-id-env-var TS_OAUTH_CLIENT_ID \
+  --tailscale-oauth-client-secret-env-var TS_OAUTH_CLIENT_SECRET \
+  --tailscale-org example.com
+```
+
+With an API access token:
+
+```bash
+export TAILSCALE_TOKEN="<token>"
+
+cartography \
+  --selected-modules tailscale \
+  --tailscale-token-env-var TAILSCALE_TOKEN \
+  --tailscale-org example.com
+```
+
+## Advanced Configuration
+
+For self-hosted instances, set `--tailscale-base-url`. It defaults to
+`https://api.tailscale.com/api/v2`, and the same base URL is used for the OAuth
+token endpoint.
+
+Cartography exchanges OAuth credentials at `{base_url}/oauth/token` using the
+RFC 6749 `client_credentials` grant and uses the returned access token for the
+rest of the sync.
+
+If both `--tailscale-token-env-var` and the OAuth client flags are set, the
+OAuth client is used and a warning is logged.

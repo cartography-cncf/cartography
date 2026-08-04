@@ -13,19 +13,53 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TransformJobArn")
-    arn: PropertyRef = PropertyRef("TransformJobArn", extra_index=True)
-    transform_job_name: PropertyRef = PropertyRef("TransformJobName")
-    transform_job_status: PropertyRef = PropertyRef("TransformJobStatus")
-    model_name: PropertyRef = PropertyRef("ModelName")
-    max_concurrent_transforms: PropertyRef = PropertyRef("MaxConcurrentTransforms")
-    max_payload_in_mb: PropertyRef = PropertyRef("MaxPayloadInMB")
-    batch_strategy: PropertyRef = PropertyRef("BatchStrategy")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    transform_start_time: PropertyRef = PropertyRef("TransformStartTime")
-    transform_end_time: PropertyRef = PropertyRef("TransformEndTime")
-    output_data_s3_bucket_id: PropertyRef = PropertyRef("OutputDataS3BucketId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "TransformJobArn", description="The ARN of the Transform Job"
+    )
+    arn: PropertyRef = PropertyRef(
+        "TransformJobArn", extra_index=True, description="The ARN of the Transform Job"
+    )
+    transform_job_name: PropertyRef = PropertyRef(
+        "TransformJobName", description="The name of the Transform Job"
+    )
+    transform_job_status: PropertyRef = PropertyRef(
+        "TransformJobStatus", description="The status of the Transform Job"
+    )
+    model_name: PropertyRef = PropertyRef(
+        "ModelName", description="The name of the model used for the transform"
+    )
+    max_concurrent_transforms: PropertyRef = PropertyRef(
+        "MaxConcurrentTransforms",
+        description="Maximum number of concurrent transform requests.",
+    )
+    max_payload_in_mb: PropertyRef = PropertyRef(
+        "MaxPayloadInMB",
+        description="Maximum transform request payload size in MiB.",
+    )
+    batch_strategy: PropertyRef = PropertyRef(
+        "BatchStrategy",
+        description="Strategy used to split input records into transform batches.",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Transform Job was created"
+    )
+    transform_start_time: PropertyRef = PropertyRef(
+        "TransformStartTime",
+        description="Timestamp when the batch transform job started.",
+    )
+    transform_end_time: PropertyRef = PropertyRef(
+        "TransformEndTime",
+        description="Timestamp when the batch transform job completed.",
+    )
+    output_data_s3_bucket_id: PropertyRef = PropertyRef(
+        "OutputDataS3BucketId",
+        description="The S3 bucket ID where transform output is stored",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Transform Job runs",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -85,6 +119,8 @@ class AWSSageMakerTransformJobToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerTransformJobSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes a large dataset and uses batch inference to write multiple predictions to an S3 Bucket."""
+
     label: str = "AWSSageMakerTransformJob"
     properties: AWSSageMakerTransformJobNodeProperties = (
         AWSSageMakerTransformJobNodeProperties()

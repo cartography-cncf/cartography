@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_NAME_SERVER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,9 +15,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class NameServerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("id", extra_index=True)
-    zoneid: PropertyRef = PropertyRef("zoneid")
+    id: PropertyRef = PropertyRef("id", description="The address of the nameserver")
+    name: PropertyRef = PropertyRef(
+        "id", extra_index=True, description="The name or address of the nameserver"
+    )
+    zoneid: PropertyRef = PropertyRef(
+        "zoneid",
+        description="The ID of the Route53 hosted zone this name server belongs to",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,9 +62,11 @@ class NameServerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class NameServerSchema(CartographyNodeSchema):
+    """Representation of a DNS name server associated with an AWS Route53 hosted zone."""
+
     label: str = "AWSNameServer"
     # DEPRECATED: legacy NameServer node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NameServer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_NAME_SERVER])
     properties: NameServerNodeProperties = NameServerNodeProperties()
     sub_resource_relationship: NameServerToAWSAccountRel = NameServerToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

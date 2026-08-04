@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -83,6 +84,7 @@ _gcp_instance_internet_exposed = Fact(
     WHERE coalesce(instance.status, '') <> 'TERMINATED'
     RETURN COUNT(instance) AS count
     """,
+    asset_label="GCPInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.GCP,
@@ -194,6 +196,7 @@ _azure_vm_internet_exposed = Fact(
     MATCH (vm:AzureVirtualMachine)
     RETURN COUNT(vm) AS count
     """,
+    asset_label="AzureVirtualMachine",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group_id"),
     module=Module.AZURE,
@@ -252,6 +255,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.AWS,
@@ -320,6 +324,7 @@ _scaleway_instance_internet_exposed = Fact(
     WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
     RETURN COUNT(instance) AS count
     """,
+    asset_label="ScalewayInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.SCALEWAY,
@@ -372,6 +377,7 @@ _scaleway_instance_pat_exposed = Fact(
     WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
     RETURN COUNT(instance) AS count
     """,
+    asset_label="ScalewayInstance",
     asset_id_field="instance_id",
     identity_fields=("instance_id", "port", "security_group"),
     module=Module.SCALEWAY,
@@ -412,5 +418,24 @@ compute_instance_exposed = Rule(
         "stride:elevation_of_privilege",
     ),
     version="0.2.0",
-    frameworks=(iso27001_annex_a("8.20"),),
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 A1.1: Capacity monitoring and evaluation
+# Already in the graph: AWSCloudWatchMetricAlarm (state_value,
+# comparison_operator, actions_enabled), AzureMonitorMetricAlert, and
+# AWSAutoScalingGroup desiredcapacity and maxsize. Whether an alarm exists and
+# whether an autoscaling group has configured headroom are queryable today.
+# Neither proves insufficient capacity without utilization data, service
+# criticality, and organization-defined capacity thresholds.
+# Missing datamodel: alarm threshold, metric name and dimensions, which the
+# CloudWatch model does not carry; business-service criticality and capacity
+# policies; Google Cloud alerting policies.
+# Out of reach: utilization and saturation time series, and autoscaling event
+# history. Cartography ingests configuration and inventory, not metric streams.
+# =============================================================================

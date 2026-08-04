@@ -13,14 +13,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("EndpointArn")
-    arn: PropertyRef = PropertyRef("EndpointArn", extra_index=True)
-    endpoint_name: PropertyRef = PropertyRef("EndpointName")
-    endpoint_config_name: PropertyRef = PropertyRef("EndpointConfigName")
-    endpoint_status: PropertyRef = PropertyRef("EndpointStatus")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("EndpointArn", description="The ARN of the Endpoint")
+    arn: PropertyRef = PropertyRef(
+        "EndpointArn", extra_index=True, description="The ARN of the Endpoint"
+    )
+    endpoint_name: PropertyRef = PropertyRef(
+        "EndpointName", description="The name of the Endpoint"
+    )
+    endpoint_config_name: PropertyRef = PropertyRef(
+        "EndpointConfigName", description="The name of the Endpoint Config used"
+    )
+    endpoint_status: PropertyRef = PropertyRef(
+        "EndpointStatus", description="The status of the Endpoint"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Endpoint was created"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime", description="When the Endpoint was last modified"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Endpoint exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,6 +78,8 @@ class AWSSageMakerEndpointToEndpointConfigRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference."""
+
     label: str = "AWSSageMakerEndpoint"
     properties: AWSSageMakerEndpointNodeProperties = (
         AWSSageMakerEndpointNodeProperties()

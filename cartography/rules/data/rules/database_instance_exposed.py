@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -45,6 +46,7 @@ _azure_sql_internet_exposed = Fact(
     MATCH (server:AzureSQLServer)
     RETURN COUNT(server) AS count
     """,
+    asset_label="AzureSQLServer",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AZURE,
@@ -84,6 +86,7 @@ _azure_cosmosdb_public_access = Fact(
     MATCH (account:AzureCosmosDBAccount)
     RETURN COUNT(account) AS count
     """,
+    asset_label="AzureCosmosDBAccount",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AZURE,
@@ -118,6 +121,8 @@ _gcp_cloud_sql_public_access = Fact(
     MATCH (sql:GCPCloudSQLInstance)
     RETURN COUNT(sql) AS count
     """,
+    asset_label="GCPCloudSQLInstance",
+    asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
@@ -180,6 +185,8 @@ _aws_rds_public_access = Fact(
     MATCH (rds:AWSRDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    asset_label="AWSRDSInstance",
+    asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -219,6 +226,7 @@ _scaleway_rdb_public_access = Fact(
     MATCH (db:ScalewayRdbInstance)
     RETURN COUNT(db) AS count
     """,
+    asset_label="ScalewayRdbInstance",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
@@ -253,6 +261,7 @@ _scaleway_redis_public_access = Fact(
     MATCH (rc:ScalewayRedisCluster)
     RETURN COUNT(rc) AS count
     """,
+    asset_label="ScalewayRedisCluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
@@ -287,6 +296,7 @@ _scaleway_mongodb_public_access = Fact(
     MATCH (m:ScalewayMongoDBInstance)
     RETURN COUNT(m) AS count
     """,
+    asset_label="ScalewayMongoDBInstance",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.SCALEWAY,
@@ -326,5 +336,8 @@ database_instance_exposed = Rule(
         "stride:tampering",
     ),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.20"),),
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )

@@ -20,6 +20,7 @@ def _rel_cleanup(
     *,
     scope: ScopeById | None = None,
     scoped_to: str = "source",
+    cleanup_where: str = "",
 ) -> str:
     match = f"MATCH (source:{source})-[r:{rel}]->(target:{target})"
     if scope:
@@ -28,12 +29,10 @@ def _rel_cleanup(
             f"-[:RESOURCE]->({scoped_to})\n"
             f"{match}"
         )
-    return (
-        f"{match}\n"
-        "WHERE r.lastupdated <> $UPDATE_TAG\n"
-        "WITH r LIMIT $LIMIT_SIZE\n"
-        "DELETE r"
-    )
+    where = "WHERE r.lastupdated <> $UPDATE_TAG"
+    if cleanup_where:
+        where = f"{where} AND ({cleanup_where})"
+    return f"{match}\n" f"{where}\n" "WITH r LIMIT $LIMIT_SIZE\n" "DELETE r"
 
 
 def _prop_cleanup(
@@ -210,28 +209,36 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_kubernetes_ingress",
     ),
     pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
+        RelationshipEffect(
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSLoadBalancerV2",
+            cleanup_where="NOT source:AWSDNSRecord",
+        ),
         None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
+        _rel_cleanup(
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSLoadBalancerV2",
+            cleanup_where="NOT source:AWSDNSRecord",
+        ),
         id="ontology_dnsrecords_to_aws_elbv2",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
+        RelationshipEffect(
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSLoadBalancer",
+            cleanup_where="NOT source:AWSDNSRecord",
+        ),
         None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancerV2"),
-        id="ontology_gcp_recordset_to_aws_elbv2",
-    ),
-    pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSLoadBalancer"),
-        None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSLoadBalancer"),
+        _rel_cleanup(
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSLoadBalancer",
+            cleanup_where="NOT source:AWSDNSRecord",
+        ),
         id="ontology_dnsrecords_to_aws_elb",
-    ),
-    pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancer"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSLoadBalancer"),
-        id="ontology_gcp_recordset_to_aws_elb",
     ),
     pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
@@ -241,23 +248,19 @@ CLEANUP_CASES = [
     ),
     pytest.param(
         RelationshipEffect(
-            "GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSEC2Instance",
+            cleanup_where="NOT source:AWSDNSRecord",
         ),
         None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSCloudFrontDistribution"),
-        id="ontology_gcp_recordset_to_cloudfront",
-    ),
-    pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AWSEC2Instance"),
-        None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AWSEC2Instance"),
+        _rel_cleanup(
+            "DNSRecord",
+            "DNS_POINTS_TO",
+            "AWSEC2Instance",
+            cleanup_where="NOT source:AWSDNSRecord",
+        ),
         id="ontology_dnsrecords_to_ec2",
-    ),
-    pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AWSEC2Instance"),
-        id="ontology_gcp_recordset_to_ec2",
     ),
     pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "GCPInstance"),
@@ -266,22 +269,10 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_gcp_instance",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "GCPInstance"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "GCPInstance"),
-        id="ontology_gcp_recordset_to_gcp_instance",
-    ),
-    pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AzureAppService"),
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AzureAppService"),
         id="ontology_dnsrecords_to_azure_app_service",
-    ),
-    pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AzureAppService"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AzureAppService"),
-        id="ontology_gcp_recordset_to_azure_app_service",
     ),
     pytest.param(
         RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "AzureFunctionApp"),
@@ -290,45 +281,33 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_azure_function",
     ),
     pytest.param(
-        RelationshipEffect("GCPRecordSet", "DNS_POINTS_TO", "AzureFunctionApp"),
-        None,
-        _rel_cleanup("GCPRecordSet", "DNS_POINTS_TO", "AzureFunctionApp"),
-        id="ontology_gcp_recordset_to_azure_function",
-    ),
-    pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),
         ENTRA,
         _prop_cleanup("EntraApplication", "_ont_enabled", scope=ENTRA),
         id="ontology_entra_application_projection",
     ),
     pytest.param(
-        RelationshipEffect("LoadBalancer", "EXPOSE", "Container"),
+        RelationshipEffect("PackageVersion", "DEPLOYED", "Image"),
         None,
-        _rel_cleanup("LoadBalancer", "EXPOSE", "Container"),
-        id="ontology_loadbalancers_linking",
-    ),
-    pytest.param(
-        RelationshipEffect("Package", "DEPLOYED", "Image"),
-        None,
-        _rel_cleanup("Package", "DEPLOYED", "Image"),
+        _rel_cleanup("PackageVersion", "DEPLOYED", "Image"),
         id="ontology_packages_deployed",
     ),
     pytest.param(
-        RelationshipEffect("TrivyImageFinding", "AFFECTS", "Package"),
+        RelationshipEffect("TrivyImageFinding", "AFFECTS", "PackageVersion"),
         None,
-        _rel_cleanup("TrivyImageFinding", "AFFECTS", "Package"),
+        _rel_cleanup("TrivyImageFinding", "AFFECTS", "PackageVersion"),
         id="ontology_packages_affects",
     ),
     pytest.param(
-        RelationshipEffect("Package", "SHOULD_UPDATE_TO", "TrivyFix"),
+        RelationshipEffect("PackageVersion", "SHOULD_UPDATE_TO", "TrivyFix"),
         None,
-        _rel_cleanup("Package", "SHOULD_UPDATE_TO", "TrivyFix"),
+        _rel_cleanup("PackageVersion", "SHOULD_UPDATE_TO", "TrivyFix"),
         id="ontology_packages_should_update_to",
     ),
     pytest.param(
-        RelationshipEffect("Package", "DEPENDS_ON", "Package"),
+        RelationshipEffect("PackageVersion", "DEPENDS_ON", "PackageVersion"),
         None,
-        _rel_cleanup("Package", "DEPENDS_ON", "Package"),
+        _rel_cleanup("PackageVersion", "DEPENDS_ON", "PackageVersion"),
         id="ontology_packages_depends_on",
     ),
     pytest.param(
@@ -381,8 +360,8 @@ CLEANUP_CASES = [
     ),
     pytest.param(
         RelationshipEffect("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer"),
-        AWS,
-        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer", scope=AWS),
+        None,
+        _rel_cleanup("AWSLoadBalancerV2", "EXPOSE", "AWSECSContainer"),
         id="aws_lb_container_exposure",
     ),
     pytest.param(

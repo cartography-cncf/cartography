@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
@@ -11,6 +12,114 @@ from pydantic import ConfigDict
 from pydantic import model_validator
 
 logger = logging.getLogger(__name__)
+
+_RETURN_KEYWORD_RE = re.compile(r"(?i)\bRETURN\b")
+# Clauses that follow the projection and produce no output columns.
+_TRAILING_CLAUSE_RE = re.compile(r"(?is)\b(?:ORDER\s+BY|SKIP|LIMIT)\b")
+_LEADING_DISTINCT_RE = re.compile(r"(?is)^\s*DISTINCT\b")
+# `<expr> AS alias`, only when the alias ends the projection item.
+_ITEM_ALIAS_RE = re.compile(r"(?is)\bAS\s+(\w+)\s*$")
+_BARE_IDENTIFIER_RE = re.compile(r"^\w+$")
+# `foo.bar` / `foo .bar`: which variables an expression reads properties from.
+_PROPERTY_OWNER_RE = re.compile(r"\b(\w+)\s*\.")
+
+# Fields the `Finding` base model owns. A fact query must not alias them: both
+# are populated by `Rule.parse_results` and a query column of the same name
+# would silently overwrite the framework-supplied value.
+RESERVED_FINDING_FIELDS = frozenset({"source", "extra"})
+
+
+def _depths(text: str) -> list[int]:
+    """Bracket nesting depth at each character of `text`."""
+    depths, depth = [], 0
+    for char in text:
+        if char in ")]}":
+            depth -= 1
+        depths.append(depth)
+        if char in "([{":
+            depth += 1
+    return depths
+
+
+def _final_return_projection(cypher_query: str) -> str:
+    """Return the projection body of the query's last `RETURN`.
+
+    Everything before that `RETURN` is intermediate query state: a `WITH x AS y`
+    binding is not an output column, so it must not count as one.
+    """
+    query_depths = _depths(cypher_query)
+    # The projection is the last top-level RETURN: one nested inside a `CALL { ...
+    # RETURN ... }` subquery sits at a deeper bracket level and is not it.
+    starts = [
+        match.end()
+        for match in _RETURN_KEYWORD_RE.finditer(cypher_query)
+        if query_depths[match.start()] == 0
+    ]
+    if not starts:
+        return ""
+    projection = cypher_query[starts[-1] :]
+    depths = _depths(projection)
+    for trailing in _TRAILING_CLAUSE_RE.finditer(projection):
+        # Only a top-level ORDER BY / SKIP / LIMIT ends the projection; the same
+        # keyword inside a subquery or list expression does not.
+        if depths[trailing.start()] == 0:
+            projection = projection[: trailing.start()]
+            break
+    return _LEADING_DISTINCT_RE.sub("", projection)
+
+
+def _projection_items(cypher_query: str) -> list[str]:
+    """Split the final projection on its top-level commas.
+
+    Depth-aware because items legitimately contain commas: `coalesce(a, b)`,
+    `[x IN xs WHERE ...]`, `CASE WHEN ... END`.
+    """
+    projection = _final_return_projection(cypher_query)
+    depths = _depths(projection)
+    items, start = [], 0
+    for index, char in enumerate(projection):
+        if char == "," and depths[index] == 0:
+            items.append(projection[start:index])
+            start = index + 1
+    items.append(projection[start:])
+    return [item.strip() for item in items if item.strip()]
+
+
+def returned_aliases(cypher_query: str) -> set[str]:
+    """Return the output column names of a fact query's final `RETURN`.
+
+    A column is named by its `AS <alias>`, or by the variable itself when the
+    item is a bare identifier carried over from an earlier `WITH`. Items that
+    are neither (e.g. a bare `n.prop`) get a Cypher-generated column name that
+    can never be a Python field name, so they are ignored.
+    """
+    names = set()
+    for item in _projection_items(cypher_query):
+        alias = _ITEM_ALIAS_RE.search(item)
+        if alias:
+            names.add(alias.group(1))
+        elif _BARE_IDENTIFIER_RE.match(item):
+            names.add(item)
+    return names
+
+
+def _variables_bound_to_label(cypher_query: str, label: str) -> set[str]:
+    """Variables the query binds to `label`, inline or as a predicate.
+
+    Covers `(v:Label)`, `(v:Label {...})` and `WHERE v:Label`.
+    """
+    return set(re.findall(rf"\b(\w+)\s*:\s*{re.escape(label)}\b", cypher_query))
+
+
+def _expression_for_alias(cypher_query: str, alias: str) -> str | None:
+    """The projection expression the final `RETURN` exposes as `alias`."""
+    for item in _projection_items(cypher_query):
+        match = _ITEM_ALIAS_RE.search(item)
+        if match and match.group(1) == alias:
+            return item[: match.start()].strip()
+        if not match and item == alias:
+            return item
+    return None
 
 
 class Module(str, Enum):
@@ -94,6 +203,9 @@ class Module(str, Enum):
     PAGERDUTY = "PagerDuty"
     """PagerDuty incident response"""
 
+    RAILWAY = "Railway"
+    """Railway platform-as-a-service"""
+
     SCALEWAY = "Scaleway"
     """Scaleway cloud services"""
 
@@ -159,6 +271,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.OKTA: "okta",
     Module.OPENAI: "openai",
     Module.PAGERDUTY: "pagerduty",
+    Module.RAILWAY: "railway",
     Module.SCALEWAY: "scaleway",
     Module.SEMGREP: "semgrep",
     Module.SENTINELONE: "sentinelone",
@@ -276,18 +389,75 @@ class Fact:
     """
     identity_fields: tuple[str, ...]
     """Output-model field(s) forming the stable logical identity of a finding across syncs; must exist on the output model and be returned by ``cypher_query``, and are distinct from volatile display fields and from ``asset_id_field`` (which only drives the compliance failing-count). Required with no default: a Fact that omits it fails to construct, forcing every rule to declare a stable identity explicitly."""
+    asset_label: str
+    """
+    The Neo4j node label of the single asset this Fact is about (e.g. ``KubernetesPod``,
+    ``AWSEC2Instance``). Together with the value of ``asset_id_field`` it forms an indexable
+    ``(label, id)`` anchor on the affected node, letting consumers locate that node in the
+    graph without inferring the label from a field name. Required with no default: a Fact
+    that omits it fails to construct. ``cypher_query`` must bind a variable to this label
+    and project ``asset_id_field`` off that same variable, so the label and the id cannot
+    describe two different nodes.
+    """
     asset_id_field: str | None = None
     """
-    The field name in the output model that uniquely identifies an asset.
-    When set, failing count is computed as the count of distinct values of this field
-    rather than the total number of finding rows. This is needed when a single asset
-    can produce multiple finding rows (e.g., one security group with multiple violating rules).
+    The output-model field whose value is the ``.id`` of the ``asset_label`` node, i.e. the
+    id half of the ``(label, id)`` anchor. Also drives the compliance failing-count: when set,
+    the failing count is the number of distinct values of this field rather than the total
+    number of finding rows. This matters when a single asset can produce multiple finding
+    rows (e.g., one security group with multiple violating rules). Must be returned by the
+    final ``RETURN`` of ``cypher_query`` via ``... AS <name>``, reading a property off the
+    variable bound to ``asset_label`` (an alias produced only by an intermediate ``WITH``
+    is query state, not an output column, and does not satisfy this).
     """
 
     def __post_init__(self) -> None:
         if not self.identity_fields:
             raise ValueError(
                 f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
+            )
+        if not self.asset_label:
+            raise ValueError(f"Fact '{self.id}' must declare a non-empty asset_label.")
+        if not self.asset_id_field:
+            raise ValueError(
+                f"Fact '{self.id}' must declare asset_id_field: it is the id half of "
+                f"the (asset_label, id) anchor."
+            )
+        aliases = returned_aliases(self.cypher_query)
+        if self.asset_id_field not in aliases:
+            raise ValueError(
+                f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
+                f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
+            )
+        # The anchor is only meaningful if the label and the id describe the same
+        # node, so require a variable bound to asset_label and require the
+        # asset_id_field expression to read a property off that same variable.
+        asset_vars = _variables_bound_to_label(self.cypher_query, self.asset_label)
+        if not asset_vars:
+            raise ValueError(
+                f"Fact '{self.id}' declares asset_label '{self.asset_label}' but its "
+                f"cypher_query never binds a variable to that label, so the rows it "
+                f"returns and the asset it claims can diverge. Match it explicitly, "
+                f"e.g. 'MATCH (n:{self.asset_label})'."
+            )
+        id_expression = _expression_for_alias(self.cypher_query, self.asset_id_field)
+        owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
+        if not owners & asset_vars:
+            raise ValueError(
+                f"Fact '{self.id}' returns asset_id_field '{self.asset_id_field}' as "
+                f"'{id_expression}', which reads no property off {sorted(asset_vars)} "
+                f"(the variable(s) bound to asset_label '{self.asset_label}'). The "
+                f"(label, id) anchor must describe one node: project the id directly "
+                f"off the labeled variable, e.g. "
+                f"'{sorted(asset_vars)[0]}.id AS {self.asset_id_field}'."
+            )
+        reserved = RESERVED_FINDING_FIELDS & aliases
+        if reserved:
+            raise ValueError(
+                f"Fact '{self.id}' aliases reserved Finding field(s) {sorted(reserved)} in "
+                f"its cypher_query. 'source' is module provenance set by Rule.parse_results "
+                f"and 'extra' collects undeclared columns; pick a different alias "
+                f"(e.g. 'ontology_source')."
             )
 
 
@@ -296,7 +466,13 @@ class Finding(BaseModel):
 
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
-    """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
+    """
+    The source of the Fact data, i.e. the Cartography module that ingested it. Set by
+    ``Rule.parse_results`` from ``fact.module``, so it is module provenance and nothing
+    else: a fact query must not return a ``source`` column (see
+    ``RESERVED_FINDING_FIELDS``). A fact that needs the per-row ontology source should
+    return ``_ont_source AS ontology_source`` and declare that field on its output model.
+    """
     extra: dict[str, Any] = {}
     """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
 

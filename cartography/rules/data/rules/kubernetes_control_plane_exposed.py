@@ -1,3 +1,5 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -40,6 +42,7 @@ _aws_eks_control_plane_exposed = Fact(
     MATCH (c:AWSEKSCluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="AWSEKSCluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AWS,
@@ -79,6 +82,7 @@ _gcp_gke_control_plane_exposed = Fact(
     MATCH (c:GKECluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="GKECluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.GCP,
@@ -119,6 +123,7 @@ _azure_aks_control_plane_exposed = Fact(
     MATCH (c:AzureKubernetesCluster)
     RETURN COUNT(c) AS count
     """,
+    asset_label="AzureKubernetesCluster",
     asset_id_field="id",
     identity_fields=("id",),
     module=Module.AZURE,
@@ -167,4 +172,8 @@ kubernetes_control_plane_exposed = Rule(
         "stride:elevation_of_privilege",
     ),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )

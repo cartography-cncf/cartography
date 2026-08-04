@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -17,11 +18,17 @@ class SpaceliftUserNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift User node.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    username: PropertyRef = PropertyRef("username", extra_index=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    user_type: PropertyRef = PropertyRef("user_type")  # e.g., "human" or "machine"
+    id: PropertyRef = PropertyRef("id", description="Spacelift user ID.")
+    username: PropertyRef = PropertyRef(
+        "username", extra_index=True, description="User login name."
+    )
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="User email address."
+    )
+    name: PropertyRef = PropertyRef("name", description="User display name.")
+    user_type: PropertyRef = PropertyRef(
+        "user_type", description="Type of Spacelift user, such as human or machine."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,10 +43,7 @@ class SpaceliftUserToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftUserToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from a User to its Account.
-    (:SpaceliftUser)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
+    """A Spacelift account contains a user."""
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -54,13 +58,11 @@ class SpaceliftUserToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpaceliftUserSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift User node.
-    """
+    """A Spacelift identity with the UserAccount label."""
 
     label: str = "SpaceliftUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
+        [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: SpaceliftUserNodeProperties = SpaceliftUserNodeProperties()
     sub_resource_relationship: SpaceliftUserToAccountRel = SpaceliftUserToAccountRel()

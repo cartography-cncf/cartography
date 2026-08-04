@@ -285,7 +285,8 @@ def test_sync_findings(
         "description",
         "npm",
         "HIGH",
-        "UNKNOWN-2022-31129",
+        # cve_id is null: UNKNOWN-* is not a real CVE, so it is not stored here.
+        None,
         "UNREACHABLE",
         "UNREACHABLE",
         "DIRECT",
@@ -415,6 +416,46 @@ def test_sync_findings(
         (
             "CVE-2022-31129",
             tests.data.semgrep.sca.VULN_ID,
+        ),
+    }
+
+    # Assert - has_cve drives the mutually-exclusive :CVE / :SecurityIssue labels
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSCAFinding",
+        ["id", "has_cve"],
+    ) == {
+        (tests.data.semgrep.sca.VULN_ID, "true"),
+        (tests.data.semgrep.sca.VULN_ID_UNKNOWN, "false"),
+    }
+    assert neo4j_session.run(
+        "MATCH (n:SemgrepSCAFinding:CVE) RETURN n.id AS id ORDER BY id",
+    ).value("id") == [tests.data.semgrep.sca.VULN_ID]
+    assert neo4j_session.run(
+        "MATCH (n:SemgrepSCAFinding:SecurityIssue) RETURN n.id AS id ORDER BY id",
+    ).value("id") == [tests.data.semgrep.sca.VULN_ID_UNKNOWN]
+
+    # Advisory-only (:SecurityIssue) findings keep their SecurityIssue ontology
+    # normalization, while the CVE-backed finding also carries _ont_cve_id.
+    assert check_nodes(
+        neo4j_session,
+        "SemgrepSCAFinding",
+        ["id", "_ont_title", "_ont_severity", "_ont_cve_id"],
+    ) == {
+        (
+            tests.data.semgrep.sca.VULN_ID,
+            "moment:Denial-of-Service (DoS)",
+            # _ont_severity is normalized to a canonical band (HIGH -> high).
+            "high",
+            "CVE-2022-31129",
+        ),
+        (
+            # Advisory-only finding keeps its SecurityIssue normalization, and
+            # _ont_cve_id is null because UNKNOWN-* is not a real CVE.
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+            "moment:Denial-of-Service (DoS)",
+            "high",
+            None,
         ),
     }
 

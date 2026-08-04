@@ -10,25 +10,56 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.databricks.extra_labels import DATABRICKS_ACL_OBJECT
 
 
 @dataclass(frozen=True)
 class DatabricksJobNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    job_id: PropertyRef = PropertyRef("job_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    creator_user_name: PropertyRef = PropertyRef("creator_user_name", extra_index=True)
-    run_as_user_name: PropertyRef = PropertyRef("run_as_user_name", extra_index=True)
-    format: PropertyRef = PropertyRef("format")
-    max_concurrent_runs: PropertyRef = PropertyRef("max_concurrent_runs")
-    timeout_seconds: PropertyRef = PropertyRef("timeout_seconds")
-    continuous: PropertyRef = PropertyRef("continuous")
-    schedule_quartz_cron_expression: PropertyRef = PropertyRef(
-        "schedule_quartz_cron_expression"
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the job."
     )
-    schedule_timezone_id: PropertyRef = PropertyRef("schedule_timezone_id")
-    schedule_pause_status: PropertyRef = PropertyRef("schedule_pause_status")
-    created_time: PropertyRef = PropertyRef("created_time")
+    job_id: PropertyRef = PropertyRef(
+        "job_id", extra_index=True, description="Databricks job identifier."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the job."
+    )
+    creator_user_name: PropertyRef = PropertyRef(
+        "creator_user_name",
+        extra_index=True,
+        description="User who created the job.",
+    )
+    run_as_user_name: PropertyRef = PropertyRef(
+        "run_as_user_name",
+        extra_index=True,
+        description="User name or application identifier of the run-as principal.",
+    )
+    format: PropertyRef = PropertyRef(
+        "format", description="Job format, such as single-task or multi-task."
+    )
+    max_concurrent_runs: PropertyRef = PropertyRef(
+        "max_concurrent_runs",
+        description="Maximum number of concurrent active runs.",
+    )
+    timeout_seconds: PropertyRef = PropertyRef(
+        "timeout_seconds", description="Maximum run duration in seconds."
+    )
+    continuous: PropertyRef = PropertyRef(
+        "continuous", description="Whether the job uses continuous execution."
+    )
+    schedule_quartz_cron_expression: PropertyRef = PropertyRef(
+        "schedule_quartz_cron_expression",
+        description="Quartz cron expression for the job schedule.",
+    )
+    schedule_timezone_id: PropertyRef = PropertyRef(
+        "schedule_timezone_id", description="Time zone used by the job schedule."
+    )
+    schedule_pause_status: PropertyRef = PropertyRef(
+        "schedule_pause_status", description="Pause state of the job schedule."
+    )
+    created_time: PropertyRef = PropertyRef(
+        "created_time", description="Timestamp when the job was created."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -40,6 +71,8 @@ class DatabricksJobToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksJob)
 class DatabricksJobToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the job as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -66,6 +99,8 @@ class DatabricksJobToRunAsUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksJob)-[:RUN_AS]->(:DatabricksUser)
 class DatabricksJobToRunAsUserRel(CartographyRelSchema):
+    """A Databricks job runs as a Databricks user."""
+
     target_node_label: str = "DatabricksUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("run_as_user_id")},
@@ -85,6 +120,8 @@ class DatabricksJobToRunAsSPRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksJob)-[:RUN_AS]->(:DatabricksServicePrincipal)
 class DatabricksJobToRunAsSPRel(CartographyRelSchema):
+    """A Databricks job runs as a Databricks service principal."""
+
     target_node_label: str = "DatabricksServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("run_as_sp_id")},
@@ -98,6 +135,8 @@ class DatabricksJobToRunAsSPRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksJobSchema(CartographyNodeSchema):
+    """A Databricks job that defines an automated workload."""
+
     label: str = "DatabricksJob"
     properties: DatabricksJobNodeProperties = DatabricksJobNodeProperties()
     sub_resource_relationship: DatabricksJobToWorkspaceRel = (
@@ -110,4 +149,4 @@ class DatabricksJobSchema(CartographyNodeSchema):
         ],
     )
     # ACL-target ontology label so the HAS_PERMISSION MatchLinks can target it.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DatabricksAclObject"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DATABRICKS_ACL_OBJECT])

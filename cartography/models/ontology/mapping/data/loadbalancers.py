@@ -4,11 +4,28 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 # LoadBalancer fields:
 # name - The name of the load balancer
-# lb_type - The type of load balancer (application, network, classic, etc.)
-# scheme - The scheme (internal or internet-facing)
+# lb_type - The provider-native load balancer type. NOT normalized: providers encode
+#   fundamentally different axes here (AWS = L4/L7 class, GCP = protocol, Azure = SKU
+#   tier, Scaleway = offer size), so there is no coherent shared vocabulary. Left raw.
+# scheme - Normalized exposure: internet_facing or internal.
 # dns_name - The DNS name/endpoint
 # ip_address - The IP address (for LBs that use IPs instead of DNS names)
 # region - The region/location
+
+# AWS ELB/ELBv2 Scheme
+_AWS_LB_SCHEME = {
+    "internet-facing": "internet_facing",
+    "internal": "internal",
+}
+
+# GCP forwarding-rule loadBalancingScheme
+_GCP_LB_SCHEME = {
+    "EXTERNAL": "internet_facing",
+    "EXTERNAL_MANAGED": "internet_facing",
+    "INTERNAL": "internal",
+    "INTERNAL_MANAGED": "internal",
+    "INTERNAL_SELF_MANAGED": "internal",
+}
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -20,7 +37,12 @@ aws_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="lb_type", node_field="type"),
-                OntologyFieldMapping(ontology_field="scheme", node_field="scheme"),
+                OntologyFieldMapping(
+                    ontology_field="scheme",
+                    node_field="scheme",
+                    special_handling="mapping",
+                    extra={"map": _AWS_LB_SCHEME},
+                ),
                 OntologyFieldMapping(ontology_field="dns_name", node_field="dnsname"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
             ],
@@ -37,7 +59,12 @@ aws_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "classic"},
                 ),
-                OntologyFieldMapping(ontology_field="scheme", node_field="scheme"),
+                OntologyFieldMapping(
+                    ontology_field="scheme",
+                    node_field="scheme",
+                    special_handling="mapping",
+                    extra={"map": _AWS_LB_SCHEME},
+                ),
                 OntologyFieldMapping(ontology_field="dns_name", node_field="dnsname"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
             ],
@@ -55,7 +82,10 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="scheme", node_field="load_balancing_scheme"
+                    ontology_field="scheme",
+                    node_field="load_balancing_scheme",
+                    special_handling="mapping",
+                    extra={"map": _GCP_LB_SCHEME},
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(

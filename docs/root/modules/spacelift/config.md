@@ -1,12 +1,8 @@
-## Spacelift Configuration
+# Spacelift Configuration
 
-Follow these steps to analyze Spacelift infrastructure in Cartography.
+## Authentication
 
-### 1. Prepare Spacelift API Credentials
-
-Cartography supports two authentication methods for Spacelift:
-
-#### Method 1: API Key ID and Secret (Recommended)
+### API key ID and secret
 
 This is the recommended method as it uses short-lived tokens and doesn't require manual token generation.
 
@@ -22,32 +18,16 @@ This is the recommended method as it uses short-lived tokens and doesn't require
    - Store your API key secret in an environment variable (e.g., `SPACELIFT_API_KEY_SECRET`)
    - Note your Spacelift API endpoint (typically `https://YOUR_ACCOUNT.app.spacelift.io/graphql`)
 
-3. Configure Cartography:
-
-```bash
-cartography \
-  --spacelift-api-endpoint https://YOUR_ACCOUNT.app.spacelift.io/graphql \
-  --spacelift-api-key-id-env-var SPACELIFT_API_KEY_ID \
-  --spacelift-api-key-secret-env-var SPACELIFT_API_KEY_SECRET
-```
-
 Cartography will automatically exchange your API key credentials for a JWT token when needed.
 
-#### Method 2: Pre-generated JWT Token (Alternative)
+### Pre-generated JWT token
 
 If you prefer to manage token generation yourself, you can provide a pre-generated JWT token.
 
 1. Generate a Spacelift API token manually using your API key
 2. Store the token in an environment variable (e.g., `SPACELIFT_API_TOKEN`)
-3. Configure Cartography:
 
-```bash
-cartography \
-  --spacelift-api-endpoint https://YOUR_ACCOUNT.app.spacelift.io/graphql \
-  --spacelift-api-token-env-var SPACELIFT_API_TOKEN
-```
-
-### 2. Required Parameters
+## Configure Cartography
 
 One of these authentication combinations is required:
 
@@ -60,7 +40,28 @@ One of these authentication combinations is required:
 - `--spacelift-api-endpoint`: Your Spacelift GraphQL API endpoint
 - `--spacelift-api-token-env-var`: Name of the environment variable containing your pre-generated JWT token (default: `SPACELIFT_API_TOKEN`)
 
-### 3. (Optional) Configure EC2 Ownership Tracking
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules spacelift \
+  --spacelift-api-endpoint https://YOUR_ACCOUNT.app.spacelift.io/graphql \
+  --spacelift-api-key-id-env-var SPACELIFT_API_KEY_ID \
+  --spacelift-api-key-secret-env-var SPACELIFT_API_KEY_SECRET
+```
+
+To use a pre-generated JWT token instead:
+
+```bash
+cartography \
+  --selected-modules spacelift \
+  --spacelift-api-endpoint https://YOUR_ACCOUNT.app.spacelift.io/graphql \
+  --spacelift-api-token-env-var SPACELIFT_API_TOKEN
+```
+
+## Advanced Configuration
+
+### EC2 ownership tracking
 
 If you want to track EC2 instances created/modified by Spacelift runs via CloudTrail data:
 
@@ -79,22 +80,8 @@ cartography \
   --spacelift-ec2-ownership-aws-profile your-aws-profile  # optional
 ```
 
-#### EC2 Ownership Parameters
+The EC2 ownership parameters are:
 
 - `--spacelift-ec2-ownership-s3-bucket`: S3 bucket containing CloudTrail data exports
 - `--spacelift-ec2-ownership-s3-prefix`: S3 prefix where JSON files are stored
 - `--spacelift-ec2-ownership-aws-profile`: (Optional) AWS profile to use for S3 access
-
-### 4. What Gets Synced
-
-Cartography will sync the following Spacelift resources:
-
-- **Accounts**: Your Spacelift organization
-- **Spaces**: Organizational units for grouping resources
-- **Stacks**: Infrastructure-as-code stacks
-- **Runs**: Deployment executions
-- **Git Commits**: Commits associated with runs
-- **Users**: Human and system users triggering runs
-- **Worker Pools**: Custom worker pool configurations
-- **Workers**: Individual workers in pools
-- **EC2 Ownership** (optional): CloudTrail events linking runs to EC2 instances

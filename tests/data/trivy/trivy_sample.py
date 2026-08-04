@@ -1493,3 +1493,63 @@ TRIVY_SAMPLE = {
         },
     ],
 }
+
+
+# Trivy reports several identifier schemes, not just CVEs. This sample carries one
+# CVE, one GitHub advisory and one Debian TEMP id so tests can check that cve_id /
+# ghsa_id / has_cve and the conditional :CVE label are only set where they belong.
+TRIVY_MIXED_IDENTIFIERS_SAMPLE = {
+    "SchemaVersion": 2,
+    "ArtifactName": "example.com/repo/mixed-ids:latest",
+    "ArtifactType": "container_image",
+    "Metadata": {
+        "OS": {"Family": "debian", "Name": "12.8"},
+        "ImageID": "sha256:mixedids",
+        "RepoDigests": [
+            "example.com/repo/mixed-ids@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        ],
+    },
+    "Results": [
+        {
+            "Target": "example.com/repo/mixed-ids:latest (debian 12.8)",
+            "Class": "os-pkgs",
+            "Type": "debian",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2024-11111",
+                    "VendorIDs": ["DSA-9999-1"],
+                    "PkgName": "openssl",
+                    "InstalledVersion": "3.0.15-1~deb12u1",
+                    "FixedVersion": "3.0.16-1~deb12u1",
+                    "Status": "fixed",
+                    "Severity": "HIGH",
+                    "Title": "A real CVE",
+                },
+                {
+                    "VulnerabilityID": "TEMP-0000000-ABCDEF",
+                    "PkgName": "liblzma5",
+                    "InstalledVersion": "5.4.1-0.2",
+                    "Status": "affected",
+                    "Severity": "LOW",
+                    "Title": "An unfixed Debian issue with no CVE assigned",
+                },
+            ],
+        },
+        {
+            "Target": "python-pkg",
+            "Class": "lang-pkgs",
+            "Type": "python-pkg",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "GHSA-aaaa-bbbb-cccc",
+                    "PkgName": "h11",
+                    "InstalledVersion": "0.14.0",
+                    "FixedVersion": "0.16.0",
+                    "Status": "fixed",
+                    "Severity": "MEDIUM",
+                    "Title": "A GitHub advisory with no CVE",
+                },
+            ],
+        },
+    ],
+}

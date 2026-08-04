@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -84,6 +85,7 @@ _aws_trust_relationship_manipulation = Fact(
     MATCH (principal:AWSPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="AWSPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
@@ -160,6 +162,7 @@ _gcp_trust_relationship_manipulation = Fact(
     MATCH (principal:GCPPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="GCPPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
@@ -182,9 +185,10 @@ _azure_trust_relationship_manipulation = Fact(
     cypher_query="""
     MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // EntraPrincipal is the umbrella label carried by EntraUser, EntraGroup and
+    // EntraServicePrincipal. Matching it directly keeps the returned rows aligned
+    // with the declared asset_label and lets Neo4j use the label index.
+    MATCH (principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     // Treat each action / not_action as a case-insensitive glob: `.` is
     // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
     // anywhere now correctly matches; Contributor (actions=['*'],
@@ -230,12 +234,10 @@ _azure_trust_relationship_manipulation = Fact(
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-      // Mirror the finding query: at least one searched pattern is granted
-      // by actions AND not shadowed by not_actions.
-      AND ANY(p IN [
+    MATCH p3=(principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    // Mirror the finding query: at least one searched pattern is granted
+    // by actions AND not shadowed by not_actions.
+    WHERE ANY(p IN [
             'Microsoft.ManagedIdentity/userAssignedIdentities/*/assign/action',
             'Microsoft.Authorization/roleAssignments/write'
         ]
@@ -250,6 +252,7 @@ _azure_trust_relationship_manipulation = Fact(
     MATCH (ra:AzureRoleAssignment)
     RETURN COUNT(ra) AS count
     """,
+    asset_label="EntraPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
@@ -289,9 +292,10 @@ delegation_boundary_modifiable = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )

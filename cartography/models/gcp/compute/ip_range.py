@@ -10,13 +10,21 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.extra_labels import IP_RANGE
 
 
 @dataclass(frozen=True)
 class IpRangeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("range")
+    id: PropertyRef = PropertyRef(
+        "range",
+        description='CIDR notation for the IP range. E.g. "0.0.0.0/0" for the whole internet.',
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    range: PropertyRef = PropertyRef("range", extra_index=True)
+    range: PropertyRef = PropertyRef(
+        "range",
+        extra_index=True,
+        description="CIDR range governed by this firewall rule.",
+    )
 
 
 @dataclass(frozen=True)
@@ -57,8 +65,10 @@ class IpRangeToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
+    """Representation of an IP range or subnet."""
+
     label: str = "GCPIpRange"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IP_RANGE])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
     sub_resource_relationship: IpRangeToProjectRel = IpRangeToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

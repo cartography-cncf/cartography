@@ -16,11 +16,22 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    mac_address: PropertyRef = PropertyRef("mac_address")
-    private_ip_addresses: PropertyRef = PropertyRef("private_ip_addresses")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the network interface."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the network interface."
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the network interface is deployed."
+    )
+    mac_address: PropertyRef = PropertyRef(
+        "mac_address", description="Media access control address of the interface."
+    )
+    private_ip_addresses: PropertyRef = PropertyRef(
+        "private_ip_addresses",
+        description="Private IP addresses assigned through interface IP configurations.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,6 +42,8 @@ class AzureNetworkInterfaceToSubscriptionRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the network interface as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -49,6 +62,8 @@ class AzureNetworkInterfaceToVirtualMachineRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceToVirtualMachineRel(CartographyRelSchema):
+    """An Azure network interface is attached to a virtual machine."""
+
     target_node_label: str = "AzureVirtualMachine"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VIRTUAL_MACHINE_ID")},
@@ -67,6 +82,8 @@ class AzureNetworkInterfaceToSubnetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceToSubnetRel(CartographyRelSchema):
+    """An Azure network interface is attached to a subnet."""
+
     target_node_label: str = "AzureSubnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SUBNET_IDS", one_to_many=True)},
@@ -85,6 +102,8 @@ class AzureNetworkInterfaceToPublicIPRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceToPublicIPRel(CartographyRelSchema):
+    """An Azure network interface is associated with a public IP address."""
+
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PUBLIC_IP_IDS", one_to_many=True)},
@@ -103,6 +122,8 @@ class AzureNetworkInterfaceToNSGRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceToNSGRel(CartographyRelSchema):
+    """An Azure network interface is associated with a network security group."""
+
     target_node_label: str = "AzureNetworkSecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NSG_ID")},
@@ -116,6 +137,8 @@ class AzureNetworkInterfaceToNSGRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureNetworkInterfaceSchema(CartographyNodeSchema):
+    """A network interface in an Azure virtual network."""
+
     label: str = "AzureNetworkInterface"
     properties: AzureNetworkInterfaceProperties = AzureNetworkInterfaceProperties()
     sub_resource_relationship: AzureNetworkInterfaceToSubscriptionRel = (

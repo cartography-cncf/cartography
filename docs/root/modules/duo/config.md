@@ -1,8 +1,22 @@
-## Duo Configuration
+# Duo Configuration
 
-Follow these steps to analyze Duo objects with Cartography.
+## Authentication
 
-1. Prepare a [admin api creds](https://duo.com/docs/adminapi).
-1. Pass the Duo api host name to the `--duo-api-hostname` CLI arg.
-1. Populate environment variables with the api key and api secret.
-1. Pass that those var names to the `--duo-api-key-env-var` and `--duo-api-secret-env-var` CLI args.
+Create [Duo Admin API credentials](https://duo.com/docs/adminapi). Store the
+integration key and secret key in separate environment variables.
+
+## Configure Cartography
+
+Pass the Duo API hostname with `--duo-api-hostname`. Pass the integration key
+environment variable name with `--duo-api-key-env-var` and the secret key
+environment variable name with `--duo-api-secret-env-var`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules duo \
+  --duo-api-hostname "$DUO_API_HOSTNAME" \
+  --duo-api-key-env-var DUO_API_KEY \
+  --duo-api-secret-env-var DUO_API_SECRET
+```

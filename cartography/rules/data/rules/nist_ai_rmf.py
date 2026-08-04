@@ -8,6 +8,7 @@ certification assertions.
 
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -82,6 +83,7 @@ RISKY_SCOPE_PREFIXES_CYPHER = _as_cypher_list(RISKY_SCOPE_PREFIXES)
 # =============================================================================
 class NistAiAppInventoryOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     match_method: str | None = None
@@ -115,9 +117,9 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     OPTIONAL MATCH (ua:UserAccount)-[auth:AUTHORIZED]->(app)
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
-        app._ont_source AS source,
         CASE
             WHEN allowlist_match THEN 'allowlist'
             WHEN heuristic_match THEN 'heuristic'
@@ -146,7 +148,10 @@ _cross_cloud_nist_ai_app_inventory = Fact(
     MATCH (app:ThirdPartyApp)
     RETURN COUNT(app) AS count
     """,
-    asset_id_field="app_client_id",
+    asset_label="ThirdPartyApp",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -162,12 +167,13 @@ ai_third_party_app_inventory = Rule(
     output_model=NistAiAppInventoryOutput,
     facts=(_cross_cloud_nist_ai_app_inventory,),
     tags=("ai", "identity", "compliance", "governance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),
         iso27001_annex_a("5.21"),
         iso27001_annex_a("5.23"),
+        soc2_tsc("CC9.2"),
     ),
 )
 
@@ -178,6 +184,7 @@ ai_third_party_app_inventory = Rule(
 # =============================================================================
 class NistAiSensitiveScopesOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     authorized_identity_count: int | None = None
@@ -217,9 +224,9 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     UNWIND risky_scopes_for_auth AS risky_scope
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
-        app._ont_source AS source,
         count(DISTINCT ua) AS authorized_identity_count,
         count(DISTINCT risky_scope) AS risky_scope_count,
         collect(DISTINCT risky_scope) AS risky_scopes
@@ -251,7 +258,10 @@ _cross_cloud_nist_ai_app_sensitive_scopes = Fact(
     MATCH (app:ThirdPartyApp)
     RETURN COUNT(app) AS count
     """,
-    asset_id_field="app_client_id",
+    asset_label="ThirdPartyApp",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
@@ -267,13 +277,14 @@ ai_third_party_app_sensitive_scopes = Rule(
     output_model=NistAiSensitiveScopesOutput,
     facts=(_cross_cloud_nist_ai_app_sensitive_scopes,),
     tags=("ai", "identity", "oauth", "compliance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MEASURE 2"),
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.15"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -309,6 +320,7 @@ ai_third_party_app_sensitive_scopes = Rule(
 # =============================================================================
 class NistAiAdminAuthorizationsOutput(Finding):
     app_name: str | None = None
+    asset_node_id: str | None = None
     app_client_id: str | None = None
     app_source: str | None = None
     admin_user_count: int | None = None
@@ -340,6 +352,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
       )
     RETURN
         coalesce(app._ont_name, app.display_name, app.display_text, app.name) AS app_name,
+        app.id AS asset_node_id,
         coalesce(app._ont_client_id, app.client_id, app.app_id, app.id) AS app_client_id,
         app._ont_source AS app_source,
         count(DISTINCT u) AS admin_user_count,
@@ -382,7 +395,10 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         )
     RETURN COUNT(DISTINCT app) AS count
     """,
-    asset_id_field="app_client_id",
+    asset_label="ThirdPartyApp",
+    # app_client_id is the OAuth client id, which differs from the node id for
+    # Entra/Keycloak apps; anchor on the node's real .id instead.
+    asset_id_field="asset_node_id",
     identity_fields=("app_source", "app_client_id"),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -404,6 +420,8 @@ ai_admin_app_authorizations = Rule(
         nist_ai_rmf("GOVERN 5"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
+        soc2_tsc("CC9.2"),
     ),
 )
 
@@ -538,6 +556,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
     RETURN COUNT(DISTINCT agent) AS count
     """,
+    asset_label="AIAgent",
     asset_id_field="agent_component_id",
     identity_fields=("agent_component_id",),
     module=Module.AIBOM,
@@ -561,6 +580,7 @@ aibom_agent_inventory = Rule(
         nist_ai_rmf("GOVERN 1"),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -637,6 +657,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
     MATCH (source:AIBOMSource)
     RETURN COUNT(source) AS count
     """,
+    asset_label="AIBOMSource",
     asset_id_field="source_id",
     identity_fields=("source_id",),
     module=Module.AIBOM,
@@ -660,6 +681,7 @@ aibom_coverage_gaps = Rule(
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.9"),
         iso27001_annex_a("5.21"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -725,7 +747,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
         "owner attribution."
     ),
     cypher_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
     OPTIONAL MATCH (org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
@@ -766,7 +788,7 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     ORDER BY provider, organization_id, api_key_name
     """,
     cypher_visual_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH p=(org_direct:OpenAIOrganization)-[:RESOURCE]->(k)
     OPTIONAL MATCH p3=(project:OpenAIProject)-[:RESOURCE]->(k)
@@ -786,13 +808,20 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (k)
+    MATCH (k:APIKey)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
     WITH k, project
     WHERE k:OpenAIAdminApiKey OR coalesce(project.status, 'active') = 'active'
     RETURN COUNT(k) AS count
     """,
+    # OpenAIApiKey and OpenAIAdminApiKey both carry the shared "APIKey" ontology label,
+    # so it anchors either concrete key type. The query matches ":APIKey" explicitly so
+    # the rows it returns cannot diverge from the asset label it claims.
+    # Note: the Anthropic fact below anchors on the provider label "AnthropicApiKey"
+    # instead. Converging the two would change the label consumers resolve against, so
+    # it is deliberately left alone here.
+    asset_label="APIKey",
     asset_id_field="api_key_id",
     identity_fields=("provider", "api_key_id"),
     module=Module.OPENAI,
@@ -856,6 +885,7 @@ _anthropic_nist_ai_stale_or_unscoped_api_keys = Fact(
     WHERE k.status = 'active'
     RETURN COUNT(k) AS count
     """,
+    asset_label="AnthropicApiKey",
     asset_id_field="api_key_id",
     identity_fields=("provider", "api_key_id"),
     module=Module.ANTHROPIC,
@@ -877,13 +907,15 @@ ai_provider_api_key_hygiene = Rule(
         _anthropic_nist_ai_stale_or_unscoped_api_keys,
     ),
     tags=("ai", "credentials", "governance", "compliance"),
-    version="0.2.0",
+    version="0.2.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),
         nist_ai_rmf("MANAGE 2"),
         iso27001_annex_a("5.17"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

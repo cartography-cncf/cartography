@@ -241,8 +241,16 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                             "dns",
                             "DNS_POINTS_TO",
                             "target",
+                            # Declared identically to the statement above, cleanup_where
+                            # included, so the two cleanup effects dedupe into a single
+                            # guarded delete. GCPRecordSet carries the DNSRecord label and is
+                            # never an AWSDNSRecord, so that one delete already covers these
+                            # edges; declaring GCPRecordSet here would only add a redundant
+                            # cleanup, and omitting cleanup_where would add an unguarded one
+                            # that deletes the provider-owned edges the guard protects.
                             source_label="DNSRecord",
                             target_label=target_label,
+                            cleanup_where=cleanup_where,
                         ),
                     ),
                 ),
@@ -251,38 +259,19 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
         for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
 )
-LOADBALANCER_EXPOSE_CONTAINER = AnalysisJob(
-    name="Ontology - LoadBalancer to Container linking",
-    short_name="ontology_loadbalancers_linking",
-    statements=(
-        AnalysisStatement(
-            match="MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:Container)",
-            effects=(
-                AddRelationship(
-                    "lb",
-                    "EXPOSE",
-                    "c",
-                    source_label="LoadBalancer",
-                    target_label="Container",
-                ),
-            ),
-            incremental_on="lb",
-        ),
-    ),
-)
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
-        name="Ontology - Trivy Package DEPLOYED Image linking",
+        name="Ontology - Trivy PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_trivy_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
                 ),
@@ -290,17 +279,17 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
         ),
     ),
     AnalysisJob(
-        name="Ontology - Syft Package DEPLOYED Image linking",
+        name="Ontology - Syft PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_syft_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
                 ),
@@ -309,53 +298,53 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
     ),
 )
 PACKAGE_AFFECTS_LINKING = AnalysisJob(
-    name="Ontology - TrivyImageFinding AFFECTS Package linking",
+    name="Ontology - TrivyImageFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="TrivyImageFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
-    name="Ontology - SemgrepSCAFinding AFFECTS Package linking",
+    name="Ontology - SemgrepSCAFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_semgrep_sca_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="SemgrepSCAFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
-    name="Ontology - Package SHOULD_UPDATE_TO TrivyFix linking",
+    name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
     statements=(
         AnalysisStatement(
-            match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
             effects=(
                 AddRelationship(
                     "p",
                     "SHOULD_UPDATE_TO",
                     "fix",
-                    source_label="Package",
+                    source_label="PackageVersion",
                     target_label="TrivyFix",
                 ),
             ),
@@ -363,18 +352,18 @@ PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     ),
 )
 PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
-    name="Ontology - Package DEPENDS_ON Package linking",
+    name="Ontology - PackageVersion DEPENDS_ON PackageVersion linking",
     short_name="ontology_packages_depends_on",
     statements=(
         AnalysisStatement(
-            match="MATCH (p1:Package)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:Package)",
+            match="MATCH (p1:PackageVersion)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:PackageVersion)",
             effects=(
                 AddRelationship(
                     "p1",
                     "DEPENDS_ON",
                     "p2",
-                    source_label="Package",
-                    target_label="Package",
+                    source_label="PackageVersion",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
@@ -622,6 +611,58 @@ FUNCTION_RESOLVED_IMAGE = AnalysisJob(
     ),
 )
 RESOLVED_IMAGE_JOBS = (CONTAINER_RESOLVED_IMAGE, FUNCTION_RESOLVED_IMAGE)
+WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
+    name="Workload HAS_RUNTIME_IMAGE inventory analysis",
+    short_name="workload_has_runtime_image_analysis",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            comment=(
+                "Materialize the runtime image inventory of each ComputeService "
+                "workload, deduped per (workload, image), with workload-level internet "
+                "exposure denormalized onto the edge. Anchoring on ComputeService means "
+                "this covers workloads that run containers: ECS services, Cloud Run "
+                "services/jobs, Kubernetes controllers, and Scaleway serverless "
+                "containers. Standalone runtimes with no ComputeService controller "
+                "(bare pods, and functions such as AWS Lambda / GCP Cloud Functions / "
+                "Azure Function Apps / Scaleway serverless functions, which carry only "
+                ":Function) are intentionally NOT materialized here; they are per-instance "
+                "and low cardinality, and stay on the read-side live-collapse path. The "
+                "rt:Function branch therefore matches nothing today and exists only to "
+                "cover a future serverless function that is itself modeled as a "
+                "ComputeService (the symmetric case of Scaleway serverless containers). "
+                "The *0..6 lower bound of 0 covers serverless workloads "
+                "(e.g. ScalewayServerlessContainer) that carry both :ComputeService and "
+                ":Container on a single node with no intermediate WORKLOAD_PARENT hop. "
+                "Exposure is the OR of the service-level signal (svc.exposed_internet, "
+                "where GCP writes Cloud Run ingress exposure) and any running replica's "
+                "signal (rt.exposed_internet, where AWS ECS / Kubernetes write it). "
+                "The active-state filter accepts both 'running' (AWS ECS RUNNING, "
+                "Kubernetes running, Azure Running, GCP Cloud Run) and 'ready' (Scaleway "
+                "serverless ContainerStatus.READY) because _ont_state carries the raw "
+                "per-provider status string and providers use different words for a "
+                "container that is actively serving."
+            ),
+            match="""
+            MATCH (svc:ComputeService)<-[:WORKLOAD_PARENT*0..6]-(rt)-[:RESOLVED_IMAGE]->(img:Image)
+            WHERE (rt:Container OR rt:Function)
+              AND (NOT rt:Container OR toLower(rt._ont_state) IN ['running', 'ready'])
+            WITH svc, img, collect(coalesce(rt.exposed_internet, false)) AS rt_flags
+            WITH svc, img, (coalesce(svc.exposed_internet, false) OR true IN rt_flags) AS exposed
+            """,
+            effects=(
+                AddRelationship(
+                    "svc",
+                    "HAS_RUNTIME_IMAGE",
+                    "img",
+                    source_label="ComputeService",
+                    target_label="Image",
+                    properties={"exposed_internet": Var("exposed")},
+                ),
+            ),
+        ),
+    ),
+)
 SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
     name="Enrich PACKAGED_FROM with source_file from Image provenance",
     short_name="supply_chain_source_file",
@@ -633,6 +674,8 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
                     "r",
                     "dockerfile_path",
                     Var("i.source_file"),
+                    source_label="Image",
+                    rel_label="PACKAGED_FROM",
                 ),
             ),
         ),

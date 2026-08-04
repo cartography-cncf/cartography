@@ -13,15 +13,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksStorageConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks storage configuration ID.",
+    )
     storage_configuration_id: PropertyRef = PropertyRef(
-        "storage_configuration_id", extra_index=True
+        "storage_configuration_id",
+        extra_index=True,
+        description="Databricks storage configuration ID.",
     )
     storage_configuration_name: PropertyRef = PropertyRef(
-        "storage_configuration_name", extra_index=True
+        "storage_configuration_name",
+        extra_index=True,
+        description="Storage configuration name.",
     )
-    root_bucket_name: PropertyRef = PropertyRef("root_bucket_name", extra_index=True)
-    created_time: PropertyRef = PropertyRef("created_time")
+    root_bucket_name: PropertyRef = PropertyRef(
+        "root_bucket_name",
+        extra_index=True,
+        description="Name of the Amazon S3 bucket used for workspace root storage.",
+    )
+    created_time: PropertyRef = PropertyRef(
+        "created_time",
+        description="Timestamp when the storage configuration was created.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,6 +47,8 @@ class DatabricksStorageConfigToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksStorageConfig)
 class DatabricksStorageConfigToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -52,6 +68,8 @@ class DatabricksStorageConfigToS3RelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksStorageConfig)-[:BACKED_BY]->(:AWSS3Bucket)
 class DatabricksStorageConfigToS3Rel(CartographyRelSchema):
+    """A Databricks storage configuration is backed by an S3 bucket."""
+
     target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("root_bucket_name")},
@@ -65,6 +83,8 @@ class DatabricksStorageConfigToS3Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksStorageConfigSchema(CartographyNodeSchema):
+    """A Databricks workspace root storage configuration."""
+
     label: str = "DatabricksStorageConfig"
     properties: DatabricksStorageConfigNodeProperties = (
         DatabricksStorageConfigNodeProperties()

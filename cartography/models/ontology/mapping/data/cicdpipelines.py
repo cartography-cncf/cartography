@@ -5,7 +5,17 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # CICDPipeline fields:
 # _ont_name - The display name of the pipeline definition
 # _ont_type - The pipeline category, normalized to "build" / "deploy" / "iac"
-# _ont_status - The lifecycle state of the pipeline (active, disabled, ...)
+# _ont_status - Pipeline-definition lifecycle, normalized to the canonical set:
+#   active, disabled, unknown. The raw provider value stays on the source node.
+
+# GitHub Actions workflow state
+_GITHUB_WORKFLOW_STATUS = {
+    "active": "active",
+    "deleted": "disabled",
+    "disabled_fork": "disabled",
+    "disabled_inactivity": "disabled",
+    "disabled_manually": "disabled",
+}
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -48,7 +58,12 @@ github_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "build"},
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _GITHUB_WORKFLOW_STATUS},
+                ),
             ],
         ),
     ],
@@ -92,7 +107,10 @@ spacelift_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "iac"},
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="state"),
+                # status: intentionally not normalized. Spacelift StackState is a
+                # run-phase enum (PLANNING/APPLYING/FINISHED/...), not the
+                # active/disabled lifecycle the CICDPipeline _ont_status models, so
+                # it is left off rather than forced into an incompatible vocabulary.
             ],
         ),
     ],

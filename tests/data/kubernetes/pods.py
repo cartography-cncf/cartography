@@ -63,6 +63,10 @@ KUBERNETES_PODS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        # Bare pod (no controller): its surfaced workload parent is the namespace.
+        "_workload_parent_namespace_name": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1][
+            "name"
+        ],
         "service_account_name": "default",
         "service_account_id": (
             f"{KUBERNETES_CLUSTER_NAMES[0]}/"
@@ -91,6 +95,10 @@ KUBERNETES_PODS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        # Bare pod (no controller): its surfaced workload parent is the namespace.
+        "_workload_parent_namespace_name": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1][
+            "name"
+        ],
         "service_account_name": "workload-sa",
         "service_account_id": (
             f"{KUBERNETES_CLUSTER_NAMES[0]}/"
