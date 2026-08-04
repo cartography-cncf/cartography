@@ -13,18 +13,45 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksDashboardNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    dashboard_id: PropertyRef = PropertyRef("dashboard_id", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the Databricks dashboard."
+    )
+    dashboard_id: PropertyRef = PropertyRef(
+        "dashboard_id", extra_index=True, description="Databricks dashboard identifier."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", extra_index=True, description="Display name of the dashboard."
+    )
     # LAKEVIEW (current) vs LEGACY (redash-based /preview/sql/dashboards).
-    dashboard_type: PropertyRef = PropertyRef("dashboard_type")
-    warehouse_id: PropertyRef = PropertyRef("warehouse_id", extra_index=True)
-    owner_user_name: PropertyRef = PropertyRef("owner_user_name", extra_index=True)
-    lifecycle_state: PropertyRef = PropertyRef("lifecycle_state")
-    parent_path: PropertyRef = PropertyRef("parent_path")
-    path: PropertyRef = PropertyRef("path")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
+    dashboard_type: PropertyRef = PropertyRef(
+        "dashboard_type",
+        description="Dashboard generation, such as Lakeview or legacy.",
+    )
+    warehouse_id: PropertyRef = PropertyRef(
+        "warehouse_id",
+        extra_index=True,
+        description="Identifier of the SQL warehouse used by the dashboard.",
+    )
+    owner_user_name: PropertyRef = PropertyRef(
+        "owner_user_name",
+        extra_index=True,
+        description="User name of the dashboard owner.",
+    )
+    lifecycle_state: PropertyRef = PropertyRef(
+        "lifecycle_state", description="Lifecycle state of the dashboard."
+    )
+    parent_path: PropertyRef = PropertyRef(
+        "parent_path", description="Workspace path of the dashboard's parent folder."
+    )
+    path: PropertyRef = PropertyRef(
+        "path", description="Workspace path of the dashboard."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the dashboard was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the dashboard was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,6 +63,8 @@ class DatabricksDashboardToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksDashboard)
 class DatabricksDashboardToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this dashboard resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -55,6 +84,8 @@ class DatabricksDashboardToWarehouseRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksDashboard)-[:USES_WAREHOUSE]->(:DatabricksSqlWarehouse)
 class DatabricksDashboardToWarehouseRel(CartographyRelSchema):
+    """A Databricks dashboard uses a SQL warehouse."""
+
     target_node_label: str = "DatabricksSqlWarehouse"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("warehouse_scoped_id")},
@@ -68,6 +99,8 @@ class DatabricksDashboardToWarehouseRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksDashboardSchema(CartographyNodeSchema):
+    """A Databricks dashboard in a workspace."""
+
     label: str = "DatabricksDashboard"
     properties: DatabricksDashboardNodeProperties = DatabricksDashboardNodeProperties()
     sub_resource_relationship: DatabricksDashboardToWorkspaceRel = (

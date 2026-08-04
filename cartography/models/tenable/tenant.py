@@ -7,11 +7,15 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class TenableTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Configured Tenable tenant ID or normalized base URL."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class TenableTenantSchema(CartographyNodeSchema):
+    """A Tenable tenant that scopes imported resources."""
+
     label: str = "TenableTenant"
     properties: TenableTenantNodeProperties = TenableTenantNodeProperties()

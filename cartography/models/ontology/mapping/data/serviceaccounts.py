@@ -115,6 +115,23 @@ microsoft_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalServiceUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # email: Modal service users have no email address.
+                # active: Modal has no disabled state for a service user; it exists or it
+                # is deleted.
+            ],
+        ),
+    ],
+)
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
@@ -151,4 +168,5 @@ SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "modal": modal_mapping,
 }

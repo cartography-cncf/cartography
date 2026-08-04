@@ -56,8 +56,36 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # location: Modal volumes are not region-scoped.
+                # encrypted: Modal does not expose an at-rest encryption flag.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ModalNetworkFileSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # location: cloud_provider names a provider (AWS/GCP/OCI), not a region, so it
+                # is deliberately not mapped onto the location field.
+                # encrypted: not exposed.
+            ],
+        ),
+    ],
+)
+
 FILE_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "modal": modal_mapping,
 }

@@ -93,6 +93,9 @@ from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_instances_without_shielded_vm_enabled,
 )
 from cartography.rules.data.rules.cis_4_0_gcp import (
+    gcp_kms_keys_without_rotation_policy,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_projects_without_effective_os_login,
 )
 from cartography.rules.data.rules.cis_4_0_gcp import (
@@ -122,6 +125,7 @@ def test_cis_rules_registered_and_fact_ids():
         "gcp_instances_without_shielded_vm_enabled": gcp_instances_without_shielded_vm_enabled,
         "gcp_compute_instance_public_ips": gcp_compute_instance_public_ips,
         "gcp_instances_without_confidential_computing_enabled": gcp_instances_without_confidential_computing_enabled,
+        "gcp_kms_keys_without_rotation_policy": gcp_kms_keys_without_rotation_policy,
         "gcp_bucket_uniform_access_disabled": gcp_bucket_uniform_access_disabled,
         "gcp_cloudsql_mysql_skip_show_database_not_on": gcp_cloudsql_mysql_skip_show_database_not_on,
         "gcp_cloudsql_mysql_local_infile_not_off": gcp_cloudsql_mysql_local_infile_not_off,
@@ -176,6 +180,7 @@ def test_cis_facts_are_gcp_and_stable():
         gcp_instances_without_shielded_vm_enabled,
         gcp_compute_instance_public_ips,
         gcp_instances_without_confidential_computing_enabled,
+        gcp_kms_keys_without_rotation_policy,
         gcp_bucket_uniform_access_disabled,
         gcp_cloudsql_mysql_skip_show_database_not_on,
         gcp_cloudsql_mysql_local_infile_not_off,

@@ -226,7 +226,7 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(profile_name="profile1"),
+        aioboto3_session_factory=mock.ANY,
     )
     mock_sync_one.assert_any_call(
         neo4j_session,
@@ -236,7 +236,7 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(profile_name="profile2"),
+        aioboto3_session_factory=mock.ANY,
     )
     mock_sync_one.assert_any_call(
         neo4j_session,
@@ -246,8 +246,17 @@ def test_sync_multiple_accounts(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(profile_name="profile3"),
+        aioboto3_session_factory=mock.ANY,
     )
+    assert [
+        account_call.kwargs["aioboto3_session_factory"].keywords
+        for account_call in mock_sync_one.call_args_list
+    ] == [
+        {"profile_name": "profile1"},
+        {"profile_name": "profile2"},
+        {"profile_name": "profile3"},
+    ]
+    mock_aioboto3_session.assert_not_called()
 
     # Ensure _sync_one_account is called once for each account and Organizations
     # discovery happens once before the per-account resource loop.
@@ -664,7 +673,6 @@ def test_sync_multiple_accounts_single_profile_uses_profile_name(
     )
 
     mock_boto3_session.assert_any_call(profile_name="spoke1")
-    mock_aioboto3_session.assert_any_call(profile_name="spoke1")
     mock_sync_one.assert_called_once_with(
         neo4j_session,
         mock_boto3_session(profile_name="spoke1"),
@@ -673,8 +681,12 @@ def test_sync_multiple_accounts_single_profile_uses_profile_name(
         GRAPH_JOB_PARAMETERS,
         regions=None,
         aws_requested_syncs=[],
-        aioboto3_session=mock_aioboto3_session(profile_name="spoke1"),
+        aioboto3_session_factory=mock.ANY,
     )
+    assert mock_sync_one.call_args.kwargs["aioboto3_session_factory"].keywords == {
+        "profile_name": "spoke1"
+    }
+    mock_aioboto3_session.assert_not_called()
 
 
 @mock.patch.object(cartography.intel.aws.organizations, "sync", return_value=None)
@@ -710,9 +722,18 @@ def test_sync_multiple_accounts_default_path_uses_default_session(
 
     for call in mock_boto3_session.call_args_list:
         assert "profile_name" not in call.kwargs
-    for call in mock_aioboto3_session.call_args_list:
-        assert "profile_name" not in call.kwargs
-    assert mock_sync_one.call_count == 1
+    mock_sync_one.assert_called_once_with(
+        neo4j_session,
+        mock_boto3_session(),
+        "000000000000",
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        regions=None,
+        aws_requested_syncs=[],
+        aioboto3_session_factory=mock.ANY,
+    )
+    assert mock_sync_one.call_args.kwargs["aioboto3_session_factory"].keywords == {}
+    mock_aioboto3_session.assert_not_called()
 
 
 @mock_aws
@@ -910,6 +931,33 @@ def test_kms_syncs_before_kms_dependent_resources():
             f"'kms' must sync before '{dependent}' so the ENCRYPTED_BY edge can "
             f"match existing AWSKMSKey nodes"
         )
+
+
+def test_route53_syncs_after_its_dns_points_to_targets():
+    """The route53 loader creates DNS_POINTS_TO by matching nodes that already exist, so the
+    modules holding those nodes must sync first, otherwise the edges are silently missed and
+    cleanup_route53 deletes the ones a previous run created."""
+    order = list(RESOURCE_FUNCTIONS.keys())
+    route53_index = order.index("route53")
+    for dependency in (
+        "ec2:load_balancer",
+        "ec2:load_balancer_v2",
+        "ec2:instance",
+        "elastic_ip_addresses",
+    ):
+        assert order.index(dependency) < route53_index, (
+            f"'{dependency}' must sync before 'route53' so its DNS_POINTS_TO edges can "
+            f"match existing nodes"
+        )
+
+
+def test_route53_syncs_before_elasticsearch():
+    """elasticsearch ingests its endpoint's DNS record with raw Cypher and its cleanup DETACH
+    DELETEs any stale DNSRecord pointing at an AWSESDomain. If route53 ran first and attached
+    its own record, that cleanup would delete the route53-owned node on every later run,
+    before route53 re-stamps it."""
+    order = list(RESOURCE_FUNCTIONS.keys())
+    assert order.index("route53") < order.index("elasticsearch")
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
@@ -1124,6 +1172,7 @@ def test_sync_one_account_all_sync_functions(
                 "1234",
                 TEST_UPDATE_TAG,
                 GRAPH_JOB_PARAMETERS,
+                aioboto3_session_factory=None,
             )
         else:
             AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
@@ -1133,7 +1182,48 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 4
+    # Per-account typed analysis jobs: AWS_EC2_IAM_INSTANCE_PROFILE, AWS_LAMBDA_ECR, AWS_LB_NACL_DIRECT.
+    # (AWS_LB_CONTAINER_EXPOSURE runs in the cross-account _perform_aws_analysis phase instead.)
+    assert mock_analysis.call_count == 3
+
+
+def test_sync_one_account_uses_owned_ecr_session_factory(
+    mocker,
+    neo4j_session,
+):
+    # Arrange
+    ecr_sync = mock.MagicMock()
+    initial_session = mock.MagicMock(name="initial_session")
+    fresh_session = mock.MagicMock(name="fresh_session")
+    session_factory = mock.MagicMock(
+        side_effect=[initial_session, fresh_session],
+    )
+    boto3_session = mock.MagicMock()
+    mocker.patch.object(cartography.intel.aws, "migrate_legacy_aws_labels")
+    mocker.patch.object(cartography.intel.aws, "run_typed_analysis_job")
+
+    # Act
+    with mock.patch.dict(
+        cartography.intel.aws.RESOURCE_FUNCTIONS,
+        {"ecr:image_layers": ecr_sync},
+        clear=True,
+    ):
+        cartography.intel.aws._sync_one_account(
+            neo4j_session,
+            boto3_session,
+            "111122223333",
+            TEST_UPDATE_TAG,
+            GRAPH_JOB_PARAMETERS,
+            regions=TEST_REGIONS,
+            aws_requested_syncs=["ecr:image_layers"],
+            aioboto3_session_factory=session_factory,
+        )
+
+    # Assert
+    assert ecr_sync.call_args.args[1] is initial_session
+    assert ecr_sync.call_args.kwargs["aioboto3_session_factory"] is session_factory
+    assert session_factory() is fresh_session
+    assert session_factory.call_count == 2
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")

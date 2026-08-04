@@ -1,22 +1,14 @@
-## Keycloak Built-In Analysis
+# Keycloak Built-In Analysis
 
-Cartography includes several automatic analyses for Keycloak that help identify inheritance relationships and derived permissions in a Keycloak realm. These analyses are implemented in `cartography/intel/keycloak/inheritance.py` and run after all realms are synced.
+Cartography computes inheritance and derived permissions after synchronizing all
+Keycloak realms. Each analysis is scoped to one realm. The implementation lives
+in `cartography/intel/keycloak/inheritance.py`.
 
-### 1. Group Membership Inheritance
+## Group membership inheritance
 
-**Description**: Propagates user memberships to parent groups when a user is a member of a subgroup.
-
-**Query**:
-```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:MEMBER_OF|SUBGROUP_OF]->(pg:KeycloakGroup)
-MERGE (u)-[r:INHERITED_MEMBER_OF]->(pg)
-ON CREATE SET r.firstseen = $UPDATE_TAG
-SET r.lastupdated = $UPDATE_TAG
-```
-
-**Configuration**: Iterative (iteration size: 100)
-
-**Graph result**:
+Users inherit membership in parent groups up to five levels above a directly
+assigned group. Both the canonical `MEMBER_OF` edge and the deprecated
+`SUBGROUP_OF` compatibility edge are followed.
 
 ```mermaid
 graph LR
@@ -25,44 +17,26 @@ graph LR
     U == INHERITED_MEMBER_OF ==> PG
 ```
 
-### 2. Group-Based Role Assignment
+The computed `INHERITED_MEMBER_OF` edges are loaded and cleaned as scoped
+MatchLinks.
 
-**Description**: Automatically assigns roles to users based on their group membership (direct or inherited).
+## Group-based role assignment
 
-**Query**:
-```cypher
-MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS|HAS_ROLE]->(r:KeycloakRole)
-MERGE (u)-[r0:HAS_ROLE]->(r)
-ON CREATE SET r0.firstseen = $UPDATE_TAG
-SET r0.lastupdated = $UPDATE_TAG
-```
-
-**Configuration**: Non-iterative
-
-**Graph result**:
+Users receive roles granted to their direct or inherited groups. Cartography
+creates the canonical `HAS_ROLE` edge and the deprecated `ASSUME_ROLE`
+compatibility edge in parallel.
 
 ```mermaid
 graph LR
-    U(KeycloakUser) -- MEMBER_OF --> G[KeycloakGroup]
+    U(KeycloakUser) -- MEMBER_OF --> G(KeycloakGroup)
     G -- HAS_ROLE --> R(KeycloakRole)
     U == HAS_ROLE ==> R
 ```
 
-### 3. Composite Role Grants Propagation
+## Composite role scope propagation
 
-**Description**: Propagates scope permissions from included roles to composite roles.
-
-**Query**:
-```cypher
-MATCH (r:KeycloakRole)-[:INCLUDES]->(c:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
-MERGE (r)-[r0:INDIRECT_GRANTS]->(s)
-ON CREATE SET r0.firstseen = $UPDATE_TAG
-SET r0.lastupdated = $UPDATE_TAG
-```
-
-**Configuration**: Iterative (iteration size: 100)
-
-**Graph result**:
+A composite role indirectly grants scopes granted by roles that it includes,
+up to five levels deep.
 
 ```mermaid
 graph LR
@@ -71,21 +45,14 @@ graph LR
     R == INDIRECT_GRANTS ==> S
 ```
 
-### 4. Legitimate User Scope Assignment
+The computed `INDIRECT_GRANTS` edges are loaded and cleaned as scoped
+MatchLinks.
 
-**Description**: Identifies all scopes that a user can legitimately use based on the roles they assume.
+## User scope assignment
 
-**Query**:
-```cypher
-MATCH (u:KeycloakUser)-[:HAS_ROLE]->(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope)
-MERGE (u)-[r:ASSUME_SCOPE]->(s)
-ON CREATE SET r.firstseen = $UPDATE_TAG
-SET r.lastupdated = $UPDATE_TAG
-```
-
-**Configuration**: Non-iterative
-
-**Graph result**:
+A user can assume scopes granted by any direct or inherited role. Cartography
+also grants every user in the realm an orphan scope that has no role mapping,
+matching Keycloak's default scope behavior.
 
 ```mermaid
 graph LR
@@ -94,37 +61,22 @@ graph LR
     U == ASSUME_SCOPE ==> S
 ```
 
-### 5. Orphan Scope Assignment
+The computed `ASSUME_SCOPE` edges are loaded and cleaned as scoped MatchLinks.
 
-**Description**: Automatically assigns "orphan" scopes (not granted by any role) to all users in the realm.
+## Authentication flow modeling
 
-```{info}
-This analysis reflect the following Keycloak statement:
-If there is no role scope mapping defined, each user is permitted to use this client scope. If there are role scope mappings defined, the user must be a member of at least one of the roles.
-```
+Only root flows are represented by `KeycloakAuthenticationFlow` nodes.
+Keycloak subflows are represented by `KeycloakAuthenticationExecution` nodes,
+with the original subflow ID retained on the execution.
 
-**Query**:
-```cypher
-MATCH (s:KeycloakScope)<-[:RESOURCE]-(r:KeycloakRealm)
-MATCH (u:KeycloakUser)<-[:RESOURCE]-(r)
-WHERE NOT (s)<-[:GRANTS|INDIRECT_GRANTS]-(:KeycloakRole)
-MERGE (u)-[r0:ASSUME_SCOPE]->(s)
-SET r0.firstseen = $UPDATE_TAG
-SET r0.lastupdated = $UPDATE_TAG
-```
+Cartography uses two relationships for different views of a flow:
 
-**Configuration**: Non-iterative
-
-**Graph result**:
+- `HAS_STEP` describes the composition returned by Keycloak.
+- `NEXT_STEP` describes the possible execution order inferred by Cartography.
 
 ```mermaid
 graph LR
-    R(KeycloakRealm) -- RESOURCE --> U(KeycloakUser)
-    R -- RESOURCE --> S(KeycloakScope)
-    R -- RESOURCE --> ROLE(KeycloakRole)
-    subgraph "No relationship"
-        S
-        ROLE
-    end
-    U == ASSUME_SCOPE ==> S
+    F(KeycloakAuthenticationFlow) -- HAS_STEP --> E1(KeycloakAuthenticationExecution)
+    F -- HAS_STEP --> E2(KeycloakAuthenticationExecution)
+    F == NEXT_STEP ==> E1 == NEXT_STEP ==> E2
 ```

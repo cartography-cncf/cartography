@@ -12,10 +12,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPKeyRingProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    project_id: PropertyRef = PropertyRef("project_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="The full resource name of the Key Ring."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The short name of the Key Ring."
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="The GCP location of the Key Ring."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="Google Cloud project that owns this resource."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,6 +47,8 @@ class GCPKeyRingToGCPProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPKeyRingSchema(CartographyNodeSchema):
+    """Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings)."""
+
     label: str = "GCPKeyRing"
     properties: GCPKeyRingProperties = GCPKeyRingProperties()
     sub_resource_relationship: GCPKeyRingToGCPProjectRel = GCPKeyRingToGCPProjectRel()

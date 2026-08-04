@@ -141,6 +141,9 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 "Name": "elbv2.example.com.",
                 "AliasTarget": {
                     "HostedZoneId": "HOSTED_ZONE_2",
+                    # No `dualstack.` prefix here on purpose: this fixture's DNS name is not a
+                    # real ELB name (no `.elb.`), and the prefix is only stripped for ELB
+                    # targets. GET_ZONES_MIXED_CASE_ALIAS_RESPONSE covers the prefix.
                     "DNSName": "myawesomeloadbalancer.amazonaws.com.",
                     "EvaluateTargetHealth": False,
                 },
@@ -310,6 +313,34 @@ GET_ZONES_FOR_CYCLE_TEST = [
                 "Name": "unrelated.io.",
                 "Type": "NS",
                 "ResourceRecords": [{"Value": "ns.shared-nameserver.com."}],
+            },
+        ],
+    ),
+]
+
+# Route53 lowercases alias targets, so an alias to a load balancer whose name contains
+# uppercase characters does not match the DNSName the ELB API returns verbatim.
+GET_ZONES_MIXED_CASE_ALIAS_RESPONSE = [
+    (
+        {
+            "CallerReference": "044a41db-b8e1-45f8-9962-91c95a654321",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/MIXED_CASE_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 1,
+        },
+        [
+            {
+                "Name": "mixed.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "Z35SXDOTRQ7X7K",
+                    "DNSName": "dualstack.my-mixed-alb-1234567890.us-east-1.elb.amazonaws.com.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
             },
         ],
     ),

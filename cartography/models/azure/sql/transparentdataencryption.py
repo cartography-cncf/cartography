@@ -13,11 +13,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureTransparentDataEncryptionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Azure resource ID for the transparent data encryption configuration.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    status: PropertyRef = PropertyRef("status")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region of the resource."
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="State of transparent data encryption."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +37,8 @@ class AzureTransparentDataEncryptionToSQLDatabaseRelProperties(
 @dataclass(frozen=True)
 # (:AzureSQLDatabase)-[:CONTAINS]->(:AzureTransparentDataEncryption)
 class AzureTransparentDataEncryptionToSQLDatabaseRel(CartographyRelSchema):
+    """An Azure SQL database contains this encryption configuration."""
+
     target_node_label: str = "AzureSQLDatabase"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("database_id")},
@@ -51,6 +60,8 @@ class AzureTransparentDataEncryptionToSubscriptionRelProperties(
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureTransparentDataEncryption)
 class AzureTransparentDataEncryptionToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this encryption configuration resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -64,6 +75,8 @@ class AzureTransparentDataEncryptionToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureTransparentDataEncryptionSchema(CartographyNodeSchema):
+    """The transparent data encryption configuration for an Azure SQL database."""
+
     label: str = "AzureTransparentDataEncryption"
     properties: AzureTransparentDataEncryptionProperties = (
         AzureTransparentDataEncryptionProperties()

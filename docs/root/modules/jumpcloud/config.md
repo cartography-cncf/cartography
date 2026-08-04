@@ -1,31 +1,40 @@
-## JumpCloud Configuration
+# JumpCloud Configuration
 
-Follow these steps to analyze JumpCloud objects with Cartography.
+## Authentication
 
-1. Generate a JumpCloud API key.
-    1. Log in to the [JumpCloud Admin Console](https://console.jumpcloud.com).
-    1. Navigate to your profile (bottom-left) → **My API key**.
-    1. Generate **API Key**.
-    1. Store the key in an environment variable, e.g. `JUMPCLOUD_API_KEY`.
+1. Log in to the [JumpCloud Admin Console](https://console.jumpcloud.com).
+2. Open your profile in the lower-left corner and select **My API key**.
+3. Generate an API key and store it in an environment variable such as
+   `JUMPCLOUD_API_KEY`.
 
-1. Find your JumpCloud Organization ID.
-    1. In the Admin Console, navigate to **Settings** → **General**.
-    1. Copy the **Organization ID** value.
+## Configure Cartography
 
-1. Run Cartography with the JumpCloud options:
+In the Admin Console, open **Settings**, select **General**, and copy the
+**Organization ID** value.
 
-    ```bash
-    export JUMPCLOUD_API_KEY="your-api-key"
+Set the API key environment variable before running Cartography:
 
-    cartography \
-      --neo4j-uri bolt://localhost:7687 \
-      --jumpcloud-api-key-env-var JUMPCLOUD_API_KEY \
-      --jumpcloud-org-id "<your-org-id>"
-    ```
+```bash
+export JUMPCLOUD_API_KEY="your-api-key"
+```
 
-### CLI Reference
+## Run Cartography
+
+```bash
+cartography \
+  --neo4j-uri bolt://localhost:7687 \
+  --selected-modules jumpcloud \
+  --jumpcloud-api-key-env-var JUMPCLOUD_API_KEY \
+  --jumpcloud-org-id "<your-org-id>"
+```
+
+## Advanced Configuration
 
 | Flag | Description |
 |------|-------------|
-| `--jumpcloud-api-key-env-var` | Name of the environment variable containing the JumpCloud API key (x-api-key auth) |
-| `--jumpcloud-org-id` | JumpCloud organization ID used as the tenant identifier (required) |
+| `--jumpcloud-api-key-env-var` | Name of the environment variable containing the JumpCloud API key used for `x-api-key` authentication |
+| `--jumpcloud-org-id` | JumpCloud organization ID used as the required tenant identifier |
+
+## References
+
+- [JumpCloud Admin Console](https://console.jumpcloud.com)

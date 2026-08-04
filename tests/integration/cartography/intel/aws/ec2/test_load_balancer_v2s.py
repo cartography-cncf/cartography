@@ -375,12 +375,21 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # The job gates on lb.exposed_internet (computed by AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2 in
+    # a full sync); set it directly here.
+    lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
+    neo4j_session.run(
+        "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}) SET lb.exposed_internet = true",
+        lb_id=lb_id,
+    )
+
     # Manually create the full traversal chain:
     # LB -[:EXPOSE]-> AWSEC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- AWSNetworkInterface
     #   <-[:NETWORK_INTERFACE]- AWSECSTask -[:HAS_CONTAINER]-> AWSECSContainer
-    lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
+    # The private IP carries a public_ip: the edge must still be created (the old
+    # `ip.public_ip IS NULL` filter was dropped so the edge covers direct-public-IP Fargate tasks).
     neo4j_session.run(
-        "MERGE (ip:AWSEC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
+        "MERGE (ip:AWSEC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag, ip.public_ip = '52.1.2.3'",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
@@ -417,11 +426,11 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         "MERGE (task)-[:HAS_CONTAINER]->(c)",
     )
 
-    # Act
+    # Act (the job is unscoped: it runs in the cross-account analysis phase with no AWS_ID)
     run_typed_analysis_job(
         AWS_LB_CONTAINER_EXPOSURE,
         neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
     # Assert

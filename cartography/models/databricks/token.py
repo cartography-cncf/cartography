@@ -13,15 +13,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksTokenNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    token_id: PropertyRef = PropertyRef("token_id", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    creation_time: PropertyRef = PropertyRef("creation_time")
-    expiry_time: PropertyRef = PropertyRef("expiry_time")
-    owner_id: PropertyRef = PropertyRef("owner_id")
-    created_by_id: PropertyRef = PropertyRef("created_by_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the token."
+    )
+    token_id: PropertyRef = PropertyRef(
+        "token_id", extra_index=True, description="Databricks token identifier."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="Comment associated with the token."
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creation_time", description="Timestamp when the token was created."
+    )
+    expiry_time: PropertyRef = PropertyRef(
+        "expiry_time",
+        description="Timestamp when the token expires, if it has an expiration.",
+    )
+    owner_id: PropertyRef = PropertyRef(
+        "owner_id", description="Workspace-scoped identifier of the token owner."
+    )
+    created_by_id: PropertyRef = PropertyRef(
+        "created_by_id",
+        description="Workspace-scoped identifier of the principal that created the token.",
+    )
     created_by_username: PropertyRef = PropertyRef(
-        "created_by_username", extra_index=True
+        "created_by_username",
+        extra_index=True,
+        description="User name of the principal that created the token.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -34,6 +52,8 @@ class DatabricksTokenToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksToken)
 class DatabricksTokenToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the token as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -53,6 +73,8 @@ class DatabricksTokenToOwnerUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksUser)-[:OWNER_OF]->(:DatabricksToken)
 class DatabricksTokenToOwnerUserRel(CartographyRelSchema):
+    """A Databricks principal owns the token."""
+
     target_node_label: str = "DatabricksUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_id")},
@@ -72,6 +94,8 @@ class DatabricksTokenToOwnerSPRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksServicePrincipal)-[:OWNER_OF]->(:DatabricksToken)
 class DatabricksTokenToOwnerSPRel(CartographyRelSchema):
+    """A Databricks principal owns the token."""
+
     target_node_label: str = "DatabricksServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_id")},
@@ -85,6 +109,8 @@ class DatabricksTokenToOwnerSPRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksTokenSchema(CartographyNodeSchema):
+    """A Databricks personal access token and its ownership metadata."""
+
     label: str = "DatabricksToken"
     properties: DatabricksTokenNodeProperties = DatabricksTokenNodeProperties()
     sub_resource_relationship: DatabricksTokenToWorkspaceRel = (

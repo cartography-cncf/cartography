@@ -10,7 +10,6 @@ from cartography.intel.aws.label_migrations import AWS_LABEL_MIGRATIONS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -157,7 +156,7 @@ def test_migrated_aws_labels_keep_legacy_alias_until_v1():
             if node_schema.extra_node_labels is not None
             else []
         )
-        if old_label not in extra_labels:
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
             errors.append(
                 f"{element.__name__} must keep {old_label!r} as an alias "
                 "until v1.0.0.",
@@ -187,11 +186,8 @@ def test_aws_label_migration_registry_matches_model_aliases():
             else []
         )
         for extra_label in extra_labels:
-            if (
-                isinstance(extra_label, str)
-                and node_schema.label == f"AWS{extra_label}"
-            ):
-                discovered_pairs.add((extra_label, node_schema.label))
+            if node_schema.label == f"AWS{extra_label.label}":
+                discovered_pairs.add((extra_label.label, node_schema.label))
 
     assert discovered_pairs == registered_pairs | PREEXISTING_AWS_LABEL_MIGRATIONS
 
@@ -203,6 +199,7 @@ def test_aws_label_migration_registry_matches_model_aliases():
         ("cartography.models.semgrep", "Semgrep"),
         ("cartography.models.crowdstrike", "Crowdstrike"),
         ("cartography.models.spacelift", "Spacelift"),
+        ("cartography.models.supabase", "Supabase"),
     ],
 )
 def test_provider_primary_node_labels_use_provider_prefix(module_name, prefix):
@@ -238,7 +235,7 @@ def test_migrated_provider_labels_keep_legacy_alias_until_v1():
             if node_schema.extra_node_labels is not None
             else []
         )
-        if old_label not in extra_labels:
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
             errors.append(
                 f"{element.__name__} must keep {old_label!r} as an alias "
                 "until v1.0.0.",
@@ -261,10 +258,7 @@ def test_relationship_endpoint_labels_are_registered():
         if node_schema.extra_node_labels is None:
             continue
         for extra_label in node_schema.extra_node_labels.labels:
-            if isinstance(extra_label, ConditionalNodeLabel):
-                registered_labels.add(extra_label.label)
-            else:
-                registered_labels.add(extra_label)
+            registered_labels.add(extra_label.label)
 
     errors: List[str] = []
     for module_name, element in model_objects:
@@ -347,6 +341,7 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Ontology canonical nodes — explicitly cross-tenant by design.
     "Device",
     "Package",
+    "PackageVersion",
     "PublicIP",
     "User",
     # AWS-owned / cross-account resources.
@@ -377,8 +372,33 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # global `name|requirements` id and is referenced by repos across orgs, so
     # it uses unscoped cleanup like PythonLibrary.
     "GitHubDependency",
+    # A Modal user keeps the same `us-...` id in every workspace they belong to. Anchoring the
+    # identity to one workspace would let that workspace's cleanup DETACH DELETE someone who
+    # merely left it, destroying the other workspaces' memberships, so the workspace link is a
+    # MatchLink carrying the membership instead (same reasoning as GitHubUser and RailwayUser).
+    "ModalUser",
     "ProgrammingLanguage",
     "PythonLibrary",
+    # A Netlify invitation is an email address that has not accepted yet, and the same address can
+    # be invited to several teams. Anchoring it to the team being synced would let that team's
+    # cleanup DETACH DELETE an invitation another team still has outstanding, so the team links are
+    # MatchLinks (same reasoning as NetlifyUser).
+    "NetlifyInvite",
+    # A Netlify deploy key comes from `GET /deploy_keys`, which takes no team parameter and
+    # returns every key the token can see. Anchoring it to the team being synced would let that
+    # team's cleanup DETACH DELETE keys another team's sync had just refreshed, so the team link
+    # is a MatchLink instead.
+    "NetlifyDeployKey",
+    # A Netlify user can belong to several teams with a different role in each, and one run syncs
+    # one team. Anchoring the identity to a team would let that team's cleanup DETACH DELETE a
+    # person still in another team, so the team links are MatchLinks (same reasoning as
+    # RailwayUser and GitHubUser).
+    "NetlifyUser",
+    # A Railway user can belong to several workspaces, and project members need not be
+    # members of the workspace at all. Anchoring the identity to one workspace would let
+    # that workspace's cleanup DETACH DELETE a user still referenced by another, so the
+    # workspace link is an ordinary relationship instead (same reasoning as GitHubUser).
+    "RailwayUser",
     # Workday canonical human (mirrors the ontology pattern).
     "WorkdayHuman",
 }

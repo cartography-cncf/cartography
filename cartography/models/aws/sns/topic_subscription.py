@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_SNS_TOPIC_SUBSCRIPTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,12 +15,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("SubscriptionArn")
-    arn: PropertyRef = PropertyRef("SubscriptionArn", extra_index=True)
-    topic_arn: PropertyRef = PropertyRef("TopicArn")
-    endpoint: PropertyRef = PropertyRef("Endpoint")
-    owner: PropertyRef = PropertyRef("Owner")
-    protocol: PropertyRef = PropertyRef("Protocol")
+    id: PropertyRef = PropertyRef(
+        "SubscriptionArn", description="The ARN of the SNS topic subscription"
+    )
+    arn: PropertyRef = PropertyRef(
+        "SubscriptionArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the topic subscription",
+    )
+    topic_arn: PropertyRef = PropertyRef(
+        "TopicArn", description="The topic ARN that the subscription is associated with"
+    )
+    endpoint: PropertyRef = PropertyRef(
+        "Endpoint", description="The subscription's endpoint"
+    )
+    owner: PropertyRef = PropertyRef("Owner", description="The subscription's owner")
+    protocol: PropertyRef = PropertyRef(
+        "Protocol", description="The subscription's protocol for messages"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,9 +74,13 @@ class SNSTopicSubscriptionToSNSTopicRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SNSTopicSubscriptionSchema(CartographyNodeSchema):
+    """Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)"""
+
     label: str = "AWSSNSTopicSubscription"
     # DEPRECATED: legacy SNSTopicSubscription node label will be removed in v1.0.0.
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["SNSTopicSubscription"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_SNS_TOPIC_SUBSCRIPTION]
+    )
     properties: SNSTopicSubscriptionNodeProperties = (
         SNSTopicSubscriptionNodeProperties()
     )

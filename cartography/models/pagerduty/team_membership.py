@@ -25,13 +25,7 @@ class PagerDutyTeamMembershipRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class PagerDutyTeamMembershipMatchLink(CartographyRelSchema):
-    """
-    MatchLink for the MEMBER_OF relationship between PagerDutyUser and PagerDutyTeam.
-
-    This uses MatchLinks because the relationship has a 'role' property that varies
-    per user-team pair (e.g., "manager", "responder"), which is a rich relationship
-    property scenario as described in the MatchLinks documentation.
-    """
+    """A user's membership in a team, including the user's team role."""
 
     rel_label: str = "MEMBER_OF"
     direction: LinkDirection = LinkDirection.OUTWARD

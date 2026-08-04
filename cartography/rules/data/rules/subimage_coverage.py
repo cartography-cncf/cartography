@@ -161,7 +161,7 @@ _container_image_not_found_fact = Fact(
     OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(cluster)
     RETURN c.name AS container_name, c.id AS container_id,
            c.image AS image, cluster.name AS cluster_name,
-           c._ont_source AS source
+           c._ont_source AS ontology_source
     ORDER BY c.name
     """,
     cypher_visual_query="""
@@ -198,6 +198,8 @@ class ContainerImageNotFoundOutput(Finding):
     container_id: str | None = None
     image: str | None = None
     cluster_name: str | None = None
+    ontology_source: str | None = None
+    """Provider the container came from, distinct from the module-level `source`."""
 
 
 container_image_not_found = Rule(
@@ -216,7 +218,7 @@ container_image_not_found = Rule(
         "infrastructure",
     ),
     facts=(_container_image_not_found_fact,),
-    version="0.2.0",
+    version="0.2.1",
 )
 
 # =============================================================================

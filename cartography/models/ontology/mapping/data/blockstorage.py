@@ -129,8 +129,46 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+# Railway VolumeState
+_RAILWAY_VOLUME_STATE = {
+    "READY": "in_use",
+    "UPDATING": "in_use",
+    "MIGRATING": "in_use",
+    "RESTORING": "in_use",
+    "MIGRATION_PENDING": "creating",
+    "DELETING": "deleting",
+    "DELETED": "deleted",
+    "ERROR": "error",
+}
+
+# A Railway volume instance is the actual disk: the project-scoped RailwayVolume is only a
+# definition, so size, region and state all live here.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayVolumeInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="volume_name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
+                # _ont_encrypted: Railway does not expose volume encryption posture.
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _RAILWAY_VOLUME_STATE},
+                ),
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "railway": railway_mapping,
 }

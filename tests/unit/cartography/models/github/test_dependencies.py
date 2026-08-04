@@ -1,4 +1,5 @@
 from cartography.graph.cleanupbuilder import build_cleanup_queries
+from cartography.models.extra_labels import DEPENDENCY
 from cartography.models.github.dependencies import GitHubDependencySchema
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
@@ -14,7 +15,7 @@ def test_github_dependency_labels():
     schema = GitHubDependencySchema()
     assert schema.label == "GitHubDependency"
     assert schema.extra_node_labels is not None
-    assert schema.extra_node_labels.labels == ["Dependency"]
+    assert schema.extra_node_labels.labels == (DEPENDENCY,)
     # Unscoped by design: the node is globally shared across orgs.
     assert schema.scoped_cleanup is False
     assert schema.sub_resource_relationship is None

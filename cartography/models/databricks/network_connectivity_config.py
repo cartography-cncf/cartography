@@ -12,16 +12,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksNetworkConnectivityConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    network_connectivity_config_id: PropertyRef = PropertyRef(
-        "network_connectivity_config_id", extra_index=True
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped identifier for the network connectivity configuration.",
     )
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    region: PropertyRef = PropertyRef("region")
+    network_connectivity_config_id: PropertyRef = PropertyRef(
+        "network_connectivity_config_id",
+        extra_index=True,
+        description="Databricks network connectivity configuration identifier.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Name of the network connectivity configuration.",
+    )
+    region: PropertyRef = PropertyRef(
+        "region",
+        description="Cloud region of the network connectivity configuration.",
+    )
     # Egress default rule summary: whether Databricks-managed serverless egress
     # is enabled and the target CIDR/region list, flattened to a signal.
     default_rules_target_regions: PropertyRef = PropertyRef(
-        "default_rules_target_regions"
+        "default_rules_target_regions",
+        description="Target regions allowed by the default egress rules.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -36,6 +49,8 @@ class DatabricksNetworkConnectivityConfigToAccountRelProperties(
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksNetworkConnectivityConfig)
 class DatabricksNetworkConnectivityConfigToAccountRel(CartographyRelSchema):
+    """A Databricks account contains this network connectivity configuration."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -49,6 +64,8 @@ class DatabricksNetworkConnectivityConfigToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksNetworkConnectivityConfigSchema(CartographyNodeSchema):
+    """A Databricks account network connectivity configuration."""
+
     label: str = "DatabricksNetworkConnectivityConfig"
     properties: DatabricksNetworkConnectivityConfigNodeProperties = (
         DatabricksNetworkConnectivityConfigNodeProperties()

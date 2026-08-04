@@ -103,3 +103,41 @@ def test_sync_load_balancer_v2_expose_skips_cleanup_after_transient_region_failu
     )
 
     cleanup.assert_not_called()
+
+
+def test_transform_load_balancer_v2_lowercases_dnsname_but_not_id():
+    raw_dns_name = "My-ALB-1234567890.us-east-1.elb.amazonaws.com"
+    data = [
+        {
+            "DNSName": raw_dns_name,
+            "LoadBalancerName": "My-ALB",
+            "CreatedTime": "2024-01-01 00:00:00",
+            "Listeners": [
+                {
+                    "ListenerArn": "arn:aws:elasticloadbalancing:::listener/my-alb/1",
+                    "Port": 443,
+                    "Protocol": "HTTPS",
+                },
+            ],
+            "TargetGroups": [
+                {
+                    "TargetGroupArn": "arn:aws:elasticloadbalancing:::targetgroup/tg/1",
+                    "TargetGroupName": "tg",
+                    "TargetType": "instance",
+                    "Targets": ["i-01"],
+                },
+            ],
+        },
+    ]
+
+    lb_data, listener_data, tg_data, target_data = (
+        load_balancer_v2s._transform_load_balancer_v2_data(data)
+    )
+
+    # `DNSName` is the node id and the join key for listeners and target groups, so it
+    # must stay byte-for-byte what AWS returned.
+    assert lb_data[0]["DNSName"] == raw_dns_name
+    assert lb_data[0]["DNSNameLower"] == raw_dns_name.lower()
+    assert listener_data[0]["LoadBalancerId"] == raw_dns_name
+    assert tg_data[0]["LoadBalancerId"] == [raw_dns_name]
+    assert target_data[0]["LoadBalancerId"] == raw_dns_name
