@@ -333,8 +333,9 @@ class Config:
     :param anthropic_identity_token_file: Path to a file holding the OIDC identity token used for
         Anthropic Workload Identity Federation. Optional.
     :type anthropic_identity_token_env_var: string
-    :param anthropic_identity_token_env_var: OIDC identity token used for Anthropic Workload
-        Identity Federation. Optional.
+    :param anthropic_identity_token_env_var: Name of the environment variable holding the OIDC
+        identity token used for Anthropic Workload Identity Federation. This is the variable name,
+        not the token value. Optional.
     :type anthropic_federation_rule_id: string
     :param anthropic_federation_rule_id: Anthropic federation rule id (fdrl_...) to exchange the
         identity token against. Optional.
@@ -592,12 +593,6 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
-        anthropic_identity_token_file=None,
-        anthropic_identity_token_env_var=None,
-        anthropic_federation_rule_id=None,
-        anthropic_workspace_federation_rule_id=None,
-        anthropic_organization_id=None,
-        anthropic_service_account_id=None,
         subimage_client_id=None,
         subimage_client_secret=None,
         subimage_tenant_url=None,
@@ -685,6 +680,14 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        # Appended rather than grouped next to anthropic_apikey: inserting parameters
+        # mid-signature would shift the position of every later argument.
+        anthropic_identity_token_file=None,
+        anthropic_identity_token_env_var=None,
+        anthropic_federation_rule_id=None,
+        anthropic_workspace_federation_rule_id=None,
+        anthropic_organization_id=None,
+        anthropic_service_account_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

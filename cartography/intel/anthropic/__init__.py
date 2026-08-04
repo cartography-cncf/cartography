@@ -27,6 +27,18 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# Nodes scoped to an AnthropicWorkspace rather than to the organization. Their cleanup
+# runs per workspace, so they need a sweep for the workspaces that vanished entirely.
+_WORKSPACE_PLANE_LABELS = (
+    "AnthropicDeployment",
+    "AnthropicAgent",
+    "AnthropicSkillVersion",
+    "AnthropicSkill",
+    "AnthropicMemoryStore",
+    "AnthropicVault",
+    "AnthropicEnvironment",
+)
+
 
 def _build_api_session(credential: AnthropicCredential) -> requests.Session:
     api_session = requests.session()
@@ -90,12 +102,56 @@ def _sync_workspace_plane(
             )
 
 
+def _cleanup_detached_workspace_resources(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+) -> None:
+    """Delete workspace-plane nodes whose workspace is gone from the graph.
+
+    Every workspace-plane node is scoped to its own workspace, so its cleanup job only
+    ever considers the workspaces present in the current listing. A workspace that was
+    deleted, or that the credential can no longer see, has its own node removed by the
+    workspace cleanup and leaves its skills, agents and deployments behind, attached to
+    nothing.
+
+    Keyed on the missing parent rather than on a list of removed ids, so a workspace
+    whose token exchange merely failed this run keeps its resources: its node is still
+    there.
+    """
+    for label in _WORKSPACE_PLANE_LABELS:
+        result = neo4j_session.run(
+            f"""
+            MATCH (n:{label})
+            WHERE NOT (n)<-[:RESOURCE]-(:AnthropicWorkspace)
+              AND n.lastupdated <> $UPDATE_TAG
+            WITH n LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            RETURN COUNT(*) AS deleted
+            """,
+            UPDATE_TAG=update_tag,
+            LIMIT_SIZE=100000,
+        ).single()
+        deleted = result["deleted"] if result else 0
+        if deleted:
+            logger.info(
+                "Deleted %d %s node(s) left detached by a removed Anthropic workspace.",
+                deleted,
+                label,
+            )
+
+
 def _sync_enterprise_rbac(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Sync the Claude Enterprise RBAC beta, tolerating organizations without it."""
+    """Sync the Claude Enterprise RBAC beta, tolerating organizations without it.
+
+    RBAC is optional enrichment on top of the core inventory, so an organization that
+    is refused the endpoint, or a beta that is briefly unavailable, must not take the
+    module down. The sync returns before its cleanup in that case, leaving the roles
+    and groups from the last healthy run in place rather than converging them to empty.
+    """
     try:
         cartography.intel.anthropic.rbac.sync(
             neo4j_session,
@@ -104,12 +160,31 @@ def _sync_enterprise_rbac(
         )
     except requests.exceptions.HTTPError as exc:
         status_code = exc.response.status_code if exc.response is not None else None
-        if status_code not in (403, 404):
+        if status_code in (403, 404):
+            logger.info(
+                "Skipping Anthropic RBAC groups and roles (HTTP %s): the RBAC API is a "
+                "Claude Enterprise beta and is not available to this organization.",
+                status_code,
+            )
+            return
+        if status_code is not None and status_code < 500:
+            # A 4xx other than the two above is a real defect on our side (a malformed
+            # request, a missing beta header) and must not be hidden.
             raise
-        logger.info(
-            "Skipping Anthropic RBAC groups and roles (HTTP %s): the RBAC API is a "
-            "Claude Enterprise beta and is not available to this organization.",
+        logger.warning(
+            "Skipping Anthropic RBAC groups and roles: the RBAC API failed with "
+            "HTTP %s. Existing RBAC data is left untouched. Error: %s",
             status_code,
+            exc,
+        )
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+    ) as exc:
+        logger.warning(
+            "Skipping Anthropic RBAC groups and roles: the RBAC API was unreachable. "
+            "Existing RBAC data is left untouched. Error: %s",
+            exc,
         )
 
 
@@ -129,12 +204,31 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         config.anthropic_identity_token_file,
         config.anthropic_identity_token_env_var,
     )
-    if not config.anthropic_apikey and assertion_source is None:
+    # A half-configured federation must reach make_credential() so it raises. Skipping
+    # on the token source alone would turn an unset token variable into a silent
+    # no-op when an API key is also present, or into a silent skip when it is not.
+    federation_configured = any(
+        (
+            assertion_source is not None,
+            config.anthropic_federation_rule_id,
+            config.anthropic_workspace_federation_rule_id,
+            config.anthropic_organization_id,
+            config.anthropic_service_account_id,
+        )
+    )
+    if not config.anthropic_apikey and not federation_configured:
         logger.info(
             "Anthropic import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
+
+    if config.anthropic_workspace_federation_rule_id and assertion_source is None:
+        raise ValueError(
+            "--anthropic-workspace-federation-rule-id needs an identity token source: "
+            "set --anthropic-identity-token-file or "
+            "--anthropic-identity-token-env-var.",
+        )
 
     credential = make_credential(
         apikey=config.anthropic_apikey,
@@ -219,6 +313,7 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     if config.anthropic_workspace_federation_rule_id:
         _sync_workspace_plane(neo4j_session, config, common_job_parameters, workspaces)
+        _cleanup_detached_workspace_resources(neo4j_session, config.update_tag)
     else:
         logger.info(
             "Skipping Anthropic skills, agents and other per-workspace resources: "

@@ -36,6 +36,11 @@ _JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 _EXCHANGE_MAX_ATTEMPTS = 4
 _EXCHANGE_BACKOFF_SECONDS = 2
 
+# Retried because a later attempt can plausibly succeed: throttling and the gateway
+# family. A 4xx other than 429 means the federation configuration itself is wrong, so
+# retrying only delays the error.
+_RETRYABLE_EXCHANGE_STATUSES = frozenset({429, 500, 502, 503, 504})
+
 
 class AssertionSource:
     """Base class for reading the OIDC JWT that proves the workload's identity."""
@@ -159,19 +164,40 @@ class WorkloadIdentityCredential(AnthropicCredential):
         logger.debug("Anthropic access token minted with scope %s", data.get("scope"))
 
     def _exchange(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST the assertion to the token endpoint, retrying only what can succeed later.
+
+        Throttling, gateway errors and connection failures are retried: they say
+        nothing about whether the federation setup is valid. Every other 4xx is
+        raised on the first attempt, so a wrong rule id, an expired assertion or a
+        service account that is not a member of the workspace fails fast instead of
+        being buried under a minute of backoff.
+        """
         for attempt in range(_EXCHANGE_MAX_ATTEMPTS):
-            response = requests.post(
-                f"{self._base_url}/oauth/token",
-                json=body,
-                timeout=_TIMEOUT,
-            )
-            if response.status_code != 429 or attempt == _EXCHANGE_MAX_ATTEMPTS - 1:
-                response.raise_for_status()
-                result: dict[str, Any] = response.json()
-                return result
+            last_attempt = attempt == _EXCHANGE_MAX_ATTEMPTS - 1
+            try:
+                response = requests.post(
+                    f"{self._base_url}/oauth/token",
+                    json=body,
+                    timeout=_TIMEOUT,
+                )
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ) as exc:
+                if last_attempt:
+                    raise
+                reason: str = f"failed to reach the token endpoint ({exc})"
+            else:
+                if response.status_code not in _RETRYABLE_EXCHANGE_STATUSES:
+                    response.raise_for_status()
+                    result: dict[str, Any] = response.json()
+                    return result
+                if last_attempt:
+                    response.raise_for_status()
+                reason = f"returned HTTP {response.status_code}"
             delay = (_EXCHANGE_BACKOFF_SECONDS**attempt) + random.uniform(0, 1)
-            logger.debug(
-                "Anthropic token exchange was throttled, retrying in %.1fs", delay
+            logger.warning(
+                "Anthropic token exchange %s, retrying in %.1fs", reason, delay
             )
             time.sleep(delay)
         raise AssertionError("unreachable: the loop returns or raises on every path")
@@ -241,6 +267,27 @@ def make_credential(
             organization_id=organization_id,
             service_account_id=service_account_id,
             workspace_id=workspace_id,
+        )
+
+    # The inverse of the check above: the federation ids are set but the identity token
+    # source is not. Silently falling back to the API key (or skipping the module) would
+    # hide the very operator mistake this is most likely to be, an unset token variable.
+    configured_federation_ids = [
+        name
+        for name, value in (
+            ("--anthropic-federation-rule-id", federation_rule_id),
+            ("--anthropic-organization-id", organization_id),
+            ("--anthropic-service-account-id", service_account_id),
+        )
+        if value
+    ]
+    if configured_federation_ids:
+        raise ValueError(
+            "Anthropic Workload Identity Federation is partially configured: "
+            f"{', '.join(configured_federation_ids)} set without an identity token "
+            "source. Set --anthropic-identity-token-file or "
+            "--anthropic-identity-token-env-var, and check that the token file exists "
+            "and the environment variable is populated.",
         )
 
     if apikey:

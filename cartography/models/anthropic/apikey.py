@@ -95,11 +95,16 @@ class AnthropicApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
 class AnthropicApiKeyToUserOwnedByRel(CartographyRelSchema):
-    """An API key is owned by a user account."""
+    """An API key is owned by a user account.
+
+    Mutually exclusive with AnthropicApiKeyToServiceAccountRel: `owner_user_id` is left
+    unset for a key whose principal is a service account, so a key never reports two
+    owners.
+    """
 
     target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("created_by.id")},
+        {"id": PropertyRef("owner_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNED_BY"
@@ -124,7 +129,7 @@ class AnthropicApiKeyToServiceAccountRel(CartographyRelSchema):
 
     target_node_label: str = "AnthropicServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("principal.id")},
+        {"id": PropertyRef("owner_service_account_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNED_BY"

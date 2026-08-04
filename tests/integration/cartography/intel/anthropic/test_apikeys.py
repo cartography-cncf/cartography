@@ -107,19 +107,19 @@ def test_load_anthropic_apikeys(mock_api, neo4j_session):
         )
         == expected_rels
     )
-    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
-    assert (
-        check_rels(
-            neo4j_session,
-            "AnthropicApiKey",
-            "id",
-            "AnthropicUser",
-            "id",
-            "OWNED_BY",
-            rel_direction_right=True,
-        )
-        == expected_rels
-    )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount). Only the
+    # human-owned key gets one: a key acting as a service account is owned by that
+    # service account, not by the human who happened to create it, so it must not
+    # report two owners.
+    assert check_rels(
+        neo4j_session,
+        "AnthropicApiKey",
+        "id",
+        "AnthropicUser",
+        "id",
+        "OWNED_BY",
+        rel_direction_right=True,
+    ) == {("apikey_01Rj2N8SVvo6BePZj99NhmiT", "user_EneequohSheesh3Ohtaefu8we2aite")}
 
     # Assert the service-account-owned key edges to its principal, and the
     # human-owned one does not

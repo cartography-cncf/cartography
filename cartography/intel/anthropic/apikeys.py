@@ -27,6 +27,8 @@ def sync(
     )
     org_id = resolve_org_id(common_job_parameters, header_org_id)
     common_job_parameters["ORG_ID"] = org_id
+    for apikey in apikeys:
+        transform_apikey(apikey)
     load_apikeys(
         neo4j_session,
         apikeys,
@@ -44,6 +46,26 @@ def get(
     return paginated_get(
         api_session, f"{base_url}/organizations/api_keys", timeout=_TIMEOUT
     )
+
+
+def transform_apikey(apikey: dict[str, Any]) -> None:
+    """Resolve the single owner the canonical OWNED_BY edge points at.
+
+    A key acting as a service account still records the human who created it, so
+    deriving ownership from `created_by` alone would attribute the key to both a user
+    and a service account and make ownership queries double-count. The principal is
+    what the key acts as, so it wins; `created_by` remains the fallback, and stays on
+    the deprecated OWNS edge either way as creation attribution.
+    """
+    principal = apikey.get("principal") or {}
+    if principal.get("type") == "service_account":
+        apikey["owner_user_id"] = None
+        apikey["owner_service_account_id"] = principal.get("id")
+        return
+    apikey["owner_user_id"] = principal.get("id") or (
+        apikey.get("created_by") or {}
+    ).get("id")
+    apikey["owner_service_account_id"] = None
 
 
 @timeit
