@@ -37,4 +37,7 @@ cartography \
 
 By default, Cartography ingests every Slack workspace associated with the token. To limit ingestion, use `--slack-teams` with a comma-separated list of team IDs.
 
+Channel memberships are not pulled by default because doing so can be time
+consuming. To ingest them, pass `--slack-channels-memberships`.
+
 To find a team ID, open `https://<your-team>.slack.com` in a browser. Slack redirects to a URL in the form `https://app.slack.com/client/<your-team-id>`.
