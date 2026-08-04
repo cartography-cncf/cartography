@@ -179,6 +179,14 @@ def transform_inspector_findings(
         finding["description"] = f["description"]
         finding["type"] = f["type"]
         finding["status"] = f["status"]
+        finding["fixavailable"] = f.get("fixAvailable")
+        finding["exploitavailable"] = f.get("exploitAvailable")
+        if f.get("exploitabilityDetails"):
+            finding["lastknownexploitat"] = f["exploitabilityDetails"].get(
+                "lastKnownExploitAt",
+            )
+        if f.get("epss"):
+            finding["epss_score_inspector"] = f["epss"].get("score")
         if f.get("inspectorScoreDetails"):
             finding["cvssscore"] = f["inspectorScoreDetails"]["adjustedCvss"]["score"]
         if f["resources"][0]["type"] == "AWS_EC2_INSTANCE":
