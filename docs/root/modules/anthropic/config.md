@@ -60,8 +60,8 @@ cartography \
 ```
 
 Use `--anthropic-identity-token-env-var` instead of `--anthropic-identity-token-file`
-when the identity token arrives in an environment variable rather than on disk. The
-two are mutually exclusive.
+when the identity token arrives in an environment variable rather than on disk. Pass the
+name of the variable, not the token itself. The two are mutually exclusive.
 
 If both an Admin API key and a federation configuration are supplied, cartography uses
 federation and logs a warning. A federation configuration missing one of its three ids

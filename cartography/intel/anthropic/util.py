@@ -89,11 +89,19 @@ def paginated_get(
     result = req.json()
     results.extend(result.get("data", []))
     if result.get("has_more"):
+        last_id = result.get("last_id")
+        if not last_id:
+            # Without a cursor the next call would re-request the first page, looping
+            # until the recursion limit. Report the malformed response instead.
+            raise ValueError(
+                f"Anthropic API reported has_more for {url} but returned no usable "
+                "last_id cursor."
+            )
         _, next_results = paginated_get(
             api_session,
             url,
             timeout=timeout,
-            after=result.get("last_id"),
+            after=last_id,
         )
         results.extend(next_results)
     return organization_id, results

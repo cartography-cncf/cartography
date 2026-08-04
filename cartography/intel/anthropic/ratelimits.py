@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import neo4j
@@ -8,6 +9,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get_by_page
 from cartography.models.anthropic.ratelimit import AnthropicRateLimitSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
@@ -24,16 +27,26 @@ def sync(
         get(api_session, common_job_parameters["BASE_URL"]),
         workspace_id=None,
     )
+    skipped_workspace_ids: list[str] = []
     for workspace_id in workspace_ids:
-        rate_limits.extend(
-            transform_rate_limits(
-                get_workspace_rate_limits(
-                    api_session,
-                    common_job_parameters["BASE_URL"],
-                    workspace_id,
-                ),
-                workspace_id=workspace_id,
+        try:
+            workspace_limits = get_workspace_rate_limits(
+                api_session,
+                common_job_parameters["BASE_URL"],
+                workspace_id,
             )
+        except requests.exceptions.HTTPError as exc:
+            # A workspace the credential cannot read must not take the whole module
+            # down, nor let cleanup converge its previously ingested limits to empty.
+            logger.warning(
+                "Skipping rate limits for Anthropic workspace %s: %s",
+                workspace_id,
+                exc,
+            )
+            skipped_workspace_ids.append(workspace_id)
+            continue
+        rate_limits.extend(
+            transform_rate_limits(workspace_limits, workspace_id=workspace_id)
         )
     load_rate_limits(
         neo4j_session,
@@ -41,6 +54,16 @@ def sync(
         common_job_parameters["ORG_ID"],
         common_job_parameters["UPDATE_TAG"],
     )
+    if skipped_workspace_ids:
+        # Cleanup is organization-scoped, so running it now would delete the limits of
+        # every workspace that was skipped. Keep the last known good state instead.
+        logger.warning(
+            "Skipping Anthropic rate limit cleanup: %d workspace(s) could not be read "
+            "(%s), and organization-scoped cleanup would delete their existing limits.",
+            len(skipped_workspace_ids),
+            ", ".join(skipped_workspace_ids),
+        )
+        return
     cleanup(neo4j_session, common_job_parameters)
 
 

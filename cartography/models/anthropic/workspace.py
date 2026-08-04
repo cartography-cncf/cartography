@@ -39,6 +39,7 @@ class AnthropicWorkspaceNodeProperties(CartographyNodeProperties):
     )
     external_key_id: PropertyRef = PropertyRef(
         "external_key_id",
+        extra_index=True,
         description=(
             "ID of the customer-managed encryption key bound to the workspace. "
             "Write-once; empty when the workspace uses Anthropic-managed encryption."
