@@ -2,6 +2,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+import requests
 from requests.adapters import HTTPAdapter
 
 from cartography.intel.miradore.util import as_list
@@ -20,9 +21,11 @@ _API_KEY = "1_AaDf234sdf8!4"
 
 
 def _xml_response(items: str, count: int) -> Mock:
-    response = Mock()
-    response.text = f'<Content><Items count="{count}">{items}</Items></Content>'
-    return response
+    return Mock(
+        ok=True,
+        status_code=200,
+        text=f'<Content><Items count="{count}">{items}</Items></Content>',
+    )
 
 
 def _device_element(device_id: int) -> str:
@@ -111,6 +114,87 @@ def test_get_paginated_miradore_items_handles_an_empty_result() -> None:
     )
 
     assert results == []
+
+
+def test_get_paginated_miradore_items_never_discloses_the_api_key_on_an_error() -> None:
+    """API v1 puts the key in the query string, and the sync runner logs exceptions.
+
+    `requests`' own `raise_for_status()` embeds the full URL, key included, in the
+    exception message, so an error response must be reported without it.
+    """
+    session = Mock()
+    error_response = Mock(
+        ok=False,
+        status_code=401,
+        url=f"https://online.miradore.com/simpsoncorp/API/Device?auth={_API_KEY}",
+    )
+    session.get.return_value = error_response
+
+    with pytest.raises(requests.HTTPError) as excinfo:
+        get_paginated_miradore_items(
+            session,
+            _BASE_URI,
+            _SITE_NAME,
+            _API_KEY,
+            "Device",
+            "ID",
+            page_size=100,
+        )
+
+    assert _API_KEY not in str(excinfo.value)
+    assert _API_KEY not in repr(excinfo.value)
+    # The status and the key-free request path still make the failure diagnosable.
+    assert "401" in str(excinfo.value)
+    assert "https://online.miradore.com/simpsoncorp/API/Device" in str(excinfo.value)
+    # Attaching the response would let a caller reach `response.url` and leak the key.
+    assert excinfo.value.response is None
+
+
+def test_get_paginated_miradore_items_rejects_an_unexpected_document() -> None:
+    """A sign-in or error page served with HTTP 200 must not look like an empty page.
+
+    Returning no rows would let the cleanup that follows delete the resource's nodes.
+    """
+    session = Mock()
+    session.get.return_value = Mock(
+        ok=True,
+        status_code=200,
+        text="<html><body>Please sign in</body></html>",
+    )
+
+    with pytest.raises(ValueError, match="without the expected <Content><Items>"):
+        get_paginated_miradore_items(
+            session,
+            _BASE_URI,
+            _SITE_NAME,
+            _API_KEY,
+            "Device",
+            "ID",
+            page_size=100,
+        )
+
+
+def test_get_paginated_miradore_items_accepts_a_genuinely_empty_page() -> None:
+    """The real API answers a query with no matches with a self-closing element."""
+    session = Mock()
+    session.get.return_value = Mock(
+        ok=True,
+        status_code=200,
+        text='<Content><Items count="0" /></Content>',
+    )
+
+    assert (
+        get_paginated_miradore_items(
+            session,
+            _BASE_URI,
+            _SITE_NAME,
+            _API_KEY,
+            "Device",
+            "ID",
+            page_size=100,
+        )
+        == []
+    )
 
 
 def test_required_int_id_parses_the_identifier() -> None:

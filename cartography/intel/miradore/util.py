@@ -22,12 +22,6 @@ _TRUE_VALUES = {"true", "1", "yes"}
 _FALSE_VALUES = {"false", "0", "no"}
 
 
-def get_http_status_code(err: requests.HTTPError) -> int | None:
-    if err.response is None:
-        return None
-    return err.response.status_code
-
-
 @timeit
 def create_miradore_api_session() -> requests.Session:
     session = requests.Session()
@@ -57,9 +51,22 @@ def _extract_items(payload: dict[str, Any], item: str) -> list[dict[str, Any]]:
 
     xmltodict collapses a single repeated element into a dict rather than a one-element
     list, and omits the key entirely when the page is empty, so normalize both here.
+
+    A document that is not the documented envelope must not be mistaken for an empty
+    page: an error or sign-in page served with HTTP 200 would otherwise yield no rows,
+    and the cleanup that follows would delete the resource's existing nodes. Raise
+    instead, while still accepting a genuine `<Items count="0" />`.
     """
-    items = (payload.get("Content") or {}).get("Items")
-    if not items:
+    content = payload.get("Content")
+    if not isinstance(content, dict) or "Items" not in content:
+        raise ValueError(
+            "Miradore API returned a document without the expected <Content><Items> "
+            f"envelope while fetching {item}; refusing to treat it as an empty result",
+        )
+    items = content["Items"]
+    # `<Items />` parses to None and `<Items count="0" />` to just its attributes.
+    # Both are legitimately empty pages.
+    if not isinstance(items, dict):
         return []
     entries = items.get(item)
     if entries is None:
@@ -67,6 +74,26 @@ def _extract_items(payload: dict[str, Any], item: str) -> list[dict[str, Any]]:
     if isinstance(entries, list):
         return entries
     return [entries]
+
+
+def _raise_for_status_without_the_api_key(
+    response: requests.Response,
+    uri: str,
+    page: int,
+) -> None:
+    """Raise on an error response without disclosing the authentication key.
+
+    API v1 authenticates through an `auth` query parameter, so `response.url` embeds the
+    key. `requests.Response.raise_for_status()` puts that URL in the exception message,
+    and the sync runner logs the exception, which would print the key on any 400 or 401.
+    Raise with the key-free request path instead, and do not attach the response so no
+    caller can reach `response.url` either.
+    """
+    if response.ok:
+        return
+    raise requests.HTTPError(
+        f"Miradore API returned HTTP {response.status_code} for {uri} (page {page})",
+    )
 
 
 @timeit
@@ -101,7 +128,7 @@ def get_paginated_miradore_items(
                 page,
             )
             raise
-        response.raise_for_status()
+        _raise_for_status_without_the_api_key(response, uri, page)
 
         page_results = _extract_items(xmltodict.parse(response.text), item)
         results.extend(page_results)
