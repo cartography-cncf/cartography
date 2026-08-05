@@ -101,11 +101,16 @@ def transform_netlify_dns_zones(
     transformed = []
     for zone in zones:
         domain = zone.get("domain")
-        registration = domain if isinstance(domain, dict) else {}
+        registration: dict[str, Any] = {}
+        # Every object-shaped `domain` takes this branch, including an empty or partial one:
+        # falling back to the raw value for those would put the map back into the property.
+        if isinstance(domain, dict):
+            registration = domain
+            domain = registration.get("name")
         transformed.append(
             {
                 **zone,
-                "domain": registration.get("name") if registration else domain,
+                "domain": domain,
                 # Copied field by field rather than spread: the registration carries its own
                 # `id`, `name`, `account_id`, `user_id`, `created_at` and `updated_at`, which
                 # would otherwise overwrite the zone's.
