@@ -37,7 +37,9 @@ class FlyMachineServiceNodeProperties(CartographyNodeProperties):
     machine_id: PropertyRef = PropertyRef(
         "machine_id", extra_index=True, description="Fly Machine ID."
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)
@@ -113,7 +115,9 @@ class FlyMachineServicePortNodeProperties(CartographyNodeProperties):
     service_id: PropertyRef = PropertyRef(
         "service_id", extra_index=True, description="Fly Machine Service ID."
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)

@@ -53,7 +53,9 @@ class FlyReleaseNodeProperties(CartographyNodeProperties):
         "user_email",
         description="Email of the user who triggered the release, if returned.",
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)

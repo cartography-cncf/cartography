@@ -29,7 +29,9 @@ def sync(
     )
     apps = transform_apps(response)
     organizations = transform_organizations(response, org_slug)
-    load_organizations(neo4j_session, organizations, common_job_parameters["UPDATE_TAG"])
+    load_organizations(
+        neo4j_session, organizations, common_job_parameters["UPDATE_TAG"]
+    )
     load_apps(
         neo4j_session,
         apps,

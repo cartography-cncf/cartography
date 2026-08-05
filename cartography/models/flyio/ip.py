@@ -59,7 +59,9 @@ class FlyIPNodeProperties(CartographyNodeProperties):
         "network_organization_slug",
         description="Fly network organization slug, if returned by Fly.io.",
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)

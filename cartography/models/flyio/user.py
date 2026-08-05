@@ -21,7 +21,11 @@ class FlyUserNodeProperties(CartographyNodeProperties):
     email: PropertyRef = PropertyRef(
         "email", extra_index=True, description="User email address."
     )
-    organization_id: PropertyRef = PropertyRef("ORGANIZATION_ID", set_in_kwargs=True)
+    organization_id: PropertyRef = PropertyRef(
+        "ORGANIZATION_ID",
+        set_in_kwargs=True,
+        description="Organization ID used as the sync scope.",
+    )
 
 
 @dataclass(frozen=True)
@@ -48,7 +52,9 @@ class FlyUserToOrganizationResourceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class FlyUserMemberOfOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    role: PropertyRef = PropertyRef("role", description="User role in the organization.")
+    role: PropertyRef = PropertyRef(
+        "role", description="User role in the organization."
+    )
     joined_at: PropertyRef = PropertyRef(
         "joined_at", description="Timestamp when the user joined the organization."
     )

@@ -251,9 +251,7 @@ def test_transform_service_ports_reject_empty_external_ports():
                     **MACHINES_RESPONSE[0]["config"]["services"][0],
                     "ports": [
                         {
-                            **MACHINES_RESPONSE[0]["config"]["services"][0]["ports"][
-                                0
-                            ],
+                            **MACHINES_RESPONSE[0]["config"]["services"][0]["ports"][0],
                             "port": None,
                         },
                     ],
@@ -540,8 +538,7 @@ def test_transform_releases():
             "evaluation_id": "eval_01KJQC1W6NXAK34WQ739F0ERSP",
             "created_at": "2026-07-31T06:40:00Z",
             "image_ref": (
-                "registry.fly.io/nhmhvxo3b9:"
-                "deployment-01JMWNHS84ZCCV89XYH9SQ48FX"
+                "registry.fly.io/nhmhvxo3b9:" "deployment-01JMWNHS84ZCCV89XYH9SQ48FX"
             ),
             "user_id": "user_123",
             "user_name": "Jonathan Femi",
