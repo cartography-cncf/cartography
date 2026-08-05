@@ -56,6 +56,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Lastpass](../modules/lastpass/schema.md)
 - [Microsoft](../modules/microsoft/schema.md)
 - [Modal](../modules/modal/schema.md)
+- [Netlify](../modules/netlify/schema.md)
 - [Oci](../modules/oci/schema.md)
 - [Okta](../modules/okta/schema.md)
 - [Ontology](../modules/ontology/schema.md)

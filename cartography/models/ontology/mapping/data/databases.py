@@ -432,6 +432,37 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDatabaseBranch",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Netlify DB is Neon Postgres, and the API reports no engine or version.
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "postgres"},
+                ),
+                # Neon encrypts every branch at rest with no way to turn it off.
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                # endpoint / port: only available inside the connection string, which holds a
+                # plaintext password and is deliberately never ingested.
+                # version / location: not exposed by the API.
+            ],
+        ),
+    ],
+)
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
@@ -439,4 +470,5 @@ DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
+    "netlify": netlify_mapping,
 }
