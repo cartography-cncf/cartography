@@ -1,0 +1,303 @@
+name: Publish Cartography wheel to S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish (for example, 0.1.0)"
+        required: true
+        default: "0.1.0"
+        type: string
+      commit_sha:
+        description: "Approved full commit SHA from guard0-cartography"
+        required: true
+        type: string
+      force_publish:
+        description: "Replace an existing version (break-glass only)"
+        required: true
+        default: false
+        type: boolean
+
+env:
+  AWS_ACCOUNT_ID: "844216228434"
+  AWS_REGION: us-east-1
+  S3_BUCKET: releases.guard0.ai
+  S3_PREFIX: cartography
+  PUBLIC_BASE_URL: https://releases.guard0.ai/cartography
+  CLOUDFRONT_DISTRIBUTION_ID: E1WCORYQEIZR3K
+
+# The GitHub token is denied all permissions unless a job grants them.
+permissions: {}
+
+concurrency:
+  group: cartography-s3-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish immutable wheel
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out the approved source branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: guard0-cartography
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate and select source commit
+        id: source
+        env:
+          INPUT_COMMIT_SHA: ${{ inputs.commit_sha }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$INPUT_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "commit_sha must be a full lowercase 40-character Git SHA" >&2
+            exit 1
+          fi
+          if [[ ! "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+|\.post[0-9]+|\.dev[0-9]+)?$ ]]; then
+            echo "version must be a supported PEP 440 release such as 0.1.0 or 0.1.0rc1" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "$INPUT_COMMIT_SHA^{commit}"; then
+            echo "commit_sha does not identify a commit in this repository" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$INPUT_COMMIT_SHA" HEAD; then
+            echo "commit_sha is not part of the guard0-cartography branch" >&2
+            exit 1
+          fi
+
+          git checkout --detach "$INPUT_COMMIT_SHA"
+          RESOLVED_SHA="$(git rev-parse HEAD)"
+          if [[ "$RESOLVED_SHA" != "$INPUT_COMMIT_SHA" ]]; then
+            echo "resolved commit does not match the requested commit" >&2
+            exit 1
+          fi
+
+          echo "git_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building Cartography $INPUT_VERSION from $RESOLVED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build and verify wheel
+        id: artifact
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          SOURCE_GIT_SHA: ${{ steps.source.outputs.git_sha }}
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_CARTOGRAPHY: ${{ steps.source.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          uv build --wheel --out-dir dist
+          mapfile -t WHEELS < <(find dist -maxdepth 1 -type f -name 'cartography-*.whl' -print)
+          if [[ "${#WHEELS[@]}" -ne 1 ]]; then
+            echo "Expected exactly one Cartography wheel; found ${#WHEELS[@]}" >&2
+            printf '%s\n' "${WHEELS[@]}" >&2
+            exit 1
+          fi
+
+          WHEEL_PATH="${WHEELS[0]}"
+          WHEEL_BASENAME="$(basename "$WHEEL_PATH")"
+          export WHEEL_PATH WHEEL_BASENAME
+
+          python - <<'PY'
+          import email
+          import os
+          from pathlib import Path
+          import zipfile
+
+          wheel_path = Path(os.environ["WHEEL_PATH"])
+          expected_version = os.environ["RELEASE_VERSION"]
+          with zipfile.ZipFile(wheel_path) as wheel:
+              metadata_names = [
+                  name for name in wheel.namelist() if name.endswith(".dist-info/METADATA")
+              ]
+              if len(metadata_names) != 1:
+                  raise SystemExit(
+                      f"expected one wheel METADATA file, found {len(metadata_names)}"
+                  )
+              metadata = email.message_from_bytes(wheel.read(metadata_names[0]))
+
+          if metadata["Name"] != "cartography":
+              raise SystemExit(f"unexpected package name: {metadata['Name']}")
+          if metadata["Version"] != expected_version:
+              raise SystemExit(
+                  f"wheel version {metadata['Version']} does not match {expected_version}"
+              )
+          PY
+
+          RELEASE_DIR="$RUNNER_TEMP/cartography-release"
+          mkdir -p "$RELEASE_DIR"
+          cp "$WHEEL_PATH" "$RELEASE_DIR/$WHEEL_BASENAME"
+          (
+            cd "$RELEASE_DIR"
+            sha256sum "$WHEEL_BASENAME" > checksum.sha256
+          )
+          WHEEL_SHA256="$(awk '{print $1}' "$RELEASE_DIR/checksum.sha256")"
+          export RELEASE_DIR WHEEL_SHA256
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": 1,
+              "package": "cartography",
+              "version": os.environ["RELEASE_VERSION"],
+              "git_sha": os.environ["SOURCE_GIT_SHA"],
+              "wheel": os.environ["WHEEL_BASENAME"],
+              "sha256": os.environ["WHEEL_SHA256"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+          }
+          destination = Path(os.environ["RELEASE_DIR"]) / "manifest.json"
+          destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+          PY
+
+          echo "release_dir=$RELEASE_DIR" >> "$GITHUB_OUTPUT"
+          echo "wheel=$WHEEL_BASENAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$WHEEL_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Preserve release bundle as workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cartography-${{ steps.source.outputs.version }}-${{ steps.source.outputs.git_sha }}
+          path: ${{ steps.artifact.outputs.release_dir }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: CartographyPublish-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS account and role
+        run: |
+          set -euo pipefail
+          IDENTITY="$(aws sts get-caller-identity --output json)"
+          ACTUAL_ACCOUNT="$(jq -r .Account <<< "$IDENTITY")"
+          ACTUAL_ARN="$(jq -r .Arn <<< "$IDENTITY")"
+
+          if [[ "$ACTUAL_ACCOUNT" != "$AWS_ACCOUNT_ID" ]]; then
+            echo "Expected AWS account $AWS_ACCOUNT_ID; authenticated to $ACTUAL_ACCOUNT" >&2
+            exit 1
+          fi
+          if [[ "$ACTUAL_ARN" != arn:aws:sts::${AWS_ACCOUNT_ID}:assumed-role/guard0-prod-github-actions/* ]]; then
+            echo "Unexpected AWS role: $ACTUAL_ARN" >&2
+            exit 1
+          fi
+          echo "Authenticated to the expected AWS account and publishing role"
+
+      - name: Enforce immutable version
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          FORCE_PUBLISH: ${{ inputs.force_publish }}
+        run: |
+          set -euo pipefail
+          MANIFEST_KEY="$S3_PREFIX/versions/v$RELEASE_VERSION/manifest.json"
+          if aws s3api head-object --bucket "$S3_BUCKET" --key "$MANIFEST_KEY" >/dev/null 2>&1; then
+            if [[ "$FORCE_PUBLISH" != "true" ]]; then
+              echo "Cartography $RELEASE_VERSION already exists at s3://$S3_BUCKET/$MANIFEST_KEY" >&2
+              echo "Choose a new version. Use force_publish only for an approved break-glass replacement." >&2
+              exit 1
+            fi
+            echo "WARNING: force-publishing existing Cartography version $RELEASE_VERSION"
+          fi
+
+      - name: Upload versioned release bundle
+        env:
+          RELEASE_DIR: ${{ steps.artifact.outputs.release_dir }}
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          WHEEL_BASENAME: ${{ steps.artifact.outputs.wheel }}
+        run: |
+          set -euo pipefail
+          DESTINATION="s3://$S3_BUCKET/$S3_PREFIX/versions/v$RELEASE_VERSION"
+
+          aws s3 cp "$RELEASE_DIR/$WHEEL_BASENAME" "$DESTINATION/$WHEEL_BASENAME" \
+            --content-type application/zip
+          aws s3 cp "$RELEASE_DIR/checksum.sha256" "$DESTINATION/checksum.sha256" \
+            --content-type text/plain
+          aws s3 cp "$RELEASE_DIR/manifest.json" "$DESTINATION/manifest.json" \
+            --content-type application/json
+
+      - name: Verify uploaded release bundle
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          WHEEL_BASENAME: ${{ steps.artifact.outputs.wheel }}
+        run: |
+          set -euo pipefail
+          PREFIX="$S3_PREFIX/versions/v$RELEASE_VERSION"
+          aws s3api head-object --bucket "$S3_BUCKET" --key "$PREFIX/$WHEEL_BASENAME" >/dev/null
+          aws s3api head-object --bucket "$S3_BUCKET" --key "$PREFIX/checksum.sha256" >/dev/null
+          aws s3api head-object --bucket "$S3_BUCKET" --key "$PREFIX/manifest.json" >/dev/null
+
+      - name: Invalidate CloudFront version path
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+        run: |
+          set -euo pipefail
+          INVALIDATION_ID="$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/$S3_PREFIX/versions/v$RELEASE_VERSION/*" \
+            --query Invalidation.Id \
+            --output text)"
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --id "$INVALIDATION_ID"
+
+      - name: Verify public release manifest
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          SOURCE_GIT_SHA: ${{ steps.source.outputs.git_sha }}
+          WHEEL_BASENAME: ${{ steps.artifact.outputs.wheel }}
+          WHEEL_SHA256: ${{ steps.artifact.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          MANIFEST="$(curl --fail --silent --show-error --location \
+            "$PUBLIC_BASE_URL/versions/v$RELEASE_VERSION/manifest.json")"
+          jq --exit-status \
+            --arg version "$RELEASE_VERSION" \
+            --arg git_sha "$SOURCE_GIT_SHA" \
+            --arg wheel "$WHEEL_BASENAME" \
+            --arg sha256 "$WHEEL_SHA256" \
+            '.version == $version and .git_sha == $git_sha and .wheel == $wheel and .sha256 == $sha256' \
+            <<< "$MANIFEST" >/dev/null
+
+      - name: Publish summary
+        env:
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          SOURCE_GIT_SHA: ${{ steps.source.outputs.git_sha }}
+          WHEEL_BASENAME: ${{ steps.artifact.outputs.wheel }}
+          WHEEL_SHA256: ${{ steps.artifact.outputs.sha256 }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Cartography S3 release
+
+          - Version: \`$RELEASE_VERSION\`
+          - Source commit: \`$SOURCE_GIT_SHA\`
+          - Wheel: \`$WHEEL_BASENAME\`
+          - SHA-256: \`$WHEEL_SHA256\`
+          - S3: \`s3://$S3_BUCKET/$S3_PREFIX/versions/v$RELEASE_VERSION/\`
+          EOF
