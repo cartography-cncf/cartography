@@ -13,8 +13,9 @@ Azure CLI authentication is the default. Sign in before running Cartography:
 az login
 ```
 
-Cartography uses the active Azure CLI identity and its current subscription
-unless `--azure-subscription-id` or `--azure-sync-all-subscriptions` is set.
+Cartography uses the active Azure CLI identity. Always set either
+`--azure-subscription-id` or `--azure-sync-all-subscriptions` to select the
+subscriptions to sync explicitly.
 
 ### Service principal
 
@@ -49,8 +50,11 @@ cover the management groups that Cartography should sync.
 - Set `--azure-sync-all-subscriptions` to discover and sync every subscription
   visible to the authenticated identity.
 
-When neither subscription option is set, Cartography syncs the current
-subscription from the Azure CLI or service principal credential context.
+When neither subscription option is set, Azure CLI authentication selects the
+first subscription returned by the Azure subscription API, which may not be
+the CLI's current subscription. Service principal authentication has no
+default subscription ID and cannot sync a single subscription without
+`--azure-subscription-id`.
 
 ## Run Cartography
 
