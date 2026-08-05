@@ -30,6 +30,10 @@ Enable service principal authentication with `--azure-sp-auth`. Use
 `--azure-sync-all-subscriptions` to sync all subscriptions visible to the
 identity.
 
+To sync a single subscription instead, replace
+`--azure-sync-all-subscriptions` with `--azure-subscription-id
+<SUBSCRIPTION_ID>`.
+
 ## Run Cartography
 
 ```bash
