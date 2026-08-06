@@ -20,6 +20,7 @@ from tests.integration.cartography.intel.netlify.common import common_job_parame
 from tests.integration.cartography.intel.netlify.common import (
     create_test_netlify_account,
 )
+from tests.integration.cartography.intel.netlify.common import find_secret_in_graph
 from tests.integration.cartography.intel.netlify.common import TEST_ACCOUNT_ID
 from tests.integration.cartography.intel.netlify.common import TEST_ACCOUNT_SLUG
 from tests.integration.cartography.intel.netlify.common import TEST_BASE_URL
@@ -85,6 +86,29 @@ def test_sync_netlify_dns(
     ) == {
         (_ZONE_SITE, "example-site.dev", False, True),
         (_ZONE_ORPHAN, "orphan.example", False, False),
+    }
+
+    # Assert Nodes: the domain registration object was flattened onto the zone that carries one,
+    # and the zone whose apex domain is registered elsewhere keeps its plain `domain` string
+    assert check_nodes(
+        neo4j_session,
+        "NetlifyDNSZone",
+        [
+            "id",
+            "domain",
+            "domain_expires_at",
+            "domain_auto_renew",
+            "domain_registration_status",
+        ],
+    ) == {
+        (
+            _ZONE_SITE,
+            "example-site.dev",
+            "2027-07-30T16:18:52.098Z",
+            True,
+            "payment_succeeded",
+        ),
+        (_ZONE_ORPHAN, "orphan.example", None, None, None),
     }
 
     # Netlify reports delegation problems on the zone, which is the dangling-delegation signal
@@ -183,6 +207,55 @@ def test_dns_zones_are_scoped_to_the_requested_team() -> None:
 
     _, kwargs = api_session.get.call_args
     assert kwargs["params"]["account_slug"] == TEST_ACCOUNT_SLUG
+
+
+def test_transform_netlify_dns_zones_flattens_a_registered_domain() -> None:
+    """
+    A domain bought through Netlify comes back with the whole domain registration object on
+    `domain`, where the spec documents a string, and Neo4j rejects a map as a property value.
+    """
+    transformed = cartography.intel.netlify.dns.transform_netlify_dns_zones(
+        tests.data.netlify.dns.NETLIFY_DNS_ZONES,
+    )
+    by_id = {zone["id"]: zone for zone in transformed}
+
+    registered = by_id[_ZONE_SITE]
+    assert registered["domain"] == "example-site.dev"
+    assert registered["domain_registered_at"] == "2025-07-30T16:18:52.098Z"
+    assert registered["domain_expires_at"] == "2027-07-30T16:18:52.098Z"
+    assert registered["domain_auto_renew"] is True
+    assert registered["domain_registration_status"] == "payment_succeeded"
+    # The registration carries its own id, name and timestamps; the zone keeps its own
+    assert registered["name"] == "example-site.dev"
+    assert registered["created_at"] == "2026-07-30T16:18:52.098Z"
+    assert registered["updated_at"] == "2026-07-30T16:20:20.019Z"
+
+    # A domain registered elsewhere already matches the spec, so it passes through untouched
+    delegated = by_id[_ZONE_ORPHAN]
+    assert delegated["domain"] == "orphan.example"
+    assert delegated["domain_expires_at"] is None
+    assert delegated["domain_auto_renew"] is None
+    assert delegated["domain_registration_status"] is None
+
+
+def test_netlify_dns_zone_never_stores_the_domain_auth_code(
+    neo4j_session: neo4j.Session,
+) -> None:
+    """
+    `auth_code` on the domain registration is the EPP transfer authorization code: whoever holds
+    it can move the domain to another registrar, so it must never reach the graph.
+    """
+    create_test_netlify_account(neo4j_session)
+    cartography.intel.netlify.dns.load_netlify_dns_zones(
+        neo4j_session,
+        cartography.intel.netlify.dns.transform_netlify_dns_zones(
+            tests.data.netlify.dns.NETLIFY_DNS_ZONES,
+        ),
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert find_secret_in_graph(neo4j_session, "super-secret-epp-transfer-code") == []
 
 
 @patch.object(
