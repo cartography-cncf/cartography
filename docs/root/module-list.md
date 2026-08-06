@@ -28,6 +28,7 @@ modules/keycloak/index
 modules/kubernetes/index
 modules/lastpass/index
 modules/microsoft/index
+modules/miradore/index
 modules/modal/index
 modules/netlify/index
 modules/oci/index

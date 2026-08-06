@@ -202,6 +202,12 @@ class Config:
     :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
     :type kandji_token: string
     :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
+    :type miradore_base_uri: string
+    :param miradore_base_uri: Miradore base URI, e.g. https://online.miradore.com. Optional.
+    :type miradore_site_name: string
+    :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
+    :type miradore_api_key: string
+    :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -509,6 +515,9 @@ class Config:
         kandji_base_uri=None,
         kandji_tenant_id=None,
         kandji_token=None,
+        miradore_base_uri=None,
+        miradore_site_name=None,
+        miradore_api_key=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -732,6 +741,9 @@ class Config:
         self.kandji_base_uri = kandji_base_uri
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
+        self.miradore_base_uri = miradore_base_uri
+        self.miradore_site_name = miradore_site_name
+        self.miradore_api_key = miradore_api_key
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled

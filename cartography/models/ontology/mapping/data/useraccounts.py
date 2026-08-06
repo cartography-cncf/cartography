@@ -732,6 +732,30 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+miradore_mapping = OntologyMapping(
+    module_name="miradore",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="MiradoreUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="firstname"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="retired",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -747,6 +771,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "oci": oci_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "miradore": miradore_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
     "okta": okta_mapping,
