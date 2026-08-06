@@ -773,4 +773,41 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="domain", node_field="account_url"
+                    ),
+                    # status: Snowflake exposes no account lifecycle state. A
+                    # dropped account has `dropped_on` set, but that is a deletion
+                    # timestamp rather than the active/suspended/closed distinction
+                    # the canonical field carries, so it is left unmapped.
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeOrganization",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeManagedAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="url"),
+                ],
+            ),
+        ],
+    ),
 }

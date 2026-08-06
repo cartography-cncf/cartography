@@ -794,4 +794,44 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeUser",
+                fields=[
+                    # Snowflake does not require a user to have an email, so an
+                    # emailless user is normalized but not promoted to a canonical
+                    # User node.
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="username", node_field="login_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="firstname", node_field="first_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastname", node_field="last_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="disabled",
+                        special_handling="invert_boolean",
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="has_mfa", node_field="has_mfa"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity",
+                        node_field="last_successful_login",
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

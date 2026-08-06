@@ -471,4 +471,36 @@ DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
     "netlify": netlify_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeDatabase",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "snowflake"},
+                    ),
+                    # Snowflake encrypts all customer data at rest unconditionally,
+                    # so there is no per-database setting to read.
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": True},
+                    ),
+                    # version / endpoint / port: not applicable. Snowflake has no
+                    # per-database engine version, and the connection endpoint is
+                    # account-level rather than per-database, so mapping the account
+                    # URL here would make cross-provider endpoint comparisons
+                    # compare different concepts.
+                ],
+            ),
+        ],
+    ),
 }
