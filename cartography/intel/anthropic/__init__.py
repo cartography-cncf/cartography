@@ -1,17 +1,191 @@
 import logging
+from typing import Any
 
 import neo4j
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+import cartography.intel.anthropic.agents
 import cartography.intel.anthropic.apikeys
+import cartography.intel.anthropic.federation
+import cartography.intel.anthropic.invites
+import cartography.intel.anthropic.organization
+import cartography.intel.anthropic.ratelimits
+import cartography.intel.anthropic.rbac
+import cartography.intel.anthropic.serviceaccounts
+import cartography.intel.anthropic.skills
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
+from cartography.intel.anthropic.auth import AnthropicAuth
+from cartography.intel.anthropic.auth import AnthropicCredential
+from cartography.intel.anthropic.auth import is_federated
+from cartography.intel.anthropic.auth import make_assertion_source
+from cartography.intel.anthropic.auth import make_credential
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Nodes scoped to an AnthropicWorkspace rather than to the organization. Their cleanup
+# runs per workspace, so they need a sweep for the workspaces that vanished entirely.
+_WORKSPACE_PLANE_LABELS = (
+    "AnthropicDeployment",
+    "AnthropicAgent",
+    "AnthropicSkillVersion",
+    "AnthropicSkill",
+    "AnthropicMemoryStore",
+    "AnthropicVault",
+    "AnthropicEnvironment",
+)
+
+
+def _build_api_session(credential: AnthropicCredential) -> requests.Session:
+    api_session = requests.session()
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    api_session.auth = AnthropicAuth(credential)
+    api_session.headers.update({"anthropic-version": "2023-06-01"})
+    return api_session
+
+
+def _sync_workspace_plane(
+    neo4j_session: neo4j.Session,
+    config: Config,
+    common_job_parameters: dict[str, Any],
+    workspaces: list[dict[str, Any]],
+) -> None:
+    """Sync the per-workspace resources, one federated token per workspace.
+
+    Skills, agents and the rest have no organization-wide listing and are out of
+    reach of an org:admin token, so each workspace needs its own exchange against a
+    workspace:developer federation rule. There is no way to downscope the org:admin
+    token already in hand: the only grant type the token endpoint accepts is
+    jwt-bearer, so every workspace re-presents the original identity token.
+    """
+    for workspace in workspaces:
+        workspace_id = workspace["id"]
+        try:
+            credential = make_credential(
+                identity_token_file=config.anthropic_identity_token_file,
+                identity_token_env_var=config.anthropic_identity_token_env_var,
+                federation_rule_id=config.anthropic_workspace_federation_rule_id,
+                organization_id=config.anthropic_organization_id,
+                service_account_id=config.anthropic_service_account_id,
+                workspace_id=workspace_id,
+            )
+            api_session = _build_api_session(credential)
+            workspace_job_parameters = {
+                **common_job_parameters,
+                "WORKSPACE_ID": workspace_id,
+            }
+            cartography.intel.anthropic.skills.sync(
+                neo4j_session, api_session, workspace_job_parameters
+            )
+            cartography.intel.anthropic.agents.sync(
+                neo4j_session, api_session, workspace_job_parameters
+            )
+        except requests.exceptions.HTTPError as exc:
+            # A failed exchange is expected and undiagnosable: the service account
+            # may not be a member of this workspace, or replay protection may have
+            # rejected a reused assertion. Both surface as an opaque 400
+            # invalid_grant. Skip the workspace rather than abandon the others.
+            logger.warning(
+                "Skipping the workspace plane for Anthropic workspace %s: %s",
+                workspace_id,
+                exc,
+            )
+
+
+def _cleanup_detached_workspace_resources(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+) -> None:
+    """Delete workspace-plane nodes whose workspace is gone from the graph.
+
+    Every workspace-plane node is scoped to its own workspace, so its cleanup job only
+    ever considers the workspaces present in the current listing. A workspace that was
+    deleted, or that the credential can no longer see, has its own node removed by the
+    workspace cleanup and leaves its skills, agents and deployments behind, attached to
+    nothing.
+
+    Keyed on the missing parent rather than on a list of removed ids, so a workspace
+    whose token exchange merely failed this run keeps its resources: its node is still
+    there.
+    """
+    for label in _WORKSPACE_PLANE_LABELS:
+        result = neo4j_session.run(
+            f"""
+            MATCH (n:{label})
+            WHERE NOT (n)<-[:RESOURCE]-(:AnthropicWorkspace)
+              AND n.lastupdated <> $UPDATE_TAG
+            WITH n LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            RETURN COUNT(*) AS deleted
+            """,
+            UPDATE_TAG=update_tag,
+            LIMIT_SIZE=100000,
+        ).single()
+        deleted = result["deleted"] if result else 0
+        if deleted:
+            logger.info(
+                "Deleted %d %s node(s) left detached by a removed Anthropic workspace.",
+                deleted,
+                label,
+            )
+
+
+def _sync_enterprise_rbac(
+    neo4j_session: neo4j.Session,
+    api_session: requests.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Sync the Claude Enterprise RBAC beta, tolerating organizations without it.
+
+    RBAC is optional enrichment on top of the core inventory, so an organization that
+    is refused the endpoint, or a beta that is briefly unavailable, must not take the
+    module down. The sync returns before its cleanup in that case, leaving the roles
+    and groups from the last healthy run in place rather than converging them to empty.
+    """
+    try:
+        cartography.intel.anthropic.rbac.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+    except requests.exceptions.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response is not None else None
+        if status_code in (403, 404):
+            logger.info(
+                "Skipping Anthropic RBAC groups and roles (HTTP %s): the RBAC API is a "
+                "Claude Enterprise beta and is not available to this organization.",
+                status_code,
+            )
+            return
+        if status_code is not None and status_code < 500:
+            # A 4xx other than the two above is a real defect on our side (a malformed
+            # request, a missing beta header) and must not be hidden.
+            raise
+        logger.warning(
+            "Skipping Anthropic RBAC groups and roles: the RBAC API failed with "
+            "HTTP %s. Existing RBAC data is left untouched. Error: %s",
+            status_code,
+            exc,
+        )
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout,
+    ) as exc:
+        logger.warning(
+            "Skipping Anthropic RBAC groups and roles: the RBAC API was unreachable. "
+            "Existing RBAC data is left untouched. Error: %s",
+            exc,
+        )
 
 
 @timeit
@@ -23,49 +197,126 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    if not config.anthropic_apikey:
+    # Resolve the identity token source first: a Workload Identity Federation setup
+    # missing one of its parts is an operator mistake (typo in the flag, unpopulated
+    # environment variable) and must fail loudly rather than silently skip the module.
+    assertion_source = make_assertion_source(
+        config.anthropic_identity_token_file,
+        config.anthropic_identity_token_env_var,
+    )
+    # A half-configured federation must reach make_credential() so it raises. Skipping
+    # on the token source alone would turn an unset token variable into a silent
+    # no-op when an API key is also present, or into a silent skip when it is not.
+    federation_configured = any(
+        (
+            assertion_source is not None,
+            config.anthropic_federation_rule_id,
+            config.anthropic_workspace_federation_rule_id,
+            config.anthropic_organization_id,
+            config.anthropic_service_account_id,
+        )
+    )
+    if not config.anthropic_apikey and not federation_configured:
         logger.info(
             "Anthropic import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
 
-    # Create requests sessions
-    api_session = requests.session()
-    retry_policy = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
+    if config.anthropic_workspace_federation_rule_id and assertion_source is None:
+        raise ValueError(
+            "--anthropic-workspace-federation-rule-id needs an identity token source: "
+            "set --anthropic-identity-token-file or "
+            "--anthropic-identity-token-env-var.",
+        )
+
+    credential = make_credential(
+        apikey=config.anthropic_apikey,
+        identity_token_file=config.anthropic_identity_token_file,
+        identity_token_env_var=config.anthropic_identity_token_env_var,
+        federation_rule_id=config.anthropic_federation_rule_id,
+        organization_id=config.anthropic_organization_id,
+        service_account_id=config.anthropic_service_account_id,
     )
-    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    api_session.headers.update(
-        {
-            "X-Api-Key": config.anthropic_apikey,
-            "anthropic-version": "2023-06-01",
-        }
-    )
+
+    api_session = _build_api_session(credential)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "BASE_URL": "https://api.anthropic.com/v1",
     }
 
-    # Organization node is created during the users sync
+    # Must run first: it creates the organization node that scopes every other node,
+    # and resolves the ORG_ID the remaining syncs read from common_job_parameters.
+    cartography.intel.anthropic.organization.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+
     cartography.intel.anthropic.users.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
     )
 
-    cartography.intel.anthropic.workspaces.sync(
+    workspaces = cartography.intel.anthropic.workspaces.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
     )
+
+    # Enterprise-only beta. A non-Enterprise organization is refused rather than
+    # returned an empty list, so this must not fail the module.
+    _sync_enterprise_rbac(neo4j_session, api_session, common_job_parameters)
+
+    cartography.intel.anthropic.invites.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+    )
+
+    cartography.intel.anthropic.ratelimits.sync(
+        neo4j_session,
+        api_session,
+        common_job_parameters,
+        [workspace["id"] for workspace in workspaces],
+    )
+
+    # Service accounts and federation resources reject Admin API keys with a 403;
+    # they are only readable with an org:admin OAuth token. Must run before the API
+    # key sync, which edges service-account-owned keys to their principal.
+    if is_federated(credential):
+        cartography.intel.anthropic.serviceaccounts.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+
+        cartography.intel.anthropic.federation.sync(
+            neo4j_session,
+            api_session,
+            common_job_parameters,
+        )
+    else:
+        logger.info(
+            "Skipping Anthropic service accounts and federation resources: those "
+            "endpoints reject Admin API keys. Configure Workload Identity "
+            "Federation to ingest them.",
+        )
 
     cartography.intel.anthropic.apikeys.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
     )
+
+    if config.anthropic_workspace_federation_rule_id:
+        _sync_workspace_plane(neo4j_session, config, common_job_parameters, workspaces)
+        _cleanup_detached_workspace_resources(neo4j_session, config.update_tag)
+    else:
+        logger.info(
+            "Skipping Anthropic skills, agents and other per-workspace resources: "
+            "they need a workspace:developer credential. Set "
+            "--anthropic-workspace-federation-rule-id to ingest them.",
+        )

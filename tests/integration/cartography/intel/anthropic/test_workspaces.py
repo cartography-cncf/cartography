@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import patch
 
 import requests
@@ -15,9 +16,12 @@ TEST_ORG_ID = "8834c225-ea27-405a-aea9-5ed5f07f4858"
 
 
 def _ensure_local_neo4j_has_test_workspaces(neo4j_session):
+    workspaces = copy.deepcopy(tests.data.anthropic.workspaces.ANTHROPIC_WORKSPACES)
+    for workspace in workspaces:
+        cartography.intel.anthropic.workspaces.transform_workspace(workspace)
     cartography.intel.anthropic.workspaces.load_workspaces(
         neo4j_session,
-        tests.data.anthropic.workspaces.ANTHROPIC_WORKSPACES,
+        workspaces,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
     )
@@ -53,15 +57,23 @@ def test_load_anthropic_workspaces(mock_api, mock_api_members, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert Workspaces exist
+    # Assert Workspaces exist, with the CMEK binding and residency posture flattened
+    # out of the nested data_residency object
     expected_nodes = {
         (
             "wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ",
             "Springfield Nuclear Power Plant",
+            "3f2b1c8e-9d4a-4f6b-8c1e-2a7d5b9e0f3c",
+            "ekey_01HxYzAbCdEfGhIjKlMnOpQr",
+            "us",
         ),
     }
     assert (
-        check_nodes(neo4j_session, "AnthropicWorkspace", ["id", "name"])
+        check_nodes(
+            neo4j_session,
+            "AnthropicWorkspace",
+            ["id", "name", "compartment_id", "external_key_id", "workspace_geo"],
+        )
         == expected_nodes
     )
 

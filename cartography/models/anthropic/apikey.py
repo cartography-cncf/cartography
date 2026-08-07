@@ -25,6 +25,20 @@ class AnthropicApiKeyNodeProperties(CartographyNodeProperties):
         "created_at",
         description="RFC 3339 timestamp when the API key was created.",
     )
+    expires_at: PropertyRef = PropertyRef(
+        "expires_at",
+        description=(
+            "RFC 3339 timestamp when the API key expires. Empty when the key never "
+            "expires."
+        ),
+    )
+    principal_type: PropertyRef = PropertyRef(
+        "principal.type",
+        description=(
+            "Type of principal the API key acts as: user or service_account. Empty "
+            "when the key is not bound to a principal."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -81,16 +95,46 @@ class AnthropicApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
 class AnthropicApiKeyToUserOwnedByRel(CartographyRelSchema):
-    """An API key is owned by a user account."""
+    """An API key is owned by a user account.
+
+    Mutually exclusive with AnthropicApiKeyToServiceAccountRel: `owner_user_id` is left
+    unset for a key whose principal is a service account, so a key never reports two
+    owners.
+    """
 
     target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("created_by.id")},
+        {"id": PropertyRef("owner_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNED_BY"
     properties: AnthropicApiKeyToUserOwnedByRelProperties = (
         AnthropicApiKeyToUserOwnedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AnthropicApiKeyToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:ServiceAccount)
+class AnthropicApiKeyToServiceAccountRel(CartographyRelSchema):
+    """An API key is owned by a service account.
+
+    Only set when the key's principal is a service account; keys bound to a human
+    edge to an AnthropicUser instead.
+    """
+
+    target_node_label: str = "AnthropicServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("owner_service_account_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: AnthropicApiKeyToServiceAccountRelProperties = (
+        AnthropicApiKeyToServiceAccountRelProperties()
     )
 
 
@@ -131,6 +175,7 @@ class AnthropicApiKeySchema(CartographyNodeSchema):
         [
             AnthropicApiKeyToUserRel(),
             AnthropicApiKeyToUserOwnedByRel(),
+            AnthropicApiKeyToServiceAccountRel(),
             AnthropicApiKeyToWorkspaceRel(),
         ],
     )

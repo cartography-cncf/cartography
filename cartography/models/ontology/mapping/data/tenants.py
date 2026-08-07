@@ -80,7 +80,22 @@ airbyte_mapping = OntologyMapping(
     ],
 )
 
-# Anthropic: No field to map in AnthropicOrganization (minimal properties)
+# Anthropic
+anthropic_mapping = OntologyMapping(
+    module_name="anthropic",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AnthropicOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Not available
+            ],
+        ),
+    ],
+)
 
 # AWS
 aws_mapping = OntologyMapping(
@@ -722,6 +737,7 @@ modal_mapping = OntologyMapping(
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
+    "anthropic": anthropic_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
     "azure": azure_mapping,
