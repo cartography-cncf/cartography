@@ -69,7 +69,7 @@ dependencies = [
     "azure-mgmt-resource>=26.0.0,<27",
     # Split out of azure-mgmt-resource in 25.0.0; provides azure.mgmt.resource.subscriptions.
     "azure-mgmt-resource-subscriptions>=1.0.0,<2",
-    "azure-mgmt-cosmosdb>=6.0.0",
+    "azure-mgmt-cosmosdb>=10.0.0",
     "azure-mgmt-web>=11.0.0",
     "azure-mgmt-eventgrid>=10.0.0",
     "azure-mgmt-logic>=10.0.0",
