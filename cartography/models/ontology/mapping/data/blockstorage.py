@@ -166,9 +166,30 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted", node_field="encrypted"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(ontology_field="state", node_field="state"),
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "flyio": flyio_mapping,
 }

@@ -200,6 +200,27 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlySecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # rotation_enabled: Not available
+            ],
+        ),
+    ],
+)
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -208,6 +229,7 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "railway": railway_mapping,
     "supabase": supabase_mapping,
+    "flyio": flyio_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
 }
