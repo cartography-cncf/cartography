@@ -34,6 +34,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Anthropic](../modules/anthropic/schema.md)
 - [AWS](../modules/aws/schema.md)
 - [Azure](../modules/azure/schema.md)
+- [BBOT](../modules/bbot/schema.md)
 - [Bigfix](../modules/bigfix/schema.md)
 - [Circleci](../modules/circleci/schema.md)
 - [Cloudflare](../modules/cloudflare/schema.md)

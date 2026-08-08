@@ -77,6 +77,23 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+# BBOT
+bbot_mapping = OntologyMapping(
+    module_name="bbot",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BbotDNSName",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 # Supabase
 supabase_mapping = OntologyMapping(
     module_name="supabase",
@@ -117,6 +134,7 @@ DNSRECORDS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
     "vercel": vercel_mapping,
+    "bbot": bbot_mapping,
     "supabase": supabase_mapping,
     "netlify": netlify_mapping,
 }
