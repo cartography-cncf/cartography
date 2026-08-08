@@ -1,0 +1,2478 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Supabase Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Syft" href="../syft/index.html" /><link rel="prev" title="Supabase Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/supabase/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/supabase/schema.html"/>
+  <meta property="og:title" content="Supabase Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Supabase</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Supabase Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#supabaseapikey">SupabaseApiKey</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabaseauthconfig">SupabaseAuthConfig</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasebranch">SupabaseBranch</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasecustomhostname">SupabaseCustomHostname</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasedatabase">SupabaseDatabase</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabaseedgefunction">SupabaseEdgeFunction</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabaseorganization">SupabaseOrganization</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabaseorganizationmember">SupabaseOrganizationMember</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasepooler">SupabasePooler</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabaseproject">SupabaseProject</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasesecret">SupabaseSecret</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasesecurityadvisorfinding">SupabaseSecurityAdvisorFinding</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasesigningkey">SupabaseSigningKey</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasessoprovider">SupabaseSSOProvider</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasestoragebucket">SupabaseStorageBucket</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#supabasethirdpartyauthintegration">SupabaseThirdPartyAuthIntegration</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Supabase</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Supabase Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/supabase/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/supabase/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/supabase/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/supabase/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/supabase/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="supabase-schema">
+<h1>Supabase Schema<a class="headerlink" href="#supabase-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    SupabaseBranch -- BRANCH_OF --&gt; SupabaseProject
+    SupabaseCustomHostname -- POINTS_TO --&gt; SupabaseProject
+    SupabaseOrganization -- RESOURCE --&gt; SupabaseOrganizationMember
+    SupabaseOrganization -- RESOURCE --&gt; SupabaseProject
+    SupabasePooler -- CONNECTS_TO --&gt; SupabaseDatabase
+    SupabaseProject -- RESOURCE --&gt; SupabaseApiKey
+    SupabaseProject -- RESOURCE --&gt; SupabaseAuthConfig
+    SupabaseProject -- RESOURCE --&gt; SupabaseBranch
+    SupabaseProject -- RESOURCE --&gt; SupabaseCustomHostname
+    SupabaseProject -- RESOURCE --&gt; SupabaseDatabase
+    SupabaseProject -- RESOURCE --&gt; SupabaseEdgeFunction
+    SupabaseProject -- RESOURCE --&gt; SupabasePooler
+    SupabaseProject -- RESOURCE --&gt; SupabaseSSOProvider
+    SupabaseProject -- RESOURCE --&gt; SupabaseSecret
+    SupabaseProject -- RESOURCE --&gt; SupabaseSecurityAdvisorFinding
+    SupabaseProject -- RESOURCE --&gt; SupabaseSigningKey
+    SupabaseProject -- RESOURCE --&gt; SupabaseStorageBucket
+    SupabaseProject -- RESOURCE --&gt; SupabaseThirdPartyAuthIntegration
+    SupabaseSecurityAdvisorFinding -- AFFECTS --&gt; SupabaseDatabase
+    </pre><section id="supabaseapikey">
+<h2>SupabaseApiKey<a class="headerlink" href="#supabaseapikey" title="Link to this heading">#</a></h2>
+<p>Represents a project API key. The key material is never stored. Cartography lists keys without the <code class="docutils literal notranslate"><span class="pre">reveal</span></code> parameter, though note the endpoint returns the value regardless; it is dropped during transformation and this node has no property to hold it.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;key</span> <span class="pre">id&gt;</span></code>. The prefix is required because the API returns <code class="docutils literal notranslate"><span class="pre">anon</span></code> and <code class="docutils literal notranslate"><span class="pre">service_role</span></code> as the ids of the legacy keys, which are identical in every project; without it two projects would share one node. When the API returns no id at all, the key type is used in its place</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Description of the key</p></td>
+</tr>
+<tr class="row-even"><td><p>hash</p></td>
+<td><p></p></td>
+<td><p>Server-side hash of the key</p></td>
+</tr>
+<tr class="row-odd"><td><p>inserted_at</p></td>
+<td><p></p></td>
+<td><p>When the key was created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the key</p></td>
+</tr>
+<tr class="row-odd"><td><p>prefix</p></td>
+<td><p></p></td>
+<td><p>Non-secret identifying prefix of the key</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">legacy</span></code>, <code class="docutils literal notranslate"><span class="pre">publishable</span></code> or <code class="docutils literal notranslate"><span class="pre">secret</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the key was last changed</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">inserted_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_updated_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseApiKey)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:APIKey)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="supabaseauthconfig">
+<h2>SupabaseAuthConfig<a class="headerlink" href="#supabaseauthconfig" title="Link to this heading">#</a></h2>
+<p>Represents the authentication configuration of a Supabase project. The API returns 237 fields for this resource; Cartography ingests a curated non-secret subset. SMTP credentials, the captcha secret, webhook hook secrets and test OTPs are never stored.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/auth</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disable_signup</p></td>
+<td><p></p></td>
+<td><p>Whether self-service sign-up is disabled</p></td>
+</tr>
+<tr class="row-even"><td><p>enabled_external_providers</p></td>
+<td><p></p></td>
+<td><p>Names of the enabled federated identity providers, derived from the <code class="docutils literal notranslate"><span class="pre">external_*_enabled</span></code> flags</p></td>
+</tr>
+<tr class="row-odd"><td><p>external_anonymous_users_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether anonymous sign-ins are allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>external_email_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether email sign-in is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>external_phone_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether phone sign-in is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>jwt_exp</p></td>
+<td><p></p></td>
+<td><p>Access token lifetime in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>mailer_otp_exp</p></td>
+<td><p></p></td>
+<td><p>Email OTP lifetime</p></td>
+</tr>
+<tr class="row-even"><td><p>mailer_otp_length</p></td>
+<td><p></p></td>
+<td><p>Email OTP length</p></td>
+</tr>
+<tr class="row-odd"><td><p>mailer_secure_email_change_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether email changes require confirmation on both addresses</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_max_enrolled_factors</p></td>
+<td><p></p></td>
+<td><p>Maximum factors a user may enrol</p></td>
+</tr>
+<tr class="row-odd"><td><p>mfa_phone_enroll_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether users may enrol a phone factor</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_phone_verify_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether phone factors may be used to verify</p></td>
+</tr>
+<tr class="row-odd"><td><p>mfa_totp_enroll_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether users may enrol a TOTP factor</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_totp_verify_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether TOTP factors may be used to verify</p></td>
+</tr>
+<tr class="row-odd"><td><p>mfa_web_authn_enroll_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether users may enrol a WebAuthn factor</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_web_authn_verify_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether WebAuthn factors may be used to verify</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_hibp_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether passwords are checked against Have I Been Pwned</p></td>
+</tr>
+<tr class="row-even"><td><p>password_min_length</p></td>
+<td><p></p></td>
+<td><p>Minimum password length</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_required_characters</p></td>
+<td><p></p></td>
+<td><p>Character classes required in passwords</p></td>
+</tr>
+<tr class="row-even"><td><p>rate_limit_anonymous_users</p></td>
+<td><p></p></td>
+<td><p>Anonymous sign-in rate limit</p></td>
+</tr>
+<tr class="row-odd"><td><p>rate_limit_otp</p></td>
+<td><p></p></td>
+<td><p>OTP send rate limit</p></td>
+</tr>
+<tr class="row-even"><td><p>rate_limit_token_refresh</p></td>
+<td><p></p></td>
+<td><p>Token refresh rate limit</p></td>
+</tr>
+<tr class="row-odd"><td><p>refresh_token_rotation_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether refresh tokens rotate on use</p></td>
+</tr>
+<tr class="row-even"><td><p>security_captcha_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether captcha protection is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>security_captcha_provider</p></td>
+<td><p></p></td>
+<td><p>The captcha provider in use</p></td>
+</tr>
+<tr class="row-even"><td><p>security_manual_linking_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether users may manually link identities</p></td>
+</tr>
+<tr class="row-odd"><td><p>security_refresh_token_reuse_interval</p></td>
+<td><p></p></td>
+<td><p>Grace period for reusing a rotated refresh token</p></td>
+</tr>
+<tr class="row-even"><td><p>security_update_password_require_reauthentication</p></td>
+<td><p></p></td>
+<td><p>Whether changing a password requires reauthentication</p></td>
+</tr>
+<tr class="row-odd"><td><p>sessions_inactivity_timeout</p></td>
+<td><p></p></td>
+<td><p>Session idle timeout</p></td>
+</tr>
+<tr class="row-even"><td><p>sessions_single_per_user</p></td>
+<td><p></p></td>
+<td><p>Whether a user may hold only one session</p></td>
+</tr>
+<tr class="row-odd"><td><p>sessions_timebox</p></td>
+<td><p></p></td>
+<td><p>Maximum absolute session lifetime</p></td>
+</tr>
+<tr class="row-even"><td><p>site_url</p></td>
+<td><p></p></td>
+<td><p>The project’s primary site URL</p></td>
+</tr>
+<tr class="row-odd"><td><p>sms_otp_exp</p></td>
+<td><p></p></td>
+<td><p>SMS OTP lifetime</p></td>
+</tr>
+<tr class="row-even"><td><p>uri_allow_list</p></td>
+<td><p></p></td>
+<td><p>Allowed post-authentication redirect URIs</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseAuthConfig)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasebranch">
+<h2>SupabaseBranch<a class="headerlink" href="#supabasebranch" title="Link to this heading">#</a></h2>
+<p>Represents a database preview branch. Branching is a paid feature tied to the GitHub integration; on projects without it this node type is simply absent.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The branch id</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the branch was created</p></td>
+</tr>
+<tr class="row-even"><td><p>deletion_scheduled_at</p></td>
+<td><p></p></td>
+<td><p>When the branch is scheduled for deletion</p></td>
+</tr>
+<tr class="row-odd"><td><p>git_branch</p></td>
+<td><p></p></td>
+<td><p>The Git branch this preview tracks</p></td>
+</tr>
+<tr class="row-even"><td><p>is_default</p></td>
+<td><p></p></td>
+<td><p>Whether this is the project’s default branch</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the branch</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_project_ref</p></td>
+<td><p></p></td>
+<td><p>Ref of the project the branch was created from</p></td>
+</tr>
+<tr class="row-odd"><td><p>persistent</p></td>
+<td><p></p></td>
+<td><p>Whether the branch survives after its pull request closes</p></td>
+</tr>
+<tr class="row-even"><td><p>pr_number</p></td>
+<td><p></p></td>
+<td><p>The pull request number this preview tracks</p></td>
+</tr>
+<tr class="row-odd"><td><p>preview_project_status</p></td>
+<td><p></p></td>
+<td><p>Status of the branch’s preview project</p></td>
+</tr>
+<tr class="row-even"><td><p>project_ref</p></td>
+<td><p>Yes</p></td>
+<td><p>Ref of the ephemeral project holding the branch’s data</p></td>
+</tr>
+<tr class="row-odd"><td><p>review_requested_at</p></td>
+<td><p></p></td>
+<td><p>When review was requested</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Status of the branch</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the branch was last changed</p></td>
+</tr>
+<tr class="row-even"><td><p>with_data</p></td>
+<td><p></p></td>
+<td><p>Whether the branch was seeded with production data</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseBranch)-[:BRANCH_OF]-&gt;(:SupabaseProject)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseBranch)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasecustomhostname">
+<h2>SupabaseCustomHostname<a class="headerlink" href="#supabasecustomhostname" title="Link to this heading">#</a></h2>
+<p>Represents a custom domain fronting a Supabase project’s API endpoint.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-dnsrecord"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">DNSRecord</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;hostname&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>custom_origin_server</p></td>
+<td><p></p></td>
+<td><p>The custom origin server, when one is configured</p></td>
+</tr>
+<tr class="row-even"><td><p>hostname</p></td>
+<td><p>Yes</p></td>
+<td><p>The custom hostname</p></td>
+</tr>
+<tr class="row-odd"><td><p>ssl_status</p></td>
+<td><p></p></td>
+<td><p>Status of the hostname’s TLS certificate</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Status of the custom hostname configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Always <code class="docutils literal notranslate"><span class="pre">CNAME</span></code>: a custom hostname always fronts the project’s own endpoint</p></td>
+</tr>
+<tr class="row-even"><td><p>verification_errors</p></td>
+<td><p></p></td>
+<td><p>Any outstanding domain verification errors</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">hostname</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">type</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseCustomHostname)-[:POINTS_TO]-&gt;(:SupabaseProject)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseCustomHostname)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasedatabase">
+<h2>SupabaseDatabase<a class="headerlink" href="#supabasedatabase" title="Link to this heading">#</a></h2>
+<p>Represents the Postgres database backing a Supabase project, together with its network, TLS and backup posture.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-database"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Database</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/postgres</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>db_allowed_cidrs</p></td>
+<td><p></p></td>
+<td><p>IPv4 CIDRs allowed to reach the database. An empty or absent value means unrestricted</p></td>
+</tr>
+<tr class="row-even"><td><p>db_allowed_cidrs_v6</p></td>
+<td><p></p></td>
+<td><p>IPv6 CIDRs allowed to reach the database</p></td>
+</tr>
+<tr class="row-odd"><td><p>host</p></td>
+<td><p>Yes</p></td>
+<td><p>The database hostname</p></td>
+</tr>
+<tr class="row-even"><td><p>latest_backup_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the most recent backup</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Display name, derived from the project name</p></td>
+</tr>
+<tr class="row-even"><td><p>network_restrictions_status</p></td>
+<td><p></p></td>
+<td><p>Status of the project’s network restriction configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p>pitr_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether point-in-time recovery is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>postgres_engine</p></td>
+<td><p></p></td>
+<td><p>The major Postgres engine version</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p></p></td>
+<td><p>The region hosting the database</p></td>
+</tr>
+<tr class="row-even"><td><p>release_channel</p></td>
+<td><p></p></td>
+<td><p>The release channel the database runs on</p></td>
+</tr>
+<tr class="row-odd"><td><p>ssl_enforced</p></td>
+<td><p></p></td>
+<td><p>Whether TLS is required for database connections</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>The Postgres version</p></td>
+</tr>
+<tr class="row-odd"><td><p>walg_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether WAL-G physical backups are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_endpoint</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">host</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_location</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">region</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_version</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">version</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabasePooler)-[:CONNECTS_TO]-&gt;(:SupabaseDatabase)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseDatabase)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseSecurityAdvisorFinding)-[:AFFECTS]-&gt;(:SupabaseDatabase)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabaseedgefunction">
+<h2>SupabaseEdgeFunction<a class="headerlink" href="#supabaseedgefunction" title="Link to this heading">#</a></h2>
+<p>Represents a Supabase edge function: a Deno function deployed at the project’s edge.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-function"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Function</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The function id</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the function was created</p></td>
+</tr>
+<tr class="row-even"><td><p>entrypoint_path</p></td>
+<td><p></p></td>
+<td><p>Path to the function entrypoint</p></td>
+</tr>
+<tr class="row-odd"><td><p>import_map</p></td>
+<td><p></p></td>
+<td><p>Whether the deployment uses an import map</p></td>
+</tr>
+<tr class="row-even"><td><p>import_map_path</p></td>
+<td><p></p></td>
+<td><p>Path to the import map</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Display name of the function</p></td>
+</tr>
+<tr class="row-even"><td><p>slug</p></td>
+<td><p>Yes</p></td>
+<td><p>The function slug, which forms its invocation URL</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ACTIVE</span></code>, <code class="docutils literal notranslate"><span class="pre">REMOVED</span></code> or <code class="docutils literal notranslate"><span class="pre">THROTTLED</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the function was last deployed</p></td>
+</tr>
+<tr class="row-odd"><td><p>verify_jwt</p></td>
+<td><p></p></td>
+<td><p>Whether a valid project JWT is required to invoke the function. <code class="docutils literal notranslate"><span class="pre">false</span></code> means it is publicly invokable</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Deployment version counter</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_deployment_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseEdgeFunction)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabaseorganization">
+<h2>SupabaseOrganization<a class="headerlink" href="#supabaseorganization" title="Link to this heading">#</a></h2>
+<p>Represents a Supabase organization: the billing and membership boundary that owns projects.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The organization slug, which is how every organization-scoped API path addresses it</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>allowed_release_channels</p></td>
+<td><p></p></td>
+<td><p>Release channels this organization may deploy projects on</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Display name of the organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>opt_in_tags</p></td>
+<td><p></p></td>
+<td><p>Feature opt-in tags set on the organization</p></td>
+</tr>
+<tr class="row-even"><td><p>organization_id</p></td>
+<td><p></p></td>
+<td><p>The opaque organization identifier returned by the API</p></td>
+</tr>
+<tr class="row-odd"><td><p>plan</p></td>
+<td><p></p></td>
+<td><p>The organization’s subscription plan</p></td>
+</tr>
+<tr class="row-even"><td><p>slug</p></td>
+<td><p>Yes</p></td>
+<td><p>The organization slug</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseOrganization)-[:RESOURCE]-&gt;(:SupabaseOrganizationMember)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseOrganization)-[:RESOURCE]-&gt;(:SupabaseProject)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabaseorganizationmember">
+<h2>SupabaseOrganizationMember<a class="headerlink" href="#supabaseorganizationmember" title="Link to this heading">#</a></h2>
+<p>Represents a user who is a member of a Supabase organization.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;org</span> <span class="pre">slug&gt;/&lt;user</span> <span class="pre">id&gt;</span></code>. This node is a membership, not a person: <code class="docutils literal notranslate"><span class="pre">role_name</span></code> is per-organization, so a user belonging to several organizations gets one node per organization, the same way <code class="docutils literal notranslate"><span class="pre">AWSUser</span></code> is scoped per account</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>The member’s email address</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the member has multi-factor authentication enabled on their Supabase account</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_name</p></td>
+<td><p></p></td>
+<td><p>The member’s role in the organization (Owner, Administrator, Developer, …)</p></td>
+</tr>
+<tr class="row-even"><td><p>user_id</p></td>
+<td><p>Yes</p></td>
+<td><p>The member’s Supabase user id, shared across their memberships</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_name</p></td>
+<td><p></p></td>
+<td><p>The member’s username</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_has_mfa</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">mfa_enabled</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_username</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">user_name</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseOrganization)-[:RESOURCE]-&gt;(:SupabaseOrganizationMember)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:UserAccount)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasepooler">
+<h2>SupabasePooler<a class="headerlink" href="#supabasepooler" title="Link to this heading">#</a></h2>
+<p>Represents a Supavisor connection pooler: a second network endpoint onto the project’s Postgres database.</p>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;identifier&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>database_type</p></td>
+<td><p></p></td>
+<td><p>Whether the pooler fronts the primary or a read replica</p></td>
+</tr>
+<tr class="row-even"><td><p>db_host</p></td>
+<td><p>Yes</p></td>
+<td><p>Hostname clients connect to</p></td>
+</tr>
+<tr class="row-odd"><td><p>db_name</p></td>
+<td><p></p></td>
+<td><p>The database name behind the pooler</p></td>
+</tr>
+<tr class="row-even"><td><p>db_port</p></td>
+<td><p></p></td>
+<td><p>Port clients connect to</p></td>
+</tr>
+<tr class="row-odd"><td><p>db_user</p></td>
+<td><p></p></td>
+<td><p>The database user the pooler authenticates as</p></td>
+</tr>
+<tr class="row-even"><td><p>default_pool_size</p></td>
+<td><p></p></td>
+<td><p>Default server-side pool size</p></td>
+</tr>
+<tr class="row-odd"><td><p>identifier</p></td>
+<td><p></p></td>
+<td><p>The pooler identifier</p></td>
+</tr>
+<tr class="row-even"><td><p>is_using_scram_auth</p></td>
+<td><p></p></td>
+<td><p>Whether SCRAM authentication is in use</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_client_conn</p></td>
+<td><p></p></td>
+<td><p>Maximum client connections</p></td>
+</tr>
+<tr class="row-even"><td><p>pool_mode</p></td>
+<td><p></p></td>
+<td><p>Pooling mode (<code class="docutils literal notranslate"><span class="pre">transaction</span></code> or <code class="docutils literal notranslate"><span class="pre">session</span></code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabasePooler)-[:CONNECTS_TO]-&gt;(:SupabaseDatabase)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabasePooler)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabaseproject">
+<h2>SupabaseProject<a class="headerlink" href="#supabaseproject" title="Link to this heading">#</a></h2>
+<p>Represents a Supabase project: the isolation boundary containing a Postgres database, an auth service, storage buckets and edge functions.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The project ref, the 20-character identifier used in every project-scoped API path</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the project was created</p></td>
+</tr>
+<tr class="row-even"><td><p>legacy_api_keys_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the legacy JWT-based <code class="docutils literal notranslate"><span class="pre">anon</span></code> and <code class="docutils literal notranslate"><span class="pre">service_role</span></code> keys are still accepted</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Display name of the project</p></td>
+</tr>
+<tr class="row-even"><td><p>organization_slug</p></td>
+<td><p></p></td>
+<td><p>Slug of the owning organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>postgrest_db_extra_search_path</p></td>
+<td><p></p></td>
+<td><p>Extra schemas added to the REST search path</p></td>
+</tr>
+<tr class="row-even"><td><p>postgrest_db_schema</p></td>
+<td><p></p></td>
+<td><p>The Postgres schemas exposed over the public REST API</p></td>
+</tr>
+<tr class="row-odd"><td><p>postgrest_max_rows</p></td>
+<td><p></p></td>
+<td><p>Maximum rows a single REST request may return</p></td>
+</tr>
+<tr class="row-even"><td><p>realtime_presence_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether realtime presence is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>realtime_private_only</p></td>
+<td><p></p></td>
+<td><p>Whether realtime channels require authorization</p></td>
+</tr>
+<tr class="row-even"><td><p>ref</p></td>
+<td><p>Yes</p></td>
+<td><p>The project ref</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p></p></td>
+<td><p>The region hosting the project</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Project lifecycle status (<code class="docutils literal notranslate"><span class="pre">ACTIVE_HEALTHY</span></code>, <code class="docutils literal notranslate"><span class="pre">INACTIVE</span></code>, <code class="docutils literal notranslate"><span class="pre">PAUSING</span></code>, …)</p></td>
+</tr>
+<tr class="row-odd"><td><p>storage_file_size_limit</p></td>
+<td><p></p></td>
+<td><p>Maximum upload size for storage objects, in bytes</p></td>
+</tr>
+<tr class="row-even"><td><p>storage_s3_protocol_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the S3-compatible storage protocol is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>vanity_subdomain</p></td>
+<td><p></p></td>
+<td><p>The project’s vanity subdomain, when configured</p></td>
+</tr>
+<tr class="row-even"><td><p>vanity_subdomain_status</p></td>
+<td><p></p></td>
+<td><p>Status of the vanity subdomain configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseBranch)-[:BRANCH_OF]-&gt;(:SupabaseProject)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseCustomHostname)-[:POINTS_TO]-&gt;(:SupabaseProject)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseOrganization)-[:RESOURCE]-&gt;(:SupabaseProject)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseApiKey)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseAuthConfig)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseBranch)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseCustomHostname)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseDatabase)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseEdgeFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabasePooler)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSSOProvider)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSecret)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSecurityAdvisorFinding)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSigningKey)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseStorageBucket)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseThirdPartyAuthIntegration)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasesecret">
+<h2>SupabaseSecret<a class="headerlink" href="#supabasesecret" title="Link to this heading">#</a></h2>
+<p>Represents an edge function secret. Only the name and last-updated timestamp are stored; the value returned by the API is dropped before ingestion.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;name&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the secret</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the secret was last changed</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_updated_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSecret)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasesecurityadvisorfinding">
+<h2>SupabaseSecurityAdvisorFinding<a class="headerlink" href="#supabasesecurityadvisorfinding" title="Link to this heading">#</a></h2>
+<p>Represents a finding from Supabase’s own security advisor, for example a public table with row level security disabled, or a security-definer view.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-securityissue"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">SecurityIssue</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;cache</span> <span class="pre">key&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>categories</p></td>
+<td><p></p></td>
+<td><p>Advisor categories the lint belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>What the lint checks</p></td>
+</tr>
+<tr class="row-odd"><td><p>detail</p></td>
+<td><p></p></td>
+<td><p>Details of this particular occurrence</p></td>
+</tr>
+<tr class="row-even"><td><p>entity</p></td>
+<td><p></p></td>
+<td><p>Fully-qualified name of the affected database object</p></td>
+</tr>
+<tr class="row-odd"><td><p>entity_name</p></td>
+<td><p></p></td>
+<td><p>Name of the affected object</p></td>
+</tr>
+<tr class="row-even"><td><p>entity_schema</p></td>
+<td><p></p></td>
+<td><p>Schema of the affected object</p></td>
+</tr>
+<tr class="row-odd"><td><p>entity_type</p></td>
+<td><p></p></td>
+<td><p>Type of the affected object (table, view, function, …)</p></td>
+</tr>
+<tr class="row-even"><td><p>facing</p></td>
+<td><p></p></td>
+<td><p>Exposure of the affected object. <code class="docutils literal notranslate"><span class="pre">EXTERNAL</span></code> means it is reachable from outside the project</p></td>
+</tr>
+<tr class="row-odd"><td><p>level</p></td>
+<td><p></p></td>
+<td><p>Advisor severity (<code class="docutils literal notranslate"><span class="pre">ERROR</span></code>, <code class="docutils literal notranslate"><span class="pre">WARN</span></code>, <code class="docutils literal notranslate"><span class="pre">INFO</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>The lint identifier (e.g. <code class="docutils literal notranslate"><span class="pre">rls_disabled_in_public</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>remediation</p></td>
+<td><p></p></td>
+<td><p>Link to remediation guidance</p></td>
+</tr>
+<tr class="row-even"><td><p>title</p></td>
+<td><p></p></td>
+<td><p>Human-readable title of the finding</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_severity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">level</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_title</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">title</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSecurityAdvisorFinding)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseSecurityAdvisorFinding)-[:AFFECTS]-&gt;(:SupabaseDatabase)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasesigningkey">
+<h2>SupabaseSigningKey<a class="headerlink" href="#supabasesigningkey" title="Link to this heading">#</a></h2>
+<p>Represents a JWT signing key used to mint the project’s access tokens. Only public metadata is stored.</p>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The signing key id</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>algorithm</p></td>
+<td><p></p></td>
+<td><p>Signing algorithm (<code class="docutils literal notranslate"><span class="pre">ES256</span></code>, <code class="docutils literal notranslate"><span class="pre">RS256</span></code>, <code class="docutils literal notranslate"><span class="pre">HS256</span></code>, …)</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the key was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Rotation status of the key (<code class="docutils literal notranslate"><span class="pre">in_use</span></code>, <code class="docutils literal notranslate"><span class="pre">standby</span></code>, <code class="docutils literal notranslate"><span class="pre">revoked</span></code>, …)</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the key was last changed</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSigningKey)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasessoprovider">
+<h2>SupabaseSSOProvider<a class="headerlink" href="#supabasessoprovider" title="Link to this heading">#</a></h2>
+<p>Represents a SAML identity provider configured for a project’s auth service.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-identityprovider"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">IdentityProvider</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The provider id</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the provider was configured</p></td>
+</tr>
+<tr class="row-even"><td><p>domains</p></td>
+<td><p></p></td>
+<td><p>Email domains routed to this provider</p></td>
+</tr>
+<tr class="row-odd"><td><p>entity_id</p></td>
+<td><p>Yes</p></td>
+<td><p>The SAML entity id, which is also the trust identifier</p></td>
+</tr>
+<tr class="row-even"><td><p>metadata_url</p></td>
+<td><p></p></td>
+<td><p>URL of the provider’s SAML metadata</p></td>
+</tr>
+<tr class="row-odd"><td><p>name_id_format</p></td>
+<td><p></p></td>
+<td><p>The requested SAML NameID format</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the provider was last changed</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_issuer</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">entity_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">entity_id</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_protocol</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseSSOProvider)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasestoragebucket">
+<h2>SupabaseStorageBucket<a class="headerlink" href="#supabasestoragebucket" title="Link to this heading">#</a></h2>
+<p>Represents a Supabase Storage bucket.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-objectstorage"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ObjectStorage</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;project</span> <span class="pre">ref&gt;/&lt;bucket</span> <span class="pre">id&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>bucket_id</p></td>
+<td><p>Yes</p></td>
+<td><p>The bucket id, unique within the project</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the bucket was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the bucket</p></td>
+</tr>
+<tr class="row-even"><td><p>owner</p></td>
+<td><p></p></td>
+<td><p>Owner of the bucket</p></td>
+</tr>
+<tr class="row-odd"><td><p>public</p></td>
+<td><p></p></td>
+<td><p>Whether every object in the bucket is readable without authentication</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the bucket was last changed</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_public</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">public</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseStorageBucket)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="supabasethirdpartyauthintegration">
+<h2>SupabaseThirdPartyAuthIntegration<a class="headerlink" href="#supabasethirdpartyauthintegration" title="Link to this heading">#</a></h2>
+<p>Represents an external OIDC issuer whose JWTs the project’s auth service accepts, which is a trust edge into the project.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-identityprovider"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">IdentityProvider</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The integration id</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>inserted_at</p></td>
+<td><p></p></td>
+<td><p>When the integration was created</p></td>
+</tr>
+<tr class="row-even"><td><p>jwks_url</p></td>
+<td><p></p></td>
+<td><p>URL of the issuer’s JWKS</p></td>
+</tr>
+<tr class="row-odd"><td><p>oidc_issuer_url</p></td>
+<td><p>Yes</p></td>
+<td><p>The trusted OIDC issuer URL</p></td>
+</tr>
+<tr class="row-even"><td><p>resolved_at</p></td>
+<td><p></p></td>
+<td><p>When the issuer’s JWKS was last resolved</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>The integration type (<code class="docutils literal notranslate"><span class="pre">firebase</span></code>, <code class="docutils literal notranslate"><span class="pre">auth0</span></code>, <code class="docutils literal notranslate"><span class="pre">awsCognito</span></code>, …)</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the integration was last changed</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_issuer</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">oidc_issuer_url</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">oidc_issuer_url</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_protocol</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SupabaseProject)-[:RESOURCE]-&gt;(:SupabaseThirdPartyAuthIntegration)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Supabase Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../syft/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Syft</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>

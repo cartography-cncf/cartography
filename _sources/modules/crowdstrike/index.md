@@ -1,0 +1,6 @@
+# Crowdstrike
+
+```{toctree}
+config
+schema
+```

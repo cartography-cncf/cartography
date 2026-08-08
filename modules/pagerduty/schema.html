@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Pagerduty Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Railway" href="../railway/index.html" /><link rel="prev" title="PagerDuty Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/pagerduty/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/pagerduty/schema.html"/>
+  <meta property="og:title" content="Pagerduty Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">PagerDuty</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#pagerdutyescalationpolicy">PagerDutyEscalationPolicy</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyescalationpolicyrule">PagerDutyEscalationPolicyRule</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyintegration">PagerDutyIntegration</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyschedule">PagerDutySchedule</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyschedulelayer">PagerDutyScheduleLayer</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyservice">PagerDutyService</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyteam">PagerDutyTeam</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyuser">PagerDutyUser</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyvendor">PagerDutyVendor</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">PagerDuty</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Pagerduty Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/pagerduty/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/pagerduty/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/pagerduty/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/pagerduty/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/pagerduty/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="pagerduty-schema">
+<h1>Pagerduty Schema<a class="headerlink" href="#pagerduty-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    PagerDutyEscalationPolicy -- HAS_RULE --&gt; PagerDutyEscalationPolicyRule
+    PagerDutyEscalationPolicyRule -- ASSOCIATED_WITH --&gt; PagerDutySchedule
+    PagerDutyIntegration -- HAS_VENDOR --&gt; PagerDutyVendor
+    PagerDutySchedule -- HAS_LAYER --&gt; PagerDutyScheduleLayer
+    PagerDutyService -- ASSOCIATED_WITH --&gt; PagerDutyEscalationPolicy
+    PagerDutyService -- HAS_INTEGRATION --&gt; PagerDutyIntegration
+    PagerDutyTeam -- ASSOCIATED_WITH --&gt; PagerDutyEscalationPolicy
+    PagerDutyTeam -- ASSOCIATED_WITH --&gt; PagerDutyService
+    PagerDutyUser -- ASSOCIATED_WITH --&gt; PagerDutyEscalationPolicyRule
+    PagerDutyUser -- MEMBER_OF --&gt; PagerDutySchedule
+    PagerDutyUser -- MEMBER_OF --&gt; PagerDutyScheduleLayer
+    PagerDutyUser -- MEMBER_OF --&gt; PagerDutyTeam
+    </pre><section id="pagerdutyescalationpolicy">
+<h2>PagerDutyEscalationPolicy<a class="headerlink" href="#pagerdutyescalationpolicy" title="Link to this heading">#</a></h2>
+<p>A PagerDuty escalation policy for routing incidents.</p>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Escalation policy ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the escalation policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Escalation policy name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>num_loops</p></td>
+<td><p></p></td>
+<td><p>Number of times the escalation policy repeats.</p></td>
+</tr>
+<tr class="row-even"><td><p>on_call_handoff_notifications</p></td>
+<td><p></p></td>
+<td><p>Policy for sending on-call handoff notifications.</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the escalation policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the escalation policy.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyEscalationPolicy)-[:HAS_RULE]-&gt;(:PagerDutyEscalationPolicyRule)</span></code>: An escalation policy that contains this rule.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>order</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">_escalation_policy_order</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyService)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicy)</span></code>: A service associated with an escalation policy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyTeam)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicy)</span></code>: A team associated with an escalation policy.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyescalationpolicyrule">
+<h2>PagerDutyEscalationPolicyRule<a class="headerlink" href="#pagerdutyescalationpolicyrule" title="Link to this heading">#</a></h2>
+<p>A rule within a PagerDuty escalation policy.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Escalation policy rule ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>escalation_delay_in_minutes</p></td>
+<td><p>Yes</p></td>
+<td><p>Minutes before an unacknowledged incident is escalated.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyEscalationPolicy)-[:HAS_RULE]-&gt;(:PagerDutyEscalationPolicyRule)</span></code>: An escalation policy that contains this rule.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>order</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">_escalation_policy_order</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyEscalationPolicyRule)-[:ASSOCIATED_WITH]-&gt;(:PagerDutySchedule)</span></code>: A schedule associated with an escalation policy rule.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicyRule)</span></code>: A user associated with an escalation policy rule.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyintegration">
+<h2>PagerDutyIntegration<a class="headerlink" href="#pagerdutyintegration" title="Link to this heading">#</a></h2>
+<p>A PagerDuty integration configured on a service.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Integration ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the integration was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the integration.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Integration name.</p></td>
+</tr>
+<tr class="row-even"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the integration.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the integration.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyIntegration)-[:HAS_VENDOR]-&gt;(:PagerDutyVendor)</span></code>: The vendor provided by an integration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyService)-[:HAS_INTEGRATION]-&gt;(:PagerDutyIntegration)</span></code>: The service that contains an integration.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyschedule">
+<h2>PagerDutySchedule<a class="headerlink" href="#pagerdutyschedule" title="Link to this heading">#</a></h2>
+<p>A PagerDuty on-call schedule.</p>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Schedule ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Schedule description.</p></td>
+</tr>
+<tr class="row-even"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the schedule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Schedule name.</p></td>
+</tr>
+<tr class="row-even"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the schedule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>time_zone</p></td>
+<td><p></p></td>
+<td><p>Time zone used by the schedule.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the schedule.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyEscalationPolicyRule)-[:ASSOCIATED_WITH]-&gt;(:PagerDutySchedule)</span></code>: A schedule associated with an escalation policy rule.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutySchedule)-[:HAS_LAYER]-&gt;(:PagerDutyScheduleLayer)</span></code>: The schedule that contains this layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutySchedule)</span></code>: A user who is a member of a schedule.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyschedulelayer">
+<h2>PagerDutyScheduleLayer<a class="headerlink" href="#pagerdutyschedulelayer" title="Link to this heading">#</a></h2>
+<p>A rotation layer within a PagerDuty schedule.</p>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Schedule layer ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>end</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the schedule layer ends, if set.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Schedule layer name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>rotation_turn_length_seconds</p></td>
+<td><p></p></td>
+<td><p>Duration of each on-call shift in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p>rotation_virtual_start</p></td>
+<td><p></p></td>
+<td><p>Effective start timestamp for the layer rotation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>schedule_id</p></td>
+<td><p></p></td>
+<td><p>ID of the schedule containing this layer.</p></td>
+</tr>
+<tr class="row-even"><td><p>start</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the schedule layer starts.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutySchedule)-[:HAS_LAYER]-&gt;(:PagerDutyScheduleLayer)</span></code>: The schedule that contains this layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutyScheduleLayer)</span></code>: A user who is a member of a schedule layer.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyservice">
+<h2>PagerDutyService<a class="headerlink" href="#pagerdutyservice" title="Link to this heading">#</a></h2>
+<p>A PagerDuty service that receives and manages incidents.</p>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Service ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>acknowledgement_timeout</p></td>
+<td><p></p></td>
+<td><p>Seconds before an acknowledged incident becomes triggered.</p></td>
+</tr>
+<tr class="row-even"><td><p>alert_creation</p></td>
+<td><p></p></td>
+<td><p>Whether the service creates alerts.</p></td>
+</tr>
+<tr class="row-odd"><td><p>alert_grouping_parameters_type</p></td>
+<td><p></p></td>
+<td><p>Alert grouping strategy used by the service.</p></td>
+</tr>
+<tr class="row-even"><td><p>auto_resolve_timeout</p></td>
+<td><p></p></td>
+<td><p>Seconds before an open incident resolves automatically.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the service was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Service description.</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the service.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_during_support_hours_type</p></td>
+<td><p></p></td>
+<td><p>Urgency rule type used during support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>incident_urgency_rule_during_support_hours_urgency</p></td>
+<td><p></p></td>
+<td><p>Incident urgency used during support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_outside_support_hours_type</p></td>
+<td><p></p></td>
+<td><p>Urgency rule type used outside support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>incident_urgency_rule_outside_support_hours_urgency</p></td>
+<td><p></p></td>
+<td><p>Incident urgency used outside support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_type</p></td>
+<td><p></p></td>
+<td><p>Type of incident urgency rule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Service name.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Current service status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the service.</p></td>
+</tr>
+<tr class="row-even"><td><p>support_hours_days_of_week</p></td>
+<td><p></p></td>
+<td><p>Days of the week included in support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_hours_end_time</p></td>
+<td><p></p></td>
+<td><p>Daily end time for support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>support_hours_start_time</p></td>
+<td><p></p></td>
+<td><p>Daily start time for support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_hours_time_zone</p></td>
+<td><p></p></td>
+<td><p>Time zone used for support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>support_hours_type</p></td>
+<td><p></p></td>
+<td><p>Type of configured support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the service.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyService)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicy)</span></code>: A service associated with an escalation policy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyService)-[:HAS_INTEGRATION]-&gt;(:PagerDutyIntegration)</span></code>: The service that contains an integration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyTeam)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyService)</span></code>: A team associated with a service.</p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyteam">
+<h2>PagerDutyTeam<a class="headerlink" href="#pagerdutyteam" title="Link to this heading">#</a></h2>
+<p>A PagerDuty team with the canonical UserGroup label.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-usergroup"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserGroup</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Team ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_role</p></td>
+<td><p></p></td>
+<td><p>Default role assigned to team members.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Team description.</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the team.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Team name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the team.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the team.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_description</em></p></td>
+<td><p></p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">description</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyTeam)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicy)</span></code>: A team associated with an escalation policy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyTeam)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyService)</span></code>: A team associated with a service.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutyTeam)</span></code>: A user’s membership in a team, including the user’s team role.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">role</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyuser">
+<h2>PagerDutyUser<a class="headerlink" href="#pagerdutyuser" title="Link to this heading">#</a></h2>
+<p>A PagerDuty user account with the canonical UserAccount label.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>User ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>avatar_url</p></td>
+<td><p></p></td>
+<td><p>URL of the user’s avatar.</p></td>
+</tr>
+<tr class="row-even"><td><p>color</p></td>
+<td><p></p></td>
+<td><p>Color used for the user in schedules.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>User biography.</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>User email address.</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p></p></td>
+<td><p>PagerDuty web URL for the user.</p></td>
+</tr>
+<tr class="row-even"><td><p>invitation_sent</p></td>
+<td><p></p></td>
+<td><p>Whether the user has a pending invitation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>job_title</p></td>
+<td><p></p></td>
+<td><p>User job title.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>User name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role</p></td>
+<td><p></p></td>
+<td><p>User account role.</p></td>
+</tr>
+<tr class="row-even"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>time_zone</p></td>
+<td><p></p></td>
+<td><p>Preferred time zone for the user.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:ASSOCIATED_WITH]-&gt;(:PagerDutyEscalationPolicyRule)</span></code>: A user associated with an escalation policy rule.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutySchedule)</span></code>: A user who is a member of a schedule.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutyScheduleLayer)</span></code>: A user who is a member of a schedule layer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyUser)-[:MEMBER_OF]-&gt;(:PagerDutyTeam)</span></code>: A user’s membership in a team, including the user’s team role.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">role</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:UserAccount)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyvendor">
+<h2>PagerDutyVendor<a class="headerlink" href="#pagerdutyvendor" title="Link to this heading">#</a></h2>
+<p>A vendor that provides PagerDuty integrations.</p>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Vendor ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Vendor description.</p></td>
+</tr>
+<tr class="row-even"><td><p>integration_guide_url</p></td>
+<td><p></p></td>
+<td><p>URL of the vendor’s integration guide.</p></td>
+</tr>
+<tr class="row-odd"><td><p>logo_url</p></td>
+<td><p></p></td>
+<td><p>URL of the vendor’s logo.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Vendor name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p></p></td>
+<td><p>Short summary of the vendor.</p></td>
+</tr>
+<tr class="row-even"><td><p>thumbnail_url</p></td>
+<td><p></p></td>
+<td><p>URL of the vendor’s thumbnail image.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>PagerDuty object type for the vendor.</p></td>
+</tr>
+<tr class="row-even"><td><p>website_url</p></td>
+<td><p></p></td>
+<td><p>URL of the vendor’s website.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PagerDutyIntegration)-[:HAS_VENDOR]-&gt;(:PagerDutyVendor)</span></code>: The vendor provided by an integration.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">PagerDuty Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../railway/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Railway</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>

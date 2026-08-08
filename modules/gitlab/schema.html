@@ -1,0 +1,2860 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Gitlab Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Google Workspace" href="../googleworkspace/index.html" /><link rel="prev" title="GitLab Example Queries" href="queries.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/gitlab/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/gitlab/schema.html"/>
+  <meta property="og:title" content="Gitlab Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">GitLab</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#gitlabbranch">GitLabBranch</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabciconfig">GitLabCIConfig</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabciinclude">GitLabCIInclude</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcivariable">GitLabCIVariable</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcontainerimage">GitLabContainerImage</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcontainerimageattestation">GitLabContainerImageAttestation</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcontainerimagelayer">GitLabContainerImageLayer</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcontainerrepository">GitLabContainerRepository</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabcontainerrepositorytag">GitLabContainerRepositoryTag</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabdependency">GitLabDependency</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabdependencyfile">GitLabDependencyFile</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabenvironment">GitLabEnvironment</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabgroup">GitLabGroup</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlaborganization">GitLabOrganization</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabproject">GitLabProject</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabrunner">GitLabRunner</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gitlabuser">GitLabUser</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">GitLab</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Gitlab Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/gitlab/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/gitlab/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/gitlab/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/gitlab/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/gitlab/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="gitlab-schema">
+<h1>Gitlab Schema<a class="headerlink" href="#gitlab-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    GitLabCIConfig -- REFERENCES_VARIABLE --&gt; GitLabCIVariable
+    GitLabCIConfig -- USES_INCLUDE --&gt; GitLabCIInclude
+    GitLabContainerImage -- BUILT_FROM --&gt; GitLabContainerImage
+    GitLabContainerImage -- CONTAINS_IMAGE --&gt; GitLabContainerImage
+    GitLabContainerImage -- HAS_LAYER --&gt; GitLabContainerImageLayer
+    GitLabContainerImage -- HEAD --&gt; GitLabContainerImageLayer
+    GitLabContainerImage -- TAIL --&gt; GitLabContainerImageLayer
+    GitLabContainerImageAttestation -- ATTESTS --&gt; GitLabContainerImage
+    GitLabContainerImageLayer -- NEXT --&gt; GitLabContainerImageLayer
+    GitLabContainerRepository -- HAS_TAG --&gt; GitLabContainerRepositoryTag
+    GitLabContainerRepository -- REPO_IMAGE --&gt; GitLabContainerRepositoryTag
+    GitLabContainerRepositoryTag -- IMAGE --&gt; GitLabContainerImage
+    GitLabContainerRepositoryTag -- REFERENCES --&gt; GitLabContainerImage
+    GitLabDependencyFile -- HAS_DEP --&gt; GitLabDependency
+    GitLabEnvironment -- HAS_CI_VARIABLE --&gt; GitLabCIVariable
+    GitLabGroup -- CAN_ACCESS --&gt; GitLabProject
+    GitLabGroup -- HAS_CI_VARIABLE --&gt; GitLabCIVariable
+    GitLabGroup -- MEMBER_OF --&gt; GitLabGroup
+    GitLabGroup -- RESOURCE --&gt; GitLabCIVariable
+    GitLabGroup -- RESOURCE --&gt; GitLabRunner
+    GitLabOrganization -- RESOURCE --&gt; GitLabContainerImage
+    GitLabOrganization -- RESOURCE --&gt; GitLabContainerImageAttestation
+    GitLabOrganization -- RESOURCE --&gt; GitLabContainerImageLayer
+    GitLabOrganization -- RESOURCE --&gt; GitLabContainerRepository
+    GitLabOrganization -- RESOURCE --&gt; GitLabContainerRepositoryTag
+    GitLabOrganization -- RESOURCE --&gt; GitLabGroup
+    GitLabOrganization -- RESOURCE --&gt; GitLabProject
+    GitLabOrganization -- RESOURCE --&gt; GitLabRunner
+    GitLabOrganization -- RESOURCE --&gt; GitLabUser
+    GitLabProject -- HAS_BRANCH --&gt; GitLabBranch
+    GitLabProject -- HAS_CI_VARIABLE --&gt; GitLabCIVariable
+    GitLabProject -- HAS_DEPENDENCY_FILE --&gt; GitLabDependencyFile
+    GitLabProject -- HAS_ENVIRONMENT --&gt; GitLabEnvironment
+    GitLabProject -- MEMBER_OF --&gt; GitLabGroup
+    GitLabProject -- REQUIRES --&gt; GitLabDependency
+    GitLabProject -- RESOURCE --&gt; GitLabBranch
+    GitLabProject -- RESOURCE --&gt; GitLabCIConfig
+    GitLabProject -- RESOURCE --&gt; GitLabCIInclude
+    GitLabProject -- RESOURCE --&gt; GitLabCIVariable
+    GitLabProject -- RESOURCE --&gt; GitLabDependency
+    GitLabProject -- RESOURCE --&gt; GitLabDependencyFile
+    GitLabProject -- RESOURCE --&gt; GitLabEnvironment
+    GitLabProject -- RESOURCE --&gt; GitLabRunner
+    GitLabUser -- COMMITTED_TO --&gt; GitLabProject
+    GitLabUser -- MEMBER_OF --&gt; GitLabGroup
+    </pre><section id="gitlabbranch">
+<h2>GitLabBranch<a class="headerlink" href="#gitlabbranch" title="Link to this heading">#</a></h2>
+<p>Schema for GitLab Branch nodes.</p>
+<p>Branches belong to projects and have two relationships:</p>
+<ul class="simple">
+<li><p>RESOURCE: Sub-resource relationship for cleanup scoping (Branch -&gt; Project)</p></li>
+<li><p>HAS_BRANCH: Semantic relationship showing project ownership (Project -&gt; Branch)</p></li>
+</ul>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique branch identifier formed from the project URL and branch name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>default</p></td>
+<td><p></p></td>
+<td><p>Whether this is the project’s default branch.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Branch name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>protected</p></td>
+<td><p></p></td>
+<td><p>Whether the branch is protected.</p></td>
+</tr>
+<tr class="row-even"><td><p>web_url</p></td>
+<td><p></p></td>
+<td><p>URL for viewing the branch in GitLab.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_BRANCH]-&gt;(:GitLabBranch)</span></code>: Relationship from GitLabProject to GitLabBranch.
+Created when branches are loaded to establish the project-branch connection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabBranch)</span></code>: Sub-resource relationship from GitLabBranch to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabciconfig">
+<h2>GitLabCIConfig<a class="headerlink" href="#gitlabciconfig" title="Link to this heading">#</a></h2>
+<p>A parsed GitLab CI/CD pipeline configuration.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-cicdpipeline"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">CICDPipeline</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite identifier formed from the project ID and CI config file path.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_image</p></td>
+<td><p></p></td>
+<td><p>Top-level or default container image configured for CI jobs.</p></td>
+</tr>
+<tr class="row-even"><td><p>file_path</p></td>
+<td><p></p></td>
+<td><p>Path of the CI config file in the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_includes</p></td>
+<td><p></p></td>
+<td><p>Whether the pipeline has any include entries.</p></td>
+</tr>
+<tr class="row-odd"><td><p>include_count</p></td>
+<td><p></p></td>
+<td><p>Number of resolved CI config include entries.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_merged</p></td>
+<td><p></p></td>
+<td><p>Whether the parsed YAML was GitLab’s merged config with includes expanded.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_valid</p></td>
+<td><p></p></td>
+<td><p>Whether GitLab CI lint validated the config, or null when lint was unavailable.</p></td>
+</tr>
+<tr class="row-even"><td><p>job_count</p></td>
+<td><p></p></td>
+<td><p>Number of CI jobs detected in the parsed config.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric ID of the GitLab project that owns the config.</p></td>
+</tr>
+<tr class="row-even"><td><p>referenced_protected_variables</p></td>
+<td><p></p></td>
+<td><p>Referenced variable keys that match protected project variables.</p></td>
+</tr>
+<tr class="row-odd"><td><p>referenced_variable_keys</p></td>
+<td><p></p></td>
+<td><p>Non-predefined CI/CD variable keys referenced in the config.</p></td>
+</tr>
+<tr class="row-even"><td><p>stages</p></td>
+<td><p></p></td>
+<td><p>Pipeline stage names declared by the config.</p></td>
+</tr>
+<tr class="row-odd"><td><p>trigger_rules</p></td>
+<td><p></p></td>
+<td><p>Trigger categories heuristically detected in the config.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">file_path</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabCIConfig)-[:REFERENCES_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab CI configuration to the CI variables it references.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabCIConfig)-[:USES_INCLUDE]-&gt;(:GitLabCIInclude)</span></code>: Links a GitLab CI configuration to an include it uses.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIConfig)</span></code>: Sub-resource relationship — scoped to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabciinclude">
+<h2>GitLabCIInclude<a class="headerlink" href="#gitlabciinclude" title="Link to this heading">#</a></h2>
+<p>An include entry referenced by a GitLab CI/CD configuration.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite identifier formed from the project ID, include type, location, and ref.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>include_type</p></td>
+<td><p>Yes</p></td>
+<td><p>Include type: local, project, remote, template, or component.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_local</p></td>
+<td><p></p></td>
+<td><p>Whether the include references a file in the same repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_pinned</p></td>
+<td><p></p></td>
+<td><p>Whether the include resolves to an immutable target.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>Yes</p></td>
+<td><p>Included path, project path, URL, template name, or component identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>ref</p></td>
+<td><p></p></td>
+<td><p>Commit SHA, tag, or branch used by a project include.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabCIConfig)-[:USES_INCLUDE]-&gt;(:GitLabCIInclude)</span></code>: Links a GitLab CI configuration to an include it uses.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIInclude)</span></code>: Sub-resource relationship — scoped to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcivariable">
+<h2>GitLabCIVariable<a class="headerlink" href="#gitlabcivariable" title="Link to this heading">#</a></h2>
+<p>A GitLab CI/CD variable defined at group or project scope.</p>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite identifier formed from scope type, scope ID, key, and environment scope.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the variable.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_scope</p></td>
+<td><p>Yes</p></td>
+<td><p>Environment name or glob that controls where the variable is available.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>key</p></td>
+<td><p>Yes</p></td>
+<td><p>Variable key exposed to CI/CD jobs.</p></td>
+</tr>
+<tr class="row-odd"><td><p>masked</p></td>
+<td><p></p></td>
+<td><p>Whether GitLab attempts to mask the variable value in job logs.</p></td>
+</tr>
+<tr class="row-even"><td><p>masked_and_hidden</p></td>
+<td><p></p></td>
+<td><p>Whether the value is masked and cannot be retrieved after creation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>protected</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether the variable is exposed only to pipelines on protected refs.</p></td>
+</tr>
+<tr class="row-even"><td><p>raw</p></td>
+<td><p></p></td>
+<td><p>Whether GitLab skips variable expansion for the value.</p></td>
+</tr>
+<tr class="row-odd"><td><p>scope_type</p></td>
+<td><p></p></td>
+<td><p>Variable ownership scope: group or project.</p></td>
+</tr>
+<tr class="row-even"><td><p>variable_type</p></td>
+<td><p></p></td>
+<td><p>GitLab variable type: env_var or file.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabCIConfig)-[:REFERENCES_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab CI configuration to the CI variables it references.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabEnvironment)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: An environment uses each project CI variable whose scope applies to it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab group to a CI variable it defines.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:RESOURCE]-&gt;(:GitLabCIVariable)</span></code>: Sub-resource for group-level CI variables — scoped to GitLabGroup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab project to a CI variable it defines.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIVariable)</span></code>: Sub-resource for project-level CI variables — scoped to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcontainerimage">
+<h2>GitLabContainerImage<a class="headerlink" href="#gitlabcontainerimage" title="Link to this heading">#</a></h2>
+<p>This node label is loaded by more than one sync path:</p>
+<ul class="simple">
+<li><p>A digest-addressed container image or multi-architecture manifest list.</p></li>
+<li><p>Build provenance attached to an image already present in the graph.</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Conditional Labels</strong>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-image"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Image</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">type</span></code> equals <code class="docutils literal notranslate"><span class="pre">image</span></code>. A concrete single-platform container image.</p></li>
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-imagemanifestlist"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ImageManifestList</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">type</span></code> equals <code class="docutils literal notranslate"><span class="pre">manifest_list</span></code>. A cross-provider ImageManifestList resource in Cartography’s ontology.</p></li>
+</ul>
+</div></blockquote>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Content-addressable container image digest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>architecture</p></td>
+<td><p></p></td>
+<td><p>CPU architecture from the image config.</p></td>
+</tr>
+<tr class="row-even"><td><p>child_image_digests</p></td>
+<td><p></p></td>
+<td><p>Digests of platform-specific images contained by a manifest list.</p></td>
+</tr>
+<tr class="row-odd"><td><p>digest</p></td>
+<td><p>Yes</p></td>
+<td><p>Content-addressable container image digest.</p></td>
+</tr>
+<tr class="row-even"><td><p>head_layer_diff_id</p></td>
+<td><p></p></td>
+<td><p>Uncompressed digest of the first base layer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>layer_diff_ids</p></td>
+<td><p></p></td>
+<td><p>Ordered uncompressed layer digests that compose the image.</p></td>
+</tr>
+<tr class="row-even"><td><p>media_type</p></td>
+<td><p></p></td>
+<td><p>OCI or Docker media type of the image manifest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>os</p></td>
+<td><p></p></td>
+<td><p>Operating system from the image config.</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_image_digest</p></td>
+<td><p></p></td>
+<td><p>Parent image digest extracted from image provenance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>parent_image_uri</p></td>
+<td><p></p></td>
+<td><p>Parent image reference extracted from image provenance.</p></td>
+</tr>
+<tr class="row-even"><td><p>schema_version</p></td>
+<td><p></p></td>
+<td><p>Container image manifest schema version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_file</p></td>
+<td><p></p></td>
+<td><p>Source definition file extracted from image provenance.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_revision</p></td>
+<td><p></p></td>
+<td><p>Source revision extracted from image provenance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_uri</p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized source repository URL extracted from image provenance.</p></td>
+</tr>
+<tr class="row-even"><td><p>tail_layer_diff_id</p></td>
+<td><p></p></td>
+<td><p>Uncompressed digest of the final topmost layer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Yes</p></td>
+<td><p>Image type: image or manifest_list.</p></td>
+</tr>
+<tr class="row-even"><td><p>uri</p></td>
+<td><p>Yes</p></td>
+<td><p>Container registry repository URI without a tag or digest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>variant</p></td>
+<td><p></p></td>
+<td><p>CPU architecture variant from the image config.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_architecture</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">architecture</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_digest</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">digest</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_os</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">os</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_uri</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">uri</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSECSContainer)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Relationship from AWSECSContainer to GitLabContainerImage.
+Matches containers to GitLab registry images by runtime digest (imageDigest).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSLambda)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AzureContainerInstance)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: An Azure container uses a GitLab container image with the same digest.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AzureFunctionApp)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: An Azure Function App uses a GitLab container image with the same digest.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GCPCloudRunJobContainer)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GCPCloudRunServiceContainer)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:BUILT_FROM]-&gt;(:GitLabContainerImage)</span></code>: Relationship from a GitLabContainerImage to its parent/base image.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>confidence</p></td>
+<td><p>Confidence score for the parent image match.</p></td>
+</tr>
+<tr class="row-odd"><td><p>from_attestation</p></td>
+<td><p>Whether the parent image was identified from an attestation.</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_image_uri</p></td>
+<td><p>Parent image reference reported by provenance.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:CONTAINS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Relationship from a manifest list to its platform-specific child images.
+Only applies to images with type=”manifest_list”.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:HAS_LAYER]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its constituent layers.
+Only applies to images with type=”image” (not manifest lists).
+Layers are ordered using NEXT relationships and layer_diff_ids array on the image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:HEAD]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its first (base) layer.
+Direction: (GitLabContainerImage)-[:HEAD]-&gt;(GitLabContainerImageLayer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:TAIL]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its last (topmost) layer.
+Direction: (GitLabContainerImage)-[:TAIL]-&gt;(GitLabContainerImageLayer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImageAttestation)-[:ATTESTS]-&gt;(:GitLabContainerImage)</span></code>: Relationship from attestation to the image it attests.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepositoryTag)-[:IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Generic cross-registry edge from ImageTag to Image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepositoryTag)-[:REFERENCES]-&gt;(:GitLabContainerImage)</span></code>: Links a tag to the container image it references via digest.
+Multiple tags can reference the same image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImage)</span></code>: Sub-resource relationship from GitLabContainerImage to GitLabOrganization.
+Images are scoped to organizations for cleanup and to allow cross-project deduplication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Links a container to the image it runs, hosted in the GitLab registry.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PackageVersion)-[:DEPLOYED]-&gt;(:Image)</span></code>: A canonical package version is deployed on a container image.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcontainerimageattestation">
+<h2>GitLabContainerImageAttestation<a class="headerlink" href="#gitlabcontainerimageattestation" title="Link to this heading">#</a></h2>
+<p>Schema for GitLab Container Image Attestation nodes.</p>
+<p>Relationships:</p>
+<ul class="simple">
+<li><p>RESOURCE: Sub-resource to GitLabOrganization for cleanup</p></li>
+<li><p>ATTESTS: Links to the GitLabContainerImage this attestation validates</p></li>
+</ul>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Attestation manifest digest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>attestation_type</p></td>
+<td><p>Yes</p></td>
+<td><p>Discovery type: sig, att, or buildx.</p></td>
+</tr>
+<tr class="row-even"><td><p>attests_digest</p></td>
+<td><p>Yes</p></td>
+<td><p>Digest of the container image attested by this manifest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>digest</p></td>
+<td><p>Yes</p></td>
+<td><p>Attestation manifest digest.</p></td>
+</tr>
+<tr class="row-even"><td><p>media_type</p></td>
+<td><p></p></td>
+<td><p>OCI media type of the attestation manifest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>predicate_type</p></td>
+<td><p></p></td>
+<td><p>In-toto predicate type reported by the attestation manifest.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_file</p></td>
+<td><p></p></td>
+<td><p>Source definition file extracted from provenance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_revision</p></td>
+<td><p></p></td>
+<td><p>Source revision extracted from provenance.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_uri</p></td>
+<td><p></p></td>
+<td><p>Normalized source repository URL extracted from provenance.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImageAttestation)-[:ATTESTS]-&gt;(:GitLabContainerImage)</span></code>: Relationship from attestation to the image it attests.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImageAttestation)</span></code>: Sub-resource relationship from GitLabContainerImageAttestation to GitLabOrganization.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcontainerimagelayer">
+<h2>GitLabContainerImageLayer<a class="headerlink" href="#gitlabcontainerimagelayer" title="Link to this heading">#</a></h2>
+<p>Schema for GitLab Container Image Layer nodes.</p>
+<p>Relationships:</p>
+<ul class="simple">
+<li><p>RESOURCE: Sub-resource to GitLabOrganization for cleanup</p></li>
+<li><p>HAS_LAYER: Inward relationship from GitLabContainerImage (defined in image schema)</p></li>
+<li><p>NEXT: Outward relationship to the next layer in the stack (linked list)</p></li>
+<li><p>HEAD: Inward relationship from images to their first layer (defined in image schema)</p></li>
+<li><p>TAIL: Inward relationship from images to their last layer (defined in image schema)</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-imagelayer"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ImageLayer</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Uncompressed layer digest from the image config.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>diff_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Uncompressed layer digest used for cross-registry deduplication.</p></td>
+</tr>
+<tr class="row-even"><td><p>digest</p></td>
+<td><p>Yes</p></td>
+<td><p>Compressed layer digest from the image manifest.</p></td>
+</tr>
+<tr class="row-odd"><td><p>history</p></td>
+<td><p></p></td>
+<td><p>Image build command associated with the layer.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_empty</p></td>
+<td><p></p></td>
+<td><p>Whether the layer represents an empty filesystem change.</p></td>
+</tr>
+<tr class="row-odd"><td><p>media_type</p></td>
+<td><p></p></td>
+<td><p>OCI or Docker media type of the compressed layer.</p></td>
+</tr>
+<tr class="row-even"><td><p>size</p></td>
+<td><p></p></td>
+<td><p>Compressed layer size in bytes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:HAS_LAYER]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its constituent layers.
+Only applies to images with type=”image” (not manifest lists).
+Layers are ordered using NEXT relationships and layer_diff_ids array on the image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:HEAD]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its first (base) layer.
+Direction: (GitLabContainerImage)-[:HEAD]-&gt;(GitLabContainerImageLayer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImage)-[:TAIL]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from an image to its last (topmost) layer.
+Direction: (GitLabContainerImage)-[:TAIL]-&gt;(GitLabContainerImageLayer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerImageLayer)-[:NEXT]-&gt;(:GitLabContainerImageLayer)</span></code>: Relationship from a layer to the next layer in the image stack.
+Forms a linked list structure allowing traversal of layers in order.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImageLayer)</span></code>: Sub-resource relationship from GitLabContainerImageLayer to GitLabOrganization.
+Layers are scoped to organizations for cleanup and to allow cross-image deduplication.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcontainerrepository">
+<h2>GitLabContainerRepository<a class="headerlink" href="#gitlabcontainerrepository" title="Link to this heading">#</a></h2>
+<p>A container registry repository belonging to a GitLab project.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-containerregistry"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ContainerRegistry</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Full registry location of the container repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cleanup_policy_started_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the repository cleanup policy last started.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the container repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Container repository name.</p></td>
+</tr>
+<tr class="row-even"><td><p>path</p></td>
+<td><p>Yes</p></td>
+<td><p>Container repository path within the GitLab project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p></p></td>
+<td><p>Numeric ID of the parent GitLab project.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository_id</p></td>
+<td><p></p></td>
+<td><p>Numeric GitLab container repository ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>size</p></td>
+<td><p></p></td>
+<td><p>Container repository size in bytes.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>GitLab container repository status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tags_count</p></td>
+<td><p></p></td>
+<td><p>Number of tags in the container repository.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_size_bytes</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">size</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_uri</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">path</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepository)-[:HAS_TAG]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Links a tag to its parent container repository.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepository)-[:REPO_IMAGE]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Generic cross-registry edge from ContainerRegistry to ImageTag.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerRepository)</span></code>: Sub-resource relationship from GitLabContainerRepository to GitLabOrganization.
+All container registry resources are scoped to the organization for cleanup.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabcontainerrepositorytag">
+<h2>GitLabContainerRepositoryTag<a class="headerlink" href="#gitlabcontainerrepositorytag" title="Link to this heading">#</a></h2>
+<p>A named tag that points to an image in a GitLab container repository.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-imagetag"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ImageTag</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Full registry location of the tagged image.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the tag.</p></td>
+</tr>
+<tr class="row-even"><td><p>digest</p></td>
+<td><p>Yes</p></td>
+<td><p>Digest of the container image referenced by the tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Container image tag name.</p></td>
+</tr>
+<tr class="row-even"><td><p>path</p></td>
+<td><p></p></td>
+<td><p>Container repository path including the tag name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_location</p></td>
+<td><p></p></td>
+<td><p>Full registry location of the parent container repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>revision</p></td>
+<td><p></p></td>
+<td><p>Full revision reported for the tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>short_revision</p></td>
+<td><p></p></td>
+<td><p>Abbreviated revision reported for the tag.</p></td>
+</tr>
+<tr class="row-even"><td><p>total_size</p></td>
+<td><p></p></td>
+<td><p>Total size of the tagged image in bytes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepository)-[:HAS_TAG]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Links a tag to its parent container repository.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepository)-[:REPO_IMAGE]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Generic cross-registry edge from ContainerRegistry to ImageTag.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepositoryTag)-[:IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Generic cross-registry edge from ImageTag to Image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabContainerRepositoryTag)-[:REFERENCES]-&gt;(:GitLabContainerImage)</span></code>: Links a tag to the container image it references via digest.
+Multiple tags can reference the same image.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Sub-resource relationship from GitLabContainerRepositoryTag to GitLabOrganization.
+All container registry resources are scoped to the organization for cleanup.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabdependency">
+<h2>GitLabDependency<a class="headerlink" href="#gitlabdependency" title="Link to this heading">#</a></h2>
+<p>A package dependency reported by a GitLab dependency scanning artifact.</p>
+<blockquote>
+<div><p><strong>Ontology Projection</strong>: <code class="docutils literal notranslate"><span class="pre">GitLabDependency</span></code> contributes data to canonical <a class="reference internal" href="../ontology/schema.html#ontology-packageversion"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PackageVersion</span></code></span></a> nodes.</p>
+</div></blockquote>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique dependency identifier within the GitLab project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Dependency package name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>normalized_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized cross-tool package identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>package_manager</p></td>
+<td><p></p></td>
+<td><p>Package manager reported by the dependency scanning artifact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p></p></td>
+<td><p>Numeric ID of the GitLab project where the dependency was detected.</p></td>
+</tr>
+<tr class="row-even"><td><p>purl</p></td>
+<td><p></p></td>
+<td><p>Package URL identifying the dependency.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Package type derived from the package URL.</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Dependency package version.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabDependencyFile)-[:HAS_DEP]-&gt;(:GitLabDependency)</span></code>: Relationship from GitLabDependencyFile to Dependency.
+This relationship is optional - only created when manifest_id is present.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:GitLabDependency)</span></code>: Relationship from GitLabProject to Dependency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabDependency)</span></code>: Sub-resource relationship from Dependency to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PackageVersion)-[:DETECTED_AS]-&gt;(:GitLabDependency)</span></code>: A canonical package version was detected as a GitLab dependency.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabdependencyfile">
+<h2>GitLabDependencyFile<a class="headerlink" href="#gitlabdependencyfile" title="Link to this heading">#</a></h2>
+<p>A dependency manifest file found in a GitLab project.</p>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier formed from the project URL and file path.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>filename</p></td>
+<td><p>Yes</p></td>
+<td><p>Dependency file name.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p></p></td>
+<td><p>Path to the dependency file in the repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>project_id</p></td>
+<td><p></p></td>
+<td><p>Numeric ID of the parent GitLab project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_url</p></td>
+<td><p></p></td>
+<td><p>URL of the parent GitLab project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabDependencyFile)-[:HAS_DEP]-&gt;(:GitLabDependency)</span></code>: Relationship from GitLabDependencyFile to Dependency.
+This relationship is optional - only created when manifest_id is present.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_DEPENDENCY_FILE]-&gt;(:GitLabDependencyFile)</span></code>: Relationship from GitLabProject to GitLabDependencyFile.
+Created when dependency files are loaded to establish the project-file connection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabDependencyFile)</span></code>: Sub-resource relationship from GitLabDependencyFile to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabenvironment">
+<h2>GitLabEnvironment<a class="headerlink" href="#gitlabenvironment" title="Link to this heading">#</a></h2>
+<p>A deployment environment defined within a GitLab project.</p>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite identifier formed from the project ID and GitLab environment ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>auto_stop_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab is scheduled to stop the environment automatically.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>external_url</p></td>
+<td><p></p></td>
+<td><p>URL where the deployment environment is reachable.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_id</p></td>
+<td><p></p></td>
+<td><p>Numeric GitLab environment ID, unique within its project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Deployment environment name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>slug</p></td>
+<td><p></p></td>
+<td><p>URL-safe deployment environment slug.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Deployment environment state: available or stopped.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tier</p></td>
+<td><p></p></td>
+<td><p>Deployment tier: production, staging, testing, development, or other.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab last updated the environment.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabEnvironment)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: An environment uses each project CI variable whose scope applies to it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_ENVIRONMENT]-&gt;(:GitLabEnvironment)</span></code>: A GitLab project contains a deployment environment.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabEnvironment)</span></code>: A GitLab project owns the environment as a sub-resource.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabgroup">
+<h2>GitLabGroup<a class="headerlink" href="#gitlabgroup" title="Link to this heading">#</a></h2>
+<p>A nested GitLab group within the configured top-level organization.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-usergroup"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserGroup</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric GitLab group ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the group.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the group.</p></td>
+</tr>
+<tr class="row-odd"><td><p>full_path</p></td>
+<td><p>Yes</p></td>
+<td><p>Full group path including parent groups.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the group.</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_id</p></td>
+<td><p></p></td>
+<td><p>Numeric ID of the immediate parent group.</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>Yes</p></td>
+<td><p>URL path slug of the group.</p></td>
+</tr>
+<tr class="row-even"><td><p>visibility</p></td>
+<td><p></p></td>
+<td><p>Group visibility: private, internal, or public.</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL for viewing the group in GitLab.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_description</em></p></td>
+<td><p></p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">description</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:CAN_ACCESS]-&gt;(:GitLabProject)</span></code>: Relationship from GitLabGroup to GitLabProject representing group access.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>access_level</p></td>
+<td><p>Numeric GitLab access level granted to the group.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab group to a CI variable it defines.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:MEMBER_OF]-&gt;(:GitLabGroup)</span></code>: Relationship from a child GitLabGroup to its parent GitLabGroup.
+Used to represent the nested group hierarchy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:RESOURCE]-&gt;(:GitLabCIVariable)</span></code>: Sub-resource for group-level CI variables — scoped to GitLabGroup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for group-level runners — scoped to GitLabGroup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabGroup)</span></code>: Sub-resource relationship from GitLabGroup to GitLabOrganization.
+All groups belong to an organization, used for cleanup scoping.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:MEMBER_OF]-&gt;(:GitLabGroup)</span></code>: Relationship from GitLabProject to GitLabGroup via MEMBER_OF.
+Represents the immediate parent group of a project (for projects in nested groups).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabUser)-[:MEMBER_OF]-&gt;(:GitLabGroup)</span></code>: Relationship from GitLabUser to GitLabGroup via MEMBER_OF.
+Represents user membership in a group with access permissions.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>access_level</p></td>
+<td><p>Numeric GitLab access level for the group membership.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role</p></td>
+<td><p>GitLab membership role, such as owner, maintainer, or developer.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="gitlaborganization">
+<h2>GitLabOrganization<a class="headerlink" href="#gitlaborganization" title="Link to this heading">#</a></h2>
+<p>A configured GitLab top-level group that scopes an organization sync.</p>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric GitLab ID of the top-level group.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the top-level group.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>full_path</p></td>
+<td><p>Yes</p></td>
+<td><p>Full path of the top-level group.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the organization.</p></td>
+</tr>
+<tr class="row-even"><td><p>path</p></td>
+<td><p>Yes</p></td>
+<td><p>URL path slug of the organization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>visibility</p></td>
+<td><p></p></td>
+<td><p>Organization visibility: private, internal, or public.</p></td>
+</tr>
+<tr class="row-even"><td><p>web_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL for viewing the organization in GitLab.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImage)</span></code>: Sub-resource relationship from GitLabContainerImage to GitLabOrganization.
+Images are scoped to organizations for cleanup and to allow cross-project deduplication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImageAttestation)</span></code>: Sub-resource relationship from GitLabContainerImageAttestation to GitLabOrganization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerImageLayer)</span></code>: Sub-resource relationship from GitLabContainerImageLayer to GitLabOrganization.
+Layers are scoped to organizations for cleanup and to allow cross-image deduplication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerRepository)</span></code>: Sub-resource relationship from GitLabContainerRepository to GitLabOrganization.
+All container registry resources are scoped to the organization for cleanup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabContainerRepositoryTag)</span></code>: Sub-resource relationship from GitLabContainerRepositoryTag to GitLabOrganization.
+All container registry resources are scoped to the organization for cleanup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabGroup)</span></code>: Sub-resource relationship from GitLabGroup to GitLabOrganization.
+All groups belong to an organization, used for cleanup scoping.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabProject)</span></code>: Sub-resource relationship from GitLabProject to GitLabOrganization.
+All projects belong to an organization, used for cleanup scoping.
+Projects are cleaned up per organization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for instance-level runners — scoped to GitLabOrganization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabUser)</span></code>: Sub-resource relationship from GitLabUser to GitLabOrganization.
+All users belong to an organization, used for cleanup scoping.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabproject">
+<h2>GitLabProject<a class="headerlink" href="#gitlabproject" title="Link to this heading">#</a></h2>
+<p>A GitLab project containing a source code repository.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-coderepository"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">CodeRepository</span></code></span></a>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Labels</strong>: This node also uses <code class="docutils literal notranslate"><span class="pre">GitLabRepository</span></code>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Label Definitions</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GitLabRepository</span></code>: A gitlab node participating in the shared GitLabRepository graph interface.</p></li>
+</ul>
+</div></blockquote>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric GitLab project ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>archived</p></td>
+<td><p></p></td>
+<td><p>Whether the project is archived.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when GitLab created the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_branch</p></td>
+<td><p></p></td>
+<td><p>Name of the project’s default branch.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable description of the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>languages</p></td>
+<td><p>Yes</p></td>
+<td><p>JSON object mapping detected programming languages to percentages.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_activity_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the project’s most recent activity.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Project name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>Yes</p></td>
+<td><p>URL path slug of the project.</p></td>
+</tr>
+<tr class="row-even"><td><p>path_with_namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Full project path including its namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>visibility</p></td>
+<td><p></p></td>
+<td><p>Project visibility: private, internal, or public.</p></td>
+</tr>
+<tr class="row-even"><td><p>web_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL for viewing the project in GitLab.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_archived</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">archived</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_default_branch</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">default_branch</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_description</em></p></td>
+<td><p></p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">description</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">path_with_namespace</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_public</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">visibility</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_url</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">web_url</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AIBOMComponent)-[:DETECTED_IN]-&gt;(:GitLabProject)</span></code>: Links a component occurrence to its scanned GitLab project.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AIBOMSource)-[:SCANNED_REPOSITORY]-&gt;(:GitLabProject)</span></code>: Links an AIBOM source to the GitLab project it scanned.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:CircleCIProject)-[:BUILDS]-&gt;(:GitLabProject)</span></code>: The CircleCI project builds a matching GitLab project.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:CAN_ACCESS]-&gt;(:GitLabProject)</span></code>: Relationship from GitLabGroup to GitLabProject representing group access.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>access_level</p></td>
+<td><p>Numeric GitLab access level granted to the group.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabProject)</span></code>: Sub-resource relationship from GitLabProject to GitLabOrganization.
+All projects belong to an organization, used for cleanup scoping.
+Projects are cleaned up per organization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_BRANCH]-&gt;(:GitLabBranch)</span></code>: Relationship from GitLabProject to GitLabBranch.
+Created when branches are loaded to establish the project-branch connection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_CI_VARIABLE]-&gt;(:GitLabCIVariable)</span></code>: Links a GitLab project to a CI variable it defines.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_DEPENDENCY_FILE]-&gt;(:GitLabDependencyFile)</span></code>: Relationship from GitLabProject to GitLabDependencyFile.
+Created when dependency files are loaded to establish the project-file connection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:HAS_ENVIRONMENT]-&gt;(:GitLabEnvironment)</span></code>: A GitLab project contains a deployment environment.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:MEMBER_OF]-&gt;(:GitLabGroup)</span></code>: Relationship from GitLabProject to GitLabGroup via MEMBER_OF.
+Represents the immediate parent group of a project (for projects in nested groups).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:GitLabDependency)</span></code>: Relationship from GitLabProject to Dependency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:SemgrepGoLibrary)</span></code>: Links a GitLab project to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:SemgrepNpmLibrary)</span></code>: Links a GitLab project to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabBranch)</span></code>: Sub-resource relationship from GitLabBranch to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIConfig)</span></code>: Sub-resource relationship — scoped to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIInclude)</span></code>: Sub-resource relationship — scoped to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabCIVariable)</span></code>: Sub-resource for project-level CI variables — scoped to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabDependency)</span></code>: Sub-resource relationship from Dependency to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabDependencyFile)</span></code>: Sub-resource relationship from GitLabDependencyFile to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabEnvironment)</span></code>: A GitLab project owns the environment as a sub-resource.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for project-level runners — scoped to GitLabProject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabUser)-[:COMMITTED_TO]-&gt;(:GitLabProject)</span></code>: Relationship from GitLabUser to GitLabProject via COMMITTED_TO.
+Represents commit activity by a user on a project.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>commit_count</p></td>
+<td><p>Number of commits made by the user to the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>first_commit_date</p></td>
+<td><p>Timestamp of the user’s oldest commit to the project.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_commit_date</p></td>
+<td><p>Timestamp of the user’s most recent commit to the project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:Image)-[:PACKAGED_FROM]-&gt;(:GitLabProject)</span></code>: Links an image to the GitLab project that packaged it. MatchLink for CircleCI fallback matching: (Image)-[:PACKAGED_FROM]-&gt;(GitLabProject).</p></li>
+</ul>
+<p>Matches Image.digest to the specific image identified by the matcher, and
+GitLabProject.web_url to the (normalized) repo URL from the CircleCI run’s vcs block
+(GitLabProject.id is numeric, so web_url is the URL-bearing key, consistent with the
+existing GitLab provenance matcher).</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>command_similarity</p></td>
+<td><p>Similarity score between image build commands and Dockerfile commands.</p></td>
+</tr>
+<tr class="row-odd"><td><p>confidence</p></td>
+<td><p>Confidence score for the image-to-project match.</p></td>
+</tr>
+<tr class="row-even"><td><p>dockerfile_path</p></td>
+<td><p>Path of the Dockerfile associated with the image.</p></td>
+</tr>
+<tr class="row-odd"><td><p>match_method</p></td>
+<td><p>Matching method: provenance, dockerfile_analysis, or dockerfile_singleton_fallback.</p></td>
+</tr>
+<tr class="row-even"><td><p>matched_commands</p></td>
+<td><p>Number of image build commands matched to Dockerfile commands.</p></td>
+</tr>
+<tr class="row-odd"><td><p>total_commands</p></td>
+<td><p>Command count used to normalize the Dockerfile comparison.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSASTFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links a SAST finding to the GitLab project containing the affected code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links an SCA finding to the GitLab project containing the dependency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSecretsFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links a secret finding to the GitLab project containing the secret.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabrunner">
+<h2>GitLabRunner<a class="headerlink" href="#gitlabrunner" title="Link to this heading">#</a></h2>
+<p>A GitLab CI/CD runner at instance, group, or project scope.</p>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric GitLab runner ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_level</p></td>
+<td><p></p></td>
+<td><p>Ref protection level required for jobs assigned to the runner.</p></td>
+</tr>
+<tr class="row-even"><td><p>active</p></td>
+<td><p></p></td>
+<td><p>Whether the runner is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>architecture</p></td>
+<td><p></p></td>
+<td><p>CPU architecture reported by the runner.</p></td>
+</tr>
+<tr class="row-even"><td><p>contacted_at</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the runner last contacted GitLab.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Human-readable runner description.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_address</p></td>
+<td><p></p></td>
+<td><p>Last known IP address of the runner.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_shared</p></td>
+<td><p></p></td>
+<td><p>Whether the runner is shared across the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>locked</p></td>
+<td><p></p></td>
+<td><p>Whether the runner is locked from assignment to additional projects.</p></td>
+</tr>
+<tr class="row-even"><td><p>maximum_timeout</p></td>
+<td><p></p></td>
+<td><p>Maximum job timeout enforced by the runner, in seconds.</p></td>
+</tr>
+<tr class="row-odd"><td><p>online</p></td>
+<td><p></p></td>
+<td><p>Whether the runner has contacted GitLab recently.</p></td>
+</tr>
+<tr class="row-even"><td><p>paused</p></td>
+<td><p></p></td>
+<td><p>Whether the runner is paused from accepting new jobs.</p></td>
+</tr>
+<tr class="row-odd"><td><p>platform</p></td>
+<td><p></p></td>
+<td><p>Operating system platform reported by the runner.</p></td>
+</tr>
+<tr class="row-even"><td><p>run_untagged</p></td>
+<td><p></p></td>
+<td><p>Whether the runner accepts jobs without matching tags.</p></td>
+</tr>
+<tr class="row-odd"><td><p>runner_type</p></td>
+<td><p>Yes</p></td>
+<td><p>Runner scope: instance_type, group_type, or project_type.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p>Yes</p></td>
+<td><p>Current GitLab runner status.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tag_list</p></td>
+<td><p></p></td>
+<td><p>Tags used to route CI/CD jobs to the runner.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabGroup)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for group-level runners — scoped to GitLabGroup.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for instance-level runners — scoped to GitLabOrganization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:RESOURCE]-&gt;(:GitLabRunner)</span></code>: Sub-resource for project-level runners — scoped to GitLabProject.</p></li>
+</ul>
+</section>
+</section>
+<section id="gitlabuser">
+<h2>GitLabUser<a class="headerlink" href="#gitlabuser" title="Link to this heading">#</a></h2>
+<p>A current GitLab organization or group member.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Numeric GitLab user ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p></p></td>
+<td><p>Email address exposed for the user.</p></td>
+</tr>
+<tr class="row-even"><td><p>gitlab_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the GitLab instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_admin</p></td>
+<td><p></p></td>
+<td><p>Whether the user is a GitLab administrator.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Full name of the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>GitLab account state, such as active or blocked.</p></td>
+</tr>
+<tr class="row-even"><td><p>username</p></td>
+<td><p>Yes</p></td>
+<td><p>GitLab username.</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL for viewing the user in GitLab.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_active</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_username</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">username</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabOrganization)-[:RESOURCE]-&gt;(:GitLabUser)</span></code>: Sub-resource relationship from GitLabUser to GitLabOrganization.
+All users belong to an organization, used for cleanup scoping.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabUser)-[:COMMITTED_TO]-&gt;(:GitLabProject)</span></code>: Relationship from GitLabUser to GitLabProject via COMMITTED_TO.
+Represents commit activity by a user on a project.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>commit_count</p></td>
+<td><p>Number of commits made by the user to the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>first_commit_date</p></td>
+<td><p>Timestamp of the user’s oldest commit to the project.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_commit_date</p></td>
+<td><p>Timestamp of the user’s most recent commit to the project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabUser)-[:MEMBER_OF]-&gt;(:GitLabGroup)</span></code>: Relationship from GitLabUser to GitLabGroup via MEMBER_OF.
+Represents user membership in a group with access permissions.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>access_level</p></td>
+<td><p>Numeric GitLab access level for the group membership.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role</p></td>
+<td><p>GitLab membership role, such as owner, maintainer, or developer.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:UserAccount)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="queries.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">GitLab Example Queries</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../googleworkspace/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Google Workspace</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>

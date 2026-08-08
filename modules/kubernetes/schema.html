@@ -1,0 +1,3478 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Kubernetes Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="LastPass" href="../lastpass/index.html" /><link rel="prev" title="Kubernetes Queries" href="queries.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/kubernetes/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/kubernetes/schema.html"/>
+  <meta property="og:title" content="Kubernetes Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Kubernetes</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#kubernetescluster">KubernetesCluster</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesclusterrole">KubernetesClusterRole</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesclusterrolebinding">KubernetesClusterRoleBinding</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetescontainer">KubernetesContainer</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetescronjob">KubernetesCronJob</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesdaemonset">KubernetesDaemonSet</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesdeployment">KubernetesDeployment</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesgateway">KubernetesGateway</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesgroup">KubernetesGroup</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kuberneteshttproute">KubernetesHTTPRoute</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesingress">KubernetesIngress</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesjob">KubernetesJob</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesnamespace">KubernetesNamespace</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesnetworkpolicy">KubernetesNetworkPolicy</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesnode">KubernetesNode</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesoidcprovider">KubernetesOIDCProvider</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetespod">KubernetesPod</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesreplicaset">KubernetesReplicaSet</a><ul>
+<li><a class="reference internal" href="#id33">Properties</a></li>
+<li><a class="reference internal" href="#id34">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesrole">KubernetesRole</a><ul>
+<li><a class="reference internal" href="#id35">Properties</a></li>
+<li><a class="reference internal" href="#id36">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesrolebinding">KubernetesRoleBinding</a><ul>
+<li><a class="reference internal" href="#id37">Properties</a></li>
+<li><a class="reference internal" href="#id38">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetessecret">KubernetesSecret</a><ul>
+<li><a class="reference internal" href="#id39">Properties</a></li>
+<li><a class="reference internal" href="#id40">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesservice">KubernetesService</a><ul>
+<li><a class="reference internal" href="#id41">Properties</a></li>
+<li><a class="reference internal" href="#id42">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesserviceaccount">KubernetesServiceAccount</a><ul>
+<li><a class="reference internal" href="#id43">Properties</a></li>
+<li><a class="reference internal" href="#id44">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesstatefulset">KubernetesStatefulSet</a><ul>
+<li><a class="reference internal" href="#id45">Properties</a></li>
+<li><a class="reference internal" href="#id46">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kubernetesuser">KubernetesUser</a><ul>
+<li><a class="reference internal" href="#id47">Properties</a></li>
+<li><a class="reference internal" href="#id48">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Kubernetes</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Kubernetes Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/kubernetes/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/kubernetes/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/kubernetes/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/kubernetes/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/kubernetes/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="kubernetes-schema">
+<h1>Kubernetes Schema<a class="headerlink" href="#kubernetes-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    KubernetesCluster -- RESOURCE --&gt; KubernetesClusterRole
+    KubernetesCluster -- RESOURCE --&gt; KubernetesClusterRoleBinding
+    KubernetesCluster -- RESOURCE --&gt; KubernetesContainer
+    KubernetesCluster -- RESOURCE --&gt; KubernetesCronJob
+    KubernetesCluster -- RESOURCE --&gt; KubernetesDaemonSet
+    KubernetesCluster -- RESOURCE --&gt; KubernetesDeployment
+    KubernetesCluster -- RESOURCE --&gt; KubernetesGateway
+    KubernetesCluster -- RESOURCE --&gt; KubernetesGroup
+    KubernetesCluster -- RESOURCE --&gt; KubernetesHTTPRoute
+    KubernetesCluster -- RESOURCE --&gt; KubernetesIngress
+    KubernetesCluster -- RESOURCE --&gt; KubernetesJob
+    KubernetesCluster -- RESOURCE --&gt; KubernetesNamespace
+    KubernetesCluster -- RESOURCE --&gt; KubernetesNetworkPolicy
+    KubernetesCluster -- RESOURCE --&gt; KubernetesNode
+    KubernetesCluster -- RESOURCE --&gt; KubernetesOIDCProvider
+    KubernetesCluster -- RESOURCE --&gt; KubernetesPod
+    KubernetesCluster -- RESOURCE --&gt; KubernetesReplicaSet
+    KubernetesCluster -- RESOURCE --&gt; KubernetesRole
+    KubernetesCluster -- RESOURCE --&gt; KubernetesRoleBinding
+    KubernetesCluster -- RESOURCE --&gt; KubernetesSecret
+    KubernetesCluster -- RESOURCE --&gt; KubernetesService
+    KubernetesCluster -- RESOURCE --&gt; KubernetesServiceAccount
+    KubernetesCluster -- RESOURCE --&gt; KubernetesStatefulSet
+    KubernetesCluster -- RESOURCE --&gt; KubernetesUser
+    KubernetesCluster -- TRUSTS --&gt; KubernetesOIDCProvider
+    KubernetesClusterRoleBinding -- ROLE_REF --&gt; KubernetesClusterRole
+    KubernetesClusterRoleBinding -- SUBJECT --&gt; KubernetesGroup
+    KubernetesClusterRoleBinding -- SUBJECT --&gt; KubernetesServiceAccount
+    KubernetesClusterRoleBinding -- SUBJECT --&gt; KubernetesUser
+    KubernetesContainer -- WORKLOAD_PARENT --&gt; KubernetesPod
+    KubernetesCronJob -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    KubernetesDaemonSet -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    KubernetesDeployment -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    KubernetesGateway -- ROUTES --&gt; KubernetesHTTPRoute
+    KubernetesHTTPRoute -- TARGETS --&gt; KubernetesService
+    KubernetesIngress -- TARGETS --&gt; KubernetesService
+    KubernetesJob -- WORKLOAD_PARENT --&gt; KubernetesCronJob
+    KubernetesJob -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesContainer
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesGateway
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesHTTPRoute
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesIngress
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesNetworkPolicy
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesPod
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesRole
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesRoleBinding
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesSecret
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesService
+    KubernetesNamespace -- CONTAINS --&gt; KubernetesServiceAccount
+    KubernetesNamespace -- WORKLOAD_PARENT --&gt; KubernetesCluster
+    KubernetesNetworkPolicy -- APPLIES_TO --&gt; KubernetesPod
+    KubernetesPod -- CONTAINS --&gt; KubernetesContainer
+    KubernetesPod -- OWNED_BY --&gt; KubernetesReplicaSet
+    KubernetesPod -- RUNS_AS --&gt; KubernetesServiceAccount
+    KubernetesPod -- RUNS_ON --&gt; KubernetesNode
+    KubernetesPod -- USES_SECRET --&gt; KubernetesSecret
+    KubernetesPod -- USES_SECRET_ENV --&gt; KubernetesSecret
+    KubernetesPod -- USES_SECRET_VOLUME --&gt; KubernetesSecret
+    KubernetesPod -- USES_SERVICE_ACCOUNT --&gt; KubernetesServiceAccount
+    KubernetesPod -- WORKLOAD_PARENT --&gt; KubernetesDaemonSet
+    KubernetesPod -- WORKLOAD_PARENT --&gt; KubernetesDeployment
+    KubernetesPod -- WORKLOAD_PARENT --&gt; KubernetesJob
+    KubernetesPod -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    KubernetesPod -- WORKLOAD_PARENT --&gt; KubernetesStatefulSet
+    KubernetesReplicaSet -- OWNED_BY --&gt; KubernetesDeployment
+    KubernetesRoleBinding -- ROLE_REF --&gt; KubernetesRole
+    KubernetesRoleBinding -- SUBJECT --&gt; KubernetesGroup
+    KubernetesRoleBinding -- SUBJECT --&gt; KubernetesServiceAccount
+    KubernetesRoleBinding -- SUBJECT --&gt; KubernetesUser
+    KubernetesService -- TARGETS --&gt; KubernetesPod
+    KubernetesStatefulSet -- WORKLOAD_PARENT --&gt; KubernetesNamespace
+    </pre><section id="kubernetescluster">
+<h2>KubernetesCluster<a class="headerlink" href="#kubernetescluster" title="Link to this heading">#</a></h2>
+<p>A Kubernetes cluster discovered from a kubeconfig context.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computecluster"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeCluster</span></code></span></a>.</p>
+</div></blockquote>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the cluster i.e. UID of <code class="docutils literal notranslate"><span class="pre">kube-system</span></code> namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>api_server_url</p></td>
+<td><p></p></td>
+<td><p>Kubernetes API server URL from kubeconfig.</p></td>
+</tr>
+<tr class="row-even"><td><p>compiler</p></td>
+<td><p></p></td>
+<td><p>Compiler used to build Kubernetes (e.g. gc).</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of when the cluster was created i.e. creation of <code class="docutils literal notranslate"><span class="pre">kube-system</span></code> namespace.</p></td>
+</tr>
+<tr class="row-even"><td><p>external_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the cluster fetched from the kubeconfig context. For EKS clusters this should be the <code class="docutils literal notranslate"><span class="pre">arn</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>go_version</p></td>
+<td><p></p></td>
+<td><p>Version of Go used to compile Kubernetes (e.g. go1.20.5).</p></td>
+</tr>
+<tr class="row-even"><td><p>kubeconfig_ca_file_path</p></td>
+<td><p></p></td>
+<td><p>CA file path from kubeconfig when <code class="docutils literal notranslate"><span class="pre">certificate-authority</span></code> is configured.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kubeconfig_has_certificate_authority_data</p></td>
+<td><p></p></td>
+<td><p>True when kubeconfig has inline <code class="docutils literal notranslate"><span class="pre">certificate-authority-data</span></code> for this cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p>kubeconfig_has_certificate_authority_file</p></td>
+<td><p></p></td>
+<td><p>True when kubeconfig has a <code class="docutils literal notranslate"><span class="pre">certificate-authority</span></code> file path for this cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kubeconfig_has_client_certificate</p></td>
+<td><p></p></td>
+<td><p>True when kubeconfig user has a client cert (<code class="docutils literal notranslate"><span class="pre">client-certificate</span></code> or <code class="docutils literal notranslate"><span class="pre">client-certificate-data</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>kubeconfig_has_client_key</p></td>
+<td><p></p></td>
+<td><p>True when kubeconfig user has a client key (<code class="docutils literal notranslate"><span class="pre">client-key</span></code> or <code class="docutils literal notranslate"><span class="pre">client-key-data</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>kubeconfig_insecure_skip_tls_verify</p></td>
+<td><p></p></td>
+<td><p>Whether kubeconfig is configured to skip API server TLS verification.</p></td>
+</tr>
+<tr class="row-even"><td><p>kubeconfig_tls_configuration_status</p></td>
+<td><p></p></td>
+<td><p>Derived kubeconfig TLS posture (<code class="docutils literal notranslate"><span class="pre">valid_config</span></code>, <code class="docutils literal notranslate"><span class="pre">insecure_skip_tls</span></code>, <code class="docutils literal notranslate"><span class="pre">missing_ca_material</span></code>, <code class="docutils literal notranslate"><span class="pre">unknown</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name assigned to the cluster which is derived from kubeconfig context.</p></td>
+</tr>
+<tr class="row-even"><td><p>platform</p></td>
+<td><p></p></td>
+<td><p>Operating system and architecture the cluster is running on (e.g. linux/amd64).</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Git version of the Kubernetes cluster (e.g. v1.27.3).</p></td>
+</tr>
+<tr class="row-even"><td><p>version_major</p></td>
+<td><p></p></td>
+<td><p>Major version number of the Kubernetes cluster (e.g. 1).</p></td>
+</tr>
+<tr class="row-odd"><td><p>version_minor</p></td>
+<td><p></p></td>
+<td><p>Minor version number of the Kubernetes cluster (e.g. 27).</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_version</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">version</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSEKSCluster)-[:MAPS_TO]-&gt;(:KubernetesCluster)</span></code>: Links an EKS cluster to the Kubernetes cluster it hosts.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesClusterRole)</span></code>: Links a cluster to one of its cluster roles.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesClusterRoleBinding)</span></code>: Links a cluster to one of its cluster role bindings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesContainer)</span></code>: Links a cluster to one of its containers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesCronJob)</span></code>: Links a cluster to one of its cron jobs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesDaemonSet)</span></code>: Links a cluster to one of its daemon sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesDeployment)</span></code>: Links a cluster to one of its deployments.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesGateway)</span></code>: Links a cluster to one of its gateways.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesGroup)</span></code>: Links a cluster to one of its groups.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a cluster to one of its HTTP routes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesIngress)</span></code>: Links a cluster to one of its ingresses.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesJob)</span></code>: Links a cluster to one of its jobs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNamespace)</span></code>: Links a cluster to one of its namespaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNetworkPolicy)</span></code>: Links a cluster to one of its network policies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNode)</span></code>: Links a cluster to one of its nodes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesOIDCProvider)</span></code>: Links a cluster to one of its OIDC providers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesPod)</span></code>: Links a cluster to a pod running in it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesReplicaSet)</span></code>: Links a cluster to one of its replica sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesRole)</span></code>: Links a cluster to one of its roles.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesRoleBinding)</span></code>: Links a cluster to one of its role bindings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesSecret)</span></code>: Links a cluster to one of its secrets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesService)</span></code>: Links a cluster to one of its services.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesServiceAccount)</span></code>: Links a cluster to one of its service accounts.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesStatefulSet)</span></code>: Links a cluster to one of its stateful sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesUser)</span></code>: Links a cluster to one of its users.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:TRUSTS]-&gt;(:KubernetesOIDCProvider)</span></code>: Links a cluster to an OIDC provider it accepts tokens from.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:WORKLOAD_PARENT]-&gt;(:KubernetesCluster)</span></code>: Links a namespace to the cluster it belongs to.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesclusterrole">
+<h2>KubernetesClusterRole<a class="headerlink" href="#kubernetesclusterrole" title="Link to this heading">#</a></h2>
+<p>A cluster-scoped Kubernetes RBAC role.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-permissionrole"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PermissionRole</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the ClusterRole derived from cluster_name and name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/cluster-admin</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>api_groups</p></td>
+<td><p></p></td>
+<td><p>List of API groups that this ClusterRole grants access to (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;core&quot;,</span> <span class="pre">&quot;apps&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes ClusterRole.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes ClusterRole.</p></td>
+</tr>
+<tr class="row-even"><td><p>resource_version</p></td>
+<td><p></p></td>
+<td><p>The resource version of the ClusterRole for optimistic concurrency control.</p></td>
+</tr>
+<tr class="row-odd"><td><p>resources</p></td>
+<td><p></p></td>
+<td><p>List of resources that this ClusterRole grants access to (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;pods&quot;,</span> <span class="pre">&quot;services&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>uid</p></td>
+<td><p></p></td>
+<td><p>UID of the Kubernetes ClusterRole.</p></td>
+</tr>
+<tr class="row-odd"><td><p>verbs</p></td>
+<td><p></p></td>
+<td><p>List of verbs/actions that this ClusterRole allows (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;get&quot;,</span> <span class="pre">&quot;list&quot;,</span> <span class="pre">&quot;create&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_scope</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesClusterRole)</span></code>: Links a cluster to one of its cluster roles.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:ROLE_REF]-&gt;(:KubernetesClusterRole)</span></code>: Links a cluster role binding to the cluster role it grants.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesclusterrolebinding">
+<h2>KubernetesClusterRoleBinding<a class="headerlink" href="#kubernetesclusterrolebinding" title="Link to this heading">#</a></h2>
+<p>A cluster-scoped binding between RBAC subjects and a cluster role.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the ClusterRoleBinding derived from cluster_name and name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/cluster-admin-binding</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes ClusterRoleBinding.</p></td>
+</tr>
+<tr class="row-even"><td><p>group_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound group subjects.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes ClusterRoleBinding.</p></td>
+</tr>
+<tr class="row-even"><td><p>resource_version</p></td>
+<td><p></p></td>
+<td><p>The resource version of the ClusterRoleBinding for optimistic concurrency control.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_id</p></td>
+<td><p></p></td>
+<td><p>Identifier for the target ClusterRole (used for relationship matching).</p></td>
+</tr>
+<tr class="row-even"><td><p>role_kind</p></td>
+<td><p></p></td>
+<td><p>Kind of the role reference (typically <code class="docutils literal notranslate"><span class="pre">ClusterRole</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the ClusterRole that this ClusterRoleBinding references.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_account_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound service account subjects.</p></td>
+</tr>
+<tr class="row-odd"><td><p>uid</p></td>
+<td><p></p></td>
+<td><p>UID of the Kubernetes ClusterRoleBinding.</p></td>
+</tr>
+<tr class="row-even"><td><p>user_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound user subjects.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesClusterRoleBinding)</span></code>: Links a cluster to one of its cluster role bindings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:ROLE_REF]-&gt;(:KubernetesClusterRole)</span></code>: Links a cluster role binding to the cluster role it grants.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesGroup)</span></code>: Links a cluster role binding to a group it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a cluster role binding to a service account it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesUser)</span></code>: Links a cluster role binding to a user it grants its role to.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetescontainer">
+<h2>KubernetesContainer<a class="headerlink" href="#kubernetescontainer" title="Link to this heading">#</a></h2>
+<p>A container declared by a Kubernetes pod.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-container"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Container</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the container which is derived from the UID of pod and the name of container.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>added_capabilities</p></td>
+<td><p></p></td>
+<td><p>Linux capabilities explicitly added to the container. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.capabilities.add</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>allow_privilege_escalation</p></td>
+<td><p></p></td>
+<td><p>Whether the container explicitly allows privilege escalation. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.allow_privilege_escalation</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>architecture_normalized</p></td>
+<td><p></p></td>
+<td><p>Canonical CPU architecture derived from the scheduled node when available (e.g. <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">arm64</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this container is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>container_port_numbers</p></td>
+<td><p>Yes</p></td>
+<td><p>Flat, queryable list of the declared TCP/UDP <code class="docutils literal notranslate"><span class="pre">containerPort</span></code> numbers. Derived from <code class="docutils literal notranslate"><span class="pre">container.ports[].container_port</span></code>. An empty list means the container <em>declares</em> no ports; it is not proof that the container listens on nothing, since a process can bind ports it never declared.</p></td>
+</tr>
+<tr class="row-even"><td><p>container_ports</p></td>
+<td><p></p></td>
+<td><p>The ports the container <em>declares</em> in its pod spec. Derived from <code class="docutils literal notranslate"><span class="pre">container.ports[]</span></code>, stored as a JSON-encoded list of <code class="docutils literal notranslate"><span class="pre">{container_port,</span> <span class="pre">protocol,</span> <span class="pre">name}</span></code>. <code class="docutils literal notranslate"><span class="pre">containerPort</span></code> is optional in Kubernetes, so this reflects declared ports only, not necessarily every port the process listens on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cpu_limit</p></td>
+<td><p></p></td>
+<td><p>Maximum amount of CPU the container is allowed to use (e.g. “500m”, “2”).</p></td>
+</tr>
+<tr class="row-even"><td><p>cpu_request</p></td>
+<td><p></p></td>
+<td><p>Minimum amount of CPU guaranteed to be available to the container (e.g. “100m”, “1”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>dropped_capabilities</p></td>
+<td><p></p></td>
+<td><p>Linux capabilities explicitly dropped by the container. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.capabilities.drop</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">container</span> <span class="pre">internet</span> <span class="pre">exposure</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet_type</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">container</span> <span class="pre">internet</span> <span class="pre">exposure</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>host_ports</p></td>
+<td><p></p></td>
+<td><p>List of host ports exposed by the container. Derived from <code class="docutils literal notranslate"><span class="pre">container.ports[].host_port</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>image</p></td>
+<td><p>Yes</p></td>
+<td><p>Docker image used in the container.</p></td>
+</tr>
+<tr class="row-even"><td><p>image_pull_policy</p></td>
+<td><p></p></td>
+<td><p>The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent).</p></td>
+</tr>
+<tr class="row-odd"><td><p>memory_limit</p></td>
+<td><p></p></td>
+<td><p>Maximum amount of memory the container is allowed to use (e.g. “256Mi”, “2Gi”).</p></td>
+</tr>
+<tr class="row-even"><td><p>memory_request</p></td>
+<td><p></p></td>
+<td><p>Minimum amount of memory guaranteed to be available to the container (e.g. “128Mi”, “1Gi”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the container in kubernetes pod.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this container is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p></p></td>
+<td><p>Cloud region associated with the Kubernetes cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p>run_as_non_root</p></td>
+<td><p></p></td>
+<td><p>Whether the container is configured to run as non-root. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.run_as_non_root</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>run_as_user</p></td>
+<td><p></p></td>
+<td><p>Explicit UID configured for the container. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.run_as_user</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>seccomp_profile_type</p></td>
+<td><p></p></td>
+<td><p>Container-level seccomp profile type when set, such as <code class="docutils literal notranslate"><span class="pre">RuntimeDefault</span></code>. Derived from <code class="docutils literal notranslate"><span class="pre">container.security_context.seccomp_profile.type</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status_image_id</p></td>
+<td><p></p></td>
+<td><p>Runtime-reported image identifier for the container. This may differ from the declared <code class="docutils literal notranslate"><span class="pre">image</span></code> field because the container runtime can rewrite tags or parent image indexes to digest-qualified references.</p></td>
+</tr>
+<tr class="row-even"><td><p>status_image_sha</p></td>
+<td><p>Yes</p></td>
+<td><p>The SHA portion of the runtime-reported <code class="docutils literal notranslate"><span class="pre">status_image_id</span></code> when Cartography can extract it.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status_ready</p></td>
+<td><p></p></td>
+<td><p>Specifies whether the container has passed its readiness probe.</p></td>
+</tr>
+<tr class="row-even"><td><p>status_started</p></td>
+<td><p></p></td>
+<td><p>Specifies whether the container has passed its startup probe.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status_state</p></td>
+<td><p>Yes</p></td>
+<td><p>State of the container (running, terminated, waiting).</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_image</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">image</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_image_digest</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status_image_sha</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_namespace</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">namespace</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_region</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">region</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_state</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status_state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSLoadBalancerV2)-[:EXPOSE]-&gt;(:KubernetesContainer)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">LoadBalancer</span> <span class="pre">to</span> <span class="pre">container</span> <span class="pre">EXPOSE</span> <span class="pre">relationships</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exposure_type</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">LoadBalancer</span> <span class="pre">to</span> <span class="pre">container</span> <span class="pre">EXPOSE</span> <span class="pre">relationships</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesContainer)</span></code>: Links a cluster to one of its containers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:HAS_IMAGE]-&gt;(:AWSECRImage)</span></code>: Links a container to the image it runs, hosted in Amazon ECR.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:HAS_IMAGE]-&gt;(:GCPArtifactRegistryImage)</span></code>: Links a container to the image it runs, hosted in Artifact Registry.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:HAS_IMAGE]-&gt;(:GitHubContainerImage)</span></code>: Links a container to the image it runs, hosted in GitHub Container Registry.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:HAS_IMAGE]-&gt;(:GitLabContainerImage)</span></code>: Links a container to the image it runs, hosted in the GitLab registry.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:WORKLOAD_PARENT]-&gt;(:KubernetesPod)</span></code>: Links a container to the pod it runs in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesContainer)</span></code>: Links a namespace to a container it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:CONTAINS]-&gt;(:KubernetesContainer)</span></code>: Links a pod to a container it runs.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetescronjob">
+<h2>KubernetesCronJob<a class="headerlink" href="#kubernetescronjob" title="Link to this heading">#</a></h2>
+<p>A Kubernetes CronJob that creates Jobs on a recurring schedule.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes CronJob.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the CronJob.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes CronJob was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes CronJob was marked for deletion.</p></td>
+</tr>
+<tr class="row-even"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the CronJob, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes CronJob.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the CronJob.</p></td>
+</tr>
+<tr class="row-odd"><td><p>schedule</p></td>
+<td><p></p></td>
+<td><p>Cron schedule used to create Jobs.</p></td>
+</tr>
+<tr class="row-even"><td><p>suspend</p></td>
+<td><p></p></td>
+<td><p>Whether creation of new Jobs is suspended.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesCronJob)</span></code>: Links a cluster to one of its cron jobs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCronJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a cron job to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesCronJob)</span></code>: Links a job to the cron job that created it.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesdaemonset">
+<h2>KubernetesDaemonSet<a class="headerlink" href="#kubernetesdaemonset" title="Link to this heading">#</a></h2>
+<p>A Kubernetes DaemonSet that runs pods across selected cluster nodes.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes DaemonSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the DaemonSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes DaemonSet was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes DaemonSet was marked for deletion.</p></td>
+</tr>
+<tr class="row-even"><td><p>desired_number_scheduled</p></td>
+<td><p></p></td>
+<td><p>Number of nodes that should run a pod from the DaemonSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the DaemonSet, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes DaemonSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the DaemonSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>number_ready</p></td>
+<td><p></p></td>
+<td><p>Number of nodes running a ready pod from the DaemonSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesDaemonSet)</span></code>: Links a cluster to one of its daemon sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesDaemonSet)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a daemon set to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesDaemonSet)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesdeployment">
+<h2>KubernetesDeployment<a class="headerlink" href="#kubernetesdeployment" title="Link to this heading">#</a></h2>
+<p>A Kubernetes Deployment that manages a replicated application workload.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes Deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>available_replicas</p></td>
+<td><p></p></td>
+<td><p>Number of pod replicas that are available.</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the Deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes Deployment was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes Deployment was marked for deletion.</p></td>
+</tr>
+<tr class="row-odd"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the Deployment, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes Deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the Deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>ready_replicas</p></td>
+<td><p></p></td>
+<td><p>Number of pod replicas that are ready.</p></td>
+</tr>
+<tr class="row-odd"><td><p>replicas</p></td>
+<td><p></p></td>
+<td><p>Desired number of pod replicas.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesDeployment)</span></code>: Links a cluster to one of its deployments.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesDeployment)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a deployment to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesDeployment)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesReplicaSet)-[:OWNED_BY]-&gt;(:KubernetesDeployment)</span></code>: Links a replica set to the deployment that manages it.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesgateway">
+<h2>KubernetesGateway<a class="headerlink" href="#kubernetesgateway" title="Link to this heading">#</a></h2>
+<p>A Gateway API gateway that accepts traffic for attached routes.</p>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Gateway.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this Gateway is deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Epoch seconds of <code class="docutils literal notranslate"><span class="pre">metadata.creationTimestamp</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Epoch seconds of <code class="docutils literal notranslate"><span class="pre">metadata.deletionTimestamp</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>gateway_class_name</p></td>
+<td><p></p></td>
+<td><p>Name of the <code class="docutils literal notranslate"><span class="pre">GatewayClass</span></code> referenced by <code class="docutils literal notranslate"><span class="pre">spec.gatewayClassName</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Gateway.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this Gateway is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>qualified_name</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;namespace&gt;/&lt;name&gt;</span></code> identifier used to match the Gateway from <code class="docutils literal notranslate"><span class="pre">HTTPRoute.spec.parentRefs</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesGateway)</span></code>: Links a cluster to one of its gateways.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesGateway)-[:ROUTES]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a gateway to an HTTP route attached to it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesGateway)</span></code>: Links a namespace to a gateway it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesgroup">
+<h2>KubernetesGroup<a class="headerlink" href="#kubernetesgroup" title="Link to this heading">#</a></h2>
+<p>A group identity referenced by Kubernetes RBAC.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-usergroup"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserGroup</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the group.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p></p></td>
+<td><p>Name of the cluster this group belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes group.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSRole)-[:MAPS_TO]-&gt;(:KubernetesGroup)</span></code>: Links an AWS IAM role to the Kubernetes group it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSUser)-[:MAPS_TO]-&gt;(:KubernetesGroup)</span></code>: Links an AWS IAM user to the Kubernetes group it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesGroup)</span></code>: Links a cluster to one of its groups.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesGroup)</span></code>: Links a cluster role binding to a group it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesGroup)</span></code>: Links a role binding to a group it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:OktaGroup)-[:MAPS_TO]-&gt;(:KubernetesGroup)</span></code>: Links an Okta group to the Kubernetes group it maps to.</p></li>
+</ul>
+</section>
+</section>
+<section id="kuberneteshttproute">
+<h2>KubernetesHTTPRoute<a class="headerlink" href="#kuberneteshttproute" title="Link to this heading">#</a></h2>
+<p>A Gateway API HTTPRoute that forwards traffic to services.</p>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the HTTPRoute.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this HTTPRoute is deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Epoch seconds of <code class="docutils literal notranslate"><span class="pre">metadata.creationTimestamp</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Epoch seconds of <code class="docutils literal notranslate"><span class="pre">metadata.deletionTimestamp</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>hostnames</p></td>
+<td><p></p></td>
+<td><p>List of hostnames from <code class="docutils literal notranslate"><span class="pre">spec.hostnames</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the HTTPRoute.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this HTTPRoute is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>qualified_name</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;namespace&gt;/&lt;name&gt;</span></code> identifier used to match this HTTPRoute from <code class="docutils literal notranslate"><span class="pre">Gateway</span></code> parents.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a cluster to one of its HTTP routes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesGateway)-[:ROUTES]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a gateway to an HTTP route attached to it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesHTTPRoute)-[:TARGETS]-&gt;(:KubernetesService)</span></code>: Links an HTTP route to a service it forwards traffic to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a namespace to a HTTP route it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesingress">
+<h2>KubernetesIngress<a class="headerlink" href="#kubernetesingress" title="Link to this heading">#</a></h2>
+<p>A Kubernetes ingress that routes external traffic to services.</p>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes Ingress.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>annotations</p></td>
+<td><p></p></td>
+<td><p>Annotations on the Ingress resource. Stored as a JSON-encoded string. Contains controller-specific configuration.</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes cluster where this Ingress is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes Ingress.</p></td>
+</tr>
+<tr class="row-even"><td><p>default_backend</p></td>
+<td><p></p></td>
+<td><p>A default backend capable of servicing requests that don’t match any rule. Stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the Kubernetes Ingress.</p></td>
+</tr>
+<tr class="row-even"><td><p>host_names</p></td>
+<td><p></p></td>
+<td><p>Hostnames configured by the ingress rules.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ingress_class_name</p></td>
+<td><p></p></td>
+<td><p>The name of the IngressClass cluster resource. Specifies which controller will implement the ingress (e.g. <code class="docutils literal notranslate"><span class="pre">nginx</span></code>, <code class="docutils literal notranslate"><span class="pre">alb</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>ingress_group_name</p></td>
+<td><p>Yes</p></td>
+<td><p>The ingress group name from the <code class="docutils literal notranslate"><span class="pre">alb.ingress.kubernetes.io/group.name</span></code> annotation (AWS Load Balancer Controller). Allows multiple Ingresses to share a single ALB.</p></td>
+</tr>
+<tr class="row-odd"><td><p>load_balancer_dns_names</p></td>
+<td><p></p></td>
+<td><p>List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB).</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes Ingress.</p></td>
+</tr>
+<tr class="row-odd"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this Ingress is deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>rules</p></td>
+<td><p></p></td>
+<td><p>The list of host rules used to configure the Ingress. Stored as a JSON-encoded string containing host/path routing rules.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:DNSRecord)-[:DNS_POINTS_TO]-&gt;(:KubernetesIngress)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">DNSRecord</span> <span class="pre">to</span> <span class="pre">KubernetesIngress</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesIngress)</span></code>: Links a cluster to one of its ingresses.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesIngress)-[:TARGETS]-&gt;(:KubernetesService)</span></code>: Links an ingress to a service it routes traffic to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesIngress)-[:USES_LOAD_BALANCER]-&gt;(:AWSLoadBalancerV2)</span></code>: Links an ingress to the AWS load balancer that exposes it, matched by the DNS hostname from the ingress status to the load balancer’s DNS name; both are lowercased at ingestion.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesIngress)</span></code>: Links a namespace to an ingress it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesjob">
+<h2>KubernetesJob<a class="headerlink" href="#kubernetesjob" title="Link to this heading">#</a></h2>
+<p>A Kubernetes Job that runs pods to completion.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes Job.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>active</p></td>
+<td><p></p></td>
+<td><p>Number of pods currently running for the Job.</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the Job.</p></td>
+</tr>
+<tr class="row-odd"><td><p>completions</p></td>
+<td><p></p></td>
+<td><p>Desired number of successfully completed pods.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes Job was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes Job was marked for deletion.</p></td>
+</tr>
+<tr class="row-even"><td><p>failed</p></td>
+<td><p></p></td>
+<td><p>Number of pods that completed unsuccessfully.</p></td>
+</tr>
+<tr class="row-odd"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the Job, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes Job.</p></td>
+</tr>
+<tr class="row-odd"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the Job.</p></td>
+</tr>
+<tr class="row-even"><td><p>parallelism</p></td>
+<td><p></p></td>
+<td><p>Maximum number of pods that may run in parallel.</p></td>
+</tr>
+<tr class="row-odd"><td><p>succeeded</p></td>
+<td><p></p></td>
+<td><p>Number of pods that completed successfully.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesJob)</span></code>: Links a cluster to one of its jobs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesCronJob)</span></code>: Links a job to the cron job that created it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a job to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesJob)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesnamespace">
+<h2>KubernetesNamespace<a class="headerlink" href="#kubernetesnamespace" title="Link to this heading">#</a></h2>
+<p>A namespace that scopes resources in a Kubernetes cluster.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computenamespace"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeNamespace</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>The name of the Kubernetes cluster this namespace belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the Kubernetes namespace.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status_phase</p></td>
+<td><p></p></td>
+<td><p>The phase of a Kubernetes namespace indicates whether it is active, terminating, or terminated.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status_phase</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNamespace)</span></code>: Links a cluster to one of its namespaces.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCronJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a cron job to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesDaemonSet)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a daemon set to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesDeployment)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a deployment to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesJob)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a job to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesContainer)</span></code>: Links a namespace to a container it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesGateway)</span></code>: Links a namespace to a gateway it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesHTTPRoute)</span></code>: Links a namespace to a HTTP route it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesIngress)</span></code>: Links a namespace to an ingress it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesNetworkPolicy)</span></code>: Links a namespace to a network policy it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesPod)</span></code>: Links a namespace to a pod it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesRole)</span></code>: Links a namespace to a role it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesRoleBinding)</span></code>: Links a namespace to a role binding it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesSecret)</span></code>: Links a namespace to a secret it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesService)</span></code>: Links a namespace to a service it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesServiceAccount)</span></code>: Links a namespace to a service account it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:WORKLOAD_PARENT]-&gt;(:KubernetesCluster)</span></code>: Links a namespace to the cluster it belongs to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a pod to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesStatefulSet)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a stateful set to the namespace that owns it.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesnetworkpolicy">
+<h2>KubernetesNetworkPolicy<a class="headerlink" href="#kubernetesnetworkpolicy" title="Link to this heading">#</a></h2>
+<p>A Kubernetes network policy that controls pod traffic.</p>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the network policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this network policy is defined.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the network policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the network policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>egress_rules</p></td>
+<td><p></p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">spec.egress</span></code> rule set (to-peers and ports), stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ingress_rules</p></td>
+<td><p></p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">spec.ingress</span></code> rule set (from-peers and ports), stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the network policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this network policy is defined.</p></td>
+</tr>
+<tr class="row-even"><td><p>pod_selector</p></td>
+<td><p></p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">spec.podSelector</span></code> selecting the pods this policy applies to, stored as a JSON-encoded <code class="docutils literal notranslate"><span class="pre">{match_labels,</span> <span class="pre">match_expressions}</span></code>. An empty selector selects every pod in the namespace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>policy_types</p></td>
+<td><p></p></td>
+<td><p>List of policy types the policy governs, e.g. <code class="docutils literal notranslate"><span class="pre">['Ingress']</span></code>, <code class="docutils literal notranslate"><span class="pre">['Ingress',</span> <span class="pre">'Egress']</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>restricts_egress</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> when <code class="docutils literal notranslate"><span class="pre">Egress</span></code> is in <code class="docutils literal notranslate"><span class="pre">policy_types</span></code>: the selected pods are default-deny for egress except for what <code class="docutils literal notranslate"><span class="pre">egress_rules</span></code> admit.</p></td>
+</tr>
+<tr class="row-odd"><td><p>restricts_ingress</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> when <code class="docutils literal notranslate"><span class="pre">Ingress</span></code> is in <code class="docutils literal notranslate"><span class="pre">policy_types</span></code>: the selected pods are default-deny for ingress except for what <code class="docutils literal notranslate"><span class="pre">ingress_rules</span></code> admit.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNetworkPolicy)</span></code>: Links a cluster to one of its network policies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesNetworkPolicy)</span></code>: Links a namespace to a network policy it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNetworkPolicy)-[:APPLIES_TO]-&gt;(:KubernetesPod)</span></code>: Links a network policy to a pod its selector matches.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesnode">
+<h2>KubernetesNode<a class="headerlink" href="#kubernetesnode" title="Link to this heading">#</a></h2>
+<p>A worker node registered with a Kubernetes cluster.</p>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the node derived from cluster name and node name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/my-node</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>architecture</p></td>
+<td><p></p></td>
+<td><p>Raw CPU architecture as reported by the node (e.g. <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">arm64</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>architecture_normalized</p></td>
+<td><p></p></td>
+<td><p>Canonical CPU architecture after normalization (e.g. <code class="docutils literal notranslate"><span class="pre">x86_64</span></code> → <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">aarch64</span></code> → <code class="docutils literal notranslate"><span class="pre">arm64</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster this node belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>container_runtime_version</p></td>
+<td><p></p></td>
+<td><p>Container runtime and version (e.g. <code class="docutils literal notranslate"><span class="pre">containerd://1.7.0</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>instance_id</p></td>
+<td><p>Yes</p></td>
+<td><p>EC2 instance id parsed from <code class="docutils literal notranslate"><span class="pre">provider_id</span></code> for EKS nodes (e.g. <code class="docutils literal notranslate"><span class="pre">i-0123456789abcdef0</span></code>); null for non-AWS providers.</p></td>
+</tr>
+<tr class="row-even"><td><p>kernel_version</p></td>
+<td><p></p></td>
+<td><p>Kernel version of the node (e.g. <code class="docutils literal notranslate"><span class="pre">5.15.0-1034-aws</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>kubelet_version</p></td>
+<td><p></p></td>
+<td><p>Version of the kubelet running on the node (e.g. <code class="docutils literal notranslate"><span class="pre">v1.27.1</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>os</p></td>
+<td><p></p></td>
+<td><p>Operating system of the node (e.g. <code class="docutils literal notranslate"><span class="pre">linux</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>os_image</p></td>
+<td><p></p></td>
+<td><p>Human-readable OS image name (e.g. <code class="docutils literal notranslate"><span class="pre">Ubuntu</span> <span class="pre">22.04.3</span> <span class="pre">LTS</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider_id</p></td>
+<td><p></p></td>
+<td><p>Cloud provider instance reference from the node’s <code class="docutils literal notranslate"><span class="pre">spec.providerID</span></code> (e.g. EKS: <code class="docutils literal notranslate"><span class="pre">aws:///us-east-1a/i-0123456789abcdef0</span></code>).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesNode)</span></code>: Links a cluster to one of its nodes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNode)-[:IS_INSTANCE]-&gt;(:AWSEC2Instance)</span></code>: Links a node to the EC2 instance backing it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:RUNS_ON]-&gt;(:KubernetesNode)</span></code>: Links a pod to the node it is scheduled on.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesoidcprovider">
+<h2>KubernetesOIDCProvider<a class="headerlink" href="#kubernetesoidcprovider" title="Link to this heading">#</a></h2>
+<p>An external OIDC identity provider trusted by a Kubernetes cluster.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-identityprovider"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">IdentityProvider</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the OIDC Provider derived from cluster name and provider name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/oidc/auth0-provider</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_id</p></td>
+<td><p></p></td>
+<td><p>OIDC client ID used for authentication.</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes cluster this provider is associated with.</p></td>
+</tr>
+<tr class="row-odd"><td><p>issuer_url</p></td>
+<td><p></p></td>
+<td><p>URL of the OIDC issuer (e.g. <code class="docutils literal notranslate"><span class="pre">https://company.auth0.com/</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>k8s_platform</p></td>
+<td><p></p></td>
+<td><p>Type of Kubernetes platform managing this OIDC configuration (e.g. <code class="docutils literal notranslate"><span class="pre">eks</span></code> for AWS EKS, <code class="docutils literal notranslate"><span class="pre">aks</span></code> for Azure AKS).</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the OIDC provider configuration.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p></p></td>
+<td><p>Status of the OIDC provider configuration (e.g. <code class="docutils literal notranslate"><span class="pre">ACTIVE</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_enabled</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_issuer</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">issuer_url</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_protocol</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesOIDCProvider)</span></code>: Links a cluster to one of its OIDC providers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:TRUSTS]-&gt;(:KubernetesOIDCProvider)</span></code>: Links a cluster to an OIDC provider it accepts tokens from.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetespod">
+<h2>KubernetesPod<a class="headerlink" href="#kubernetespod" title="Link to this heading">#</a></h2>
+<p>A Kubernetes pod and its workload security configuration.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computepod"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputePod</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes pod.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>architecture_normalized</p></td>
+<td><p></p></td>
+<td><p>Canonical CPU architecture derived from the scheduled node when available (e.g. <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">arm64</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>automount_service_account_token</p></td>
+<td><p></p></td>
+<td><p>Pod-level override for whether a service account token is automatically mounted. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.automount_service_account_token</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this pod is deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes pod.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the Kubernetes pod.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Yes</p></td>
+<td><p>Set by analysis job. <code class="docutils literal notranslate"><span class="pre">true</span></code> if this pod is reachable from an internet-facing load balancer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet_type</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">pod</span> <span class="pre">internet</span> <span class="pre">exposure</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>host_ipc</p></td>
+<td><p></p></td>
+<td><p>Whether the pod shares the host IPC namespace. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.host_ipc</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>host_network</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether the pod shares the host network namespace. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.host_network</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>host_path_volume_paths</p></td>
+<td><p></p></td>
+<td><p>List of host filesystem paths mounted via <code class="docutils literal notranslate"><span class="pre">hostPath</span></code> pod volumes. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.volumes[].host_path.path</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>host_pid</p></td>
+<td><p></p></td>
+<td><p>Whether the pod shares the host PID namespace. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.host_pid</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Labels are key-value pairs contained in the <code class="docutils literal notranslate"><span class="pre">PodSpec</span></code> and fetched from <code class="docutils literal notranslate"><span class="pre">pod.metadata.labels</span></code>. Stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes pod.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this pod is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>node</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from <code class="docutils literal notranslate"><span class="pre">pod.spec.node_name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>seccomp_profile_type</p></td>
+<td><p></p></td>
+<td><p>Pod-level seccomp profile type when set, such as <code class="docutils literal notranslate"><span class="pre">RuntimeDefault</span></code>. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.security_context.seccomp_profile.type</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_account_name</p></td>
+<td><p></p></td>
+<td><p>Name of the ServiceAccount used by the pod. Derived from <code class="docutils literal notranslate"><span class="pre">pod.spec.service_account_name</span></code> and defaults to <code class="docutils literal notranslate"><span class="pre">default</span></code> when unset.</p></td>
+</tr>
+<tr class="row-even"><td><p>status_phase</p></td>
+<td><p></p></td>
+<td><p>The phase of a Pod is a simple, high-level summary of where the Pod is in its lifecycle.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_namespace</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">namespace</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_node</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">node</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status_phase</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSLoadBalancerV2)-[:EXPOSE]-&gt;(:KubernetesPod)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">LoadBalancer</span> <span class="pre">to</span> <span class="pre">pod</span> <span class="pre">EXPOSE</span> <span class="pre">relationships</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exposure_type</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">LoadBalancer</span> <span class="pre">to</span> <span class="pre">pod</span> <span class="pre">EXPOSE</span> <span class="pre">relationships</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesPod)</span></code>: Links a cluster to a pod running in it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesContainer)-[:WORKLOAD_PARENT]-&gt;(:KubernetesPod)</span></code>: Links a container to the pod it runs in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesPod)</span></code>: Links a namespace to a pod it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNetworkPolicy)-[:APPLIES_TO]-&gt;(:KubernetesPod)</span></code>: Links a network policy to a pod its selector matches.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:CONTAINS]-&gt;(:KubernetesContainer)</span></code>: Links a pod to a container it runs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:OWNED_BY]-&gt;(:KubernetesReplicaSet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:RUNS_AS]-&gt;(:KubernetesServiceAccount)</span></code>: Links a pod to the identity it runs as.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:RUNS_ON]-&gt;(:KubernetesNode)</span></code>: Links a pod to the node it is scheduled on.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it consumes.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>mount_method</p></td>
+<td><p>How the pod consumes the secret: volume, environment, or both.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET_ENV]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it reads through environment variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET_VOLUME]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it mounts as a volume.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SERVICE_ACCOUNT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a pod to the service account it is configured with.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesDaemonSet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesDeployment)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesJob)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a pod to the namespace that owns it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesStatefulSet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesService)-[:TARGETS]-&gt;(:KubernetesPod)</span></code>: Links a service to a pod it sends traffic to.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesreplicaset">
+<h2>KubernetesReplicaSet<a class="headerlink" href="#kubernetesreplicaset" title="Link to this heading">#</a></h2>
+<p>A Kubernetes ReplicaSet that maintains a stable set of pod replicas.</p>
+<section id="id33">
+<h3>Properties<a class="headerlink" href="#id33" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes ReplicaSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the ReplicaSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes ReplicaSet was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes ReplicaSet was marked for deletion.</p></td>
+</tr>
+<tr class="row-even"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the ReplicaSet, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes ReplicaSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the ReplicaSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ready_replicas</p></td>
+<td><p></p></td>
+<td><p>Number of pod replicas that are ready.</p></td>
+</tr>
+<tr class="row-even"><td><p>replicas</p></td>
+<td><p></p></td>
+<td><p>Number of pod replicas currently maintained.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id34">
+<h3>Relationships<a class="headerlink" href="#id34" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesReplicaSet)</span></code>: Links a cluster to one of its replica sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:OWNED_BY]-&gt;(:KubernetesReplicaSet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesReplicaSet)-[:OWNED_BY]-&gt;(:KubernetesDeployment)</span></code>: Links a replica set to the deployment that manages it.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesrole">
+<h2>KubernetesRole<a class="headerlink" href="#kubernetesrole" title="Link to this heading">#</a></h2>
+<p>A namespace-scoped Kubernetes RBAC role.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-permissionrole"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PermissionRole</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id35">
+<h3>Properties<a class="headerlink" href="#id35" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the Role derived from cluster_name, namespace and name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/default/pod-reader</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>api_groups</p></td>
+<td><p></p></td>
+<td><p>List of API groups that this Role grants access to (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;core&quot;,</span> <span class="pre">&quot;apps&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes Role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes Role.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p></p></td>
+<td><p>The Kubernetes namespace where this Role is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>resource_version</p></td>
+<td><p></p></td>
+<td><p>The resource version of the Role for optimistic concurrency control.</p></td>
+</tr>
+<tr class="row-even"><td><p>resources</p></td>
+<td><p></p></td>
+<td><p>List of resources that this Role grants access to (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;pods&quot;,</span> <span class="pre">&quot;services&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>uid</p></td>
+<td><p></p></td>
+<td><p>UID of the Kubernetes Role.</p></td>
+</tr>
+<tr class="row-even"><td><p>verbs</p></td>
+<td><p></p></td>
+<td><p>List of verbs/actions that this Role allows (e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;get&quot;,</span> <span class="pre">&quot;list&quot;,</span> <span class="pre">&quot;create&quot;]</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_scope</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id36">
+<h3>Relationships<a class="headerlink" href="#id36" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesRole)</span></code>: Links a cluster to one of its roles.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesRole)</span></code>: Links a namespace to a role it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:ROLE_REF]-&gt;(:KubernetesRole)</span></code>: Links a role binding to the role it grants.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesrolebinding">
+<h2>KubernetesRoleBinding<a class="headerlink" href="#kubernetesrolebinding" title="Link to this heading">#</a></h2>
+<p>A namespace-scoped binding between RBAC subjects and a role.</p>
+<section id="id37">
+<h3>Properties<a class="headerlink" href="#id37" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the RoleBinding derived from cluster_name, namespace and name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/default/my-binding</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes RoleBinding.</p></td>
+</tr>
+<tr class="row-even"><td><p>group_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound group subjects.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes RoleBinding.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p></p></td>
+<td><p>The Kubernetes namespace where this RoleBinding is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>resource_version</p></td>
+<td><p></p></td>
+<td><p>The resource version of the RoleBinding for optimistic concurrency control.</p></td>
+</tr>
+<tr class="row-even"><td><p>role_id</p></td>
+<td><p></p></td>
+<td><p>Identifier for the target Role (used for relationship matching).</p></td>
+</tr>
+<tr class="row-odd"><td><p>role_kind</p></td>
+<td><p></p></td>
+<td><p>Kind of the role reference (e.g. <code class="docutils literal notranslate"><span class="pre">Role</span></code> or <code class="docutils literal notranslate"><span class="pre">ClusterRole</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p>role_name</p></td>
+<td><p></p></td>
+<td><p>Name of the Role that this RoleBinding references.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_account_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound service account subjects.</p></td>
+</tr>
+<tr class="row-even"><td><p>uid</p></td>
+<td><p></p></td>
+<td><p>UID of the Kubernetes RoleBinding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_ids</p></td>
+<td><p></p></td>
+<td><p>Identifiers of bound user subjects.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id38">
+<h3>Relationships<a class="headerlink" href="#id38" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesRoleBinding)</span></code>: Links a cluster to one of its role bindings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesRoleBinding)</span></code>: Links a namespace to a role binding it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:ROLE_REF]-&gt;(:KubernetesRole)</span></code>: Links a role binding to the role it grants.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesGroup)</span></code>: Links a role binding to a group it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a role binding to a service account it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesUser)</span></code>: Links a role binding to a user it grants its role to.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetessecret">
+<h2>KubernetesSecret<a class="headerlink" href="#kubernetessecret" title="Link to this heading">#</a></h2>
+<p>Metadata for a Kubernetes secret without its secret content.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id39">
+<h3>Properties<a class="headerlink" href="#id39" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the kubernetes secret.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this secret is deployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>composite_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Cluster, namespace, and name identifier used for matching.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the kubernetes secret.</p></td>
+</tr>
+<tr class="row-even"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the kubernetes secret.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the kubernetes secret.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this secret is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>owner_references</p></td>
+<td><p></p></td>
+<td><p>References to objects that own this secret. Useful if a secret is an <code class="docutils literal notranslate"><span class="pre">ExternalSecret</span></code>. Fetched from <code class="docutils literal notranslate"><span class="pre">secret.metadata.owner_references</span></code>. Stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Type of kubernetes secret (e.g. <code class="docutils literal notranslate"><span class="pre">Opaque</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">creation_timestamp</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id40">
+<h3>Relationships<a class="headerlink" href="#id40" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesSecret)</span></code>: Links a cluster to one of its secrets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesSecret)</span></code>: Links a namespace to a secret it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it consumes.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>mount_method</p></td>
+<td><p>How the pod consumes the secret: volume, environment, or both.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET_ENV]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it reads through environment variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SECRET_VOLUME]-&gt;(:KubernetesSecret)</span></code>: Links a pod to a secret it mounts as a volume.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesservice">
+<h2>KubernetesService<a class="headerlink" href="#kubernetesservice" title="Link to this heading">#</a></h2>
+<p>A Kubernetes service that exposes a set of pods.</p>
+<section id="id41">
+<h3>Properties<a class="headerlink" href="#id41" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the kubernetes service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_ip</p></td>
+<td><p></p></td>
+<td><p>The internal IP address assigned to the Kubernetes service within the cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster where this service is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the kubernetes service.</p></td>
+</tr>
+<tr class="row-even"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the deletion time of the kubernetes service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">service</span> <span class="pre">internet</span> <span class="pre">exposure</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet_type</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Kubernetes</span> <span class="pre">service</span> <span class="pre">internet</span> <span class="pre">exposure</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>load_balancer_ingress</p></td>
+<td><p></p></td>
+<td><p>The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-even"><td><p>load_balancer_ip</p></td>
+<td><p></p></td>
+<td><p>IP of the load balancer when service type is <code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the kubernetes service.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>The Kubernetes namespace where this service is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>qualified_name</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;namespace&gt;/&lt;name&gt;</span></code> identifier used to match the service from cross-namespace references such as <code class="docutils literal notranslate"><span class="pre">HTTPRoute.spec.rules[].backendRefs</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>selector</p></td>
+<td><p></p></td>
+<td><p>Labels used by the service to select pods. Fetched from <code class="docutils literal notranslate"><span class="pre">service.spec.selector</span></code>. Stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Yes</p></td>
+<td><p>Type of kubernetes service e.g. <code class="docutils literal notranslate"><span class="pre">ClusterIP</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id42">
+<h3>Relationships<a class="headerlink" href="#id42" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesService)</span></code>: Links a cluster to one of its services.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesHTTPRoute)-[:TARGETS]-&gt;(:KubernetesService)</span></code>: Links an HTTP route to a service it forwards traffic to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesIngress)-[:TARGETS]-&gt;(:KubernetesService)</span></code>: Links an ingress to a service it routes traffic to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesService)</span></code>: Links a namespace to a service it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesService)-[:TARGETS]-&gt;(:KubernetesPod)</span></code>: Links a service to a pod it sends traffic to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesService)-[:USES_LOAD_BALANCER]-&gt;(:AWSLoadBalancerV2)</span></code>: Links a service of type <code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code> to the AWS load balancer that exposes it, matching the service’s <code class="docutils literal notranslate"><span class="pre">status.loadBalancer.ingress[].hostname</span></code> against <code class="docutils literal notranslate"><span class="pre">AWSLoadBalancerV2.dnsname</span></code>. Both sides are lowercased at ingestion, since AWS preserves the load balancer name’s case in the DNS name it hands to the in-cluster controller.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesserviceaccount">
+<h2>KubernetesServiceAccount<a class="headerlink" href="#kubernetesserviceaccount" title="Link to this heading">#</a></h2>
+<p>A service account used by workloads in a Kubernetes cluster.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-serviceaccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ServiceAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id43">
+<h3>Properties<a class="headerlink" href="#id43" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. <code class="docutils literal notranslate"><span class="pre">my-cluster/default/my-service-account</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>automount_service_account_token</p></td>
+<td><p></p></td>
+<td><p>Whether the ServiceAccount token should be automatically mounted in pods.</p></td>
+</tr>
+<tr class="row-even"><td><p>aws_role_arn</p></td>
+<td><p></p></td>
+<td><p>ARN from the IRSA annotation <code class="docutils literal notranslate"><span class="pre">eks.amazonaws.com/role-arn</span></code>, when present. Used to link the ServiceAccount to an <code class="docutils literal notranslate"><span class="pre">AWSRole</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp of the creation time of the Kubernetes ServiceAccount.</p></td>
+</tr>
+<tr class="row-even"><td><p>gcp_service_account</p></td>
+<td><p></p></td>
+<td><p>Email from the GKE Workload Identity annotation <code class="docutils literal notranslate"><span class="pre">iam.gke.io/gcp-service-account</span></code>, when present. Used to link the ServiceAccount to a <code class="docutils literal notranslate"><span class="pre">GCPServiceAccount</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes ServiceAccount.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p></p></td>
+<td><p>The Kubernetes namespace where this ServiceAccount is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>resource_version</p></td>
+<td><p></p></td>
+<td><p>The resource version of the ServiceAccount for optimistic concurrency control.</p></td>
+</tr>
+<tr class="row-even"><td><p>uid</p></td>
+<td><p></p></td>
+<td><p>UID of the Kubernetes ServiceAccount.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id44">
+<h3>Relationships<a class="headerlink" href="#id44" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesServiceAccount)</span></code>: Links a cluster to one of its service accounts.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a cluster role binding to a service account it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesNamespace)-[:CONTAINS]-&gt;(:KubernetesServiceAccount)</span></code>: Links a namespace to a service account it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:RUNS_AS]-&gt;(:KubernetesServiceAccount)</span></code>: Links a pod to the identity it runs as.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:USES_SERVICE_ACCOUNT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a pod to the service account it is configured with.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesServiceAccount)</span></code>: Links a role binding to a service account it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesServiceAccount)-[:ASSUMES_ROLE]-&gt;(:AWSRole)</span></code>: Links a service account to the AWS IAM role it can assume through IRSA.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesServiceAccount)-[:WORKLOAD_IDENTITY_BINDING]-&gt;(:GCPServiceAccount)</span></code>: Links a service account to the Google Cloud service account it impersonates through Workload Identity.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesstatefulset">
+<h2>KubernetesStatefulSet<a class="headerlink" href="#kubernetesstatefulset" title="Link to this heading">#</a></h2>
+<p>A Kubernetes StatefulSet that manages pods with stable identities.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id45">
+<h3>Properties<a class="headerlink" href="#id45" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>UID of the Kubernetes StatefulSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes cluster containing the StatefulSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes StatefulSet was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletion_timestamp</p></td>
+<td><p></p></td>
+<td><p>Timestamp when the Kubernetes StatefulSet was marked for deletion.</p></td>
+</tr>
+<tr class="row-even"><td><p>labels</p></td>
+<td><p></p></td>
+<td><p>Metadata labels on the StatefulSet, stored as a JSON-encoded string.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the Kubernetes StatefulSet.</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>Yes</p></td>
+<td><p>Kubernetes namespace containing the StatefulSet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ready_replicas</p></td>
+<td><p></p></td>
+<td><p>Number of pod replicas that are ready.</p></td>
+</tr>
+<tr class="row-even"><td><p>replicas</p></td>
+<td><p></p></td>
+<td><p>Desired number of pod replicas.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_name</p></td>
+<td><p></p></td>
+<td><p>Name of the governing Kubernetes Service.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id46">
+<h3>Relationships<a class="headerlink" href="#id46" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesStatefulSet)</span></code>: Links a cluster to one of its stateful sets.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesPod)-[:WORKLOAD_PARENT]-&gt;(:KubernetesStatefulSet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesStatefulSet)-[:WORKLOAD_PARENT]-&gt;(:KubernetesNamespace)</span></code>: Links a stateful set to the namespace that owns it.</p></li>
+</ul>
+</section>
+</section>
+<section id="kubernetesuser">
+<h2>KubernetesUser<a class="headerlink" href="#kubernetesuser" title="Link to this heading">#</a></h2>
+<p>A user identity referenced by Kubernetes RBAC.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id47">
+<h3>Properties<a class="headerlink" href="#id47" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier for the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_name</p></td>
+<td><p></p></td>
+<td><p>Name of the cluster this user belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name of the Kubernetes user.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_username</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id48">
+<h3>Relationships<a class="headerlink" href="#id48" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSRole)-[:MAPS_TO]-&gt;(:KubernetesUser)</span></code>: Links an AWS IAM role to the Kubernetes user it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSRootPrincipal)-[:MAPS_TO]-&gt;(:KubernetesUser)</span></code>: Links an AWS account root principal to the Kubernetes user it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:AWSUser)-[:MAPS_TO]-&gt;(:KubernetesUser)</span></code>: Links an AWS IAM user to the Kubernetes user it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesCluster)-[:RESOURCE]-&gt;(:KubernetesUser)</span></code>: Links a cluster to one of its users.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesClusterRoleBinding)-[:SUBJECT]-&gt;(:KubernetesUser)</span></code>: Links a cluster role binding to a user it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:KubernetesRoleBinding)-[:SUBJECT]-&gt;(:KubernetesUser)</span></code>: Links a role binding to a user it grants its role to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:OktaUser)-[:MAPS_TO]-&gt;(:KubernetesUser)</span></code>: Links an Okta user to the Kubernetes user it maps to.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:UserAccount)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="queries.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Kubernetes Queries</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../lastpass/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">LastPass</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>
