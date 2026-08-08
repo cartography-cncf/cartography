@@ -1,8 +1,19 @@
 # Google GSuite
 
 :::{important} Deprecated Module
-This module has been deprecated and replaced by the [Google Workspace](../googleworkspace/index.md) module. Please refer to the Google Workspace module for the latest features and updates.
+The `gsuite` module is a standalone legacy ingestion pipeline, not an alias for
+`googleworkspace`. It no longer receives updates and is scheduled for removal
+in Cartography v1.0.0.
 :::
+
+Selecting `gsuite` still runs its own authentication, user ingestion, group
+ingestion, cleanup, legacy relationship migration, and Human identity analysis.
+It ingests only Google Workspace users and groups.
+
+New deployments should use the [Google Workspace](../googleworkspace/index.md)
+module, which has a separate data model and broader resource coverage. Existing
+deployments should follow the migration steps in the
+[Google Workspace configuration guide](../googleworkspace/config.md).
 
 ```{toctree}
 config
