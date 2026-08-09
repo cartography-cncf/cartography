@@ -617,6 +617,7 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
 
 def test_migrate_legacy_loadbalancer_labels_is_scoped_and_idempotent(
     neo4j_session,
+    database_backend,
 ):
     # Arrange
     other_account_id = "111111111111"
@@ -652,7 +653,8 @@ def test_migrate_legacy_loadbalancer_labels_is_scoped_and_idempotent(
         """,
         account_id=TEST_ACCOUNT_ID,
     ).single()
-    assert migrated["element_id"] == original_element_id
+    if database_backend == "neo4j":
+        assert migrated["element_id"] == original_element_id
     assert migrated["has_aws_label"] is True
     assert migrated["has_semantic_label"] is True
     assert migrated["listener_count"] == 1

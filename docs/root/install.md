@@ -221,6 +221,42 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
 
+    **ArcadeDB alternative:** Cartography's ingestion path also supports ArcadeDB
+    26.7.3 or newer through its Neo4j-compatible Bolt plugin. Enable the plugin,
+    set a root password, and create the target database before running Cartography:
+
+    ```bash
+    export ARCADEDB_PASSWORD="change-this-password"
+    docker run --rm --name cartography-arcadedb \
+        --publish 2480:2480 --publish 7687:7687 \
+        --env JAVA_OPTS="-Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD} -Darcadedb.server.plugins=Bolt:com.arcadedb.bolt.BoltProtocolPlugin" \
+        arcadedata/arcadedb:26.7.3
+    ```
+
+    Once the server is ready, create the database through ArcadeDB's HTTP API:
+
+    ```bash
+    curl --user "root:${ARCADEDB_PASSWORD}" \
+        --header 'Content-Type: application/json' \
+        --data '{"command":"create database cartography"}' \
+        http://localhost:2480/api/v1/server
+    ```
+
+    Then use the existing `--neo4j-*` connection options with the backend selector:
+
+    ```bash
+    cartography \
+        --database-backend arcadedb \
+        --neo4j-uri bolt://localhost:7687 \
+        --neo4j-user root \
+        --neo4j-password-env-var ARCADEDB_PASSWORD \
+        --neo4j-database cartography
+    ```
+
+    Cartography validates the server version and database at startup. Database
+    provisioning remains an ArcadeDB administration step rather than part of
+    ingestion.
+
 1. **Install cartography with [uv](https://docs.astral.sh/uv/).**
 
     Cartography uses uv for development and CI. We recommend it for installation as well: it manages an isolated environment for you and is significantly faster than pip.

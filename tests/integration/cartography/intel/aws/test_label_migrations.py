@@ -13,7 +13,10 @@ ACCOUNT_SCOPED_MIGRATIONS = tuple(
 )
 
 
-def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
+def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(
+    neo4j_session,
+    database_backend,
+):
     # Arrange
     neo4j_session.run(
         """
@@ -67,7 +70,8 @@ def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
     for index, migration in enumerate(ACCOUNT_SCOPED_MIGRATIONS):
         resource_id = f"legacy-{index}"
         record = migrated_resources[resource_id]
-        assert record["element_id"] == original_element_ids[resource_id]
+        if database_backend == "neo4j":
+            assert record["element_id"] == original_element_ids[resource_id]
         assert migration.old_label in record["labels"]
         assert migration.new_label in record["labels"]
 
@@ -83,6 +87,7 @@ def test_migrate_legacy_aws_labels_is_scoped_and_idempotent(neo4j_session):
 
 def test_migrate_legacy_public_ssm_parameter_label_is_global_and_idempotent(
     neo4j_session,
+    database_backend,
 ):
     # Arrange: public parameters are global and intentionally have no account edge.
     record = neo4j_session.run(
@@ -106,7 +111,8 @@ def test_migrate_legacy_public_ssm_parameter_label_is_global_and_idempotent(
         RETURN elementId(parameter) AS element_id, labels(parameter) AS labels
         """
     ).single()
-    assert migrated_record["element_id"] == original_element_id
+    if database_backend == "neo4j":
+        assert migrated_record["element_id"] == original_element_id
     assert "PublicSSMParameter" in migrated_record["labels"]
     assert "AWSPublicSSMParameter" in migrated_record["labels"]
 

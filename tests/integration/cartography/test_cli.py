@@ -4,9 +4,13 @@ import re
 import unittest.mock
 from typing import get_args
 
+import pytest
 import typer
 
 import cartography.cli
+from cartography.config import Config
+from cartography.config import DatabaseBackend
+from cartography.sync import run_with_config
 from tests.integration import settings
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -37,6 +41,57 @@ def test_cli_neo4j_liveness_check_timeout():
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
     assert config.neo4j_liveness_check_timeout == 60
+
+
+def test_cli_arcadedb_reuses_neo4j_connection_options():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    with unittest.mock.patch.dict(os.environ, {"ARCADEDB_PASSWORD": "password"}):
+        with unittest.mock.patch("cartography.sync.run_with_config") as run_with_config:
+            cli.main(
+                [
+                    "--database-backend",
+                    "arcadedb",
+                    "--neo4j-uri",
+                    "bolt://localhost:7687",
+                    "--neo4j-user",
+                    "root",
+                    "--neo4j-password-env-var",
+                    "ARCADEDB_PASSWORD",
+                    "--neo4j-database",
+                    "cartography",
+                ],
+            )
+
+    config = run_with_config.call_args.args[1]
+    assert config.database_backend == DatabaseBackend.ARCADEDB
+    assert config.neo4j_uri == "bolt://localhost:7687"
+    assert config.neo4j_user == "root"
+    assert config.neo4j_password == "password"
+    assert config.neo4j_database == "cartography"
+
+
+def test_arcadedb_backend_validation_uses_real_bolt_endpoint(
+    neo4j_url,
+    database_backend,
+):
+    if database_backend != "arcadedb":
+        pytest.skip("ArcadeDB integration job only")
+    sync = unittest.mock.MagicMock()
+    sync.run.return_value = 0
+    config = Config(
+        database_backend=DatabaseBackend.ARCADEDB,
+        neo4j_uri=neo4j_url,
+        neo4j_user=settings.get("ARCADEDB_USER"),
+        neo4j_password=settings.get("ARCADEDB_PASSWORD"),
+        neo4j_database=settings.get("ARCADEDB_DATABASE"),
+    )
+
+    result = run_with_config(sync, config)
+
+    assert result == 0
+    sync.run.assert_called_once()
 
 
 def test_cli_aws_ssm_public_parameter_prefix_allowlist_sets_config():

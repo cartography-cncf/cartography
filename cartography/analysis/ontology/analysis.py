@@ -12,24 +12,34 @@ AWS_USER_PROJECTION = AnalysisJob(
     short_name="ontology_aws_user_projection",
     statements=(
         AnalysisStatement(
-            match="MATCH (u:AWSUser)",
+            match=(
+                "MATCH (u:AWSUser) "
+                "OPTIONAL MATCH (u)-[:MFA_DEVICE]->(mfa:AWSMfaDevice) "
+                "WITH u, count(mfa) > 0 AS has_mfa"
+            ),
             effects=(
                 SetProperty(
                     "u",
                     "_ont_has_mfa",
-                    RawCypher("EXISTS((u)-[:MFA_DEVICE]->(:AWSMfaDevice))"),
+                    Var("has_mfa"),
                     label="AWSUser",
                 ),
             ),
         ),
         AnalysisStatement(
-            match="MATCH (u:AWSUser)",
+            match=(
+                "MATCH (u:AWSUser) "
+                "OPTIONAL MATCH (u)-[:AWS_ACCESS_KEY]->"
+                "(key:AWSAccountAccessKey {status: 'Active'}) "
+                "WITH u, count(key) > 0 AS has_active_access_key"
+            ),
             effects=(
                 SetProperty(
                     "u",
                     "_ont_active",
                     RawCypher(
-                        "CASE WHEN (u.passwordlastused_dt IS NOT NULL) OR EXISTS((u)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey {status: 'Active'})) THEN true ELSE NULL END"
+                        "CASE WHEN (u.passwordlastused_dt IS NOT NULL) OR "
+                        "has_active_access_key THEN true ELSE NULL END"
                     ),
                     label="AWSUser",
                 ),

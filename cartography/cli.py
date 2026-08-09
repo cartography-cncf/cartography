@@ -10,6 +10,7 @@ from typing_extensions import Annotated
 from cartography import _MIN_PYTHON
 from cartography import _MIN_PYTHON_STR
 from cartography.config import Config
+from cartography.config import DatabaseBackend
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -477,12 +478,23 @@ class CLI:
             # =================================================================
             # Neo4j Connection Options
             # =================================================================
+            database_backend: Annotated[
+                DatabaseBackend,
+                typer.Option(
+                    "--database-backend",
+                    help=(
+                        "Graph database behind the Bolt endpoint. ArcadeDB reuses "
+                        "the --neo4j-* connection options."
+                    ),
+                    rich_help_panel=PANEL_NEO4J,
+                ),
+            ] = DatabaseBackend.NEO4J,
             neo4j_uri: Annotated[
                 str,
                 typer.Option(
                     "--neo4j-uri",
                     help=(
-                        "A valid Neo4j URI to sync against. See "
+                        "A valid Bolt URI for the selected database backend. See "
                         "https://neo4j.com/docs/browser-manual/current/operations/dbms-connection/#uri-scheme"
                     ),
                     rich_help_panel=PANEL_NEO4J,
@@ -492,7 +504,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--neo4j-user",
-                    help="A username with which to authenticate to Neo4j.",
+                    help="A username with which to authenticate to the Bolt endpoint.",
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = None,
@@ -500,7 +512,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--neo4j-password-env-var",
-                    help="The name of an environment variable containing the Neo4j password.",
+                    help="The name of an environment variable containing the database password.",
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = None,
@@ -508,7 +520,7 @@ class CLI:
                 bool,
                 typer.Option(
                     "--neo4j-password-prompt",
-                    help="Present an interactive prompt for the Neo4j password. Supersedes other password methods.",
+                    help="Present an interactive prompt for the database password. Supersedes other password methods.",
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = False,
@@ -537,7 +549,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--neo4j-database",
-                    help="The name of the database in Neo4j to connect to. Uses Neo4j default if not specified.",
+                    help="The database name. Uses the server default if not specified; required for ArcadeDB.",
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = None,
@@ -2450,25 +2462,26 @@ class CLI:
 
             logger.debug("Launching cartography with CLI configuration")
 
-            # Handle Neo4j password
+            # Handle the Bolt endpoint password. The option names remain neo4j_* for
+            # backward compatibility when ArcadeDB is selected.
             neo4j_password = None
             if neo4j_user:
                 if neo4j_password_prompt:
                     logger.info(
-                        "Reading password for Neo4j user '%s' interactively.",
+                        "Reading password for database user '%s' interactively.",
                         neo4j_user,
                     )
                     neo4j_password = getpass.getpass()
                 elif neo4j_password_env_var:
                     logger.debug(
-                        "Reading password for Neo4j user '%s' from environment variable '%s'.",
+                        "Reading password for database user '%s' from environment variable '%s'.",
                         neo4j_user,
                         neo4j_password_env_var,
                     )
                     neo4j_password = os.environ.get(neo4j_password_env_var)
                 if not neo4j_password:
                     logger.warning(
-                        "Neo4j username was provided but a password could not be found.",
+                        "A database username was provided but a password could not be found.",
                     )
 
             # Load sync helpers lazily so --help/--version don't import all intel modules.
@@ -3148,6 +3161,7 @@ class CLI:
 
             # Build the Config object
             config = Config(
+                database_backend=database_backend,
                 neo4j_uri=neo4j_uri,
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,

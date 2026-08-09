@@ -51,6 +51,39 @@ jobs:
       - name: Run integration tests
         run: make test_integration
 
+  arcadedb-ingestion-tests:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_BACKEND: arcadedb
+      ARCADEDB_DOCKER_IMAGE: arcadedata/arcadedb:26.7.3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
+      - name: Run ingestion integration tests against ArcadeDB
+        run: |
+          uv run --frozen pytest -vvv \
+            tests/integration/cartography/test_cli.py::test_arcadedb_backend_validation_uses_real_bolt_endpoint \
+            tests/integration/cartography/client/test_core.py::test_ensure_indexes \
+            tests/integration/cartography/data/jobs \
+            tests/integration/cartography/intel/lastpass/test_users.py \
+            tests/integration/cartography/intel/test_provider_label_migrations.py \
+            tests/integration/cartography/intel/ontology/test_package_version_migration.py \
+            tests/integration/cartography/intel/aws/test_label_migrations.py \
+            tests/integration/cartography/intel/aws/ec2/test_load_balancer_v2s.py::test_migrate_legacy_loadbalancerv2_labels_repairs_partial_state \
+            tests/integration/cartography/intel/aws/ec2/test_ec2_load_balancers.py::test_migrate_legacy_loadbalancer_labels_is_scoped_and_idempotent \
+            tests/integration/cartography/intel/aws/test_identitycenter.py::test_group_allowed_by_role
+
   # Test that the docker image builds successfully on each commit
   build-docker-image:
     runs-on: ubuntu-latest

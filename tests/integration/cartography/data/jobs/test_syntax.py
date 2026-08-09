@@ -3,6 +3,7 @@ import sys
 import pytest
 
 import cartography.util
+from cartography.models.introspection import iter_analysis_jobs
 
 if sys.version_info >= (3, 7):
     from importlib.resources import contents
@@ -70,4 +71,28 @@ def test_cleanup_jobs_cypher_syntax(neo4j_session):
         except Exception as e:
             pytest.fail(
                 f"run_cleanup_job failed for cleanup job '{job_name}' with exception: {e}",
+            )
+
+
+def test_typed_analysis_jobs_cypher_syntax(neo4j_session):
+    parameters = {
+        "UPDATE_TAG": 123456789,
+        "AWS_ID": "my_aws_account_id",
+        "PROJECT_ID": "my_gcp_project_id",
+        "AZURE_SUBSCRIPTION_ID": "my_azure_subscription_id",
+        "TENANT_ID": "my_tenant_id",
+        "CLUSTER_ID": "my_cluster_id",
+        "DEPLOYMENT_ID": "my_deployment_id",
+    }
+
+    for definition in iter_analysis_jobs():
+        try:
+            cartography.util.run_typed_analysis_job(
+                definition.job,
+                neo4j_session,
+                parameters,
+            )
+        except Exception as e:
+            pytest.fail(
+                f"Typed analysis job '{definition.qualified_name}' failed: {e}",
             )

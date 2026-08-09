@@ -1,6 +1,14 @@
 import logging
+from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+class DatabaseBackend(str, Enum):
+    """Graph database backends supported by Cartography ingestion."""
+
+    NEO4J = "neo4j"
+    ARCADEDB = "arcadedb"
 
 
 def _resolve_microsoft_credentials_config(
@@ -74,12 +82,15 @@ class Config:
     contain valid values. Fields documented as optional may contain None, in which case cartography will choose a
     sensible default value for that piece of configuration.
 
+    :type database_backend: DatabaseBackend
+    :param database_backend: Graph database implementation behind the Bolt endpoint.
+        Defaults to Neo4j.
     :type neo4j_uri: string
-    :param neo4j_uri: URI for a Neo4j graph database service. Required.
+    :param neo4j_uri: Bolt URI for a Neo4j or ArcadeDB graph database service. Required.
     :type neo4j_user: string
-    :param neo4j_user: User name for a Neo4j graph database service. Optional.
+    :param neo4j_user: User name for the Bolt graph database service. Optional.
     :type neo4j_password: string
-    :param neo4j_password: Password for a Neo4j graph database service. Optional.
+    :param neo4j_password: Password for the Bolt graph database service. Optional.
     :type neo4j_max_connection_lifetime: int
     :param neo4j_max_connection_lifetime: Time in seconds for Neo4j driver to consider a TCP connection alive.
         See https://neo4j.com/docs/driver-manual/1.7/client-applications/. Optional.
@@ -102,9 +113,8 @@ class Config:
     :param neo4j_connection_acquisition_timeout: Maximum time in seconds to wait for a Neo4j pooled connection.
         Optional.
     :type neo4j_database: string
-    :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
-    settings to infer which database is set to default.
-    See https://neo4j.com/docs/api/python-driver/5.26/api.html#database. Optional.
+    :param neo4j_database: The database name. Neo4j uses the server default when
+        omitted; ArcadeDB requires an explicit database. Optional for Neo4j.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
@@ -661,7 +671,9 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        database_backend: DatabaseBackend | str = DatabaseBackend.NEO4J,
     ):
+        self.database_backend = DatabaseBackend(database_backend)
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
         self.neo4j_password = neo4j_password

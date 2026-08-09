@@ -4,6 +4,30 @@ import logging
 import pytest
 
 from cartography.config import Config
+from cartography.config import DatabaseBackend
+
+
+def test_config_defaults_to_neo4j_backend() -> None:
+    config = Config(neo4j_uri="bolt://localhost:7687")
+
+    assert config.database_backend == DatabaseBackend.NEO4J
+
+
+def test_config_accepts_arcadedb_backend_string() -> None:
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        database_backend="arcadedb",
+    )
+
+    assert config.database_backend == DatabaseBackend.ARCADEDB
+
+
+def test_config_rejects_unknown_database_backend() -> None:
+    with pytest.raises(ValueError, match="not-a-database"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            database_backend="not-a-database",
+        )
 
 
 def test_aws_organization_account_ids_preserves_config_positional_compatibility() -> (

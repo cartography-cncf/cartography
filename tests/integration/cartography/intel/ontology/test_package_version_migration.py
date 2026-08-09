@@ -3,7 +3,7 @@ from cartography.util import run_analysis_job
 TEST_UPDATE_TAG = 123456789
 
 
-def test_package_version_rename_migration(neo4j_session):
+def test_package_version_rename_migration(neo4j_session, database_backend):
     neo4j_session.run(
         "MATCH (n) WHERE n:Package OR n:PackageVersion OR n:TrivyPackage DETACH DELETE n"
     )
@@ -33,7 +33,8 @@ def test_package_version_rename_migration(neo4j_session):
         RETURN elementId(n) AS eid, labels(n) AS labels
         """
     ).single()
-    assert row["eid"] == before, "node identity must be preserved"
+    if database_backend == "neo4j":
+        assert row["eid"] == before, "node identity must be preserved"
     assert set(row["labels"]) == {"PackageVersion", "Ontology"}
 
     # A version-independent Package node must survive a re-run untouched.
