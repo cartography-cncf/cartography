@@ -12,12 +12,14 @@ def _index_names_on_property(neo4j_session, prop: str) -> set[str]:
     rows = neo4j_session.run(
         """
         SHOW INDEXES YIELD name, properties, entityType
-        WHERE entityType = 'NODE' AND size(properties) = 1 AND properties[0] = $prop
-        RETURN name
+        RETURN name, properties, entityType
         """,
-        prop=prop,
     )
-    return {row["name"] for row in rows}
+    return {
+        row["name"]
+        for row in rows
+        if row["entityType"] == "NODE" and row["properties"] == [prop]
+    }
 
 
 def _drop_all_indexes_on_properties(neo4j_session, properties) -> None:
@@ -26,7 +28,7 @@ def _drop_all_indexes_on_properties(neo4j_session, properties) -> None:
             neo4j_session.run(f"DROP INDEX `{name}` IF EXISTS")
 
 
-def test_drop_deprecated_ontology_indexes(neo4j_session):
+def test_drop_deprecated_ontology_indexes(neo4j_session, database_backend):
     """Deprecated _ont_ indexes are dropped; non-deprecated ones survive (#2845, remove in v1.0.0)."""
     _drop_all_indexes_on_properties(neo4j_session, TEST_PROPERTIES)
     try:
@@ -54,9 +56,16 @@ def test_drop_deprecated_ontology_indexes(neo4j_session):
         drop_deprecated_ontology_indexes(neo4j_session)
 
         # Deprecated RANGE indexes are gone, but the operator-managed TEXT index survives.
-        assert _index_names_on_property(neo4j_session, "_ont_references") == {
-            "op_text_ont_references"
-        }
+        references_indexes = _index_names_on_property(
+            neo4j_session,
+            "_ont_references",
+        )
+        if database_backend == "neo4j":
+            assert references_indexes == {"op_text_ont_references"}
+        else:
+            # ArcadeDB maps CREATE TEXT INDEX to its property index and does not
+            # retain a second operator-named index on the same field.
+            assert references_indexes == set()
         assert _index_names_on_property(neo4j_session, "_ont_description") == set()
         # Non-deprecated indexes survive.
         assert _index_names_on_property(neo4j_session, "_ont_cve_id")
@@ -65,9 +74,11 @@ def test_drop_deprecated_ontology_indexes(neo4j_session):
         # Idempotent: a second run with nothing left to drop is a no-op.
         drop_deprecated_ontology_indexes(neo4j_session)
         assert _index_names_on_property(neo4j_session, "_ont_cve_id")
-        assert _index_names_on_property(neo4j_session, "_ont_references") == {
-            "op_text_ont_references"
-        }
+        if database_backend == "neo4j":
+            assert _index_names_on_property(
+                neo4j_session,
+                "_ont_references",
+            ) == {"op_text_ont_references"}
     finally:
         # Don't leak schema into other test modules sharing this Neo4j instance.
         _drop_all_indexes_on_properties(neo4j_session, TEST_PROPERTIES)

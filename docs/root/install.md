@@ -32,6 +32,30 @@ machine to pull data from AWS.
 
     It may take a minute for the Neo4j container to spin up.
 
+    To test ingestion against ArcadeDB instead, start the opt-in Compose profile.
+    It provisions a `cartography` database, exposes ArcadeDB Studio at
+    http://localhost:2480, and exposes Bolt on `localhost:7688` so it does not
+    conflict with Neo4j:
+
+    ```bash
+    docker compose --profile arcadedb up -d --wait arcadedb
+    ```
+
+    The development-only default password is `cartography`. Override it by
+    setting `ARCADEDB_PASSWORD` before starting the service. A minimal local run
+    that exercises backend validation and index creation without provider
+    credentials is:
+
+    ```bash
+    ARCADEDB_PASSWORD=cartography uv run cartography \
+        --database-backend arcadedb \
+        --neo4j-uri bolt://localhost:7688 \
+        --neo4j-user root \
+        --neo4j-password-env-var ARCADEDB_PASSWORD \
+        --neo4j-database cartography \
+        --selected-modules create-indexes
+    ```
+
 1. **Configure and run Cartography.**
 
     In this example we will run Cartography on [AWS](https://docs.cartography.dev/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".

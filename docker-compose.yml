@@ -38,6 +38,33 @@ services:
         timeout: 10s
         retries: 10
 
+  # Opt-in ArcadeDB backend for testing Cartography ingestion through Bolt.
+  # Start it with: docker compose --profile arcadedb up -d --wait arcadedb
+  arcadedb:
+    profiles: ["arcadedb"]
+    image: arcadedata/arcadedb:26.7.3
+    restart: unless-stopped
+    ports:
+      - 2480:2480
+      # Avoid conflicting with Neo4j's host Bolt port. Containers still use 7687.
+      - 7688:7687
+    volumes:
+      - arcadedb-data:/home/arcadedb/databases
+      - arcadedb-logs:/home/arcadedb/log
+    environment:
+      ARCADEDB_OPTS_MEMORY: -Xms1G -Xmx1G
+      JAVA_OPTS: >-
+        -XX:+UseZGC
+        -XX:+ZGenerational
+        -Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD:-cartography}
+        -Darcadedb.server.defaultDatabases=cartography[]
+        -Darcadedb.server.plugins=Bolt:com.arcadedb.bolt.BoltProtocolPlugin
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:2480/api/v1/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
 # Runs the standard cartography image available at ghcr.io.
   cartography:
     image: ghcr.io/cartography-cncf/cartography:latest
@@ -82,3 +109,7 @@ services:
       - NEO4J_URL=bolt://cartography-neo4j-1:7687
       # this is actually needed
       - PRE_COMMIT_HOME=/var/cartography/.cache
+
+volumes:
+  arcadedb-data:
+  arcadedb-logs:

@@ -10,12 +10,15 @@ def _rel_indexes(neo4j_session, rel_type: str) -> set[tuple[str, tuple[str, ...]
     rows = neo4j_session.run(
         """
         SHOW INDEXES YIELD name, labelsOrTypes, properties, entityType
-        WHERE entityType = 'RELATIONSHIP' AND $rel_type IN labelsOrTypes
-        RETURN name, properties
+        RETURN name, labelsOrTypes, properties, entityType
         """,
-        rel_type=rel_type,
     )
-    return {(row["name"], tuple(row["properties"])) for row in rows}
+    return {
+        (row["name"], tuple(row["properties"]))
+        for row in rows
+        if row["entityType"] == "RELATIONSHIP"
+        and rel_type in (row["labelsOrTypes"] or [])
+    }
 
 
 def _drop_all_rel_indexes(neo4j_session, rel_types) -> None:
@@ -49,32 +52,46 @@ def test_drop_deprecated_matchlink_rel_indexes(neo4j_session):
             "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)"
         )
 
-        assert _rel_indexes(neo4j_session, "TEST_DEPRECATED_INDEX_A") == {
-            (
-                "deprecated_three_key",
-                ("_sub_resource_label", "_sub_resource_id", "lastupdated"),
-            ),
-            ("current_two_key", ("_sub_resource_label", "_sub_resource_id")),
+        assert {
+            properties
+            for _, properties in _rel_indexes(
+                neo4j_session,
+                "TEST_DEPRECATED_INDEX_A",
+            )
+        } == {
+            ("_sub_resource_label", "_sub_resource_id", "lastupdated"),
+            ("_sub_resource_label", "_sub_resource_id"),
         }
 
         drop_deprecated_matchlink_rel_indexes(neo4j_session)
 
         # Only the three-key index in cartography's own key order is gone.
-        assert _rel_indexes(neo4j_session, "TEST_DEPRECATED_INDEX_A") == {
-            ("current_two_key", ("_sub_resource_label", "_sub_resource_id")),
-        }
-        assert _rel_indexes(neo4j_session, "TEST_DEPRECATED_INDEX_B") == {
-            (
-                "reordered_three_key",
-                ("lastupdated", "_sub_resource_label", "_sub_resource_id"),
-            ),
+        assert {
+            properties
+            for _, properties in _rel_indexes(
+                neo4j_session,
+                "TEST_DEPRECATED_INDEX_A",
+            )
+        } == {("_sub_resource_label", "_sub_resource_id")}
+        assert {
+            properties
+            for _, properties in _rel_indexes(
+                neo4j_session,
+                "TEST_DEPRECATED_INDEX_B",
+            )
+        } == {
+            ("lastupdated", "_sub_resource_label", "_sub_resource_id"),
         }
 
         # Idempotent: a second run with nothing left to drop is a no-op.
         drop_deprecated_matchlink_rel_indexes(neo4j_session)
-        assert _rel_indexes(neo4j_session, "TEST_DEPRECATED_INDEX_A") == {
-            ("current_two_key", ("_sub_resource_label", "_sub_resource_id")),
-        }
+        assert {
+            properties
+            for _, properties in _rel_indexes(
+                neo4j_session,
+                "TEST_DEPRECATED_INDEX_A",
+            )
+        } == {("_sub_resource_label", "_sub_resource_id")}
     finally:
         # Don't leak schema into other test modules sharing this Neo4j instance.
         _drop_all_rel_indexes(neo4j_session, TEST_REL_TYPES)

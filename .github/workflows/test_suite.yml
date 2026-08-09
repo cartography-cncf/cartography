@@ -76,6 +76,8 @@ jobs:
             tests/integration/cartography/test_cli.py::test_arcadedb_backend_validation_uses_real_bolt_endpoint \
             tests/integration/cartography/client/test_core.py::test_ensure_indexes \
             tests/integration/cartography/data/jobs \
+            tests/integration/cartography/intel/test_deprecated_indexes.py \
+            tests/integration/cartography/intel/ontology/test_deprecated_indexes.py \
             tests/integration/cartography/intel/lastpass/test_users.py \
             tests/integration/cartography/intel/test_provider_label_migrations.py \
             tests/integration/cartography/intel/ontology/test_package_version_migration.py \
