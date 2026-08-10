@@ -47,7 +47,3 @@ li > ul > li > a[href^="#id"] {
     display: none !important;
   }
 /* </UGLY hack!> */
-
-html.dark .yue img[alt="logo"] {
-  filter: invert(1) hue-rotate(180deg);
-}
