@@ -28,6 +28,16 @@ class ScalewayKapsuleNodeProperties(CartographyNodeProperties):
     public_ip_v6: PropertyRef = PropertyRef(
         "public_ip_v6", description="Public IPv6 address."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the node holds a public IPv4 or IPv6 address. Node-level firewalling is not modelled.",
+    )  # Populated by the SCALEWAY_KAPSULE_NODE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the SCALEWAY_KAPSULE_NODE_EXPOSURE analysis job.
     error_message: PropertyRef = PropertyRef(
         "error_message", description="Last error message reported by the node."
     )

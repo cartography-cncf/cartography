@@ -46,6 +46,16 @@ class ScalewayElasticMetalServerProperties(CartographyNodeProperties):
     public_ip: PropertyRef = PropertyRef(
         "public_ip", description="First public IP (scalar, for ontology)."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the server holds a public IP. Bare metal has no managed firewall in front of it.",
+    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone in which the server is located."
     )
