@@ -97,9 +97,13 @@ def transform(
                 function.namespace_id,
             )
             continue
-        functions_by_project.setdefault(project_id, []).append(
-            scaleway_obj_to_dict(function)
-        )
+        formatted_function = scaleway_obj_to_dict(function)
+        # privacy = 'public' means anonymous callers can invoke it over its auto-assigned
+        # HTTPS domain with no token.
+        exposed = formatted_function.get("privacy") == "public"
+        formatted_function["exposed_internet"] = exposed
+        formatted_function["exposed_internet_type"] = ["direct"] if exposed else None
+        functions_by_project.setdefault(project_id, []).append(formatted_function)
 
     return namespaces_by_project, functions_by_project
 

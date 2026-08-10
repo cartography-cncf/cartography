@@ -1,135 +1,23 @@
+"""Scaleway internet exposure, for the paths that span several node types.
+
+Only instances need analysis: their exposure depends on security-group rules, Public Gateway
+PAT rules and load balancer backends, which are three separate syncs. Every other Scaleway
+resource decides its own exposure from one API response, so it sets exposed_internet in
+transform() instead: see the load balancers, databases, serverless, object storage, container
+registry, Kapsule and bare metal intel modules.
+
+These jobs are unscoped: the Scaleway sync is organization-wide and single-pass, so an
+unscoped cleanup has no other project's data to remove. They also use
+run_typed_analysis_job rather than run_typed_analysis_and_ensure_deps, because Scaleway has
+no selective intra-module sync like aws_requested_syncs or gcp_requested_syncs, so every
+resource they read is always present. Add dep-checking if that ever changes.
+"""
+
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
 from cartography.graph.analysis import SetProperty
-
-# These jobs are unscoped: the Scaleway sync is organization-wide and single-pass, so an
-# unscoped cleanup has no other project's data to remove.
-
-_DEFAULT_FALSE_COMMENT = (
-    "Store the negative verdict explicitly so exposed_internet = false is answerable."
-)
-
-# Managed databases all gate public reachability on a single is_public flag. There is no
-# firewall layer to join, unlike AWS security groups or GCP authorized networks.
-_PUBLIC_ENDPOINT_DATABASE_LABELS = (
-    "ScalewayRdbInstance",
-    "ScalewayRedisCluster",
-    "ScalewayMongoDBInstance",
-    "ScalewayDataWarehouseDeployment",
-    "ScalewayServerlessSQLDatabase",
-    "ScalewaySearchDeployment",
-)
-
-# Serverless workloads gate anonymous invocation on `privacy`: `public` means the
-# auto-assigned HTTPS domain answers without a token.
-_PUBLIC_PRIVACY_SERVERLESS_LABELS = (
-    "ScalewayServerlessFunction",
-    "ScalewayServerlessContainer",
-)
-
-
-def _flag_statements(
-    label: str, node: str, comment: str, predicate: str
-) -> tuple[AnalysisStatement, ...]:
-    """Mark one label exposed on a single boolean-ish field, then default the rest to false.
-
-    A per-label statement is required because SetProperty needs a label for the generated
-    cleanup to know which nodes own the property.
-    """
-    return (
-        AnalysisStatement(
-            comment=comment,
-            match=f"MATCH ({node}:{label}) WHERE {predicate}",
-            effects=(
-                SetProperty(node, "exposed_internet", True, label=label),
-                AddToSet(node, "exposed_internet_type", "direct", label=label),
-            ),
-        ),
-        AnalysisStatement(
-            comment=_DEFAULT_FALSE_COMMENT,
-            match=f"MATCH ({node}:{label}) WHERE {node}.exposed_internet IS NULL",
-            effects=(SetProperty(node, "exposed_internet", False, label=label),),
-        ),
-    )
-
-
-SCALEWAY_DATABASE_EXPOSURE = AnalysisJob(
-    name="Scaleway managed database internet exposure",
-    short_name="scaleway_database_exposure",
-    cleanup_iterationsize=1000,
-    statements=tuple(
-        statement
-        for label in _PUBLIC_ENDPOINT_DATABASE_LABELS
-        for statement in _flag_statements(
-            label,
-            "db",
-            # status is not filtered on: each product has its own status vocabulary, and the
-            # database_instance_exposed rules key off is_public alone.
-            "A public endpoint is provisioned, so the database answers from the internet.",
-            "db.is_public = true",
-        )
-    ),
-)
-
-SCALEWAY_SERVERLESS_EXPOSURE = AnalysisJob(
-    name="Scaleway serverless internet exposure",
-    short_name="scaleway_serverless_exposure",
-    cleanup_iterationsize=1000,
-    statements=tuple(
-        statement
-        for label in _PUBLIC_PRIVACY_SERVERLESS_LABELS
-        for statement in _flag_statements(
-            label,
-            "w",
-            # Readiness is filtered downstream, where the ontology WORKLOAD_HAS_RUNTIME_IMAGE
-            # job keeps only containers whose _ont_state is 'running' or 'ready'.
-            "Anonymous callers can invoke it over its auto-assigned HTTPS domain.",
-            "w.privacy = 'public'",
-        )
-    ),
-)
-
-SCALEWAY_LOADBALANCER_EXPOSURE = AnalysisJob(
-    name="Scaleway Load Balancer internet exposure",
-    short_name="scaleway_loadbalancer_exposure",
-    cleanup_iterationsize=1000,
-    statements=(
-        AnalysisStatement(
-            comment=(
-                "A public IP plus a listening frontend means the load balancer forwards "
-                "internet traffic. The LB API has no scheme field, so the IP is the signal; "
-                "a private load balancer has ip_address IS NULL."
-            ),
-            match="""
-            MATCH (lb:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
-            WHERE lb.ip_address IS NOT NULL
-            WITH DISTINCT lb
-            """,
-            effects=(
-                SetProperty(
-                    "lb", "exposed_internet", True, label="ScalewayLoadBalancer"
-                ),
-                AddToSet(
-                    "lb",
-                    "exposed_internet_type",
-                    "direct",
-                    label="ScalewayLoadBalancer",
-                ),
-            ),
-        ),
-        AnalysisStatement(
-            comment=_DEFAULT_FALSE_COMMENT,
-            match="MATCH (lb:ScalewayLoadBalancer) WHERE lb.exposed_internet IS NULL",
-            effects=(
-                SetProperty(
-                    "lb", "exposed_internet", False, label="ScalewayLoadBalancer"
-                ),
-            ),
-        ),
-    ),
-)
 
 SCALEWAY_LB_EXPOSE_EDGES = AnalysisJob(
     name="Scaleway Load Balancer EXPOSE relationships",
@@ -248,7 +136,6 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
         ),
         AnalysisStatement(
             # Must stay last so it only fires for instances nothing above marked.
-            comment=_DEFAULT_FALSE_COMMENT,
             match="MATCH (instance:ScalewayInstance) WHERE instance.exposed_internet IS NULL",
             effects=(
                 SetProperty(
@@ -259,16 +146,10 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
     ),
 )
 
-# The load balancer verdict is written first, then the EXPOSE edges that depend on it, then
-# the instance job that reads those edges for its `lb` path.
-#
-# These use run_typed_analysis_job rather than run_typed_analysis_and_ensure_deps because
-# Scaleway has no selective intra-module sync (no scaleway_requested_syncs), so every
-# resource these jobs read is always synced. Add dep-checking if that ever changes.
+# The EXPOSE edges come first, since the instance job reads them for its `lb` path. The
+# load balancer's own exposed_internet is already set by its transform, so nothing here has
+# to produce it.
 SCALEWAY_EXPOSURE_JOBS = (
-    SCALEWAY_LOADBALANCER_EXPOSURE,
     SCALEWAY_LB_EXPOSE_EDGES,
     SCALEWAY_INSTANCE_EXPOSURE,
-    SCALEWAY_DATABASE_EXPOSURE,
-    SCALEWAY_SERVERLESS_EXPOSURE,
 )

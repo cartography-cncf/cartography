@@ -3,7 +3,6 @@
 import cartography.util
 from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
 from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
-from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
@@ -167,23 +166,28 @@ def _create_loadbalancer_graph(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
 
-    # (lb id, public ip, has frontend)
-    for lb_id, ip_address, has_frontend in [
-        ("lb-public", "51.159.0.1", True),
-        ("lb-private", None, True),
-        ("lb-nofront", "51.159.0.2", False),
+    # exposed_internet is set by transform_loadbalancers, so it is seeded here the way the
+    # loader would write it rather than derived by a job.
+    # (lb id, public ip, has frontend, exposed_internet)
+    for lb_id, ip_address, has_frontend, exposed in [
+        ("lb-public", "51.159.0.1", True, True),
+        ("lb-private", None, True, False),
+        ("lb-nofront", "51.159.0.2", False, False),
     ]:
         neo4j_session.run(
             """
             MATCH (p:ScalewayProject{id: $pid})
             MERGE (lb:ScalewayLoadBalancer{id: $lbid})
-            SET lb.ip_address = $ip_address, lb.lastupdated = $tag
+            SET lb.ip_address = $ip_address,
+                lb.exposed_internet = $exposed,
+                lb.lastupdated = $tag
             MERGE (p)-[r:RESOURCE]->(lb)
             SET r.lastupdated = $tag
             """,
             pid=TEST_PROJECT_ID,
             lbid=lb_id,
             ip_address=ip_address,
+            exposed=exposed,
             tag=TEST_UPDATE_TAG,
         )
         if not has_frontend:
@@ -231,64 +235,6 @@ def _create_loadbalancer_graph(neo4j_session):
     )
 
 
-DATABASE_LABELS = (
-    "ScalewayRdbInstance",
-    "ScalewayRedisCluster",
-    "ScalewayMongoDBInstance",
-    "ScalewayDataWarehouseDeployment",
-    "ScalewayServerlessSQLDatabase",
-    "ScalewaySearchDeployment",
-)
-
-
-def _create_database_graph(neo4j_session):
-    """One public and one private database per managed-database product."""
-    for label in DATABASE_LABELS:
-        for suffix, is_public in [("public", True), ("private", False)]:
-            neo4j_session.run(
-                f"""
-                MATCH (p:ScalewayProject{{id: $pid}})
-                MERGE (db:{label}{{id: $dbid}})
-                SET db.is_public = $is_public,
-                    db.status = 'ready',
-                    db.lastupdated = $tag
-                MERGE (p)-[r:RESOURCE]->(db)
-                SET r.lastupdated = $tag
-                """,
-                pid=TEST_PROJECT_ID,
-                dbid=f"{label}-{suffix}",
-                is_public=is_public,
-                tag=TEST_UPDATE_TAG,
-            )
-
-
-SERVERLESS_LABELS = (
-    "ScalewayServerlessFunction",
-    "ScalewayServerlessContainer",
-)
-
-
-def _create_serverless_graph(neo4j_session):
-    """One public and one private workload per serverless product."""
-    for label in SERVERLESS_LABELS:
-        for suffix, privacy in [("public", "public"), ("private", "private")]:
-            neo4j_session.run(
-                f"""
-                MATCH (p:ScalewayProject{{id: $pid}})
-                MERGE (w:{label}{{id: $wid}})
-                SET w.privacy = $privacy,
-                    w.status = 'ready',
-                    w.lastupdated = $tag
-                MERGE (p)-[r:RESOURCE]->(w)
-                SET r.lastupdated = $tag
-                """,
-                pid=TEST_PROJECT_ID,
-                wid=f"{label}-{suffix}",
-                privacy=privacy,
-                tag=TEST_UPDATE_TAG,
-            )
-
-
 def _run_exposure_jobs(neo4j_session):
     for job in SCALEWAY_EXPOSURE_JOBS:
         cartography.util.run_typed_analysis_job(
@@ -326,25 +272,6 @@ def test_scaleway_instance_exposure(neo4j_session):
         "inst-scoped": (False, None),
         "inst-nopubip": (False, None),
         "inst-stopped": (False, None),
-    }
-
-
-def test_scaleway_loadbalancer_exposure(neo4j_session):
-    # Arrange
-    _create_base_graph(neo4j_session)
-    _create_loadbalancer_graph(neo4j_session)
-
-    # Act
-    _run_exposure_jobs(neo4j_session)
-
-    assert check_nodes(
-        neo4j_session,
-        "ScalewayLoadBalancer",
-        ["id", "exposed_internet"],
-    ) == {
-        ("lb-public", True),
-        ("lb-private", False),
-        ("lb-nofront", False),
     }
 
 
@@ -388,59 +315,11 @@ def test_scaleway_lb_expose_edges_and_instance_propagation(neo4j_session):
     }
 
 
-def test_scaleway_database_exposure(neo4j_session):
-    # Arrange
-    _create_base_graph(neo4j_session)
-    _create_database_graph(neo4j_session)
-
-    # Act
-    _run_exposure_jobs(neo4j_session)
-
-    for label in DATABASE_LABELS:
-        assert check_nodes(
-            neo4j_session,
-            label,
-            ["id", "exposed_internet"],
-        ) == {
-            (f"{label}-public", True),
-            (f"{label}-private", False),
-        }, f"unexpected verdict for {label}"
-
-        types = {
-            row["id"]: row["types"]
-            for row in neo4j_session.run(
-                f"MATCH (db:{label}) RETURN db.id AS id, db.exposed_internet_type AS types",
-            )
-        }
-        assert types == {
-            f"{label}-public": ["direct"],
-            f"{label}-private": None,
-        }, f"unexpected exposure type for {label}"
-
-
-def test_scaleway_serverless_exposure(neo4j_session):
-    # Arrange
-    _create_base_graph(neo4j_session)
-    _create_serverless_graph(neo4j_session)
-
-    # Act
-    _run_exposure_jobs(neo4j_session)
-
-    for label in SERVERLESS_LABELS:
-        assert check_nodes(
-            neo4j_session,
-            label,
-            ["id", "exposed_internet"],
-        ) == {
-            (f"{label}-public", True),
-            (f"{label}-private", False),
-        }, f"unexpected verdict for {label}"
-
-
 def test_scaleway_container_exposure_reaches_has_runtime_image(neo4j_session):
-    """privacy = 'public' -> exposed_internet -> HAS_RUNTIME_IMAGE.exposed_internet.
+    """A Scaleway container's exposed_internet reaches HAS_RUNTIME_IMAGE.
 
-    Nothing is hand-set here, unlike test_has_runtime_image_self_service_workload.
+    The container verdict itself is set by transform (asserted in test_serverless.py); this
+    covers the hand-off to the ontology roll-up, which saw nothing for Scaleway before.
     """
     # ScalewayServerlessContainer carries both ComputeService and Container, so the ontology
     # job's *0..6 lower bound of 0 matches it with no WORKLOAD_PARENT hop.
@@ -451,6 +330,7 @@ def test_scaleway_container_exposure_reaches_has_runtime_image(neo4j_session):
             MATCH (p:ScalewayProject{id: $pid})
             MERGE (c:ScalewayServerlessContainer:ComputeService:Container{id: $cid})
             SET c.privacy = $privacy,
+                c.exposed_internet = ($privacy = 'public'),
                 c._ont_state = 'ready',
                 c.lastupdated = $tag
             MERGE (p)-[r:RESOURCE]->(c)
