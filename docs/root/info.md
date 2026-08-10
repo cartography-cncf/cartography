@@ -1,4 +1,12 @@
-![logo](images/logo-horizontal.png)
+```{image} images/logo-horizontal.svg
+:alt: Cartography
+:class: light-only
+```
+
+```{image} images/logo-horizontal-dark.svg
+:alt: Cartography
+:class: dark-only
+```
 
 # What is Cartography?
 
