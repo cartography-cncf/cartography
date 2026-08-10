@@ -166,8 +166,9 @@ cross-provider query means the same thing everywhere.
   answerable and not confused with "never evaluated".
 - `exposed_internet_type` is a list of strings recording *how* the asset is exposed. Values
   in use today: `direct` (the asset itself has a public address or an open ingress rule),
-  `lb`, `elb`, `elbv2`, `gcp_lb` (reached through a load balancer of that kind), and `pat`
-  (reached through a Scaleway Public Gateway port-address-translation rule). Append with
+  `lb`, `elb`, `elbv2`, `gcp_lb` (reached through a load balancer of that kind), `pat`
+  (reached through a Scaleway Public Gateway port-address-translation rule), and `tcp_proxy`
+  (a raw port published with no TLS termination, as Railway does). Append with
   `AddToSet` rather than overwriting, since an asset can be exposed several ways at once.
 - The `EXPOSE` relationship always runs **from the internet-facing frontend to the asset it
   puts at risk**, never the reverse: `(:AWSLoadBalancerV2)-[:EXPOSE]->(:AWSEC2Instance)`. The
@@ -188,7 +189,7 @@ Note that "the internet" is not a node. It is modelled as the `0.0.0.0/0` range:
 
 #### Per-resource derivations
 
-Modules writing `exposed_internet` today: AWS, GCP, Azure, Kubernetes and Scaleway. AWS and
+Modules writing `exposed_internet` today: AWS, GCP, Azure, Kubernetes, Scaleway and Railway. AWS and
 Kubernetes do not yet run the explicit `False` pass described above, so on those providers a
 missing property means "not found exposed" rather than a stored `false`.
 
