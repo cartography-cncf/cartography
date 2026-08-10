@@ -36,10 +36,18 @@ Findings also carry the ontology label `SecurityIssue`.
 ## Finding identity
 
 Zizmor's JSON output has no finding identifier, so Cartography synthesizes one
-by hashing the audit id, the repository URL, the file path, and the YAML route
-of the offending node. Line numbers are deliberately excluded: an unrelated
-edit earlier in the file shifts every line below it, and a finding that only
-moved should not be reported as a new one.
+by hashing five things: the audit id, the repository URL, the file path, the
+YAML route of the offending node, and the location's sub-feature component.
+That last one is what distinguishes two findings of the same audit inside a
+single block, such as two injectable expressions in one `run` step; it is an
+offset within the block's own text, not a position in the file.
+
+Line and column numbers are deliberately excluded. An unrelated edit earlier in
+the file shifts every line below it, and a finding that only moved should not be
+reported as a new one.
+
+Relationship targets are not part of the hash, which is why cleanup removes
+stale relationships as well as stale nodes. See below.
 
 ## Suppressed findings
 

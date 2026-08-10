@@ -73,6 +73,29 @@ def test_looks_like_zizmor_report_rejects_list_of_wrong_shape():
     assert looks_like_zizmor_report([{"foo": "bar"}]) is False
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("ident", None),
+        ("ident", 42),
+        ("desc", 123),
+        ("url", None),
+        ("determinations", "not-a-dict"),
+        ("locations", "not-a-list"),
+    ],
+)
+def test_looks_like_zizmor_report_rejects_wrong_field_types(field, value):
+    """
+    Presence alone is not enough. A null `ident` would be stringified into a
+    synthetic "None" audit, which both invents a finding and changes the id of
+    the real one, so cleanup would delete the real one as stale.
+    """
+    finding = _load_sample()[0]
+    finding[field] = value
+
+    assert looks_like_zizmor_report([finding]) is False
+
+
 def test_looks_like_zizmor_report_rejects_corruption_past_the_first_entry():
     """
     Checking only the opening element would let a truncated report through, and
@@ -435,6 +458,30 @@ def test_transform_zizmor_report_rejects_malformed_entry():
         ValueError, match="Zizmor report contains an entry that is not a finding"
     ):
         transform_zizmor_report(document, REPO_CONTEXT)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("ident", None),
+        ("desc", 123),
+        ("url", None),
+        ("determinations", "not-a-dict"),
+        ("locations", "not-a-list"),
+    ],
+)
+def test_transform_zizmor_report_rejects_wrong_field_types(field, value):
+    """
+    The transform must reject the same entries the validator does, so a report
+    can never be counted as fully observed while a finding in it was dropped.
+    """
+    finding = _load_sample()[0]
+    finding[field] = value
+
+    with pytest.raises(
+        ValueError, match="Zizmor report contains an entry that is not a finding"
+    ):
+        transform_zizmor_report([finding], REPO_CONTEXT)
 
 
 def test_transform_zizmor_report_rejects_non_list_document():

@@ -41,12 +41,16 @@ class ZizmorTransformResult:
     skipped: int = 0
 
 
-_ZIZMOR_FINDING_REQUIRED_KEYS = {
-    "ident",
-    "desc",
-    "url",
-    "determinations",
-    "locations",
+# Fields every finding must carry, and the type each must have. Presence alone is
+# not enough: a null `ident` would otherwise be stringified into a synthetic
+# "None" audit, which both invents a finding and changes the id of the real one,
+# letting cleanup delete it.
+_ZIZMOR_FINDING_REQUIRED_FIELDS: dict[str, type | tuple[type, ...]] = {
+    "ident": str,
+    "desc": str,
+    "url": str,
+    "determinations": dict,
+    "locations": list,
 }
 _HIDDEN_LOCATION_KIND = "Hidden"
 _PRIMARY_LOCATION_KIND = "Primary"
@@ -70,8 +74,12 @@ def looks_like_zizmor_report(document: Any) -> bool:
 
 
 def _is_zizmor_finding(finding: Any) -> bool:
-    return isinstance(finding, dict) and _ZIZMOR_FINDING_REQUIRED_KEYS.issubset(
-        finding.keys()
+    if not isinstance(finding, dict):
+        return False
+
+    return all(
+        isinstance(finding.get(name), expected_type)
+        for name, expected_type in _ZIZMOR_FINDING_REQUIRED_FIELDS.items()
     )
 
 
@@ -296,8 +304,10 @@ def transform_zizmor_report(
             continue
         related = [location for location in locations if location not in primaries]
 
-        audit_id = str(finding["ident"])
-        determinations = finding.get("determinations") or {}
+        # Types of the required fields are guaranteed by _is_zizmor_finding above.
+        audit_id = finding["ident"]
+        determinations = finding["determinations"]
+        # `fixes` is optional: zizmor omits it for audits that cannot autofix.
         fixes = finding.get("fixes")
         fixes = fixes if isinstance(fixes, list) else []
 
