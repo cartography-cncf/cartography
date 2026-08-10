@@ -117,6 +117,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
         "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
         "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        # Must run after `github` so that the workflows, actions, and repositories
+        # that findings attach to already exist.
+        "zizmor": _LazyStage("cartography.intel.zizmor", "start_zizmor_ingestion"),
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
