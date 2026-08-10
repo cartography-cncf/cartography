@@ -1227,11 +1227,17 @@ def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
     Test that when skip_unchanged_repos is enabled and a repo's pushedAt is
     unchanged since the last successful manifest sync, the per-repo manifest
     fetch is skipped, but existing DependencyGraphManifest/Dependency nodes
-    are preserved (touched, not stale-cleaned) across a new update tag.
+    are preserved (touched, not stale-cleaned) across a new update tag. Also
+    verifies the DependencyGraphManifest-[:MATCHES_CODEOWNER_RULE]->
+    GitHubCodeOwnerRule matchlink is preserved, since codeowners.sync's
+    cleanup is scoped to the whole org and would otherwise delete matchlinks
+    for repos whose manifest fetch was skipped this run.
     """
-    # Arrange - seed a repo with an existing manifest+dependency and a matching bookmark
+    # Arrange - seed a repo with an existing manifest+dependency, a CODEOWNERS
+    # rule match, and a matching bookmark
     repo_url = "https://github.com/simpsoncorp/sample_repo"
     manifest_id = f"{repo_url}#/requirements.txt"
+    rule_id = f"{repo_url}#CODEOWNERS:.github/CODEOWNERS:1:deadbeef"
     neo4j_session.run(
         """
         MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
@@ -1243,9 +1249,14 @@ def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
         SET m.lastupdated = $update_tag
         MERGE (m)-[:HAS_DEP]->(d:Dependency{id: "django"})
         SET d.lastupdated = $update_tag
+        MERGE (rule:GitHubCodeOwnerRule{id: $rule_id})
+        SET rule.lastupdated = $update_tag
+        MERGE (m)-[mc:MATCHES_CODEOWNER_RULE]->(rule)
+        SET mc.lastupdated = $update_tag
         """,
         repo_url=repo_url,
         manifest_id=manifest_id,
+        rule_id=rule_id,
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -1289,6 +1300,21 @@ def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
     ).single()
     assert dep_row is not None
     assert dep_row["lastupdated"] == new_update_tag
+
+    # Assert - the MATCHES_CODEOWNER_RULE matchlink was touched too, so
+    # codeowners.sync's org-scoped cleanup won't delete it even though this
+    # repo's manifest fetch was skipped this run.
+    matchlink_row = neo4j_session.run(
+        """
+        MATCH (:DependencyGraphManifest {id: $manifest_id})
+              -[mc:MATCHES_CODEOWNER_RULE]->(:GitHubCodeOwnerRule {id: $rule_id})
+        RETURN mc.lastupdated AS lastupdated
+        """,
+        manifest_id=manifest_id,
+        rule_id=rule_id,
+    ).single()
+    assert matchlink_row is not None
+    assert matchlink_row["lastupdated"] == new_update_tag
 
     # Assert - bookmark unchanged (still valid for next comparison)
     bookmark_row = neo4j_session.run(
