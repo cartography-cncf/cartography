@@ -22,7 +22,7 @@ Provide these options:
 
 - `--scaleway-access-key`: API access key.
 - `--scaleway-secret-key-env-var`: Name of the environment variable containing the API secret key.
-- `--scaleway-org`: Organization name from the [Scaleway organization console](https://console.scaleway.com/organization).
+- `--scaleway-org`: Organization ID. Open the [Scaleway organization console](https://console.scaleway.com/organization) and copy the UUID shown as **Organization ID** in the organization settings.
 
 ## Run Cartography
 
@@ -30,7 +30,7 @@ Provide these options:
 export SCALEWAY_SECRET_KEY='<secret-key>'
 cartography \
   --selected-modules scaleway \
-  --scaleway-org '<organization-name>' \
+  --scaleway-org '<organization-id>' \
   --scaleway-access-key '<access-key>' \
   --scaleway-secret-key-env-var SCALEWAY_SECRET_KEY
 ```
