@@ -65,8 +65,8 @@ gcp_mapping = OntologyMapping(
                     ontology_field="versioning", node_field="versioning_enabled"
                 ),
                 # _ont_public is derived from ACLs + IAM policy bindings by the
-                # `gcp_bucket_public_projection.json` analysis job — not from a
-                # single bucket field.
+                # GCP_BUCKET_PUBLIC_PROJECTION analysis job, not from a single
+                # bucket field.
             ],
         ),
     ],

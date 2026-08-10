@@ -71,8 +71,9 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="CVE", dst="PackageVersion", label="AFFECTS"),
     RelConstraint(src="SecurityIssue", dst="PackageVersion", label="AFFECTS"),
     # A container/function resolves to the concrete single-platform image it
-    # runs. Materialized by resolved_image_analysis.json from the raw HAS_IMAGE
-    # references, which constraints_whitelist.py exempts as a distinct semantic.
+    # runs. Materialized by the RESOLVED_IMAGE_JOBS analysis jobs from the raw
+    # HAS_IMAGE references, which constraints_whitelist.py exempts as a distinct
+    # semantic.
     RelConstraint(src="Container", dst="Image", label="RESOLVED_IMAGE"),
     RelConstraint(src="Function", dst="Image", label="RESOLVED_IMAGE"),
     # An image/function is built from a source code repository (CI provenance).
