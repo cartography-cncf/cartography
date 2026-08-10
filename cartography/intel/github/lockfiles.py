@@ -19,12 +19,7 @@ dependency:
 
 import json
 import logging
-import sys
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # Python 3.10: tomllib is not in the stdlib yet.
-    import tomli as tomllib
+import tomllib
 
 logger = logging.getLogger(__name__)
 

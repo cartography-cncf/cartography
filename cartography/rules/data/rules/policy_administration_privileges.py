@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -61,7 +62,9 @@ _aws_policy_manipulation_capabilities = Fact(
             policy.id      AS policy_id,
             policy.name    AS policy_name,
             actions,
-            resources
+            resources,
+            // SSO-reserved roles (break-glass) can be triaged differently from app roles
+            principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' AS is_sso_reserved
         ORDER BY account, principal_name, policy_name
     """,
     cypher_visual_query="""
@@ -88,6 +91,7 @@ _aws_policy_manipulation_capabilities = Fact(
     AND principal.name <> 'OrganizationAccountAccessRole'
     RETURN COUNT(principal) AS count
     """,
+    asset_label="AWSPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
@@ -161,6 +165,7 @@ _gcp_policy_manipulation_capabilities = Fact(
     MATCH (principal:GCPPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="GCPPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
@@ -181,9 +186,10 @@ _azure_policy_manipulation_capabilities = Fact(
     cypher_query="""
     MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // EntraPrincipal is the umbrella label carried by EntraUser, EntraGroup and
+    // EntraServicePrincipal. Matching it directly keeps the returned rows aligned
+    // with the declared asset_label and lets Neo4j use the label index.
+    MATCH (principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     // Treat each action / not_action as a case-insensitive glob: `.` is
     // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
     // anywhere now correctly matches; built-in Contributor with
@@ -239,12 +245,10 @@ _azure_policy_manipulation_capabilities = Fact(
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-      // Mirror the finding query: at least one searched pattern is granted
-      // by actions AND not shadowed by not_actions.
-      AND ANY(p IN [
+    MATCH p3=(principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    // Mirror the finding query: at least one searched pattern is granted
+    // by actions AND not shadowed by not_actions.
+    WHERE ANY(p IN [
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/roleDefinitions/delete',
             'Microsoft.Authorization/policyDefinitions/write',
@@ -261,9 +265,59 @@ _azure_policy_manipulation_capabilities = Fact(
     MATCH (ra:AzureRoleAssignment)
     RETURN COUNT(ra) AS count
     """,
+    asset_label="EntraPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Scaleway
+_scaleway_policy_manipulation_capabilities = Fact(
+    id="scaleway_policy_manipulation_capabilities",
+    name="Scaleway Principals with IAM Administration Permissions",
+    description=(
+        "Scaleway principals (users, applications or groups) granted the "
+        "`IAMManager` permission set, which gives full access to IAM: creating "
+        "and editing policies, permission sets and API keys for any principal. "
+        "Indirect privilege-escalation surface. The grant is resolved through "
+        "the materialized principal-[:HAS_ROLE]->PermissionSet edge; group "
+        "grants are inherited by members via MEMBER_OF."
+    ),
+    cypher_query="""
+    MATCH (org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)
+    WHERE ps.name = 'IAMManager'
+    // ScalewayPrincipal is the umbrella label carried by ScalewayUser,
+    // ScalewayApplication and ScalewayGroup. Matching it directly keeps the
+    // returned rows aligned with the declared asset_label.
+    MATCH (principal:ScalewayPrincipal)-[:HAS_ROLE]->(ps)
+    RETURN
+        org.id AS account,
+        org.id AS account_id,
+        coalesce(principal.email, principal.name, principal.id) AS principal_name,
+        principal.id AS principal_identifier,
+        head([l IN ['UserAccount', 'ServiceAccount', 'UserGroup']
+              WHERE l IN labels(principal)]) AS principal_type,
+        ps.id AS policy_id,
+        ps.name AS policy_name,
+        [ps.name] AS actions,
+        [org.id] AS resources
+    ORDER BY account, principal_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)<-[:HAS_ROLE]-(principal:ScalewayPrincipal)
+    WHERE ps.name = 'IAMManager'
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (principal:ScalewayPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
+    asset_label="ScalewayPrincipal",
+    asset_id_field="principal_identifier",
+    identity_fields=("account_id", "principal_identifier", "policy_id"),
+    module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -279,6 +333,8 @@ class PolicyAdministrationPrivileges(Finding):
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
+    # True for AWS IAM Identity Center (SSO) reserved roles; only the AWS fact sets it.
+    is_sso_reserved: bool = False
 
 
 policy_administration_privileges = Rule(
@@ -293,6 +349,7 @@ policy_administration_privileges = Rule(
         _aws_policy_manipulation_capabilities,
         _azure_policy_manipulation_capabilities,
         _gcp_policy_manipulation_capabilities,
+        _scaleway_policy_manipulation_capabilities,
     ),
     tags=(
         "iam",
@@ -300,9 +357,10 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.1.0",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )

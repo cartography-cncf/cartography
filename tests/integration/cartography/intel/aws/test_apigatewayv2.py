@@ -30,7 +30,7 @@ def test_sync_apigatewayv2_apis(mock_get_apis, neo4j_session) -> None:
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    assert check_nodes(neo4j_session, "APIGatewayV2API", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayV2API", ["id"]) == {
         ("api-001",),
         ("api-002",),
     }
@@ -38,7 +38,7 @@ def test_sync_apigatewayv2_apis(mock_get_apis, neo4j_session) -> None:
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayV2API",
+        "AWSAPIGatewayV2API",
         "id",
         "RESOURCE",
         rel_direction_right=True,

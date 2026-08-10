@@ -15,9 +15,11 @@ MOCK_FUNCTION_APPS = [
         "name": "my-test-func-app",
         "kind": "functionapp",
         "location": "East US",
-        "state": "Running",
-        "default_host_name": "my-test-func-app.azurewebsites.net",
-        "https_only": True,
+        "properties": {
+            "state": "Running",
+            "defaultHostName": "my-test-func-app.azurewebsites.net",
+            "httpsOnly": True,
+        },
         "tags": {"env": "prod", "service": "function-app"},
     },
     {
@@ -25,9 +27,11 @@ MOCK_FUNCTION_APPS = [
         "name": "my-container-func-app",
         "kind": "functionapp,linux,container",
         "location": "East US",
-        "state": "Running",
-        "default_host_name": "my-container-func-app.azurewebsites.net",
-        "https_only": True,
+        "properties": {
+            "state": "Running",
+            "defaultHostName": "my-container-func-app.azurewebsites.net",
+            "httpsOnly": True,
+        },
         "tags": {"env": "prod", "service": "function-app"},
     },
     {
@@ -35,16 +39,18 @@ MOCK_FUNCTION_APPS = [
         "name": "my-regular-web-app",
         "kind": "app",
         "location": "East US",
-        "state": "Running",
-        "default_host_name": "my-regular-web-app.azurewebsites.net",
-        "https_only": True,
+        "properties": {
+            "state": "Running",
+            "defaultHostName": "my-regular-web-app.azurewebsites.net",
+            "httpsOnly": True,
+        },
         "tags": {"env": "prod", "service": "web-app"},
     },
 ]
 
 MOCK_FUNCTION_APP_CONFIGS = {
-    TEST_FUNCTIONAPP_CODE_ID: {"linux_fx_version": "PYTHON|3.11"},
+    TEST_FUNCTIONAPP_CODE_ID: {"properties": {"linuxFxVersion": "PYTHON|3.11"}},
     TEST_FUNCTIONAPP_CONTAINER_ID: {
-        "linux_fx_version": f"DOCKER|{TEST_FUNCTIONAPP_IMAGE_URI}",
+        "properties": {"linuxFxVersion": f"DOCKER|{TEST_FUNCTIONAPP_IMAGE_URI}"},
     },
 }

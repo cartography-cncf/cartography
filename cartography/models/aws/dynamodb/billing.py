@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DB_BILLING_MODE_SUMMARY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -13,11 +15,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/billing")'
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    billing_mode: PropertyRef = PropertyRef("BillingMode")
+    billing_mode: PropertyRef = PropertyRef(
+        "BillingMode", description="The billing mode (PROVISIONED or PAY_PER_REQUEST)"
+    )
     last_update_to_pay_per_request_date_time: PropertyRef = PropertyRef(
         "LastUpdateToPayPerRequestDateTime",
+        description="When the table was last switched to PAY_PER_REQUEST mode",
     )
 
 
@@ -46,7 +53,7 @@ class DynamoDBBillingModeSummaryToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -59,7 +66,13 @@ class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
-    label: str = "DynamoDBBillingModeSummary"
+    """Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html)."""
+
+    label: str = "AWSDynamoDBBillingModeSummary"
+    # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_DYNAMO_DB_BILLING_MODE_SUMMARY]
+    )
     properties: DynamoDBBillingModeSummaryNodeProperties = (
         DynamoDBBillingModeSummaryNodeProperties()
     )

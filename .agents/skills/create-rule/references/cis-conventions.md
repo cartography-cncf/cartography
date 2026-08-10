@@ -69,7 +69,7 @@ cis_azure_iam.py      # CIS Azure IAM controls
 # =============================================================================
 # Access keys not rotated in 90 days
 # CIS AWS 1.14
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 ```
 
@@ -161,7 +161,7 @@ from cartography.rules.data.frameworks.cis import cis_aws
 # =============================================================================
 # Access keys not rotated in 90 days
 # CIS AWS 1.14
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 
 _aws_access_keys_not_rotated = Fact(
@@ -169,17 +169,17 @@ _aws_access_keys_not_rotated = Fact(
     name="Access Keys Not Rotated",
     description="Identifies IAM access keys that have not been rotated in the past 90 days",
     cypher_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     WHERE key.create_date < datetime() - duration('P90D')
     RETURN key.id AS id, key.user_name AS user_name, key.create_date AS create_date
     """,
     cypher_visual_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     WHERE key.create_date < datetime() - duration('P90D')
     RETURN key
     """,
     cypher_count_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
     identity_fields=("id",),

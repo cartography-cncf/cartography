@@ -13,9 +13,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureSynapseManagedPrivateEndpointProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    target_resource_id: PropertyRef = PropertyRef("target_resource_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the managed private endpoint."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the managed private endpoint."
+    )
+    target_resource_id: PropertyRef = PropertyRef(
+        "target_resource_id",
+        description="Full Azure resource ID of the private link target.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -28,6 +35,8 @@ class AzureSynapseManagedPrivateEndpointToWorkspaceRelProperties(
 
 @dataclass(frozen=True)
 class AzureSynapseManagedPrivateEndpointToWorkspaceRel(CartographyRelSchema):
+    """An Azure Synapse workspace contains this managed private endpoint."""
+
     target_node_label: str = "AzureSynapseWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -48,6 +57,8 @@ class AzureSynapseManagedPrivateEndpointToSubscriptionRelProperties(
 
 @dataclass(frozen=True)
 class AzureSynapseManagedPrivateEndpointToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this managed private endpoint resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -61,6 +72,8 @@ class AzureSynapseManagedPrivateEndpointToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSynapseManagedPrivateEndpointSchema(CartographyNodeSchema):
+    """A private connection from a Synapse managed virtual network to a resource."""
+
     label: str = "AzureSynapseManagedPrivateEndpoint"
     properties: AzureSynapseManagedPrivateEndpointProperties = (
         AzureSynapseManagedPrivateEndpointProperties()

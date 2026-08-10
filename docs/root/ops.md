@@ -13,7 +13,7 @@ The simplest production deployment involving Cartography looks something like th
 - Configure a Neo4j database. Specifics on this are out of scope of this document; refer to Neo4j's resources on how to
   do this.
 - Configure a scheduled task (e.g. a cron job) to be able to access one or more data providers. See the
-  [modules](../root/modules) section for specifics on each. We recommend that you run the cron job on a separate machine
+  [modules](module-list.md) section for specifics on each. We recommend that you run the cron job on a separate machine
   from the Neo4j database.
 
 ### Parallel jobs
@@ -35,13 +35,13 @@ how that process works.
 
 Each sync run has an `update_tag` associated with it,
 which is the [Unix timestamp of when the sync started](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
-See our [docs for more details](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#handling-cartographys-update_tag).
+See our [docs for more details](https://docs.cartography.dev/dev/writing-intel-modules.html#handling-cartographys-update_tag).
 
 ### Cleanup jobs
 
 Each node and relationship created or updated during the sync will have their `lastupdated` field set to the
 `update_tag`. At the end of a sync run, nodes and relationships with out-of-date `lastupdated` fields are considered
-stale and will be deleted via a [cleanup job](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#cleanup).
+stale and will be deleted via a [cleanup job](https://docs.cartography.dev/dev/writing-intel-modules.html#cleanup).
 
 ### Sync frequency
 

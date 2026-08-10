@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import AI_MODEL
 
 
 @dataclass(frozen=True)
@@ -18,19 +19,50 @@ class AWSBedrockCustomModelNodeProperties(CartographyNodeProperties):
     Properties for AWS Bedrock Custom Model nodes.
     """
 
-    id: PropertyRef = PropertyRef("modelArn")
-    arn: PropertyRef = PropertyRef("modelArn", extra_index=True)
-    model_name: PropertyRef = PropertyRef("modelName")
-    job_arn: PropertyRef = PropertyRef("jobArn")
-    job_name: PropertyRef = PropertyRef("jobName")
-    base_model_arn: PropertyRef = PropertyRef("baseModelArn")
-    base_model_name: PropertyRef = PropertyRef("baseModelName")
-    customization_type: PropertyRef = PropertyRef("customizationType")
-    status: PropertyRef = PropertyRef("modelStatus")
-    creation_time: PropertyRef = PropertyRef("creationTime")
-    training_data_s3_uri: PropertyRef = PropertyRef("trainingDataConfig.s3Uri")
-    output_data_s3_uri: PropertyRef = PropertyRef("outputDataConfig.s3Uri")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("modelArn", description="The ARN of the custom model")
+    arn: PropertyRef = PropertyRef(
+        "modelArn", extra_index=True, description="The ARN of the custom model"
+    )
+    model_name: PropertyRef = PropertyRef(
+        "modelName", description="The name of the custom model"
+    )
+    job_arn: PropertyRef = PropertyRef(
+        "jobArn", description="The ARN of the training job"
+    )
+    job_name: PropertyRef = PropertyRef(
+        "jobName", description="The name of the training job that created this model"
+    )
+    base_model_arn: PropertyRef = PropertyRef(
+        "baseModelArn",
+        description="The ARN of the foundation model this custom model is based on",
+    )
+    base_model_name: PropertyRef = PropertyRef(
+        "baseModelName",
+        description="Name of the foundation model customized to produce this model.",
+    )
+    customization_type: PropertyRef = PropertyRef(
+        "customizationType",
+        description='The type of customization (e.g., "FINE_TUNING", "CONTINUED_PRE_TRAINING")',
+    )
+    status: PropertyRef = PropertyRef(
+        "modelStatus",
+        description="Current status of this `AWSBedrockCustomModel` node.",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creationTime", description="The timestamp when the custom model was created"
+    )
+    training_data_s3_uri: PropertyRef = PropertyRef(
+        "trainingDataConfig.s3Uri", description="The S3 URI of the training data"
+    )
+    output_data_s3_uri: PropertyRef = PropertyRef(
+        "outputDataConfig.s3Uri",
+        description="The S3 URI where training output is stored",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the custom model exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -89,7 +121,7 @@ class AWSBedrockCustomModelToFoundationModelRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSBedrockCustomModelToS3BucketRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between AWSBedrockCustomModel and S3Bucket.
+    Properties for the relationship between AWSBedrockCustomModel and AWSS3Bucket.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -98,10 +130,10 @@ class AWSBedrockCustomModelToS3BucketRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class AWSBedrockCustomModelToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from AWSBedrockCustomModel to S3Bucket (training data source).
+    Defines the relationship from AWSBedrockCustomModel to AWSS3Bucket (training data source).
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("training_data_bucket_name")},
     )
@@ -114,12 +146,10 @@ class AWSBedrockCustomModelToS3BucketRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockCustomModelSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Custom Model nodes.
-    """
+    """Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data."""
 
     label: str = "AWSBedrockCustomModel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AIModel"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AI_MODEL])
     properties: AWSBedrockCustomModelNodeProperties = (
         AWSBedrockCustomModelNodeProperties()
     )

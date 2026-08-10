@@ -11,7 +11,6 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
@@ -40,6 +39,7 @@ from cartography.models.gcp.compute.ip_rule import GCPIpRuleDeniedSchema
 from cartography.models.gcp.compute.network_interface import GCPNetworkInterfaceSchema
 from cartography.models.gcp.compute.network_tag import GCPNetworkTagSchema
 from cartography.models.gcp.compute.nic_access_config import GCPNicAccessConfigSchema
+from cartography.models.gcp.compute.project import GCPProjectComputeMetadataSchema
 from cartography.models.gcp.compute.subnet import GCPSubnetSchema
 from cartography.models.gcp.compute.subnet_stub import GCPSubnetStubSchema
 from cartography.models.gcp.compute.vpc import GCPVpcSchema
@@ -1315,16 +1315,16 @@ def update_gcp_project_compute_metadata(
         for item in project_metadata.get("commonInstanceMetadata", {}).get("items", [])
         if item.get("key")
     }
-    run_write_query(
+    load(
         neo4j_session,
-        """
-        MATCH (p:GCPProject {id: $PROJECT_ID})
-        SET p.compute_project_enable_oslogin = $COMPUTE_PROJECT_ENABLE_OSLOGIN,
-            p.lastupdated = $LASTUPDATED
-        """,
-        PROJECT_ID=project_id,
-        COMPUTE_PROJECT_ENABLE_OSLOGIN=metadata_items.get("enable-oslogin"),
-        LASTUPDATED=gcp_update_tag,
+        GCPProjectComputeMetadataSchema(),
+        [
+            {
+                "id": project_id,
+                "compute_project_enable_oslogin": metadata_items.get("enable-oslogin"),
+            },
+        ],
+        lastupdated=gcp_update_tag,
     )
 
 

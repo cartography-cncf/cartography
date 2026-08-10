@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_SECURITY_HUB
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -12,10 +14,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SecurityHubNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("HubArn")
+    id: PropertyRef = PropertyRef("HubArn", description="The arn of the hub resource.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    subscribed_at: PropertyRef = PropertyRef("SubscribedAt")
-    auto_enable_controls: PropertyRef = PropertyRef("AutoEnableControls")
+    subscribed_at: PropertyRef = PropertyRef(
+        "SubscribedAt",
+        description="The date and time when Security Hub was enabled in the account.",
+    )
+    auto_enable_controls: PropertyRef = PropertyRef(
+        "AutoEnableControls",
+        description="Whether to automatically enable new controls when they are added to standards that are enabled.",
+    )
 
 
 @dataclass(frozen=True)
@@ -24,7 +32,7 @@ class SecurityHubToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:SecurityHub)
+# (:AWSAccount)-[:RESOURCE]->(:AWSSecurityHub)
 class SecurityHubToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -39,6 +47,10 @@ class SecurityHubToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SecurityHubSchema(CartographyNodeSchema):
-    label: str = "SecurityHub"
+    """Representation of the configuration of AWS [Security Hub](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_DescribeHub.html)"""
+
+    label: str = "AWSSecurityHub"
+    # DEPRECATED: legacy SecurityHub node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SECURITY_HUB])
     properties: SecurityHubNodeProperties = SecurityHubNodeProperties()
     sub_resource_relationship: SecurityHubToAWSAccountRel = SecurityHubToAWSAccountRel()

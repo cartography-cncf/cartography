@@ -61,7 +61,7 @@ def test_iam_syncs_before_compute_so_runs_as_can_match():
         patch.object(cartography.intel.gcp.iam, "cleanup_service_account_keys"),
         patch.object(cartography.intel.gcp.iam, "cleanup_service_accounts"),
         patch.object(cartography.intel.gcp.iam, "cleanup_project_roles"),
-        patch.object(cartography.intel.gcp, "run_scoped_analysis_job"),
+        patch.object(cartography.intel.gcp, "run_typed_analysis_job"),
     ):
         cartography.intel.gcp._sync_project_resources(
             neo4j_session,

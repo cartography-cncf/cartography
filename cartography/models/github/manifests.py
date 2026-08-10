@@ -3,21 +3,38 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.github.extra_labels import LEGACY_DEPENDENCY_GRAPH_MANIFEST
 
 
 @dataclass(frozen=True)
 class DependencyGraphManifestNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    blob_path: PropertyRef = PropertyRef("blob_path")
-    filename: PropertyRef = PropertyRef("filename")
-    dependencies_count: PropertyRef = PropertyRef("dependencies_count")
-    repo_url: PropertyRef = PropertyRef("repo_url")
+    id: PropertyRef = PropertyRef(
+        "id", description="Identifier composed from repository URL and manifest path."
+    )
+    blob_path: PropertyRef = PropertyRef(
+        "blob_path",
+        description="Manifest path returned by the GitHub dependency graph.",
+    )
+    repo_relative_path: PropertyRef = PropertyRef(
+        "repo_relative_path",
+        extra_index=True,
+        description="Normalized repository-relative manifest path.",
+    )
+    filename: PropertyRef = PropertyRef("filename", description="Manifest file name.")
+    dependencies_count: PropertyRef = PropertyRef(
+        "dependencies_count",
+        description="Number of dependencies reported for the manifest.",
+    )
+    repo_url: PropertyRef = PropertyRef(
+        "repo_url", description="URL of the containing repository."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -29,7 +46,7 @@ class DependencyGraphManifestToOrganizationRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 class DependencyGraphManifestToOrganizationRel(CartographyRelSchema):
     """
-    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(DependencyGraphManifest).
+    Sub-resource relationship: (GitHubOrganization)-[:RESOURCE]->(GitHubDependencyGraphManifest).
     Manifests are scoped to the organization for cleanup purposes so that a single
     GraphJob run cleans up manifests from every repo in the org.
     """
@@ -52,6 +69,8 @@ class DependencyGraphManifestToRepositoryRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
+    """Defines the `HAS_MANIFEST` relationship between GitHub resources."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repo_url")}
@@ -65,7 +84,13 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DependencyGraphManifestSchema(CartographyNodeSchema):
-    label: str = "DependencyGraphManifest"
+    """A dependency manifest reported by the GitHub dependency graph."""
+
+    label: str = "GitHubDependencyGraphManifest"
+    # DEPRECATED: legacy DependencyGraphManifest node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_DEPENDENCY_GRAPH_MANIFEST]
+    )
     properties: DependencyGraphManifestNodeProperties = (
         DependencyGraphManifestNodeProperties()
     )

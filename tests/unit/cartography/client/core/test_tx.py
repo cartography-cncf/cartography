@@ -38,7 +38,7 @@ class PrincipalToS3BucketCartesianProductRel(CartographyRelSchema):
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"principal_arn": PropertyRef("principal_arn")},
     )
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("BucketName")},
     )
@@ -442,7 +442,7 @@ def test_load_matchlinks_cartesian_product_batches_and_records_metrics(caplog):
         "bucket-3",
     ]
     mock_stat_handler.incr.assert_called_once_with(
-        "relationship.awsprincipal.can_bulk_access.s3bucket.loaded",
+        "relationship.awsprincipal.can_bulk_access.awss3bucket.loaded",
         12,
     )
     assert any(
@@ -939,13 +939,11 @@ def test_buffer_error_with_none_wait_time(mock_logger, mock_sleep):
 @patch("cartography.client.core.tx.load_graph_data")
 @patch("cartography.client.core.tx.ensure_indexes")
 @patch("cartography.client.core.tx.build_ingestion_query")
-@patch("cartography.client.core.tx.build_conditional_label_queries")
 @patch("cartography.client.core.tx.stat_handler")
 @patch("cartography.client.core.tx.logger")
 def test_load_emits_metrics_and_logs(
     mock_logger,
     mock_stat_handler,
-    mock_build_cond_labels,
     mock_build_query,
     mock_ensure_indexes,
     mock_load_graph_data,
@@ -958,7 +956,6 @@ def test_load_emits_metrics_and_logs(
     mock_node_schema = MagicMock()
     mock_node_schema.label = "TestNode"
     mock_build_query.return_value = "UNWIND ..."
-    mock_build_cond_labels.return_value = []
 
     test_data = [{"id": "1"}, {"id": "2"}, {"id": "3"}]
 
@@ -974,13 +971,11 @@ def test_load_emits_metrics_and_logs(
 @patch("cartography.client.core.tx.load_graph_data")
 @patch("cartography.client.core.tx.ensure_indexes")
 @patch("cartography.client.core.tx.build_ingestion_query")
-@patch("cartography.client.core.tx.build_conditional_label_queries")
 @patch("cartography.client.core.tx.stat_handler")
 @patch("cartography.client.core.tx.logger")
 def test_load_no_metrics_for_empty_data(
     mock_logger,
     mock_stat_handler,
-    mock_build_cond_labels,
     mock_build_query,
     mock_ensure_indexes,
     mock_load_graph_data,
@@ -1018,7 +1013,7 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_session = MagicMock()
     mock_rel_schema = MagicMock()
     mock_rel_schema.rel_label = "CONNECTED_TO"
-    mock_rel_schema.source_node_label = "EC2Instance"
+    mock_rel_schema.source_node_label = "AWSEC2Instance"
     mock_rel_schema.target_node_label = "AWSVpc"
     mock_build_query.return_value = "UNWIND ..."
 
@@ -1038,14 +1033,14 @@ def test_load_matchlinks_emits_metrics_and_logs(
 
     # Verify metric includes source and target labels for disambiguation
     mock_stat_handler.incr.assert_called_once_with(
-        "relationship.ec2instance.connected_to.awsvpc.loaded", 2
+        "relationship.awsec2instance.connected_to.awsvpc.loaded", 2
     )
 
     # Verify info log was emitted
     mock_logger.info.assert_called_once_with(
         "Loaded %d (%s)-[%s]->(%s) relationships",
         2,
-        "EC2Instance",
+        "AWSEC2Instance",
         "CONNECTED_TO",
         "AWSVpc",
     )

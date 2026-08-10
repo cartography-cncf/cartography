@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -14,14 +15,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("arn")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "arn", description="Unique identifier for this `AWSFederatedPrincipal` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSFederatedPrincipal` node.",
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM federated principals
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSFederatedPrincipal` node."
+    )
 
 
 @dataclass(frozen=True)
@@ -46,9 +55,7 @@ class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSFederatedPrincipalSchema(CartographyNodeSchema):
-    """
-    E.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider".
-    """
+    """Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider". Federated principals are used for authentication to AWS using SAML or OpenID Connect. Federated principals are only discoverable from AWS role trust relationships."""
 
     label: str = "AWSFederatedPrincipal"
     properties: AWSFederatedPrincipalNodeProperties = (
@@ -57,4 +64,4 @@ class AWSFederatedPrincipalSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSFederatedPrincipalToAWSAccountRel = (
         AWSFederatedPrincipalToAWSAccountRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([AWS_PRINCIPAL])

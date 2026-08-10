@@ -1,7 +1,6 @@
 # Okta intel module - Group
 import json
 import logging
-import time
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -19,12 +18,10 @@ from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
 from cartography.intel.okta.utils import is_resource_not_found_error
+from cartography.intel.okta.utils import okta_paged_request_with_retry
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS = 3
-OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS = 1
 
 
 @timeit
@@ -41,14 +38,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
     # get_paged_groups returns User object instead of UserGroup
 
     while True:
-        # https://developer.okta.com/docs/reference/api/groups/#list-groups
-        if next_url:
-            paged_response = api_client.get(next_url)
-        else:
-            params = {
-                "limit": 10000,
-            }
-            paged_response = api_client.get_path("/", params)
+        paged_response = _get_okta_groups_page(api_client, next_url)
 
         paged_results = PagedResults(paged_response, UserGroup)
 
@@ -97,40 +87,33 @@ def _get_next_url(paged_response: Response) -> str:
     return str(next_link["url"])
 
 
+def _get_okta_groups_page(
+    api_client: ApiClient,
+    next_url: str | None,
+) -> Response:
+    def _request() -> Response:
+        # https://developer.okta.com/docs/reference/api/groups/#list-groups
+        if next_url:
+            return api_client.get(next_url)
+        return api_client.get_path("/", {"limit": 10000})
+
+    return okta_paged_request_with_retry(_request, "listing groups")
+
+
 def _get_okta_group_members_page(
     api_client: ApiClient,
     group_id: str,
     next_url: str | None,
 ) -> Response:
-    for attempt in range(1, OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS + 1):
-        try:
-            # https://developer.okta.com/docs/reference/api/groups/#list-group-members
-            if next_url:
-                return api_client.get(next_url)
-            params = {
-                "limit": 1000,
-            }
-            return api_client.get_path(f"/{group_id}/users", params)
-        except json.JSONDecodeError:
-            if attempt == OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS:
-                logger.exception(
-                    "Okta returned a non-JSON error response while listing members of group %s after %d attempts.",
-                    group_id,
-                    attempt,
-                )
-                raise
-            logger.warning(
-                "Okta returned a non-JSON error response while listing members of group %s. Retrying request (%d/%d).",
-                group_id,
-                attempt + 1,
-                OKTA_GROUP_MEMBER_REQUEST_ATTEMPTS,
-            )
-            time.sleep(OKTA_GROUP_MEMBER_RETRY_DELAY_SECONDS)
-        except OktaError:
-            logger.error("OktaError while listing members of group %s", group_id)
-            raise
+    def _request() -> Response:
+        # https://developer.okta.com/docs/reference/api/groups/#list-group-members
+        if next_url:
+            return api_client.get(next_url)
+        return api_client.get_path(f"/{group_id}/users", {"limit": 1000})
 
-    raise RuntimeError("Unexpected Okta group member retry state.")
+    return okta_paged_request_with_retry(
+        _request, f"listing members of group {group_id}"
+    )
 
 
 @timeit

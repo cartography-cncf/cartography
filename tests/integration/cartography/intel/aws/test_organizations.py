@@ -344,6 +344,17 @@ def test_sync_aws_organization_hierarchy(neo4j_session):
             None,
         ),
     }
+    # Ontology: raw AWS account State is normalized onto _ont_status.
+    assert check_nodes(
+        neo4j_session,
+        "AWSAccount",
+        ["id", "_ont_status"],
+    ) == {
+        ("111111111111", "active"),
+        ("222222222222", "active"),
+        ("333333333333", "suspended"),
+        ("444444444444", "active"),
+    }
     assert check_rels(
         neo4j_session,
         "AWSOrganization",

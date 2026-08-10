@@ -48,7 +48,7 @@ class PrincipalToS3BucketPermissionRel(CartographyRelSchema):
             "principal_arn": PropertyRef("principal_arn"),
         }
     )
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "name": PropertyRef("BucketName"),
@@ -69,7 +69,7 @@ class PrincipalToS3BucketCartesianProductPermissionRel(CartographyRelSchema):
             "principal_arn": PropertyRef("principal_arn"),
         }
     )
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "name": PropertyRef("BucketName"),

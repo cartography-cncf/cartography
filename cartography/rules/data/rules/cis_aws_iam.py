@@ -15,6 +15,7 @@ from pydantic import BeforeValidator
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -40,7 +41,7 @@ CIS_REFERENCES = [
 
 # =============================================================================
 # CIS AWS 2.13: Access keys not rotated in 90 days
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 class AccessKeyNotRotatedOutput(Finding):
     """Output model for access key rotation check."""
@@ -63,7 +64,7 @@ _aws_access_key_not_rotated = Fact(
         "compromised keys to be used maliciously."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
       AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
@@ -77,16 +78,18 @@ _aws_access_key_not_rotated = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
       AND key.createdate_dt IS NOT NULL
       AND date(datetime(key.createdate_dt)) < date() - duration('P90D')
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    asset_label="AWSAccountAccessKey",
+    asset_id_field="access_key_id",
     identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -107,13 +110,14 @@ aws_access_keys_not_rotated = Rule(
     frameworks=(
         cis_aws("2.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
 
 # =============================================================================
 # CIS AWS 2.11: Credentials unused for 45 days or more
-# Main node: AccountAccessKey
+# Main node: AWSAccountAccessKey
 # =============================================================================
 class UnusedCredentialsOutput(Finding):
     """Output model for unused credentials check."""
@@ -135,7 +139,7 @@ _aws_unused_credentials = Fact(
         "Unused credentials should be disabled to reduce the attack surface."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, key
     WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
@@ -151,7 +155,7 @@ _aws_unused_credentials = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH p, a, user, key
     WHERE (key.lastuseddate_dt IS NOT NULL AND date(datetime(key.lastuseddate_dt)) < date() - duration('P45D'))
@@ -160,9 +164,11 @@ _aws_unused_credentials = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (key:AccountAccessKey)
+    MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    asset_label="AWSAccountAccessKey",
+    asset_id_field="access_key_id",
     identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -196,8 +202,9 @@ class UserDirectPoliciesOutput(Finding):
 
     user_name: str | None = None
     user_arn: str | None = None
-    policy_name: str | None = None
-    policy_arn: str | None = None
+    direct_policy_arns: list[str] | None = None
+    direct_policy_names: list[str] | None = None
+    direct_policy_count: int | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -212,11 +219,18 @@ _aws_user_direct_policies = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
+    // Inline policies have no ARN, so fall back to policy.id; collect() drops
+    // nulls, which would otherwise report an empty list / zero count for a user
+    // whose only direct attachments are inline.
+    WITH a, user,
+         collect(DISTINCT coalesce(policy.arn, policy.id)) AS direct_policy_arns,
+         collect(DISTINCT policy.name) AS direct_policy_names
     RETURN
         user.arn AS user_arn,
         user.name AS user_name,
-        policy.name AS policy_name,
-        policy.arn AS policy_arn,
+        direct_policy_arns,
+        direct_policy_names,
+        size(direct_policy_arns) AS direct_policy_count,
         a.id AS account_id,
         a.name AS account
     """,
@@ -228,8 +242,11 @@ _aws_user_direct_policies = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_label="AWSUser",
     asset_id_field="user_arn",
-    identity_fields=("user_arn", "policy_arn"),
+    # CIS 2.14 is a per-user control, so a user with N direct attachments is
+    # one finding; the attached policies are surfaced as list fields.
+    identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -249,6 +266,7 @@ aws_users_with_direct_policy_attachments = Rule(
     frameworks=(
         cis_aws("2.14"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -276,7 +294,7 @@ _aws_multiple_access_keys = Fact(
         "active keys increases the attack surface and makes key rotation more complex."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, collect(key) AS keys
     WHERE size(keys) > 1
@@ -289,7 +307,7 @@ _aws_multiple_access_keys = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AWSAccountAccessKey)
     WHERE key.status = 'Active'
     WITH a, user, collect(key) AS keys, collect(p) AS paths
     WHERE size(keys) > 1
@@ -300,6 +318,8 @@ _aws_multiple_access_keys = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_label="AWSUser",
+    asset_id_field="user_arn",
     identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -320,13 +340,14 @@ aws_users_with_multiple_active_access_keys = Rule(
     frameworks=(
         cis_aws("2.12"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
 
 # =============================================================================
 # CIS AWS 2.18: Expired SSL/TLS certificates
-# Main node: ACMCertificate
+# Main node: AWSACMCertificate
 # =============================================================================
 class ExpiredCertificatesOutput(Finding):
     """Output model for expired certificates check."""
@@ -349,7 +370,7 @@ _aws_expired_certificates = Fact(
         "with valid certificates."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(cert:AWSACMCertificate)
     WHERE cert.not_after IS NOT NULL
       AND date(cert.not_after) < date()
     RETURN
@@ -362,15 +383,17 @@ _aws_expired_certificates = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:AWSACMCertificate)
     WHERE cert.not_after IS NOT NULL
       AND date(cert.not_after) < date()
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (cert:ACMCertificate)
+    MATCH (cert:AWSACMCertificate)
     RETURN COUNT(cert) AS count
     """,
+    asset_label="AWSACMCertificate",
+    asset_id_field="certificate_arn",
     identity_fields=("certificate_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -391,6 +414,7 @@ aws_expired_ssl_tls_certificates = Rule(
     frameworks=(
         cis_aws("2.18"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.7"),
     ),
 )
 
@@ -434,6 +458,8 @@ _aws_root_access_key_present = Fact(
     WHERE a.account_access_keys_present IS NOT NULL
     RETURN COUNT(a) AS count
     """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -456,6 +482,8 @@ aws_root_user_access_keys = Rule(
         cis_aws("2.3"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -499,6 +527,8 @@ _aws_root_mfa_disabled = Fact(
     WHERE a.account_mfa_enabled IS NOT NULL
     RETURN COUNT(a) AS count
     """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -521,6 +551,7 @@ aws_root_user_mfa_disabled = Rule(
         cis_aws("2.4"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -550,10 +581,14 @@ class AdminPolicyAttachedOutput(Finding):
     policy_name: str | None = None
     policy_id: str | None = None
     policy_arn: str | None = None
-    statement_sid: str | None = None
-    principal_arn: str | None = None
+    principal_arns: list[str] | None = None
+    principal_count: int | None = None
+    statement_sids: list[str] | None = None
     account_id: str | None = None
     account: str | None = None
+    # True for AWS IAM Identity Center (SSO) reserved roles, which ship with the
+    # AdministratorAccess managed policy by design; lets consumers triage them apart.
+    is_sso_reserved: bool = False
 
 
 _aws_admin_policy_attached = Fact(
@@ -571,28 +606,65 @@ _aws_admin_policy_attached = Fact(
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
-    RETURN DISTINCT
+      // Exclude AWS-managed automation/org-management roles that hold admin by design
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+      )
+    // CIS 2.15 is a per-policy control, but AWS-managed policies are global and
+    // shared across accounts, so aggregate per (account, policy) to keep account
+    // ownership correct while collapsing the per-principal/statement rows.
+    WITH a, policy,
+         collect(DISTINCT principal.arn) AS principal_arns,
+         collect(DISTINCT stmt.sid) AS statement_sids,
+         max(CASE WHEN principal.arn CONTAINS 'aws-reserved/sso.amazonaws.com' THEN 1 ELSE 0 END) AS sso_flag
+    RETURN
         policy.id AS policy_id,
         policy.arn AS policy_arn,
         policy.name AS policy_name,
-        stmt.sid AS statement_sid,
-        principal.arn AS principal_arn,
+        principal_arns,
+        size(principal_arns) AS principal_count,
+        statement_sids,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        sso_flag = 1 AS is_sso_reserved
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
     WHERE stmt.effect = 'Allow'
       AND any(action IN stmt.action WHERE action = '*' OR action = '*:*')
       AND any(resource IN stmt.resource WHERE resource = '*')
+      AND NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+      )
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
-    RETURN COUNT(DISTINCT policy.id) AS count
+    MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)-[:POLICY]->(policy:AWSPolicy)
+    WHERE NOT (
+          principal.arn CONTAINS 'aws-service-role'
+          OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
+          OR principal.arn CONTAINS 'stacksets-exec'
+          OR principal.arn CONTAINS 'StackSetExecutionRole'
+    )
+    // Dedupe on policy only: an AWS-managed policy shared across accounts is one
+    // asset, matching the policy_id anchor used for the failing count.
+    WITH DISTINCT policy
+    RETURN COUNT(*) AS count
     """,
+    # asset_label/asset_id_field anchor the finding on the offending AWSPolicy node.
+    # NOTE: policy_id also drives the compliance failing-count, so a global AWS-managed
+    # policy shared across N accounts (N (account, policy) rows) now counts as one
+    # failing asset instead of N. The (account, policy) composite identity_fields still
+    # keeps each account's finding distinct.
+    asset_label="AWSPolicy",
     asset_id_field="policy_id",
-    identity_fields=("policy_id", "principal_arn"),
+    identity_fields=("account_id", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -609,12 +681,13 @@ aws_policies_with_full_administrative_privileges = Rule(
     output_model=AdminPolicyAttachedOutput,
     facts=(_aws_admin_policy_attached,),
     tags=("iam", "policies", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.2.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("2.15"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

@@ -31,3 +31,5 @@ CREATE INDEX IF NOT EXISTS FOR (n:ReplyUri) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:ImageTag) ON (n.repo_uri);
 CREATE INDEX IF NOT EXISTS FOR (n:ImageTag) ON (n.tag);
 CREATE INDEX IF NOT EXISTS FOR (n:ImageTag) ON (n.image_pushed_at);
+CREATE INDEX IF NOT EXISTS FOR (n:Tag) ON (n.key);
+CREATE INDEX IF NOT EXISTS FOR (n:Tag) ON (n.value);

@@ -6,6 +6,7 @@ from typing import Set
 import pytest
 
 import cartography.models
+from cartography.intel.aws.label_migrations import AWS_LABEL_MIGRATIONS
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -17,6 +18,53 @@ from cartography.models.core.relationships import MatchLinkSubResource
 from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
+
+# Relationship endpoints that are intentionally supplied by legacy loaders,
+# dynamic permission nodes, or optional modules rather than node schemas.
+RELATION_ONLY_NODE_LABELS: Set[str] = {
+    "AWSVpnGateway",
+    "AzureResource",
+    "AzureVirtualHub",
+    "EntraPrincipal",
+    "GCPResource",
+    "OktaGroup",
+    "OktaUser",
+}
+
+PROVIDER_PREFIX_EXCEPTIONS: Dict[str, Set[str]] = {
+    "cartography.models.github": {
+        "ProgrammingLanguage",
+        "PythonLibrary",
+    },
+}
+
+MIGRATED_PROVIDER_LABELS: Dict[str, Dict[str, str]] = {
+    "cartography.models.github": {
+        "GitHubDependencyGraphManifest": "DependencyGraphManifest",
+    },
+    "cartography.models.semgrep": {
+        "SemgrepGoLibrary": "GoLibrary",
+        "SemgrepNpmLibrary": "NpmLibrary",
+    },
+    "cartography.models.crowdstrike": {
+        "CrowdstrikeSpotlightVulnerability": "SpotlightVulnerability",
+    },
+    "cartography.models.spacelift": {
+        "SpaceliftCloudTrailEvent": "CloudTrailSpaceliftEvent",
+    },
+}
+
+PREEXISTING_AWS_LABEL_MIGRATIONS: set[tuple[str, str]] = {
+    ("DNSRecord", "AWSDNSRecord"),
+    ("DNSZone", "AWSDNSZone"),
+    ("IpPermissionInbound", "AWSIpPermissionInbound"),
+    ("IpRange", "AWSIpRange"),
+    ("IpRule", "AWSIpRule"),
+    ("LoadBalancer", "AWSLoadBalancer"),
+    ("LoadBalancerV2", "AWSLoadBalancerV2"),
+    ("MfaDevice", "AWSMfaDevice"),
+    ("Tag", "AWSTag"),
+}
 
 
 def test_model_objects_naming_convention():
@@ -46,6 +94,221 @@ def test_model_objects_naming_convention():
                     f"Relationship properties {element.__name__}: name must end with 'RelProperties' or 'MatchLinkProperties'."
                 )
     assert not errors, "Naming convention violations:\n  - " + "\n  - ".join(errors)
+
+
+def test_microsoft_tenant_relationships_target_azure_tenant():
+    """Ensure model introspection uses one canonical Microsoft tenant vertex."""
+    errors: list[str] = []
+    for module_name, element in load_models(cartography.models):
+        if not module_name.startswith("cartography.models.microsoft"):
+            continue
+        if not issubclass(element, CartographyRelSchema):
+            continue
+
+        relationship = element()
+        if relationship.target_node_label == "EntraTenant":
+            errors.append(f"{module_name}.{element.__name__}.target_node_label")
+
+        for scope_name in ("source_node_sub_resource", "target_node_sub_resource"):
+            scope = getattr(relationship, scope_name, None)
+            if scope and scope.target_node_label == "EntraTenant":
+                errors.append(f"{module_name}.{element.__name__}.{scope_name}")
+
+    assert not errors, (
+        "Microsoft relationships must target the canonical AzureTenant label:\n  - "
+        + "\n  - ".join(errors)
+    )
+
+
+def test_aws_primary_node_labels_use_provider_prefix():
+    errors: List[str] = []
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        if element.label.startswith("AWS"):
+            continue
+        errors.append(
+            f"{element.__name__} uses unprefixed AWS label {element.label!r}.",
+        )
+
+    assert not errors, "AWS node label prefix violations:\n  - " + "\n  - ".join(errors)
+
+
+def test_migrated_aws_labels_keep_legacy_alias_until_v1():
+    migrations_by_new_label = {
+        migration.new_label: migration.old_label for migration in AWS_LABEL_MIGRATIONS
+    }
+    errors: List[str] = []
+
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        old_label = migrations_by_new_label.get(element.label)
+        if old_label is None:
+            continue
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
+            errors.append(
+                f"{element.__name__} must keep {old_label!r} as an alias "
+                "until v1.0.0.",
+            )
+
+    assert not errors, "Missing AWS compatibility aliases:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_aws_label_migration_registry_matches_model_aliases():
+    registered_pairs = {
+        (migration.old_label, migration.new_label) for migration in AWS_LABEL_MIGRATIONS
+    }
+    discovered_pairs: set[tuple[str, str]] = set()
+
+    for module_name, element in load_models(cartography.models):
+        if module_name != "cartography.models.aws":
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        for extra_label in extra_labels:
+            if node_schema.label == f"AWS{extra_label.label}":
+                discovered_pairs.add((extra_label.label, node_schema.label))
+
+    assert discovered_pairs == registered_pairs | PREEXISTING_AWS_LABEL_MIGRATIONS
+
+
+@pytest.mark.parametrize(
+    ("module_name", "prefix"),
+    [
+        ("cartography.models.github", "GitHub"),
+        ("cartography.models.semgrep", "Semgrep"),
+        ("cartography.models.crowdstrike", "Crowdstrike"),
+        ("cartography.models.spacelift", "Spacelift"),
+        ("cartography.models.supabase", "Supabase"),
+    ],
+)
+def test_provider_primary_node_labels_use_provider_prefix(module_name, prefix):
+    errors: List[str] = []
+    exceptions = PROVIDER_PREFIX_EXCEPTIONS.get(module_name, set())
+    for loaded_module_name, element in load_models(cartography.models):
+        if loaded_module_name != module_name:
+            continue
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        if element.label.startswith(prefix) or element.label in exceptions:
+            continue
+        errors.append(
+            f"{element.__name__} uses unprefixed {prefix} label {element.label!r}.",
+        )
+
+    assert not errors, f"{prefix} node label prefix violations:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_migrated_provider_labels_keep_legacy_alias_until_v1():
+    errors: List[str] = []
+    for module_name, element in load_models(cartography.models):
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        old_label = MIGRATED_PROVIDER_LABELS.get(module_name, {}).get(element.label)
+        if old_label is None:
+            continue
+        node_schema = element()
+        extra_labels = (
+            node_schema.extra_node_labels.labels
+            if node_schema.extra_node_labels is not None
+            else []
+        )
+        if old_label not in {extra_label.label for extra_label in extra_labels}:
+            errors.append(
+                f"{element.__name__} must keep {old_label!r} as an alias "
+                "until v1.0.0.",
+            )
+
+    assert not errors, "Missing provider compatibility aliases:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_relationship_endpoint_labels_are_registered():
+    model_objects = list(load_models(cartography.models))
+    registered_labels: Set[str] = set(RELATION_ONLY_NODE_LABELS)
+
+    for _, element in model_objects:
+        if not issubclass(element, CartographyNodeSchema):
+            continue
+        node_schema = element()
+        registered_labels.add(node_schema.label)
+        if node_schema.extra_node_labels is None:
+            continue
+        for extra_label in node_schema.extra_node_labels.labels:
+            registered_labels.add(extra_label.label)
+
+    errors: List[str] = []
+    for module_name, element in model_objects:
+        if not issubclass(element, CartographyRelSchema):
+            continue
+        rel_schema = element()
+        for endpoint_name, label in (
+            ("source", rel_schema.source_node_label),
+            ("target", rel_schema.target_node_label),
+        ):
+            if label is not None and label not in registered_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__} has unknown "
+                    f"{endpoint_name} label {label!r}.",
+                )
+
+    assert not errors, "Unknown relationship endpoint labels:\n  - " + "\n  - ".join(
+        errors
+    )
+
+
+def test_relationship_endpoints_do_not_use_migrated_aws_labels():
+    legacy_labels = {migration.old_label for migration in AWS_LABEL_MIGRATIONS}
+    errors: list[str] = []
+
+    for module_name, element in load_models(cartography.models):
+        if not issubclass(element, CartographyRelSchema):
+            continue
+        relationship = element()
+        for endpoint_name, label in (
+            ("source", relationship.source_node_label),
+            ("target", relationship.target_node_label),
+        ):
+            if label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__} uses legacy "
+                    f"{endpoint_name} label {label!r}.",
+                )
+
+        for scope_name in ("source_node_sub_resource", "target_node_sub_resource"):
+            scope = getattr(relationship, scope_name, None)
+            if scope and scope.target_node_label in legacy_labels:
+                errors.append(
+                    f"{module_name}.{element.__name__}.{scope_name} uses legacy "
+                    f"label {scope.target_node_label!r}.",
+                )
+
+    assert not errors, "Legacy AWS relationship endpoint labels:\n  - " + "\n  - ".join(
+        errors
+    )
 
 
 # Node labels whose sub_resource_relationship intentionally uses a non-RESOURCE
@@ -78,11 +341,15 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Ontology canonical nodes — explicitly cross-tenant by design.
     "Device",
     "Package",
+    "PackageVersion",
     "PublicIP",
     "User",
     # AWS-owned / cross-account resources.
     "AWSCidrBlock",
     "AWSManagedPolicy",
+    # AWS-managed public SSM parameters are regional catalog data shared by
+    # every account, so they must not be owned or cleaned up per AWSAccount.
+    "AWSPublicSSMParameter",
     "AWSServicePrincipal",
     "AWSTag",
     # CVE records ingested by CrowdStrike are public CVEs shared across tenants;
@@ -101,12 +368,37 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # rather than an organization, so neither is anchored to a single tenant.
     "GitHubRepository",
     "GitHubUser",
-    # Shared GitHub nodes (cross-org / cross-repo). Dependency uses a global
-    # `name|requirements` id and is referenced by repos across orgs, so it
-    # uses unscoped cleanup like PythonLibrary.
-    "Dependency",
+    # Shared GitHub nodes (cross-org / cross-repo). GitHubDependency uses a
+    # global `name|requirements` id and is referenced by repos across orgs, so
+    # it uses unscoped cleanup like PythonLibrary.
+    "GitHubDependency",
+    # A Modal user keeps the same `us-...` id in every workspace they belong to. Anchoring the
+    # identity to one workspace would let that workspace's cleanup DETACH DELETE someone who
+    # merely left it, destroying the other workspaces' memberships, so the workspace link is a
+    # MatchLink carrying the membership instead (same reasoning as GitHubUser and RailwayUser).
+    "ModalUser",
     "ProgrammingLanguage",
     "PythonLibrary",
+    # A Netlify invitation is an email address that has not accepted yet, and the same address can
+    # be invited to several teams. Anchoring it to the team being synced would let that team's
+    # cleanup DETACH DELETE an invitation another team still has outstanding, so the team links are
+    # MatchLinks (same reasoning as NetlifyUser).
+    "NetlifyInvite",
+    # A Netlify deploy key comes from `GET /deploy_keys`, which takes no team parameter and
+    # returns every key the token can see. Anchoring it to the team being synced would let that
+    # team's cleanup DETACH DELETE keys another team's sync had just refreshed, so the team link
+    # is a MatchLink instead.
+    "NetlifyDeployKey",
+    # A Netlify user can belong to several teams with a different role in each, and one run syncs
+    # one team. Anchoring the identity to a team would let that team's cleanup DETACH DELETE a
+    # person still in another team, so the team links are MatchLinks (same reasoning as
+    # RailwayUser and GitHubUser).
+    "NetlifyUser",
+    # A Railway user can belong to several workspaces, and project members need not be
+    # members of the workspace at all. Anchoring the identity to one workspace would let
+    # that workspace's cleanup DETACH DELETE a user still referenced by another, so the
+    # workspace link is an ordinary relationship instead (same reasoning as GitHubUser).
+    "RailwayUser",
     # Workday canonical human (mirrors the ontology pattern).
     "WorkdayHuman",
 }
@@ -115,6 +407,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     # AWSAccount remains the root tenant for normal AWS service resources, while
     # AWSOrganization is a separate top-level tenant for Organizations hierarchy.
     "AWSOrganization",
+    # DatabricksWorkspace remains the root tenant for workspace resources, while
+    # DatabricksAccount is a separate top-level tenant for the account hierarchy
+    # (and is absent on the workspace-only path).
+    "DatabricksAccount",
 }
 
 

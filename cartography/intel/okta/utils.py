@@ -1,11 +1,16 @@
 # Okta intel module - utility functions
+import json
 import logging
 import time
+from typing import Callable
+from typing import TypeVar
 
 from okta.framework import PagedResults
 from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
 from requests import Response
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +19,47 @@ logger = logging.getLogger(__name__)
 # moment we fetch a follow-up sub-resource for it.
 # https://developer.okta.com/docs/reference/error-codes/#E0000007
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
+
+# The legacy Okta SDK parses every error body as JSON. When Okta / a proxy /
+# a rate-limiter returns an empty or non-JSON error body, the SDK raises
+# JSONDecodeError instead of OktaError, which crashes the sync. These edge
+# responses are usually transient, so we retry a few times before giving up.
+OKTA_REQUEST_ATTEMPTS = 3
+OKTA_RETRY_DELAY_SECONDS = 1
+
+
+def okta_paged_request_with_retry(
+    request: Callable[[], T],
+    description: str,
+) -> T:
+    """
+    Run an Okta paged request, retrying when the legacy Okta SDK raises
+    JSONDecodeError while parsing a non-JSON error body. OktaError is left for
+    the caller to handle.
+    :param request: zero-arg callable performing the SDK call (an ApiClient
+        get/get_path returning a Response, or a UsersClient pager call)
+    :param description: what the request is doing, for log messages
+    :return: whatever the request callable returns
+    """
+    for attempt in range(1, OKTA_REQUEST_ATTEMPTS + 1):
+        try:
+            return request()
+        except json.JSONDecodeError:
+            if attempt == OKTA_REQUEST_ATTEMPTS:
+                logger.exception(
+                    "Okta returned a non-JSON error response while %s after %d attempts.",
+                    description,
+                    attempt,
+                )
+                raise
+            logger.warning(
+                "Okta returned a non-JSON error response while %s. Retrying request (%d/%d).",
+                description,
+                attempt + 1,
+                OKTA_REQUEST_ATTEMPTS,
+            )
+            time.sleep(OKTA_RETRY_DELAY_SECONDS)
+    raise RuntimeError("Unexpected Okta request retry state.")
 
 
 def is_resource_not_found_error(error: OktaError) -> bool:

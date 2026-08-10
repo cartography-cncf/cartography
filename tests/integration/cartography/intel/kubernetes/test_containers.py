@@ -93,3 +93,35 @@ def test_container_has_image_rels(neo4j_session):
         ("my-pod-container", child_image["digest"]),
         ("my-service-pod-container", child_image["digest"]),
     }
+
+
+def test_container_listening_ports(neo4j_session):
+    load_kubernetes_cluster(neo4j_session, KUBERNETES_CLUSTER_DATA, TEST_UPDATE_TAG)
+    load_namespaces(
+        neo4j_session,
+        KUBERNETES_CLUSTER_1_NAMESPACES_DATA,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_NAMES[0],
+        KUBERNETES_CLUSTER_IDS[0],
+    )
+    load_containers(
+        neo4j_session,
+        deepcopy(KUBERNETES_CONTAINER_DATA),
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # The listening containerPorts are exposed as a flat, queryable list; a
+    # container that declares no ports has an empty list.
+    result = neo4j_session.run(
+        """
+        MATCH (c:KubernetesContainer)
+        RETURN c.name AS name, c.container_port_numbers AS ports
+        """
+    )
+    ports_by_name = {row["name"]: row["ports"] for row in result}
+    assert ports_by_name == {
+        "my-pod-container": [8080],
+        "my-service-pod-container": [],
+    }

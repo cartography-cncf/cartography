@@ -46,6 +46,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": _LazyStage("cartography.intel.create_indexes", "run"),
         "airbyte": _LazyStage("cartography.intel.airbyte", "start_airbyte_ingestion"),
+        "databricks": _LazyStage(
+            "cartography.intel.databricks", "start_databricks_ingestion"
+        ),
         "anthropic": _LazyStage(
             "cartography.intel.anthropic", "start_anthropic_ingestion"
         ),
@@ -77,6 +80,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "kandji": _LazyStage("cartography.intel.kandji", "start_kandji_ingestion"),
         "keycloak": _LazyStage(
             "cartography.intel.keycloak", "start_keycloak_ingestion"
+        ),
+        "salesforce": _LazyStage(
+            "cartography.intel.salesforce", "start_salesforce_ingestion"
         ),
         "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
         "jumpcloud": _LazyStage(
@@ -128,6 +134,15 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.subimage", "start_subimage_ingestion"
         ),
         "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
+        "supabase": _LazyStage(
+            "cartography.intel.supabase", "start_supabase_ingestion"
+        ),
+        "railway": _LazyStage("cartography.intel.railway", "start_railway_ingestion"),
+        "netlify": _LazyStage("cartography.intel.netlify", "start_netlify_ingestion"),
+        "circleci": _LazyStage(
+            "cartography.intel.circleci", "start_circleci_ingestion"
+        ),
+        "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

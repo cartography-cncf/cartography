@@ -206,8 +206,8 @@ def test_transform_tags_basic():
     assert len(result) == 1
     tag = result[0]
     assert tag["id"] == TAG_ID_1
-    assert tag["tag_key"] == "Environment"
-    assert tag["tag_value"] == "Production"
+    assert tag["key"] == "Environment"
+    assert tag["value"] == "Production"
     assert tag["added_by"] == "admin@example.com"
     assert tag["added_at"] == "2024-10-01T00:00:00.000Z"
     assert tag["asset_id"] == ASSET_ID_1

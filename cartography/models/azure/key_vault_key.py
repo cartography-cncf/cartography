@@ -11,6 +11,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +19,17 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureKeyVaultKeyProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    enabled: PropertyRef = PropertyRef("enabled")
-    created_on: PropertyRef = PropertyRef("created_on")
-    updated_on: PropertyRef = PropertyRef("updated_on")
+    id: PropertyRef = PropertyRef("id", description="Azure Key Vault key identifier.")
+    name: PropertyRef = PropertyRef("name", description="Name of the key.")
+    enabled: PropertyRef = PropertyRef(
+        "enabled", description="Whether the key is enabled."
+    )
+    created_on: PropertyRef = PropertyRef(
+        "created_on", description="Timestamp when the key was created."
+    )
+    updated_on: PropertyRef = PropertyRef(
+        "updated_on", description="Timestamp when the key was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +41,8 @@ class AzureKeyVaultKeyToVaultRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKeyVaultKeyToVaultRel(CartographyRelSchema):
+    """An Azure key vault contains the key."""
+
     target_node_label: str = "AzureKeyVault"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VAULT_ID", set_in_kwargs=True)},
@@ -52,6 +61,8 @@ class AzureKeyVaultKeyToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKeyVaultKeyToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the key as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -66,8 +77,10 @@ class AzureKeyVaultKeyToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKeyVaultKeySchema(CartographyNodeSchema):
+    """A cryptographic key managed in Azure Key Vault."""
+
     label: str = "AzureKeyVaultKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EncryptionKey"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ENCRYPTION_KEY])
     properties: AzureKeyVaultKeyProperties = AzureKeyVaultKeyProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[

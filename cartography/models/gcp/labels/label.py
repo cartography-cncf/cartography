@@ -10,6 +10,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.gcp.extra_labels import GCP_BUCKET_LABEL
+from cartography.models.gcp.extra_labels import LABEL
+from cartography.models.ontology.labels import TAG
 
 # --- Shared properties ---
 
@@ -22,11 +25,19 @@ class GCPLabelNodeProperties(CartographyNodeProperties):
     The id is computed as "{resource_id}:{key}:{value}" during ingestion.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="The ID of the label. Takes the form `{resource_id}:{key}:{value}`.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
-    resource_type: PropertyRef = PropertyRef("resource_type")
+    key: PropertyRef = PropertyRef(
+        "key", extra_index=True, description="The key of the label."
+    )
+    value: PropertyRef = PropertyRef("value", description="The value of the label.")
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type",
+        description="The Cartography node label of the resource this label is attached to (e.g. `GCPBucket`, `GCPInstance`).",
+    )
 
 
 @dataclass(frozen=True)
@@ -36,7 +47,7 @@ class GCPLabelToProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPLabelToProjectRel(CartographyRelSchema):
-    """(:GCPProject)-[:RESOURCE]->(:GCPLabel)"""
+    """Indicates that a GCP project contains this label as a resource."""
 
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -52,9 +63,10 @@ class GCPLabelToBucketRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBucketRel(CartographyRelSchema):
-    """(:GCPBucket)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP bucket has this legacy label."""
 
     target_node_label: str = "GCPBucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -65,24 +77,39 @@ class GCPLabelToBucketRel(CartographyRelSchema):
     properties: GCPLabelToBucketRelProperties = GCPLabelToBucketRelProperties()
 
 
+@dataclass(frozen=True)
+class GCPLabelToBucketTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToBucketTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP bucket is tagged with this label."""
+
+    target_node_label: str = "GCPBucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToBucketTaggedRelProperties = (
+        GCPLabelToBucketTaggedRelProperties()
+    )
+
+
 # --- GCPBucket label schema ---
 
 
 @dataclass(frozen=True)
 class GCPBucketGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPBucket resources.
-
-    Carries the extra label GCPBucketLabel for backward compatibility with the
-    legacy per-resource label schema.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label", "GCPBucketLabel"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, GCP_BUCKET_LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToBucketRel()],
+        [GCPLabelToBucketRel(), GCPLabelToBucketTaggedRel()],
     )
 
 
@@ -94,9 +121,10 @@ class GCPLabelToInstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToInstanceRel(CartographyRelSchema):
-    """(:GCPInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP instance has this legacy label."""
 
     target_node_label: str = "GCPInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -108,17 +136,35 @@ class GCPLabelToInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToInstanceTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToInstanceTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP instance is tagged with this label."""
+
+    target_node_label: str = "GCPInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToInstanceTaggedRelProperties = (
+        GCPLabelToInstanceTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToInstanceRel()],
+        [GCPLabelToInstanceRel(), GCPLabelToInstanceTaggedRel()],
     )
 
 
@@ -130,9 +176,10 @@ class GCPLabelToGKEClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToGKEClusterRel(CartographyRelSchema):
-    """(:GKECluster)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GKE cluster has this legacy label."""
 
     target_node_label: str = "GKECluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -144,17 +191,35 @@ class GCPLabelToGKEClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToGKEClusterTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToGKEClusterTaggedRel(CartographyRelSchema):
+    """Indicates that a GKE cluster is tagged with this label."""
+
+    target_node_label: str = "GKECluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToGKEClusterTaggedRelProperties = (
+        GCPLabelToGKEClusterTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GKEClusterGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GKECluster resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToGKEClusterRel()],
+        [GCPLabelToGKEClusterRel(), GCPLabelToGKEClusterTaggedRel()],
     )
 
 
@@ -166,9 +231,10 @@ class GCPLabelToCloudSQLInstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
-    """(:GCPCloudSQLInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud SQL instance has this legacy label."""
 
     target_node_label: str = "GCPCloudSQLInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -182,17 +248,35 @@ class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToCloudSQLInstanceTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudSQLInstanceTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP Cloud SQL instance is tagged with this label."""
+
+    target_node_label: str = "GCPCloudSQLInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToCloudSQLInstanceTaggedRelProperties = (
+        GCPLabelToCloudSQLInstanceTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudSQLInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToCloudSQLInstanceRel()],
+        [GCPLabelToCloudSQLInstanceRel(), GCPLabelToCloudSQLInstanceTaggedRel()],
     )
 
 
@@ -204,9 +288,10 @@ class GCPLabelToBigtableInstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
-    """(:GCPBigtableInstance)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Bigtable instance has this legacy label."""
 
     target_node_label: str = "GCPBigtableInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -220,17 +305,35 @@ class GCPLabelToBigtableInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToBigtableInstanceTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToBigtableInstanceTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP Bigtable instance is tagged with this label."""
+
+    target_node_label: str = "GCPBigtableInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToBigtableInstanceTaggedRelProperties = (
+        GCPLabelToBigtableInstanceTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPBigtableInstanceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPBigtableInstance resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToBigtableInstanceRel()],
+        [GCPLabelToBigtableInstanceRel(), GCPLabelToBigtableInstanceTaggedRel()],
     )
 
 
@@ -242,9 +345,10 @@ class GCPLabelToDNSZoneRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToDNSZoneRel(CartographyRelSchema):
-    """(:GCPDNSZone)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP DNS zone has this legacy label."""
 
     target_node_label: str = "GCPDNSZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -256,17 +360,35 @@ class GCPLabelToDNSZoneRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToDNSZoneTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToDNSZoneTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP DNS zone is tagged with this label."""
+
+    target_node_label: str = "GCPDNSZone"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToDNSZoneTaggedRelProperties = (
+        GCPLabelToDNSZoneTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPDNSZoneGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPDNSZone resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToDNSZoneRel()],
+        [GCPLabelToDNSZoneRel(), GCPLabelToDNSZoneTaggedRel()],
     )
 
 
@@ -278,9 +400,10 @@ class GCPLabelToSecretManagerSecretRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
-    """(:GCPSecretManagerSecret)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Secret Manager secret has this legacy label."""
 
     target_node_label: str = "GCPSecretManagerSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -294,17 +417,35 @@ class GCPLabelToSecretManagerSecretRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToSecretManagerSecretTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToSecretManagerSecretTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP Secret Manager secret is tagged with this label."""
+
+    target_node_label: str = "GCPSecretManagerSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToSecretManagerSecretTaggedRelProperties = (
+        GCPLabelToSecretManagerSecretTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPSecretManagerSecretGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPSecretManagerSecret resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToSecretManagerSecretRel()],
+        [GCPLabelToSecretManagerSecretRel(), GCPLabelToSecretManagerSecretTaggedRel()],
     )
 
 
@@ -316,9 +457,10 @@ class GCPLabelToCloudRunServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
-    """(:GCPCloudRunService)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run service has this legacy label."""
 
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -332,17 +474,35 @@ class GCPLabelToCloudRunServiceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToCloudRunServiceTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudRunServiceTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP Cloud Run service is tagged with this label."""
+
+    target_node_label: str = "GCPCloudRunService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToCloudRunServiceTaggedRelProperties = (
+        GCPLabelToCloudRunServiceTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunServiceGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudRunService resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToCloudRunServiceRel()],
+        [GCPLabelToCloudRunServiceRel(), GCPLabelToCloudRunServiceTaggedRel()],
     )
 
 
@@ -354,9 +514,10 @@ class GCPLabelToCloudRunJobRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# DEPRECATED: replaced by :TAGGED, will be removed in v1.0.0
 @dataclass(frozen=True)
 class GCPLabelToCloudRunJobRel(CartographyRelSchema):
-    """(:GCPCloudRunJob)-[:LABELED]->(:GCPLabel)"""
+    """Indicates that a GCP Cloud Run job has this legacy label."""
 
     target_node_label: str = "GCPCloudRunJob"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -370,15 +531,69 @@ class GCPLabelToCloudRunJobRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLabelToCloudRunJobTaggedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudRunJobTaggedRel(CartographyRelSchema):
+    """Indicates that a GCP Cloud Run job is tagged with this label."""
+
+    target_node_label: str = "GCPCloudRunJob"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TAGGED"
+    properties: GCPLabelToCloudRunJobTaggedRelProperties = (
+        GCPLabelToCloudRunJobTaggedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunJobGCPLabelSchema(CartographyNodeSchema):
-    """
-    GCPLabel nodes sourced from GCPCloudRunJob resources.
-    """
+    """A key-value label attached to a supported Google Cloud resource."""
 
     label: str = "GCPLabel"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL, TAG])
     properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
     sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [GCPLabelToCloudRunJobRel()],
+        [GCPLabelToCloudRunJobRel(), GCPLabelToCloudRunJobTaggedRel()],
+    )
+
+
+# --- GCPCloudFunction label schema ---
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudFunctionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudFunctionRel(CartographyRelSchema):
+    """Indicates that a GCP Cloud Function has this legacy label."""
+
+    target_node_label: str = "GCPCloudFunction"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "LABELED"
+    properties: GCPLabelToCloudFunctionRelProperties = (
+        GCPLabelToCloudFunctionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPCloudFunctionGCPLabelSchema(CartographyNodeSchema):
+    """A key-value label attached to a supported Google Cloud resource."""
+
+    label: str = "GCPLabel"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LABEL])
+    properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
+    sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLabelToCloudFunctionRel()],
     )

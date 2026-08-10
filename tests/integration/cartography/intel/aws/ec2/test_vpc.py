@@ -131,7 +131,7 @@ def test_sync_vpc(
 
     # Pre-create nodes that Redshift will connect to via other_relationships (OPTIONAL MATCH)
     neo4j_session.run(
-        "MERGE (:EC2SecurityGroup {id: 'my-vpc-sg'}) "
+        "MERGE (:AWSEC2SecurityGroup {id: 'my-vpc-sg'}) "
         "MERGE (:AWSPrincipal {arn: 'arn:aws:iam::1111:role/my-redshift-iam-role'}) "
         "MERGE (:AWSVpc {id: 'my_vpc'})",
     )
@@ -325,7 +325,7 @@ def test_sync_vpc(
     # Assert subnets are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "AWSVpc",
         "id",
@@ -340,7 +340,7 @@ def test_sync_vpc(
     # Assert network ACLs are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "network_acl_id",
         "AWSVpc",
         "id",
@@ -353,7 +353,7 @@ def test_sync_vpc(
     # Assert security groups are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "AWSVpc",
         "id",
@@ -376,7 +376,7 @@ def test_sync_vpc(
     # Assert route tables are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "route_table_id",
         "AWSVpc",
         "id",
@@ -424,7 +424,7 @@ def test_sync_vpc(
     # Assert Redshift clusters are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster",
+        "AWSRedshiftCluster",
         "id",
         "AWSVpc",
         "id",
@@ -434,7 +434,7 @@ def test_sync_vpc(
         (
             "arn:aws:redshift:us-east-1:12345:cluster:my-cluster",
             "my_vpc",
-        ),  # AWSVpc created by RedshiftCluster sync,  Redshift cluster has a special way of assigning arn
+        ),  # AWSVpc created by AWSRedshiftCluster sync,  Redshift cluster has a special way of assigning arn
     }  # it takes the region, account id, and cluster name and creates an arn -> thats why it maches this test
 
     # Assert VPC peering connections are connected to their requester CIDR blocks

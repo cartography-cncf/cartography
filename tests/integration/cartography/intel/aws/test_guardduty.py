@@ -80,7 +80,7 @@ def test_sync_guardduty_findings(
     # Create test EC2 instance and S3 bucket that match the findings
     neo4j_session.run(
         """
-        MERGE (instance:EC2Instance {id: $instance_id})
+        MERGE (instance:AWSEC2Instance {id: $instance_id})
         ON CREATE SET instance.firstseen = timestamp()
         SET instance.lastupdated = $update_tag
         """,
@@ -90,7 +90,7 @@ def test_sync_guardduty_findings(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,
@@ -98,11 +98,11 @@ def test_sync_guardduty_findings(
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create test EKS cluster that matches the Kubernetes finding. EKSCluster.id
+    # Create test EKS cluster that matches the Kubernetes finding. AWSEKSCluster.id
     # is the cluster ARN, which the finding's EksClusterDetails.Arn matches.
     neo4j_session.run(
         """
-        MERGE (cluster:EKSCluster {id: $cluster_arn})
+        MERGE (cluster:AWSEKSCluster {id: $cluster_arn})
         ON CREATE SET cluster.firstseen = timestamp()
         SET cluster.arn = $cluster_arn, cluster.lastupdated = $update_tag
         """,
@@ -112,12 +112,12 @@ def test_sync_guardduty_findings(
 
     # Create IAM principals + the long-term IAM user access key that match the
     # GuardDuty AccessKey findings. STS temporary credentials (ASIA*) are NOT
-    # ingested as AccountAccessKey nodes (iam.list_access_keys only returns
-    # long-term IAM user keys), so no AccountAccessKey node is created for the
+    # ingested as AWSAccountAccessKey nodes (iam.list_access_keys only returns
+    # long-term IAM user keys), so no AWSAccountAccessKey node is created for the
     # AssumedRole finding.
     neo4j_session.run(
         """
-        MERGE (k:AccountAccessKey {id: $access_key_id})
+        MERGE (k:AWSAccountAccessKey {id: $access_key_id})
         ON CREATE SET k.firstseen = timestamp()
         SET k.accesskeyid = $access_key_id, k.lastupdated = $update_tag
         """,
@@ -160,7 +160,7 @@ def test_sync_guardduty_findings(
     )
 
     # Assert - Check that only HIGH severity findings were created (excluding MEDIUM severity 5.0 finding)
-    assert check_nodes(neo4j_session, "GuardDutyFinding", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSGuardDutyFinding", ["id"]) == {
         ("74b1234567890abcdef1234567890abcdef",),  # Severity 8.0 (HIGH)
         ("96d3456789012cdef3456789012cdef01",),  # Severity 7.5 (HIGH)
         ("a7e4567890123def4567890123def45670",),  # Severity 7.8 (HIGH)
@@ -171,7 +171,7 @@ def test_sync_guardduty_findings(
     # Assert - Check that GuardDuty detectors were synced with properties
     assert check_nodes(
         neo4j_session,
-        "GuardDutyDetector",
+        "AWSGuardDutyDetector",
         ["id", "status", "findingpublishingfrequency"],
     ) == {
         ("12abc34d56e78f901234567890abcdef", "ENABLED", "FIFTEEN_MINUTES"),
@@ -180,7 +180,7 @@ def test_sync_guardduty_findings(
 
     # Assert - Check that synced findings have the correct properties
     assert check_nodes(
-        neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]
+        neo4j_session, "AWSGuardDutyFinding", ["id", "severity", "resource_type"]
     ) == {
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
@@ -192,7 +192,7 @@ def test_sync_guardduty_findings(
     # Assert - Check that finding date fields were populated from the expected API paths
     finding_dates = neo4j_session.run(
         """
-        MATCH (f:GuardDutyFinding)
+        MATCH (f:AWSGuardDutyFinding)
         RETURN
             f.id AS id,
             toString(f.createdat) AS createdat,
@@ -246,7 +246,7 @@ def test_sync_guardduty_findings(
         neo4j_session,
         "AWSAccount",
         "id",
-        "GuardDutyDetector",
+        "AWSGuardDutyDetector",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -260,7 +260,7 @@ def test_sync_guardduty_findings(
         neo4j_session,
         "AWSAccount",
         "id",
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -283,9 +283,9 @@ def test_sync_guardduty_findings(
 
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
-        "GuardDutyDetector",
+        "AWSGuardDutyDetector",
         "id",
         "DETECTED_BY",
         rel_direction_right=True,
@@ -299,9 +299,9 @@ def test_sync_guardduty_findings(
     # Assert - Check that GuardDuty finding is connected to the EC2 instance
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -312,9 +312,9 @@ def test_sync_guardduty_findings(
     # Assert - Check that the Kubernetes finding is connected to the EKS cluster
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
-        "EKSCluster",
+        "AWSEKSCluster",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -329,9 +329,9 @@ def test_sync_guardduty_findings(
     # (No AFFECTS relationship to S3 bucket should exist)
     s3_relationships = check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -342,12 +342,12 @@ def test_sync_guardduty_findings(
 
     # Assert - AccessKey findings link to the long-term IAM user access key.
     # The AssumedRole finding's ASIA* key is not ingested as an
-    # AccountAccessKey, so no edge is expected for it.
+    # AWSAccountAccessKey, so no edge is expected for it.
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
-        "AccountAccessKey",
+        "AWSAccountAccessKey",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -358,7 +358,7 @@ def test_sync_guardduty_findings(
     # Assert - IAMUser AccessKey findings are linked to the AWSUser by userid
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
         "AWSUser",
         "userid",
@@ -371,7 +371,7 @@ def test_sync_guardduty_findings(
     # Assert - AssumedRole AccessKey findings are linked to the AWSRole by roleid
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
         "AWSRole",
         "roleid",
@@ -386,7 +386,7 @@ def test_sync_guardduty_findings(
 
     # Verify that only HIGH+ severity findings were synced to the graph
     findings = neo4j_session.run(
-        "MATCH (f:GuardDutyFinding) RETURN f.severity as severity"
+        "MATCH (f:AWSGuardDutyFinding) RETURN f.severity as severity"
     ).data()
     assert all(
         f["severity"] >= 7.0 for f in findings
@@ -438,7 +438,7 @@ def test_sync_guardduty_sample_findings_excluded_from_rule(
     real_id = "6b2realfinding00000000000000000"
 
     # Both findings are ingested; only the sample carries sample=True.
-    assert check_nodes(neo4j_session, "GuardDutyFinding", ["id", "sample"]) == {
+    assert check_nodes(neo4j_session, "AWSGuardDutyFinding", ["id", "sample"]) == {
         (sample_id, True),
         (real_id, None),
     }
@@ -488,7 +488,7 @@ def test_sync_guardduty_aws_api_call_fields(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,
@@ -510,7 +510,7 @@ def test_sync_guardduty_aws_api_call_fields(
 
     assert check_nodes(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         [
             "id",
             "service_action_type",
@@ -579,7 +579,7 @@ def test_sync_guardduty_aws_api_call_fields(
 
     assert check_rels(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         "id",
         "AWSAccount",
         "id",
@@ -620,7 +620,7 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
 
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket {id: $bucket_name})
+        MERGE (bucket:AWSS3Bucket {id: $bucket_name})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.lastupdated = $update_tag
         """,
@@ -642,7 +642,7 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
 
     assert check_nodes(
         neo4j_session,
-        "GuardDutyFinding",
+        "AWSGuardDutyFinding",
         [
             "id",
             "api_call_remote_account_id",
@@ -659,7 +659,7 @@ def test_sync_guardduty_aws_api_call_remote_account_without_matching_node(
     assert (
         check_rels(
             neo4j_session,
-            "GuardDutyFinding",
+            "AWSGuardDutyFinding",
             "id",
             "AWSAccount",
             "id",

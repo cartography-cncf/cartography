@@ -51,6 +51,18 @@ def test_sync_app_services(mock_get, neo4j_session):
     }
     actual_nodes = check_nodes(neo4j_session, "AzureAppService", ["id", "name"])
     assert actual_nodes == expected_nodes
+    assert check_nodes(
+        neo4j_session,
+        "AzureAppService",
+        ["id", "state", "default_host_name", "https_only"],
+    ) == {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-app-service",
+            "Running",
+            "my-test-app-service.azurewebsites.net",
+            True,
+        ),
+    }
 
     # Assert Relationships
     expected_rels = {

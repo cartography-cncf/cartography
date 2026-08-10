@@ -37,7 +37,7 @@ When you need to store detailed metadata on relationships and it doesn't make se
 
 ## Example
 
-Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an S3Bucket if the AWSPrincipal has access to the S3Bucket.
+Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an AWSS3Bucket if the AWSPrincipal has access to the AWSS3Bucket.
 
 Let's say we have the following data that maps principals with the S3Buckets they can read from:
 
@@ -57,14 +57,14 @@ Let's say we have the following data that maps principals with the S3Buckets the
     ]
     ```
 
-1. Define the MatchLink relationship between the AWSPrincipal and the S3Bucket
+1. Define the MatchLink relationship between the AWSPrincipal and the AWSS3Bucket
     ```python
     @dataclass(frozen=True)
     class S3AccessMatchLink(CartographyRelSchema):
         rel_label: str = "CAN_ACCESS"
         direction: LinkDirection = LinkDirection.OUTWARD
         properties: S3AccessRelProps = S3AccessRelProps()
-        target_node_label: str = "S3Bucket"
+        target_node_label: str = "AWSS3Bucket"
         target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
             {'name': PropertyRef('bucket_name')},
         )
@@ -76,7 +76,7 @@ Let's say we have the following data that maps principals with the S3Buckets the
         )
     ```
 
-    This is a standard `CartographyRelSchema` object as described in the [intel module guide](writing-intel-modules#defining-relationships), **except** that now we have defined a `source_node_label` and a `source_node_matcher`.
+    This is a standard `CartographyRelSchema` object as described in the [intel module guide](#defining-relationships), **except** that now we have defined a `source_node_label` and a `source_node_matcher`.
 
 1. Define a `CartographyRelProperties` object with some additional fields:
     ```python
@@ -102,6 +102,10 @@ Let's say we have the following data that maps principals with the S3Buckets the
 - `_sub_resource_label`: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
 - `_sub_resource_id`: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
+All three are rewritten on every sync. A MatchLink is keyed only on its two endpoints and its label,
+so two sub-resources reporting the same edge between the same nodes converge on one relationship, and
+the most recent writer owns it for cleanup purposes.
+
 1. Load the matchlinks to the graph
     ```python
     load_matchlinks(
@@ -114,7 +118,10 @@ Let's say we have the following data that maps principals with the S3Buckets the
     )
     ```
     This function automatically creates indexes for the nodes involved, as well for the relationship between
-    them (specifically, on the update tag, the sub-resource label, and the sub-resource id fields).
+    them (specifically, on the sub-resource label and the sub-resource id fields). `lastupdated` is
+    deliberately not part of that index key: it is rewritten on every sync, so including it made Neo4j
+    delete and reinsert every index entry on every run, and it could not help the cleanup anyway because
+    `<>` is not a seekable predicate.
 
 1. Run the cleanup to remove stale matchlinks
     ```python
@@ -164,7 +171,7 @@ class S3AccessMatchLink(CartographyRelSchema):
     rel_label: str = "CAN_ACCESS"
     direction: LinkDirection = LinkDirection.OUTWARD
     properties: S3AccessRelProps = S3AccessRelProps()
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'name': PropertyRef('bucket_name')},
     )
@@ -204,10 +211,10 @@ if __name__ == "__main__":
         MERGE (p2:AWSPrincipal {principal_arn: "arn:aws:iam::123456789012:role/Bob", name:"Bob", lastupdated: $update_tag})
         MERGE (acc)-[res2:RESOURCE]->(p2)
 
-        MERGE (b1:S3Bucket {name: "bucket1", lastupdated: $update_tag})
+        MERGE (b1:AWSS3Bucket {name: "bucket1", lastupdated: $update_tag})
         MERGE (acc)-[res3:RESOURCE]->(b1)
 
-        MERGE (b2:S3Bucket {name: "bucket2", lastupdated: $update_tag})
+        MERGE (b2:AWSS3Bucket {name: "bucket2", lastupdated: $update_tag})
         MERGE (acc)-[res4:RESOURCE]->(b2)
         SET res1.lastupdated = $update_tag, res2.lastupdated = $update_tag, res3.lastupdated = $update_tag, res4.lastupdated = $update_tag
         """, update_tag=UPDATE_TAG, account_id=ACCOUNT_ID)

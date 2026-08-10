@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.spacelift.label_migrations import migrate_cloudtrail_event_label
 from cartography.models.spacelift.cloudtrailevent import CloudTrailSpaceliftEventSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -158,16 +159,16 @@ def transform_ec2_ownership(
     cloudtrail_data: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Transform CloudTrail data to create CloudTrailSpaceliftEvent nodes.
+    Transform CloudTrail data to create SpaceliftCloudTrailEvent nodes.
 
     This function filters CloudTrail records to find those that have BOTH:
     1. A Spacelift run ID (from the useridentity field)
     2. One or more EC2 instance IDs (from resources, requestparameters, or responseelements)
 
-    Each CloudTrail record becomes one CloudTrailSpaceliftEvent node that can connect to multiple instances.
+    Each CloudTrail record becomes one SpaceliftCloudTrailEvent node that can connect to multiple instances.
     """
     logger.info(
-        f"Transforming {len(cloudtrail_data)} CloudTrail records to create CloudTrailSpaceliftEvent nodes"
+        f"Transforming {len(cloudtrail_data)} CloudTrail records to create SpaceliftCloudTrailEvent nodes"
     )
 
     events = []
@@ -202,7 +203,7 @@ def transform_ec2_ownership(
         events.append(event)
 
     logger.info(
-        f"Created {len(events)} CloudTrailSpaceliftEvent records affecting EC2 instances"
+        f"Created {len(events)} SpaceliftCloudTrailEvent records affecting EC2 instances"
     )
 
     return events
@@ -216,10 +217,10 @@ def load_cloudtrail_events(
     account_id: str,
 ) -> None:
     """
-    Load CloudTrailSpaceliftEvent nodes with relationships to SpaceliftRun and EC2Instance nodes.
+    Load SpaceliftCloudTrailEvent nodes with relationships to SpaceliftRun and AWSEC2Instance nodes.
     """
     logger.info(
-        f"Loading {len(events)} CloudTrailSpaceliftEvent nodes with relationships into Neo4j"
+        f"Loading {len(events)} SpaceliftCloudTrailEvent nodes with relationships into Neo4j"
     )
 
     load(
@@ -237,9 +238,9 @@ def cleanup_cloudtrail_events(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Remove stale CloudTrailSpaceliftEvent nodes and their relationships from Neo4j.
+    Remove stale SpaceliftCloudTrailEvent nodes and their relationships from Neo4j.
     """
-    logger.debug("Running CloudTrailSpaceliftEvent cleanup job")
+    logger.debug("Running SpaceliftCloudTrailEvent cleanup job")
 
     GraphJob.from_node_schema(
         CloudTrailSpaceliftEventSchema(), common_job_parameters
@@ -256,9 +257,10 @@ def sync_ec2_ownership(
     account_id: str,
 ) -> None:
     """
-    Sync EC2 ownership data from CloudTrail into Neo4j as CloudTrailSpaceliftEvent nodes.
+    Sync EC2 ownership data from CloudTrail into Neo4j as SpaceliftCloudTrailEvent nodes.
     """
     logger.info("Starting EC2 ownership sync")
+    migrate_cloudtrail_event_label(neo4j_session, account_id)
 
     cloudtrail_data = get_ec2_ownership(aws_session, bucket_name, object_prefix)
 

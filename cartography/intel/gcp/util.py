@@ -467,7 +467,7 @@ def classify_gcp_http_error(e: HttpError) -> str:
       - 403 + api-disabled pattern (is_api_disabled_error)   → "api_disabled"
       - (other) 403                                          → "forbidden"
       - 404                                                  → "not_found"
-      - 400 + reason "invalid" or "badRequest"              → "invalid"
+      - 400 + reason "invalid", "badRequest" or "invalidQuery" → "invalid"
       - status in {429, 500, 502, 503, 504}                 → "transient"
       - anything else                                        → "unknown"
 
@@ -494,7 +494,7 @@ def classify_gcp_http_error(e: HttpError) -> str:
 
     if status == 400:
         reason = get_error_reason(e)
-        if reason.lower() in ("invalid", "badrequest"):
+        if reason.lower() in ("invalid", "badrequest", "invalidquery"):
             return "invalid"
         return "unknown"
 

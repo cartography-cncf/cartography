@@ -28,7 +28,7 @@ def _ensure_local_neo4j_has_principals(neo4j_session):
     """
     neo4j_session.run(
         """
-        MATCH (t:EntraTenant {id: $tenant_id})
+        MATCH (t:AzureTenant {id: $tenant_id})
         CREATE (u:EntraUser {id: $user_id, display_name: 'Test User 1'})
         CREATE (g:EntraGroup {id: $group_id, display_name: 'Finance Team'})
         CREATE (sp:EntraServicePrincipal {id: $sp_id, display_name: 'Automation SP'})
@@ -114,7 +114,7 @@ async def test_sync_entra_directory_roles(
         neo4j_session,
         "EntraRoleDefinition",
         "id",
-        "EntraTenant",
+        "AzureTenant",
         "id",
         "RESOURCE",
         rel_direction_right=False,
@@ -128,7 +128,7 @@ async def test_sync_entra_directory_roles(
         neo4j_session,
         "EntraRoleAssignment",
         "id",
-        "EntraTenant",
+        "AzureTenant",
         "id",
         "RESOURCE",
         rel_direction_right=False,

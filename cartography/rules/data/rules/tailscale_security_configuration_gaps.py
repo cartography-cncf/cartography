@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -39,6 +40,7 @@ _tailscale_device_approval_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -70,6 +72,7 @@ _tailscale_user_approval_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -101,6 +104,7 @@ _tailscale_network_flow_logging_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -132,6 +136,7 @@ _tailscale_device_auto_updates_disabled = Fact(
     MATCH (tailnet:TailscaleTailnet)
     RETURN COUNT(tailnet) AS count
     """,
+    asset_label="TailscaleTailnet",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.TAILSCALE,
@@ -163,8 +168,12 @@ _tailscale_device_key_expiry_disabled = Fact(
     MATCH (device:TailscaleDevice)
     RETURN COUNT(device) AS count
     """,
+    asset_label="TailscaleDevice",
     asset_id_field="asset_id",
-    identity_fields=("asset_id", "issue"),
+    # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
+    # a fresh device.id on every reconnect, which would re-create the same finding.
+    # tailnet_id keeps the identity unique across tailnets that reuse a hostname.
+    identity_fields=("tailnet_id", "asset_name", "issue"),
     module=Module.TAILSCALE,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -184,7 +193,10 @@ tailscale_tailnet_approval_disabled = Rule(
     ),
     tags=("network", "device", "compliance", "stride:spoofing"),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("5.15"),),
+    frameworks=(
+        iso27001_annex_a("5.15"),
+        soc2_tsc("CC6.1"),
+    ),
 )
 
 
@@ -196,7 +208,10 @@ tailscale_network_flow_logging_disabled = Rule(
     facts=(_tailscale_network_flow_logging_disabled,),
     tags=("network", "logging", "compliance"),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.15"),),
+    frameworks=(
+        iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
+    ),
 )
 
 
@@ -208,7 +223,10 @@ tailscale_device_auto_updates_disabled = Rule(
     facts=(_tailscale_device_auto_updates_disabled,),
     tags=("device", "patching", "compliance"),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.8"),),
+    frameworks=(
+        iso27001_annex_a("8.8"),
+        soc2_tsc("CC7.1"),
+    ),
 )
 
 
@@ -219,6 +237,9 @@ tailscale_device_key_expiry_disabled = Rule(
     output_model=TailscaleSecurityConfigurationGapOutput,
     facts=(_tailscale_device_key_expiry_disabled,),
     tags=("device", "authentication", "compliance", "stride:spoofing"),
-    version="0.1.0",
-    frameworks=(iso27001_annex_a("5.17"),),
+    version="0.2.0",
+    frameworks=(
+        iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
+    ),
 )

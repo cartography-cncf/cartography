@@ -124,12 +124,14 @@ DESCRIBE_TABLES = [
         "id": sa1 + "/tableServices/TS1/tables/table1",
         "name": "table1",
         "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+        "table_name": "table1",
         "service_id": sa1 + "/tableServices/TS1",
     },
     {
         "id": sa2 + "/tableServices/TS2/tables/table2",
         "name": "table2",
         "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+        "table_name": "table2",
         "service_id": sa2 + "/tableServices/TS2",
     },
 ]

@@ -6,7 +6,7 @@ from typing import Optional
 
 import neo4j
 from azure.core.exceptions import HttpResponseError
-from azure.mgmt.managementgroups import ManagementGroupsAPI
+from azure.mgmt.managementgroups import ManagementGroupsMgmtClient
 from azure.mgmt.resource.subscriptions import SubscriptionClient
 
 from cartography.client.core.tx import load
@@ -85,7 +85,7 @@ def get_current_azure_subscription(
 def get_azure_management_group_subscriptions(
     credentials: Credentials,
 ) -> tuple[List[Dict], set[str]]:
-    client = ManagementGroupsAPI(credentials.credential)
+    client = ManagementGroupsMgmtClient(credentials.credential)
     management_groups = list(client.management_groups.list())
     results: List[Dict] = []
     seen_group_names: set[str] = set()

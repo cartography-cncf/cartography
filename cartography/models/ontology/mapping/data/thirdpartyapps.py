@@ -184,11 +184,72 @@ jumpcloud_mapping = OntologyMapping(
     ],
 )
 
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceConnectedApp",
+            fields=[
+                # Salesforce does not expose the OAuth consumer key via SOQL, so
+                # use the ConnectedApplication record id as the client identifier.
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "oauth2"},
+                ),
+            ],
+        ),
+    ],
+)
+
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyServiceInstance",
+            fields=[
+                # Netlify add-ons are identified by slug, not by an OAuth client id, so the slug
+                # is the closest stable identifier the ontology's client_id can carry.
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="service_slug",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="service_name", required=True
+                ),
+                # An add-on instance exists only while installed, so it is enabled by
+                # construction; Netlify reports no disabled state for one.
+                OntologyFieldMapping(
+                    ontology_field="enabled",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                # native_app / protocol: Netlify add-ons are provisioned server-side through
+                # Netlify's own add-on API, not through an OAuth flow, so neither applies.
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
+    "salesforce": salesforce_mapping,
     "keycloak": keycloak_mapping,
     "microsoft": entra_mapping,
     "okta": okta_mapping,
     "slack": slack_mapping,
     "jumpcloud": jumpcloud_mapping,
+    "netlify": netlify_mapping,
 }

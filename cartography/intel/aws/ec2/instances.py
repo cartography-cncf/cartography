@@ -10,6 +10,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -17,6 +18,7 @@ from cartography.models.aws.ec2.auto_scaling_groups import (
     EC2InstanceAutoScalingGroupSchema,
 )
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
+from cartography.models.aws.ec2.instances import EC2InstanceToRoleAssumesMatchLink
 from cartography.models.aws.ec2.ipv6_addresses import EC2Ipv6AddressSchema
 from cartography.models.aws.ec2.keypair_instance import EC2KeyPairInstanceSchema
 from cartography.models.aws.ec2.networkinterface_instance import (
@@ -161,6 +163,7 @@ def transform_ec2_instances(
             instance_list.append(
                 {
                     "InstanceId": instance_id,
+                    "Arn": f"arn:aws:ec2:{region}:{current_aws_account_id}:instance/{instance_id}",
                     "ReservationId": reservation_id,
                     "PublicDnsName": instance.get("PublicDnsName"),
                     "PublicIpAddress": instance.get("PublicIpAddress"),
@@ -248,9 +251,9 @@ def transform_ec2_instances(
 
                 # --- Extract IPv6 addresses for this network interface ---
                 # Each NI can have zero or more IPv6 addresses. We create a
-                # separate EC2Ipv6Address node per address so they can be
+                # separate AWSEC2Ipv6Address node per address so they can be
                 # independently queried and linked to DNS AAAA records via the
-                # Ip label on EC2Ipv6Address and the existing DNS_POINTS_TO rel.
+                # Ip label on AWSEC2Ipv6Address and the existing DNS_POINTS_TO rel.
                 nic_id = network_interface["NetworkInterfaceId"]
                 for ipv6_entry in network_interface.get("Ipv6Addresses", []):
                     ipv6_addr = ipv6_entry.get("Ipv6Address")
@@ -512,6 +515,44 @@ def load_ec2_instance_data(
 
 
 @timeit
+def sync_ec2_instance_assumes_role(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    # Assemble (instance, role) pairs from the instance-profile binding chain,
+    # since the AWS API exposes no direct instance->role edge, and load them as
+    # the canonical ASSUMES ontology edge. Scoped to the current account so the
+    # MatchLink cleanup only touches this account's edges.
+    query = """
+    MATCH (:AWSAccount{id: $AccountId})-[:RESOURCE]->(i:AWSEC2Instance)
+        -[:INSTANCE_PROFILE]->(:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)
+    WHERE i.id IS NOT NULL AND r.arn IS NOT NULL
+    RETURN i.id AS instance_id, r.arn AS role_arn
+    """
+    pairs = [
+        {"instance_id": record["instance_id"], "role_arn": record["role_arn"]}
+        for record in neo4j_session.run(query, AccountId=current_aws_account_id)
+    ]
+
+    load_matchlinks(
+        neo4j_session,
+        EC2InstanceToRoleAssumesMatchLink(),
+        pairs,
+        lastupdated=update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
+    )
+
+    GraphJob.from_matchlink(
+        EC2InstanceToRoleAssumesMatchLink(),
+        sub_resource_label="AWSAccount",
+        sub_resource_id=current_aws_account_id,
+        update_tag=update_tag,
+    ).run(neo4j_session)
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -563,4 +604,12 @@ def sync_ec2_instances(
             ec2_data.instance_ebs_volumes_list,
             ec2_data.ipv6_address_list,
         )
+    # Clean up stale instances / INSTANCE_PROFILE edges first so the ASSUMES
+    # edges are derived from the current profile chain only (a re-profiled
+    # instance would otherwise keep an obsolete role binding for one cycle).
     cleanup(neo4j_session, common_job_parameters)
+    sync_ec2_instance_assumes_role(
+        neo4j_session,
+        current_aws_account_id,
+        update_tag,
+    )

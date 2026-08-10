@@ -38,7 +38,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     )
 
     # Assert EC2 instances exist
-    assert check_nodes(neo4j_session, "EC2Instance", ["id", "instanceid"]) == {
+    assert check_nodes(neo4j_session, "AWSEC2Instance", ["id", "instanceid"]) == {
         ("i-01", "i-01"),
         ("i-02", "i-02"),
         ("i-03", "i-03"),
@@ -47,7 +47,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "EC2Instance",
+        "AWSEC2Instance",
         [
             "id",
             "metadatahttptokens",
@@ -77,9 +77,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert that instances are connected to their expected reservations
     assert check_rels(
         neo4j_session,
-        "EC2Reservation",
+        "AWSEC2Reservation",
         "reservationid",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "MEMBER_OF_EC2_RESERVATION",
         rel_direction_right=False,
@@ -93,9 +93,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert network interface to instances
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "NETWORK_INTERFACE",
         rel_direction_right=False,
@@ -109,9 +109,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert network interface to subnet
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
         "PART_OF_SUBNET",
         rel_direction_right=True,
@@ -122,16 +122,18 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     }
 
     # #1316: Assert the fields of the subnet are as expected
-    assert check_nodes(neo4j_session, "EC2Subnet", ["id", "subnetid", "subnet_id"]) == {
+    assert check_nodes(
+        neo4j_session, "AWSEC2Subnet", ["id", "subnetid", "subnet_id"]
+    ) == {
         ("SOME_SUBNET_1", "SOME_SUBNET_1", "SOME_SUBNET_1"),
     }
 
     # Assert network interface to security group
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -149,7 +151,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert network interface to AWS account
     assert check_rels(
         neo4j_session,
-        "NetworkInterface",
+        "AWSNetworkInterface",
         "id",
         "AWSAccount",
         "id",
@@ -165,7 +167,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Key Pair to AWS account
     assert check_rels(
         neo4j_session,
-        "EC2KeyPair",
+        "AWSEC2KeyPair",
         "id",
         "AWSAccount",
         "id",
@@ -178,9 +180,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Key Pair to EC2 instance
     assert check_rels(
         neo4j_session,
-        "EC2KeyPair",
+        "AWSEC2KeyPair",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "SSH_LOGIN_TO",
         rel_direction_right=True,
@@ -194,9 +196,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Security Group to EC2 Instance
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=False,
@@ -214,7 +216,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Security Group to AWS account
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "AWSAccount",
         "id",
@@ -230,9 +232,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Subnet to EC2 Instance
     assert check_rels(
         neo4j_session,
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "PART_OF_SUBNET",
         rel_direction_right=False,
@@ -245,7 +247,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EC2 Subnet to AWS account
     assert check_rels(
         neo4j_session,
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "id",
         "AWSAccount",
         "id",
@@ -258,9 +260,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EBS Volume to EC2 Instance
     assert check_rels(
         neo4j_session,
-        "EBSVolume",
+        "AWSEBSVolume",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "ATTACHED_TO",
         rel_direction_right=True,
@@ -274,7 +276,7 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     # Assert EBS Volume to AWS account
     assert check_rels(
         neo4j_session,
-        "EBSVolume",
+        "AWSEBSVolume",
         "id",
         "AWSAccount",
         "id",

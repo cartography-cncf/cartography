@@ -10,17 +10,25 @@ from azure.mgmt.keyvault import KeyVaultManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.key_vault import AzureKeyVaultSchema
 from cartography.models.azure.key_vault_certificate import (
     AzureKeyVaultCertificateSchema,
 )
 from cartography.models.azure.key_vault_key import AzureKeyVaultKeySchema
 from cartography.models.azure.key_vault_secret import AzureKeyVaultSecretSchema
+from cartography.models.azure.tags.key_vault_secret_tag import (
+    AzureKeyVaultSecretTagsSchema,
+)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+# Chunk size for iterative deletion of stale secret TAGGED relationships.
+SECRET_TAGS_CLEANUP_ITERATION_SIZE = 10000
 
 
 @timeit
@@ -41,6 +49,7 @@ def get_secrets(credentials: Credentials, vault_uri: str) -> list[dict]:
                 "enabled": secret_props.enabled,
                 "created_on": secret_props.created_on,
                 "updated_on": secret_props.updated_on,
+                "tags": secret_props.tags,
             }
         )
     return secrets
@@ -109,6 +118,7 @@ def transform_secrets(secrets_response: list[dict]) -> list[dict]:
             "enabled": secret.get("enabled"),
             "created_on": secret.get("created_on"),
             "updated_on": secret.get("updated_on"),
+            "tags": secret.get("tags"),
         }
         transformed_secrets.append(transformed_secret)
     return transformed_secrets
@@ -178,6 +188,52 @@ def load_secrets(
 
 
 @timeit
+def load_secret_tags(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    tags = transform_tags(data, subscription_id)
+    load(
+        neo4j_session,
+        AzureKeyVaultSecretTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_secret_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    # AzureTag nodes are shared across resource types, so only detach stale TAGGED
+    # edges from AzureKeyVaultSecret here; deleting the shared nodes would remove
+    # tags still referenced by other resources. Orphaned tag nodes are swept by the
+    # subscription-wide tag cleanup that other resource modules already run.
+    # Delete iteratively in chunks so large subscriptions don't exhaust transaction memory.
+    GraphStatement(
+        """
+        MATCH (:AzureSubscription {id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(t:AzureTag)
+        MATCH (:AzureKeyVaultSecret)-[r:TAGGED]->(t)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        parameters={
+            "AZURE_SUBSCRIPTION_ID": subscription_id,
+            "UPDATE_TAG": update_tag,
+        },
+        iterative=True,
+        iterationsize=SECRET_TAGS_CLEANUP_ITERATION_SIZE,
+        parent_job_name="AzureKeyVaultSecretTags",
+    ).run(neo4j_session)
+
+
+@timeit
 def load_keys(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -231,7 +287,7 @@ def sync_secrets(
     vault_uri: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> None:
+) -> list[dict[str, Any]]:
     raw_secrets = get_secrets(credentials, vault_uri)
     transformed_secrets = transform_secrets(raw_secrets)
     load_secrets(
@@ -243,6 +299,11 @@ def sync_secrets(
     GraphJob.from_node_schema(AzureKeyVaultSecretSchema(), secret_cleanup_params).run(
         neo4j_session
     )
+    # Tag load + cleanup is intentionally NOT done here. AzureTag nodes are shared
+    # across resource types, and node-scoped cleanup runs per subscription, so
+    # cleaning per vault would delete tags still in use by other vaults/resources
+    # not yet synced. The caller loads and cleans secret tags once per subscription.
+    return transformed_secrets
 
 
 @timeit
@@ -322,6 +383,7 @@ def sync(
         common_job_parameters,
     )
 
+    all_secrets: list[dict[str, Any]] = []
     for vault in transformed_vaults:
         vault_id = vault["id"]
         vault_uri = vault.get("vault_uri")
@@ -330,14 +392,16 @@ def sync(
             # Per AGENTS.md: Let errors propagate to surface systemic failures
             # Only catch ResourceNotFoundError for vaults that were deleted between list and access
             try:
-                sync_secrets(
-                    neo4j_session,
-                    credentials,
-                    subscription_id,
-                    vault_id,
-                    vault_uri,
-                    update_tag,
-                    common_job_parameters,
+                all_secrets.extend(
+                    sync_secrets(
+                        neo4j_session,
+                        credentials,
+                        subscription_id,
+                        vault_id,
+                        vault_uri,
+                        update_tag,
+                        common_job_parameters,
+                    )
                 )
             except ResourceNotFoundError:
                 logger.warning(
@@ -375,3 +439,8 @@ def sync(
                 logger.warning(
                     f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
                 )
+
+    # Load and clean secret tags once per subscription, after every vault's secrets
+    # are loaded, so cleanup never removes tags belonging to a not-yet-synced vault.
+    load_secret_tags(neo4j_session, all_secrets, subscription_id, update_tag)
+    cleanup_secret_tags(neo4j_session, subscription_id, update_tag)

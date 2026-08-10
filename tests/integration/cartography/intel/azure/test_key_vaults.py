@@ -163,3 +163,89 @@ def test_sync_key_vaults_and_contents(
         ),
     )
     assert actual_resource_rels == expected_resource_rels
+
+    # Assert TAGGED relationships from secrets to AzureTag
+    expected_tag_rels = {
+        (secret_id, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+    }
+    actual_tag_rels = check_rels(
+        neo4j_session,
+        "AzureKeyVaultSecret",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_tag_rels == expected_tag_rels
+
+
+@patch("cartography.intel.azure.key_vaults.get_certificates")
+@patch("cartography.intel.azure.key_vaults.get_keys")
+@patch("cartography.intel.azure.key_vaults.get_secrets")
+@patch("cartography.intel.azure.key_vaults.get_key_vaults")
+def test_secret_tag_cleanup_preserves_shared_tags(
+    mock_get_vaults, mock_get_secrets, mock_get_keys, mock_get_certs, neo4j_session
+):
+    """
+    The secret-tag cleanup must only detach stale TAGGED edges from
+    AzureKeyVaultSecret. It must NOT delete AzureTag nodes, which are shared
+    across resource types and scoped only by subscription.
+    """
+    # Arrange
+    mock_get_vaults.return_value = MOCK_VAULTS
+    mock_get_secrets.return_value = MOCK_SECRETS
+    mock_get_keys.return_value = MOCK_KEYS
+    mock_get_certs.return_value = MOCK_CERTIFICATES
+
+    stale_tag = 1  # older than TEST_UPDATE_TAG
+
+    # A pre-existing shared tag that belongs to another resource type, last synced
+    # by a previous run (stale relative to this run's update tag).
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        MERGE (t:AzureTag{id: $tag_id})
+        SET t.lastupdated = $stale_tag, t.key = 'owner', t.value = 'platform'
+        MERGE (s)-[res:RESOURCE]->(t)
+        SET res.lastupdated = $stale_tag
+        MERGE (sa:AzureStorageAccount{id: $sa_id})
+        SET sa.lastupdated = $stale_tag
+        MERGE (sa)-[tagged:TAGGED]->(t)
+        SET tagged.lastupdated = $stale_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+        tag_id=f"{TEST_SUBSCRIPTION_ID}|owner:platform",
+        sa_id="/subscriptions/00-00-00-00/storageAccounts/other",
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+    }
+
+    # Act
+    key_vaults.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert: the shared tag node and the other resource's TAGGED edge survive.
+    shared_tag_id = f"{TEST_SUBSCRIPTION_ID}|owner:platform"
+    assert (shared_tag_id,) in check_nodes(neo4j_session, "AzureTag", ["id"])
+    assert (
+        "/subscriptions/00-00-00-00/storageAccounts/other",
+        shared_tag_id,
+    ) in check_rels(
+        neo4j_session,
+        "AzureStorageAccount",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )

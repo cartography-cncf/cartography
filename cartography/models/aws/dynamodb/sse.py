@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_DYNAMO_DBSSE_DESCRIPTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -13,11 +15,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/sse")'
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    sse_status: PropertyRef = PropertyRef("SSEStatus", extra_index=True)
-    sse_type: PropertyRef = PropertyRef("SSEType")
-    kms_master_key_arn: PropertyRef = PropertyRef("KMSMasterKeyArn")
+    sse_status: PropertyRef = PropertyRef(
+        "SSEStatus",
+        extra_index=True,
+        description="The current state of SSE (e.g., ENABLED, DISABLED)",
+    )
+    sse_type: PropertyRef = PropertyRef(
+        "SSEType", description="The server-side encryption type (AES256 or KMS)"
+    )
+    kms_master_key_arn: PropertyRef = PropertyRef(
+        "KMSMasterKeyArn",
+        description="The ARN of the KMS key used for encryption (if SSE type is KMS)",
+    )
 
 
 @dataclass(frozen=True)
@@ -45,7 +58,7 @@ class DynamoDBSSEDescriptionToTableRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToTableRel(CartographyRelSchema):
-    target_node_label: str = "DynamoDBTable"
+    target_node_label: str = "AWSDynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TableArn")},
     )
@@ -64,10 +77,10 @@ class DynamoDBSSEDescriptionToKMSKeyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
     """
-    Relationship to KMSKey. Only created when SSEType is "KMS" and KMSMasterKeyArn exists.
+    Relationship to AWSKMSKey. Only created when SSEType is "KMS" and KMSMasterKeyArn exists.
     """
 
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KMSMasterKeyArn")},
     )
@@ -80,7 +93,13 @@ class DynamoDBSSEDescriptionToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBSSEDescriptionSchema(CartographyNodeSchema):
-    label: str = "DynamoDBSSEDescription"
+    """Representation of DynamoDB [Server-Side Encryption description](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SSEDescription.html)."""
+
+    label: str = "AWSDynamoDBSSEDescription"
+    # DEPRECATED: legacy DynamoDBSSEDescription node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_DYNAMO_DBSSE_DESCRIPTION]
+    )
     properties: DynamoDBSSEDescriptionNodeProperties = (
         DynamoDBSSEDescriptionNodeProperties()
     )

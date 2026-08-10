@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+from cartography.intel.gitlab.container_images import get_container_images
 from cartography.intel.gitlab.container_images import GITLAB_CONTAINER_IMAGE_BATCH_SIZE
 from cartography.intel.gitlab.container_images import (
     GITLAB_CONTAINER_IMAGE_LAYER_BATCH_SIZE,
@@ -20,6 +21,8 @@ def _patch_sync_container_images_dependencies(
     load_layers_mock=None,
     cleanup_images_mock=None,
     cleanup_layers_mock=None,
+    complete_digests_mock=None,
+    refresh_layers_mock=None,
 ):
     mocks = {
         "get_images": get_images_mock or Mock(),
@@ -29,6 +32,8 @@ def _patch_sync_container_images_dependencies(
         "load_layers": load_layers_mock or Mock(),
         "cleanup_images": cleanup_images_mock or Mock(),
         "cleanup_layers": cleanup_layers_mock or Mock(),
+        "complete_digests": complete_digests_mock or Mock(return_value=set()),
+        "refresh_layers": refresh_layers_mock or Mock(),
     }
 
     monkeypatch.setattr(
@@ -58,6 +63,14 @@ def _patch_sync_container_images_dependencies(
     monkeypatch.setattr(
         "cartography.intel.gitlab.container_images.cleanup_container_image_layers",
         mocks["cleanup_layers"],
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.get_complete_layer_digests",
+        mocks["complete_digests"],
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.refresh_layer_closures",
+        mocks["refresh_layers"],
     )
 
     return mocks
@@ -248,3 +261,62 @@ def test_transform_container_image_layers_persists_history_and_is_empty():
             "history": "/bin/sh -c mkdir /app",
         },
     ]
+
+
+def test_get_container_images_skips_config_for_complete_digest(monkeypatch):
+    # Arrange
+    digest = "sha256:complete"
+    fetch_blob = Mock()
+    observed_and_skipped: set[str] = set()
+    skipped_attestation_manifests: list[dict] = []
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.get_paginated",
+        Mock(return_value=[{"name": "latest"}]),
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        Mock(
+            return_value={
+                "_digest": digest,
+                "_registry_url": "https://registry.gitlab.example.com",
+                "_repository_name": "group/project",
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "config": {"digest": "sha256:config"},
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.fetch_registry_blob",
+        fetch_blob,
+    )
+
+    # Act
+    manifests, manifest_lists = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [
+            {
+                "id": 1,
+                "project_id": 2,
+                "location": "registry.gitlab.example.com/group/project",
+            },
+        ],
+        skip_digests={digest},
+        observed_and_skipped=observed_and_skipped,
+        skipped_attestation_manifests=skipped_attestation_manifests,
+    )
+
+    # Assert
+    assert manifests == []
+    assert manifest_lists == []
+    assert observed_and_skipped == {digest}
+    assert skipped_attestation_manifests == [
+        {
+            "_digest": digest,
+            "_registry_url": "https://registry.gitlab.example.com",
+            "_repository_name": "group/project",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "config": {"digest": "sha256:config"},
+        },
+    ]
+    fetch_blob.assert_not_called()

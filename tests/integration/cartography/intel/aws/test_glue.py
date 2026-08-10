@@ -44,11 +44,11 @@ def test_sync_glue(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "GlueConnection", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSGlueConnection", ["arn"]) == {
         ("test-jdbc-connection",),
     }
 
-    assert check_nodes(neo4j_session, "GlueJob", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSGlueJob", ["arn"]) == {
         ("sample-etl-job",),
         ("sample-streaming-job",),
     }
@@ -58,7 +58,7 @@ def test_sync_glue(
         neo4j_session,
         "AWSAccount",
         "id",
-        "GlueConnection",
+        "AWSGlueConnection",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -73,7 +73,7 @@ def test_sync_glue(
         neo4j_session,
         "AWSAccount",
         "id",
-        "GlueJob",
+        "AWSGlueJob",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -84,9 +84,9 @@ def test_sync_glue(
 
     assert check_rels(
         neo4j_session,
-        "GlueJob",
+        "AWSGlueJob",
         "id",
-        "GlueConnection",
+        "AWSGlueConnection",
         "id",
         "USES",
         rel_direction_right=True,

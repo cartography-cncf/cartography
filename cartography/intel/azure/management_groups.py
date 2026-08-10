@@ -3,7 +3,7 @@ from typing import Any
 
 import neo4j
 from azure.core.exceptions import HttpResponseError
-from azure.mgmt.managementgroups import ManagementGroupsAPI
+from azure.mgmt.managementgroups import ManagementGroupsMgmtClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -22,11 +22,21 @@ def _get_value(data: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _get_properties(data: dict[str, Any]) -> dict[str, Any]:
+    return data.get("properties") or {}
+
+
 def _management_group_parent(
     management_group: dict[str, Any],
     inherited_parent: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    details = management_group.get("details") or {}
+    details = (
+        management_group.get("details")
+        or _get_properties(management_group).get(
+            "details",
+        )
+        or {}
+    )
     parent = details.get("parent")
     if parent:
         return parent
@@ -37,7 +47,12 @@ def _transform_one_management_group(
     management_group: dict[str, Any],
     inherited_parent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    tenant_id = _get_value(management_group, "tenant_id", "tenantId")
+    properties = _get_properties(management_group)
+    tenant_id = _get_value(management_group, "tenant_id", "tenantId") or _get_value(
+        properties,
+        "tenant_id",
+        "tenantId",
+    )
     parent = _management_group_parent(management_group, inherited_parent) or {}
     parent_id = _get_value(parent, "id")
     parent_name = _get_value(parent, "name")
@@ -54,11 +69,16 @@ def _transform_one_management_group(
     elif parent_id:
         parent_management_group_id = parent_id
 
-    details = management_group.get("details") or {}
+    details = management_group.get("details") or properties.get("details") or {}
     return {
         "id": _get_value(management_group, "id"),
         "name": _get_value(management_group, "name"),
-        "displayName": _get_value(management_group, "display_name", "displayName"),
+        "displayName": _get_value(
+            management_group,
+            "display_name",
+            "displayName",
+        )
+        or _get_value(properties, "display_name", "displayName"),
         "tenantId": tenant_id,
         "type": _get_value(management_group, "type"),
         "updatedBy": _get_value(details, "updated_by", "updatedBy"),
@@ -92,7 +112,13 @@ def _walk_management_group_tree(
         "name": transformed.get("name"),
         "displayName": transformed.get("displayName"),
     }
-    for child in management_group.get("children") or []:
+    for child in (
+        management_group.get("children")
+        or _get_properties(management_group).get(
+            "children",
+        )
+        or []
+    ):
         child_type = _get_value(child, "type")
         if child_type == "Microsoft.Management/managementGroups":
             _walk_management_group_tree(
@@ -105,7 +131,7 @@ def _walk_management_group_tree(
 
 @timeit
 def get_azure_management_groups(credentials: Credentials) -> list[dict[str, Any]]:
-    client = ManagementGroupsAPI(credentials.credential)
+    client = ManagementGroupsMgmtClient(credentials.credential)
     try:
         expanded_root = client.management_groups.get(
             group_id=credentials.tenant_id,

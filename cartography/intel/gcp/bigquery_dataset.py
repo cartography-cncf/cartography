@@ -41,7 +41,7 @@ def get_bigquery_datasets(client: Resource, project_id: str) -> list[dict] | Non
     except HttpError as e:
         if is_gcp_http_error_category(
             e,
-            ("api_disabled", "billing_disabled", "forbidden", "not_found"),
+            ("api_disabled", "billing_disabled", "forbidden", "invalid", "not_found"),
             include_transient_403=True,
         ):
             logger.warning(
@@ -66,7 +66,7 @@ def get_bigquery_dataset_detail(
     except HttpError as e:
         if is_gcp_http_error_category(
             e,
-            ("api_disabled", "billing_disabled", "forbidden", "not_found"),
+            ("api_disabled", "billing_disabled", "forbidden", "invalid", "not_found"),
             include_transient_403=True,
         ):
             logger.warning(

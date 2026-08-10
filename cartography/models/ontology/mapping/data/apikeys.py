@@ -130,7 +130,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="AccountAccessKey",
+            node_label="AWSAccountAccessKey",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="accesskeyid", required=True
@@ -163,6 +163,26 @@ gcp_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="GCPApiKey",
+            fields=[
+                # display_name is optional upstream; fall back to the resource
+                # name so _ont_name is always populated.
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="display_name",
+                    required=True,
+                    special_handling="coalesce",
+                    extra={"fields": ["name"]},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="create_time"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="update_time"
+                ),
+            ],
+        ),
     ],
 )
 
@@ -176,18 +196,111 @@ github_mapping = OntologyMapping(
                     ontology_field="name", node_field="token_name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="type", node_field="token_kind"),
-                # created_at maps to access_granted_at, populated for fine-grained
-                # PATs. Classic SAML credential authorizations populate
-                # credential_authorized_at instead; the mapping supports one
-                # node_field per ontology_field, so classic PATs get a null here.
                 OntologyFieldMapping(
-                    ontology_field="created_at", node_field="access_granted_at"
+                    ontology_field="created_at",
+                    node_field="access_granted_at",
+                    special_handling="coalesce",
+                    extra={"fields": ["credential_authorized_at"]},
                 ),
                 OntologyFieldMapping(
                     ontology_field="expires_at", node_field="expires_at"
                 ),
                 OntologyFieldMapping(
+                    ontology_field="last_used_at",
+                    node_field="last_used_at",
+                    special_handling="coalesce",
+                    extra={"fields": ["credential_accessed_at"]},
+                ),
+            ],
+        ),
+    ],
+)
+
+# Railway has two token kinds: account/workspace-scoped API tokens and project tokens that
+# are pinned to a single environment. Neither exposes a last-used timestamp.
+railway_mapping = OntologyMapping(
+    module_name="railway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RailwayApiToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="expires_at", node_field="expires_at"
+                ),
+                # created_at: Not available on Railway's ApiToken type.
+                # last_used_at: Not available.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RailwayProjectToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # expires_at: project tokens do not expire.
+                # last_used_at: Not available.
+            ],
+        ),
+    ],
+)
+
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseApiKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="inserted_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="updated_at", node_field="updated_at"
+                ),
+                # expires_at: Supabase project API keys do not expire.
+                # last_used_at: Not exposed by the Management API.
+            ],
+        ),
+    ],
+)
+
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalApiToken",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
                     ontology_field="last_used_at", node_field="last_used_at"
+                ),
+                # updated_at: not exposed.
+                # expires_at: Modal API tokens do not expire.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ModalProxyToken",
+            fields=[
+                # Modal proxy tokens are unnamed, so the token id is the only stable label.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="token_id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
                 ),
             ],
         ),
@@ -203,4 +316,7 @@ APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "subimage": subimage_mapping,
     "aws": aws_mapping,
     "gcp": gcp_mapping,
+    "railway": railway_mapping,
+    "supabase": supabase_mapping,
+    "modal": modal_mapping,
 }

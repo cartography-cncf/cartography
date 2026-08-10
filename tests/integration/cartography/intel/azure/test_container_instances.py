@@ -28,7 +28,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (img:ECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
+        "MERGE (img:AWSECRImage {id: $digest, digest: $digest}) SET img.lastupdated = $tag",
         digest=TEST_GROUP_CONTAINER_DIGEST,
         tag=TEST_UPDATE_TAG,
     )
@@ -55,7 +55,7 @@ def test_has_image_rel(mock_get, neo4j_session):
         neo4j_session,
         "AzureContainerInstance",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_ID, TEST_GROUP_CONTAINER_DIGEST)}
@@ -111,6 +111,6 @@ def test_container_ontology_mapping(mock_get, neo4j_session):
         "name": "my-container",
         "image": f"myregistry.azurecr.io/myimage@{TEST_GROUP_CONTAINER_DIGEST}",
         "image_digest": TEST_GROUP_CONTAINER_DIGEST,
-        "state": "Running",
+        "state": "running",
         "source": "azure",
     }

@@ -105,14 +105,16 @@ def test_sync_route_tables(
     )
 
     # Assert route tables exist
-    assert check_nodes(neo4j_session, "EC2RouteTable", ["id", "route_table_id"]) == {
+    assert check_nodes(neo4j_session, "AWSEC2RouteTable", ["id", "route_table_id"]) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtb-bbbbbbbbbbbbbbbbb"),
     }
 
     # Assert route table associations exist
     assert check_nodes(
-        neo4j_session, "EC2RouteTableAssociation", ["id", "route_table_association_id"]
+        neo4j_session,
+        "AWSEC2RouteTableAssociation",
+        ["id", "route_table_association_id"],
     ) == {
         ("rtbassoc-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "rtbassoc-bbbbbbbbbbbbbbbbb"),
@@ -121,7 +123,7 @@ def test_sync_route_tables(
     }
 
     # Assert routes exist (including VPC endpoint route)
-    assert check_nodes(neo4j_session, "EC2Route", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSEC2Route", ["id"]) == {
         ("rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16",),
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0",),
         ("rtb-aaaaaaaaaaaaaaaaa|vpce-gateway123",),
@@ -132,9 +134,9 @@ def test_sync_route_tables(
     # Assert route table to route relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "id",
-        "EC2Route",
+        "AWSEC2Route",
         "id",
         "ROUTE",
         rel_direction_right=True,
@@ -149,9 +151,9 @@ def test_sync_route_tables(
     # Assert route table to association relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "id",
-        "EC2RouteTableAssociation",
+        "AWSEC2RouteTableAssociation",
         "id",
         "ASSOCIATION",
         rel_direction_right=True,
@@ -165,7 +167,7 @@ def test_sync_route_tables(
     # Assert route table to AWS account relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "id",
         "AWSAccount",
         "id",
@@ -179,7 +181,7 @@ def test_sync_route_tables(
     # Assert route to AWS account relationships
     assert check_rels(
         neo4j_session,
-        "EC2Route",
+        "AWSEC2Route",
         "id",
         "AWSAccount",
         "id",
@@ -196,7 +198,7 @@ def test_sync_route_tables(
     # Assert route table association to AWS account relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTableAssociation",
+        "AWSEC2RouteTableAssociation",
         "id",
         "AWSAccount",
         "id",
@@ -212,9 +214,9 @@ def test_sync_route_tables(
     # Assert route table association to subnet relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTableAssociation",
+        "AWSEC2RouteTableAssociation",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "ASSOCIATED_SUBNET",
         rel_direction_right=True,
@@ -225,7 +227,7 @@ def test_sync_route_tables(
     # Assert route table to VPC relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "id",
         "AWSVpc",
         "id",
@@ -239,7 +241,7 @@ def test_sync_route_tables(
     # Assert route table associations to internet gateway relationships
     assert check_rels(
         neo4j_session,
-        "EC2RouteTableAssociation",
+        "AWSEC2RouteTableAssociation",
         "id",
         "AWSInternetGateway",
         "id",
@@ -252,7 +254,7 @@ def test_sync_route_tables(
     # Assert route table to internet gateway relationships
     assert check_rels(
         neo4j_session,
-        "EC2Route",
+        "AWSEC2Route",
         "id",
         "AWSInternetGateway",
         "id",
@@ -266,7 +268,7 @@ def test_sync_route_tables(
     # Assert route to VPC endpoint relationships
     assert check_rels(
         neo4j_session,
-        "EC2Route",
+        "AWSEC2Route",
         "id",
         "AWSVpcEndpoint",
         "id",

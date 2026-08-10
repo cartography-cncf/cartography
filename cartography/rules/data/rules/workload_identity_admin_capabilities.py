@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -14,7 +15,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         "Also indicates whether the instance is internet-exposed."
     ),
     cypher_query="""
-        MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+        MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
         MATCH (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
         MATCH (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
         MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(allow_stmt:AWSPolicyStatement {effect:"Allow"})
@@ -50,7 +51,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         WHERE size(effective_actions) > 0
         // Step 4: Optional internet exposure context
         OPTIONAL MATCH (ec2 {exposed_internet: true})
-            -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+            -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
             <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         UNWIND effective_actions AS action
         WITH a, ec2, role,
@@ -70,7 +71,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         ORDER BY account, workload_id, internet_accessible
     """,
     cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+        MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
         MATCH p1 = (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
         MATCH p2 = (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
         MATCH p3 = (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
@@ -86,13 +87,14 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         )
         WITH p, p1, p2, p3, a, ec2
         // Include the SG and rules for the instances that are internet open
-        MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
+        MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         RETURN *
     """,
     cypher_count_query="""
-    MATCH (ec2:EC2Instance)
+    MATCH (ec2:AWSEC2Instance)
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="workload_id",
     identity_fields=("workload_id",),
     module=Module.AWS,
@@ -173,6 +175,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
     MATCH (lambda:AWSLambda)
     RETURN COUNT(lambda) AS count
     """,
+    asset_label="AWSLambda",
     asset_id_field="workload_id",
     identity_fields=("workload_id",),
     module=Module.AWS,
@@ -215,5 +218,6 @@ workload_identity_admin_capabilities = Rule(
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )

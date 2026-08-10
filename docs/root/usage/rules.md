@@ -9,6 +9,66 @@ With the `cartography-rules` CLI, you can:
 - Build custom queries for your own environment
 
 
+## Quick start
+
+The prerequisite is a reachable Neo4j database that Cartography has already
+populated. Rules query that graph directly; they do not require an input file
+and do not write data.
+
+Configure the connection if it differs from the local defaults:
+
+```bash
+export NEO4J_URI=bolt://localhost:7687
+export NEO4J_USER=neo4j
+export NEO4J_DATABASE=neo4j
+```
+
+If Neo4j was started with `NEO4J_AUTH=none`, no password configuration is
+needed. Then list, inspect, and run a rule:
+
+```bash
+cartography-rules list
+cartography-rules list object_storage_public
+cartography-rules run object_storage_public
+```
+
+For an authenticated Neo4j server, set the default password environment
+variable before running the same commands:
+
+```bash
+set +o history
+export NEO4J_PASSWORD='your-password'
+set -o history
+cartography-rules run object_storage_public
+```
+
+Alternatively, keep the password in a custom environment variable or request
+an explicit interactive prompt:
+
+```bash
+cartography-rules run object_storage_public --neo4j-password-env-var MY_NEO4J_PASSWORD
+cartography-rules run object_storage_public --neo4j-password-prompt
+```
+
+If a named password variable is missing or empty, the command exits with an
+actionable error instead of prompting. A typical text result reports each fact
+and finishes with totals such as:
+
+```text
+EXECUTION SUMMARY
+Total facts: 2
+Total findings: 3
+Rule execution completed with 3 total findings
+```
+
+Text output is intended for interactive review and includes sample findings.
+Use `--output json` for complete, machine-readable results:
+
+```bash
+cartography-rules run object_storage_public --output json
+```
+
+
 ## Architecture
 
 The rules system uses a simple two-level hierarchy:
@@ -93,9 +153,11 @@ _new_attack_surface = Fact(
     id="aws_new_vulnerability_check",
     name="New AWS Vulnerability Pattern",
     description="Recently discovered attack pattern",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSEC2Instance",  # Neo4j label of the affected node
+    asset_id_field="id",           # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
@@ -118,9 +180,11 @@ _proven_check = Fact(
     id="aws_s3_public",
     name="Internet-Accessible S3 Storage Attack Surface",
     description="AWS S3 buckets accessible from the internet",
-    cypher_query="...",
+    cypher_query="...",  # must RETURN the affected node's id AS id
     cypher_visual_query="...",
     cypher_count_query="...",
+    asset_label="AWSS3Bucket",  # Neo4j label of the affected node
+    asset_id_field="id",        # output field holding that node's .id
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
@@ -213,75 +277,6 @@ object_storage_public = Rule(
 )
 ```
 
-## Setup
-
-Make sure you've run Cartography and have data in Neo4j.
-
-Then configure your Neo4j connection:
-
-
-```bash
-export NEO4J_URI=bolt://localhost:7687 # or your Neo4j URI
-export NEO4J_USER=neo4j # or your username
-export NEO4J_DATABASE=neo4j # or your database name
-
-# Store the Neo4j password in an environment variable. You can name this anything you want.
-
-set +o history # avoid storing the password in the shell history; can also use something like 1password CLI.
-export NEO4J_PASSWORD=password
-set -o history # turn shell history back on
-```
-
-## Quick start
-
-1. List all available rules
-    ```bash
-    cartography-rules list
-    ```
-1. View details of a specific rule
-    ```bash
-    cartography-rules list object_storage_public
-    ```
-1. Run a specific rule
-    ```bash
-    cartography-rules run object_storage_public
-    ```
-    Sample output:
-    ```
-    Executing object_storage_public rule
-    Total facts: 2
-
-    Fact 1/2: Internet-Accessible S3 Storage Attack Surface
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     aws_s3_public
-    Description: AWS S3 buckets accessible from the internet
-    Provider:    AWS
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     3 item(s) found
-        Sample findings:
-        1. bucket=cdn.example.com, region=us-east-1, anonymous_access=True
-        2. bucket=mybucket.example.com, region=us-east-1, anonymous_actions=['s3:ListBucket', 's3:ListBucketVersions']
-        3. bucket=static.example.com, region=us-east-1, public_access=True
-        ... (use --output json to see all)
-
-    Fact 2/2: Azure Storage Public Blob Access
-    Rule:     object_storage_public - Public Object Storage Attack Surface
-    Fact ID:     azure_storage_public_blob_access
-    Description: Azure Storage accounts with public blob access
-    Provider:    Azure
-    Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
-    Results:     No items found
-
-    ============================================================
-    EXECUTION SUMMARY
-    ============================================================
-    Total facts: 2
-    Total findings: 3
-
-    Rule execution completed with 3 total findings
-    ```
-
-
 ## Usage
 
 ### Framework filtering
@@ -295,6 +290,22 @@ cartography-rules list --framework nist:ai-rmf
 # Run all NIST AI RMF-mapped rules
 cartography-rules run all --framework nist:ai-rmf
 ```
+
+The short name alone matches every scope and revision of that framework, so
+`--framework cis` covers all four CIS benchmarks. Available filters:
+
+| Filter | Framework |
+| --- | --- |
+| `cis:aws:6.0.0` | CIS AWS Foundations Benchmark |
+| `cis:gcp:4.0` | CIS Google Cloud Platform Foundation Benchmark |
+| `cis:googleworkspace:1.3` | CIS Google Workspace Foundations Benchmark |
+| `cis:kubernetes:1.12` | CIS Kubernetes Benchmark |
+| `iso:27001:2022` | ISO/IEC 27001:2022 Annex A |
+| `soc2:tsc:2022` | AICPA SOC 2 Trust Services Criteria |
+| `nist:ai-rmf:1.0` | NIST AI Risk Management Framework |
+
+`cartography-rules frameworks` prints the live state: every scope, its revisions,
+how many rules map to it, and each mapped control with its title.
 
 ### `list`
 #### See all available rules
@@ -375,6 +386,16 @@ cartography-rules run object_storage_public --no-experimental
 
 ### Authentication Options
 
+With no configured password, the CLI connects using Neo4j's no-auth mode and
+does not prompt. `--neo4j-password-prompt` is the only option that requests
+interactive input.
+
+#### Use the default password environment variable:
+```bash
+export NEO4J_PASSWORD='your-password'
+cartography-rules run mfa-missing
+```
+
 #### Use a custom environment variable for the password:
 ```bash
 cartography-rules run mfa-missing --neo4j-password-env-var MY_NEO4J_PASSWORD
@@ -439,10 +460,10 @@ RETURN m
 
 Or with relationships:
 ```cypher
-MATCH (b:S3Bucket)
+MATCH (b:AWSS3Bucket)
 WHERE b.anonymous_access = true
 WITH b
-OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
 RETURN *
 ```
 
@@ -460,7 +481,7 @@ RETURN COUNT(m) AS count
 
 Or for S3 buckets:
 ```cypher
-MATCH (b:S3Bucket)
+MATCH (b:AWSS3Bucket)
 RETURN COUNT(b) AS count
 ```
 
@@ -501,7 +522,9 @@ class MyRuleOutput(Finding):
 - **Use Optional Fields**: All fields should be optional (`| None = None`) as different facts may return different subsets of data
 - **Match Query Aliases**: Field names should match the aliases used in your `cypher_query` (e.g., if query returns `n.id AS id`, model should have `id` field)
 - **Automatic Handling**:
-  - The `source` field is automatically populated with the module name (e.g., "AWS", "Azure")
+  - The `source` field is automatically populated with the module name (e.g., "AWS", "Azure"). It is
+    reserved: your query must not return a `source` column. For the per-row ontology provider, return
+    `_ont_source AS ontology_source` and declare that field instead.
   - Fields not defined in the model are stored in the `extra` dictionary
   - Number values are automatically coerced to strings
   - Lists, tuples, and sets are joined into comma-separated strings
@@ -545,7 +568,8 @@ The field is required (no default), so a fact that omits it fails to construct.
 _aws_user_direct_policies = Fact(
     id="aws_user_direct_policies",
     ...
-    asset_id_field="user_arn",                    # compliance failing-count only
+    asset_label="AWSUser",                        # Neo4j label of the affected node
+    asset_id_field="user_arn",                    # that node's .id + failing-count driver
     identity_fields=("user_arn", "policy_arn"),   # one finding per attachment
 )
 ```
@@ -558,24 +582,54 @@ Guidelines:
   the `identity_fields` values, so multi-fact rules cannot collide.
 - For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only
   unique per provider: two providers can have distinct nodes with the same `id`. A cross-cloud fact
-  that matches such a label must include a provider discriminator (typically `source` from
-  `_ont_source`) in `identity_fields`, returning it from the query if it is not already aliased.
+  that matches such a label must include a provider discriminator in `identity_fields`, returning
+  `_ont_source` from the query under a name of its own (`... AS ontology_source`) and declaring that
+  field on the output model. Do **not** alias it `source`: see the reserved fields below.
+- `source` and `extra` are **reserved**: they belong to the `Finding` base model and are populated by
+  `Rule.parse_results` (`source` from `fact.module`, `extra` from undeclared columns). A query column
+  of either name would silently overwrite the framework-supplied value, so `Fact.__post_init__`
+  rejects a `cypher_query` that aliases them.
 - `identity_fields` is emitted per fact in the `cartography-rules run --output json` output (on each
   fact result, alongside `fact_id`), so JSON consumers get the contract without importing the
   Python rule registry.
-- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` only drives the
-  distinct-asset failing count shown in compliance metrics; it is not a lifecycle-identity contract.
-  The two can differ on purpose: `aws_user_direct_policies` counts distinct users
-  (`asset_id_field="user_arn"`) but treats each user/policy attachment as a separate finding
-  (`identity_fields=("user_arn", "policy_arn")`).
+- Every fact **must** also declare an affected-node anchor: `asset_label` (the Neo4j label of the
+  node the finding is about) and `asset_id_field` (the output-model field holding that node's `.id`).
+  Both are required and, together, form an indexable `(label, id)` anchor so consumers can locate the
+  offending node in the graph. `asset_id_field` must exist on the output model and be returned by the
+  `cypher_query` (`... AS <name>`); `Fact.__post_init__` and a unit test enforce this.
+- The `cypher_query` **must bind a variable to the label it declares** (`MATCH (k:APIKey) WHERE
+  k:OpenAIApiKey OR k:OpenAIAdminApiKey ...`, not `MATCH (k) WHERE k:OpenAIApiKey ...`) **and must
+  project `asset_id_field` off that same variable** (`k.id AS api_key_id`). Both halves are needed:
+  without the first, the rows a fact returns and the asset it claims can diverge; without the second,
+  a query could match `(u:AWSUser)` and return an `AWSRole` id, so the `(label, id)` pair would name
+  no real node. `Fact.__post_init__` enforces both, and a unit test additionally checks that
+  `asset_label` is a label some node schema actually writes.
+- Only the **final `RETURN`** produces output columns. An alias introduced by an intermediate
+  `WITH x AS y` is query state and does not satisfy `asset_id_field` or `identity_fields`; conversely,
+  a `WITH x AS source` is fine, since the reserved-name check also looks only at the final projection.
+  A column may be named either by `... AS <name>` or by projecting a bare variable carried over from
+  an earlier `WITH`.
+- `identity_fields` is distinct from `asset_id_field`. `asset_id_field` is the anchor id **and**
+  drives the distinct-asset failing count shown in compliance metrics; it is not the
+  lifecycle-identity contract. The two can differ on purpose: `aws_user_direct_policies` anchors on
+  and counts distinct users (`asset_label="AWSUser"`, `asset_id_field="user_arn"`) but treats each
+  user/policy attachment as a separate finding (`identity_fields=("user_arn", "policy_arn")`).
+- When the affected node has no single id column yet (e.g. a namespace-aggregated query), return one
+  (`... AS namespace_id`) and point `asset_id_field` at it. When the node can be one of several
+  labels, anchor on a shared umbrella label (`AWSPrincipal`, `GCPPrincipal`, `EntraPrincipal`,
+  `ScalewayPrincipal`, `APIKey`, ...) rather than guessing a single subtype.
+- `asset_label` and `asset_id_field` are emitted per fact in the `cartography-rules run --output
+  json` output (alongside `identity_fields`), so JSON consumers get the anchor without importing the
+  Python rule registry.
 
 ### Display field order (finding title)
 
 The **order** in which fields are declared on the output model is a de-facto display contract.
 Downstream consumers derive a finding's title by taking the **first non-empty rule-specific field
 of the output model, in class declaration order**. Declaration order is independent of
-`identity_fields` and `asset_id_field` (those stay whatever the identity contract needs) and of the
-`cypher_query` `RETURN` order (the model is keyed by alias name, not position).
+`identity_fields`, `asset_label`, and `asset_id_field` (those stay whatever the identity and anchor
+contracts need) and of the `cypher_query` `RETURN` order (the model is keyed by alias name, not
+position).
 
 The base `Finding` class declares two inherited fields, `source` and `extra`, before any
 rule-specific field, so `model_fields` / `model_dump()` lists them first. They are metadata, not
@@ -635,6 +689,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeNode",   # Neo4j label of the affected node
+       asset_id_field="id",      # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
@@ -658,6 +714,8 @@ class DatabaseExposedOutput(Finding):
        MATCH (n:SomeAzureNode)
        RETURN COUNT(n) AS count
        """,
+       asset_label="SomeAzureNode",  # Neo4j label of the affected node
+       asset_id_field="id",          # output field holding that node's .id (returned above)
        identity_fields=("id",),
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,

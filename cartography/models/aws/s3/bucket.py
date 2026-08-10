@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from cartography.models.aws.extra_labels import LEGACY_S3_BUCKET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -11,22 +12,35 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import OBJECT_STORAGE
 
 # ============================================================================
-# Base S3Bucket Schema - Core properties only
+# Base AWSS3Bucket Schema - Core properties only
 # ============================================================================
 
 
 @dataclass(frozen=True)
 class S3BucketNodeProperties(CartographyNodeProperties):
-    """Base properties for S3Bucket nodes."""
+    """Base properties for AWSS3Bucket nodes."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("Name")
-    region: PropertyRef = PropertyRef("Region")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    creationdate: PropertyRef = PropertyRef("CreationDate")
+    name: PropertyRef = PropertyRef(
+        "Name",
+        description="The name of the bucket.  This is guaranteed to be [globally unique](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_buckets)",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        description="The region that the bucket is in. Only defined if the S3 bucket has a [location constraint](https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)",
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSS3Bucket` node.",
+    )
+    creationdate: PropertyRef = PropertyRef(
+        "CreationDate", description="Date-time when the bucket was created"
+    )
 
 
 @dataclass(frozen=True)
@@ -47,24 +61,28 @@ class S3BucketToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3BucketSchema(CartographyNodeSchema):
-    """
-    Base schema for S3Bucket nodes with core properties.
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    This is the primary schema that creates the S3Bucket node and its
-    relationship to the AWSAccount. Use composite schemas below to add
-    additional properties without overwriting existing ones.
-    """
+    # Implementation note:
+    # Base schema for AWSS3Bucket nodes with core properties.
+    #
+    # This is the primary schema that creates the AWSS3Bucket node and its
+    # relationship to the AWSAccount. Use composite schemas below to add
+    # additional properties without overwriting existing ones.
 
-    label: str = "S3Bucket"
+    label: str = "AWSS3Bucket"
     properties: S3BucketNodeProperties = S3BucketNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ObjectStorage"])
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_S3_BUCKET, OBJECT_STORAGE]
+    )
     sub_resource_relationship: S3BucketToAWSAccountRel = S3BucketToAWSAccountRel()
 
 
 # ============================================================================
-# Composite Schemas - Additional properties that merge onto existing S3Bucket
+# Composite Schemas - Additional properties that merge onto existing AWSS3Bucket
 # ============================================================================
-# These schemas use the Composite Node Pattern to add properties to S3Bucket
+# These schemas use the Composite Node Pattern to add properties to AWSS3Bucket
 # nodes without affecting other properties. When a fetch fails, we simply
 # don't call load() for that composite schema, preserving existing values.
 # ============================================================================
@@ -74,17 +92,29 @@ class S3BucketSchema(CartographyNodeSchema):
 class S3BucketPolicyProperties(CartographyNodeProperties):
     """Properties from bucket policy analysis."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    anonymous_access: PropertyRef = PropertyRef("anonymous_access", extra_index=True)
-    anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
+    anonymous_access: PropertyRef = PropertyRef(
+        "anonymous_access",
+        extra_index=True,
+        description="True if this bucket has a policy applied to it that allows anonymous access or if it is open to the internet.  These policy determinations are made by using the [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse) library.",
+    )
+    anonymous_actions: PropertyRef = PropertyRef(
+        "anonymous_actions",
+        description="List of anonymous internet accessible actions that may be run on the bucket.  This list is taken by running [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse#internet-accessible-policy) on the policy that applies to the bucket.",
+    )
 
 
 @dataclass(frozen=True)
 class S3BucketPolicySchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket policy-derived properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket policy-derived properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketPolicyProperties = S3BucketPolicyProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -93,12 +123,24 @@ class S3BucketPolicySchema(CartographyNodeSchema):
 class S3BucketEncryptionProperties(CartographyNodeProperties):
     """Properties from bucket encryption configuration."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    default_encryption: PropertyRef = PropertyRef("default_encryption")
-    encryption_algorithm: PropertyRef = PropertyRef("encryption_algorithm")
-    encryption_key_id: PropertyRef = PropertyRef("encryption_key_id")
-    bucket_key_enabled: PropertyRef = PropertyRef("bucket_key_enabled")
+    default_encryption: PropertyRef = PropertyRef(
+        "default_encryption",
+        description="True if this bucket has [default encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html) enabled.",
+    )
+    encryption_algorithm: PropertyRef = PropertyRef(
+        "encryption_algorithm",
+        description="The encryption algorithm used for default encryption. Only defined if the S3 bucket has default encryption enabled.",
+    )
+    encryption_key_id: PropertyRef = PropertyRef(
+        "encryption_key_id",
+        description="The KMS key ID used for default encryption. Only defined if the S3 bucket has SSE-KMS enabled as the default encryption method.",
+    )
+    bucket_key_enabled: PropertyRef = PropertyRef(
+        "bucket_key_enabled",
+        description="True if a bucket key is enabled, when using SSE-KMS as the default encryption method.",
+    )
 
 
 @dataclass(frozen=True)
@@ -111,7 +153,7 @@ class S3BucketToKMSKeyRelProperties(CartographyRelProperties):
 # Created when default encryption uses a customer-managed KMS key and
 # `KMSMasterKeyID` is reported as the key ARN.
 class S3BucketToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("encryption_key_id")},
     )
@@ -125,9 +167,9 @@ class S3BucketToKMSKeyRel(CartographyRelSchema):
 # a bare key id rather than a full ARN (S3 returns either form depending on how
 # the bucket policy was configured). The two matchers are mutually exclusive, so
 # a bucket gets at most one ENCRYPTED_BY edge. Alias references (alias/<name>)
-# are not resolved here as they point at a KMSAlias node, not a KMSKey.
+# are not resolved here as they point at a AWSKMSAlias node, not a AWSKMSKey.
 class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
-    target_node_label: str = "KMSKey"
+    target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("encryption_key_id")},
     )
@@ -138,9 +180,14 @@ class S3BucketToKMSKeyByIdRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class S3BucketEncryptionSchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket encryption properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket encryption properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketEncryptionProperties = S3BucketEncryptionProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
     other_relationships: OtherRelationships = OtherRelationships(
@@ -155,17 +202,27 @@ class S3BucketEncryptionSchema(CartographyNodeSchema):
 class S3BucketVersioningProperties(CartographyNodeProperties):
     """Properties from bucket versioning configuration."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    versioning_status: PropertyRef = PropertyRef("versioning_status")
-    mfa_delete: PropertyRef = PropertyRef("mfa_delete")
+    versioning_status: PropertyRef = PropertyRef(
+        "versioning_status", description="The versioning state of the bucket."
+    )
+    mfa_delete: PropertyRef = PropertyRef(
+        "mfa_delete",
+        description="Specifies whether MFA delete is enabled in the bucket versioning configuration.",
+    )
 
 
 @dataclass(frozen=True)
 class S3BucketVersioningSchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket versioning properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket versioning properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketVersioningProperties = S3BucketVersioningProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -174,19 +231,36 @@ class S3BucketVersioningSchema(CartographyNodeSchema):
 class S3BucketPublicAccessBlockProperties(CartographyNodeProperties):
     """Properties from bucket public access block configuration."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    block_public_acls: PropertyRef = PropertyRef("block_public_acls")
-    ignore_public_acls: PropertyRef = PropertyRef("ignore_public_acls")
-    block_public_policy: PropertyRef = PropertyRef("block_public_policy")
-    restrict_public_buckets: PropertyRef = PropertyRef("restrict_public_buckets")
+    block_public_acls: PropertyRef = PropertyRef(
+        "block_public_acls",
+        description="Specifies whether Amazon S3 should block public bucket policies for this bucket.",
+    )
+    ignore_public_acls: PropertyRef = PropertyRef(
+        "ignore_public_acls",
+        description="Specifies whether Amazon S3 should ignore public ACLs for this bucket and objects in this bucket.",
+    )
+    block_public_policy: PropertyRef = PropertyRef(
+        "block_public_policy",
+        description="Whether this `AWSS3Bucket` node is configured to block public policy.",
+    )
+    restrict_public_buckets: PropertyRef = PropertyRef(
+        "restrict_public_buckets",
+        description="Specifies whether Amazon S3 should restrict public bucket policies for this bucket.",
+    )
 
 
 @dataclass(frozen=True)
 class S3BucketPublicAccessBlockSchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket public access block properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket public access block properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketPublicAccessBlockProperties = (
         S3BucketPublicAccessBlockProperties()
     )
@@ -197,16 +271,24 @@ class S3BucketPublicAccessBlockSchema(CartographyNodeSchema):
 class S3BucketOwnershipProperties(CartographyNodeProperties):
     """Properties from bucket ownership controls configuration."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    object_ownership: PropertyRef = PropertyRef("object_ownership")
+    object_ownership: PropertyRef = PropertyRef(
+        "object_ownership",
+        description="The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.",
+    )
 
 
 @dataclass(frozen=True)
 class S3BucketOwnershipSchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket ownership properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket ownership properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketOwnershipProperties = S3BucketOwnershipProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None
 
@@ -215,16 +297,27 @@ class S3BucketOwnershipSchema(CartographyNodeSchema):
 class S3BucketLoggingProperties(CartographyNodeProperties):
     """Properties from bucket logging configuration."""
 
-    id: PropertyRef = PropertyRef("Name")
+    id: PropertyRef = PropertyRef("Name", description="Same as `name`, as seen below")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    logging_enabled: PropertyRef = PropertyRef("logging_enabled")
-    logging_target_bucket: PropertyRef = PropertyRef("logging_target_bucket")
+    logging_enabled: PropertyRef = PropertyRef(
+        "logging_enabled",
+        description="True if this bucket has [logging enabled](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLogging.html) enabled.",
+    )
+    logging_target_bucket: PropertyRef = PropertyRef(
+        "logging_target_bucket",
+        description="The name of the target bucket where access logs are stored. Only defined if logging is enabled.",
+    )
 
 
 @dataclass(frozen=True)
 class S3BucketLoggingSchema(CartographyNodeSchema):
-    """Composite schema for S3 bucket logging properties."""
+    """Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html)."""
 
-    label: str = "S3Bucket"
+    # Implementation note:
+    # Composite schema for S3 bucket logging properties.
+
+    label: str = "AWSS3Bucket"
+    # DEPRECATED: legacy S3Bucket node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_S3_BUCKET])
     properties: S3BucketLoggingProperties = S3BucketLoggingProperties()
     sub_resource_relationship: Optional[CartographyRelSchema] = None

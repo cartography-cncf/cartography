@@ -113,7 +113,7 @@ def _create_image_registry_nodes(neo4j_session):
     ):
         neo4j_session.run(
             """
-            MERGE (img:ECRImage {id: $digest, digest: $digest})
+            MERGE (img:AWSECRImage {id: $digest, digest: $digest})
             SET img.lastupdated = $tag
             """,
             digest=digest,
@@ -458,7 +458,7 @@ def test_cloud_run_image_prerequisites(
             neo4j_session,
             "GCPCloudRunRevision",
             "id",
-            "ECRImage",
+            "AWSECRImage",
             "digest",
             "HAS_IMAGE",
         )
@@ -470,7 +470,7 @@ def test_cloud_run_image_prerequisites(
         neo4j_session,
         "Container",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {

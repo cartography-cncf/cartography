@@ -5,7 +5,9 @@ import cartography.intel.gcp.backendservice
 import cartography.intel.gcp.cloud_armor
 import cartography.intel.gcp.compute
 import cartography.intel.gcp.instancegroup
-from cartography.graph.job import GraphJob
+from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
+from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
+from cartography.util import run_typed_analysis_job
 from tests.data.gcp.compute_exposure import BACKEND_SERVICE_RESPONSE
 from tests.data.gcp.compute_exposure import CLOUD_ARMOR_RESPONSE
 from tests.data.gcp.compute_exposure import GLOBAL_FORWARDING_RULES_RESPONSE
@@ -269,16 +271,9 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
     )
 
     # Act
-    GraphJob.run_from_json_file(
-        "cartography/data/jobs/scoped_analysis/gcp_compute_exposure.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-    GraphJob.run_from_json_file(
-        "cartography/data/jobs/scoped_analysis/gcp_lb_exposure.json",
-        neo4j_session,
-        common_job_parameters,
-    )
+    for job in GCP_COMPUTE_EXPOSURE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+    run_typed_analysis_job(GCP_LB_EXPOSURE, neo4j_session, common_job_parameters)
 
     # Assert
     assert check_nodes(
@@ -343,8 +338,8 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
         instance_group_id=f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
     )
 
-    GraphJob.run_from_json_file(
-        "cartography/data/jobs/scoped_analysis/gcp_lb_exposure.json",
+    run_typed_analysis_job(
+        GCP_LB_EXPOSURE,
         neo4j_session,
         {
             "UPDATE_TAG": TEST_UPDATE_TAG + 1,

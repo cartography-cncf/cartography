@@ -25,7 +25,7 @@ def test_sync_s3accountpublicaccessblock(mock_get_pab, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:S3AccountPublicAccessBlock) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSS3AccountPublicAccessBlock) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -38,7 +38,7 @@ def test_sync_s3accountpublicaccessblock(mock_get_pab, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "S3AccountPublicAccessBlock",
+        "AWSS3AccountPublicAccessBlock",
         [
             "id",
             "block_public_acls",
@@ -60,7 +60,7 @@ def test_sync_s3accountpublicaccessblock(mock_get_pab, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "S3AccountPublicAccessBlock",
+        "AWSS3AccountPublicAccessBlock",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -81,7 +81,7 @@ def test_sync_s3accountpublicaccessblock_none(mock_get_pab, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:S3AccountPublicAccessBlock) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSS3AccountPublicAccessBlock) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -94,7 +94,7 @@ def test_sync_s3accountpublicaccessblock_none(mock_get_pab, neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (n:S3AccountPublicAccessBlock) RETURN n.id;
+        MATCH (n:AWSS3AccountPublicAccessBlock) RETURN n.id;
         """
     )
     actual_nodes = {n["n.id"] for n in nodes}
@@ -115,7 +115,7 @@ def test_sync_s3accountpublicaccessblock_partial(mock_get_pab, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:S3AccountPublicAccessBlock) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSS3AccountPublicAccessBlock) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -128,7 +128,7 @@ def test_sync_s3accountpublicaccessblock_partial(mock_get_pab, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "S3AccountPublicAccessBlock",
+        "AWSS3AccountPublicAccessBlock",
         [
             "id",
             "block_public_acls",

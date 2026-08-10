@@ -192,8 +192,9 @@ For full MatchLink details, see the `add-relationship` skill.
 | `cartography/cli.py`                          | Typer CLI with help panels                                                    |
 | `cartography/data/indexes.cypher`             | Manual index definitions (legacy)                                             |
 | `cartography/data/jobs/cleanup/`              | Legacy cleanup JSON files                                                     |
-| `cartography/data/jobs/analysis/`             | Global analysis JSON files (see `analysis-jobs` skill)                         |
-| `cartography/data/jobs/scoped_analysis/`      | Scoped analysis JSON files                                                     |
+| `cartography/analysis/*/analysis.py`          | Typed analysis jobs (see `analysis-jobs` skill)                                |
+| `cartography/data/jobs/analysis/`             | Legacy migration/cleanup JSON jobs                                             |
+| `cartography/data/jobs/scoped_analysis/`      | Legacy scoped migration/cleanup JSON jobs                                      |
 
 ## Test utilities
 

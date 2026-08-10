@@ -46,7 +46,7 @@ def test_load_launch_templates(neo4j_session, *args):
     # Assert that the launch templates exist
     templates = neo4j_session.run(
         """
-        MATCH (n:LaunchTemplate)<-[:RESOURCE]-(:AWSAccount)
+        MATCH (n:AWSLaunchTemplate)<-[:RESOURCE]-(:AWSAccount)
         return n.id, n.name, n.create_time, n.latest_version_number
         """,
     )
@@ -82,7 +82,7 @@ def test_load_launch_templates(neo4j_session, *args):
     }
     versions = neo4j_session.run(
         """
-        MATCH (:LaunchTemplate)-[:VERSION]->(n:LaunchTemplateVersion)
+        MATCH (:AWSLaunchTemplate)-[:VERSION]->(n:AWSLaunchTemplateVersion)
         return n.id, n.name, n.version_number, n.create_time, n.image_id
         """,
     )
@@ -101,7 +101,7 @@ def test_load_launch_templates(neo4j_session, *args):
     # Assert that the Launch Template version is attached to the AWS account
     assert check_rels(
         neo4j_session,
-        "LaunchTemplateVersion",
+        "AWSLaunchTemplateVersion",
         "id",
         "AWSAccount",
         "id",

@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -31,7 +32,7 @@ CIS_REFERENCES = [
 
 # =============================================================================
 # EBS Volume Encryption
-# Main node: EBSVolume
+# Main node: AWSEBSVolume
 # =============================================================================
 class EbsEncryptionOutput(Finding):
     """Output model for EBS encryption check."""
@@ -55,8 +56,10 @@ _aws_ebs_encryption_disabled = Fact(
         "protects data at rest and data in transit between the volume and instance."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    MATCH (a:AWSAccount)-[:RESOURCE]->(volume:AWSEBSVolume)
+    // A NULL ``encrypted`` (absent from the graph) is not proof of encryption;
+    // treat it as unencrypted so those volumes are not silently passed.
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     OPTIONAL MATCH (volume)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, volume.id) AS volume_name,
@@ -70,14 +73,16 @@ _aws_ebs_encryption_disabled = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
-    WHERE volume.encrypted = false
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:AWSEBSVolume)
+    WHERE volume.encrypted = false OR volume.encrypted IS NULL
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (volume:EBSVolume)
+    MATCH (volume:AWSEBSVolume)
     RETURN COUNT(volume) AS count
     """,
+    asset_id_field="volume_id",
+    asset_label="AWSEBSVolume",
     identity_fields=("volume_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -98,13 +103,14 @@ aws_ebs_volume_encryption = Rule(
     frameworks=(
         cis_aws("6.1.1"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
 
 # =============================================================================
 # CIFS Access Is Restricted to Trusted Networks
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class CifsInternetAccessOutput(Finding):
     """Output model for CIFS internet exposure check."""
@@ -129,7 +135,7 @@ _aws_cifs_internet_access = Fact(
         "port 445. CIFS access should be restricted to trusted networks."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
@@ -151,7 +157,7 @@ _aws_cifs_internet_access = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE coalesce(range.range, range.id) IN ['0.0.0.0/0', '::/0']
@@ -163,9 +169,10 @@ _aws_cifs_internet_access = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -200,13 +207,14 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
     frameworks=(
         cis_aws("6.1.2"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
 
 # =============================================================================
 # CIS AWS 6.3: Remote Administration Ports Open to IPv4 Internet
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv4Output(Finding):
     """Output model for IPv4 remote administration exposure check."""
@@ -221,6 +229,9 @@ class RemoteAdminIpv4Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv4 = Fact(
@@ -232,8 +243,8 @@ _aws_remote_admin_ipv4 = Fact(
         "the risk of unauthorized access and brute force attacks."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '0.0.0.0/0'
@@ -252,11 +263,18 @@ _aws_remote_admin_ipv4 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:AWSEC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '0.0.0.0/0'
@@ -268,9 +286,10 @@ _aws_remote_admin_ipv4 = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -305,13 +324,14 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
     frameworks=(
         cis_aws("6.3"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
 
 # =============================================================================
 # CIS AWS 6.4: Remote Administration Ports Open to IPv6 Internet
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class RemoteAdminIpv6Output(Finding):
     """Output model for IPv6 remote administration exposure check."""
@@ -326,6 +346,9 @@ class RemoteAdminIpv6Output(Finding):
     cidr_range: str | None = None
     account_id: str | None = None
     account: str | None = None
+    # True when the security group has at least one non-terminated EC2 instance.
+    # The rule still emits when false; consumers use it to gauge relevancy.
+    in_use: bool | None = None
 
 
 _aws_remote_admin_ipv6 = Fact(
@@ -337,8 +360,8 @@ _aws_remote_admin_ipv6 = Fact(
         "the risk of unauthorized access and brute force attacks."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '::/0'
@@ -357,11 +380,18 @@ _aws_remote_admin_ipv6 = Fact(
         rule.protocol AS protocol,
         range.id AS cidr_range,
         a.id AS account_id,
-        a.name AS account
+        a.name AS account,
+        // in_use: does any non-terminated EC2 instance use this security group?
+        // A group whose only members are terminated is not a live attack surface.
+        // Exposed for relevancy; the rule does not filter on it.
+        COUNT {
+            MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(i:AWSEC2Instance)
+            WHERE coalesce(i.state, '') <> 'terminated'
+        } > 0 AS in_use
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE range.id = '::/0'
@@ -373,9 +403,10 @@ _aws_remote_admin_ipv6 = Fact(
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=(
         "security_group_id",
@@ -410,13 +441,14 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
     frameworks=(
         cis_aws("6.4"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
 
 # =============================================================================
 # CIS AWS 6.5: Default Security Group Restricts All Traffic
-# Main node: EC2SecurityGroup
+# Main node: AWSEC2SecurityGroup
 # =============================================================================
 class DefaultSgAllowsTrafficOutput(Finding):
     """Output model for default security group check."""
@@ -442,7 +474,7 @@ _aws_default_sg_allows_traffic = Fact(
         "is attached, so unused-VPC defaults can be filtered or downgraded."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
     WHERE sg.name = 'default'
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound:AWSIpPermissionInbound)
     OPTIONAL MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(egress:AWSIpRule)
@@ -465,15 +497,16 @@ _aws_default_sg_allows_traffic = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:AWSEC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpRule)
     WHERE sg.name = 'default'
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
+    MATCH (sg:AWSEC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_label="AWSEC2SecurityGroup",
     asset_id_field="security_group_id",
     identity_fields=("security_group_id",),
     module=Module.AWS,
@@ -501,13 +534,15 @@ aws_default_security_group_restricts_traffic = Rule(
         cis_aws("6.5"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
 
 # =============================================================================
 # EC2 Instances Should Use IMDSv2
-# Main node: EC2Instance
+# Main node: AWSEC2Instance
 # =============================================================================
 class Ec2Imdsv2RequiredOutput(Finding):
     """Output model for EC2 IMDSv2 requirement check."""
@@ -530,8 +565,10 @@ _aws_ec2_imdsv2_required = Fact(
         "to optional."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      // Terminated/shutting-down instances have no live IMDS to attack
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     OPTIONAL MATCH (ec2)-[:TAGGED]->(nametag:AWSTag {key: 'Name'})
     RETURN
         coalesce(nametag.value, ec2.instanceid) AS instance_name,
@@ -543,14 +580,17 @@ _aws_ec2_imdsv2_required = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:AWSEC2Instance)
     WHERE ec2.metadatahttptokens = 'optional'
+      AND NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (ec2:EC2Instance)
+    MATCH (ec2:AWSEC2Instance)
+    WHERE NOT coalesce(ec2.state, 'running') IN ['terminated', 'shutting-down']
     RETURN COUNT(ec2) AS count
     """,
+    asset_label="AWSEC2Instance",
     asset_id_field="instance_id",
     identity_fields=("instance_id",),
     module=Module.AWS,
@@ -573,11 +613,12 @@ aws_ec2_instances_use_imdsv2 = Rule(
         "stride:spoofing",
         "stride:elevation_of_privilege",
     ),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("6.7"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 

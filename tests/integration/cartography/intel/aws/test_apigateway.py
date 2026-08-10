@@ -37,7 +37,7 @@ def test_load_apigateway_rest_apis(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:APIGatewayRestAPI) RETURN r.id;
+        MATCH (r:AWSAPIGatewayRestAPI) RETURN r.id;
         """,
     )
     actual_nodes = {n["r.id"] for n in nodes}
@@ -74,7 +74,7 @@ def test_load_apigateway_rest_apis_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:APIGatewayRestAPI) RETURN n1.id, n2.id;
+        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:AWSAPIGatewayRestAPI) RETURN n1.id, n2.id;
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
@@ -99,7 +99,7 @@ def test_load_apigateway_stages(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:APIGatewayStage) RETURN r.id;
+        MATCH (r:AWSAPIGatewayStage) RETURN r.id;
         """,
     )
     actual_nodes = {n["r.id"] for n in nodes}
@@ -142,7 +142,7 @@ def test_load_apigateway_stages_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:APIGatewayRestAPI)-[:ASSOCIATED_WITH]->(n2:APIGatewayStage) RETURN n1.id, n2.id;
+        MATCH (n1:AWSAPIGatewayRestAPI)-[:ASSOCIATED_WITH]->(n2:AWSAPIGatewayStage) RETURN n1.id, n2.id;
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
@@ -167,7 +167,7 @@ def test_load_apigateway_certificates(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:APIGatewayClientCertificate) RETURN r.id;
+        MATCH (r:AWSAPIGatewayClientCertificate) RETURN r.id;
         """,
     )
     actual_nodes = {n["r.id"] for n in nodes}
@@ -210,7 +210,7 @@ def test_load_apigateway_certificates_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:APIGatewayStage)-[:HAS_CERTIFICATE]->(n2:APIGatewayClientCertificate) RETURN n1.id, n2.id;
+        MATCH (n1:AWSAPIGatewayStage)-[:HAS_CERTIFICATE]->(n2:AWSAPIGatewayClientCertificate) RETURN n1.id, n2.id;
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
@@ -234,7 +234,7 @@ def test_load_apigateway_resources(neo4j_session):
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:APIGatewayResource) RETURN r.id;
+        MATCH (r:AWSAPIGatewayResource) RETURN r.id;
         """,
     )
     actual_nodes = {n["r.id"] for n in nodes}
@@ -273,7 +273,7 @@ def test_load_apigateway_resources_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:APIGatewayRestAPI)-[:RESOURCE]->(n2:APIGatewayResource) RETURN n1.id, n2.id;
+        MATCH (n1:AWSAPIGatewayRestAPI)-[:RESOURCE]->(n2:AWSAPIGatewayResource) RETURN n1.id, n2.id;
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
@@ -320,7 +320,7 @@ def test_sync_apigateway(
     # and network-level exposure (exposed_internet) based on endpoint type
     assert check_nodes(
         neo4j_session,
-        "APIGatewayRestAPI",
+        "AWSAPIGatewayRestAPI",
         ["id", "anonymous_access", "endpoint_type", "exposed_internet"],
     ) == {
         # test-001: REGIONAL endpoint (internet exposed) + open policy (anonymous access)
@@ -330,32 +330,32 @@ def test_sync_apigateway(
     }
 
     # Assert Stages exist
-    assert check_nodes(neo4j_session, "APIGatewayStage", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayStage", ["id"]) == {
         ("arn:aws:apigateway:::test-001/Cartography-testing-infra",),
         ("arn:aws:apigateway:::test-002/Cartography-testing-unit",),
     }
 
     # Assert Certificates exist
-    assert check_nodes(neo4j_session, "APIGatewayClientCertificate", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayClientCertificate", ["id"]) == {
         ("cert-001",),
         ("cert-002",),
     }
 
     # Assert Resources exist
-    assert check_nodes(neo4j_session, "APIGatewayResource", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayResource", ["id"]) == {
         ("3kzxbg5sa2",),
     }
 
-    assert check_nodes(neo4j_session, "APIGatewayDeployment", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayDeployment", ["id"]) == {
         ("test-001/dep1",),
         ("test-002/dep2",),
     }
 
-    assert check_nodes(neo4j_session, "APIGatewayMethod", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayMethod", ["id"]) == {
         ("test-001/3kzxbg5sa2/GET",),
     }
 
-    assert check_nodes(neo4j_session, "APIGatewayIntegration", ["id"]) == {
+    assert check_nodes(neo4j_session, "AWSAPIGatewayIntegration", ["id"]) == {
         ("test-001/3kzxbg5sa2/GET",),
     }
 
@@ -364,7 +364,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayRestAPI",
+        "AWSAPIGatewayRestAPI",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -378,7 +378,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayStage",
+        "AWSAPIGatewayStage",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -392,7 +392,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayClientCertificate",
+        "AWSAPIGatewayClientCertificate",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -405,7 +405,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayResource",
+        "AWSAPIGatewayResource",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -417,7 +417,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayDeployment",
+        "AWSAPIGatewayDeployment",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -428,9 +428,9 @@ def test_sync_apigateway(
 
     assert check_rels(
         neo4j_session,
-        "APIGatewayRestAPI",
+        "AWSAPIGatewayRestAPI",
         "id",
-        "APIGatewayDeployment",
+        "AWSAPIGatewayDeployment",
         "id",
         "HAS_DEPLOYMENT",
         rel_direction_right=True,
@@ -443,7 +443,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayMethod",
+        "AWSAPIGatewayMethod",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -455,7 +455,7 @@ def test_sync_apigateway(
         neo4j_session,
         "AWSAccount",
         "id",
-        "APIGatewayIntegration",
+        "AWSAPIGatewayIntegration",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -465,9 +465,9 @@ def test_sync_apigateway(
 
     assert check_rels(
         neo4j_session,
-        "APIGatewayResource",
+        "AWSAPIGatewayResource",
         "id",
-        "APIGatewayMethod",
+        "AWSAPIGatewayMethod",
         "id",
         "HAS_METHOD",
         rel_direction_right=True,
@@ -477,9 +477,9 @@ def test_sync_apigateway(
 
     assert check_rels(
         neo4j_session,
-        "APIGatewayResource",
+        "AWSAPIGatewayResource",
         "id",
-        "APIGatewayIntegration",
+        "AWSAPIGatewayIntegration",
         "id",
         "HAS_INTEGRATION",
         rel_direction_right=True,

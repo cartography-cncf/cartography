@@ -117,11 +117,12 @@ def test_build_matchlink_query(_mock_get_cartography_version):
     expected = """
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})
-            MATCH (to:S3Bucket{name: item.BucketName})
+            MATCH (to:AWSS3Bucket{name: item.BucketName})
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -149,13 +150,14 @@ def test_build_matchlink_cartesian_product_query(_mock_get_cartography_version):
             MATCH (from:AWSPrincipal{principal_arn: source_value})
         WITH collect(from) AS sources
         UNWIND $TargetValues AS target_value
-            MATCH (to:S3Bucket{name: target_value})
+            MATCH (to:AWSS3Bucket{name: target_value})
         WITH sources, to
         UNWIND sources AS from
             MERGE (from)-[r:CAN_BULK_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r._sub_resource_label = $_sub_resource_label,
@@ -245,11 +247,12 @@ def test_build_source_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (source_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
-            MATCH (to:S3Bucket{name: item.BucketName})
+            MATCH (to:AWSS3Bucket{name: item.BucketName})
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -271,11 +274,12 @@ def test_build_target_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (target_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})
-            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -297,11 +301,12 @@ def test_build_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(sub_resource)
-            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -324,11 +329,12 @@ def test_build_unequal_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (target_sub_resource:AWSOrganization{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})<-[:RESOURCE]-(source_sub_resource)
-            MATCH (to:S3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName})<-[:RESOURCE]-(target_sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -350,11 +356,12 @@ def test_build_outward_scoped_matchlink_query(_mock_get_cartography_version):
         MATCH (target_sub_resource:AWSAccount{id: $_sub_resource_id})
         UNWIND $DictList as item
             MATCH (from:AWSPrincipal{principal_arn: item.principal_arn})
-            MATCH (to:S3Bucket{name: item.BucketName})-[:RESOURCE]->(target_sub_resource)
+            MATCH (to:AWSS3Bucket{name: item.BucketName})-[:RESOURCE]->(target_sub_resource)
             MERGE (from)-[r:CAN_ACCESS]->(to)
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions"
             SET
-                r._module_name = "unknown:tests.data.graph.matchlink.iam_permissions",
                 r._module_version = "3.14.16",
                 r.lastupdated = $UPDATE_TAG,
                 r.permission_action = item.permission_action,
@@ -375,7 +382,7 @@ def test_build_cleanup_query_for_matchlink():
     cleanup_query = build_cleanup_query_for_matchlink(rel_schema)
 
     expected = """
-        MATCH (from:AWSPrincipal)-[r:CAN_ACCESS]->(to:S3Bucket)
+        MATCH (from:AWSPrincipal)-[r:CAN_ACCESS]->(to:AWSS3Bucket)
         WHERE r.lastupdated <> $UPDATE_TAG
             AND r._sub_resource_label = $_sub_resource_label
             AND r._sub_resource_id = $_sub_resource_id
@@ -398,8 +405,8 @@ def test_build_create_index_queries_for_matchlink():
 
     expected_queries = {
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSPrincipal) ON (n.principal_arn);",
-        "CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.name);",
-        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:AWSS3Bucket) ON (n.name);",
+        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r._sub_resource_label, r._sub_resource_id);",
     }
 
     # Assert: compare the list of index queries
@@ -412,9 +419,9 @@ def test_build_create_index_queries_for_scoped_matchlink():
 
     expected_queries = {
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSPrincipal) ON (n.principal_arn);",
-        "CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.name);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:AWSS3Bucket) ON (n.name);",
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSAccount) ON (n.id);",
-        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
+        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r._sub_resource_label, r._sub_resource_id);",
     }
 
     assert set(index_queries) == expected_queries

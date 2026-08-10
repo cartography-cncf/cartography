@@ -49,7 +49,7 @@ def test_sync_cloudformation_stacks(mock_get_stacks, neo4j_session):
     # Assert - Check nodes were created with correct properties
     assert check_nodes(
         neo4j_session,
-        "CloudFormationStack",
+        "AWSCloudFormationStack",
         ["id", "stack_name", "stack_status", "role_arn"],
     ) == {
         (
@@ -71,7 +71,7 @@ def test_sync_cloudformation_stacks(mock_get_stacks, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudFormationStack",
+        "AWSCloudFormationStack",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -89,7 +89,7 @@ def test_sync_cloudformation_stacks(mock_get_stacks, neo4j_session):
     # Assert - Check AWSRole relationship (only stack-1 has RoleARN)
     assert check_rels(
         neo4j_session,
-        "CloudFormationStack",
+        "AWSCloudFormationStack",
         "id",
         "AWSRole",
         "arn",
@@ -129,7 +129,7 @@ def test_cleanup_cloudformation_stacks(neo4j_session):
 
     # Pre-assert: stale node exists
     pre = neo4j_session.run(
-        "MATCH (s:CloudFormationStack {id: $id}) RETURN s",
+        "MATCH (s:AWSCloudFormationStack {id: $id}) RETURN s",
         id=stale_stack_id,
     ).data()
     assert len(pre) == 1
@@ -142,7 +142,7 @@ def test_cleanup_cloudformation_stacks(neo4j_session):
 
     # Assert: Stale node should be gone
     post = neo4j_session.run(
-        "MATCH (s:CloudFormationStack {id: $id}) RETURN s",
+        "MATCH (s:AWSCloudFormationStack {id: $id}) RETURN s",
         id=stale_stack_id,
     ).data()
     assert len(post) == 0

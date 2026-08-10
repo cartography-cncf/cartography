@@ -14,7 +14,7 @@ aws_ebs_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="EBSSnapshot",
+            node_label="AWSEBSSnapshot",
             fields=[
                 # EBS snapshots have no display name; the SnapshotId (`id`) is the
                 # canonical identifier.
@@ -33,7 +33,7 @@ aws_ebs_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="RDSSnapshot",
+            node_label="AWSRDSSnapshot",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -107,8 +107,45 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDatabaseSnapshot",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="source_id", node_field="source_branch_node_id"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # Neon snapshots are encrypted at rest with no opt-out and cannot be shared
+                # publicly, so _ont_public is false by construction rather than unavailable.
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="public",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": False},
+                ),
+                # region: a Netlify DB snapshot inherits its branch's region, which the API does
+                # not repeat on the snapshot.
+            ],
+        ),
+    ],
+)
+
 SNAPSHOTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ebs_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "netlify": netlify_mapping,
 }

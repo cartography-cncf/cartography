@@ -15,10 +15,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPFirewallTargetTagNodeProperties(CartographyNodeProperties):
     """Properties for GCPNetworkTag nodes created as firewall target tags."""
 
-    id: PropertyRef = PropertyRef("tag_id")
+    id: PropertyRef = PropertyRef(
+        "tag_id",
+        description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    tag_id: PropertyRef = PropertyRef("tag_id", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
+    tag_id: PropertyRef = PropertyRef(
+        "tag_id", extra_index=True, description="same as `id`."
+    )
+    value: PropertyRef = PropertyRef(
+        "value", description="The actual value of the tag."
+    )
 
 
 @dataclass(frozen=True)
@@ -83,10 +90,7 @@ class GCPFirewallTargetTagToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFirewallTargetTagSchema(CartographyNodeSchema):
-    """
-    Schema for GCPNetworkTag nodes that are target tags of firewalls.
-    This creates the TARGET_TAG relationship from GCPFirewall to GCPNetworkTag.
-    """
+    """A Google Cloud Network Tag resource."""
 
     label: str = "GCPNetworkTag"
     properties: GCPFirewallTargetTagNodeProperties = (

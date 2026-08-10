@@ -139,7 +139,7 @@ Hand the plan to the user as a numbered list. Apply only after explicit confirma
 - <rule_id> (<file>): facts aws_*, azure_*, gcp_* could become a single Module.CROSS_CLOUD fact using :<SemanticLabel>.
 
 ## 3. Duplicate clusters
-- HIGH: aws_public_rds_instances (<file>) vs iso27001_public_databases (<file>): same MATCH(:RDSInstance) WHERE publicly_accessible=true.
+- HIGH: aws_public_rds_instances (<file>) vs iso27001_public_databases (<file>): same MATCH(:AWSRDSInstance) WHERE publicly_accessible=true.
 
 ## 4. Consolidation plan
 1. Keep aws_public_rds_instances. Add Framework(short_name="ISO27001", requirement="A.13.1.1", control_title=..., ...). Remove iso27001_public_databases. Update __init__.py.
@@ -170,7 +170,7 @@ User says: `find rules we can move to ontology only`.
 
 User says: `find duplicate rules across frameworks`.
 
-1. `aws_s3_public_buckets` and `storage_public_exposure` both `MATCH (b:S3Bucket) WHERE b.public = true`.
+1. `aws_s3_public_buckets` and `storage_public_exposure` both `MATCH (b:AWSS3Bucket) WHERE b.public = true`.
 2. Keeper: `aws_s3_public_buckets`. Action: append `Framework(name="ISO/IEC 27001:2022 Annex A", short_name="ISO27001", requirement="A.13.1.1", control_title="...")` to its `frameworks=` tuple, delete `storage_public_exposure`, drop the import from `__init__.py`.
 3. Wait for the user's go-ahead before editing.
 

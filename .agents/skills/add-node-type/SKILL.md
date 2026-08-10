@@ -64,15 +64,24 @@ class YourServiceUserSchema(CartographyNodeSchema):
 
 ### Step 4 — Extra labels
 
-Add additional Neo4j labels with `ExtraNodeLabels`:
+Add additional Neo4j labels by importing reusable uppercase constants and
+wrapping them in `ExtraNodeLabels`:
 
 ```python
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import USER_ACCOUNT
 
-extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Identity", "Asset"])
+extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
 ```
 
-Produces `(:YourServiceUser:Identity:Asset)`. For ontology-driven labels (`UserAccount`, `Tenant`, `Database`, ...) see the `enrich-ontology` skill.
+Produces `(:YourServiceUser:UserAccount)`. `ExtraNodeLabel` is one immutable
+value type, not a base class for one subclass per label. Label definitions are
+exported uppercase constants; their `description` fields are metadata for
+introspection and generated documentation. Do not rely on class docstrings.
+`ExtraNodeLabels` stores the supplied labels as an immutable tuple.
+
+For ontology-driven labels (`UserAccount`, `Tenant`, `Database`, ...) see the
+`enrich-ontology` skill.
 
 ### Step 5 — Decide on `scoped_cleanup`
 
@@ -110,7 +119,7 @@ def transform_route_tables(route_tables):
 # relationship
 @dataclass(frozen=True)
 class RouteTableToSubnetRel(CartographyRelSchema):
-    target_node_label: str = "EC2Subnet"
+    target_node_label: str = "AWSEC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "subnet_id": PropertyRef("subnet_ids", one_to_many=True),
     })

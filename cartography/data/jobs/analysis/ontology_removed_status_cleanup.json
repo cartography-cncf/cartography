@@ -1,0 +1,15 @@
+{
+  "name": "Ontology - remove stale _ont_status left by de-scoped mappings",
+  "statements": [
+    {
+      "__comment": "SpaceliftStack._ont_status carried a run-phase value (StackState) that is not the active/disabled lifecycle the CICDPipeline ontology models; its mapping was removed, so strip the stale value from previously-synced nodes.",
+      "query": "MATCH (n:SpaceliftStack) WHERE n._ont_status IS NOT NULL REMOVE n._ont_status",
+      "iterative": false
+    },
+    {
+      "__comment": "AzureTenant._ont_status was populated from Entra's geographic 'state' field (an address province, not a tenant lifecycle); its mapping was removed, so strip the stale value from previously-synced nodes.",
+      "query": "MATCH (n:AzureTenant) WHERE n._ont_status IS NOT NULL REMOVE n._ont_status",
+      "iterative": false
+    }
+  ]
+}

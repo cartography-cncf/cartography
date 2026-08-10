@@ -18,6 +18,7 @@ RESOURCE_FUNCTIONS: list[str] = [
     "cloud_run",
     "bigquery",
     "bigquery_connection",
+    "apikeys",
     "policy_bindings",
     "permission_relationships",
 ]

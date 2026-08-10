@@ -6,12 +6,12 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # Node Mappings - Create PublicIP nodes from provider-specific IP resources
 # =============================================================================
 
-# AWS - ElasticIPAddress
+# AWS - AWSElasticIPAddress
 aws_eip_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ElasticIPAddress",
+            node_label="AWSElasticIPAddress",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="public_ip", required=True
@@ -38,7 +38,7 @@ azure_pip_mapping = OntologyMapping(
 )
 
 
-# Scaleway - ScalewayFlexibleIp
+# Scaleway - ScalewayFlexibleIp (instances) and ScalewayElasticMetalFlexibleIp (bare metal)
 scaleway_fip_mapping = OntologyMapping(
     module_name="scaleway",
     nodes=[
@@ -47,6 +47,14 @@ scaleway_fip_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="ip_address", node_field="address", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ScalewayElasticMetalFlexibleIp",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="ip_address", node_field="ip_address", required=True
                 ),
             ],
         ),

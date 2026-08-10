@@ -13,12 +13,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureFailoverGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID for the SQL failover group."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    replicationrole: PropertyRef = PropertyRef("replication_role")
-    replicationstate: PropertyRef = PropertyRef("replication_state")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region of the resource."
+    )
+    replicationrole: PropertyRef = PropertyRef(
+        "replication_role",
+        description="Local replication role of the failover group.",
+    )
+    replicationstate: PropertyRef = PropertyRef(
+        "replication_state",
+        description="Current replication state of the failover group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +39,8 @@ class AzureFailoverGroupToSQLServerRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureSQLServer)-[:CONTAINS]->(:AzureFailoverGroup)
 class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
+    """An Azure SQL logical server contains this failover group."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -48,6 +60,8 @@ class AzureFailoverGroupToSubscriptionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureFailoverGroup)
 class AzureFailoverGroupToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this SQL failover group resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -62,6 +76,8 @@ class AzureFailoverGroupToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:AzureSQLServer)-[:RESOURCE]->(:AzureFailoverGroup) - Backwards compatibility
 class AzureFailoverGroupToSQLServerDeprecatedRel(CartographyRelSchema):
+    """An Azure SQL logical server contains this failover group resource."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -75,6 +91,8 @@ class AzureFailoverGroupToSQLServerDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureFailoverGroupSchema(CartographyNodeSchema):
+    """An Azure SQL failover group for databases on partner servers."""
+
     label: str = "AzureFailoverGroup"
     properties: AzureFailoverGroupProperties = AzureFailoverGroupProperties()
     sub_resource_relationship: AzureFailoverGroupToSubscriptionRel = (

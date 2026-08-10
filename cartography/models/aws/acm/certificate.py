@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_ACM_CERTIFICATE
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,21 +11,44 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CERTIFICATE
 
 
 @dataclass(frozen=True)
 class ACMCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    domainname: PropertyRef = PropertyRef("DomainName")
-    type: PropertyRef = PropertyRef("Type")
-    status: PropertyRef = PropertyRef("Status")
-    key_algorithm: PropertyRef = PropertyRef("KeyAlgorithm")
-    signature_algorithm: PropertyRef = PropertyRef("SignatureAlgorithm")
-    not_before: PropertyRef = PropertyRef("NotBefore")
-    not_after: PropertyRef = PropertyRef("NotAfter")
-    in_use_by: PropertyRef = PropertyRef("InUseBy")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("Arn", description="The ARN of the certificate")
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the certificate",
+    )
+    domainname: PropertyRef = PropertyRef(
+        "DomainName", description="The primary domain name of the certificate"
+    )
+    type: PropertyRef = PropertyRef("Type", description="The source of the certificate")
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the certificate"
+    )
+    key_algorithm: PropertyRef = PropertyRef(
+        "KeyAlgorithm", description="The key algorithm used"
+    )
+    signature_algorithm: PropertyRef = PropertyRef(
+        "SignatureAlgorithm", description="The signature algorithm"
+    )
+    not_before: PropertyRef = PropertyRef(
+        "NotBefore", description="The time before which the certificate is invalid"
+    )
+    not_after: PropertyRef = PropertyRef(
+        "NotAfter", description="The time after which the certificate expires"
+    )
+    in_use_by: PropertyRef = PropertyRef(
+        "InUseBy", description="List of ARNs of resources that use this certificate"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the certificate is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -53,7 +77,7 @@ class ACMCertificateToELBV2ListenerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
-    target_node_label: str = "ELBV2Listener"
+    target_node_label: str = "AWSELBV2Listener"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ELBV2ListenerArns", one_to_many=True)}
     )
@@ -66,8 +90,13 @@ class ACMCertificateToELBV2ListenerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ACMCertificateSchema(CartographyNodeSchema):
-    label: str = "ACMCertificate"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Certificate"])
+    """Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html)."""
+
+    label: str = "AWSACMCertificate"
+    # DEPRECATED: legacy ACMCertificate node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_ACM_CERTIFICATE, CERTIFICATE]
+    )
     properties: ACMCertificateNodeProperties = ACMCertificateNodeProperties()
     sub_resource_relationship: ACMCertificateToAWSAccountRel = (
         ACMCertificateToAWSAccountRel()

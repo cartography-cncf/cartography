@@ -13,19 +13,48 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPBigQueryConnectionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "name", description="Stable identifier for this resource."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    friendly_name: PropertyRef = PropertyRef("friendlyName")
-    description: PropertyRef = PropertyRef("description")
-    connection_type: PropertyRef = PropertyRef("connection_type")
-    creation_time: PropertyRef = PropertyRef("creationTime")
-    last_modified_time: PropertyRef = PropertyRef("lastModifiedTime")
-    has_credential: PropertyRef = PropertyRef("hasCredential")
-    cloud_sql_instance_id: PropertyRef = PropertyRef("cloud_sql_instance_id")
-    aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
-    azure_app_client_id: PropertyRef = PropertyRef("azure_app_client_id")
-    service_account_id: PropertyRef = PropertyRef("service_account_id")
+    name: PropertyRef = PropertyRef(
+        "name", description="The full resource name of the connection."
+    )
+    friendly_name: PropertyRef = PropertyRef(
+        "friendlyName", description="User-friendly name for the connection."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the connection."
+    )
+    connection_type: PropertyRef = PropertyRef(
+        "connection_type",
+        description="Type of connection (e.g., cloudSql, spark, aws, azure).",
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "creationTime", description="Creation time of the connection."
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "lastModifiedTime", description="Last modification time of the connection."
+    )
+    has_credential: PropertyRef = PropertyRef(
+        "hasCredential",
+        description="Whether the connection has a credential configured.",
+    )
+    cloud_sql_instance_id: PropertyRef = PropertyRef(
+        "cloud_sql_instance_id",
+        description="The Cloud SQL instance ID for cloudSql connections (format: `project:region:instance`).",
+    )
+    aws_role_arn: PropertyRef = PropertyRef(
+        "aws_role_arn", description="The IAM role ARN for aws connections."
+    )
+    azure_app_client_id: PropertyRef = PropertyRef(
+        "azure_app_client_id",
+        description="The federated application client ID for azure connections.",
+    )
+    service_account_id: PropertyRef = PropertyRef(
+        "service_account_id",
+        description="The service account email for cloudResource connections.",
+    )
 
 
 @dataclass(frozen=True)
@@ -112,6 +141,8 @@ class ConnectionToGCPServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigQueryConnectionSchema(CartographyNodeSchema):
+    """Represents a GCP BigQuery Connection (external data source connection)."""
+
     label: str = "GCPBigQueryConnection"
     properties: GCPBigQueryConnectionProperties = GCPBigQueryConnectionProperties()
     sub_resource_relationship: ProjectToConnectionRel = ProjectToConnectionRel()

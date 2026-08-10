@@ -22,13 +22,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubContainerImageAttestationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
-    bundle_id: PropertyRef = PropertyRef("bundle_id")
-    predicate_type: PropertyRef = PropertyRef("predicate_type", extra_index=True)
-    attests_digest: PropertyRef = PropertyRef("attests_digest", extra_index=True)
-    source_uri: PropertyRef = PropertyRef("source_uri")
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    source_file: PropertyRef = PropertyRef("source_file")
+    id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="Attestation ID returned by the GitHub Attestations API.",
+    )
+    bundle_id: PropertyRef = PropertyRef(
+        "bundle_id", description="Attestation bundle identifier."
+    )
+    predicate_type: PropertyRef = PropertyRef(
+        "predicate_type",
+        extra_index=True,
+        description="In-toto predicate type URI.",
+    )
+    attests_digest: PropertyRef = PropertyRef(
+        "attests_digest",
+        extra_index=True,
+        description="Container image digest attested by the statement.",
+    )
+    source_uri: PropertyRef = PropertyRef(
+        "source_uri",
+        description="Normalized source repository URI extracted from the predicate.",
+    )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        description="Source commit revision extracted from the predicate.",
+    )
+    source_file: PropertyRef = PropertyRef(
+        "source_file",
+        description="Source definition file extracted from the predicate.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,6 +62,8 @@ class GitHubContainerImageAttestationRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubContainerImageAttestationToOrgRel(CartographyRelSchema):
+    """Scopes a GitHub resource to its organization."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org_url", set_in_kwargs=True)},
@@ -67,6 +92,8 @@ class GitHubContainerImageAttestationAttestsRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubContainerImageAttestationSchema(CartographyNodeSchema):
+    """A SLSA provenance attestation for a GitHub Container Registry image."""
+
     label: str = "GitHubContainerImageAttestation"
     properties: GitHubContainerImageAttestationNodeProperties = (
         GitHubContainerImageAttestationNodeProperties()

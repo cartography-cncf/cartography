@@ -756,6 +756,61 @@ def test_cleanup_gcp_inherited_policy_bindings(neo4j_session):
     assert stale_nodes == 0
 
 
+def test_cleanup_applies_to_relationships_across_target_labels(neo4j_session):
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (project:GCPProject {id: $project_id})
+        MERGE (bucket:GCPBucket {id: "cleanup-test-bucket"})
+        MERGE (legacy:LegacyGCPResource {id: "cleanup-test-legacy"})
+        MERGE (stale_project:GCPPolicyBinding {id: "cleanup-stale-project"})
+        MERGE (stale_bucket:GCPPolicyBinding {id: "cleanup-stale-bucket"})
+        MERGE (stale_legacy:GCPPolicyBinding {id: "cleanup-stale-legacy"})
+        MERGE (current_bucket:GCPPolicyBinding {id: "cleanup-current-bucket"})
+        MERGE (stale_project)-[project_rel:APPLIES_TO]->(project)
+        SET project_rel.lastupdated = $old_update_tag,
+            project_rel._sub_resource_label = "GCPProject",
+            project_rel._sub_resource_id = $project_id
+        MERGE (stale_bucket)-[stale_bucket_rel:APPLIES_TO]->(bucket)
+        SET stale_bucket_rel.lastupdated = $old_update_tag,
+            stale_bucket_rel._sub_resource_label = "GCPProject",
+            stale_bucket_rel._sub_resource_id = $project_id
+        MERGE (stale_legacy)-[stale_legacy_rel:APPLIES_TO]->(legacy)
+        SET stale_legacy_rel.lastupdated = $old_update_tag,
+            stale_legacy_rel._sub_resource_label = "GCPProject",
+            stale_legacy_rel._sub_resource_id = $project_id
+        MERGE (current_bucket)-[current_bucket_rel:APPLIES_TO]->(bucket)
+        SET current_bucket_rel.lastupdated = $update_tag,
+            current_bucket_rel._sub_resource_label = "GCPProject",
+            current_bucket_rel._sub_resource_id = $project_id
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.gcp.policy_bindings._cleanup_applies_to_relationships(
+        neo4j_session,
+        "GCPProject",
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    remaining_relationships = {
+        row["binding_id"]
+        for row in neo4j_session.run(
+            """
+            MATCH (binding:GCPPolicyBinding)-[:APPLIES_TO]->()
+            WHERE binding.id STARTS WITH "cleanup-"
+            RETURN binding.id AS binding_id
+            """,
+        )
+    }
+    assert remaining_relationships == {"cleanup-current-bucket"}
+
+
 @patch.object(
     cartography.intel.gcp.policy_bindings,
     "get_policy_bindings",

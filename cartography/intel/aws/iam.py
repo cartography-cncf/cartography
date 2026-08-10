@@ -344,7 +344,9 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
 
 @timeit
 @aws_handle_regions
-def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
+def get_saml_providers(boto3_session: boto3.session.Session) -> list[dict[str, Any]]:
+    # Return a list (not a dict) so @aws_handle_regions' [] fallback on
+    # AccessDenied / SCP-deny matches the normal return shape.
     client = create_boto3_client(boto3_session, "iam")
     # list_saml_providers returns a single page
     response = client.list_saml_providers()
@@ -355,7 +357,7 @@ def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
     for provider in providers:
         arn = provider.get("Arn", "")
         provider["Name"] = arn.rsplit("/", 1)[-1] if "/" in arn else arn
-    return {"SAMLProviderList": providers}
+    return providers
 
 
 @timeit
@@ -813,7 +815,10 @@ def transform_policy_data(
     policy_to_statements: dict[str, list[dict[str, Any]]] = {}
     policy_to_name: dict[str, str] = {}
 
-    for principal_arn, policy_statement_map in policy_map.items():
+    # get_*_policy_data wears @aws_handle_regions, which returns [] (not a dict)
+    # on AccessDenied / SCP-deny. Coerce so a skipped getter loads nothing
+    # instead of crashing the whole account sync.
+    for principal_arn, policy_statement_map in (policy_map or {}).items():
         for policy_key, statements in policy_statement_map.items():
             policy_id = (
                 transform_policy_id(principal_arn, policy_type, policy_key)
@@ -1793,10 +1798,10 @@ def sync(
         common_job_parameters,
     )
     # SAML providers are global (not region-scoped) for the account
-    saml = get_saml_providers(boto3_session)
+    saml_providers = get_saml_providers(boto3_session)
     load_saml_providers(
         neo4j_session,
-        saml.get("SAMLProviderList", []),
+        saml_providers,
         current_aws_account_id,
         update_tag,
     )

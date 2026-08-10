@@ -23,8 +23,8 @@ from google.protobuf.json_format import MessageToDict
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.gcp.permission_relationships import (
     build_principals_from_policy_bindings,
 )
@@ -37,184 +37,10 @@ from cartography.models.gcp.policy_bindings import GCPFolderPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPOrganizationPolicyBindingSchema
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
 from cartography.models.gcp.policy_bindings import GCPPolicyBindingSchema
+from cartography.models.gcp.resource_catalog import GCP_FULL_NAME_MAPPINGS
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class _FullNameMapping:
-    """
-    Rule that maps a Cloud Asset full resource name to a Cartography node.
-
-    - ``service_prefix``: the full name must start with this (e.g.
-      ``"//cloudkms.googleapis.com/"``).
-    - ``marker``: the path segment identifying the resource type (e.g.
-      ``"cryptoKeys"``). The segment immediately after the marker is the name.
-    - ``label``: Cartography node label.
-    - ``id_mode``:
-        * ``"last_segment"``   — just the name (GCPProject, GCPBucket).
-        * ``"type_prefixed"``  — ``"{marker}/{name}"`` (GCPFolder, GCPOrganization).
-        * ``"full_path"``      — the whole path up to and including the name
-          (KMS, Secrets, Artifact Registry, Cloud Run, Compute).
-        * ``"bigquery_dataset"`` — ``"{project_id}:{dataset_id}"``.
-        * ``"bigquery_table"`` — ``"{project_id}:{dataset_id}.{table_id}"``.
-    - ``asset_type``: Cloud Asset asset type to request from
-      SearchAllIamPolicies for direct child-resource policies. Resource Manager
-      scopes are fetched through BatchGetEffectiveIamPolicies instead, so they
-      do not need a search asset type here.
-    - ``additional_asset_types``: Extra Cloud Asset asset types that use the
-      same full-name shape and Cartography node label.
-    """
-
-    service_prefix: str
-    marker: str
-    label: str
-    id_mode: str
-    asset_type: str | None = None
-    additional_asset_types: tuple[str, ...] = ()
-
-
-# Order matters within a given service_prefix: more specific mappings first so
-# nested resource types win (e.g. a cryptoKey full name also contains
-# ``/keyRings/``, so GCPCryptoKey must precede GCPKeyRing).
-_FULL_NAME_MAPPINGS: list[_FullNameMapping] = [
-    # Cloud Resource Manager.
-    _FullNameMapping(
-        "//cloudresourcemanager.googleapis.com/",
-        "projects",
-        "GCPProject",
-        "last_segment",
-    ),
-    _FullNameMapping(
-        "//cloudresourcemanager.googleapis.com/",
-        "folders",
-        "GCPFolder",
-        "type_prefixed",
-    ),
-    _FullNameMapping(
-        "//cloudresourcemanager.googleapis.com/",
-        "organizations",
-        "GCPOrganization",
-        "type_prefixed",
-    ),
-    # Cloud Storage.
-    _FullNameMapping(
-        "//storage.googleapis.com/",
-        "buckets",
-        "GCPBucket",
-        "last_segment",
-        "storage.googleapis.com/Bucket",
-    ),
-    # BigQuery — table wins over dataset (nested).
-    _FullNameMapping(
-        "//bigquery.googleapis.com/",
-        "tables",
-        "GCPBigQueryTable",
-        "bigquery_table",
-        "bigquery.googleapis.com/Table",
-    ),
-    _FullNameMapping(
-        "//bigquery.googleapis.com/",
-        "datasets",
-        "GCPBigQueryDataset",
-        "bigquery_dataset",
-        "bigquery.googleapis.com/Dataset",
-    ),
-    # KMS — cryptoKey wins over keyRing (nested).
-    _FullNameMapping(
-        "//cloudkms.googleapis.com/",
-        "cryptoKeys",
-        "GCPCryptoKey",
-        "full_path",
-        "cloudkms.googleapis.com/CryptoKey",
-    ),
-    _FullNameMapping(
-        "//cloudkms.googleapis.com/",
-        "keyRings",
-        "GCPKeyRing",
-        "full_path",
-        "cloudkms.googleapis.com/KeyRing",
-    ),
-    # Secret Manager — version wins over secret (nested).
-    _FullNameMapping(
-        "//secretmanager.googleapis.com/",
-        "versions",
-        "GCPSecretManagerSecretVersion",
-        "full_path",
-        "secretmanager.googleapis.com/SecretVersion",
-    ),
-    _FullNameMapping(
-        "//secretmanager.googleapis.com/",
-        "secrets",
-        "GCPSecretManagerSecret",
-        "full_path",
-        "secretmanager.googleapis.com/Secret",
-    ),
-    # Artifact Registry.
-    _FullNameMapping(
-        "//artifactregistry.googleapis.com/",
-        "repositories",
-        "GCPArtifactRegistryRepository",
-        "full_path",
-        "artifactregistry.googleapis.com/Repository",
-    ),
-    # Cloud Run services.
-    _FullNameMapping(
-        "//run.googleapis.com/",
-        "services",
-        "GCPCloudRunService",
-        "full_path",
-        "run.googleapis.com/Service",
-    ),
-    # IAM service accounts.
-    _FullNameMapping(
-        "//iam.googleapis.com/",
-        "serviceAccounts",
-        "GCPServiceAccount",
-        "last_segment",
-        "iam.googleapis.com/ServiceAccount",
-    ),
-    # Cloud Functions.
-    _FullNameMapping(
-        "//cloudfunctions.googleapis.com/",
-        "functions",
-        "GCPCloudFunction",
-        "full_path",
-        "cloudfunctions.googleapis.com/Function",
-        ("cloudfunctions.googleapis.com/CloudFunction",),
-    ),
-    # Compute — node id is the "partial URI" (``projects/.../{kind}/{name}``),
-    # which matches the path left after stripping the service prefix.
-    _FullNameMapping(
-        "//compute.googleapis.com/",
-        "instances",
-        "GCPInstance",
-        "full_path",
-        "compute.googleapis.com/Instance",
-    ),
-    _FullNameMapping(
-        "//compute.googleapis.com/",
-        "networks",
-        "GCPVpc",
-        "full_path",
-        "compute.googleapis.com/Network",
-    ),
-    _FullNameMapping(
-        "//compute.googleapis.com/",
-        "subnetworks",
-        "GCPSubnet",
-        "full_path",
-        "compute.googleapis.com/Subnetwork",
-    ),
-    _FullNameMapping(
-        "//compute.googleapis.com/",
-        "firewalls",
-        "GCPFirewall",
-        "full_path",
-        "compute.googleapis.com/Firewall",
-    ),
-]
 
 
 def _bigquery_resource_id(parts: list[str], table: bool) -> str | None:
@@ -244,7 +70,7 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
 
     Full resource name format: ``//{service}.googleapis.com/{path}``.
     """
-    for mapping in _FULL_NAME_MAPPINGS:
+    for mapping in GCP_FULL_NAME_MAPPINGS:
         if not full_name.startswith(mapping.service_prefix):
             continue
         path = full_name[len(mapping.service_prefix) :].rstrip("/")
@@ -279,7 +105,7 @@ def _parse_full_resource_name(full_name: str) -> tuple[str | None, str | None]:
 def _search_asset_types_from_full_name_mappings() -> list[str]:
     return [
         asset_type
-        for mapping in _FULL_NAME_MAPPINGS
+        for mapping in GCP_FULL_NAME_MAPPINGS
         for asset_type in (
             ((mapping.asset_type,) if mapping.asset_type is not None else ())
             + mapping.additional_asset_types
@@ -546,6 +372,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 # Extract email part from each member (format: "type:email@example.com")
                 filtered_members = []
                 wif_pools: set[str] = set()
+                domains: set[str] = set()
                 is_public = False
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
@@ -569,10 +396,20 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     if member_type in ("user", "serviceAccount", "group"):
                         # Store only the email part
                         filtered_members.append(identifier)
+                    elif member_type == "domain":
+                        # domain:{domain} grants access to every principal in a
+                        # Google Workspace / Cloud Identity domain. It has no single
+                        # GCPPrincipal node, but we retain it for visibility.
+                        domains.add(identifier)
 
                 # Skip bindings that have no resolvable principals AND no public
-                # exposure, e.g. unsupported principal types like domain:.
-                if not filtered_members and not is_public and not wif_pools:
+                # exposure AND no domain grant, e.g. truly unsupported principal types.
+                if (
+                    not filtered_members
+                    and not is_public
+                    and not wif_pools
+                    and not domains
+                ):
                     continue
 
                 # Extract condition expression for deduplication key
@@ -592,6 +429,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     existing_pools = set(bindings[key].get("wif_pools", []))
                     existing_pools.update(wif_pools)
                     bindings[key]["wif_pools"] = sorted(existing_pools)
+                    existing_domains = set(bindings[key].get("domains", []))
+                    existing_domains.update(domains)
+                    bindings[key]["domains"] = sorted(existing_domains)
                     bindings[key]["is_public"] = (
                         bindings[key].get("is_public", False) or is_public
                     )
@@ -616,6 +456,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
                         "wif_pools": sorted(wif_pools),
+                        "domains": sorted(domains),
                         "is_public": is_public,
                         "has_condition": condition is not None,
                         "condition_title": (
@@ -829,27 +670,31 @@ def _cleanup_applies_to_relationships(
     sub_resource_id: str,
     update_tag: int,
 ) -> None:
-    # APPLIES_TO can point at several resource labels. Clean up by relationship
-    # scope directly instead of running the same stale-edge cleanup once per
-    # possible target label.
-    GraphStatement(
+    target_labels = neo4j_session.execute_read(
+        read_list_of_values_tx,
         """
-        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->()
+        MATCH (:GCPPolicyBinding)-[r:APPLIES_TO]->(target)
         WHERE r.lastupdated <> $UPDATE_TAG
-            AND r._sub_resource_label = $_sub_resource_label
-            AND r._sub_resource_id = $_sub_resource_id
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
+          AND r._sub_resource_label = $_sub_resource_label
+          AND r._sub_resource_id = $_sub_resource_id
+        UNWIND labels(target) AS target_label
+        RETURN DISTINCT target_label
         """,
-        parameters={
-            "UPDATE_TAG": update_tag,
-            "_sub_resource_label": sub_resource_label,
-            "_sub_resource_id": sub_resource_id,
-        },
-        iterative=True,
-        iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
-        parent_job_name="APPLIES_TO",
-    ).run(neo4j_session)
+        UPDATE_TAG=update_tag,
+        _sub_resource_label=sub_resource_label,
+        _sub_resource_id=sub_resource_id,
+    )
+    for target_label in target_labels:
+        GraphJob.from_matchlink(
+            make_policy_binding_applies_to_matchlink(
+                target_label,
+                sub_resource_label,
+            ),
+            sub_resource_label,
+            sub_resource_id,
+            update_tag,
+            iterationsize=GCP_POLICY_BINDINGS_CLEANUP_ITERATION_SIZE,
+        ).run(neo4j_session)
 
 
 @timeit

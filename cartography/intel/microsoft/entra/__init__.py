@@ -72,11 +72,10 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :param config: A cartography.config object
     :return: None
     """
-    if (
-        not config.entra_tenant_id
-        or not config.entra_client_id
-        or not config.entra_client_secret
-    ):
+    tenant_id = config.microsoft_tenant_id
+    client_id = config.microsoft_client_id
+    client_secret = config.microsoft_client_secret
+    if not tenant_id or not client_id or not client_secret:
         logger.info(
             "Entra import is not configured - skipping this module. "
             "See docs to configure.",
@@ -85,25 +84,25 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "TENANT_ID": config.entra_tenant_id,
+        "TENANT_ID": tenant_id,
     }
 
     async def main() -> None:
         # Load tenant first as a prerequisite for all resource syncs
         await sync_tenant(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
         )
 
         # Run user sync
         await sync_entra_users(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -111,9 +110,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         # Run group sync
         await sync_entra_groups(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -121,9 +120,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         # Run OU sync
         await sync_entra_ous(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -131,9 +130,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         # Run application sync
         await sync_entra_applications(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -141,9 +140,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         # Run service principals sync
         await sync_service_principals(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -151,9 +150,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         # Run app role assignments sync
         await sync_app_role_assignments(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
+            tenant_id,
+            client_id,
+            client_secret,
             config.update_tag,
             common_job_parameters,
         )
@@ -167,9 +166,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         try:
             await sync_entra_directory_roles(
                 neo4j_session,
-                config.entra_tenant_id,
-                config.entra_client_id,
-                config.entra_client_secret,
+                tenant_id,
+                client_id,
+                client_secret,
                 config.update_tag,
                 common_job_parameters,
             )
@@ -188,7 +187,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         await sync_entra_federation(
             neo4j_session,
             config.update_tag,
-            config.entra_tenant_id,
+            tenant_id,
             common_job_parameters,
         )
 

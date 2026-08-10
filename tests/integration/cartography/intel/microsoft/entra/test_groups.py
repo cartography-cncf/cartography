@@ -258,7 +258,7 @@ async def test_sync_entra_groups(
             neo4j_session,
             "EntraGroup",
             "id",
-            "EntraTenant",
+            "AzureTenant",
             "id",
             "RESOURCE",
             rel_direction_right=False,

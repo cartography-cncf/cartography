@@ -116,7 +116,12 @@ def get_bigquery_connections(
         except HttpError as e:
             if is_gcp_http_error_category(
                 e,
-                ("api_disabled", "billing_disabled", "forbidden", "not_found"),
+                (
+                    "api_disabled",
+                    "billing_disabled",
+                    "forbidden",
+                    "not_found",
+                ),
                 include_transient_403=True,
             ):
                 logger.warning(

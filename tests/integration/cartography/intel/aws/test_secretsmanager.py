@@ -28,8 +28,8 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecretVersion) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -42,7 +42,7 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
 
     assert check_nodes(
         neo4j_session,
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         [
             "arn",
             "name",
@@ -69,7 +69,7 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
 
     assert check_nodes(
         neo4j_session,
-        "SecretsManagerSecretVersion",
+        "AWSSecretsManagerSecretVersion",
         [
             "arn",
             "secret_id",
@@ -92,7 +92,7 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
         neo4j_session,
         "AWSAccount",
         "id",
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -109,9 +109,9 @@ def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session)
 
     assert check_rels(
         neo4j_session,
-        "SecretsManagerSecretVersion",
+        "AWSSecretsManagerSecretVersion",
         "arn",
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         "arn",
         "VERSION_OF",
         rel_direction_right=True,
@@ -141,8 +141,8 @@ def test_sync_secretsmanager_no_versions(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecretVersion) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -155,7 +155,7 @@ def test_sync_secretsmanager_no_versions(
 
     assert check_nodes(
         neo4j_session,
-        "SecretsManagerSecret",
+        "AWSSecretsManagerSecret",
         ["name"],
     ) == {
         ("test-secret-1",),
@@ -164,7 +164,7 @@ def test_sync_secretsmanager_no_versions(
     assert (
         check_nodes(
             neo4j_session,
-            "SecretsManagerSecretVersion",
+            "AWSSecretsManagerSecretVersion",
             ["arn"],
         )
         == set()
@@ -200,7 +200,7 @@ def test_secret_version_kms_key_relationship(
 
     neo4j_session.run(
         """
-        MERGE (k:KMSKey{id: $key_id})
+        MERGE (k:AWSKMSKey{id: $key_id})
         ON CREATE SET k.firstseen = timestamp()
         SET k.arn = $key_arn,
             k.region = $region,
@@ -212,8 +212,8 @@ def test_secret_version_kms_key_relationship(
         update_tag=TEST_UPDATE_TAG,
     )
 
-    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSecretsManagerSecretVersion) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -225,12 +225,12 @@ def test_secret_version_kms_key_relationship(
     )
 
     # Verify relationship to KMS Key
-    # The relationship matches on KMSKey.arn using the ARN from kms_key_ids.
+    # The relationship matches on AWSKMSKey.arn using the ARN from kms_key_ids.
     assert check_rels(
         neo4j_session,
-        "SecretsManagerSecretVersion",
+        "AWSSecretsManagerSecretVersion",
         "arn",
-        "KMSKey",
+        "AWSKMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,

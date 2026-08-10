@@ -47,16 +47,17 @@ def transform_datasets(
         if not dataset_id:
             continue
 
-        ls_name = (
-            d.get("properties", {}).get("linked_service_name", {}).get("reference_name")
-        )
-        linked_service_id = linked_service_name_to_id.get(ls_name)
+        # azure-mgmt-datafactory 10 serializes `as_dict()` in ARM wire format, so the
+        # linked service reference is camelCase under `properties`.
+        properties = d.get("properties") or {}
+        ls_name = (properties.get("linkedServiceName") or {}).get("referenceName")
+        linked_service_id = linked_service_name_to_id.get(ls_name) if ls_name else None
 
         transformed.append(
             {
                 "id": dataset_id,
                 "name": d.get("name"),
-                "type": d.get("properties", {}).get("type"),
+                "type": properties.get("type"),
                 "factory_id": factory_id,
                 "subscription_id": subscription_id,
                 "linked_service_id": linked_service_id,

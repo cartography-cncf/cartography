@@ -9,6 +9,8 @@ import requests
 from requests.exceptions import HTTPError
 from requests.exceptions import ReadTimeout
 
+from cartography.analysis.semgrep.analysis import SEMGREP_SAST_RISK_ANALYSIS
+from cartography.analysis.semgrep.analysis import SEMGREP_SCA_RISK_ANALYSIS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.semgrep.assistant import SemgrepFindingAssistantSchema
@@ -17,7 +19,7 @@ from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.models.semgrep.sast import SemgrepSASTFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -170,9 +172,20 @@ def transform_sca_vulns(
                     "file_path"
                 ]
         sca_vuln["transitivity"] = vuln["found_dependency"]["transitivity"].upper()
+        # SCA findings can be advisory-only (e.g. GHSA) with no CVE assigned, so the
+        # :CVE ontology label is applied conditionally on this flag. Default to false
+        # and only flip it for real CVE ids below.
+        sca_vuln["has_cve"] = "false"
         if vuln.get("vulnerability_identifier"):
             vuln_id = vuln["vulnerability_identifier"].upper()
-            sca_vuln["cveId"] = vuln_id
+            # Route the identifier to a typed field so cve_id only ever holds a real
+            # CVE (feeding the :CVE label and _ont_cve_id) while GHSA advisories land
+            # in ghsa_id. Other schemes (e.g. MAL-, UNKNOWN-) populate neither.
+            if vuln_id.startswith("CVE-"):
+                sca_vuln["cveId"] = vuln_id
+                sca_vuln["has_cve"] = "true"
+            elif vuln_id.startswith("GHSA"):
+                sca_vuln["ghsaId"] = vuln_id
             ref_url = _build_vuln_url(vuln_id)
             sca_vuln["ref_urls"] = [ref_url] if ref_url is not None else []
         if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:
@@ -438,8 +451,8 @@ def sync_sast_findings(
             deployment_id,
             update_tag,
         )
-        run_scoped_analysis_job(
-            "semgrep_sast_risk_analysis.json",
+        run_typed_analysis_job(
+            SEMGREP_SAST_RISK_ANALYSIS,
             neo4j_session,
             common_job_parameters,
         )
@@ -492,8 +505,8 @@ def sync_sca_findings(
         vulns, usages = transform_sca_vulns(raw_vulns)
         load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
         load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
-        run_scoped_analysis_job(
-            "semgrep_sca_risk_analysis.json",
+        run_typed_analysis_job(
+            SEMGREP_SCA_RISK_ANALYSIS,
             neo4j_session,
             common_job_parameters,
         )

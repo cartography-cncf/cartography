@@ -39,7 +39,7 @@ def _make_subscription() -> dict:
     }
 
 
-@patch("cartography.intel.azure.run_scoped_analysis_job")
+@patch("cartography.intel.azure.run_typed_analysis_job")
 @patch("cartography.intel.azure.run_analysis_job")
 @patch("cartography.intel.azure._sync_one_subscription")
 @patch("cartography.intel.azure.subscription.get_all_azure_subscriptions")
@@ -53,7 +53,7 @@ def test_deferred_hierarchy_cleanup_order(
     mock_get_all_subscriptions,
     mock_sync_one_subscription,
     mock_run_analysis_job,
-    mock_run_scoped_analysis_job,
+    mock_run_typed_analysis_job,
     neo4j_session,
 ):
     mock_authenticate_cli.return_value = _make_credentials()
@@ -84,7 +84,7 @@ def test_deferred_hierarchy_cleanup_order(
     assert subscription_cleanup_idx < management_group_cleanup_idx
 
 
-@patch("cartography.intel.azure.run_scoped_analysis_job")
+@patch("cartography.intel.azure.run_typed_analysis_job")
 @patch("cartography.intel.azure.run_analysis_job")
 @patch("cartography.intel.azure._sync_one_subscription")
 @patch("cartography.intel.azure.subscription.get_all_azure_subscriptions")
@@ -98,7 +98,7 @@ def test_management_group_cleanup_skipped_after_management_group_access_loss(
     mock_get_all_subscriptions,
     mock_sync_one_subscription,
     mock_run_analysis_job,
-    mock_run_scoped_analysis_job,
+    mock_run_typed_analysis_job,
     neo4j_session,
 ):
     mock_authenticate_cli.return_value = _make_credentials()

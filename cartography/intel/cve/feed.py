@@ -246,14 +246,15 @@ def get_published_cves_per_year(
     return cves
 
 
-def _get_primary_metric(metrics: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _get_primary_metric(
+    metrics: Optional[List[Dict[str, Any]]],
+) -> Optional[Dict[str, Any]]:
     if metrics is None:
-        return metrics
-    metric = {}
+        return None
     for metric in metrics:
         if metric["type"] == "Primary":
             return metric
-    return metrics[0]
+    return metrics[0] if metrics else None
 
 
 def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:

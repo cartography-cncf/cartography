@@ -129,10 +129,12 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
         },
         {
             "id": "binding-3",
-            "role": "roles/storage.admin",
+            "role": "roles/storage.objectViewer",
             "resource": "//storage.googleapis.com/buckets/bucket-3",
             "members": ["alice@example.com"],
             "has_condition": True,
+            "condition_title": "business-hours",
+            "condition_expression": "request.time.getHours() < 18",
         },
         {
             "id": "binding-4",
@@ -149,12 +151,18 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
             TEST_PROJECT_ID,
         )
 
+    # Conditional bindings (binding-3) are now retained, not dropped.
     assert _normalize_principals(principals) == {
         "alice@example.com": {
             "binding-1": {
                 "permissions": ["storage\\.objects\\.get"],
                 "denied_permissions": [],
                 "scope": "project/project-abc/.*",
+            },
+            "binding-3": {
+                "permissions": ["storage\\.objects\\.get"],
+                "denied_permissions": [],
+                "scope": "project/project-abc/resource/buckets/bucket-3",
             },
         },
         "bob@example.com": {
@@ -165,15 +173,102 @@ def test_build_principals_from_policy_bindings_logs_context_diagnostics(caplog):
             },
         },
     }
+    # binding-3 carries its condition metadata onto the compiled assignment.
+    assert principals["alice@example.com"]["binding-3"]["has_condition"] is True
+    assert (
+        principals["alice@example.com"]["binding-3"]["condition_title"]
+        == "business-hours"
+    )
+    assert principals["alice@example.com"]["binding-1"]["has_condition"] is False
     assert any(
-        "usable_bindings=2" in record.message
-        and "member_assignments=2" in record.message
+        "usable_bindings=3" in record.message
+        and "member_assignments=3" in record.message
         and "principals=2" in record.message
-        and "skipped_conditional=1" in record.message
+        and "conditional_bindings=1" in record.message
         and "skipped_missing_roles=1" in record.message
         for record in caplog.records
         if record.levelno == logging.INFO
     )
+
+
+def _build_assignment(
+    permissions: list[str],
+    scope: str,
+    has_condition: bool = False,
+    condition_title: str | None = None,
+    condition_expression: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "permissions": permission_relationships.compile_permissions(
+            {"permissions": permissions, "denied_permissions": []}
+        ),
+        "scope": permission_relationships.compile_gcp_regex(scope),
+        "has_condition": has_condition,
+        "condition_title": condition_title,
+        "condition_expression": condition_expression,
+    }
+
+
+def test_collect_binding_conditions_unconditional():
+    policy_bindings = {
+        "binding-1": _build_assignment(
+            ["storage.objects.get"], "project/project-abc/*"
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result == {
+        "has_condition": False,
+        "condition_title": None,
+        "condition_expression": None,
+    }
+
+
+def test_collect_binding_conditions_conditional():
+    policy_bindings = {
+        "binding-1": _build_assignment(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+            has_condition=True,
+            condition_title="business-hours",
+            condition_expression="request.time.getHours() < 18",
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result == {
+        "has_condition": True,
+        "condition_title": "business-hours",
+        "condition_expression": "request.time.getHours() < 18",
+    }
+
+
+def test_collect_binding_conditions_unconditional_wins():
+    # A conditional and an unconditional binding both grant access; the edge is
+    # effectively unconditional.
+    policy_bindings = {
+        "conditional": _build_assignment(
+            ["storage.objects.get"],
+            "project/project-abc/*",
+            has_condition=True,
+            condition_title="business-hours",
+        ),
+        "unconditional": _build_assignment(
+            ["storage.objects.get"], "project/project-abc/*"
+        ),
+    }
+    result = permission_relationships.collect_binding_conditions(
+        policy_bindings,
+        "project/project-abc/resource/buckets/bucket-1",
+        ["storage.objects.get"],
+    )
+    assert result["has_condition"] is False
 
 
 def test_build_principals_from_policy_bindings_returns_empty_without_policy_bindings():
@@ -301,15 +396,25 @@ def test_iter_permission_relationship_batches_preserves_matches():
     flattened = [mapping for batch in batches for mapping in batch]
 
     assert all(len(batch) <= 2 for batch in batches)
-    assert {tuple(sorted(mapping.items())) for mapping in flattened} == {
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-1")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-2")),
-        (("principal_email", "alice@example.com"), ("resource_id", "bucket-3")),
-        (("principal_email", "bob@example.com"), ("resource_id", "bucket-2")),
+    assert {
+        (mapping["principal_email"], mapping["resource_id"]) for mapping in flattened
+    } == {
+        ("alice@example.com", "bucket-1"),
+        ("alice@example.com", "bucket-2"),
+        ("alice@example.com", "bucket-3"),
+        ("bob@example.com", "bucket-2"),
     }
+    # These bindings carry no condition, so edges are flagged unconditional.
+    assert all(mapping["has_condition"] is False for mapping in flattened)
 
 
-def test_split_bigquery_table_broad_scope_principals():
+def test_filter_bigquery_table_broad_scope_bindings():
+    """
+    Only bindings placed directly on a table survive. Project scope (which org and
+    folder scopes resolve to) and dataset scope are dropped whether or not they
+    carry a condition: the GCPBigQueryDataset relationship covers them and the
+    tables are one HAS_TABLE hop away.
+    """
     # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
@@ -324,11 +429,31 @@ def test_split_bigquery_table_broad_scope_principals():
             ["bigquery.tables.getData"],
             "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
         ),
+        # Conditional broad grants follow the same rule as unconditional ones.
+        "conditional-project-viewer@example.com": {
+            "binding-1": _build_assignment(
+                ["bigquery.tables.getData"],
+                "project/project-abc/*",
+                has_condition=True,
+                condition_title="business-hours",
+            ),
+        },
+        "conditional-dataset-viewer@example.com": {
+            "binding-1": _build_assignment(
+                ["bigquery.tables.getData"],
+                "project/project-abc/resource/projects/project-abc/datasets/analytics",
+                has_condition=True,
+                condition_title="business-hours",
+            ),
+        },
+        # Holds the permission through a different verb only.
         "writer@example.com": _build_policy_bindings(
             ["bigquery.tables.updateData"],
-            "project/project-abc/*",
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
         ),
     }
+    # A project-wide principal that ALSO holds a direct table binding must keep it:
+    # that surgical access is the whole point of the table-level relationship.
     principals["project-viewer@example.com"]["binding-exact-table"] = (
         _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -338,8 +463,8 @@ def test_split_bigquery_table_broad_scope_principals():
     )
 
     # Act
-    project_principals, dataset_principals, residual_principals = (
-        permission_relationships.split_bigquery_table_broad_scope_principals(
+    direct_principals = (
+        permission_relationships.filter_bigquery_table_broad_scope_bindings(
             principals,
             ["bigquery.tables.getData"],
             TEST_PROJECT_ID,
@@ -347,11 +472,52 @@ def test_split_bigquery_table_broad_scope_principals():
     )
 
     # Assert
-    assert project_principals == {"project-viewer@example.com"}
-    assert dataset_principals == {
-        "project-abc:analytics": {"dataset-viewer@example.com"},
+    assert set(direct_principals) == {
+        "project-viewer@example.com",
+        "table-viewer@example.com",
     }
-    assert set(residual_principals) == {"table-viewer@example.com"}
+    assert set(direct_principals["project-viewer@example.com"]) == {
+        "binding-exact-table",
+    }
+    assert set(direct_principals["table-viewer@example.com"]) == {"binding-1"}
+
+
+def test_filter_bigquery_table_broad_scope_bindings_drops_org_and_folder_scope():
+    """
+    Organization- and folder-level grants resolve to the project scope pattern
+    (resolve_gcp_scope), so they are dropped like any other project-wide grant.
+    """
+    # Arrange
+    org_scope = permission_relationships.resolve_gcp_scope(
+        "//cloudresourcemanager.googleapis.com/organizations/1337",
+        TEST_PROJECT_ID,
+    )
+    folder_scope = permission_relationships.resolve_gcp_scope(
+        "//cloudresourcemanager.googleapis.com/folders/42",
+        TEST_PROJECT_ID,
+    )
+    principals = {
+        "org-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            org_scope,
+        ),
+        "folder-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            folder_scope,
+        ),
+    }
+
+    # Act
+    direct_principals = (
+        permission_relationships.filter_bigquery_table_broad_scope_bindings(
+            principals,
+            ["bigquery.tables.getData"],
+            TEST_PROJECT_ID,
+        )
+    )
+
+    # Assert
+    assert direct_principals == {}
 
 
 def test_load_permission_relationships_cartesian_product_uses_core_cartesian_product_loader():
@@ -396,6 +562,9 @@ def test_load_permission_relationships_cartesian_product_uses_core_cartesian_pro
             "CAN_READ GCPBigQueryTable permissions for project project-abc"
         ),
         lastupdated=TEST_UPDATE_TAG,
+        has_condition=False,
+        condition_title=None,
+        condition_expression=None,
         _sub_resource_label="GCPProject",
         _sub_resource_id=TEST_PROJECT_ID,
     )
@@ -457,12 +626,20 @@ def test_scope_aware_loader_uses_cartesian_product_for_project_scope():
     mock_calculate.assert_not_called()
 
 
-def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
+def test_bigquery_table_loader_writes_direct_bindings_only():
+    """
+    The GCPBigQueryTable label never uses the bulk Cartesian path: a project-wide
+    grant writes nothing, and only the direct table binding is loaded row by row.
+    """
     # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
             "project/project-abc/*",
+        ),
+        "dataset-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics",
         ),
         "table-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -490,7 +667,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
             permission_relationships,
             "load_permission_relationships_cartesian_product",
             return_value=2,
-        ),
+        ) as mock_bulk_load,
         patch.object(
             permission_relationships,
             "load_principal_mappings",
@@ -507,12 +684,16 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
         )
 
     # Assert
-    assert loaded_count == 3
+    assert loaded_count == 1
+    mock_bulk_load.assert_not_called()
     mock_load_principal_mappings.assert_called_once()
     assert mock_load_principal_mappings.call_args.args[1] == [
         {
             "principal_email": "table-viewer@example.com",
             "resource_id": "project-abc:analytics.events",
+            "has_condition": False,
+            "condition_title": None,
+            "condition_expression": None,
         },
     ]
 

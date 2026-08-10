@@ -1147,3 +1147,99 @@ def get_unmatched_gcp_images_with_history(
             len(images),
         )
     return images
+
+
+def get_unmatched_scaleway_images_with_history(
+    neo4j_session: neo4j.Session,
+    sub_resource_label: str,
+    sub_resource_id: str | int,
+    update_tag: int,
+    limit: int | None = None,
+) -> list[ContainerImage]:
+    """
+    Query Scaleway Container Registry images not yet matched by provenance.
+
+    Scaleway models the whole namespace as the ``ContainerRegistry`` (many named
+    images hang off one namespace), so the generic per-registry query collapses a
+    namespace to a single representative image. This helper groups per named image
+    instead (via the tag's ``image_name``), so every image in a namespace is sent
+    through Dockerfile analysis. Used by the GitHub and GitLab supply chain
+    modules alongside ECR / GitLab / GCP images.
+
+    :param neo4j_session: Neo4j session
+    :param sub_resource_label: The sub-resource label for scoping (e.g., 'GitHubOrganization')
+    :param sub_resource_id: The sub-resource ID for scoping (e.g., org name or ID)
+    :param update_tag: The current sync update tag
+    :param limit: Optional limit on number of images to return
+    :return: List of ContainerImage objects with layer history populated
+    """
+    query = """
+        MATCH (img:Image:ScalewayContainerRegistryImage)
+        WHERE img.layer_diff_ids IS NOT NULL
+          AND size(img.layer_diff_ids) > 0
+          AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: $sub_resource_label}]->())
+              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $sub_resource_id}]->())
+          )
+        MATCH (img)<-[:IMAGE]-(t:ScalewayContainerRegistryImageTag)
+        OPTIONAL MATCH (ns:ScalewayContainerRegistryNamespace)-[:REPO_IMAGE]->(t)
+        // Group per repository (namespace + image name) so neither sibling
+        // images in a namespace nor same-named images across namespaces collapse.
+        WITH coalesce(ns.id + '/' + t.image_name, img.digest) AS group_key, img, t
+        ORDER BY
+            CASE WHEN t.name = 'latest' THEN 0 ELSE 1 END,
+            t.updated_at DESC
+        WITH group_key, collect({img: img, t: t})[0] AS selected
+        WITH selected.img AS img, selected.t AS t
+        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+        WITH img, t, img.layer_diff_ids[idx] AS diff_id, idx
+        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+        WITH img, t, idx, {
+            diff_id: diff_id,
+            history: layer.history,
+            is_empty: layer.is_empty
+        } AS layer_info
+        ORDER BY idx
+        WITH img, t, collect(layer_info) AS layer_history
+        RETURN
+            img.digest AS digest,
+            t.uri AS uri,
+            t.image_name AS name,
+            img.layer_diff_ids AS layer_diff_ids,
+            layer_history
+    """
+
+    if limit is not None:
+        query += f" LIMIT {int(limit)}"
+
+    result = neo4j_session.run(
+        query,
+        update_tag=update_tag,
+        sub_resource_label=sub_resource_label,
+        sub_resource_id=sub_resource_id,
+    )
+    images = []
+    for record in result:
+        layer_history = convert_layer_history_records(record["layer_history"])
+        images.append(
+            ContainerImage(
+                digest=record["digest"],
+                uri=record["uri"] or "",
+                registry_id=record["name"] or None,
+                display_name=record["name"] or None,
+                tag=None,
+                layer_diff_ids=record["layer_diff_ids"] or [],
+                image_type=None,
+                architecture=None,
+                os=None,
+                layer_history=layer_history,
+            ),
+        )
+
+    if images:
+        logger.info(
+            "Found %d Scaleway Container Registry images with layer history for dockerfile analysis",
+            len(images),
+        )
+    return images

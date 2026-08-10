@@ -4,12 +4,14 @@ from cartography.models.azure.tags.tag import AzureTagProperties
 from cartography.models.azure.tags.tag import AzureTagToSubscriptionRel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import TAG
 
 
 @dataclass(frozen=True)
@@ -19,6 +21,8 @@ class ApplicationGatewayToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ApplicationGatewayToTagRel(CartographyRelSchema):
+    """An Azure Application Gateway has the tag."""
+
     target_node_label: str = "AzureApplicationGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,7 +36,10 @@ class ApplicationGatewayToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()
     sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()
     other_relationships: OtherRelationships = OtherRelationships(

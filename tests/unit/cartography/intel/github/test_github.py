@@ -14,6 +14,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 import cartography.intel.github.packages
+from cartography.intel.github.repos import GitHubRepoSyncResult
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
@@ -46,6 +47,7 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github.commits.sync_github_commits")
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.codeowners.sync")
 @patch("cartography.intel.github.teams.sync_github_teams")
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
@@ -59,6 +61,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
+    mock_codeowners_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
     mock_sync_github_commits: Mock,
@@ -83,6 +86,41 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
         update_tag=123,
         github_commit_lookback_days=7,
     )
+    repo_sync_results = [
+        GitHubRepoSyncResult(
+            repos=[{"id": "https://github.com/org-1/repo"}],
+            manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
+            manifests_cleanup_safe=True,
+        ),
+        GitHubRepoSyncResult(
+            repos=[{"id": "https://github.com/org-2/repo"}],
+            manifests=[{"id": "https://github.com/org-2/repo#/package.json"}],
+            manifests_cleanup_safe=False,
+        ),
+    ]
+    github_users_by_org = [
+        [{"login": "owner-1", "url": "https://github.com/owner-1"}],
+        [{"login": "owner-2", "url": "https://github.com/owner-2"}],
+    ]
+    github_teams_by_org = [
+        [
+            {
+                "org_login": "org-1",
+                "name": "team-1",
+                "url": "https://github.com/orgs/org-1/teams/team-1",
+            },
+        ],
+        [
+            {
+                "org_login": "org-2",
+                "name": "team-2",
+                "url": "https://github.com/orgs/org-2/teams/team-2",
+            },
+        ],
+    ]
+    mock_users_sync.side_effect = github_users_by_org
+    mock_repos_sync.side_effect = repo_sync_results
+    mock_teams_sync.side_effect = github_teams_by_org
 
     from cartography.intel.github import start_github_ingestion
 
@@ -93,6 +131,33 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
+    assert mock_codeowners_sync.call_count == 2
+    assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
+        repo_sync_results[0].repos,
+        repo_sync_results[0].manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args_list[0].kwargs[
+            "dependency_manifests_cleanup_safe"
+        ]
+        is True
+    )
+    first_codeowners_kwargs = mock_codeowners_sync.call_args_list[0].kwargs
+    assert first_codeowners_kwargs["github_users"] == github_users_by_org[0]
+    assert first_codeowners_kwargs["github_teams"] == github_teams_by_org[0]
+    assert mock_codeowners_sync.call_args_list[1].args[-2:] == (
+        repo_sync_results[1].repos,
+        repo_sync_results[1].manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args_list[1].kwargs[
+            "dependency_manifests_cleanup_safe"
+        ]
+        is False
+    )
+    second_codeowners_kwargs = mock_codeowners_sync.call_args_list[1].kwargs
+    assert second_codeowners_kwargs["github_users"] == github_users_by_org[1]
+    assert second_codeowners_kwargs["github_teams"] == github_teams_by_org[1]
     mock_users_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 123})
     mock_cleanup_global_resources.assert_called_once_with(
         neo4j_session,
@@ -126,6 +191,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
 @patch("cartography.intel.github.commits.sync_github_commits")
 @patch("cartography.intel.github._get_repos_from_graph", return_value=[])
 @patch("cartography.intel.github.actions.sync", return_value=[])
+@patch("cartography.intel.github.codeowners.sync")
 @patch("cartography.intel.github.teams.sync_github_teams")
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
@@ -139,6 +205,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
     mock_teams_sync: Mock,
+    mock_codeowners_sync: Mock,
     mock_actions_sync: Mock,
     mock_get_repos_from_graph: Mock,
     mock_sync_github_commits: Mock,
@@ -160,6 +227,22 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         update_tag=123,
         github_commit_lookback_days=7,
     )
+    repo_sync_result = GitHubRepoSyncResult(
+        repos=[{"id": "https://github.com/org-1/repo"}],
+        manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
+        manifests_cleanup_safe=True,
+    )
+    mock_repos_sync.return_value = repo_sync_result
+    github_users = [{"login": "owner-1", "url": "https://github.com/owner-1"}]
+    github_teams = [
+        {
+            "org_login": "org-1",
+            "name": "team-1",
+            "url": "https://github.com/orgs/org-1/teams/team-1",
+        },
+    ]
+    mock_users_sync.return_value = github_users
+    mock_teams_sync.return_value = github_teams
 
     from cartography.intel.github import start_github_ingestion
 
@@ -171,6 +254,17 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_repos_sync.assert_called_once()
     mock_personal_access_tokens_sync.assert_called_once()
     mock_dependabot_alerts_sync.assert_called_once()
+    mock_codeowners_sync.assert_called_once()
+    assert mock_codeowners_sync.call_args.args[-2:] == (
+        repo_sync_result.repos,
+        repo_sync_result.manifests,
+    )
+    assert (
+        mock_codeowners_sync.call_args.kwargs["dependency_manifests_cleanup_safe"]
+        is True
+    )
+    assert mock_codeowners_sync.call_args.kwargs["github_users"] == github_users
+    assert mock_codeowners_sync.call_args.kwargs["github_teams"] == github_teams
     mock_cleanup_unscoped_github_resources.assert_not_called()
     assert mock_supply_chain_sync.call_count == 0
 

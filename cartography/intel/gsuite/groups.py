@@ -64,30 +64,43 @@ def get_all_groups(
 
 @timeit
 def get_members_for_groups(
-    admin: Resource, groups_email: list[str]
+    admin: Resource, group_ids: list[str]
 ) -> dict[str, list[dict[str, Any]]]:
-    """Get all members for given groups emails
+    """Get all members for the given group ids
 
     Args:
         admin (Resource): google's apiclient discovery resource object.  From googleapiclient.discovery.build
         See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
-        groups_email (list[str]): List of group email addresses to get members for
+        group_ids (list[str]): List of immutable group ids to get members for. We key on the
+        immutable id rather than the email because Google returns HTTP 400 "Invalid Input" when
+        a group's email/alias cannot be resolved as a groupKey (renamed, aliased, or external
+        groups); the id always resolves.
 
 
-    :return: list of dictionaries representing Users or Groups grouped by group email
+    :return: list of dictionaries representing Users or Groups grouped by group id
     """
     results: dict[str, list[dict]] = {}
-    for group_email in groups_email:
+    for group_id in group_ids:
         request = admin.members().list(
-            groupKey=group_email,
-            maxResults=500,
+            groupKey=group_id,
+            maxResults=200,  # 200 is the documented maximum for members.list
         )
         members: list[dict] = []
-        while request is not None:
-            resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
-            members = members + resp.get("members", [])
-            request = admin.members().list_next(request, resp)
-        results[group_email] = members
+        try:
+            while request is not None:
+                resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+                members = members + resp.get("members", [])
+                request = admin.members().list_next(request, resp)
+        except HttpError as e:
+            # Defense-in-depth: a single pathological group must not abort the whole tenant
+            # sync. The id-based key above should prevent the common 400 "Invalid Input", but
+            # keep skipping any group Google still rejects.
+            if e.resp.status == 400:
+                logger.warning("Skipping members for group %s: %s", group_id, e)
+                results[group_id] = []
+                continue
+            raise
+        results[group_id] = members
 
     return results
 
@@ -108,11 +121,10 @@ def transform_groups(
 
     for group in groups:
         group_id = group["id"]
-        group_email = group["email"]
         group["member_ids"] = []
         group["owner_ids"] = []
 
-        for member in group_memberships.get(group_email, []):
+        for member in group_memberships.get(group_id, []):
             if member["type"] == "GROUP":
                 # Create group-to-group relationships
                 relationship_data = {
@@ -281,7 +293,7 @@ def sync_gsuite_groups(
 
     # 1. GET - Fetch data from API
     resp_objs = get_all_groups(admin, customer_id)
-    group_members = get_members_for_groups(admin, [resp["email"] for resp in resp_objs])
+    group_members = get_members_for_groups(admin, [resp["id"] for resp in resp_objs])
 
     # 2. TRANSFORM - Shape data for ingestion
     groups, group_member_relationships, group_owner_relationships = transform_groups(

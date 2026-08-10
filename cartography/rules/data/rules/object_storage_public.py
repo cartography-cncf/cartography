@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -11,11 +12,11 @@ _aws_s3_public = Fact(
     name="Internet-Accessible S3 Storage Attack Surface",
     description=("AWS S3 buckets accessible from the internet"),
     cypher_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
@@ -27,22 +28,24 @@ _aws_s3_public = Fact(
         b.anonymous_actions AS public_actions
     """,
     cypher_visual_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     WHERE b.anonymous_access = true
     OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
     OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:AWSS3PolicyStatement)
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
     WITH b
-    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:AWSS3PolicyStatement)
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (b:S3Bucket)
+    MATCH (b:AWSS3Bucket)
     RETURN COUNT(b) AS count
     """,
+    asset_id_field="id",
+    asset_label="AWSS3Bucket",
     identity_fields=("id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -85,6 +88,8 @@ _gcp_bucket_public = Fact(
     MATCH (b:GCPBucket)
     RETURN COUNT(b) AS count
     """,
+    asset_id_field="id",
+    asset_label="GCPBucket",
     identity_fields=("id",),
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
@@ -122,8 +127,46 @@ _azure_storage_public_blob_access = Fact(
     MATCH (bc:AzureStorageBlobContainer)
     RETURN COUNT(bc) AS count
     """,
+    asset_id_field="id",
+    asset_label="AzureStorageBlobContainer",
     identity_fields=("id",),
     module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Scaleway Facts
+_scaleway_bucket_public = Fact(
+    id="scaleway_bucket_public",
+    name="Internet-Accessible Scaleway Object Storage Attack Surface",
+    description=(
+        "Scaleway Object Storage buckets accessible from the internet, either "
+        "through a bucket policy granting anonymous access or an ACL granting "
+        "AllUsers / AuthenticatedUsers."
+    ),
+    cypher_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    WHERE b.public = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.region AS region,
+        b.public AS public_access,
+        b.anonymous_actions AS public_actions
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:ScalewayObjectStorageBucket)<-[:RESOURCE]-(prj:ScalewayProject)
+    WHERE b.public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:ScalewayObjectStorageBucket)
+    RETURN COUNT(b) AS count
+    """,
+    asset_id_field="id",
+    asset_label="ScalewayObjectStorageBucket",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
     maturity=Maturity.EXPERIMENTAL,
 )
 
@@ -143,13 +186,15 @@ object_storage_public = Rule(
     name="Public Object Storage Attack Surface",
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets, "
-        "Azure Storage Blob Containers, and GCS buckets"
+        "Azure Storage Blob Containers, GCS buckets, and Scaleway Object "
+        "Storage buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
         _gcp_bucket_public,
+        _scaleway_bucket_public,
     ),
     tags=(
         "infrastructure",
@@ -157,5 +202,36 @@ object_storage_public = Rule(
         "stride:information_disclosure",
     ),
     version="0.1.0",
-    frameworks=(iso27001_annex_a("8.3"),),
+    frameworks=(
+        iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.6"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 CC6.7: Partial information-movement coverage
+# Covered today: transport encryption gaps and unauthorized external sharing, via
+# aws_expired_ssl_tls_certificates, gcp_cloudsql_ssl_not_enforced,
+# databricks_public_delta_sharing_recipient and public_snapshots.
+# Missing datamodel: DLP policy state, approved transfer channels,
+# removable-media controls, and the authorization context that would say whether
+# a given transfer is sanctioned.
+# Out of reach: data export and egress events. Cartography ingests configuration,
+# not event streams.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 C1.1: Confidential information identification and protection
+# Missing datamodel or evidence: provider-neutral data classification and
+# sensitivity labels linked to databases, datasets, object storage, file
+# storage, and the access or encryption controls protecting those assets.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 C1.2: Confidential information disposal
+# Missing datamodel or evidence: retention and deletion policies, lifecycle-rule
+# execution status, deletion or cryptographic-erasure evidence, and linkage to
+# assets classified as confidential.
+# =============================================================================

@@ -23,7 +23,7 @@ def test_sync_ses_email_identities(mock_get_identities, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:SESEmailIdentity) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSESEmailIdentity) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -36,7 +36,7 @@ def test_sync_ses_email_identities(mock_get_identities, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "SESEmailIdentity",
+        "AWSSESEmailIdentity",
         [
             "arn",
             "identity",
@@ -84,7 +84,7 @@ def test_sync_ses_email_identities(mock_get_identities, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "SESEmailIdentity",
+        "AWSSESEmailIdentity",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -113,7 +113,7 @@ def test_sync_ses_empty(mock_get_identities, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    neo4j_session.run("MATCH (n:SESEmailIdentity) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSESEmailIdentity) DETACH DELETE n")
 
     sync(
         neo4j_session,
@@ -127,7 +127,7 @@ def test_sync_ses_empty(mock_get_identities, neo4j_session):
     assert (
         check_nodes(
             neo4j_session,
-            "SESEmailIdentity",
+            "AWSSESEmailIdentity",
             ["arn"],
         )
         == set()

@@ -473,7 +473,7 @@ def sync_github_teams(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> list[dict[str, Any]]:
     teams_paginated, org_data = get_teams(organization, github_url, github_api_key)
     team_repos = _get_team_repos_for_multiple_teams(
         teams_paginated.nodes,
@@ -508,3 +508,4 @@ def sync_github_teams(
     )
     common_job_parameters["org_url"] = org_data["url"]
     cleanup(neo4j_session, common_job_parameters)
+    return processed_data

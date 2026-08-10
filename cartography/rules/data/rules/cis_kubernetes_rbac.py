@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -84,6 +85,7 @@ _k8s_cluster_admin_usage = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id", "subject_id"),
     module=Module.KUBERNETES,
@@ -107,6 +109,7 @@ kubernetes_cluster_admin_role_usage = Rule(
         cis_kubernetes("5.1.1"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -157,6 +160,8 @@ _k8s_secret_access_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -194,6 +199,8 @@ _k8s_secret_access_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -215,6 +222,7 @@ kubernetes_roles_grant_secret_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.2"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -272,6 +280,8 @@ _k8s_wildcard_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -311,6 +321,8 @@ _k8s_wildcard_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -333,6 +345,7 @@ kubernetes_wildcard_roles = Rule(
         cis_kubernetes("5.1.3"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -364,6 +377,9 @@ _k8s_pod_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -376,14 +392,21 @@ _k8s_pod_create_clusterroles = Fact(
       AND any(v IN cr.verbs WHERE v IN ['create', '*'])
       AND NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
+      AND NOT cr.name STARTS WITH 'eks:'
+      AND NOT cr.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -402,6 +425,9 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN
         r.id AS role_id,
         r.name AS role_name,
@@ -413,13 +439,20 @@ _k8s_pod_create_roles = Fact(
     WHERE ('pods' IN r.resources OR '*' IN r.resources)
       AND any(v IN r.verbs WHERE v IN ['create', '*'])
       AND NOT r.name STARTS WITH 'system:'
+      // Exclude immutable EKS-managed roles (eks: prefix and AWS platform roles)
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (r:KubernetesRole)
     WHERE NOT r.name STARTS WITH 'system:'
+      AND NOT r.name STARTS WITH 'eks:'
+      AND NOT r.name IN ['aws-node', 'vpc-resource-controller-role']
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -436,11 +469,12 @@ kubernetes_roles_grant_pod_creation = Rule(
     output_model=PodCreateAccessOutput,
     facts=(_k8s_pod_create_clusterroles, _k8s_pod_create_roles),
     tags=("rbac", "pods", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.1.0",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.4"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -457,6 +491,7 @@ kubernetes_roles_grant_pod_creation = Rule(
 class DefaultSaBindingsOutput(Finding):
     """Output model for default service account bindings check."""
 
+    namespace_id: str | None = None
     binding_name: str | None = None
     binding_id: str | None = None
     binding_type: str | None = None
@@ -501,6 +536,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -539,6 +575,7 @@ _k8s_default_sa_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -560,7 +597,10 @@ _k8s_default_sa_used_by_pods = Fact(
     WITH cluster.name AS cluster_name, sa.namespace AS namespace, pod.name AS pod_name
     ORDER BY pod_name
     WITH cluster_name, namespace, collect(DISTINCT pod_name) AS pod_names
+    MATCH (ns:KubernetesNamespace)
+    WHERE ns.name = namespace AND ns.cluster_name = cluster_name
     RETURN
+        ns.id AS namespace_id,
         cluster_name + '/' + namespace AS binding_id,
         'PodUsesDefaultServiceAccount' AS binding_type,
         'default' AS service_account_name,
@@ -578,7 +618,8 @@ _k8s_default_sa_used_by_pods = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
-    asset_id_field="binding_id",
+    asset_label="KubernetesNamespace",
+    asset_id_field="namespace_id",
     identity_fields=("cluster_name", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -616,6 +657,7 @@ _k8s_default_sa_automount_enabled = Fact(
       AND coalesce(sa.automount_service_account_token, true) = true
     RETURN COUNT(sa) AS count
     """,
+    asset_label="KubernetesServiceAccount",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -645,6 +687,7 @@ kubernetes_default_service_account_bindings = Rule(
         cis_kubernetes("5.1.5"),
         iso27001_annex_a("5.16"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -697,6 +740,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
+    asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -731,6 +775,7 @@ _k8s_system_masters_role_bindings = Fact(
     MATCH (rb:KubernetesRoleBinding)
     RETURN COUNT(rb) AS count
     """,
+    asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
     identity_fields=("binding_id",),
     module=Module.KUBERNETES,
@@ -756,6 +801,7 @@ kubernetes_system_masters_group_usage = Rule(
     frameworks=(
         cis_kubernetes("5.1.7"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -785,6 +831,9 @@ _k8s_escalation_clusterroles = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      // The default RBAC aggregation ClusterRoles ship on every conformant cluster
+      // carrying these verbs by design; they are noise, not misconfiguration.
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN
         cr.id AS role_id,
         cr.name AS role_name,
@@ -796,13 +845,17 @@ _k8s_escalation_clusterroles = Fact(
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
     WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN *
     """,
     cypher_count_query="""
     MATCH (cr:KubernetesClusterRole)
     WHERE NOT cr.name STARTS WITH 'system:'
+      AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -837,6 +890,8 @@ _k8s_escalation_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -859,6 +914,7 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
         cis_kubernetes("5.1.8"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -912,6 +968,8 @@ _k8s_pv_create_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -948,6 +1006,8 @@ _k8s_pv_create_roles = Fact(
     WHERE NOT r.name STARTS WITH 'system:'
     RETURN COUNT(r) AS count
     """,
+    asset_label="KubernetesRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -968,6 +1028,7 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
     frameworks=(
         cis_kubernetes("5.1.9"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1019,6 +1080,8 @@ _k8s_node_proxy_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1040,6 +1103,7 @@ kubernetes_node_proxy_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.10"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1093,6 +1157,8 @@ _k8s_csr_approval_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1113,6 +1179,7 @@ kubernetes_csr_approval_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.11"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1132,7 +1199,7 @@ class WebhookConfigAccessOutput(Finding):
     role_name: str | None = None
     role_id: str | None = None
     role_type: str | None = None
-    webhook_resources: str | None = None
+    webhook_resources: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -1159,7 +1226,8 @@ _k8s_webhook_config_clusterroles = Fact(
         'ClusterRole' AS role_type,
         [r IN cr.resources WHERE r IN [
             'validatingwebhookconfigurations',
-            'mutatingwebhookconfigurations'
+            'mutatingwebhookconfigurations',
+            '*'
         ]] AS webhook_resources,
         cluster.name AS cluster_name
     """,
@@ -1179,6 +1247,8 @@ _k8s_webhook_config_clusterroles = Fact(
     WHERE NOT cr.name STARTS WITH 'system:'
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1200,6 +1270,7 @@ kubernetes_webhook_configuration_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.12"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -1259,6 +1330,8 @@ _k8s_sa_token_creation_clusterroles = Fact(
       AND NOT cr.name IN ['cluster-admin', 'admin', 'edit', 'view']
     RETURN COUNT(cr) AS count
     """,
+    asset_label="KubernetesClusterRole",
+    asset_id_field="role_id",
     identity_fields=("role_id",),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
@@ -1279,6 +1352,7 @@ kubernetes_service_account_token_creation_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

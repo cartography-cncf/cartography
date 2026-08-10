@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -74,6 +75,8 @@ _gw_user_2sv_not_enforced = Fact(
     MATCH (u:GoogleWorkspaceUser)
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -94,6 +97,7 @@ googleworkspace_users_without_enforced_2sv = Rule(
     frameworks=(
         cis_google_workspace("4.1.1.3"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -155,6 +159,8 @@ _gw_admin_2sv_not_enforced = Fact(
     WHERE coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -176,6 +182,7 @@ googleworkspace_admins_without_enforced_2sv = Rule(
         cis_google_workspace("4.1.1.1"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -241,6 +248,8 @@ _gw_super_admin_count_too_low = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    asset_id_field="tenant_id",
+    asset_label="GoogleWorkspaceTenant",
     identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -300,6 +309,8 @@ _gw_super_admin_count_too_high = Fact(
     MATCH (t:GoogleWorkspaceTenant)
     RETURN COUNT(t) AS count
     """,
+    asset_id_field="tenant_id",
+    asset_label="GoogleWorkspaceTenant",
     identity_fields=("tenant_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -321,6 +332,7 @@ googleworkspace_too_many_super_admin_accounts = Rule(
         cis_google_workspace("1.1.2"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -364,6 +376,8 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     WHERE coalesce(u.is_admin, false) = true
     RETURN COUNT(u) AS count
     """,
+    asset_id_field="user_id",
+    asset_label="GoogleWorkspaceUser",
     identity_fields=("user_id",),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -384,6 +398,7 @@ googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
     frameworks=(
         cis_google_workspace("1.1.3"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

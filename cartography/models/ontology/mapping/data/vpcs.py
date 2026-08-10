@@ -63,8 +63,26 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayVpc",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # _ont_cidr: not mapped. Scaleway VPCs carry no CIDR; the IP ranges
+                # live on the member subnets (ScalewaySubnet.subnet).
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+            ],
+        ),
+    ],
+)
+
 VPCS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
 }

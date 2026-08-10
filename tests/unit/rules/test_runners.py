@@ -8,12 +8,63 @@ correctly sums up from facts → findings.
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from neo4j.exceptions import AuthError
+
 from cartography.rules.runners import _run_single_rule
+from cartography.rules.runners import run_rules
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.result import FactResult
+
+
+@patch("cartography.rules.runners._format_and_output_results")
+@patch("cartography.rules.runners.GraphDatabase.driver")
+def test_run_rules_connects_without_auth_when_password_is_missing(
+    mock_driver_factory, mock_format_results
+):
+    mock_driver = mock_driver_factory.return_value
+
+    assert run_rules([], "bolt://neo4j", "neo4j", None, "neo4j") == 0
+
+    mock_driver_factory.assert_called_once_with("bolt://neo4j", auth=None)
+    mock_driver.verify_connectivity.assert_called_once_with()
+    mock_driver.close.assert_called_once_with()
+
+
+@patch("cartography.rules.runners._format_and_output_results")
+@patch("cartography.rules.runners.GraphDatabase.driver")
+def test_run_rules_connects_with_auth_when_password_is_present(
+    mock_driver_factory, mock_format_results
+):
+    mock_driver = mock_driver_factory.return_value
+
+    assert run_rules([], "bolt://neo4j", "neo4j", "secret", "neo4j") == 0
+
+    mock_driver_factory.assert_called_once_with(
+        "bolt://neo4j", auth=("neo4j", "secret")
+    )
+    mock_driver.verify_connectivity.assert_called_once_with()
+    mock_driver.close.assert_called_once_with()
+
+
+@patch("cartography.rules.runners.GraphDatabase.driver")
+def test_run_rules_reports_authentication_failure_without_traceback(
+    mock_driver_factory, capsys
+):
+    mock_driver = mock_driver_factory.return_value
+    mock_driver.verify_connectivity.side_effect = AuthError("unauthorized")
+
+    assert run_rules([], "bolt://neo4j", "neo4j", "wrong", "neo4j") == 1
+
+    output = capsys.readouterr().err
+    assert "Neo4j authentication failed" in output
+    assert "NEO4J_PASSWORD" in output
+    assert "--neo4j-password-env-var" in output
+    assert "--neo4j-password-prompt" in output
+    assert "Traceback" not in output
+    mock_driver.close.assert_called_once_with()
 
 
 @patch("cartography.rules.runners._run_fact")

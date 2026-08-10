@@ -21,6 +21,85 @@ If you need to supply an API key or other credential to your Cartography module,
 
 Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we [validate](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37) that `config.okta_api_key` has been defined before attempting to continue.
 
+### Documenting module configuration
+
+Every intel module must provide `docs/root/modules/<module>/config.md`. Keep the
+page focused on the steps required to run the module and use the following
+canonical structure. Omit optional sections that do not apply instead of
+leaving empty headings.
+
+```markdown
+# <Module> Configuration
+
+<!-- Briefly state what must be configured before this module can run. -->
+
+## Prerequisites
+
+<!-- Optional. List provider-side resources or tools that must already exist. -->
+
+## Authentication
+
+<!-- Required for API-backed modules. Explain how to create and supply credentials. -->
+
+### <Authentication method>
+
+<!-- Optional. Use subsections only when the module supports multiple methods. -->
+
+## Required Permissions
+
+<!-- Optional. Prefer a table for permissions. -->
+
+## Optional Permissions
+
+<!-- Optional. State which feature each permission enables. -->
+
+## Configure Cartography
+
+<!-- Required. Document environment variables, CLI options, and accepted values. -->
+
+## Run Cartography
+
+<!-- Required. Include at least one directly runnable command. -->
+
+## Input Artifacts
+
+<!-- Optional for report- or file-backed modules. -->
+
+### Generate Input Artifacts
+
+<!-- Optional. Explain how to create the artifacts Cartography consumes. -->
+
+### Input Format
+
+<!-- Optional. Document only setup-relevant format requirements. -->
+
+## Advanced Configuration
+
+<!-- Optional. Cover multi-account, multi-tenant, filtering, or alternate modes. -->
+
+## Troubleshooting
+
+<!-- Optional. Include only configuration-specific failures and remedies. -->
+
+## References
+
+<!-- Optional. Link to authoritative provider and Cartography documentation. -->
+```
+
+Use one H1 page title and start sections at H2. Order setup as prerequisites,
+authentication, permissions, Cartography configuration, and a runnable command.
+Store secrets in environment variables and clearly document `*-env-var`
+indirection. Prefer tables for permissions or when documenting three or more
+configuration options. Distinguish required permissions from optional
+permissions and explain any graceful degradation.
+
+Put module purpose, feature inventories, architecture, broad ingestion
+behavior, and ontology integration in `index.md`. Put Cypher investigations in
+`queries.md` or `examples.md`, and put post-ingestion analysis behavior in
+`analysis.md`. Node, relationship, and property documentation belongs in model
+docstrings and `PropertyRef.description`, which Sphinx uses to generate
+`schema.md`.
+
 ## Sync = Get, Transform, Load, Cleanup
 
 A cartography intel module consists of one `sync` function. `sync` should call `get`, then `load`, and finally `cleanup`.
@@ -94,7 +173,7 @@ As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema c
 ```python
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
-    label: str = 'EMRCluster'  # The label of the node
+    label: str = 'AWSEMRCluster'  # The label of the node
     properties: EMRClusterNodeProperties = EMRClusterNodeProperties()  # An object representing all properties on the EMR Cluster node
     sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
 ```
@@ -122,9 +201,9 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
 
 A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
 
-For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `EMRCluster` node using the value located at key `'id'` on each dict in the list.
+For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `AWSEMRCluster` node using the value located at key `'id'` on each dict in the list.
 
-As another example, `region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)` tells the querybuilder to set a field called `region` on the `EMRCluster` node using a keyword argument called `Region` supplied to `cartography.client.core.tx.load()`. `set_in_kwargs=True` is useful in cases where we want every object loaded by a single call to `load()` to have the same value for a given attribute.
+As another example, `region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)` tells the querybuilder to set a field called `region` on the `AWSEMRCluster` node using a keyword argument called `Region` supplied to `cartography.client.core.tx.load()`. `set_in_kwargs=True` is useful in cases where we want every object loaded by a single call to `load()` to have the same value for a given attribute.
 
 ##### Node property indexes
 Cartography uses its data model to automatically create indexes for
@@ -142,30 +221,94 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
 
 Index creation is idempotent (we only create them if they don't exist).
 
-See [below](#indexescypher) for more information on indexes.
+See [below](#indexes-cypher) for more information on indexes.
 
 
 #### Extra node labels
 
-You can add additional Neo4j labels to your nodes using `ExtraNodeLabels`:
+You can add additional Neo4j labels to a node with `ExtraNodeLabels`. This lets
+different node types share a query target without changing their primary
+labels. First define an uppercase `ExtraNodeLabel` constant in the appropriate
+label module. Then import that constant into each node schema that needs it.
+
+For example, AWS IAM users, groups, roles, and federated identities all use the
+`AWSPrincipal` label so queries can address them as AWS principals:
 
 ```python
-from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabel
 
-@dataclass(frozen=True)
-class EMRClusterSchema(CartographyNodeSchema):
-    label: str = 'EMRCluster'
-    properties: EMRClusterNodeProperties = EMRClusterNodeProperties()
-    sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
-
-    # Add extra labels to the node
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(['Resource', 'AWSResource'])
+# cartography/models/aws/extra_labels.py
+AWS_PRINCIPAL = ExtraNodeLabel(
+    label="AWSPrincipal",
+    description="An AWS identity that can make authenticated requests.",
+)
 ```
 
-This creates nodes with multiple labels: `(:EMRCluster:Resource:AWSResource)`. Extra labels are useful for:
-- Creating taxonomies (e.g., all AWS resources share an `AWSResource` label)
-- Enabling cross-module queries (e.g., find all `Resource` nodes regardless of specific type)
-- Ontology mapping
+```python
+from cartography.models.aws.extra_labels import AWS_PRINCIPAL
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import PERMISSION_ROLE
+
+@dataclass(frozen=True)
+class AWSRoleSchema(CartographyNodeSchema):
+    label: str = "AWSRole"
+    properties: AWSRoleNodeProperties = AWSRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [AWS_PRINCIPAL, PERMISSION_ROLE]
+    )
+```
+
+This creates nodes with the labels
+`(:AWSRole:AWSPrincipal:PermissionRole)`. The role remains addressable by its
+primary `AWSRole` label and can also participate in queries for AWS principals
+or permission roles.
+
+`LabelKind.STANDARD` is the default for provider-local and shared graph
+interfaces. Use `LabelKind.ONTOLOGY` for cross-provider semantic labels. The
+`description` field provides metadata for introspection and generated
+documentation; it does not change ingestion behavior.
+
+Define each label once and reuse its exported constant. Raw strings are not
+accepted. Cross-provider ontology label constants live in
+`cartography.models.ontology.labels` and use `LabelKind.ONTOLOGY`;
+provider-local interface labels should remain near their provider models.
+`ExtraNodeLabels` accepts an iterable and stores the labels as an immutable
+tuple.
+
+#### Compatibility labels
+
+Use a compatibility label only when renaming a node's primary Neo4j label. It
+temporarily keeps the old label on newly ingested nodes so existing queries
+continue to work during the migration period. The node is still supported
+under its new primary label.
+
+For example, CloudWatch log groups now use `AWSCloudWatchLogGroup` as their
+primary label while retaining `CloudWatchLogGroup` until version 1.0.0:
+
+```python
+from cartography.models.core.nodes import LabelKind
+
+LEGACY_CLOUD_WATCH_LOG_GROUP = ExtraNodeLabel(
+    label="CloudWatchLogGroup",
+    description="Compatibility label for the former CloudWatchLogGroup node label.",
+    kind=LabelKind.COMPATIBILITY,
+    replacement_label="AWSCloudWatchLogGroup",
+    remove_in="1.0.0",
+)
+
+@dataclass(frozen=True)
+class CloudWatchLogGroupSchema(CartographyNodeSchema):
+    label: str = "AWSCloudWatchLogGroup"
+    properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_CLOUD_WATCH_LOG_GROUP]
+    )
+```
+
+`replacement_label` records the new primary label for introspection and
+documentation. `remove_in` records the release in which the compatibility
+label can be removed. Both fields are optional and are valid only when
+`kind=LabelKind.COMPATIBILITY`.
 
 #### Conditional node labels
 
@@ -173,31 +316,35 @@ This creates nodes with multiple labels: `(:EMRCluster:Resource:AWSResource)`. E
 Conditional labels are a specialized feature primarily used for ontology mapping scenarios where a single data source produces records that map to different semantic types. Most intel modules do not need this feature.
 ```
 
-Sometimes you want to apply labels only when certain conditions are met. Use `ConditionalNodeLabel` for this:
+Sometimes the label depends on values in each data dictionary processed by the
+loader. Compose a conditional value from an exported constant with
+`CONSTANT.when(property_name="value")`. The keyword must name a property in
+the node schema. The loader sets that node property from its `PropertyRef` in
+each input data dictionary before the condition is evaluated.
+
+For example, the ECR transform
+[sets the `type` key on each image](https://github.com/cartography-cncf/cartography/blob/99b77f07d946b38ac2ec720c30287d2a3faac5c5/cartography/intel/aws/ecr.py#L105-L114).
+The
+[ECR image schema uses that key](https://github.com/cartography-cncf/cartography/blob/99b77f07d946b38ac2ec720c30287d2a3faac5c5/cartography/models/aws/ecr/image.py#L190-L196)
+to select the matching ontology label:
 
 ```python
-from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import IMAGE
+from cartography.models.ontology.labels import IMAGE_ATTESTATION
+from cartography.models.ontology.labels import IMAGE_MANIFEST_LIST
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    label: str = "ECRImage"
+    label: str = "AWSECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
 
     # Apply different ontology labels based on the image type
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
-        ConditionalNodeLabel(
-            label="Image",
-            conditions={"type": "IMAGE"}
-        ),
-        ConditionalNodeLabel(
-            label="ImageAttestation",
-            conditions={"type": "IMAGE_ATTESTATION"}
-        ),
-        ConditionalNodeLabel(
-            label="ImageManifestList",
-            conditions={"type": "IMAGE_MANIFEST_LIST"}
-        ),
+        IMAGE.when(type="image"),
+        IMAGE_ATTESTATION.when(type="attestation"),
+        IMAGE_MANIFEST_LIST.when(type="manifest_list"),
     ])
 ```
 
@@ -207,24 +354,33 @@ ECR (and other container registries) store different types of artifacts that sha
 
 | `type` field value | Ontology Label | Description |
 |-------------------|----------------|-------------|
-| `IMAGE` | `Image` | Standard container image |
-| `IMAGE_ATTESTATION` | `ImageAttestation` | SLSA/Sigstore attestation |
-| `IMAGE_MANIFEST_LIST` | `ImageManifestList` | Multi-arch manifest list |
+| `image` | `Image` | Standard container image |
+| `attestation` | `ImageAttestation` | SLSA/Sigstore attestation |
+| `manifest_list` | `ImageManifestList` | Multi-arch manifest list |
 
-Without conditional labels, we cannot accurately map these to distinct ontology types. An `ECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
+Without conditional labels, we cannot accurately map these to distinct ontology
+types. An `AWSECRImage` node with `type: "attestation"` should be labeled as
+`ImageAttestation` in the ontology, not just generic `Image`. Production ECR
+values are `image`, `attestation`, and `manifest_list`. Exact matching is
+case-sensitive, so uppercase variants do not match.
 
 **How it works:**
-- String labels are applied unconditionally to all nodes during ingestion
-- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only to nodes matching all specified conditions
-- Conditions use exact string equality and are combined with AND logic
+- Labels with empty `conditions` are applied unconditionally in the ingestion query's `SET` clause
+- Labels with nonempty `conditions` are applied row by row in the same ingestion query, with a pair of `FOREACH` clauses that add the label when the conditions hold and remove it when they do not
+- `when()` returns a new immutable label value and leaves the exported constant unchanged
+- Conditions are stored as immutable, sorted `(field, value)` tuples
+- Conditions use case-sensitive exact string equality and are combined with AND logic
 - When conditions change, labels are automatically added or removed on subsequent syncs
 
 **Important notes:**
 - Condition values must be strings (e.g., `"true"` not `True`)
-- All conditions must match for the label to be applied (AND logic)
-- Indexes are automatically created for conditional labels and their condition fields
+- Condition field names must exist on the concrete node's properties schema
+- All conditions in one `when()` call must match for the label to be applied (AND logic). Declaring the same label more than once with different conditions is allowed: the label applies if any of the declarations matches (OR logic)
+- Because labels are applied per row, only the nodes in the current batch are relabeled. A node whose conditions no longer hold is corrected the next time it is loaded, or deleted by cleanup if it is no longer reported
+- Indexes are automatically created for conditional labels themselves. Condition fields are not indexed: they are evaluated against the already-bound node of the current row, so there is no lookup for an index to serve
 
 
+(defining-relationships)=
 #### Defining relationships
 
 Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
@@ -233,7 +389,7 @@ As seen above, an `EMRClusterSchema` only has a single relationship defined: an 
 
 ```python
 @dataclass(frozen=True)
-# (:EMRCluster)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount)
 class EMRClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = 'AWSAccount'  # (1)
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(  # (2)
@@ -247,7 +403,7 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 This class is best described by explaining how it is processed: `build_ingestion_query()` will traverse the `EMRClusterSchema` to its `sub_resource_relationship` field and find the above `EMRClusterToAWSAccountRel` object. With this information, we know to
 - draw a relationship to an `AWSAccount` node (1) using the label "`RESOURCE`" (4)
 - by matching on the AWSAccount's "`id`" field" (2)
-- where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the EMRCluster (3)
+- where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the AWSEMRCluster (3)
 - making sure to define a set of properties for the relationship (5). The [full example RelProperties](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91) is very short:
 
 ```python
@@ -330,7 +486,7 @@ And those are all the objects necessary for this example! The resulting query wi
 
 ```cypher
 UNWIND $DictList AS item
-    MERGE (i:EMRCluster{id: item.Id})
+    MERGE (i:AWSEMRCluster{id: item.Id})
     ON CREATE SET i.firstseen = timestamp()
     SET
         i.lastupdated = $lastupdated,
@@ -394,12 +550,14 @@ In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
 and [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42).
 All of these queries use indexes for faster lookup.
 
+(indexes-cypher)=
 #### indexes.cypher
 
 Older intel modules define indexes in [indexes.cypher](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher).
 By using CartographyNodeSchema and CartographyRelSchema objects, indexes are automatically created so you don't need to update this file!
 
 
+(lastupdated-and-firstseen)=
 #### lastupdated and firstseen
 
 On every cartography node and relationship, we set the `lastupdated` field to the `UPDATE_TAG` and `firstseen` field to `timestamp()` (a built-in Neo4j function equivalent to epoch time in milliseconds). This is automatically handled by the cartography object model.
@@ -598,10 +756,13 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
 
 - Only catch exceptions when your code can resolve the issue. Otherwise, allow exceptions to bubble up.
 
-## Schema
+## Schema documentation
 
-- Update the [schema](https://github.com/cartography-cncf/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema)
-with every change!
+Do not create or edit a module's `schema.md` manually. Sphinx generates schema
+pages from the declarative data model. Add a docstring to every node and
+relationship schema, and add a human-readable `description=` to every displayed
+`PropertyRef`. Update these model definitions whenever the graph schema
+changes.
 
 ## Making tests
 
@@ -643,7 +804,7 @@ resources that exist in the graph don't change across syncs.
     # RDS Instance refers to Security Groups by ID only
     @dataclass(frozen=True)
     class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
-        target_node_label: str = "EC2SecurityGroup"
+        target_node_label: str = "AWSEC2SecurityGroup"
         target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
             "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
         })
@@ -654,7 +815,7 @@ resources that exist in the graph don't change across syncs.
 
     **Composite Node Pattern**: When a data type `A` refers to another data type `B` and offers additional fields about `B` that `B` doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
 
-    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `AWSEBSVolume` node label, allowing the node to accumulate properties from both sources.
 
     ```python
     # EC2 Instance provides additional properties about EBS Volumes
@@ -668,7 +829,7 @@ resources that exist in the graph don't change across syncs.
 
     @dataclass(frozen=True)
     class EBSVolumeInstanceSchema(CartographyNodeSchema):
-        label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+        label: str = "AWSEBSVolume"  # Same label as EBSVolumeSchema
         properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
         sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
         # ... other relationships

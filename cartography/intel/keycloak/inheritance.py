@@ -9,7 +9,9 @@ from cartography.graph.job import GraphJob
 from cartography.models.keycloak.inheritance import (
     KeycloakRoleIndirectGrantsScopeMatchLink,
 )
+from cartography.models.keycloak.inheritance import KeycloakUserAssumeRoleMatchLink
 from cartography.models.keycloak.inheritance import KeycloakUserAssumeScopeMatchLink
+from cartography.models.keycloak.inheritance import KeycloakUserHasRoleMatchLink
 from cartography.models.keycloak.inheritance import (
     KeycloakUserInheritedMemberOfGroupMatchLink,
 )
@@ -25,18 +27,10 @@ _INHERITED_MEMBER_OF_QUERY = """
     RETURN DISTINCT u.id AS user_id, pg.id AS group_id
 """
 
-_ASSUME_ROLE_VIA_GROUP_QUERY = """
+_ROLE_VIA_GROUP_QUERY = """
     MATCH (:KeycloakRealm {name: $REALM})-[:RESOURCE]->(u:KeycloakUser)
           -[:MEMBER_OF|INHERITED_MEMBER_OF]->(:KeycloakGroup)-[:GRANTS|HAS_ROLE]->(r:KeycloakRole)
-    // DEPRECATED: ASSUME_ROLE is kept for backward compatibility alongside the
-    // canonical HAS_ROLE edge; will be removed in v1.0.0.
-    MERGE (u)-[rel:ASSUME_ROLE]->(r)
-    ON CREATE SET rel.firstseen = timestamp()
-    SET rel.lastupdated = $UPDATE_TAG
-    // Canonical ontology edge: (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
-    MERGE (u)-[hr:HAS_ROLE]->(r)
-    ON CREATE SET hr.firstseen = timestamp()
-    SET hr.lastupdated = $UPDATE_TAG
+    RETURN DISTINCT u.id AS user_id, r.id AS role_id
 """
 
 _INDIRECT_GRANTS_QUERY = """
@@ -95,11 +89,24 @@ def _sync_realm_inheritance(
             _sub_resource_id=realm_name,
         )
 
-    neo4j_session.run(
-        _ASSUME_ROLE_VIA_GROUP_QUERY,
+    role_assignments = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        _ROLE_VIA_GROUP_QUERY,
         REALM=realm_name,
-        UPDATE_TAG=update_tag,
     )
+    for matchlink in (
+        # DEPRECATED: ASSUME_ROLE compatibility relationships will be removed in v1.0.0.
+        KeycloakUserAssumeRoleMatchLink(),
+        KeycloakUserHasRoleMatchLink(),
+    ):
+        load_matchlinks(
+            neo4j_session,
+            matchlink,
+            role_assignments,
+            lastupdated=update_tag,
+            _sub_resource_label=_SUB_RESOURCE_LABEL,
+            _sub_resource_id=realm_name,
+        )
 
     indirect_grants = neo4j_session.execute_read(
         read_list_of_dicts_tx,
@@ -160,6 +167,8 @@ def _cleanup_realm(
 ) -> None:
     for matchlink in (
         KeycloakUserInheritedMemberOfGroupMatchLink(),
+        KeycloakUserAssumeRoleMatchLink(),
+        KeycloakUserHasRoleMatchLink(),
         KeycloakRoleIndirectGrantsScopeMatchLink(),
         KeycloakUserAssumeScopeMatchLink(),
     ):

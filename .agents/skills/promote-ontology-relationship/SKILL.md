@@ -26,7 +26,7 @@ Sometimes a constrained pair has **no direct provider edge** to promote: the rel
 
 1. **Classic `CartographyRelSchema` (preferred).** Use when the source node's own payload already carries the target's identifier (e.g. an AWS Lambda payload holds its execution-role arn, an API-key payload holds its owner id). Add a normal rel class on the source schema pointing at the target label, with the canonical `rel_label`. This is just Step 4 without a deprecated sibling. Use the `add-relationship` skill for the mechanics.
 
-2. **MatchLink — always prefer this over an analysis job.** Use when the two endpoints are created in **different syncs**, or the relationship is only derivable by resolving a binding node, so neither schema's payload can express it directly (e.g. `EC2Instance -[:ASSUMES]-> AWSRole` resolved through the instance profile in the IAM sync; `AzureVirtualMachine -[:ASSUMES]-> AzureRoleDefinition` joined on the managed-identity `principalId` via `AzureRoleAssignment`). Assemble the `(source_key, target_key)` pairs in the owning sync and load them with `load_matchlinks` / a `MatchLink` schema carrying the canonical `rel_label`. The guard reads a MatchLink's direction + label too, so the canonical name is enforced. Use the `add-relationship` skill for `MatchLink` mechanics.
+2. **MatchLink — always prefer this over an analysis job.** Use when the two endpoints are created in **different syncs**, or the relationship is only derivable by resolving a binding node, so neither schema's payload can express it directly (e.g. `AWSEC2Instance -[:ASSUMES]-> AWSRole` resolved through the instance profile in the IAM sync; `AzureVirtualMachine -[:ASSUMES]-> AzureRoleDefinition` joined on the managed-identity `principalId` via `AzureRoleAssignment`). Assemble the `(source_key, target_key)` pairs in the owning sync and load them with `load_matchlinks` / a `MatchLink` schema carrying the canonical `rel_label`. The guard reads a MatchLink's direction + label too, so the canonical name is enforced. Use the `add-relationship` skill for `MatchLink` mechanics.
 
 3. **Analysis job (last resort).** Only when the edge is purely **transitive** and the join genuinely cannot be assembled inside a single sync, so it must be computed post-sync by traversing the whole graph (e.g. deriving `GCPInstance -[:ASSUMES]-> GCPRole` across `RUNS_AS` + `HAS_ROLE`, where the compute sync and the IAM-policy-binding sync each hold only half the path). Add a Cypher analysis job (see the `analysis-jobs` skill) that `MERGE`s the canonical edge. If you reach for this, first re-confirm a MatchLink really cannot assemble the pairs; an analysis job is harder to test and to keep idempotent.
 
@@ -34,7 +34,7 @@ Whichever you pick, the canonical label/direction must match the `RelConstraint`
 
 ## Critical rules
 
-1. **The guard reads labels from the node *schema*** (`label` + `extra_node_labels`, including `ConditionalNodeLabel`), not from the runtime graph. An edge is only constrained when **both** endpoints carry an ontology label in their schema. Edges through intermediate binding nodes (e.g. `GCPPolicyBinding`, `KubernetesRoleBinding`, `AzureRoleAssignment`) are NOT direct and are not affected by a rename.
+1. **The guard reads labels from the node *schema*** (`label` + declarative `extra_node_labels`, including labels with conditions), not from the runtime graph. An edge is only constrained when **both** endpoints carry an ontology label in their schema. Edges through intermediate binding nodes (e.g. `GCPPolicyBinding`, `KubernetesRoleBinding`, `AzureRoleAssignment`) are NOT direct and are not affected by a rename.
 2. **Pick the canonical verb to fit the abstraction, not one provider.** The label applies to the abstract semantic pair (e.g. `UserAccount -> PermissionRole`), which spans many providers. Prefer a neutral verb (`HAS_ROLE`, not `ASSUME_ROLE`, when the target generalises IAM roles, permission sets, and SaaS roles). Reserve action verbs (`ASSUMES`) for workload-identity/runtime semantics.
 3. **Backward compatibility is mandatory.** Never rename in place. The old edge keeps being created (whitelisted) until v1.0.0 so existing queries/rules keep working.
 4. **Run the guard test to discover collisions**: do not assume you found every edge by reading code. `test_ontology_rel_constraints.py` will list every offending rel (wrong label or reverse direction). Decide per edge: migrate (parallel + deprecate) or whitelist (distinct semantic).
@@ -50,7 +50,13 @@ Decide the abstract pair and verb, e.g. `UserAccount -[:HAS_ROLE]-> PermissionRo
 
 ### Step 2: Find which provider nodes carry each ontology label
 
-The semantic label is applied via `extra_node_labels` on the node schema (sometimes a `ConditionalNodeLabel`). The ontology mapping files under `cartography/models/ontology/mapping/data/<category>.py` list which provider node labels belong to a category. Build the set of node labels carrying `src` and `dst`.
+The semantic label is applied via an exported uppercase `ExtraNodeLabel`
+constant on the node schema, sometimes composed conditionally with
+`CONSTANT.when(field="value")`. Ontology constants have
+`kind=LabelKind.ONTOLOGY`. The ontology mapping files under
+`cartography/models/ontology/mapping/data/<category>.py` list which provider
+node labels belong to a category. Build the set of node labels carrying `src`
+and `dst`.
 
 ```bash
 # which schemas declare the semantic labels
@@ -143,7 +149,7 @@ Re-run until green. Add the needed imports to `constraints.py` (isort will order
   ```bash
   grep -rn "OLD_LABEL\|<SrcNode>.*<DstNode>" docs/root/modules/<provider>/schema.md
   ```
-- **Do not remove a same-label edge that is a different, non-deprecated relationship.** Cross-check against `LEGACY_REL_WHITELIST`: only the exact `(src, label, dst)` triples you deprecated are removed. Example from the `WORKLOAD_PARENT` cleanup: `(:ECSService)-[:HAS_TASK]->(:ECSTask)` was removed, but `(:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)` (same `HAS_TASK` label, not deprecated) was kept. Likewise the Kubernetes namespace catch-all kept `CONTAINS` to `Secret`/`Service`/`Role` and only dropped `Pod`/`Container`.
+- **Do not remove a same-label edge that is a different, non-deprecated relationship.** Cross-check against `LEGACY_REL_WHITELIST`: only the exact `(src, label, dst)` triples you deprecated are removed. Example from the `WORKLOAD_PARENT` cleanup: `(:AWSECSService)-[:HAS_TASK]->(:AWSECSTask)` was removed, but `(:AWSECSContainerInstance)-[:HAS_TASK]->(:AWSECSTask)` (same `HAS_TASK` label, not deprecated) was kept. Likewise the Kubernetes namespace catch-all kept `CONTAINS` to `Secret`/`Service`/`Role` and only dropped `Pod`/`Container`.
 - Reword surrounding prose/notes to the canonical label.
 
 **Ontology `schema.md`** (`docs/root/modules/ontology/schema.md`): add the edge to the top mermaid diagram (`UA -- HAS_ROLE --> PR`) and to the prose under the `dst` semantic-label section.

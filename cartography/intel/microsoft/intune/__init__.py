@@ -5,6 +5,9 @@ import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 
+from cartography.analysis.microsoft.intune.analysis import (
+    INTUNE_COMPLIANCE_POLICY_DEVICE,
+)
 from cartography.config import Config
 from cartography.intel.microsoft.client import create_graph_service_client
 from cartography.intel.microsoft.intune.compliance_policies import (
@@ -13,7 +16,7 @@ from cartography.intel.microsoft.intune.compliance_policies import (
 from cartography.intel.microsoft.intune.detected_apps import sync_detected_apps
 from cartography.intel.microsoft.intune.managed_devices import sync_managed_devices
 from cartography.intel.microsoft.intune.reports import IntuneReportExportError
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -26,18 +29,16 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     as Intune nodes relate back to Entra users, groups, and tenants.
 
     Uses the same Microsoft Graph credentials as the Entra sync
-    (config.entra_tenant_id / client_id / client_secret).
-    TODO: rename config params to microsoft_* once CLI migration is done.
+    (config.microsoft_tenant_id / client_id / client_secret).
 
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     :return: None
     """
-    if (
-        not config.entra_tenant_id
-        or not config.entra_client_id
-        or not config.entra_client_secret
-    ):
+    tenant_id = config.microsoft_tenant_id
+    client_id = config.microsoft_client_id
+    client_secret = config.microsoft_client_secret
+    if not tenant_id or not client_id or not client_secret:
         logger.info(
             "Intune import is not configured - skipping this module. "
             "See docs to configure.",
@@ -46,14 +47,14 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "TENANT_ID": config.entra_tenant_id,
+        "TENANT_ID": tenant_id,
     }
 
     async def main() -> None:
         credential = ClientSecretCredential(
-            tenant_id=config.entra_tenant_id,
-            client_id=config.entra_client_id,
-            client_secret=config.entra_client_secret,
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
         )
         intune_client = create_graph_service_client(credential)
 
@@ -62,7 +63,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             await sync_managed_devices(
                 neo4j_session,
                 intune_client,
-                config.entra_tenant_id,
+                tenant_id,
                 config.update_tag,
                 common_job_parameters,
             )
@@ -80,7 +81,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             await sync_detected_apps(
                 neo4j_session,
                 intune_client,
-                config.entra_tenant_id,
+                tenant_id,
                 config.update_tag,
                 common_job_parameters,
             )
@@ -109,7 +110,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             await sync_compliance_policies(
                 neo4j_session,
                 intune_client,
-                config.entra_tenant_id,
+                tenant_id,
                 config.update_tag,
                 common_job_parameters,
             )
@@ -128,8 +129,8 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # cleanup; running the analysis would refresh APPLIES_TO edges on
         # those stale nodes, preventing their eventual removal.
         if managed_devices_synced and compliance_policies_synced:
-            run_scoped_analysis_job(
-                "intune_compliance_policy_device.json",
+            run_typed_analysis_job(
+                INTUNE_COMPLIANCE_POLICY_DEVICE,
                 neo4j_session,
                 common_job_parameters,
             )

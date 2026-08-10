@@ -3,19 +3,23 @@ import logging
 import boto3
 from neo4j import Session
 
+from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
+from cartography.intel.kubernetes.networkpolicies import sync_network_policies
 from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
-from cartography.util import run_scoped_analysis_job
+from cartography.intel.kubernetes.workloads import sync_workloads
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -65,6 +69,11 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
+            # Sync workload controllers before pods so the pod sync can collapse
+            # Pod -> ReplicaSet -> Deployment using the returned RS->Deployment map.
+            replicaset_owner_map = sync_workloads(
+                session, client, config.update_tag, common_job_parameters
+            )
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             region: str | None = None
@@ -93,6 +102,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 common_job_parameters,
                 region=region,
                 node_arch_map=node_arch_map,
+                replicaset_owner_map=replicaset_owner_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(
@@ -102,19 +112,20 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
+            sync_network_policies(
+                session,
+                client,
+                all_pods,
+                config.update_tag,
+                common_job_parameters,
+            )
             sync_gateway_api(session, client, config.update_tag, common_job_parameters)
             sync_ingress(session, client, config.update_tag, common_job_parameters)
 
-            run_scoped_analysis_job(
-                "k8s_compute_asset_exposure.json",
-                session,
-                common_job_parameters,
-            )
-            run_scoped_analysis_job(
-                "k8s_lb_exposure.json",
-                session,
-                common_job_parameters,
-            )
+            for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
+                run_typed_analysis_job(job, session, common_job_parameters)
+            for job in K8S_LB_EXPOSURE_JOBS:
+                run_typed_analysis_job(job, session, common_job_parameters)
         except Exception:
             logger.exception(f"Failed to sync data for k8s cluster {client.name}...")
             raise
