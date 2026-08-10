@@ -84,8 +84,18 @@ def transform(raw: list[dict[str, Any]], environment_name: str) -> list[dict[str
     for sandbox in raw:
         # `tunnels` is a nested list consumed by transform_tunnels; it must not reach the
         # node loader, which only handles scalars and lists of scalars.
+        tunnels = sandbox.get("tunnels") or []
         sandbox = {k: v for k, v in sandbox.items() if k != "tunnels"}
-        sandboxes.append({**sandbox, "environment_name": environment_name})
+        # A tunnel is a forwarded port reachable from the public internet, so it is the
+        # sandbox's inbound exposure. Per-tunnel TLS detail stays on ModalSandboxTunnel.
+        sandboxes.append(
+            {
+                **sandbox,
+                "environment_name": environment_name,
+                "exposed_internet": bool(tunnels),
+                "exposed_internet_type": ["direct"] if tunnels else None,
+            }
+        )
     return sandboxes
 
 

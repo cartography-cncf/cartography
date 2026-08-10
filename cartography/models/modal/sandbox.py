@@ -23,6 +23,16 @@ class ModalSandboxNodeProperties(CartographyNodeProperties):
         "name", extra_index=True, description="Sandbox name, if one was given."
     )
     app_id: PropertyRef = PropertyRef("app_id", description="ID of the owning app.")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the sandbox has at least one tunnel, meaning a forwarded port is reachable from the public internet.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`. Whether a given tunnel terminates TLS is on `ModalSandboxTunnel.has_unencrypted_endpoint`.",
+    )
     # Derived in transform: Modal's SandboxInfo has no state field, so it is inferred from
     # the task result status plus readiness. PENDING / RUNNING are synthetic; the rest are
     # raw GENERIC_STATUS_* values.
