@@ -14,6 +14,9 @@ The two credential types use different headers: an Admin API key goes in `X-Api-
 a federated token in `Authorization: Bearer`.
 """
 
+import base64
+import binascii
+import json
 import logging
 import os
 import random
@@ -25,9 +28,13 @@ from requests.auth import AuthBase
 
 logger = logging.getLogger(__name__)
 
-# Federated tokens live for the federation rule's token_lifetime_seconds (3600 by
-# default). Refresh well before expiry so a long sync never presents a stale token.
-_TOKEN_REFRESH_BUFFER_SECONDS = 300
+# Federated tokens live for the federation rule's token_lifetime_seconds, which ranges
+# from 60 seconds to 24 hours (3600 by default). Anthropic prescribes a two-tier refresh
+# rather than one fixed buffer: attempt a refresh at expiry minus 120s but keep serving
+# the cached token if it fails, then force one at expiry minus 30s. A single buffer
+# wider than the shortest allowed token would mark every such token expired on arrival.
+_ADVISORY_REFRESH_SECONDS = 120
+_MANDATORY_REFRESH_SECONDS = 30
 _TIMEOUT = (60, 60)
 _JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
@@ -132,13 +139,36 @@ class WorkloadIdentityCredential(AnthropicCredential):
         self._token_expires_at: float = 0
 
     def get_headers(self) -> dict[str, str]:
-        if self._token is None or self._is_near_expiry():
+        """Return the Authorization header, refreshing the token on Anthropic's schedule.
+
+        The refresh happens in two tiers rather than at one fixed offset. A federation
+        rule may mint a token as short as 60 seconds, and a single buffer wider than
+        the token's own lifetime would make every token look expired the moment it
+        arrives, re-exchanging on every request.
+        """
+        if self._token is None:
             self._refresh_token()
+            assert self._token is not None
+            return {"Authorization": f"Bearer {self._token}"}
+
+        remaining = self._token_expires_at - time.time()
+        if remaining <= _MANDATORY_REFRESH_SECONDS:
+            # Too close to expiry to keep serving: a failure here has to surface.
+            self._refresh_token()
+        elif remaining <= _ADVISORY_REFRESH_SECONDS:
+            try:
+                self._refresh_token()
+            except requests.exceptions.RequestException as exc:
+                # The cached token is still valid for a while. Serve it and let the
+                # mandatory tier raise if the endpoint is still down by then.
+                logger.warning(
+                    "Advisory refresh of the Anthropic access token failed, continuing "
+                    "with the cached token for another %.0fs. Error: %s",
+                    remaining - _MANDATORY_REFRESH_SECONDS,
+                    exc,
+                )
         assert self._token is not None
         return {"Authorization": f"Bearer {self._token}"}
-
-    def _is_near_expiry(self) -> bool:
-        return time.time() >= (self._token_expires_at - _TOKEN_REFRESH_BUFFER_SECONDS)
 
     def _refresh_token(self) -> None:
         logger.debug(
@@ -316,6 +346,30 @@ def make_assertion_source(
     if identity_token_env_var:
         return EnvVarAssertionSource(identity_token_env_var)
     return None
+
+
+def assertion_has_jti(assertion: str) -> bool:
+    """Report whether the assertion carries a `jti` claim.
+
+    Read-only inspection of the payload segment: the signature is Anthropic's to
+    verify, not ours. A malformed assertion returns False rather than raising, since
+    the token exchange is the right place to reject it with the server's own diagnosis.
+
+    This matters because a federation issuer enforces single-use per `jti` by default
+    (`check_jti`), and only for assertions that carry one. Reusing one assertion across
+    several exchanges is fine without the claim and rejected as a replay with it.
+    """
+    segments = assertion.split(".")
+    if len(segments) != 3:
+        return False
+    payload = segments[1]
+    # base64url without padding, which b64decode requires.
+    payload += "=" * (-len(payload) % 4)
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+    except (ValueError, binascii.Error):
+        return False
+    return isinstance(claims, dict) and "jti" in claims
 
 
 def is_federated(credential: AnthropicCredential) -> bool:

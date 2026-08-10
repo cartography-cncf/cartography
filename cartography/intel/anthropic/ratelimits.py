@@ -23,9 +23,11 @@ def sync(
     common_job_parameters: dict[str, Any],
     workspace_ids: list[str],
 ) -> None:
+    org_id = common_job_parameters["ORG_ID"]
     rate_limits = transform_rate_limits(
         get(api_session, common_job_parameters["BASE_URL"]),
         workspace_id=None,
+        org_id=org_id,
     )
     skipped_workspace_ids: list[str] = []
     for workspace_id in workspace_ids:
@@ -46,7 +48,9 @@ def sync(
             skipped_workspace_ids.append(workspace_id)
             continue
         rate_limits.extend(
-            transform_rate_limits(workspace_limits, workspace_id=workspace_id)
+            transform_rate_limits(
+                workspace_limits, workspace_id=workspace_id, org_id=org_id
+            )
         )
     load_rate_limits(
         neo4j_session,
@@ -95,13 +99,18 @@ def get_workspace_rate_limits(
 def transform_rate_limits(
     groups: list[dict[str, Any]],
     workspace_id: str | None,
+    org_id: str,
 ) -> list[dict[str, Any]]:
     """Explode each group's list of limits into one node per individual limit.
 
     The API returns limits as a nested list of objects, which Neo4j cannot store as
     a node property, and gives no identifier for either the group or the individual
-    limit. The id is synthesised from the fields that make a limit unique: its scope,
-    group type, models and limit type.
+    limit. The id is synthesised from the fields that make a limit unique: the
+    organization, the scope, the group type, the models and the limit type.
+
+    The organization has to be part of it. An organization-wide limit has no workspace
+    to distinguish it, so two organizations in the same graph would otherwise both
+    produce `organization/...` and merge into a single node.
     """
     results: list[dict[str, Any]] = []
     for group in groups:
@@ -113,7 +122,7 @@ def transform_rate_limits(
             limit_type = limit.get("type")
             results.append(
                 {
-                    "id": f"{scope}/{group_type}/{model_key}/{limit_type}",
+                    "id": f"{org_id}/{scope}/{group_type}/{model_key}/{limit_type}",
                     "group_type": group_type,
                     "limit_type": limit_type,
                     "value": limit.get("value"),

@@ -20,6 +20,7 @@ import cartography.intel.anthropic.workspaces
 from cartography.config import Config
 from cartography.intel.anthropic.auth import AnthropicAuth
 from cartography.intel.anthropic.auth import AnthropicCredential
+from cartography.intel.anthropic.auth import assertion_has_jti
 from cartography.intel.anthropic.auth import is_federated
 from cartography.intel.anthropic.auth import make_assertion_source
 from cartography.intel.anthropic.auth import make_credential
@@ -68,6 +69,8 @@ def _sync_workspace_plane(
     token already in hand: the only grant type the token endpoint accepts is
     jwt-bearer, so every workspace re-presents the original identity token.
     """
+    _warn_if_assertion_is_single_use(config, len(workspaces))
+
     for workspace in workspaces:
         workspace_id = workspace["id"]
         try:
@@ -90,16 +93,51 @@ def _sync_workspace_plane(
             cartography.intel.anthropic.agents.sync(
                 neo4j_session, api_session, workspace_job_parameters
             )
-        except requests.exceptions.HTTPError as exc:
+        except (requests.exceptions.RequestException, ValueError) as exc:
             # A failed exchange is expected and undiagnosable: the service account
             # may not be a member of this workspace, or replay protection may have
             # rejected a reused assertion. Both surface as an opaque 400
             # invalid_grant. Skip the workspace rather than abandon the others.
+            #
+            # RequestException rather than HTTPError alone: a timeout, a connection
+            # reset or an exhausted retry policy would otherwise escape the loop and
+            # deny every remaining workspace a sync over one workspace's bad luck.
             logger.warning(
                 "Skipping the workspace plane for Anthropic workspace %s: %s",
                 workspace_id,
                 exc,
             )
+
+
+def _warn_if_assertion_is_single_use(config: Config, workspace_count: int) -> None:
+    """Warn up front when the assertion cannot serve more than one exchange.
+
+    The workspace plane needs one exchange per workspace, all presenting the same
+    identity token, because the token endpoint accepts no grant that downscopes the
+    org:admin token already in hand. A federation issuer enforces single-use per `jti`
+    by default, so an assertion carrying that claim mints exactly one token and every
+    later workspace fails with the same opaque 400 invalid_grant as a genuine
+    misconfiguration. Say so before the fan-out; the remedy is on the issuer
+    (`check_jti: false`) or the token source, and cartography cannot apply either.
+    """
+    if workspace_count < 2:
+        return
+    assertion_source = make_assertion_source(
+        config.anthropic_identity_token_file,
+        config.anthropic_identity_token_env_var,
+    )
+    if assertion_source is None:
+        return
+    if not assertion_has_jti(assertion_source.read()):
+        return
+    logger.warning(
+        "The Anthropic identity token carries a jti claim and %d workspaces need one "
+        "token exchange each. Federation issuers enforce single-use per jti by "
+        "default, so every workspace after the first is likely to be rejected as a "
+        "replay. Set check_jti to false on the federation issuer, or supply a token "
+        "source that yields a fresh assertion per read.",
+        workspace_count,
+    )
 
 
 def _cleanup_detached_workspace_resources(

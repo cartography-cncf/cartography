@@ -53,28 +53,28 @@ def test_load_anthropic_rate_limits(mock_api, mock_api_workspace, neo4j_session)
     )
 
     # Assert each entry in a group's limits list became its own node, with an id
-    # synthesised from scope, group type, models and limit type
+    # synthesised from the organization, scope, group type, models and limit type
     assert check_nodes(
         neo4j_session,
         "AnthropicRateLimit",
         ["id", "group_type", "limit_type", "value", "org_limit"],
     ) == {
         (
-            "organization/model_group/claude-opus-5/requests_per_minute",
+            f"{TEST_ORG_ID}/organization/model_group/claude-opus-5/requests_per_minute",
             "model_group",
             "requests_per_minute",
             4000,
             None,
         ),
         (
-            "organization/model_group/claude-opus-5/input_tokens_per_minute",
+            f"{TEST_ORG_ID}/organization/model_group/claude-opus-5/input_tokens_per_minute",
             "model_group",
             "input_tokens_per_minute",
             400000,
             None,
         ),
         (
-            "organization/web_search/all/requests_per_minute",
+            f"{TEST_ORG_ID}/organization/web_search/all/requests_per_minute",
             "web_search",
             "requests_per_minute",
             1000,
@@ -82,7 +82,7 @@ def test_load_anthropic_rate_limits(mock_api, mock_api_workspace, neo4j_session)
         ),
         # The workspace override records the org value it displaces
         (
-            f"{TEST_WORKSPACE_ID}/model_group/claude-opus-5/requests_per_minute",
+            f"{TEST_ORG_ID}/{TEST_WORKSPACE_ID}/model_group/claude-opus-5/requests_per_minute",
             "model_group",
             "requests_per_minute",
             500,
@@ -101,7 +101,7 @@ def test_load_anthropic_rate_limits(mock_api, mock_api_workspace, neo4j_session)
         rel_direction_right=False,
     ) == {
         (
-            f"{TEST_WORKSPACE_ID}/model_group/claude-opus-5/requests_per_minute",
+            f"{TEST_ORG_ID}/{TEST_WORKSPACE_ID}/model_group/claude-opus-5/requests_per_minute",
             TEST_WORKSPACE_ID,
         ),
     }
