@@ -349,16 +349,17 @@ def test_load_modal_sandboxes_and_tunnels(neo4j_session):
         (fx.TEST_SANDBOX_ID, fx.TEST_IMAGE_ID),
         ("sb-3FinishedSandboxXXXXXX", fx.TEST_IMAGE_ID),
     }
+    # EXPOSE points from the entrypoint to the asset it puts at risk.
     assert check_rels(
         neo4j_session,
-        "ModalSandbox",
-        "id",
         "ModalSandboxTunnel",
         "id",
-        "EXPOSES",
+        "ModalSandbox",
+        "id",
+        "EXPOSE",
     ) == {
-        (fx.TEST_SANDBOX_ID, f"{fx.TEST_SANDBOX_ID}/8080"),
-        ("sb-JeuHHabrBlXBhVE3eHSTn5", "sb-JeuHHabrBlXBhVE3eHSTn5/9000"),
+        (f"{fx.TEST_SANDBOX_ID}/8080", fx.TEST_SANDBOX_ID),
+        ("sb-JeuHHabrBlXBhVE3eHSTn5/9000", "sb-JeuHHabrBlXBhVE3eHSTn5"),
     }
 
 
