@@ -176,15 +176,15 @@ The graph stays correct, but stale roles are never removed.
 | Privilege | Enables | Cost of granting |
 |---|---|---|
 | `MANAGE GRANTS ON ACCOUNT` | Makes the object API and `SHOW GRANTS` account-wide, so roles and grants are current rather than up to two hours stale. | Not read-only: a role with `MANAGE GRANTS` can also grant and revoke privileges account-wide. Grant it only if the staleness matters more than the blast radius. |
-| `MODIFY` on a user | Listing that user's programmatic access tokens. Without it Cartography inventories only the tokens of the user it authenticates as, and reports the surface incomplete so no token is deleted at cleanup. | Also read-write: `MODIFY` on a user allows altering that user, including resetting its authentication. There is no read-only privilege for this surface, so the honest choice is usually to leave it ungranted and accept partial token coverage. |
+| `MODIFY PROGRAMMATIC AUTHENTICATION METHODS` on a user | Listing that user's programmatic access tokens. Without it Cartography inventories only the tokens of the user it authenticates as, and reports the surface incomplete so no token is deleted at cleanup. A `USER` object has no plain `MODIFY` privilege, and no account-level privilege substitutes for this one. | Far from read-only: the same privilege grants creating, rotating and deleting that user's tokens and key pairs. There is no view-only equivalent, so the honest choice is usually to leave it ungranted and accept partial token coverage. |
 | `ORGADMIN` | Listing the other accounts in the organization, so they appear as `SnowflakeAccount` nodes. | A highly privileged organization-level role. Usually not worth it; Cartography syncs the connected account either way. |
 
 Cartography prefers the `ACCOUNT_USAGE` views for roles and grants and logs which
 path it used. It falls back to the per-role object API only when those views are
 unreadable; that path costs two requests per role and, as above, cannot establish
 completeness, so the affected cleanups are skipped. Without `ORGADMIN`, only the
-connected account is synced. Without `MODIFY` on a user, that user's programmatic
-access tokens are not listed. Every surface Snowflake refuses is skipped along with
+connected account is synced. Without `MODIFY PROGRAMMATIC AUTHENTICATION METHODS`
+on a user, that user's programmatic access tokens are not listed. Every surface Snowflake refuses is skipped along with
 its cleanup, so a missing privilege never deletes previously collected data.
 
 ## Configure Cartography
@@ -264,7 +264,8 @@ snow sql -q "DESC USER CARTOGRAPHY_SVC" --format JSON | grep -i RSA_PUBLIC_KEY_F
 `ACCOUNT_USAGE` path is readable. Grant the latter.
 
 **Only one user's programmatic access tokens appear.** Listing another user's
-tokens requires `MODIFY` on that user, which no account-level privilege implies.
+tokens requires `MODIFY PROGRAMMATIC AUTHENTICATION METHODS` on that user, which no
+account-level privilege implies.
 The log names how many users could not be read, and the surface is reported
 incomplete so the tokens already collected are not deleted.
 

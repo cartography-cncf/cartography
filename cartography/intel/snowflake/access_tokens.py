@@ -2,10 +2,11 @@
 
 Tokens have no REST endpoint, so they come from
 ``SHOW USER PROGRAMMATIC ACCESS TOKENS``. Listing another user's tokens requires
-``MODIFY`` on that user; no account-level privilege covers it, and ``MANAGE GRANTS``
-in particular does not. Without it the bare form of that statement silently returns
-just the tokens of the user Cartography authenticated as, and the response gives no
-way to tell that from a complete answer.
+``MODIFY PROGRAMMATIC AUTHENTICATION METHODS`` on that user; no account-level
+privilege covers it, and ``MANAGE GRANTS`` in particular does not. A USER object has
+no plain ``MODIFY`` privilege at all. Without that grant the bare form of the
+statement silently returns just the tokens of the user Cartography authenticated as,
+and the response gives no way to tell that from a complete answer.
 
 Trusting the bare form would therefore let a permission-limited run look complete and
 delete every other user's tokens at cleanup. So the listing is done per user with the
@@ -44,9 +45,9 @@ def get_for_user(
 ) -> list[dict[str, Any]] | None:
     """One user's programmatic access tokens, or None when they cannot be read.
 
-    Reading another user's tokens needs ``MODIFY`` on that user, so a
-    403-equivalent here is expected on a least-privilege collector and must be
-    reported rather than read as "this user has no tokens".
+    Reading another user's tokens needs ``MODIFY PROGRAMMATIC AUTHENTICATION
+    METHODS`` on that user, so a 403-equivalent here is expected on a least-privilege
+    collector and must be reported rather than read as "this user has no tokens".
     """
     try:
         return client.run_sql(
@@ -75,7 +76,8 @@ def get(
         warn_unavailable(
             "programmatic access tokens",
             f"{len(unreadable)} of {len(users)} users could not be read "
-            "(MODIFY on each user is required to see that user's tokens)",
+            "(MODIFY PROGRAMMATIC AUTHENTICATION METHODS on each user is required "
+            "to see that user's tokens)",
         )
     return tokens, not unreadable
 
