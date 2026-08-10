@@ -18,7 +18,7 @@ SNOWFLAKE_ACCESS_TOKENS: list[dict[str, Any]] = [
         "created_by": "HOMER",
         # A live exemption from the network policy that would otherwise gate the
         # token, which is the security-relevant field on this listing.
-        "mins_to_bypass_network_policy_requirement": "477",
+        "mins_to_bypass_required_network_policy": "477",
         "rotated_to": None,
     },
     {
@@ -30,7 +30,7 @@ SNOWFLAKE_ACCESS_TOKENS: list[dict[str, Any]] = [
         "comment": "used by the nightly reactor load",
         "created_on": "1785000000.000",
         "created_by": "ACCOUNTADMIN",
-        "mins_to_bypass_network_policy_requirement": "",
+        "mins_to_bypass_required_network_policy": "",
         "rotated_to": "scram_ingest_v2",
     },
     {
@@ -45,7 +45,7 @@ SNOWFLAKE_ACCESS_TOKENS: list[dict[str, Any]] = [
         "comment": None,
         "created_on": "1780000000.000",
         "created_by": "ACCOUNTADMIN",
-        "mins_to_bypass_network_policy_requirement": None,
+        "mins_to_bypass_required_network_policy": None,
         "rotated_to": None,
     },
 ]

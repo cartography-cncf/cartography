@@ -66,7 +66,7 @@ def test_sync_snowflake_access_tokens(mock_get, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "SnowflakeProgrammaticAccessToken",
-        ["name", "status", "mins_to_bypass_network_policy_requirement"],
+        ["name", "status", "mins_to_bypass_required_network_policy"],
     ) == {
         ("donut_dashboard", "ACTIVE", 477),
         ("scram_ingest", "ACTIVE", None),

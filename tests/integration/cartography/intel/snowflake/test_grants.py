@@ -54,6 +54,20 @@ def _seed_grant_targets(neo4j_session) -> None:
     )
 
 
+def _clear_grant_edges(neo4j_session) -> None:
+    """Delete every edge the grant sync produces.
+
+    The ``neo4j_session`` fixture is module-scoped and only wipes at teardown, so a
+    test asserting which edges *this* sync built has to start from none. Without
+    this, an earlier test's edges satisfy the assertion and the test proves nothing:
+    that is exactly how the ACCOUNT_USAGE path passed while dropping the whole role
+    hierarchy, because the object-API test above had already created the edges.
+    """
+    neo4j_session.run(
+        "MATCH ()-[r:HAS_ROLE|INCLUDES|HAS_PRIVILEGE]->() DELETE r",
+    )
+
+
 def test_sync_snowflake_roles(neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_account(neo4j_session)
@@ -254,6 +268,7 @@ def test_sync_snowflake_grants_from_account_usage(
     _ensure_local_neo4j_has_test_users(neo4j_session)
     roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
     _seed_grant_targets(neo4j_session)
+    _clear_grant_edges(neo4j_session)
 
     # Act
     complete = cartography.intel.snowflake.grants.sync(
@@ -342,6 +357,7 @@ def test_sync_falls_back_to_the_object_api_when_account_usage_is_unreadable(
     _ensure_local_neo4j_has_test_users(neo4j_session)
     roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
     _seed_grant_targets(neo4j_session)
+    _clear_grant_edges(neo4j_session)
 
     # Act
     complete = cartography.intel.snowflake.grants.sync(
@@ -514,6 +530,7 @@ def test_quoted_database_role_keeps_its_grant_edges(
     client = build_test_client()
     _ensure_local_neo4j_has_test_account(neo4j_session)
     _seed_grant_targets(neo4j_session)
+    _clear_grant_edges(neo4j_session)
     database_roles = cartography.intel.snowflake.database_roles.transform(
         cartography.intel.snowflake.account_usage.split_roles(
             SNOWFLAKE_ACCOUNT_USAGE_QUOTED_DATABASE_ROLE

@@ -259,6 +259,13 @@ def transform_grants(
     return list(aggregated.values()), unmodelled
 
 
+# How each source names an account-role grantee in `granted_to`. `SHOW GRANTS OF`
+# reports ROLE; ACCOUNT_USAGE.GRANTS_TO_ROLES reports ACCOUNT ROLE. APPLICATION_ROLE
+# and INSTANCE_ROLE also appear in that column and are deliberately absent: they
+# belong to Native Apps and classes, which this module does not model.
+_ACCOUNT_ROLE_GRANTEE_TYPES = frozenset({"ROLE", "ACCOUNT ROLE"})
+
+
 def transform_role_assignments(
     grants_of_by_role: dict[str, list[dict[str, Any]]],
     service_user_names: set[str],
@@ -270,6 +277,11 @@ def transform_role_assignments(
     ``granted_to`` distinguishes a user assignment from a role-to-role grant, and
     the grantee's own kind then decides which edge applies. Keyed by edge kind so
     the caller can load each MatchLink separately.
+
+    The two sources spell an account role differently: the object API says ``ROLE``
+    while ``ACCOUNT_USAGE.GRANTS_TO_ROLES`` says ``ACCOUNT ROLE``. Both are accepted,
+    because a value this function does not recognise silently produces no edge, which
+    is how the whole role hierarchy went missing from the ACCOUNT_USAGE path.
     """
     edges: dict[str, list[dict[str, Any]]] = {
         "user_to_role": [],
@@ -308,7 +320,7 @@ def transform_role_assignments(
                 edges[kind].append(
                     {**common, "grantee_id": sf_id(account_id, "user", grantee_name)},
                 )
-            elif granted_to == "ROLE":
+            elif granted_to in _ACCOUNT_ROLE_GRANTEE_TYPES:
                 kind = "role_to_database_role" if is_database_role else "role_to_role"
                 edges[kind].append(
                     {**common, "grantee_id": sf_id(account_id, "role", grantee_name)},

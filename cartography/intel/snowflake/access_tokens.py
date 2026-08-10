@@ -1,10 +1,11 @@
 """Snowflake programmatic access tokens.
 
 Tokens have no REST endpoint, so they come from
-``SHOW USER PROGRAMMATIC ACCESS TOKENS``. The bare form of that statement returns
-every user's tokens only when the connecting role holds ``MANAGE GRANTS``; without it
-Snowflake silently returns just the tokens of the user Cartography authenticated as,
-and the response gives no way to tell the two situations apart.
+``SHOW USER PROGRAMMATIC ACCESS TOKENS``. Listing another user's tokens requires
+``MODIFY`` on that user; no account-level privilege covers it, and ``MANAGE GRANTS``
+in particular does not. Without it the bare form of that statement silently returns
+just the tokens of the user Cartography authenticated as, and the response gives no
+way to tell that from a complete answer.
 
 Trusting the bare form would therefore let a permission-limited run look complete and
 delete every other user's tokens at cleanup. So the listing is done per user with the
@@ -43,9 +44,9 @@ def get_for_user(
 ) -> list[dict[str, Any]] | None:
     """One user's programmatic access tokens, or None when they cannot be read.
 
-    Reading another user's tokens needs ``MANAGE GRANTS`` (or ``MODIFY`` on that
-    user), so a 403-equivalent here is expected on a least-privilege collector and
-    must be reported rather than read as "this user has no tokens".
+    Reading another user's tokens needs ``MODIFY`` on that user, so a
+    403-equivalent here is expected on a least-privilege collector and must be
+    reported rather than read as "this user has no tokens".
     """
     try:
         return client.run_sql(
@@ -74,7 +75,7 @@ def get(
         warn_unavailable(
             "programmatic access tokens",
             f"{len(unreadable)} of {len(users)} users could not be read "
-            "(MANAGE GRANTS is required to see another user's tokens)",
+            "(MODIFY on each user is required to see that user's tokens)",
         )
     return tokens, not unreadable
 
@@ -113,8 +114,13 @@ def transform(
                     else None
                 ),
                 "status": to_text(token.get("status")),
-                "mins_to_bypass_network_policy_requirement": to_int(
-                    token.get("mins_to_bypass_network_policy_requirement"),
+                # `SHOW ... PROGRAMMATIC ACCESS TOKENS` names this column
+                # mins_to_bypass_required_network_policy, while the ALTER parameter
+                # that sets it is MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT. The two
+                # spellings are not interchangeable: reading the parameter name here
+                # yields null for every token.
+                "mins_to_bypass_required_network_policy": to_int(
+                    token.get("mins_to_bypass_required_network_policy"),
                 ),
                 "rotated_to": to_text(token.get("rotated_to")),
                 "comment": to_text(token.get("comment")),

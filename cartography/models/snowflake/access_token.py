@@ -55,8 +55,8 @@ class SnowflakeProgrammaticAccessTokenNodeProperties(CartographyNodeProperties):
         "status",
         description="Token status; only an ACTIVE token can authenticate.",
     )
-    mins_to_bypass_network_policy_requirement: PropertyRef = PropertyRef(
-        "mins_to_bypass_network_policy_requirement",
+    mins_to_bypass_required_network_policy: PropertyRef = PropertyRef(
+        "mins_to_bypass_required_network_policy",
         description=(
             "Minutes remaining in which this token may be used from outside the "
             "network policy that would otherwise gate it. A non-null value is an "
