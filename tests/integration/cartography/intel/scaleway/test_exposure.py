@@ -8,6 +8,7 @@ asserting the resulting exposed_internet / exposed_internet_type properties.
 import cartography.util
 from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "0681c477-fbb9-4820-b8d6-0eef10cfcd6d"
 TEST_UPDATE_TAG = 123456789
@@ -124,6 +125,116 @@ def _create_base_graph(neo4j_session):
     )
 
 
+def _create_loadbalancer_graph(neo4j_session):
+    """
+    Build three load balancers, all in the same project as the instances above.
+
+    lb-public   public IP + a frontend routing to a backend whose pool holds
+                inst-lb-private's private IP and inst-lb-public's flexible IP -> exposed
+    lb-private  no public IP (private-network only)                           -> not exposed
+    lb-nofront  public IP but no frontend listening                           -> not exposed
+
+    inst-orphan sits in a backend pool that no frontend routes to, so it must stay
+    unexposed even though its IP is in a pool.
+    """
+    for instance_id, private_ip in [
+        ("inst-lb-private", "172.16.0.10"),
+        ("inst-lb-public", None),
+        ("inst-orphan", "172.16.0.99"),
+    ]:
+        neo4j_session.run(
+            """
+            MATCH (p:ScalewayProject{id: $pid})
+            MERGE (i:ScalewayInstance{id: $iid})
+            SET i.public_ips = [],
+                i.state = 'running',
+                i.private_ip = $private_ip,
+                i.lastupdated = $tag
+            MERGE (p)-[r:RESOURCE]->(i)
+            SET r.lastupdated = $tag
+            """,
+            pid=TEST_PROJECT_ID,
+            iid=instance_id,
+            private_ip=private_ip,
+            tag=TEST_UPDATE_TAG,
+        )
+
+    # inst-lb-public is reached through its flexible IP rather than a private IP.
+    neo4j_session.run(
+        """
+        MATCH (i:ScalewayInstance{id: 'inst-lb-public'})
+        MERGE (fip:ScalewayFlexibleIp{id: 'fip-lb'})
+        SET fip.address = '51.159.9.9', fip.lastupdated = $tag
+        MERGE (fip)-[r:IDENTIFIES]->(i)
+        SET r.lastupdated = $tag
+        """,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    # (lb id, public ip, has frontend)
+    for lb_id, ip_address, has_frontend in [
+        ("lb-public", "51.159.0.1", True),
+        ("lb-private", None, True),
+        ("lb-nofront", "51.159.0.2", False),
+    ]:
+        neo4j_session.run(
+            """
+            MATCH (p:ScalewayProject{id: $pid})
+            MERGE (lb:ScalewayLoadBalancer{id: $lbid})
+            SET lb.ip_address = $ip_address, lb.lastupdated = $tag
+            MERGE (p)-[r:RESOURCE]->(lb)
+            SET r.lastupdated = $tag
+            """,
+            pid=TEST_PROJECT_ID,
+            lbid=lb_id,
+            ip_address=ip_address,
+            tag=TEST_UPDATE_TAG,
+        )
+        if not has_frontend:
+            continue
+        neo4j_session.run(
+            """
+            MATCH (p:ScalewayProject{id: $pid})
+            MATCH (lb:ScalewayLoadBalancer{id: $lbid})
+            MERGE (f:ScalewayLBFrontend{id: $fid})
+            SET f.inbound_port = 80, f.lastupdated = $tag
+            MERGE (lb)-[h:HAS]->(f)
+            SET h.lastupdated = $tag
+            MERGE (b:ScalewayLBBackend{id: $bid})
+            SET b.pool = ['172.16.0.10', '51.159.9.9'], b.lastupdated = $tag
+            MERGE (lb)-[hb:HAS]->(b)
+            SET hb.lastupdated = $tag
+            MERGE (f)-[rt:ROUTES_TO]->(b)
+            SET rt.lastupdated = $tag
+            MERGE (p)-[rf:RESOURCE]->(f)
+            SET rf.lastupdated = $tag
+            MERGE (p)-[rb:RESOURCE]->(b)
+            SET rb.lastupdated = $tag
+            """,
+            pid=TEST_PROJECT_ID,
+            lbid=lb_id,
+            fid=f"front-{lb_id}",
+            bid=f"back-{lb_id}",
+            tag=TEST_UPDATE_TAG,
+        )
+
+    # An orphan backend on lb-public that no frontend routes to.
+    neo4j_session.run(
+        """
+        MATCH (p:ScalewayProject{id: $pid})
+        MATCH (lb:ScalewayLoadBalancer{id: 'lb-public'})
+        MERGE (b:ScalewayLBBackend{id: 'back-orphan'})
+        SET b.pool = ['172.16.0.99'], b.lastupdated = $tag
+        MERGE (lb)-[h:HAS]->(b)
+        SET h.lastupdated = $tag
+        MERGE (p)-[r:RESOURCE]->(b)
+        SET r.lastupdated = $tag
+        """,
+        pid=TEST_PROJECT_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+
 def _run_exposure_jobs(neo4j_session):
     for job in SCALEWAY_EXPOSURE_JOBS:
         cartography.util.run_typed_analysis_job(
@@ -140,38 +251,92 @@ def test_scaleway_instance_exposure(neo4j_session):
 
     # Assert: only the directly-open instance and the PAT-reachable one are exposed,
     # and every other instance carries an explicit false rather than a null.
-    # exposed_internet_type is asserted separately because check_nodes cannot hash a
-    # list-valued property.
+    # The query is restricted to this scenario's own instances because the neo4j_session
+    # fixture is module-scoped, so other tests in this file add instances of their own.
+    verdicts = {
+        row["id"]: (row["exposed"], row["types"])
+        for row in neo4j_session.run(
+            """
+            MATCH (i:ScalewayInstance)
+            WHERE i.id STARTS WITH 'inst-' AND NOT i.id STARTS WITH 'inst-lb'
+              AND i.id <> 'inst-orphan'
+            RETURN i.id AS id,
+                   i.exposed_internet AS exposed,
+                   i.exposed_internet_type AS types
+            """,
+        )
+    }
+    assert verdicts == {
+        "inst-direct": (True, ["direct"]),
+        "inst-pat": (True, ["pat"]),
+        "inst-outbound": (False, None),
+        "inst-drop": (False, None),
+        "inst-scoped": (False, None),
+        "inst-nopubip": (False, None),
+        "inst-stopped": (False, None),
+    }
+
+
+def test_scaleway_loadbalancer_exposure(neo4j_session):
+    # Arrange
+    _create_base_graph(neo4j_session)
+    _create_loadbalancer_graph(neo4j_session)
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+
+    # Assert: only the load balancer with both a public IP and a listening frontend is
+    # internet-facing.
     assert check_nodes(
         neo4j_session,
-        "ScalewayInstance",
+        "ScalewayLoadBalancer",
         ["id", "exposed_internet"],
     ) == {
-        ("inst-direct", True),
-        ("inst-pat", True),
-        ("inst-outbound", False),
-        ("inst-drop", False),
-        ("inst-scoped", False),
-        ("inst-nopubip", False),
-        ("inst-stopped", False),
+        ("lb-public", True),
+        ("lb-private", False),
+        ("lb-nofront", False),
     }
+
+
+def test_scaleway_lb_expose_edges_and_instance_propagation(neo4j_session):
+    # Arrange
+    _create_base_graph(neo4j_session)
+    _create_loadbalancer_graph(neo4j_session)
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+
+    # Assert: EXPOSE runs from the load balancer to the instance it puts at risk, resolved
+    # both through a private IP and through a flexible IP. The orphan backend that no
+    # frontend routes to yields no edge.
+    assert check_rels(
+        neo4j_session,
+        "ScalewayLoadBalancer",
+        "id",
+        "ScalewayInstance",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {
+        ("lb-public", "inst-lb-private"),
+        ("lb-public", "inst-lb-public"),
+    }
+
+    # And the exposure verdict propagates onto those instances with the `lb` path.
     types = {
         row["id"]: row["types"]
         for row in neo4j_session.run(
             """
             MATCH (i:ScalewayInstance)
+            WHERE i.id IN ['inst-lb-private', 'inst-lb-public', 'inst-orphan']
             RETURN i.id AS id, i.exposed_internet_type AS types
             """,
         )
     }
     assert types == {
-        "inst-direct": ["direct"],
-        "inst-pat": ["pat"],
-        "inst-outbound": None,
-        "inst-drop": None,
-        "inst-scoped": None,
-        "inst-nopubip": None,
-        "inst-stopped": None,
+        "inst-lb-private": ["lb"],
+        "inst-lb-public": ["lb"],
+        "inst-orphan": None,
     }
 
 

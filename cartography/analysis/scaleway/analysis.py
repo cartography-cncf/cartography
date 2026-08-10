@@ -1,3 +1,4 @@
+from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
@@ -8,6 +9,101 @@ from cartography.graph.analysis import SetProperty
 # one run of start_scaleway_ingestion, so there is no other project's data for an
 # unscoped cleanup to wrongly remove. The jobs therefore run once at the end of
 # ingestion, which is also where Azure runs its own unscoped property jobs.
+
+SCALEWAY_LOADBALANCER_EXPOSURE = AnalysisJob(
+    name="Scaleway Load Balancer internet exposure",
+    short_name="scaleway_loadbalancer_exposure",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            comment=(
+                "A Load Balancer is internet-facing when it holds at least one public IP "
+                "and has at least one frontend listening. transform_loadbalancers derives "
+                "ip_address from the API's ip list, so a private, private-network-only Load "
+                "Balancer has ip_address IS NULL and is correctly skipped. Requiring a "
+                "frontend mirrors the AWS network load balancer rule, which demands "
+                "scheme = internet-facing plus listener presence: a public address with "
+                "nothing listening on it forwards no traffic. The Scaleway LB API exposes no "
+                "scheme field, which is why the public IP is the signal instead."
+            ),
+            match="""
+            MATCH (lb:ScalewayLoadBalancer)-[:HAS]->(:ScalewayLBFrontend)
+            WHERE lb.ip_address IS NOT NULL
+            WITH DISTINCT lb
+            """,
+            effects=(
+                SetProperty(
+                    "lb", "exposed_internet", True, label="ScalewayLoadBalancer"
+                ),
+                AddToSet(
+                    "lb",
+                    "exposed_internet_type",
+                    "direct",
+                    label="ScalewayLoadBalancer",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            comment=(
+                "Record the negative verdict explicitly so that exposed_internet = false is "
+                "answerable and not confused with 'never evaluated', as GCP and Azure do."
+            ),
+            match="MATCH (lb:ScalewayLoadBalancer) WHERE lb.exposed_internet IS NULL",
+            effects=(
+                SetProperty(
+                    "lb", "exposed_internet", False, label="ScalewayLoadBalancer"
+                ),
+            ),
+        ),
+    ),
+)
+
+SCALEWAY_LB_EXPOSE_EDGES = AnalysisJob(
+    name="Scaleway Load Balancer EXPOSE relationships",
+    short_name="scaleway_lb_expose_edges",
+    statements=(
+        AnalysisStatement(
+            comment=(
+                "Materialize the internet-facing frontend to backend asset edge for Scaleway "
+                "Load Balancers. EXPOSE runs from the load balancer to the instance it puts "
+                "at risk, the direction fixed by ONTOLOGY_REL_CONSTRAINTS for "
+                "LoadBalancer -> ComputeInstance. Only load balancers already marked "
+                "exposed_internet occur here, so the edge always means 'reachable from the "
+                "internet through this frontend'. ScalewayLBBackend.pool holds plain IP "
+                "addresses rather than server ids, so the instance is resolved by matching "
+                "the pool against its private_ip and against the address of any flexible IP "
+                "identifying it. The match is confined to the load balancer's own project "
+                "because private IPs are reusable across projects. Traversing "
+                "frontend -[:ROUTES_TO]-> backend rather than the load balancer's direct HAS "
+                "edge keeps out backends that no frontend routes to and which therefore "
+                "receive no traffic."
+            ),
+            match="""
+            MATCH (lb:ScalewayLoadBalancer {exposed_internet: true})-[:HAS]->(:ScalewayLBFrontend)-[:ROUTES_TO]->(backend:ScalewayLBBackend)
+            MATCH (lb)<-[:RESOURCE]-(:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)
+            WHERE backend.pool IS NOT NULL
+              AND (
+                (instance.private_ip IS NOT NULL AND instance.private_ip IN backend.pool)
+                OR EXISTS {
+                  MATCH (fip:ScalewayFlexibleIp)-[:IDENTIFIES]->(instance)
+                  WHERE fip.address IN backend.pool
+                }
+              )
+            WITH DISTINCT lb, instance
+            """,
+            effects=(
+                AddRelationship(
+                    "lb",
+                    "EXPOSE",
+                    "instance",
+                    properties={"exposure_type": "lb"},
+                    source_label="ScalewayLoadBalancer",
+                    target_label="ScalewayInstance",
+                ),
+            ),
+        ),
+    ),
+)
 
 SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
     name="Scaleway Instance internet exposure",
@@ -83,8 +179,32 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
         ),
         AnalysisStatement(
             comment=(
+                "An Instance with no public entry point of its own is still reachable when an "
+                "internet-facing Load Balancer forwards to it. This follows the EXPOSE edge "
+                "materialized by SCALEWAY_LB_EXPOSE_EDGES rather than repeating that job's "
+                "pool-to-IP join, the same way AWS_EC2_ASSET_EXPOSURE_INSTANCE reads "
+                "(:AWSLoadBalancer {exposed_internet: true})-[:EXPOSE]->(instance). This is "
+                "why SCALEWAY_EXPOSURE_JOBS runs the load balancer jobs before this one."
+            ),
+            match="MATCH (:ScalewayLoadBalancer {exposed_internet: true})-[:EXPOSE]->(instance:ScalewayInstance)",
+            effects=(
+                SetProperty(
+                    "instance", "exposed_internet", True, label="ScalewayInstance"
+                ),
+                AddToSet(
+                    "instance",
+                    "exposed_internet_type",
+                    "lb",
+                    label="ScalewayInstance",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            comment=(
                 "Record the negative verdict explicitly so that exposed_internet = false is "
-                "answerable and not confused with 'never evaluated', as GCP and Azure do."
+                "answerable and not confused with 'never evaluated', as GCP and Azure do. "
+                "This must stay the last statement of the job so it only fires for instances "
+                "no earlier statement marked."
             ),
             match="MATCH (instance:ScalewayInstance) WHERE instance.exposed_internet IS NULL",
             effects=(
@@ -96,4 +216,10 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
     ),
 )
 
-SCALEWAY_EXPOSURE_JOBS = (SCALEWAY_INSTANCE_EXPOSURE,)
+# Order matters. The load balancer verdict is written first, then the EXPOSE edges that
+# depend on it, then the instance job which reads those edges to pick up its `lb` path.
+SCALEWAY_EXPOSURE_JOBS = (
+    SCALEWAY_LOADBALANCER_EXPOSURE,
+    SCALEWAY_LB_EXPOSE_EDGES,
+    SCALEWAY_INSTANCE_EXPOSURE,
+)
