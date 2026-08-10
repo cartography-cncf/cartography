@@ -18,14 +18,13 @@ hand-written page.
 
 ## Schema by module
 
-Every other schema page is reachable through its own module index; these two modules have
-no index page of their own, so they are attached here to keep them out of the orphan list.
+Every module schema page is reachable through its own module index except for the internal
+Cartography metadata schema, which is attached here to keep it out of the orphan list.
 
 ```{toctree}
 :hidden:
 
 ../modules/_cartography-metadata/schema
-../modules/ubuntu/schema
 ```
 
 - [Cartography Metadata](../modules/_cartography-metadata/schema.md)
@@ -58,6 +57,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Lastpass](../modules/lastpass/schema.md)
 - [Microsoft](../modules/microsoft/schema.md)
 - [Modal](../modules/modal/schema.md)
+- [Netlify](../modules/netlify/schema.md)
 - [Oci](../modules/oci/schema.md)
 - [Okta](../modules/okta/schema.md)
 - [Ontology](../modules/ontology/schema.md)

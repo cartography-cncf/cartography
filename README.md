@@ -1,4 +1,8 @@
-![Cartography](docs/root/images/logo-horizontal.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/root/images/logo-horizontal-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/root/images/logo-horizontal.svg">
+  <img alt="Cartography" src="docs/root/images/logo-horizontal.svg">
+</picture>
 
 <div align="center">
 
@@ -109,6 +113,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Microsoft Entra ID](https://docs.cartography.dev/modules/entra/index.html) -  Users, Groups, Applications, OUs, App Roles, federation to AWS Identity Center, Intune Managed Devices, Intune Detected Apps, Intune Compliance Policies
 - [CVE Metadata](https://docs.cartography.dev/modules/cve_metadata/index.html) - CVE enrichment with CVSS, EPSS scores, and CISA KEV data from NVD and FIRST.org
 - [NIST CVE](https://docs.cartography.dev/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database (deprecated - use CVE Metadata instead)
+- [Netlify](https://docs.cartography.dev/modules/netlify/index.html) - Accounts, Users, Invites, Sites, Deploys, Functions, Dev Servers, Agent Runners, Database Branches, Database Snapshots, Environment Variables, Build Hooks, Notification Hooks, Deploy Keys, Snippets, Service Instances, DNS Zones, DNS Records, Certificates, Forms
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
 - [OpenAI](https://docs.cartography.dev/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM
@@ -141,7 +146,9 @@ All contributors and participants must follow the [CNCF Code of Conduct](https:/
 
 Submit a GitHub issue to report a bug or request a new feature. Larger discussions happen in [GitHub Discussions](https://github.com/cartography-cncf/cartography/discussions).
 
-Get started with our [developer documentation](https://docs.cartography.dev/dev/developer-guide.html).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, development
+setup, tests, DCO sign-off requirement, and pull request expectations. You do
+not need an issue assignment or maintainer permission before starting work.
 
 
 ## Who uses Cartography?

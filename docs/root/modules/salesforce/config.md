@@ -18,13 +18,13 @@ In **App Manager**, create an External Client App:
 1. Add the **Manage user data via APIs (api)** OAuth scope. Also add `refresh_token` or `offline_access` for the JWT bearer flow.
 1. Create the app and allow a few minutes for it to propagate.
 
-### Client Credentials
+### Client Credentials Authentication
 
 1. Open **Settings** > **OAuth Settings** > **Edit**. Under **Flow Enablement**, enable the client credentials flow. For a classic Connected App, this setting is directly in the OAuth settings.
 1. Open **Policies** > **Edit** and set **Run As** to the dedicated integration user. For a classic Connected App, use **Manage** > **Edit Policies**.
 1. Open **Settings** > **OAuth Settings** > **Consumer Key and Secret** and copy the consumer key and secret. A classic Connected App exposes these under **Manage Consumer Details**.
 
-### JWT Bearer
+### JWT Bearer Authentication
 
 1. Generate an RSA key pair and upload the certificate under **Use digital signatures** in the app's OAuth settings.
 1. Set **Permitted Users** to **Admin approved users are pre-authorized**, then assign the integration user or profile.
@@ -43,7 +43,7 @@ Do not grant create, edit, delete, or **Modify All Data** permissions. Assign th
 
 ## Configure Cartography
 
-### Client Credentials
+### Client Credentials Options
 
 Provide:
 
@@ -51,7 +51,7 @@ Provide:
 - `--salesforce-client-secret-env-var`: Name of the environment variable containing the consumer secret. The default is `SALESFORCE_CLIENT_SECRET`.
 - `--salesforce-login-url`: My Domain URL.
 
-### JWT Bearer
+### JWT Bearer Options
 
 Provide:
 

@@ -302,10 +302,50 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+# Netlify cloud dev server state.
+_NETLIFY_DEV_SERVER_STATE = {
+    "enqueued": "pending",
+    "starting": "starting",
+    "live": "running",
+    "stopping": "stopping",
+    "stopped": "stopped",
+    "done": "terminated",
+    "error": "error",
+}
+
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDevServer",
+            fields=[
+                # A dev server has no name of its own, so the branch it serves identifies it.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="branch", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _NETLIFY_DEV_SERVER_STATE},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # region / type: Netlify does not expose where a dev server runs or how it is
+                # sized on the resource itself; the size caps live on the team's capabilities.
+                # public_ip_address / private_ip_address: a dev server is reachable only through
+                # its Netlify hostname, which is on NetlifyDevServer.url.
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
     "digitalocean": digitalocean_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "netlify": netlify_mapping,
 }

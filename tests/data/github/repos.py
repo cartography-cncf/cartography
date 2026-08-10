@@ -84,6 +84,8 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": True,
+        "isFork": False,
+        "parent": None,
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -132,6 +134,9 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        # Forked from a repo that is also synced.
+        "isFork": True,
+        "parent": {"url": "https://github.com/cartography-cncf/cartography"},
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -164,6 +169,9 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        # Forked from a repo that is not synced, which is the common case for forks.
+        "isFork": True,
+        "parent": {"url": "https://github.com/some-upstream-org/cartography"},
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -211,6 +219,8 @@ GET_REPOS_CIRCLECI_PROVENANCE: list[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        "isFork": False,
+        "parent": None,
         "owner": {
             "url": "https://github.com/exampleorg",
             "login": "exampleorg",

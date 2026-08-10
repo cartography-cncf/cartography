@@ -12,7 +12,7 @@
     :member-order: groupwise
 ```
 
-## Sync
+## Sync API
 
 ```{eval-rst}
 .. automodule:: cartography.sync

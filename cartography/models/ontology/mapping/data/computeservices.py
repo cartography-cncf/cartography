@@ -208,6 +208,43 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+
+# Netlify site state. "current" is the state of a site serving its latest production deploy;
+# the rest are the states a site moves through while building or after being taken offline.
+# `disabled` and `suspended` fall back to "unknown" because the canonical set has no member for
+# "provisioned but deliberately not serving"; the raw value stays on NetlifySite.state, and
+# NetlifySite.disabled / .disabled_reason carry the detail.
+_NETLIFY_SITE_STATUS = {
+    "current": "active",
+    "building": "creating",
+    "enqueued": "creating",
+    "new": "creating",
+    "error": "failed",
+    "disabled": "unknown",
+    "suspended": "unknown",
+}
+
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifySite",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
+                # A Netlify site is served from the global edge, so it has no single region.
+                # `functions_region` is where its serverless functions run, which is already on
+                # NetlifyFunction, so mapping it here would misreport the site's own placement.
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _NETLIFY_SITE_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
@@ -216,4 +253,5 @@ COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "kubernetes": kubernetes_mapping,
     "railway": railway_mapping,
     "modal": modal_mapping,
+    "netlify": netlify_mapping,
 }

@@ -310,7 +310,8 @@ def execute_write_with_retry(
     for EntityNotFound and other transient errors. Use this when you have complex
     transaction logic that doesn't fit the standard load_graph_data pattern.
 
-    Example usage:
+    Example usage::
+
         def my_custom_tx(tx, data_list, update_tag):
             for item in data_list:
                 tx.run(query, **item).consume()

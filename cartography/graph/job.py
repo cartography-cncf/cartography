@@ -431,8 +431,9 @@ class GraphJob:
             - Required relationship properties ``_sub_resource_label`` and ``_sub_resource_id``
               must be defined in the rel_schema.
             - For a given rel_schema, the fields used in the rel_schema.properties._sub_resource_label.name and
-            rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
+              rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
             - The rel_schema must have a source_node_matcher and target_node_matcher.
+
         """
         cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
         logger.debug("Cleanup query: %s", cleanup_link_query)
