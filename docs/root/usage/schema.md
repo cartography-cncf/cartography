@@ -80,6 +80,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Tenable](../modules/tenable/schema.md)
 - [Trivy](../modules/trivy/schema.md)
 - [Ubuntu](../modules/ubuntu/schema.md)
+- [Unikraft](../modules/unikraft/schema.md)
 - [Vercel](../modules/vercel/schema.md)
 - [Workday](../modules/workday/schema.md)
 - [Workos](../modules/workos/schema.md)

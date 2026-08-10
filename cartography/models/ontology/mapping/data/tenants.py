@@ -720,6 +720,25 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+# Unikraft: UnikraftAccount has no display name, so the account UUID (`id`) is the
+# canonical identifier.
+unikraft_mapping = OntologyMapping(
+    module_name="unikraft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="UnikraftAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                # status: Unikraft reports a quota operation status, not an account
+                # lifecycle state, so it is intentionally not mapped here.
+                # domain: Not available.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -773,4 +792,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "unikraft": unikraft_mapping,
 }

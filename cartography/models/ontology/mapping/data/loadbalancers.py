@@ -136,9 +136,32 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+unikraft_mapping = OntologyMapping(
+    module_name="unikraft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="UnikraftServiceGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="dns_name", node_field="primary_domain"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="metro"),
+                # lb_type: Unikraft has no named load-balancer offer/class.
+                # scheme: every domain routed through a service group is publicly
+                # resolvable, so there is no internal/internet-facing distinction to map.
+                # ip_address: exposure is DNS-based (fqdn), not a stable IP.
+            ],
+        ),
+    ],
+)
+
 LOADBALANCERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
+    "unikraft": unikraft_mapping,
 }
