@@ -166,9 +166,46 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+# Unikraft volume state
+_UNIKRAFT_VOLUME_STATE = {
+    "uninitialized": "creating",
+    "initializing": "creating",
+    "available": "available",
+    "idle": "available",
+    "mounted": "in_use",
+    "busy": "in_use",
+    "error": "error",
+    "template": "unknown",
+}
+
+unikraft_mapping = OntologyMapping(
+    module_name="unikraft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="UnikraftVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # _ont_size_gb: Unikraft reports volume size in MB (size_mb), and there is
+                # no unit-conversion special_handling to normalize it to GB here.
+                # _ont_encrypted: Unikraft's volume API does not expose encryption posture.
+                OntologyFieldMapping(ontology_field="region", node_field="metro"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _UNIKRAFT_VOLUME_STATE},
+                ),
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "unikraft": unikraft_mapping,
 }

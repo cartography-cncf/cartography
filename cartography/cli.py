@@ -103,6 +103,7 @@ PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
+PANEL_UNIKRAFT = "Unikraft Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -168,6 +169,7 @@ MODULE_PANELS = {
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
     "snowflake": PANEL_SNOWFLAKE,
+    "unikraft": PANEL_UNIKRAFT,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -2598,6 +2600,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Unikraft Options
+            # =================================================================
+            unikraft_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--unikraft-token-env-var",
+                    help="Environment variable name containing a Unikraft Cloud API token.",
+                    rich_help_panel=PANEL_UNIKRAFT,
+                    hidden=PANEL_UNIKRAFT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -3108,6 +3122,15 @@ class CLI:
                 else None
             )
 
+            # Read Unikraft token
+            unikraft_token = None
+            if unikraft_token_env_var:
+                logger.debug(
+                    "Reading Unikraft Cloud API token from environment variable %s",
+                    unikraft_token_env_var,
+                )
+                unikraft_token = os.environ.get(unikraft_token_env_var)
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -3560,6 +3583,7 @@ class CLI:
                 modal_token_id=modal_token_id,
                 modal_token_secret=modal_token_secret,
                 modal_environments=modal_environment_list,
+                unikraft_token=unikraft_token,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,

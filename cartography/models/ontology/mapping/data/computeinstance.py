@@ -341,6 +341,49 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+# Unikraft instance state
+_UNIKRAFT_INSTANCE_STATE = {
+    "starting": "starting",
+    "running": "running",
+    "draining": "stopping",
+    "stopping": "stopping",
+    "stopped": "stopped",
+    "standby": "suspended",
+    "template": "unknown",
+    "deleted": "terminated",
+}
+
+unikraft_mapping = OntologyMapping(
+    module_name="unikraft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="UnikraftInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="metro"),
+                OntologyFieldMapping(
+                    ontology_field="private_ip_address", node_field="private_ip"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _UNIKRAFT_INSTANCE_STATE},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # public_ip_address: Unikraft instances are reached through their
+                # UnikraftServiceGroup's domains, not a public IP on the instance itself.
+                # No mapping for `type`: Unikraft has no named instance size category;
+                # memory_mb and vcpus are allocated independently.
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
@@ -348,4 +391,5 @@ COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "unikraft": unikraft_mapping,
 }
