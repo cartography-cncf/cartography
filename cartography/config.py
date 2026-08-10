@@ -592,7 +592,6 @@ class Config:
         databricks_account_host=None,
         databricks_account_client_id=None,
         databricks_account_client_secret=None,
-        bbot_source=None,
         docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
@@ -665,6 +664,7 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        bbot_source=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

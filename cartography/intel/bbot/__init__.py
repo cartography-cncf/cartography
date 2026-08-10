@@ -81,7 +81,9 @@ def _canonical_url(value: str) -> str:
 
 
 def _extract_url(data: str | dict[str, Any]) -> str | None:
-    value = data.get("url") if isinstance(data, dict) else data
+    value = (
+        (data.get("url") or data.get("full_url")) if isinstance(data, dict) else data
+    )
     return _canonical_url(value) if isinstance(value, str) and value else None
 
 
@@ -336,7 +338,7 @@ def _event_properties(
                 "severity": object_data.get("severity"),
                 "confidence": object_data.get("confidence"),
                 "description": object_data.get("description"),
-                "cves": [str(cve) for cve in object_data.get("cves", [])],
+                "cves": [str(cve) for cve in (object_data.get("cves") or [])],
             },
         )
     return result

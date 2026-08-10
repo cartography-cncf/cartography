@@ -265,6 +265,47 @@ def test_finding_with_host_and_port_affects_open_port() -> None:
     assert finding_relationships[0]["target_id"] == "OPEN_TCP_PORT:example-443"
 
 
+def test_finding_full_url_and_null_cves_are_supported() -> None:
+    # Arrange
+    events = [
+        _scan_event("RUNNING", "SCAN:run-start", 1),
+        _event(
+            "URL",
+            "URL:full-url",
+            "URL:full-url-occurrence",
+            "https://example.test/finding",
+            timestamp=2,
+        ),
+        _event(
+            "FINDING",
+            "FINDING:full-url",
+            "FINDING:full-url-occurrence",
+            {
+                "name": "Synthetic full URL finding",
+                "full_url": "https://example.test/finding",
+                "cves": None,
+            },
+            timestamp=3,
+            module="synthetic",
+        ),
+        _scan_event(
+            "FINISHED",
+            "SCAN:run-finish",
+            4,
+            finished_at="2026-01-01T00:01:00Z",
+        ),
+    ]
+
+    # Act
+    nodes, relationships = transform(events, "synthetic.json")
+
+    # Assert
+    assert nodes["BbotFinding"][0]["cves"] == []
+    assert relationships[("BbotFinding", "BbotURL", "AFFECTS")] == [
+        {"source_id": nodes["BbotFinding"][0]["id"], "target_id": "URL:full-url"},
+    ]
+
+
 def test_duplicate_technology_occurrences_retain_each_detected_url() -> None:
     # Arrange
     technology_id = "TECHNOLOGY:example-443-nginx"
