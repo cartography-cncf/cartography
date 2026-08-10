@@ -2051,7 +2051,7 @@ class CLI:
                 int,
                 typer.Option(
                     "--wiz-lookback-days",
-                    help="Number of days of Wiz resource and finding updates to retrieve on each run. Defaults to 180.",
+                    help="Number of days of Wiz issue and finding updates to retrieve on each run. Defaults to 180.",
                     min=1,
                     rich_help_panel=PANEL_WIZ,
                     hidden=PANEL_WIZ not in visible_panels,

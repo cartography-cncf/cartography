@@ -1,6 +1,5 @@
 __all__ = [
+    "findings",
     "issues",
-    "resources",
     "tenant",
-    "vulnerabilities",
 ]

@@ -82,4 +82,12 @@ def _record_project_ids(record: dict[str, Any]) -> list[str]:
     if isinstance(project, dict) and project.get("id"):
         return [str(project["id"])]
 
+    resource = record.get("resource")
+    if isinstance(resource, dict) and resource.get("projects"):
+        return project_ids(resource["projects"])
+
+    vulnerable_asset = record.get("vulnerableAsset")
+    if isinstance(vulnerable_asset, dict) and vulnerable_asset.get("projects"):
+        return project_ids(vulnerable_asset["projects"])
+
     return []

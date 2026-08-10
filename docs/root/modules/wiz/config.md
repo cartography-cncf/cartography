@@ -21,7 +21,7 @@ The module needs:
 | `--wiz-client-secret-env-var` | `WIZ_CLIENT_SECRET` | Yes | Environment variable holding the Wiz API client secret |
 | `--wiz-tenant-id` | hostname of `--wiz-graphql-url` | No | Identifier used to scope all Wiz nodes in the graph |
 | `--wiz-project-ids` |  | No | Comma-separated Wiz project IDs to import when project metadata is present |
-| `--wiz-lookback-days` | `180` | No | Number of days of Wiz resource and finding updates to retrieve on each sync |
+| `--wiz-lookback-days` | `180` | No | Number of days of Wiz issue and finding updates to retrieve on each sync |
 
 ## Example
 

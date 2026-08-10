@@ -4,11 +4,12 @@ from urllib.parse import urlparse
 import neo4j
 import requests
 
+import cartography.intel.wiz.findings
 import cartography.intel.wiz.issues
-import cartography.intel.wiz.resources
-import cartography.intel.wiz.vulnerabilities
+from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.intel.wiz.api import get_access_token
+from cartography.models.wiz.tenant import WizTenantSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -22,6 +23,21 @@ WIZ_DEFAULT_AUTH_URL = "https://auth.app.wiz.io/oauth/token"
 def _tenant_id_from_graphql_url(graphql_url: str) -> str:
     parsed = urlparse(graphql_url)
     return parsed.netloc or graphql_url
+
+
+@timeit
+def load_tenant(
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    graphql_url: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        WizTenantSchema(),
+        [{"id": tenant_id, "graphql_url": graphql_url}],
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -61,17 +77,11 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.wiz_client_secret,
     )
 
-    cartography.intel.wiz.resources.sync(
+    load_tenant(
         neo4j_session,
-        session,
-        config.wiz_graphql_url,
-        token,
         tenant_id,
+        config.wiz_graphql_url,
         config.update_tag,
-        common_job_parameters,
-        config.wiz_lookback_days,
-        config.wiz_project_ids,
-        do_cleanup=False,
     )
     cartography.intel.wiz.issues.sync(
         neo4j_session,
@@ -85,7 +95,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.wiz_project_ids,
         do_cleanup=False,
     )
-    cartography.intel.wiz.vulnerabilities.sync(
+    cartography.intel.wiz.findings.sync(
         neo4j_session,
         session,
         config.wiz_graphql_url,
@@ -98,12 +108,11 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         do_cleanup=False,
     )
 
-    cartography.intel.wiz.vulnerabilities.cleanup(
+    cartography.intel.wiz.findings.cleanup(
         neo4j_session,
         common_job_parameters,
     )
     cartography.intel.wiz.issues.cleanup(neo4j_session, common_job_parameters)
-    cartography.intel.wiz.resources.cleanup(neo4j_session, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session,

@@ -52,6 +52,7 @@ modules/tailscale/index
 modules/tenable/index
 modules/trivy/index
 modules/vercel/index
+modules/wiz/index
 modules/workday/index
 modules/workos/index
 ```

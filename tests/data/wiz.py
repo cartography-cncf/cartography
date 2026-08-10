@@ -5,47 +5,11 @@ CLIENT_ID = "test-client-id"
 CLIENT_SECRET = "test-client-secret"
 
 RESOURCE_ID_1 = "wiz-resource-1"
-RESOURCE_ID_2 = "wiz-resource-2"
 ISSUE_ID_1 = "wiz-issue-1"
 VULNERABILITY_ID_1 = "wiz-vuln-1"
+CONFIGURATION_FINDING_ID_1 = "wiz-config-1"
+DETECTION_ID_1 = "wiz-detection-1"
 CVE_ID_1 = "CVE-2024-12345"
-
-RESOURCES = [
-    {
-        "id": RESOURCE_ID_1,
-        "name": "prod-instance",
-        "externalId": "arn:aws:ec2:us-east-1:123456789012:instance/i-123",
-        "type": "VIRTUAL_MACHINE",
-        "cloudPlatform": "AWS",
-        "status": "ACTIVE",
-        "region": "us-east-1",
-        "tags": [{"key": "env", "value": "prod"}],
-        "projects": [{"id": "project-1", "name": "Production"}],
-        "createdAt": "2026-01-01T00:00:00Z",
-        "updatedAt": "2026-01-02T00:00:00Z",
-        "isOpenToAllInternet": False,
-        "isAccessibleFromInternet": True,
-        "hasAccessToSensitiveData": True,
-        "hasAdminPrivileges": False,
-        "hasHighPrivileges": True,
-        "hasSensitiveData": True,
-        "cloudAccount": {
-            "id": "cloud-account-1",
-            "name": "prod-aws",
-            "cloudProvider": "AWS",
-            "externalId": "123456789012",
-        },
-    },
-    {
-        "id": RESOURCE_ID_2,
-        "name": "stale-instance",
-        "externalId": "arn:aws:ec2:us-east-1:123456789012:instance/i-stale",
-        "type": "VIRTUAL_MACHINE",
-        "cloudPlatform": "AWS",
-        "status": "ACTIVE",
-        "projects": [{"id": "project-1", "name": "Production"}],
-    },
-]
 
 ISSUES = [
     {
@@ -85,6 +49,7 @@ ISSUES = [
 
 VULNERABILITY_FINDINGS = [
     {
+        "_wiz_finding_type": "VULNERABILITY",
         "id": VULNERABILITY_ID_1,
         "portalUrl": "https://app.wiz.io/vulnerability/wiz-vuln-1",
         "name": CVE_ID_1,
@@ -124,7 +89,113 @@ VULNERABILITY_FINDINGS = [
 ]
 
 VULNERABILITY_WITHOUT_ID = {
+    "_wiz_finding_type": "VULNERABILITY",
     "name": CVE_ID_1,
     "version": "1.0.0",
     "vulnerableAsset": {"id": RESOURCE_ID_1},
 }
+
+CONFIGURATION_FINDINGS = [
+    {
+        "_wiz_finding_type": "CONFIGURATION",
+        "id": CONFIGURATION_FINDING_ID_1,
+        "targetExternalId": "arn:aws:s3:::public-bucket",
+        "targetObjectProviderUniqueId": "s3/public-bucket",
+        "firstSeenAt": "2026-01-07T00:00:00Z",
+        "severity": "CRITICAL",
+        "result": "FAIL",
+        "status": "OPEN",
+        "remediation": "Disable public access",
+        "resource": {
+            "id": "wiz-resource-config-1",
+            "providerId": "public-bucket",
+            "name": "public-bucket",
+            "nativeType": "AWS::S3::Bucket",
+            "type": "BUCKET",
+            "region": "us-east-1",
+            "subscription": {
+                "id": "cloud-account-1",
+                "name": "prod-aws",
+                "externalId": "123456789012",
+                "cloudProvider": "AWS",
+            },
+            "projects": [{"id": "project-1", "name": "Production"}],
+            "tags": [{"key": "env", "value": "prod"}],
+        },
+        "rule": {
+            "id": "config-rule-1",
+            "graphId": "graph-rule-1",
+            "name": "S3 bucket is public",
+            "description": "Bucket allows public access",
+            "remediationInstructions": "Block public access",
+            "functionAsControl": True,
+        },
+    },
+]
+
+DETECTIONS = [
+    {
+        "_wiz_finding_type": "DETECTION",
+        "id": DETECTION_ID_1,
+        "type": "MALWARE",
+        "origins": ["WIZ_SENSOR"],
+        "severity": "HIGH",
+        "description": "Suspicious process detected",
+        "createdAt": "2026-01-08T00:00:00Z",
+        "updatedAt": "2026-01-08T00:05:00Z",
+        "actors": [
+            {
+                "id": "actor-1",
+                "name": "root",
+                "externalId": "root",
+                "providerUniqueId": "root",
+                "type": "USER",
+            }
+        ],
+        "resources": [
+            {
+                "id": "wiz-detection-resource-1",
+                "name": "runtime-node",
+                "externalId": "i-runtime",
+                "providerUniqueId": "arn:aws:ec2:us-east-1:123456789012:instance/i-runtime",
+                "type": "VIRTUAL_MACHINE",
+            }
+        ],
+        "cloudAccounts": [
+            {
+                "id": "cloud-account-1",
+                "name": "prod-aws",
+                "externalId": "123456789012",
+                "cloudProvider": "AWS",
+            }
+        ],
+        "cloudOrganizations": [
+            {
+                "id": "cloud-org-1",
+                "name": "prod-org",
+                "externalId": "o-123",
+                "cloudProvider": "AWS",
+            }
+        ],
+        "primaryResource": {
+            "id": "wiz-detection-resource-1",
+            "type": "VIRTUAL_MACHINE",
+            "name": "runtime-node",
+            "externalId": "i-runtime",
+            "region": "us-east-1",
+        },
+        "triggeringEvents": {
+            "totalCount": 1,
+            "nodes": [{"id": "event-1", "description": "Process started"}],
+        },
+        "ruleMatch": {
+            "rule": {
+                "id": "detect-rule-1",
+                "name": "Suspicious process",
+                "builtin": True,
+            }
+        },
+    },
+]
+
+FINDINGS = VULNERABILITY_FINDINGS + CONFIGURATION_FINDINGS + DETECTIONS
