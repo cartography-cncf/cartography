@@ -530,6 +530,22 @@ CLEANUP_CASES = [
         _prop_cleanup("ScalewayInstance", "exposed_internet", "exposed_internet_type"),
         id="scaleway_instance_exposure",
     ),
+    *(
+        pytest.param(
+            PropertyEffect(label, ("exposed_internet", "exposed_internet_type")),
+            None,
+            _prop_cleanup(label, "exposed_internet", "exposed_internet_type"),
+            id=f"scaleway_database_exposure_{label}",
+        )
+        for label in (
+            "ScalewayRdbInstance",
+            "ScalewayRedisCluster",
+            "ScalewayMongoDBInstance",
+            "ScalewayDataWarehouseDeployment",
+            "ScalewayServerlessSQLDatabase",
+            "ScalewaySearchDeployment",
+        )
+    ),
     pytest.param(
         PropertyEffect(
             "ScalewayLoadBalancer", ("exposed_internet", "exposed_internet_type")

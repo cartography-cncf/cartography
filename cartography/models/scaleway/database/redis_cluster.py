@@ -39,6 +39,16 @@ class ScalewayRedisClusterProperties(CartographyNodeProperties):
         "is_public",
         description="True if the cluster exposes a publicly reachable endpoint.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="Set to `True` when `is_public` is true, meaning Scaleway has provisioned a publicly reachable endpoint. Set to `False` otherwise.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the public endpoint is on the cluster itself.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
     public_endpoint_ip: PropertyRef = PropertyRef(
         "public_endpoint_ip", description="IP of the public endpoint, if any."
     )

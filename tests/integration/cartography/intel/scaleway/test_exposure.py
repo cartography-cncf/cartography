@@ -235,6 +235,37 @@ def _create_loadbalancer_graph(neo4j_session):
     )
 
 
+DATABASE_LABELS = (
+    "ScalewayRdbInstance",
+    "ScalewayRedisCluster",
+    "ScalewayMongoDBInstance",
+    "ScalewayDataWarehouseDeployment",
+    "ScalewayServerlessSQLDatabase",
+    "ScalewaySearchDeployment",
+)
+
+
+def _create_database_graph(neo4j_session):
+    """One public and one private database per managed-database product."""
+    for label in DATABASE_LABELS:
+        for suffix, is_public in [("public", True), ("private", False)]:
+            neo4j_session.run(
+                f"""
+                MATCH (p:ScalewayProject{{id: $pid}})
+                MERGE (db:{label}{{id: $dbid}})
+                SET db.is_public = $is_public,
+                    db.status = 'ready',
+                    db.lastupdated = $tag
+                MERGE (p)-[r:RESOURCE]->(db)
+                SET r.lastupdated = $tag
+                """,
+                pid=TEST_PROJECT_ID,
+                dbid=f"{label}-{suffix}",
+                is_public=is_public,
+                tag=TEST_UPDATE_TAG,
+            )
+
+
 def _run_exposure_jobs(neo4j_session):
     for job in SCALEWAY_EXPOSURE_JOBS:
         cartography.util.run_typed_analysis_job(
@@ -338,6 +369,38 @@ def test_scaleway_lb_expose_edges_and_instance_propagation(neo4j_session):
         "inst-lb-public": ["lb"],
         "inst-orphan": None,
     }
+
+
+def test_scaleway_database_exposure(neo4j_session):
+    # Arrange
+    _create_base_graph(neo4j_session)
+    _create_database_graph(neo4j_session)
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+
+    # Assert: every managed-database product gets a verdict, driven by is_public alone,
+    # and the negative case is a stored false rather than a missing property.
+    for label in DATABASE_LABELS:
+        assert check_nodes(
+            neo4j_session,
+            label,
+            ["id", "exposed_internet"],
+        ) == {
+            (f"{label}-public", True),
+            (f"{label}-private", False),
+        }, f"unexpected verdict for {label}"
+
+        types = {
+            row["id"]: row["types"]
+            for row in neo4j_session.run(
+                f"MATCH (db:{label}) RETURN db.id AS id, db.exposed_internet_type AS types",
+            )
+        }
+        assert types == {
+            f"{label}-public": ["direct"],
+            f"{label}-private": None,
+        }, f"unexpected exposure type for {label}"
 
 
 def test_scaleway_instance_exposure_accumulates_types(neo4j_session):

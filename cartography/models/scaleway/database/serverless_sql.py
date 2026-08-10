@@ -25,6 +25,16 @@ class ScalewayServerlessSQLDatabaseProperties(CartographyNodeProperties):
     is_public: PropertyRef = PropertyRef(
         "is_public", description="True if reachable over a public endpoint."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="Set to `True` when `is_public` is true, meaning Scaleway has provisioned a publicly reachable endpoint. Set to `False` otherwise.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the public endpoint is on the database itself.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
     cpu_min: PropertyRef = PropertyRef("cpu_min", description="Minimum vCPU.")
     cpu_max: PropertyRef = PropertyRef("cpu_max", description="Maximum vCPU.")
     cpu_current: PropertyRef = PropertyRef("cpu_current", description="Current vCPU.")

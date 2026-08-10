@@ -10,6 +10,61 @@ from cartography.graph.analysis import SetProperty
 # unscoped cleanup to wrongly remove. The jobs therefore run once at the end of
 # ingestion, which is also where Azure runs its own unscoped property jobs.
 
+# Every Scaleway managed-database product carries a single
+# is_public flag meaning "a public endpoint is provisioned". There is no separate
+# firewall layer to join, unlike AWS security groups or GCP authorized networks, so
+# that flag is the whole reachability signal. The products differ only by label, hence
+# the generated statements: a per-label statement is required because SetProperty needs
+# a label for the generated cleanup to know which nodes own the property.
+_PUBLIC_ENDPOINT_DATABASE_LABELS = (
+    "ScalewayRdbInstance",
+    "ScalewayRedisCluster",
+    "ScalewayMongoDBInstance",
+    "ScalewayDataWarehouseDeployment",
+    "ScalewayServerlessSQLDatabase",
+    "ScalewaySearchDeployment",
+)
+
+
+def _public_endpoint_statements(label: str) -> tuple[AnalysisStatement, ...]:
+    """Mark one managed-database label exposed on is_public, then default the rest to false."""
+    return (
+        AnalysisStatement(
+            comment=(
+                f"A {label} is reachable from the internet when Scaleway has provisioned a "
+                "public endpoint for it. status is deliberately not filtered on: the "
+                "database products each use their own status vocabulary, and the existing "
+                "database_instance_exposed rules key off is_public alone, so adding a "
+                "filter here would make the property and the rules disagree."
+            ),
+            match=f"MATCH (db:{label}) WHERE db.is_public = true",
+            effects=(
+                SetProperty("db", "exposed_internet", True, label=label),
+                AddToSet("db", "exposed_internet_type", "direct", label=label),
+            ),
+        ),
+        AnalysisStatement(
+            comment=(
+                "Record the negative verdict explicitly so that exposed_internet = false is "
+                "answerable and not confused with 'never evaluated', as GCP and Azure do."
+            ),
+            match=f"MATCH (db:{label}) WHERE db.exposed_internet IS NULL",
+            effects=(SetProperty("db", "exposed_internet", False, label=label),),
+        ),
+    )
+
+
+SCALEWAY_DATABASE_EXPOSURE = AnalysisJob(
+    name="Scaleway managed database internet exposure",
+    short_name="scaleway_database_exposure",
+    cleanup_iterationsize=1000,
+    statements=tuple(
+        statement
+        for label in _PUBLIC_ENDPOINT_DATABASE_LABELS
+        for statement in _public_endpoint_statements(label)
+    ),
+)
+
 SCALEWAY_LOADBALANCER_EXPOSURE = AnalysisJob(
     name="Scaleway Load Balancer internet exposure",
     short_name="scaleway_loadbalancer_exposure",
@@ -218,8 +273,10 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
 
 # Order matters. The load balancer verdict is written first, then the EXPOSE edges that
 # depend on it, then the instance job which reads those edges to pick up its `lb` path.
+# The database job is independent of that chain.
 SCALEWAY_EXPOSURE_JOBS = (
     SCALEWAY_LOADBALANCER_EXPOSURE,
     SCALEWAY_LB_EXPOSE_EDGES,
     SCALEWAY_INSTANCE_EXPOSURE,
+    SCALEWAY_DATABASE_EXPOSURE,
 )

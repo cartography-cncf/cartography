@@ -29,6 +29,16 @@ class ScalewaySearchDeploymentProperties(CartographyNodeProperties):
     is_public: PropertyRef = PropertyRef(
         "is_public", description="True if any endpoint is public-facing."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="Set to `True` when `is_public` is true, meaning Scaleway has provisioned a publicly reachable endpoint. Set to `False` otherwise.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the public endpoint is on the deployment itself.",
+    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
     region: PropertyRef = PropertyRef(
         "region", description="Region the deployment lives in."
     )
