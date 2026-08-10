@@ -14,35 +14,119 @@ from cartography.models.extra_labels import RISK
 
 @dataclass(frozen=True)
 class WizIssueNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    status: PropertyRef = PropertyRef("status", extra_index=True)
-    severity: PropertyRef = PropertyRef("severity", extra_index=True)
-    issue_type: PropertyRef = PropertyRef("issue_type", extra_index=True)
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    due_at: PropertyRef = PropertyRef("due_at")
-    resolved_at: PropertyRef = PropertyRef("resolved_at")
-    status_changed_at: PropertyRef = PropertyRef("status_changed_at")
-    control_id: PropertyRef = PropertyRef("control_id", extra_index=True)
-    control_name: PropertyRef = PropertyRef("control_name")
-    control_description: PropertyRef = PropertyRef("control_description")
-    resolution_recommendation: PropertyRef = PropertyRef("resolution_recommendation")
-    source_rule_id: PropertyRef = PropertyRef("source_rule_id", extra_index=True)
-    source_rule_name: PropertyRef = PropertyRef("source_rule_name")
-    resource_id: PropertyRef = PropertyRef("resource_id", extra_index=True)
-    resource_name: PropertyRef = PropertyRef("resource_name")
-    resource_type: PropertyRef = PropertyRef("resource_type", extra_index=True)
-    resource_native_type: PropertyRef = PropertyRef("resource_native_type")
-    resource_cloud_platform: PropertyRef = PropertyRef("resource_cloud_platform")
+    id: PropertyRef = PropertyRef("id", description="Wiz issue ID.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp when this Wiz issue was last seen.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Wiz issue name.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        extra_index=True,
+        description="Wiz issue status.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        extra_index=True,
+        description="Wiz issue severity.",
+    )
+    issue_type: PropertyRef = PropertyRef(
+        "issue_type",
+        extra_index=True,
+        description="Wiz issue type.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Timestamp when Wiz created the issue.",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at",
+        description="Timestamp when Wiz last updated the issue.",
+    )
+    due_at: PropertyRef = PropertyRef(
+        "due_at",
+        description="Wiz issue due timestamp.",
+    )
+    resolved_at: PropertyRef = PropertyRef(
+        "resolved_at",
+        description="Timestamp when Wiz resolved the issue.",
+    )
+    status_changed_at: PropertyRef = PropertyRef(
+        "status_changed_at",
+        description="Timestamp when the Wiz issue status last changed.",
+    )
+    control_id: PropertyRef = PropertyRef(
+        "control_id",
+        extra_index=True,
+        description="Wiz control ID associated with the issue.",
+    )
+    control_name: PropertyRef = PropertyRef(
+        "control_name",
+        description="Wiz control name associated with the issue.",
+    )
+    control_description: PropertyRef = PropertyRef(
+        "control_description",
+        description="Wiz control description associated with the issue.",
+    )
+    resolution_recommendation: PropertyRef = PropertyRef(
+        "resolution_recommendation",
+        description="Wiz remediation guidance for the issue.",
+    )
+    source_rule_id: PropertyRef = PropertyRef(
+        "source_rule_id",
+        extra_index=True,
+        description="Wiz source rule ID for the issue.",
+    )
+    source_rule_name: PropertyRef = PropertyRef(
+        "source_rule_name",
+        description="Wiz source rule name for the issue.",
+    )
+    resource_id: PropertyRef = PropertyRef(
+        "resource_id",
+        extra_index=True,
+        description="Wiz ID of the affected resource.",
+    )
+    resource_name: PropertyRef = PropertyRef(
+        "resource_name",
+        description="Name of the affected Wiz resource.",
+    )
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type",
+        extra_index=True,
+        description="Wiz type of the affected resource.",
+    )
+    resource_native_type: PropertyRef = PropertyRef(
+        "resource_native_type",
+        description="Cloud-native type of the affected resource.",
+    )
+    resource_cloud_platform: PropertyRef = PropertyRef(
+        "resource_cloud_platform",
+        description="Cloud platform of the affected resource.",
+    )
     resource_external_id: PropertyRef = PropertyRef(
         "resource_external_id",
         extra_index=True,
+        description="Provider-native ID of the affected resource.",
     )
-    project_ids: PropertyRef = PropertyRef("project_ids", extra_index=True)
-    project_names: PropertyRef = PropertyRef("project_names", extra_index=True)
-    service_ticket_urls: PropertyRef = PropertyRef("service_ticket_urls")
+    project_ids: PropertyRef = PropertyRef(
+        "project_ids",
+        extra_index=True,
+        description="Wiz project IDs associated with the issue.",
+    )
+    project_names: PropertyRef = PropertyRef(
+        "project_names",
+        extra_index=True,
+        description="Wiz project names associated with the issue.",
+    )
+    service_ticket_urls: PropertyRef = PropertyRef(
+        "service_ticket_urls",
+        description="Service ticket URLs associated with the issue.",
+    )
 
 
 @dataclass(frozen=True)
