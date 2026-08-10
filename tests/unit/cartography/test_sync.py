@@ -1,6 +1,8 @@
 import pytest
+from neo4j.exceptions import ClientError
 
 from cartography.config import Config
+from cartography.config import DatabaseBackend
 from cartography.sync import build_default_sync
 from cartography.sync import build_sync
 from cartography.sync import parse_and_validate_selected_modules
@@ -146,3 +148,115 @@ def test_config_preserves_existing_positional_arguments():
     assert config.neo4j_database == "neo4j-db"
     assert config.selected_modules == "aws,analysis"
     assert config.update_tag == 456
+    assert config.database_backend == DatabaseBackend.NEO4J
+
+
+def _arcadedb_config(**overrides):
+    values = {
+        "neo4j_uri": "bolt://localhost:7687",
+        "neo4j_user": "root",
+        "neo4j_password": "password",
+        "neo4j_database": "cartography",
+        "database_backend": DatabaseBackend.ARCADEDB,
+    }
+    values.update(overrides)
+    return Config(**values)
+
+
+def test_run_with_config_requires_arcadedb_connection_settings(mocker, caplog):
+    sync = mocker.Mock()
+    driver_mock = mocker.patch("cartography.sync.GraphDatabase.driver")
+
+    result = run_with_config(sync, _arcadedb_config(neo4j_database=None))
+
+    assert result == 1
+    assert "--neo4j-database" in caplog.text
+    driver_mock.assert_not_called()
+    sync.run.assert_not_called()
+
+
+def test_run_with_config_validates_arcadedb_and_uses_existing_driver(mocker):
+    sync = mocker.Mock()
+    driver = mocker.MagicMock()
+    driver.get_server_info.return_value.agent = (
+        "Neo4j/5.26.0 compatible (ArcadeDB 26.7.3)"
+    )
+    driver_mock = mocker.patch(
+        "cartography.sync.GraphDatabase.driver",
+        return_value=driver,
+    )
+    mocker.patch("cartography.sync.time.time", return_value=123)
+    config = _arcadedb_config()
+
+    run_with_config(sync, config)
+
+    driver_mock.assert_called_once_with(
+        "bolt://localhost:7687",
+        auth=("root", "password"),
+    )
+    driver.get_server_info.assert_called_once_with()
+    driver.session.assert_called_once_with(database="cartography")
+    session = driver.session.return_value.__enter__.return_value
+    session.run.assert_called_once_with("RETURN 1")
+    session.run.return_value.consume.assert_called_once_with()
+    sync.run.assert_called_once_with(driver, config)
+
+
+@pytest.mark.parametrize(
+    "server_agent",
+    (
+        "Neo4j/5.26.0",
+        "Neo4j/5.26.0 compatible (ArcadeDB 26.7.2)",
+    ),
+)
+def test_run_with_config_rejects_wrong_or_old_arcadedb_server(
+    mocker,
+    server_agent,
+):
+    sync = mocker.Mock()
+    driver = mocker.MagicMock()
+    driver.get_server_info.return_value.agent = server_agent
+    mocker.patch("cartography.sync.GraphDatabase.driver", return_value=driver)
+
+    result = run_with_config(sync, _arcadedb_config())
+
+    assert result == 1
+    driver.close.assert_called_once_with()
+    sync.run.assert_not_called()
+
+
+def test_run_with_config_reports_inaccessible_arcadedb_database(mocker, caplog):
+    sync = mocker.Mock()
+    driver = mocker.MagicMock()
+    driver.get_server_info.return_value.agent = (
+        "Neo4j/5.26.0 compatible (ArcadeDB 26.7.3)"
+    )
+    driver.session.return_value.__enter__.side_effect = ClientError(
+        "Database does not exist"
+    )
+    mocker.patch("cartography.sync.GraphDatabase.driver", return_value=driver)
+
+    result = run_with_config(sync, _arcadedb_config())
+
+    assert result == 1
+    assert "Unable to open ArcadeDB database 'cartography'" in caplog.text
+    driver.close.assert_called_once_with()
+    sync.run.assert_not_called()
+
+
+def test_run_with_config_does_not_handle_neo4j_client_errors_as_arcadedb(
+    mocker,
+    caplog,
+):
+    sync = mocker.Mock()
+    mocker.patch(
+        "cartography.sync.GraphDatabase.driver",
+        side_effect=ClientError("Neo4j client error"),
+    )
+    config = Config(neo4j_uri="bolt://localhost:7687")
+
+    with pytest.raises(ClientError, match="Neo4j client error"):
+        run_with_config(sync, config)
+
+    assert "ArcadeDB" not in caplog.text
+    sync.run.assert_not_called()

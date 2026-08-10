@@ -9,6 +9,7 @@ from typing import Iterator
 import pytest
 
 import cartography.analysis
+from cartography.analysis.ontology.analysis import AWS_USER_PROJECTION
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AddToSet
 from cartography.graph.analysis import AddValuesToSet
@@ -94,6 +95,14 @@ def test_typed_analysis_jobs_declare_effects_and_keep_match_queries_read_only():
                     f"{job.short_name or job.name} statement {index} inlines "
                     "its declared scope."
                 )
+
+
+def test_aws_user_projection_does_not_assign_pattern_expressions():
+    queries = [compile_query(statement) for statement in AWS_USER_PROJECTION.statements]
+
+    assert all("EXISTS((" not in query for query in queries)
+    assert "count(mfa) > 0 AS has_mfa" in queries[0]
+    assert "count(key) > 0 AS has_active_access_key" in queries[1]
 
 
 def test_typed_analysis_jobs_do_not_declare_conflicting_cleanup_guards():

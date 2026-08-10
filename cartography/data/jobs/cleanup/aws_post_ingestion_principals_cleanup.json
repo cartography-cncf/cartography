@@ -1,6 +1,6 @@
 {
   "statements": [{
-    "query": "MATCH (n:AWSPrincipal) WHERE NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+    "query": "MATCH (n:AWSPrincipal) WHERE NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
     "iterative": true,
     "iterationsize": 100
   }],

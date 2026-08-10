@@ -123,15 +123,12 @@ def test_ensure_indexes(neo4j_session):
     ensure_indexes(neo4j_session, InterestingAssetSchema())
 
     # Assert: check the test database for indexes
-    indexes = neo4j_session.run(
-        """
-        SHOW ALL INDEXES
-        WHERE
-            "InterestingAsset" in labelsOrTypes OR
-            "HelloAsset" in labelsOrTypes OR
-            "WorldAsset" in labelsOrTypes
-    """,
-    ).data()
+    indexes = [
+        index
+        for index in neo4j_session.run("SHOW ALL INDEXES").data()
+        if set(index["labelsOrTypes"] or [])
+        & {"InterestingAsset", "HelloAsset", "WorldAsset"}
+    ]
     assert len(indexes) == 4
 
     # Assert there is 1 label for each index created (Neo4j's data-shape of `SHOW ALL INDEXES` is weird)

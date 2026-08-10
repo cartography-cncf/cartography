@@ -74,11 +74,26 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 
 | Option | Description |
 |--------|-------------|
+| `--database-backend` | Database behind the Bolt endpoint: `neo4j` (default) or `arcadedb` |
 | `--neo4j-uri` | Connection URI (default: `bolt://localhost:7687`) |
 | `--neo4j-user` | Username |
 | `--neo4j-password-env-var` | Env var containing password |
 | `--neo4j-password-prompt` | Prompt for password interactively |
 | `--neo4j-database` | Database name |
+
+ArcadeDB uses the existing `--neo4j-*` connection options so existing deployment
+configuration does not need a parallel set of database flags. Authentication and
+an explicit, pre-created database are required:
+
+```bash
+export ARCADEDB_PASSWORD="secret"
+cartography \
+    --database-backend arcadedb \
+    --neo4j-uri bolt://localhost:7687 \
+    --neo4j-user root \
+    --neo4j-password-env-var ARCADEDB_PASSWORD \
+    --neo4j-database cartography
+```
 
 ## Environment Variables
 

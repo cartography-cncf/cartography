@@ -9,14 +9,72 @@ from typing import Callable
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
+from packaging.version import Version
 from statsd import StatsClient
 
 from cartography.config import Config
+from cartography.config import DatabaseBackend
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
 
 logger = logging.getLogger(__name__)
+
+_MIN_ARCADEDB_VERSION = Version("26.7.3")
+_ARCADEDB_VERSION_PATTERN = re.compile(r"\bArcadeDB\s+(\d+\.\d+\.\d+)")
+
+
+def _validate_arcadedb_config(config: Config) -> bool:
+    """Validate settings ArcadeDB requires before opening a Bolt connection."""
+    missing = [
+        option
+        for option, value in (
+            ("--neo4j-user", config.neo4j_user),
+            (
+                "--neo4j-password-env-var or --neo4j-password-prompt",
+                config.neo4j_password,
+            ),
+            ("--neo4j-database", config.neo4j_database),
+        )
+        if not value
+    ]
+    if not missing:
+        return True
+
+    logger.error(
+        "ArcadeDB requires authentication and an explicit database name. Missing: %s.",
+        ", ".join(missing),
+    )
+    return False
+
+
+def _validate_arcadedb_driver(driver: neo4j.Driver, config: Config) -> bool:
+    """Verify that the Bolt endpoint is a supported ArcadeDB server and database."""
+    server_info = driver.get_server_info()
+    server_agent = server_info.agent
+    version_match = _ARCADEDB_VERSION_PATTERN.search(server_agent)
+    if not version_match:
+        logger.error(
+            "The configured ArcadeDB backend returned an unexpected Bolt server identity: '%s'.",
+            server_agent,
+        )
+        return False
+
+    arcade_version = Version(version_match.group(1))
+    if arcade_version < _MIN_ARCADEDB_VERSION:
+        logger.error(
+            "ArcadeDB %s is not supported. Cartography requires ArcadeDB %s or newer.",
+            arcade_version,
+            _MIN_ARCADEDB_VERSION,
+        )
+        return False
+
+    # Opening the requested database here gives operators a backend-specific error
+    # before the first ingestion stage starts. Cartography intentionally does not
+    # provision ArcadeDB databases through its HTTP administration API.
+    with driver.session(database=config.neo4j_database) as session:
+        session.run("RETURN 1").consume()
+    return True
 
 
 class _LazyStage:
@@ -391,7 +449,7 @@ def run_with_config(sync: Sync, config: Config) -> int:
     Execute a sync task with comprehensive configuration and error handling.
 
     This function serves as a high-level wrapper around Sync.run() that handles
-    Neo4j driver creation, authentication, StatsD configuration, and provides
+    Bolt driver creation, authentication, StatsD configuration, and provides
     comprehensive error handling for common connection and authentication issues.
 
     Args:
@@ -437,6 +495,12 @@ def run_with_config(sync: Sync, config: Config) -> int:
             ),
         )
 
+    if (
+        config.database_backend == DatabaseBackend.ARCADEDB
+        and not _validate_arcadedb_config(config)
+    ):
+        return STATUS_FAILURE
+
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
@@ -453,47 +517,79 @@ def run_with_config(sync: Sync, config: Config) -> int:
     for key, value in optional_driver_kwargs.items():
         if value is not None:
             driver_kwargs[key] = value
+    neo4j_driver: neo4j.Driver | None = None
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
             **driver_kwargs,
         )
+        if (
+            config.database_backend == DatabaseBackend.ARCADEDB
+            and not _validate_arcadedb_driver(neo4j_driver, config)
+        ):
+            neo4j_driver.close()
+            return STATUS_FAILURE
     except neo4j.exceptions.ServiceUnavailable as e:
-        logger.debug("Error occurred during Neo4j connect.", exc_info=True)
+        if neo4j_driver is not None:
+            neo4j_driver.close()
+        backend_name = config.database_backend.value
+        logger.debug("Error occurred during database connect.", exc_info=True)
         logger.error(
             (
-                "Unable to connect to Neo4j using the provided URI '%s', an error occurred: '%s'. Make sure the Neo4j "
-                "server is running and accessible from your network."
+                "Unable to connect to %s using the provided URI '%s', an error occurred: '%s'. "
+                "Make sure the database server is running and accessible from your network."
             ),
+            backend_name,
             config.neo4j_uri,
             e,
         )
         return STATUS_FAILURE
     except neo4j.exceptions.AuthError as e:
-        logger.debug("Error occurred during Neo4j auth.", exc_info=True)
+        if neo4j_driver is not None:
+            neo4j_driver.close()
+        backend_name = config.database_backend.value
+        logger.debug("Error occurred during database auth.", exc_info=True)
         if not neo4j_auth:
             logger.error(
                 (
-                    "Unable to auth to Neo4j, an error occurred: '%s'. cartography attempted to connect to Neo4j "
-                    "without any auth. Check your Neo4j server settings to see if auth is required and, if it is, "
-                    "provide cartography with a valid username and password."
+                    "Unable to authenticate to %s, an error occurred: '%s'. Cartography attempted to connect "
+                    "without credentials. Check whether authentication is required and provide a valid username "
+                    "and password."
                 ),
+                backend_name,
                 e,
             )
         else:
             logger.error(
                 (
-                    "Unable to auth to Neo4j, an error occurred: '%s'. cartography attempted to connect to Neo4j with "
-                    "a username and password. Check your Neo4j server settings to see if the username and password "
-                    "provided to cartography are valid credentials."
+                    "Unable to authenticate to %s, an error occurred: '%s'. Check that the provided username and "
+                    "password are valid."
                 ),
+                backend_name,
                 e,
             )
+        return STATUS_FAILURE
+    except neo4j.exceptions.ClientError as e:
+        if config.database_backend != DatabaseBackend.ARCADEDB:
+            raise
+        if neo4j_driver is not None:
+            neo4j_driver.close()
+        # ArcadeDB validation opens the explicitly configured database before
+        # ingestion, so missing/inaccessible database errors surface here.
+        logger.debug(
+            "Error occurred during ArcadeDB database validation.", exc_info=True
+        )
+        logger.error(
+            "Unable to open ArcadeDB database '%s': '%s'. Ensure it exists and the user has access.",
+            config.neo4j_database,
+            e,
+        )
         return STATUS_FAILURE
     default_update_tag = int(time.time())
     if not config.update_tag:
         config.update_tag = default_update_tag
+    assert neo4j_driver is not None
     return sync.run(neo4j_driver, config)
 
 

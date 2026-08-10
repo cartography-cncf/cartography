@@ -32,16 +32,22 @@ def drop_deprecated_ontology_indexes(neo4j_session: neo4j.Session) -> None:
     # type = 'RANGE' is required: cartography only ever created RANGE indexes on these properties,
     # and SHOW INDEXES also returns TEXT/POINT/etc. indexes. Without this filter we would drop an
     # operator-managed TEXT (or future non-RANGE) index on the same property.
+    # ArcadeDB accepts SHOW INDEXES WHERE but does not currently apply every predicate, so apply
+    # this destructive selection to the returned metadata in Python.
     rows = neo4j_session.run(
         """
         SHOW INDEXES YIELD name, labelsOrTypes, properties, entityType, type
-        WHERE entityType = 'NODE' AND type = 'RANGE'
-          AND size(properties) = 1 AND properties[0] IN $props
-        RETURN name
+        RETURN name, labelsOrTypes, properties, entityType, type
         """,
-        props=list(deprecated_props),
     )
-    names = [row["name"] for row in rows]
+    names = [
+        row["name"]
+        for row in rows
+        if row["entityType"] == "NODE"
+        and row["type"] == "RANGE"
+        and len(row["properties"] or []) == 1
+        and row["properties"][0] in deprecated_props
+    ]
     for name in names:
         escaped = name.replace("`", "``")
         # IF EXISTS only tolerates an index vanishing between SHOW and DROP (race); it does not

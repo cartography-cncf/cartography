@@ -575,7 +575,7 @@ def cleanup_rpr(
         MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(principal:AWSPrincipal)-[r:$relationship_name]->
         (resource:$node_label)
         WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE  DELETE (r) return COUNT(*) as TotalCompleted
+        WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted
     """,
     )
     cleanup_rpr_query_template = cleanup_rpr_query.safe_substitute(

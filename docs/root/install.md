@@ -32,6 +32,30 @@ machine to pull data from AWS.
 
     It may take a minute for the Neo4j container to spin up.
 
+    To test ingestion against ArcadeDB instead, start the opt-in Compose profile.
+    It provisions a `cartography` database, exposes ArcadeDB Studio at
+    http://localhost:2480, and exposes Bolt on `localhost:7688` so it does not
+    conflict with Neo4j:
+
+    ```bash
+    docker compose --profile arcadedb up -d --wait arcadedb
+    ```
+
+    The development-only default password is `cartography`. Override it by
+    setting `ARCADEDB_PASSWORD` before starting the service. A minimal local run
+    that exercises backend validation and index creation without provider
+    credentials is:
+
+    ```bash
+    ARCADEDB_PASSWORD=cartography uv run cartography \
+        --database-backend arcadedb \
+        --neo4j-uri bolt://localhost:7688 \
+        --neo4j-user root \
+        --neo4j-password-env-var ARCADEDB_PASSWORD \
+        --neo4j-database cartography \
+        --selected-modules create-indexes
+    ```
+
 1. **Configure and run Cartography.**
 
     In this example we will run Cartography on [AWS](https://docs.cartography.dev/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
@@ -220,6 +244,42 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             export NEO4J_PASSWORD="your-password"
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
+
+    **ArcadeDB alternative:** Cartography's ingestion path also supports ArcadeDB
+    26.7.3 or newer through its Neo4j-compatible Bolt plugin. Enable the plugin,
+    set a root password, and create the target database before running Cartography:
+
+    ```bash
+    export ARCADEDB_PASSWORD="change-this-password"
+    docker run --rm --name cartography-arcadedb \
+        --publish 2480:2480 --publish 7687:7687 \
+        --env JAVA_OPTS="-Darcadedb.server.rootPassword=${ARCADEDB_PASSWORD} -Darcadedb.server.plugins=Bolt:com.arcadedb.bolt.BoltProtocolPlugin" \
+        arcadedata/arcadedb:26.7.3
+    ```
+
+    Once the server is ready, create the database through ArcadeDB's HTTP API:
+
+    ```bash
+    curl --user "root:${ARCADEDB_PASSWORD}" \
+        --header 'Content-Type: application/json' \
+        --data '{"command":"create database cartography"}' \
+        http://localhost:2480/api/v1/server
+    ```
+
+    Then use the existing `--neo4j-*` connection options with the backend selector:
+
+    ```bash
+    cartography \
+        --database-backend arcadedb \
+        --neo4j-uri bolt://localhost:7687 \
+        --neo4j-user root \
+        --neo4j-password-env-var ARCADEDB_PASSWORD \
+        --neo4j-database cartography
+    ```
+
+    Cartography validates the server version and database at startup. Database
+    provisioning remains an ArcadeDB administration step rather than part of
+    ingestion.
 
 1. **Install cartography with [uv](https://docs.astral.sh/uv/).**
 

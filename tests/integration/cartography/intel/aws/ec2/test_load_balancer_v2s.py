@@ -452,6 +452,7 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
 
 def test_migrate_legacy_loadbalancerv2_labels_repairs_partial_state(
     neo4j_session,
+    database_backend,
 ):
     # Arrange
     other_account_id = "111111111111"
@@ -488,7 +489,8 @@ def test_migrate_legacy_loadbalancerv2_labels_repairs_partial_state(
         """,
         account_id=TEST_ACCOUNT_ID,
     ).single()
-    assert migrated["element_id"] == original_element_id
+    if database_backend == "neo4j":
+        assert migrated["element_id"] == original_element_id
     assert migrated["has_aws_label"] is True
     assert migrated["has_semantic_label"] is True
     assert migrated["has_legacy_label"] is True

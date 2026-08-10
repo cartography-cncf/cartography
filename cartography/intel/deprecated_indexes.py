@@ -38,22 +38,26 @@ def drop_deprecated_matchlink_rel_indexes(neo4j_session: neo4j.Session) -> None:
     # these indexes unnamed, so this is the only way to recover Neo4j's auto-generated names.
     # `DROP INDEX` accepts only a literal name (no `DROP INDEX FOR ()-[r:X]->() ON (...)` form
     # exists), so the two queries are incompressible.
-    # `properties = $props` is exact ordered-list equality, and SHOW INDEXES returns properties in
-    # index-key order, so this can only ever match the old three-key shape and never the two-key
-    # index we create today.
+    # Filter the returned metadata in Python. ArcadeDB accepts the Neo4j SHOW INDEXES WHERE syntax
+    # but does not currently apply every predicate, which could otherwise select unrelated node
+    # indexes for deletion. `properties` is ordered, so exact list equality can only match the old
+    # three-key shape and never the two-key index we create today.
     # type = 'RANGE' is required: cartography only ever created RANGE indexes here, and
     # SHOW INDEXES also returns TEXT/POINT/etc. indexes. Without this filter we would drop an
     # operator-managed non-RANGE index on the same properties.
     rows = neo4j_session.run(
         """
         SHOW INDEXES YIELD name, properties, entityType, type
-        WHERE entityType = 'RELATIONSHIP' AND type = 'RANGE'
-          AND properties = $props
-        RETURN name
+        RETURN name, properties, entityType, type
         """,
-        props=_DEPRECATED_MATCHLINK_REL_INDEX_PROPERTIES,
     )
-    names = [row["name"] for row in rows]
+    names = [
+        row["name"]
+        for row in rows
+        if row["entityType"] == "RELATIONSHIP"
+        and row["type"] == "RANGE"
+        and row["properties"] == _DEPRECATED_MATCHLINK_REL_INDEX_PROPERTIES
+    ]
     for name in names:
         escaped = name.replace("`", "``")
         # IF EXISTS only tolerates an index vanishing between SHOW and DROP (race); it does not

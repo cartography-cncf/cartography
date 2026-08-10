@@ -752,6 +752,31 @@ def test_diagnostics_report_what_could_not_be_introspected():
     assert model.diagnostics == ()
 
 
+def test_database_type_names_do_not_collide_case_insensitively():
+    """ArcadeDB type names are case-insensitive within vertex and edge namespaces."""
+    model = inspect_data_model()
+    vertex_labels: set[str] = set()
+    for node in model.nodes:
+        vertex_labels.add(node.label)
+        vertex_labels.update(node.extra_labels)
+        vertex_labels.update(node.ontology_labels)
+        vertex_labels.update(label.label for label in node.conditional_labels)
+    edge_labels = {relationship.label for relationship in model.relationships}
+
+    def collisions(labels: set[str]) -> dict[str, list[str]]:
+        by_normalized_name: dict[str, set[str]] = {}
+        for label in labels:
+            by_normalized_name.setdefault(label.casefold(), set()).add(label)
+        return {
+            normalized: sorted(spellings)
+            for normalized, spellings in by_normalized_name.items()
+            if len(spellings) > 1
+        }
+
+    assert collisions(vertex_labels) == {}
+    assert collisions(edge_labels) == {}
+
+
 def test_for_module_scopes_properties_of_a_shared_node():
     # Arrange
     model = inspect_data_model()

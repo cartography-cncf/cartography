@@ -17,11 +17,11 @@ SAMPLE_CLEANUP_JOB = """
       "iterative": true,
       "iterationsize": 100
     },{
-      "query": "MATCH (n:TypeA) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (n:TypeA) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
       "iterative": true,
       "iterationsize": 100
     },{
-      "query": "MATCH (n:TypeB) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (n:TypeB) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
       "iterative": true,
       "iterationsize": 100
     }],
