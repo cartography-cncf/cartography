@@ -1199,7 +1199,7 @@ class WebhookConfigAccessOutput(Finding):
     role_name: str | None = None
     role_id: str | None = None
     role_type: str | None = None
-    webhook_resources: str | None = None
+    webhook_resources: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -1226,7 +1226,8 @@ _k8s_webhook_config_clusterroles = Fact(
         'ClusterRole' AS role_type,
         [r IN cr.resources WHERE r IN [
             'validatingwebhookconfigurations',
-            'mutatingwebhookconfigurations'
+            'mutatingwebhookconfigurations',
+            '*'
         ]] AS webhook_resources,
         cluster.name AS cluster_name
     """,
