@@ -44,12 +44,12 @@ class ScalewayMongoDBInstanceProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="Set to `True` when `is_public` is true, meaning Scaleway has provisioned a publicly reachable endpoint. Set to `False` otherwise.",
+        description="`True` when `is_public` is true, meaning a publicly reachable endpoint is provisioned.",
     )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
-        description="How it is exposed. Always `direct`, since the public endpoint is on the instance itself.",
+        description="How it is exposed. Always `direct`.",
     )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
     public_endpoint_dns: PropertyRef = PropertyRef(
         "public_endpoint_dns", description="DNS record for the public endpoint, if any."

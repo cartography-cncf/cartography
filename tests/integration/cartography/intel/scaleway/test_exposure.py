@@ -1,11 +1,7 @@
-"""
-Tests for the Scaleway internet exposure analysis jobs.
-
-These build up the prerequisite graph state and then run the analysis jobs against it,
-asserting the resulting exposed_internet / exposed_internet_type properties.
-"""
+"""Tests for the Scaleway internet exposure analysis jobs."""
 
 import cartography.util
+from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
 from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -266,6 +262,33 @@ def _create_database_graph(neo4j_session):
             )
 
 
+SERVERLESS_LABELS = (
+    "ScalewayServerlessFunction",
+    "ScalewayServerlessContainer",
+)
+
+
+def _create_serverless_graph(neo4j_session):
+    """One public and one private workload per serverless product."""
+    for label in SERVERLESS_LABELS:
+        for suffix, privacy in [("public", "public"), ("private", "private")]:
+            neo4j_session.run(
+                f"""
+                MATCH (p:ScalewayProject{{id: $pid}})
+                MERGE (w:{label}{{id: $wid}})
+                SET w.privacy = $privacy,
+                    w.status = 'ready',
+                    w.lastupdated = $tag
+                MERGE (p)-[r:RESOURCE]->(w)
+                SET r.lastupdated = $tag
+                """,
+                pid=TEST_PROJECT_ID,
+                wid=f"{label}-{suffix}",
+                privacy=privacy,
+                tag=TEST_UPDATE_TAG,
+            )
+
+
 def _run_exposure_jobs(neo4j_session):
     for job in SCALEWAY_EXPOSURE_JOBS:
         cartography.util.run_typed_analysis_job(
@@ -280,10 +303,8 @@ def test_scaleway_instance_exposure(neo4j_session):
     # Act
     _run_exposure_jobs(neo4j_session)
 
-    # Assert: only the directly-open instance and the PAT-reachable one are exposed,
-    # and every other instance carries an explicit false rather than a null.
-    # The query is restricted to this scenario's own instances because the neo4j_session
-    # fixture is module-scoped, so other tests in this file add instances of their own.
+    # Restricted to this scenario's own instances: the neo4j_session fixture is
+    # module-scoped, so other tests in this file add instances of their own.
     verdicts = {
         row["id"]: (row["exposed"], row["types"])
         for row in neo4j_session.run(
@@ -316,8 +337,6 @@ def test_scaleway_loadbalancer_exposure(neo4j_session):
     # Act
     _run_exposure_jobs(neo4j_session)
 
-    # Assert: only the load balancer with both a public IP and a listening frontend is
-    # internet-facing.
     assert check_nodes(
         neo4j_session,
         "ScalewayLoadBalancer",
@@ -337,9 +356,7 @@ def test_scaleway_lb_expose_edges_and_instance_propagation(neo4j_session):
     # Act
     _run_exposure_jobs(neo4j_session)
 
-    # Assert: EXPOSE runs from the load balancer to the instance it puts at risk, resolved
-    # both through a private IP and through a flexible IP. The orphan backend that no
-    # frontend routes to yields no edge.
+    # Resolved through both a private IP and a flexible IP; the orphan backend yields none.
     assert check_rels(
         neo4j_session,
         "ScalewayLoadBalancer",
@@ -379,8 +396,6 @@ def test_scaleway_database_exposure(neo4j_session):
     # Act
     _run_exposure_jobs(neo4j_session)
 
-    # Assert: every managed-database product gets a verdict, driven by is_public alone,
-    # and the negative case is a stored false rather than a missing property.
     for label in DATABASE_LABELS:
         assert check_nodes(
             neo4j_session,
@@ -401,6 +416,78 @@ def test_scaleway_database_exposure(neo4j_session):
             f"{label}-public": ["direct"],
             f"{label}-private": None,
         }, f"unexpected exposure type for {label}"
+
+
+def test_scaleway_serverless_exposure(neo4j_session):
+    # Arrange
+    _create_base_graph(neo4j_session)
+    _create_serverless_graph(neo4j_session)
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+
+    for label in SERVERLESS_LABELS:
+        assert check_nodes(
+            neo4j_session,
+            label,
+            ["id", "exposed_internet"],
+        ) == {
+            (f"{label}-public", True),
+            (f"{label}-private", False),
+        }, f"unexpected verdict for {label}"
+
+
+def test_scaleway_container_exposure_reaches_has_runtime_image(neo4j_session):
+    """privacy = 'public' -> exposed_internet -> HAS_RUNTIME_IMAGE.exposed_internet.
+
+    Nothing is hand-set here, unlike test_has_runtime_image_self_service_workload.
+    """
+    # ScalewayServerlessContainer carries both ComputeService and Container, so the ontology
+    # job's *0..6 lower bound of 0 matches it with no WORKLOAD_PARENT hop.
+    _create_base_graph(neo4j_session)
+    for suffix, privacy in [("public", "public"), ("private", "private")]:
+        neo4j_session.run(
+            """
+            MATCH (p:ScalewayProject{id: $pid})
+            MERGE (c:ScalewayServerlessContainer:ComputeService:Container{id: $cid})
+            SET c.privacy = $privacy,
+                c._ont_state = 'ready',
+                c.lastupdated = $tag
+            MERGE (p)-[r:RESOURCE]->(c)
+            SET r.lastupdated = $tag
+            MERGE (img:Image:ScalewayContainerRegistryImage{id: $imgid})
+            SET img.lastupdated = $tag
+            MERGE (c)-[ri:RESOLVED_IMAGE]->(img)
+            SET ri.lastupdated = $tag
+            """,
+            pid=TEST_PROJECT_ID,
+            cid=f"e2e-container-{suffix}",
+            imgid=f"sha256:e2e-{suffix}",
+            privacy=privacy,
+            tag=TEST_UPDATE_TAG,
+        )
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+    cartography.util.run_typed_analysis_job(
+        WORKLOAD_HAS_RUNTIME_IMAGE, neo4j_session, COMMON_JOB_PARAMETERS
+    )
+
+    # Assert
+    edges = {
+        (row["cid"], row["exposed"])
+        for row in neo4j_session.run(
+            """
+            MATCH (c:ScalewayServerlessContainer)-[r:HAS_RUNTIME_IMAGE]->(:Image)
+            WHERE c.id STARTS WITH 'e2e-container-'
+            RETURN c.id AS cid, r.exposed_internet AS exposed
+            """,
+        )
+    }
+    assert edges == {
+        ("e2e-container-public", True),
+        ("e2e-container-private", False),
+    }
 
 
 def test_scaleway_instance_exposure_accumulates_types(neo4j_session):

@@ -55,12 +55,12 @@ class ScalewayLoadBalancerProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="Set to `True` when the Load Balancer holds at least one public IP and has at least one frontend listening, meaning it forwards internet traffic. Set to `False` otherwise, which covers private, private-network-only Load Balancers.",
+        description="`True` when the Load Balancer holds a public IP and has a frontend listening.",
     )  # Populated by the SCALEWAY_LOADBALANCER_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
-        description="How the Load Balancer is exposed. Always `direct`, since a Load Balancer is itself the internet-facing entry point.",
+        description="How the Load Balancer is exposed. Always `direct`.",
     )  # Populated by the SCALEWAY_LOADBALANCER_EXPOSURE analysis job.
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone the Load Balancer lives in."

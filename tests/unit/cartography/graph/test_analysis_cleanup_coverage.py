@@ -546,6 +546,18 @@ CLEANUP_CASES = [
             "ScalewaySearchDeployment",
         )
     ),
+    *(
+        pytest.param(
+            PropertyEffect(label, ("exposed_internet", "exposed_internet_type")),
+            None,
+            _prop_cleanup(label, "exposed_internet", "exposed_internet_type"),
+            id=f"scaleway_serverless_exposure_{label}",
+        )
+        for label in (
+            "ScalewayServerlessFunction",
+            "ScalewayServerlessContainer",
+        )
+    ),
     pytest.param(
         PropertyEffect(
             "ScalewayLoadBalancer", ("exposed_internet", "exposed_internet_type")
