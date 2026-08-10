@@ -1,4 +1,8 @@
+import traceback
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
+from threading import Thread
 from unittest.mock import Mock
 
 import pytest
@@ -148,6 +152,65 @@ def test_get_paginated_miradore_items_never_discloses_the_api_key_on_an_error() 
     assert "https://online.miradore.com/simpsoncorp/API/Device" in str(excinfo.value)
     # Attaching the response would let a caller reach `response.url` and leak the key.
     assert excinfo.value.response is None
+
+
+class _AlwaysUnavailableHandler(BaseHTTPRequestHandler):
+    """Always answers 503, which the retry policy retries until it gives up."""
+
+    def do_GET(self) -> None:
+        self.send_response(503)
+        self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+def test_get_paginated_miradore_items_never_discloses_the_api_key_on_exhausted_retries(
+    mocker,
+) -> None:
+    """An exhausted retry raises out of `Session.get` before any status check runs.
+
+    `RetryError` carries the prepared URL, so this goes through the real retry adapter
+    rather than a mocked session: nothing else proves that path is sanitized.
+    """
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _AlwaysUnavailableHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    session = create_miradore_api_session()
+    # The session mounts the retry adapter on https://; the local server is http://.
+    session.mount("http://", session.adapters["https://"])
+    mocker.patch("urllib3.util.retry.time.sleep")
+
+    try:
+        with pytest.raises(requests.exceptions.RequestException) as excinfo:
+            get_paginated_miradore_items(
+                session,
+                f"http://127.0.0.1:{server.server_port}",
+                _SITE_NAME,
+                _API_KEY,
+                "Device",
+                "ID",
+                page_size=100,
+            )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    # The retry adapter really did give up, rather than the request failing some other way.
+    assert "RetryError" in str(excinfo.value)
+    assert _API_KEY not in str(excinfo.value)
+    assert _API_KEY not in repr(excinfo.value)
+    # `from None` must keep the original message, which carries the key, out of the
+    # traceback the sync runner logs.
+    rendered = "".join(
+        traceback.format_exception(
+            type(excinfo.value),
+            excinfo.value,
+            excinfo.value.__traceback__,
+        )
+    )
+    assert _API_KEY not in rendered
 
 
 def test_get_paginated_miradore_items_rejects_an_unexpected_document() -> None:

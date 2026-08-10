@@ -76,24 +76,39 @@ def _extract_items(payload: dict[str, Any], item: str) -> list[dict[str, Any]]:
     return [entries]
 
 
-def _raise_for_status_without_the_api_key(
-    response: requests.Response,
+def _get_page_without_disclosing_the_api_key(
+    api_session: requests.Session,
     uri: str,
+    params: dict[str, str],
     page: int,
-) -> None:
-    """Raise on an error response without disclosing the authentication key.
+) -> requests.Response:
+    """Fetch one page, turning any failure into an error that omits the API key.
 
-    API v1 authenticates through an `auth` query parameter, so `response.url` embeds the
-    key. `requests.Response.raise_for_status()` puts that URL in the exception message,
-    and the sync runner logs the exception, which would print the key on any 400 or 401.
-    Raise with the key-free request path instead, and do not attach the response so no
-    caller can reach `response.url` either.
+    API v1 authenticates through an `auth` query parameter, so the prepared URL embeds the
+    key. Every way this request can fail puts that URL in the exception message, and the
+    sync runner logs the exception:
+
+    - a transport failure, including a connection error, a timeout, and an exhausted retry
+      (`RetryError`), which `requests` raises out of `Session.get` itself;
+    - an error status, which `Response.raise_for_status()` would report with the full URL.
+
+    So re-raise with the key-free request path in both cases. `from None` suppresses the
+    exception chain, otherwise the original message would resurface in the traceback, and
+    no response is attached so no caller can read `response.url` either.
     """
-    if response.ok:
-        return
-    raise requests.HTTPError(
-        f"Miradore API returned HTTP {response.status_code} for {uri} (page {page})",
-    )
+    try:
+        response = api_session.get(uri, params=params, timeout=_TIMEOUT)
+    except requests.exceptions.RequestException as err:
+        # The exception type is the diagnosable part; its message is not safe to keep.
+        raise requests.exceptions.RequestException(
+            f"Miradore API request to {uri} (page {page}) failed with "
+            f"{type(err).__name__}",
+        ) from None
+    if not response.ok:
+        raise requests.HTTPError(
+            f"Miradore API returned HTTP {response.status_code} for {uri} (page {page})",
+        )
+    return response
 
 
 @timeit
@@ -119,16 +134,12 @@ def get_paginated_miradore_items(
             "select": select,
             "options": _build_options(page, page_size),
         }
-        try:
-            response = api_session.get(uri, params=params, timeout=_TIMEOUT)
-        except requests.exceptions.Timeout:
-            logger.warning(
-                "Miradore: requests.get('%s') timed out on page %d.",
-                uri,
-                page,
-            )
-            raise
-        _raise_for_status_without_the_api_key(response, uri, page)
+        response = _get_page_without_disclosing_the_api_key(
+            api_session,
+            uri,
+            params,
+            page,
+        )
 
         page_results = _extract_items(xmltodict.parse(response.text), item)
         results.extend(page_results)
