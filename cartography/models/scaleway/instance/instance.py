@@ -47,6 +47,15 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
     public_ips: PropertyRef = PropertyRef(
         "public_ips", description="Public IP addresses assigned to the instance."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="Set to `True` when the instance has a public IP attached and an attached Security Group accepts inbound traffic from `0.0.0.0/0`, or when a Public Gateway PAT rule forwards a public port to its private IP. Set to `False` otherwise. Stopped instances are never marked.",
+    )  # Populated by the SCALEWAY_INSTANCE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        description="How the instance is exposed: `direct` (own public IP plus an open inbound rule) and/or `pat` (through a Public Gateway PAT rule).",
+    )  # Populated by the SCALEWAY_INSTANCE_EXPOSURE analysis job.
     mac_address: PropertyRef = PropertyRef(
         "mac_address", description="The server's MAC address."
     )
