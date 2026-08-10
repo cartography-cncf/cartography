@@ -242,3 +242,21 @@ def test_run_with_config_reports_inaccessible_arcadedb_database(mocker, caplog):
     assert "Unable to open ArcadeDB database 'cartography'" in caplog.text
     driver.close.assert_called_once_with()
     sync.run.assert_not_called()
+
+
+def test_run_with_config_does_not_handle_neo4j_client_errors_as_arcadedb(
+    mocker,
+    caplog,
+):
+    sync = mocker.Mock()
+    mocker.patch(
+        "cartography.sync.GraphDatabase.driver",
+        side_effect=ClientError("Neo4j client error"),
+    )
+    config = Config(neo4j_uri="bolt://localhost:7687")
+
+    with pytest.raises(ClientError, match="Neo4j client error"):
+        run_with_config(sync, config)
+
+    assert "ArcadeDB" not in caplog.text
+    sync.run.assert_not_called()

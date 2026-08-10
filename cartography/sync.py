@@ -571,6 +571,8 @@ def run_with_config(sync: Sync, config: Config) -> int:
             )
         return STATUS_FAILURE
     except neo4j.exceptions.ClientError as e:
+        if config.database_backend != DatabaseBackend.ARCADEDB:
+            raise
         if neo4j_driver is not None:
             neo4j_driver.close()
         # ArcadeDB validation opens the explicitly configured database before
