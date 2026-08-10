@@ -1,4 +1,8 @@
-![Cartography](docs/root/images/logo-horizontal.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/root/images/logo-horizontal-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/root/images/logo-horizontal.svg">
+  <img alt="Cartography" src="docs/root/images/logo-horizontal.svg">
+</picture>
 
 <div align="center">
 

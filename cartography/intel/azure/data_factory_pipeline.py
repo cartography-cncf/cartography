@@ -48,15 +48,17 @@ def transform_pipelines(
             continue
 
         dataset_references: list[str] = []
-        activities = p.get("activities", [])
+        # azure-mgmt-datafactory 10 serializes `as_dict()` in ARM wire format, so the
+        # activities moved under `properties` and their dataset references are camelCase.
+        properties = p.get("properties") or {}
+        activities = properties.get("activities") or []
 
         for activity in activities:
-            for input_ref in activity.get("inputs", []):
-                ref_name = input_ref.get("reference_name")
-                if ref_name and ref_name in dataset_name_to_id:
-                    dataset_references.append(dataset_name_to_id[ref_name])
-            for output_ref in activity.get("outputs", []):
-                ref_name = output_ref.get("reference_name")
+            for ref in [
+                *(activity.get("inputs") or []),
+                *(activity.get("outputs") or []),
+            ]:
+                ref_name = ref.get("referenceName")
                 if ref_name and ref_name in dataset_name_to_id:
                     dataset_references.append(dataset_name_to_id[ref_name])
 
@@ -66,7 +68,7 @@ def transform_pipelines(
                 {
                     "id": pipeline_id,
                     "name": p.get("name"),
-                    "description": p.get("properties", {}).get("description"),
+                    "description": properties.get("description"),
                     "factory_id": factory_id,
                     "subscription_id": subscription_id,
                     "dataset_id": dataset_id,
