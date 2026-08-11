@@ -189,7 +189,8 @@ Note that "the internet" is not a node. It is modelled as the `0.0.0.0/0` range:
 
 #### Per-resource derivations
 
-Modules writing `exposed_internet` today: AWS, GCP, Azure, Kubernetes, Scaleway and Railway. AWS and
+Modules writing `exposed_internet` today: AWS, GCP, Azure, Kubernetes, Scaleway,
+Railway, Modal, Netlify, Supabase, Cloudflare and Vercel. AWS and
 Kubernetes do not yet run the explicit `False` pass described above, so on those providers a
 missing property means "not found exposed" rather than a stored `false`.
 
