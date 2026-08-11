@@ -3262,12 +3262,14 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
       AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    // One finding per (repo, package, vulnerable version), which is the declared
-    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
-    // manifest, and every floating range matching the major ('^1.2.0', '~1.3.0', ...)
-    // is its own Dependency node, since the node is keyed on its requirement string.
-    // Group them away and show one deterministic range.
-    RETURN r.fullname as repo, r.id as repo_id, d.name as name, min(d.requirements) as current_version, a.version AS vulnerable_version
+    // One finding per declared range, so current_version is part of the identity here.
+    // Unlike the exact-version facts above, two ranges on one major are not two
+    // spellings of one pin: they cover different version windows and are remediated
+    // separately, and collapsing them would have to pick one range to display while
+    // claiming it resolves to vulnerable_version, which for the other range is false.
+    // DISTINCT still folds away the manifest fan-out, HAS_DEP being one edge per
+    // manifest.
+    RETURN DISTINCT r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3340,7 +3342,10 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
     """,
     asset_label="GitHubRepository",
     asset_id_field="repo_id",
-    identity_fields=("repo", "name", "vulnerable_version"),
+    # current_version is part of the identity here, unlike the exact-version facts: a
+    # declared range is what gets remediated, and two ranges on one major cover
+    # different version windows, so each is its own finding.
+    identity_fields=("repo", "name", "vulnerable_version", "current_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
