@@ -148,11 +148,6 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
             "wiz",
         ),
     }
-    assert check_nodes(neo4j_session, "Risk", ["id"]) == {
-        (VULNERABILITY_ID_1,),
-        (CONFIGURATION_FINDING_ID_1,),
-        (DETECTION_ID_1,),
-    }
     assert (
         {
             tuple(record.values())

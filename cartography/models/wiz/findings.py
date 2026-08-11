@@ -10,7 +10,6 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.extra_labels import RISK
 from cartography.models.ontology.labels import CVE
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
@@ -332,7 +331,6 @@ class WizFindingSchema(CartographyNodeSchema):
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            RISK,
             SECURITY_ISSUE.when(is_security_issue="true"),
             CVE.when(has_cve="true"),
         ],
