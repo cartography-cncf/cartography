@@ -343,6 +343,17 @@ BBOT_SCHEMAS: dict[str, CartographyNodeSchema] = {
 BBOT_RELATIONSHIP_CATALOG: tuple[tuple[str, str, str, str], ...] = (
     *(
         (
+            source_schema.label,
+            "DISCOVERED_FROM",
+            target_schema.label,
+            "Connects a BBOT entity to the nearest supported parent ancestor that discovered it.",
+        )
+        for event_type, source_schema in BBOT_SCHEMAS.items()
+        if event_type != "SCAN"
+        for target_schema in BBOT_SCHEMAS.values()
+    ),
+    *(
+        (
             schema.label,
             "OBSERVED_IN",
             "BbotScan",
