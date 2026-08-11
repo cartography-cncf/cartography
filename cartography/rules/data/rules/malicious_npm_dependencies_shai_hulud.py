@@ -3079,9 +3079,252 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
 )
 
 
+_malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
+    id="malicious-npm-dependencies-shai-hulud-aug-2026-github",
+    name="GitHub repositories with ChainDrop malicious npm dependencies (August 2026 wave)",
+    description="Finds GitHub repositories that depend on npm packages compromised during the ChainDrop (August 2026) wave of the Shai-Hulud attack campaign, which began with the takeover of the keyv maintainer account and spread through the keyv/cacheable dependency family into unrelated organizations via stolen publishing tokens. Malicious releases in this wave carry valid GitHub Actions provenance, so provenance attestation does not distinguish them from legitimate releases. Because the worm republishes every package it can reach, the affected set grew throughout the incident; this list covers the confirmed initial and keyv-family packages and is not exhaustive for the full campaign.",
+    cypher_query="""
+    WITH [
+        { name: 'keyv', version: '6.0.0' },
+        { name: '@keyv/bigmap', version: '6.0.0' },
+        { name: '@keyv/cloudflare-kv', version: '6.0.0' },
+        { name: '@keyv/compress-brotli', version: '6.0.0' },
+        { name: '@keyv/compress-gzip', version: '6.0.0' },
+        { name: '@keyv/compress-lz4', version: '6.0.0' },
+        { name: '@keyv/dynamo', version: '6.0.0' },
+        { name: '@keyv/encrypt-node', version: '6.0.0' },
+        { name: '@keyv/encrypt-web', version: '6.0.0' },
+        { name: '@keyv/etcd', version: '6.0.0' },
+        { name: '@keyv/memcache', version: '6.0.0' },
+        { name: '@keyv/mongo', version: '6.0.0' },
+        { name: '@keyv/mysql', version: '6.0.0' },
+        { name: '@keyv/serialize-superjson', version: '6.0.0' },
+        { name: '@keyv/sqlite', version: '6.0.0' },
+        { name: 'flat-cache', version: '6.1.24' },
+        { name: 'file-entry-cache', version: '11.1.6' },
+        { name: 'cacheable-request', version: '13.0.20' },
+        { name: 'cacheable', version: '2.5.1' },
+        { name: 'cache-manager', version: '7.2.10' },
+        { name: '@cacheable/memory', version: '2.2.1' },
+        { name: '@cacheable/node-cache', version: '3.1.2' },
+        { name: '@cacheable/utils', version: '2.5.1' },
+        { name: '@cacheable/net', version: '2.1.1' },
+        { name: 'ecto', version: '5.0.1' },
+        { name: 'picasso.js', version: '2.11.6' },
+        { name: '@deliveroo/reevent', version: '1.0.1' },
+        { name: '@or-sdk/invitations', version: '1.4.9' },
+        { name: '@picsart/ai-sdk', version: '3.32.2' },
+        { name: '@qlik/embed-runtime', version: '1.6.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
+    WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    """,
+    cypher_visual_query="""
+    WITH [
+      { name: 'keyv', version: '6.0.0' },
+      { name: '@keyv/bigmap', version: '6.0.0' },
+      { name: '@keyv/cloudflare-kv', version: '6.0.0' },
+      { name: '@keyv/compress-brotli', version: '6.0.0' },
+      { name: '@keyv/compress-gzip', version: '6.0.0' },
+      { name: '@keyv/compress-lz4', version: '6.0.0' },
+      { name: '@keyv/dynamo', version: '6.0.0' },
+      { name: '@keyv/encrypt-node', version: '6.0.0' },
+      { name: '@keyv/encrypt-web', version: '6.0.0' },
+      { name: '@keyv/etcd', version: '6.0.0' },
+      { name: '@keyv/memcache', version: '6.0.0' },
+      { name: '@keyv/mongo', version: '6.0.0' },
+      { name: '@keyv/mysql', version: '6.0.0' },
+      { name: '@keyv/serialize-superjson', version: '6.0.0' },
+      { name: '@keyv/sqlite', version: '6.0.0' },
+      { name: 'flat-cache', version: '6.1.24' },
+      { name: 'file-entry-cache', version: '11.1.6' },
+      { name: 'cacheable-request', version: '13.0.20' },
+      { name: 'cacheable', version: '2.5.1' },
+      { name: 'cache-manager', version: '7.2.10' },
+      { name: '@cacheable/memory', version: '2.2.1' },
+      { name: '@cacheable/node-cache', version: '3.1.2' },
+      { name: '@cacheable/utils', version: '2.5.1' },
+      { name: '@cacheable/net', version: '2.1.1' },
+      { name: 'ecto', version: '5.0.1' },
+      { name: 'picasso.js', version: '2.11.6' },
+      { name: '@deliveroo/reevent', version: '1.0.1' },
+      { name: '@or-sdk/invitations', version: '1.4.9' },
+      { name: '@picsart/ai-sdk', version: '3.32.2' },
+      { name: '@qlik/embed-runtime', version: '1.6.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
+        WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN COUNT(r) AS count
+    """,
+    asset_label="GitHubRepository",
+    asset_id_field="repo_id",
+    identity_fields=("repo", "name", "vulnerable_version"),
+    module=Module.GITHUB,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
+    id="malicious-npm-dependencies-shai-hulud-aug-2026-at-risk-github",
+    name="GitHub repositories with floating ranges that can resolve to ChainDrop malicious npm versions (August 2026 wave)",
+    description="Finds GitHub repositories that declare a floating semver range (^, ~, or >) on a package family compromised in the ChainDrop (August 2026) wave, where the range sits on the same major version line as the malicious release and can therefore resolve to it on a fresh install. Several ChainDrop releases are patch bumps (for example flat-cache 6.1.24 and file-entry-cache 11.1.6), so a range such as ^6.1 or ^11.1 resolves to a malicious version without any manifest change. Exactly pinned malicious versions are reported by the companion August 2026 Fact instead, so the two do not overlap. The `vulnerable_version` field reports the malicious version the range can resolve to, not a version the repository is confirmed to have installed.",
+    cypher_query="""
+    WITH [
+        { name: 'keyv', major: '6', version: '6.0.0' },
+        { name: '@keyv/bigmap', major: '6', version: '6.0.0' },
+        { name: '@keyv/cloudflare-kv', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-brotli', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-gzip', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-lz4', major: '6', version: '6.0.0' },
+        { name: '@keyv/dynamo', major: '6', version: '6.0.0' },
+        { name: '@keyv/encrypt-node', major: '6', version: '6.0.0' },
+        { name: '@keyv/encrypt-web', major: '6', version: '6.0.0' },
+        { name: '@keyv/etcd', major: '6', version: '6.0.0' },
+        { name: '@keyv/memcache', major: '6', version: '6.0.0' },
+        { name: '@keyv/mongo', major: '6', version: '6.0.0' },
+        { name: '@keyv/mysql', major: '6', version: '6.0.0' },
+        { name: '@keyv/serialize-superjson', major: '6', version: '6.0.0' },
+        { name: '@keyv/sqlite', major: '6', version: '6.0.0' },
+        { name: 'flat-cache', major: '6', version: '6.1.24' },
+        { name: 'file-entry-cache', major: '11', version: '11.1.6' },
+        { name: 'cacheable-request', major: '13', version: '13.0.20' },
+        { name: 'cacheable', major: '2', version: '2.5.1' },
+        { name: 'cache-manager', major: '7', version: '7.2.10' },
+        { name: '@cacheable/memory', major: '2', version: '2.2.1' },
+        { name: '@cacheable/node-cache', major: '3', version: '3.1.2' },
+        { name: '@cacheable/utils', major: '2', version: '2.5.1' },
+        { name: '@cacheable/net', major: '2', version: '2.1.1' },
+        { name: 'ecto', major: '5', version: '5.0.1' },
+        { name: 'picasso.js', major: '2', version: '2.11.6' },
+        { name: '@deliveroo/reevent', major: '1', version: '1.0.1' },
+        { name: '@or-sdk/invitations', major: '1', version: '1.4.9' },
+        { name: '@picsart/ai-sdk', major: '3', version: '3.32.2' },
+        { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
+    ] AS at_risk
+    UNWIND at_risk AS a
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
+    WHERE d.requirements IS NOT NULL
+      AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
+      AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
+    """,
+    cypher_visual_query="""
+    WITH [
+      { name: 'keyv', major: '6', version: '6.0.0' },
+      { name: '@keyv/bigmap', major: '6', version: '6.0.0' },
+      { name: '@keyv/cloudflare-kv', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-brotli', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-gzip', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-lz4', major: '6', version: '6.0.0' },
+      { name: '@keyv/dynamo', major: '6', version: '6.0.0' },
+      { name: '@keyv/encrypt-node', major: '6', version: '6.0.0' },
+      { name: '@keyv/encrypt-web', major: '6', version: '6.0.0' },
+      { name: '@keyv/etcd', major: '6', version: '6.0.0' },
+      { name: '@keyv/memcache', major: '6', version: '6.0.0' },
+      { name: '@keyv/mongo', major: '6', version: '6.0.0' },
+      { name: '@keyv/mysql', major: '6', version: '6.0.0' },
+      { name: '@keyv/serialize-superjson', major: '6', version: '6.0.0' },
+      { name: '@keyv/sqlite', major: '6', version: '6.0.0' },
+      { name: 'flat-cache', major: '6', version: '6.1.24' },
+      { name: 'file-entry-cache', major: '11', version: '11.1.6' },
+      { name: 'cacheable-request', major: '13', version: '13.0.20' },
+      { name: 'cacheable', major: '2', version: '2.5.1' },
+      { name: 'cache-manager', major: '7', version: '7.2.10' },
+      { name: '@cacheable/memory', major: '2', version: '2.2.1' },
+      { name: '@cacheable/node-cache', major: '3', version: '3.1.2' },
+      { name: '@cacheable/utils', major: '2', version: '2.5.1' },
+      { name: '@cacheable/net', major: '2', version: '2.1.1' },
+      { name: 'ecto', major: '5', version: '5.0.1' },
+      { name: 'picasso.js', major: '2', version: '2.11.6' },
+      { name: '@deliveroo/reevent', major: '1', version: '1.0.1' },
+      { name: '@or-sdk/invitations', major: '1', version: '1.4.9' },
+      { name: '@picsart/ai-sdk', major: '3', version: '3.32.2' },
+      { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
+    ] AS at_risk
+    UNWIND at_risk AS a
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
+        WHERE d.requirements IS NOT NULL
+          AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
+          AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN COUNT(r) AS count
+    """,
+    asset_label="GitHubRepository",
+    asset_id_field="repo_id",
+    identity_fields=("repo", "name", "vulnerable_version"),
+    module=Module.GITHUB,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class MaliciousNpmDependenciesShaiHuludOutput(Finding):
     repo: str | None = None
+    repo_id: str | None = None
     name: str | None = None
     current_version: str | None = None
     vulnerable_version: str | None = None
@@ -3090,16 +3333,34 @@ class MaliciousNpmDependenciesShaiHuludOutput(Finding):
 malicious_npm_dependencies_shai_hulud = Rule(
     id="malicious-npm-dependencies-shai-hulud",
     name="Repositories with Shai-Hulud Malicious npm Dependencies",
-    description="Detects GitHub repositories that depend on npm packages compromised during the Shai-Hulud supply chain attack campaign. This sophisticated attack occurred in multiple waves (September 2025, November 2025, and the May 2026 Mini Shai-Hulud / TheBeautifulSandsOfTime wave), targeting hundreds of npm packages including popular terminal styling libraries (chalk, ansi-regex, strip-ansi), DuckDB-adjacent packages, API integration tools (@zapier/*, @postman/*, @asyncapi/*), analytics packages (@posthog/*), blockchain/ENS packages (@ensdomains/*), TanStack routing packages (@tanstack/react-router and siblings), UiPath enterprise automation packages (@uipath/*), Mistral AI clients (@mistralai/*), and numerous other scoped packages. The presence of these specific malicious versions indicates a supply chain compromise requiring immediate remediation.",
+    description="Detects GitHub repositories that depend on npm packages compromised during the Shai-Hulud supply chain attack campaign. This sophisticated attack occurred in multiple waves (September 2025, November 2025, the May 2026 Mini Shai-Hulud / TheBeautifulSandsOfTime wave, and the August 2026 ChainDrop wave), targeting hundreds of npm packages including popular terminal styling libraries (chalk, ansi-regex, strip-ansi), DuckDB-adjacent packages, API integration tools (@zapier/*, @postman/*, @asyncapi/*), analytics packages (@posthog/*), blockchain/ENS packages (@ensdomains/*), TanStack routing packages (@tanstack/react-router and siblings), UiPath enterprise automation packages (@uipath/*), Mistral AI clients (@mistralai/*), the keyv/cacheable caching family (keyv, flat-cache, file-entry-cache, cacheable-request, cache-manager, @cacheable/*), and numerous other scoped packages. The presence of these specific malicious versions indicates a supply chain compromise requiring immediate remediation. The August 2026 wave is additionally covered by an at-risk Fact that reports floating semver ranges able to resolve to a malicious version, because several of its releases are patch bumps and its tarballs carry valid GitHub Actions provenance.",
     output_model=MaliciousNpmDependenciesShaiHuludOutput,
     tags=("supply_chain", "cti", "shai_hulud"),
     facts=(
         _malicious_npm_dependencies_shai_hulud_sept_2025_github,
         _malicious_npm_dependencies_shai_hulud_nov_2025_github,
         _malicious_npm_dependencies_shai_hulud_mini_2026_github,
+        _malicious_npm_dependencies_shai_hulud_aug_2026_github,
+        _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github,
     ),
-    version="0.2.0",
+    version="0.3.0",
     references=[
+        RuleReference(
+            text="StepSecurity - ChainDrop npm Worm: Bun-loaded CI/CD credential harvester with Ethereum dead-drop C2",
+            url="https://www.stepsecurity.io/blog/chaindrop-npm-worm",
+        ),
+        RuleReference(
+            text="JFrog - Major Shai-Hulud campaign strikes npm again, affecting keyv and 400+ packages",
+            url="https://research.jfrog.com/post/shai-hulud-is-back-august/",
+        ),
+        RuleReference(
+            text="Aikido.dev - Keyv and friends compromised in npm supply chain attack",
+            url="https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
+        ),
+        RuleReference(
+            text="BleepingComputer - Massive ChainDrop npm supply-chain attack infects hundreds of packages",
+            url="https://www.bleepingcomputer.com/news/security/massive-chaindrop-npm-supply-chain-attack-infects-hundreds-of-packages/",
+        ),
         RuleReference(
             text="Socket.dev - Mini Shai-Hulud Supply Chain Attack",
             url="https://socket.dev/supply-chain-attacks/mini-shai-hulud",
