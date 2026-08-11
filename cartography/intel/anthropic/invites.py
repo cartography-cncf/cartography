@@ -8,7 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
 from cartography.intel.anthropic.util import resolve_org_id
-from cartography.models.anthropic.user import AnthropicUserSchema
+from cartography.models.anthropic.invite import AnthropicInviteSchema
 from cartography.util import timeit
 
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
@@ -20,16 +20,15 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
-) -> str:
-    header_org_id, users = get(
+) -> None:
+    header_org_id, invites = get(
         api_session,
         common_job_parameters["BASE_URL"],
     )
     org_id = resolve_org_id(common_job_parameters, header_org_id)
     common_job_parameters["ORG_ID"] = org_id
-    load_users(neo4j_session, users, org_id, common_job_parameters["UPDATE_TAG"])
+    load_invites(neo4j_session, invites, org_id, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
-    return org_id
 
 
 @timeit
@@ -38,12 +37,12 @@ def get(
     base_url: str,
 ) -> Tuple[str, list[dict[str, Any]]]:
     return paginated_get(
-        api_session, f"{base_url}/organizations/users", timeout=_TIMEOUT
+        api_session, f"{base_url}/organizations/invites", timeout=_TIMEOUT
     )
 
 
 @timeit
-def load_users(
+def load_invites(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     ORG_ID: str,
@@ -51,7 +50,7 @@ def load_users(
 ) -> None:
     load(
         neo4j_session,
-        AnthropicUserSchema(),
+        AnthropicInviteSchema(),
         data,
         lastupdated=update_tag,
         ORG_ID=ORG_ID,
@@ -62,6 +61,6 @@ def load_users(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(AnthropicUserSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(AnthropicInviteSchema(), common_job_parameters).run(
         neo4j_session
     )
