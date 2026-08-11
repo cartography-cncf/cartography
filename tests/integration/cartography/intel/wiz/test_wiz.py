@@ -107,6 +107,56 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         (CONFIGURATION_FINDING_ID_1, "CONFIGURATION", None, "wiz-resource-config-1"),
         (DETECTION_ID_1, "DETECTION", None, "wiz-detection-resource-1"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "SecurityIssue",
+        [
+            "id",
+            "_ont_title",
+            "_ont_severity",
+            "_ont_status",
+            "_ont_type",
+            "_ont_first_seen",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            ISSUE_ID_1,
+            "Public VM",
+            "high",
+            "open",
+            "CLOUD_CONFIGURATION",
+            "2026-01-03T00:00:00Z",
+            "wiz",
+        ),
+        (
+            VULNERABILITY_ID_1,
+            CVE_ID_1,
+            "high",
+            "open",
+            "VULNERABILITY",
+            "2026-01-05T00:00:00Z",
+            "wiz",
+        ),
+        (
+            CONFIGURATION_FINDING_ID_1,
+            "S3 bucket is public",
+            "critical",
+            "open",
+            "CONFIGURATION",
+            "2026-01-07T00:00:00Z",
+            "wiz",
+        ),
+        (
+            DETECTION_ID_1,
+            "Suspicious process",
+            "high",
+            None,
+            "DETECTION",
+            "2026-01-08T00:00:00Z",
+            "wiz",
+        ),
+    }
 
     assert check_rels(
         neo4j_session,

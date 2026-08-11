@@ -66,6 +66,22 @@ _SOCKETDEV_STATUS = {
     "cleared": "ignored",
 }
 
+# Wiz issue and finding severity/status.
+_WIZ_SEVERITY = {
+    "NONE": "info",
+    "INFORMATIONAL": "info",
+    "LOW": "low",
+    "MEDIUM": "medium",
+    "HIGH": "high",
+    "CRITICAL": "critical",
+}
+_WIZ_STATUS = {
+    "OPEN": "open",
+    "IN_PROGRESS": "open",
+    "RESOLVED": "fixed",
+    "REJECTED": "ignored",
+}
+
 aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
@@ -246,6 +262,63 @@ socketdev_mapping = OntologyMapping(
     ],
 )
 
+wiz_mapping = OntologyMapping(
+    module_name="wiz",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WizIssue",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _WIZ_SEVERITY},
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="issue_type"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _WIZ_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="created_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="WizFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _WIZ_SEVERITY},
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="finding_type"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _WIZ_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="first_seen_at",
+                    special_handling="coalesce",
+                    extra={"fields": ["first_detected_at", "created_at"]},
+                ),
+            ],
+        ),
+    ],
+)
+
 azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
@@ -297,6 +370,7 @@ SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,
+    "wiz": wiz_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,
 }

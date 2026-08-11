@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
@@ -150,4 +151,4 @@ class WizIssueSchema(CartographyNodeSchema):
     label: str = "WizIssue"
     properties: WizIssueNodeProperties = WizIssueNodeProperties()
     sub_resource_relationship: WizIssueToTenantRel = WizIssueToTenantRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, SECURITY_ISSUE])
