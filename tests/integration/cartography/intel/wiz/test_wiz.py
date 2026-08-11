@@ -12,6 +12,7 @@ from tests.data.wiz import FINDINGS
 from tests.data.wiz import GRAPHQL_URL
 from tests.data.wiz import ISSUE_ID_1
 from tests.data.wiz import ISSUES
+from tests.data.wiz import NON_CVE_VULNERABILITY_ID
 from tests.data.wiz import RESOURCE_ID_1
 from tests.data.wiz import TENANT_ID
 from tests.data.wiz import VULNERABILITY_ID_1
@@ -104,6 +105,7 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         ["id", "finding_type", "cve_id", "resource_id"],
     ) == {
         (VULNERABILITY_ID_1, "VULNERABILITY", CVE_ID_1, RESOURCE_ID_1),
+        (NON_CVE_VULNERABILITY_ID, "VULNERABILITY", None, RESOURCE_ID_1),
         (CONFIGURATION_FINDING_ID_1, "CONFIGURATION", None, "wiz-resource-config-1"),
         (DETECTION_ID_1, "DETECTION", None, "wiz-detection-resource-1"),
     }
@@ -127,6 +129,15 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
             "open",
             "CLOUD_CONFIGURATION",
             "2026-01-03T00:00:00Z",
+            "wiz",
+        ),
+        (
+            NON_CVE_VULNERABILITY_ID,
+            "openssl advisory",
+            "medium",
+            "open",
+            "VULNERABILITY",
+            "2026-01-06T00:00:00Z",
             "wiz",
         ),
         (
@@ -178,6 +189,7 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         "RESOURCE",
     ) == {
         (TENANT_ID, VULNERABILITY_ID_1),
+        (TENANT_ID, NON_CVE_VULNERABILITY_ID),
         (TENANT_ID, CONFIGURATION_FINDING_ID_1),
         (TENANT_ID, DETECTION_ID_1),
     }
@@ -236,6 +248,7 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     }
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == {
         (VULNERABILITY_ID_1,),
+        (NON_CVE_VULNERABILITY_ID,),
         (CONFIGURATION_FINDING_ID_1,),
         (DETECTION_ID_1,),
     }
@@ -264,6 +277,7 @@ def test_start_wiz_ingestion_project_filter_preserves_older_records(
     }
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == {
         (VULNERABILITY_ID_1,),
+        (NON_CVE_VULNERABILITY_ID,),
         (CONFIGURATION_FINDING_ID_1,),
         (DETECTION_ID_1,),
     }
