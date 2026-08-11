@@ -51,7 +51,21 @@ host with a different response shape. See
 [unikraft-cloud/openapi#3](https://github.com/unikraft-cloud/openapi/issues/3)
 for details. This will be revisited once that's resolved or confirmed.
 
+### Pagination is not currently supported
+
+The platform API docs describe `count`/`from`/`order`/`sortby` params for
+cursor-based pagination on list endpoints, but every variant of them (as
+query params, as a JSON body, in either casing) is rejected by the live
+API — confirmed directly against a real account. Cartography fetches a
+single, unparameterized page per resource type per metro; accounts with
+more resources of a given type than a single response returns will not
+have everything ingested. See
+[unikraft-cloud/openapi#4](https://github.com/unikraft-cloud/openapi/issues/4)
+for details. This will be revisited once a working pagination mechanism is
+confirmed.
+
 ## References
 
 - [Unikraft Cloud Platform API](https://docs.unikraft.com/api/platform/v1)
 - [unikraft-cloud/openapi#3](https://github.com/unikraft-cloud/openapi/issues/3) — tracks the images API discrepancy
+- [unikraft-cloud/openapi#4](https://github.com/unikraft-cloud/openapi/issues/4) — tracks the pagination and other request-shape discrepancies
