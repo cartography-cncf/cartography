@@ -1,0 +1,106 @@
+"""The EXPOSE direction flip needs a migration, because generated cleanup cannot reach the
+legacy edges: it only ever matches the new label and orientation, so an upgraded graph would
+hold both directions at once and any traversal of EXPOSE would see contradictory results."""
+
+from cartography.util import run_analysis_job
+
+COMMON_JOB_PARAMETERS = {"UPDATE_TAG": 123456789}
+
+
+def _legacy_and_current_edges(neo4j_session):
+    return {
+        (row["kind"], row["target"])
+        for row in neo4j_session.run(
+            """
+            MATCH (a)-[r]->(b)
+            WHERE type(r) IN ['EXPOSE', 'EXPOSES']
+            RETURN type(r) + ':' + head(labels(a)) AS kind, head(labels(b)) AS target
+            """,
+        )
+    }
+
+
+def test_railway_expose_direction_migration_drops_only_the_legacy_edges(neo4j_session):
+    # Arrange: a graph written before the flip, plus the edges the current loader writes.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (si:RailwayServiceInstance{id: 'si-1'})
+        CREATE (sd:RailwayServiceDomain{id: 'sd-1'})
+        CREATE (cd:RailwayCustomDomain{id: 'cd-1'})
+        CREATE (tp:RailwayTCPProxy{id: 'tp-1'})
+        CREATE (si)-[:EXPOSE]->(sd)
+        CREATE (si)-[:EXPOSE]->(cd)
+        CREATE (si)-[:EXPOSE]->(tp)
+        CREATE (sd)-[:EXPOSE]->(si)
+        CREATE (cd)-[:EXPOSE]->(si)
+        CREATE (tp)-[:EXPOSE]->(si)
+        """
+    )
+
+    # Act
+    run_analysis_job(
+        "railway_expose_edge_direction_migration.json",
+        neo4j_session,
+        COMMON_JOB_PARAMETERS,
+    )
+
+    # Assert: only entrypoint -> instance survives, for all three entrypoint kinds.
+    assert _legacy_and_current_edges(neo4j_session) == {
+        ("EXPOSE:RailwayServiceDomain", "RailwayServiceInstance"),
+        ("EXPOSE:RailwayCustomDomain", "RailwayServiceInstance"),
+        ("EXPOSE:RailwayTCPProxy", "RailwayServiceInstance"),
+    }
+
+
+def test_modal_expose_rename_migration_drops_only_the_legacy_edges(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (sb:ModalSandbox{id: 'sb-1'})
+        CREATE (tn:ModalSandboxTunnel{id: 'sb-1/8000'})
+        CREATE (sb)-[:EXPOSES]->(tn)
+        CREATE (tn)-[:EXPOSE]->(sb)
+        """
+    )
+
+    # Act
+    run_analysis_job(
+        "modal_expose_edge_rename_migration.json",
+        neo4j_session,
+        COMMON_JOB_PARAMETERS,
+    )
+
+    # Assert
+    assert _legacy_and_current_edges(neo4j_session) == {
+        ("EXPOSE:ModalSandboxTunnel", "ModalSandbox"),
+    }
+
+
+def test_expose_edge_migrations_are_idempotent(neo4j_session):
+    """A second run must be a no-op: these jobs run on every sync until v1.0.0."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (si:RailwayServiceInstance{id: 'si-1'})
+        CREATE (sd:RailwayServiceDomain{id: 'sd-1'})
+        CREATE (sb:ModalSandbox{id: 'sb-1'})
+        CREATE (tn:ModalSandboxTunnel{id: 'sb-1/8000'})
+        CREATE (sd)-[:EXPOSE]->(si)
+        CREATE (tn)-[:EXPOSE]->(sb)
+        """
+    )
+    expected = _legacy_and_current_edges(neo4j_session)
+
+    # Act
+    for _ in range(2):
+        for job in (
+            "railway_expose_edge_direction_migration.json",
+            "modal_expose_edge_rename_migration.json",
+        ):
+            run_analysis_job(job, neo4j_session, COMMON_JOB_PARAMETERS)
+
+    # Assert: the current edges are untouched.
+    assert _legacy_and_current_edges(neo4j_session) == expected

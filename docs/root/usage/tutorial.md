@@ -210,7 +210,7 @@ missing property means "not found exposed" rather than a stored `false`.
 
 	- **API Gateway REST APIs**: `exposed_internet` is set to `True` when the API's endpoint configuration type is `EDGE` or `REGIONAL`, both of which are publicly resolvable. Computed in `transform()` at `cartography.intel.aws.apigateway`.
 
-	- **EKS / GKE / AKS clusters**: `exposed_internet` is set to `True` when the cluster's control plane endpoint has public access enabled.
+	- **EKS / GKE clusters**: `exposed_internet` is set to `True` when the cluster's control plane endpoint has public access enabled. AKS is not covered: `AzureKubernetesCluster` stores `api_server_public_access` but no job turns it into a verdict, and the ontology's `_ont_control_plane_public_access` is what the `kubernetes_control_plane_exposed` rule reads for it instead.
 
 	- **GCP instances**: `exposed_internet` is set to `True` when the instance has an access config granting it an external IP, or when it is reached through an exposed forwarding rule. GCP firewall deny rules are evaluated by priority, so a higher-priority deny suppresses a lower-priority allow.
 
