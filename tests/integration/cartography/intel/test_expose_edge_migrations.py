@@ -1,6 +1,7 @@
 """The EXPOSE direction flip needs a migration, because generated cleanup cannot reach the
 legacy edges: it only ever matches the new label and orientation, so an upgraded graph would
-hold both directions at once and any traversal of EXPOSE would see contradictory results."""
+hold both directions at once and any traversal of EXPOSE would see contradictory results.
+"""
 
 from cartography.util import run_analysis_job
 
