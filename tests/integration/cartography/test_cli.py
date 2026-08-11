@@ -62,6 +62,58 @@ def test_cli_aws_ssm_public_parameter_prefix_allowlist_sets_config():
     )
 
 
+def test_cli_wiz_options_set_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    with unittest.mock.patch(
+        "cartography.sync.run_with_config",
+        return_value=0,
+    ) as run_with_config:
+        with unittest.mock.patch.dict(
+            os.environ,
+            {
+                "TEST_WIZ_CLIENT_ID": "client-id",
+                "TEST_WIZ_CLIENT_SECRET": "client-secret",
+            },
+        ):
+            cli.main(
+                [
+                    "--neo4j-uri",
+                    settings.get("NEO4J_URL"),
+                    "--selected-modules",
+                    "wiz",
+                    "--wiz-graphql-url",
+                    "https://api.us1.app.wiz.io/graphql",
+                    "--wiz-auth-url",
+                    "https://auth.app.wiz.io/oauth/token",
+                    "--wiz-client-id-env-var",
+                    "TEST_WIZ_CLIENT_ID",
+                    "--wiz-client-secret-env-var",
+                    "TEST_WIZ_CLIENT_SECRET",
+                    "--wiz-tenant-id",
+                    "tenant-1",
+                    "--wiz-project-ids",
+                    "project-1, project-2",
+                    "--wiz-lookback-days",
+                    "30",
+                ],
+            )
+
+    # Assert
+    run_with_config.assert_called_once()
+    config = run_with_config.call_args[0][1]
+    assert config.wiz_graphql_url == "https://api.us1.app.wiz.io/graphql"
+    assert config.wiz_auth_url == "https://auth.app.wiz.io/oauth/token"
+    assert config.wiz_client_id == "client-id"
+    assert config.wiz_client_secret == "client-secret"
+    assert config.wiz_tenant_id == "tenant-1"
+    assert config.wiz_project_ids == ["project-1", "project-2"]
+    assert config.wiz_lookback_days == 30
+
+
 def test_cli_microsoft_credentials_set_config():
     # Arrange
     sync = unittest.mock.MagicMock()

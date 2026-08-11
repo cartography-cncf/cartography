@@ -120,7 +120,6 @@ class WizIssueNodeProperties(CartographyNodeProperties):
     )
     project_names: PropertyRef = PropertyRef(
         "project_names",
-        extra_index=True,
         description="Wiz project names associated with the issue.",
     )
     service_ticket_urls: PropertyRef = PropertyRef(

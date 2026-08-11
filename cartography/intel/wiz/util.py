@@ -13,23 +13,6 @@ def epoch_days_ago_iso(update_tag: int, lookback_days: int) -> str:
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def tags_to_strings(tags: Any) -> list[str]:
-    if not tags:
-        return []
-    result: list[str] = []
-    for tag in tags:
-        if isinstance(tag, dict):
-            key = tag.get("key") or tag.get("name")
-            value = tag.get("value")
-            if key and value is not None:
-                result.append(f"{key}={value}")
-            elif key:
-                result.append(str(key))
-            continue
-        result.append(str(tag))
-    return result
-
-
 def project_ids(projects: Any) -> list[str]:
     return [
         str(project["id"])
@@ -60,6 +43,13 @@ def filter_by_project_ids(
     records: list[dict[str, Any]],
     allowed_project_ids: list[str] | None,
 ) -> list[dict[str, Any]]:
+    """
+    Filter records that carry project metadata and keep records that do not.
+
+    Wiz GraphQL responses do not expose project metadata consistently across
+    issue and finding types. Dropping project-less records would make a scoped
+    import silently miss supported findings.
+    """
     if not allowed_project_ids:
         return records
 

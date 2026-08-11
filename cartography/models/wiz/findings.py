@@ -235,17 +235,14 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     )
     cloud_account_ids: PropertyRef = PropertyRef(
         "cloud_account_ids",
-        extra_index=True,
         description="Wiz cloud account IDs associated with the finding.",
     )
     cloud_account_names: PropertyRef = PropertyRef(
         "cloud_account_names",
-        extra_index=True,
         description="Wiz cloud account names associated with the finding.",
     )
     cloud_organization_ids: PropertyRef = PropertyRef(
         "cloud_organization_ids",
-        extra_index=True,
         description="Wiz cloud organization IDs associated with the finding.",
     )
     cloud_organization_names: PropertyRef = PropertyRef(
@@ -254,7 +251,6 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     )
     actor_ids: PropertyRef = PropertyRef(
         "actor_ids",
-        extra_index=True,
         description="Wiz actor IDs associated with the finding.",
     )
     actor_names: PropertyRef = PropertyRef(
@@ -263,7 +259,6 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     )
     origins: PropertyRef = PropertyRef(
         "origins",
-        extra_index=True,
         description="Wiz origins associated with the finding.",
     )
     triggering_event_ids: PropertyRef = PropertyRef(
@@ -277,7 +272,6 @@ class WizFindingNodeProperties(CartographyNodeProperties):
     )
     project_names: PropertyRef = PropertyRef(
         "project_names",
-        extra_index=True,
         description="Wiz project names associated with the finding.",
     )
 

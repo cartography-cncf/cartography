@@ -63,21 +63,24 @@ def get(
     session: requests.Session,
     graphql_url: str,
     token: str,
-    since_iso: str,
+    since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
+    filter_by: dict[str, Any] = {
+        "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
+        "severity": ["INFORMATIONAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+        "type": ["TOXIC_COMBINATION", "THREAT_DETECTION", "CLOUD_CONFIGURATION"],
+    }
+    if since_iso:
+        filter_by["statusChangedAt"] = {"after": since_iso}
+
     raw = get_paginated(
         session,
         graphql_url,
         token,
         _QUERY,
         "issuesV2",
-        filter_by={
-            "createdAt": {"after": since_iso},
-            "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
-            "severity": ["INFORMATIONAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
-            "type": ["TOXIC_COMBINATION", "THREAT_DETECTION", "CLOUD_CONFIGURATION"],
-        },
+        filter_by=filter_by,
     )
     return filter_by_project_ids(raw, project_id_filter)
 
@@ -163,13 +166,17 @@ def sync(
     tenant_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    lookback_days: int,
+    lookback_days: int | None,
     project_id_filter: list[str] | None = None,
     *,
     do_cleanup: bool = True,
 ) -> None:
     logger.info("Syncing Wiz issues for tenant %s", tenant_id)
-    since_iso = epoch_days_ago_iso(update_tag, lookback_days)
+    since_iso = (
+        epoch_days_ago_iso(update_tag, lookback_days)
+        if lookback_days is not None
+        else None
+    )
     raw_issues = get(session, graphql_url, token, since_iso, project_id_filter)
     issues = transform(raw_issues)
     load_issues(neo4j_session, issues, tenant_id, update_tag)

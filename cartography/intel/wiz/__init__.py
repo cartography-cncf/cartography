@@ -44,7 +44,6 @@ def load_tenant(
 def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     if (
         not config.wiz_graphql_url
-        or not config.wiz_auth_url
         or not config.wiz_client_id
         or not config.wiz_client_secret
     ):
@@ -54,16 +53,32 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    if config.wiz_lookback_days < 1:
+    if config.wiz_lookback_days is not None and config.wiz_lookback_days < 1:
         logger.warning(
             "Wiz lookback days is less than 1 - skipping this module. "
             "Set wiz_lookback_days to a value greater than 0 to enable.",
         )
         return
 
-    tenant_id = config.wiz_tenant_id or _tenant_id_from_graphql_url(
-        config.wiz_graphql_url,
-    )
+    auth_url = config.wiz_auth_url or WIZ_DEFAULT_AUTH_URL
+    if config.wiz_tenant_id:
+        tenant_id = config.wiz_tenant_id
+    else:
+        tenant_id = _tenant_id_from_graphql_url(config.wiz_graphql_url)
+        logger.warning(
+            "Wiz tenant ID is not configured; using GraphQL API hostname %s as "
+            "WizTenant id. Set wiz_tenant_id when syncing multiple Wiz tenants "
+            "to the same graph.",
+            tenant_id,
+        )
+
+    do_cleanup = config.wiz_lookback_days is None
+    if not do_cleanup:
+        logger.warning(
+            "Wiz lookback mode is incremental; skipping Wiz cleanup so older "
+            "unchanged issues and findings are not deleted.",
+        )
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "WIZ_TENANT_ID": tenant_id,
@@ -72,7 +87,7 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     session = requests.Session()
     token = get_access_token(
         session,
-        config.wiz_auth_url,
+        auth_url,
         config.wiz_client_id,
         config.wiz_client_secret,
     )
@@ -108,11 +123,12 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         do_cleanup=False,
     )
 
-    cartography.intel.wiz.findings.cleanup(
-        neo4j_session,
-        common_job_parameters,
-    )
-    cartography.intel.wiz.issues.cleanup(neo4j_session, common_job_parameters)
+    if do_cleanup:
+        cartography.intel.wiz.findings.cleanup(
+            neo4j_session,
+            common_job_parameters,
+        )
+        cartography.intel.wiz.issues.cleanup(neo4j_session, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session,

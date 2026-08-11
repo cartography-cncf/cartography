@@ -2048,15 +2048,19 @@ class CLI:
                 ),
             ] = None,
             wiz_lookback_days: Annotated[
-                int,
+                int | None,
                 typer.Option(
                     "--wiz-lookback-days",
-                    help="Number of days of Wiz issue and finding updates to retrieve on each run. Defaults to 180.",
+                    help=(
+                        "Fetch only Wiz issue and finding updates from the last N days. "
+                        "When set, Wiz cleanup is skipped so older unchanged records are preserved. "
+                        "Omit for a complete sync with cleanup."
+                    ),
                     min=1,
                     rich_help_panel=PANEL_WIZ,
                     hidden=PANEL_WIZ not in visible_panels,
                 ),
-            ] = 180,
+            ] = None,
             # =================================================================
             # Keycloak Options
             # =================================================================

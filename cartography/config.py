@@ -402,8 +402,8 @@ class Config:
     :param wiz_tenant_id: Identifier used to scope Wiz nodes. Optional.
     :type wiz_project_ids: list[str]
     :param wiz_project_ids: List of Wiz project IDs to import. Optional.
-    :type wiz_lookback_days: int
-    :param wiz_lookback_days: Number of days of Wiz updates to fetch. Optional.
+    :type wiz_lookback_days: int | None
+    :param wiz_lookback_days: Number of days of Wiz updates to fetch without cleanup. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -626,7 +626,7 @@ class Config:
         wiz_client_secret=None,
         wiz_tenant_id=None,
         wiz_project_ids=None,
-        wiz_lookback_days=180,
+        wiz_lookback_days=None,
         tenable_url=None,
         tenable_tenant_id=None,
         tenable_access_key=None,

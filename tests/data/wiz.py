@@ -102,6 +102,7 @@ CONFIGURATION_FINDINGS = [
         "targetExternalId": "arn:aws:s3:::public-bucket",
         "targetObjectProviderUniqueId": "s3/public-bucket",
         "firstSeenAt": "2026-01-07T00:00:00Z",
+        "updatedAt": "2026-01-07T00:05:00Z",
         "severity": "CRITICAL",
         "result": "FAIL",
         "status": "OPEN",

@@ -57,20 +57,11 @@ query WizVulnerabilityFindings($filterBy: VulnerabilityFindingFilters, $first: I
           name
           region
           providerUniqueId
-          cloudProviderURL
           cloudPlatform
           status
           subscriptionName
           subscriptionExternalId
           subscriptionId
-          tags
-        }
-        ... on VulnerableAssetVirtualMachine {
-          operatingSystem
-          ipAddresses
-        }
-        ... on VulnerableAssetServerless {
-          runtime
         }
         ... on VulnerableAssetContainerImage {
           imageId
@@ -78,10 +69,6 @@ query WizVulnerabilityFindings($filterBy: VulnerabilityFindingFilters, $first: I
         ... on VulnerableAssetContainer {
           ImageExternalId
           VmExternalId
-          ServerlessContainer
-          PodNamespace
-          PodName
-          NodeName
         }
       }
     }
@@ -98,6 +85,7 @@ query WizConfigurationFindings($filterBy: ConfigurationFindingFilters, $first: I
       targetExternalId
       targetObjectProviderUniqueId
       firstSeenAt
+      updatedAt
       severity
       result
       status
@@ -118,9 +106,7 @@ query WizConfigurationFindings($filterBy: ConfigurationFindingFilters, $first: I
         projects {
           id
           name
-          riskProfile { businessImpact }
         }
-        tags { key value }
       }
       rule {
         id
@@ -130,16 +116,6 @@ query WizConfigurationFindings($filterBy: ConfigurationFindingFilters, $first: I
         remediationInstructions
         functionAsControl
       }
-      securitySubCategories {
-        id
-        title
-        category {
-          id
-          name
-          framework { id name }
-        }
-      }
-      ignoreRules { id name enabled expiredAt }
     }
     pageInfo { hasNextPage endCursor }
   }
@@ -163,16 +139,9 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
       cloudOrganizations { id name externalId cloudProvider }
       primaryResource { id type name externalId region }
       triggeringEvents(first: 50) {
-        totalCount
         nodes {
           ... on CloudEvent {
             id
-            description
-            actorIP
-            timestamp
-            commandLine
-            runtimeProgram { name }
-            parentRuntimeProgram { name }
           }
         }
       }
@@ -181,20 +150,10 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
           id
           name
           builtin
-          securitySubCategories {
-            id
-            title
-            category {
-              id
-              name
-              framework { id }
-            }
-          }
         }
       }
     }
     pageInfo { hasNextPage endCursor }
-    totalCount
   }
 }
 """
@@ -205,75 +164,70 @@ def get(
     session: requests.Session,
     graphql_url: str,
     token: str,
-    since_iso: str,
+    since_iso: str | None = None,
     project_id_filter: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
-    findings.extend(
-        _with_finding_type(
-            filter_by_project_ids(
-                get_paginated(
-                    session,
-                    graphql_url,
-                    token,
-                    _VULNERABILITY_QUERY,
-                    "vulnerabilityFindings",
-                    filter_by={"updatedAt": {"after": since_iso}},
-                ),
-                project_id_filter,
-            ),
+    vulnerability_filter: dict[str, Any] = {}
+    if since_iso:
+        vulnerability_filter["updatedAt"] = {"after": since_iso}
+
+    configuration_filter: dict[str, Any] = {
+        "result": ["PASS", "FAIL", "ERROR", "NOT_ASSESSED"],
+        "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+        "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
+    }
+    if since_iso:
+        configuration_filter["updatedAt"] = {"after": since_iso}
+
+    detection_filter: dict[str, Any] = {
+        "severity": {
+            "equals": [
+                "INFORMATIONAL",
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL",
+            ],
+        },
+    }
+    if since_iso:
+        detection_filter["updatedAt"] = {"after": since_iso}
+
+    for query, connection_name, filter_by, finding_type in (
+        (
+            _VULNERABILITY_QUERY,
+            "vulnerabilityFindings",
+            vulnerability_filter or None,
             FINDING_TYPE_VULNERABILITY,
         ),
-    )
-    findings.extend(
-        _with_finding_type(
-            filter_by_project_ids(
-                get_paginated(
-                    session,
-                    graphql_url,
-                    token,
-                    _CONFIGURATION_QUERY,
-                    "configurationFindings",
-                    filter_by={
-                        "result": ["PASS", "FAIL", "ERROR", "NOT_ASSESSED"],
-                        "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
-                        "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
-                        "firstSeenAt": {"after": since_iso},
-                    },
-                ),
-                project_id_filter,
-            ),
+        (
+            _CONFIGURATION_QUERY,
+            "configurationFindings",
+            configuration_filter,
             FINDING_TYPE_CONFIGURATION,
         ),
-    )
-    findings.extend(
-        _with_finding_type(
-            filter_by_project_ids(
-                get_paginated(
-                    session,
-                    graphql_url,
-                    token,
-                    _DETECTION_QUERY,
-                    "detections",
-                    filter_by={
-                        "severity": {
-                            "equals": [
-                                "INFORMATIONAL",
-                                "LOW",
-                                "MEDIUM",
-                                "HIGH",
-                                "CRITICAL",
-                            ],
-                        },
-                        "updatedAt": {"after": since_iso},
-                    },
-                    order_by={"direction": "DESC"},
-                ),
-                project_id_filter,
-            ),
+        (
+            _DETECTION_QUERY,
+            "detections",
+            detection_filter,
             FINDING_TYPE_DETECTION,
         ),
-    )
+    ):
+        raw_findings = get_paginated(
+            session,
+            graphql_url,
+            token,
+            query,
+            connection_name,
+            filter_by=filter_by,
+        )
+        findings.extend(
+            _with_finding_type(
+                filter_by_project_ids(raw_findings, project_id_filter),
+                finding_type,
+            ),
+        )
     return findings
 
 
@@ -422,7 +376,7 @@ def _transform_configuration_finding(
         "vendor_severity": None,
         "result": finding.get("result"),
         "created_at": None,
-        "updated_at": None,
+        "updated_at": finding.get("updatedAt"),
         "first_seen_at": finding.get("firstSeenAt"),
         "first_detected_at": None,
         "last_detected_at": None,
@@ -583,9 +537,6 @@ def _location_key(finding: dict[str, Any]) -> str | None:
         or finding.get("locationPath")
         or finding.get("targetObjectProviderUniqueId")
         or finding.get("targetExternalId")
-        or finding.get("updatedAt")
-        or finding.get("createdAt")
-        or finding.get("firstSeenAt")
     )
 
 
@@ -658,13 +609,17 @@ def sync(
     tenant_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    lookback_days: int,
+    lookback_days: int | None,
     project_id_filter: list[str] | None = None,
     *,
     do_cleanup: bool = True,
 ) -> None:
     logger.info("Syncing Wiz findings for tenant %s", tenant_id)
-    since_iso = epoch_days_ago_iso(update_tag, lookback_days)
+    since_iso = (
+        epoch_days_ago_iso(update_tag, lookback_days)
+        if lookback_days is not None
+        else None
+    )
     raw_findings = get(session, graphql_url, token, since_iso, project_id_filter)
     findings = transform(raw_findings, tenant_id)
     load_findings(neo4j_session, findings, tenant_id, update_tag)

@@ -1,5 +1,7 @@
 import pytest
 
+import cartography.intel.wiz.findings
+import cartography.intel.wiz.issues
 from cartography.intel.wiz.api import get_access_token
 from cartography.intel.wiz.api import get_paginated
 
@@ -104,3 +106,150 @@ def test_get_paginated_raises_on_graphql_errors():
             "query Test { cloudResourcesV2 { nodes { id } } }",
             "cloudResourcesV2",
         )
+
+
+def test_get_paginated_stops_when_next_page_has_no_cursor():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "cloudResourcesV2": {
+                            "nodes": [{"id": "resource-1"}],
+                            "pageInfo": {
+                                "hasNextPage": True,
+                                "endCursor": None,
+                            },
+                        },
+                    },
+                },
+            ),
+        ],
+    )
+
+    nodes = get_paginated(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        "query Test { cloudResourcesV2 { nodes { id } } }",
+        "cloudResourcesV2",
+    )
+
+    assert nodes == [{"id": "resource-1"}]
+    assert len(session.calls) == 1
+
+
+def test_get_issues_uses_status_changed_filter_when_since_is_set():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "issuesV2": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+        ],
+    )
+
+    cartography.intel.wiz.issues.get(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        "2026-01-01T00:00:00Z",
+    )
+
+    variables = session.calls[0][1]["json"]["variables"]
+    assert variables["filterBy"]["statusChangedAt"] == {
+        "after": "2026-01-01T00:00:00Z",
+    }
+    assert "createdAt" not in variables["filterBy"]
+
+
+def test_get_issues_omits_time_filter_for_full_sync():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "issuesV2": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+        ],
+    )
+
+    cartography.intel.wiz.issues.get(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        None,
+    )
+
+    filter_by = session.calls[0][1]["json"]["variables"]["filterBy"]
+    assert "createdAt" not in filter_by
+    assert "updatedAt" not in filter_by
+    assert "statusChangedAt" not in filter_by
+
+
+def test_get_findings_uses_updated_at_filters_without_order_by():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "vulnerabilityFindings": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+            FakeResponse(
+                {
+                    "data": {
+                        "configurationFindings": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+            FakeResponse(
+                {
+                    "data": {
+                        "detections": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+        ],
+    )
+
+    cartography.intel.wiz.findings.get(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        "2026-01-01T00:00:00Z",
+    )
+
+    variables = [call[1]["json"]["variables"] for call in session.calls]
+    assert variables[0]["filterBy"]["updatedAt"] == {
+        "after": "2026-01-01T00:00:00Z",
+    }
+    assert variables[1]["filterBy"]["updatedAt"] == {
+        "after": "2026-01-01T00:00:00Z",
+    }
+    assert "firstSeenAt" not in variables[1]["filterBy"]
+    assert variables[2]["filterBy"]["updatedAt"] == {
+        "after": "2026-01-01T00:00:00Z",
+    }
+    assert all("orderBy" not in variable for variable in variables)
