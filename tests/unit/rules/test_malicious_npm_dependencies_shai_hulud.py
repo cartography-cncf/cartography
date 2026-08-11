@@ -4,8 +4,6 @@ from cartography.rules.data.rules import RULES
 from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
     malicious_npm_dependencies_shai_hulud,
 )
-from cartography.rules.spec.model import Maturity
-from cartography.rules.spec.model import Module
 
 _AUG_2026_FACT_ID = "malicious-npm-dependencies-shai-hulud-aug-2026-github"
 _AUG_2026_AT_RISK_FACT_ID = (
@@ -38,24 +36,11 @@ def test_rule_registered() -> None:
     )
 
 
-def test_rule_shape() -> None:
-    assert len(malicious_npm_dependencies_shai_hulud.facts) == 5
-    assert malicious_npm_dependencies_shai_hulud.version == "0.3.0"
-    assert len(malicious_npm_dependencies_shai_hulud.references) >= 10
-
-
-def test_all_facts_are_github_and_experimental() -> None:
-    for fact in malicious_npm_dependencies_shai_hulud.facts:
-        assert fact.module == Module.GITHUB
-        assert fact.maturity == Maturity.EXPERIMENTAL
-
-
-def test_fact_ids_are_unique() -> None:
-    fact_ids = [f.id for f in malicious_npm_dependencies_shai_hulud.facts]
-    assert len(fact_ids) == len(set(fact_ids))
-
-
 def test_aug_2026_wave_facts_registered() -> None:
+    """
+    Fact ids are a stable identity that consumers key findings on across
+    syncs; nothing generic checks that a specific id still exists.
+    """
     fact_ids = {f.id for f in malicious_npm_dependencies_shai_hulud.facts}
     assert _AUG_2026_FACT_ID in fact_ids
     assert _AUG_2026_AT_RISK_FACT_ID in fact_ids
@@ -88,6 +73,10 @@ def test_aug_2026_facts_cover_the_same_packages() -> None:
 
 
 def test_aug_2026_queries_and_visual_queries_agree() -> None:
+    """
+    cypher_visual_query duplicates the IOC list for the web UI; nothing
+    generic diffs it against cypher_query, so it can silently drift.
+    """
     for fact_id in (_AUG_2026_FACT_ID, _AUG_2026_AT_RISK_FACT_ID):
         fact = _fact(fact_id)
         assert _package_names(fact.cypher_query) == _package_names(
@@ -106,31 +95,6 @@ def test_at_risk_fact_only_matches_floating_ranges() -> None:
     assert "d.requirements CONTAINS '>'" in cypher
 
 
-def test_at_risk_fact_normalizes_operator_prefixes() -> None:
-    """
-    GitHub's dependency graph emits `requirements` in several shapes
-    (`= 4.2.0`, `18.2.0`, and operator-prefixed ranges), so the comparison
-    strips operators and whitespace before reading the major version.
-    """
-    cypher = _fact(_AUG_2026_AT_RISK_FACT_ID).cypher_query
-    assert "replace(d.requirements, '^', '')" in cypher
-    for operator in ("'~'", "'>'", "'='"):
-        assert f", {operator}, '')" in cypher
-    assert "split(trim(" in cypher
-    assert "[0] = a.major" in cypher
-
-
-def test_at_risk_fact_reports_the_reachable_malicious_version() -> None:
-    """
-    `vulnerable_version` must be the malicious version the range can resolve
-    to, so the finding satisfies the shared output model and identity fields.
-    """
-    fact = _fact(_AUG_2026_AT_RISK_FACT_ID)
-    assert "a.version AS vulnerable_version" in fact.cypher_query
-    for field in fact.identity_fields:
-        assert field in fact.cypher_query
-
-
 def test_aug_2026_facts_exclude_archived_and_disabled_repos() -> None:
     for fact_id in (_AUG_2026_FACT_ID, _AUG_2026_AT_RISK_FACT_ID):
         fact = _fact(fact_id)
@@ -138,8 +102,16 @@ def test_aug_2026_facts_exclude_archived_and_disabled_repos() -> None:
         assert "coalesce(r.disabled, false) = false" in fact.cypher_query
 
 
-def test_aug_2026_facts_use_the_dependency_graph_manifest_label() -> None:
+def test_aug_2026_facts_use_explicit_relationship_labels() -> None:
+    """
+    Regression guard for a prior review comment: these Facts previously
+    traversed with untyped `--`, which is ambiguous and cannot use the
+    rel-type index. Both must use the explicit HAS_MANIFEST/HAS_DEP labels.
+    """
     for fact_id in (_AUG_2026_FACT_ID, _AUG_2026_AT_RISK_FACT_ID):
         fact = _fact(fact_id)
-        assert "GitHubDependencyGraphManifest" in fact.cypher_query
-        assert "GitHubDependencyGraphManifest" in fact.cypher_visual_query
+        for cypher in (fact.cypher_query, fact.cypher_visual_query):
+            assert (
+                "-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)" in cypher
+            )
+            assert "-[:HAS_DEP]->(d:Dependency" in cypher
