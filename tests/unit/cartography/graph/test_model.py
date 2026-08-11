@@ -414,6 +414,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     # DatabricksAccount is a separate top-level tenant for the account hierarchy
     # (and is absent on the workspace-only path).
     "DatabricksAccount",
+    # SnowflakeAccount remains the root tenant for every Snowflake resource, while
+    # SnowflakeOrganization is a separate top-level tenant for the organization
+    # hierarchy (and is absent unless the collector holds ORGADMIN).
+    "SnowflakeOrganization",
 }
 
 

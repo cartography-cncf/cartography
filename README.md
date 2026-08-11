@@ -123,6 +123,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [SentinelOne](https://docs.cartography.dev/modules/sentinelone/index.html) - Accounts, Agents, Applications, Application Versions, CVEs
 - [Slack](https://docs.cartography.dev/modules/slack/index.html) - Teams, Users, UserGroups, Channels
 - [SnipeIT](https://docs.cartography.dev/modules/snipeit/index.html) - Users, Assets
+- [Snowflake](https://docs.cartography.dev/modules/snowflake/index.html) - Accounts, Users, Service Users, Roles, Database Roles, Grants, Role Hierarchy, Ownership, Programmatic Access Tokens, Credentials, Warehouses, Compute Pools, Resource Monitors, Databases, Schemas, Tables, Views, Iceberg Tables, Dynamic Tables, Streams, Tasks, Pipes, Stages, External Volumes, Secrets, Network Policies, Network Rules, Policies, Integrations (Security, Storage, API, Catalog, Notification, External Access), Services, Image Repositories, Notebooks, Streamlits, Shares, Listings, Replication Groups
 - [Socket.dev](https://docs.cartography.dev/modules/socketdev/index.html) - Organizations, Repositories, Dependencies, Security Alerts (CVE, malware, supply chain risks), Fixes
 - [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework

@@ -72,6 +72,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Sentry](../modules/sentry/schema.md)
 - [Slack](../modules/slack/schema.md)
 - [Snipeit](../modules/snipeit/schema.md)
+- [Snowflake](../modules/snowflake/schema.md)
 - [Socket.dev](../modules/socketdev/schema.md)
 - [Spacelift](../modules/spacelift/schema.md)
 - [Subimage](../modules/subimage/schema.md)

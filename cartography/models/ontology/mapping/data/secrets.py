@@ -210,4 +210,22 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "supabase": supabase_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeSecret",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="created_on"
+                    ),
+                    # updated_at / rotation_enabled: Snowflake exposes neither for
+                    # a secret object.
+                ],
+            ),
+        ],
+    ),
 }
