@@ -62,6 +62,16 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Name of the Kubernetes cluster where this service is deployed.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the service, or an ingress targeting it, uses an internet-facing load balancer. `False` otherwise.",
+    )  # Populated by the K8S_SERVICE_ASSET_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `lb`.",
+    )  # Populated by the K8S_SERVICE_ASSET_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
