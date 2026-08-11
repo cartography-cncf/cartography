@@ -470,6 +470,9 @@ class Config:
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type bbot_source: str
+    :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -682,6 +685,7 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        bbot_source=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -836,6 +840,14 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.bbot_source = _resolve_report_source_config(
+            module="bbot",
+            source=bbot_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
