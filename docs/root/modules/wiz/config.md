@@ -36,4 +36,6 @@ cartography \
 
 By default, Cartography performs a complete Wiz sync and runs cleanup for stale Wiz issues and findings. Set `--wiz-lookback-days` only for incremental imports where preserving older unchanged records is preferable to deleting stale records.
 
+Configuration findings are limited to failing checks. A complete sync imports active failing checks; lookback mode also fetches recently updated resolved or rejected failures so their status can be refreshed without cleanup.
+
 `--wiz-project-ids` is applied to records that include Wiz project metadata. Records without project metadata are kept so finding feeds that omit project data are not silently dropped.

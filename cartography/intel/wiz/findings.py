@@ -1,4 +1,5 @@
 import logging
+from time import monotonic
 from typing import Any
 
 import neo4j
@@ -130,7 +131,7 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
       type
       origins
       severity
-      description(format: MARKDOWN)
+      description
       createdAt
       updatedAt
       actors { id name externalId providerUniqueId type }
@@ -138,13 +139,6 @@ query WizDetections($filterBy: DetectionFilters, $first: Int, $after: String, $o
       cloudAccounts { id name externalId cloudProvider }
       cloudOrganizations { id name externalId cloudProvider }
       primaryResource { id type name externalId region }
-      triggeringEvents(first: 50) {
-        nodes {
-          ... on CloudEvent {
-            id
-          }
-        }
-      }
       ruleMatch {
         rule {
           id
@@ -173,9 +167,13 @@ def get(
         vulnerability_filter["updatedAt"] = {"after": since_iso}
 
     configuration_filter: dict[str, Any] = {
-        "result": ["PASS", "FAIL", "ERROR", "NOT_ASSESSED"],
+        "result": ["FAIL"],
         "severity": ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
-        "status": ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"],
+        "status": (
+            ["OPEN", "IN_PROGRESS", "RESOLVED", "REJECTED"]
+            if since_iso
+            else ["OPEN", "IN_PROGRESS"]
+        ),
     }
     if since_iso:
         configuration_filter["updatedAt"] = {"after": since_iso}
@@ -214,6 +212,7 @@ def get(
             FINDING_TYPE_DETECTION,
         ),
     ):
+        start_time = monotonic()
         raw_findings = get_paginated(
             session,
             graphql_url,
@@ -221,6 +220,12 @@ def get(
             query,
             connection_name,
             filter_by=filter_by,
+        )
+        logger.info(
+            "Fetched %d Wiz %s findings in %.2fs",
+            len(raw_findings),
+            finding_type.lower(),
+            monotonic() - start_time,
         )
         findings.extend(
             _with_finding_type(

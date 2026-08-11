@@ -7,4 +7,5 @@ config
 schema
 ```
 
-Cartography can ingest Wiz issues and findings from the Wiz GraphQL API.
+Cartography can ingest Wiz issues, vulnerability findings, detection findings,
+and failing configuration findings from the Wiz GraphQL API.

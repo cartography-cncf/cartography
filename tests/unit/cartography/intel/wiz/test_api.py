@@ -248,8 +248,68 @@ def test_get_findings_uses_updated_at_filters_without_order_by():
     assert variables[1]["filterBy"]["updatedAt"] == {
         "after": "2026-01-01T00:00:00Z",
     }
+    assert variables[1]["filterBy"]["result"] == ["FAIL"]
+    assert variables[1]["filterBy"]["status"] == [
+        "OPEN",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "REJECTED",
+    ]
     assert "firstSeenAt" not in variables[1]["filterBy"]
     assert variables[2]["filterBy"]["updatedAt"] == {
         "after": "2026-01-01T00:00:00Z",
     }
     assert all("orderBy" not in variable for variable in variables)
+
+    detection_query = session.calls[2][1]["json"]["query"]
+    assert "description(format: MARKDOWN)" not in detection_query
+    assert "triggeringEvents" not in detection_query
+
+
+def test_get_findings_full_sync_fetches_only_active_configuration_failures():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "vulnerabilityFindings": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+            FakeResponse(
+                {
+                    "data": {
+                        "configurationFindings": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+            FakeResponse(
+                {
+                    "data": {
+                        "detections": {
+                            "nodes": [],
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        },
+                    },
+                },
+            ),
+        ],
+    )
+
+    cartography.intel.wiz.findings.get(
+        session,
+        "https://api.us1.app.wiz.io/graphql",
+        "token-1",
+        None,
+    )
+
+    filter_by = session.calls[1][1]["json"]["variables"]["filterBy"]
+    assert filter_by["result"] == ["FAIL"]
+    assert filter_by["status"] == ["OPEN", "IN_PROGRESS"]
+    assert "updatedAt" not in filter_by
