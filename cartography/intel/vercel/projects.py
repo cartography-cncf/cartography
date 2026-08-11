@@ -56,14 +56,18 @@ def transform(projects: list[dict[str, Any]]) -> None:
     `ssoProtection` and `passwordProtection` are nested objects, which the loader cannot
     store, and only their `deploymentType` is of interest. `passwordProtection` also carries
     the password itself, so flattening rather than storing the object is what keeps that
-    secret out of the graph. `trustedSources` is reduced to whether an IP allowlist exists.
+    secret out of the graph.
+
+    `trustedSources` is deliberately not read. Despite the name it is not an access
+    restriction: it lets already-protected deployments accept short-lived OIDC tokens from
+    authorized projects and providers instead of long-lived secrets. Vercel's IP allowlist is
+    the separate `trustedIps` field.
     """
     for project in projects:
         sso = project.get("ssoProtection") or {}
         password = project.get("passwordProtection") or {}
         project["sso_protection_deployment_type"] = sso.get("deploymentType")
         project["password_protection_deployment_type"] = password.get("deploymentType")
-        project["has_trusted_sources"] = bool(project.get("trustedSources"))
 
 
 @timeit

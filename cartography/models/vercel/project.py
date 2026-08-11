@@ -72,10 +72,6 @@ class VercelProjectNodeProperties(CartographyNodeProperties):
         "password_protection_deployment_type",
         description="Which deployments password protection covers: `all`, `preview`, `prod_deployment_urls_and_all_previews`, or null when it is off. The password itself is never ingested.",
     )
-    has_trusted_sources: PropertyRef = PropertyRef(
-        "has_trusted_sources",
-        description="Whether an IP allowlist restricts who can reach the project's deployments.",
-    )
 
 
 @dataclass(frozen=True)

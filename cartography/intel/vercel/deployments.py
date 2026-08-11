@@ -81,11 +81,17 @@ def _is_exposed(deployment: dict[str, Any], protection: dict[str, Any]) -> bool:
     A READY deployment answers on its URL unless one of the project's protection methods
     covers it. Which methods cover it depends on whether it is a production or a preview
     deployment, since Vercel scopes both Vercel Authentication and password protection by
-    deployment type. An IP allowlist restricts every deployment.
+    deployment type.
+
+    An unrecognised deploymentType is treated as not covering the deployment, so a value
+    Vercel adds later errs towards reporting exposure rather than hiding it.
+
+    Vercel's IP allowlist, `trustedIps`, is not considered: it is absent from the documented
+    schema of the projects listing this module reads, so a project relying on it alone is
+    reported as exposed. That is the safe direction. `trustedSources` is not a restriction at
+    all, see the note in projects.transform.
     """
     if deployment.get("state") != "READY" or not deployment.get("url"):
-        return False
-    if protection.get("has_trusted_sources"):
         return False
     covers = (
         _COVERS_PRODUCTION

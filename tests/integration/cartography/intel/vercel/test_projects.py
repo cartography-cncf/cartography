@@ -65,11 +65,10 @@ def test_load_vercel_projects(mock_api, neo4j_session):
             "id",
             "sso_protection_deployment_type",
             "password_protection_deployment_type",
-            "has_trusted_sources",
         ],
     ) == {
-        ("prj_abc", "all", None, False),
-        ("prj_def", "preview", "prod_deployment_urls_and_all_previews", False),
+        ("prj_abc", "all", None),
+        ("prj_def", "preview", "prod_deployment_urls_and_all_previews"),
     }
     # The password itself must never reach the graph.
     assert (

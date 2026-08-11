@@ -150,7 +150,6 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 for key in (
                     "sso_protection_deployment_type",
                     "password_protection_deployment_type",
-                    "has_trusted_sources",
                 )
             },
         )

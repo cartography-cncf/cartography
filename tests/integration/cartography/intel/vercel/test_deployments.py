@@ -26,7 +26,6 @@ TEST_PROJECT_ID = "prj_abc"
 PRJ_ABC_PROTECTION = {
     "sso_protection_deployment_type": "all",
     "password_protection_deployment_type": None,
-    "has_trusted_sources": False,
 }
 
 
