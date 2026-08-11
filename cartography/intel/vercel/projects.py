@@ -24,6 +24,7 @@ def sync(
         common_job_parameters["BASE_URL"],
         common_job_parameters["TEAM_ID"],
     )
+    transform(projects)
     load_projects(
         neo4j_session,
         projects,
@@ -46,6 +47,23 @@ def get(
         "projects",
         team_id,
     )
+
+
+def transform(projects: list[dict[str, Any]]) -> None:
+    """
+    Flatten the deployment-protection objects onto each project, in place.
+
+    `ssoProtection` and `passwordProtection` are nested objects, which the loader cannot
+    store, and only their `deploymentType` is of interest. `passwordProtection` also carries
+    the password itself, so flattening rather than storing the object is what keeps that
+    secret out of the graph. `trustedSources` is reduced to whether an IP allowlist exists.
+    """
+    for project in projects:
+        sso = project.get("ssoProtection") or {}
+        password = project.get("passwordProtection") or {}
+        project["sso_protection_deployment_type"] = sso.get("deploymentType")
+        project["password_protection_deployment_type"] = password.get("deploymentType")
+        project["has_trusted_sources"] = bool(project.get("trustedSources"))
 
 
 @timeit
