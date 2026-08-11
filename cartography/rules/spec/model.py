@@ -207,9 +207,10 @@ class Module(str, Enum):
     """Railway platform-as-a-service"""
 
     SCALEWAY = "Scaleway"
+    """Scaleway cloud services"""
 
     SUPABASE = "Supabase"
-    """Scaleway cloud services"""
+    """Supabase backend-as-a-service"""
 
     SEMGREP = "Semgrep"
     """Semgrep code security"""

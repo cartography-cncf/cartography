@@ -39,7 +39,7 @@ def _reset_graph(neo4j_session) -> None:
 )
 def test_scaleway_data_service_public_endpoint(
     neo4j_session, fact, label, expected_host, expected_engine
-) -> None:
+):
     _reset_graph(neo4j_session)
     neo4j_session.run(
         f"""
