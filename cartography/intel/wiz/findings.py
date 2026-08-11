@@ -468,7 +468,7 @@ def _transform_detection(
         "resolved_at": None,
         "description": finding.get("description"),
         "remediation": None,
-        "cve_id": extract_cve_id(finding.get("description")),
+        "cve_id": None,
         "cve_description": None,
         "cvss_severity": None,
         "score": None,

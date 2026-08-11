@@ -49,6 +49,7 @@ def cleanup_wiz_test_data(neo4j_session):
 def _config(
     update_tag: int = TEST_UPDATE_TAG,
     lookback_days: int | None = None,
+    project_ids: list[str] | None = None,
 ) -> Config:
     return Config(
         neo4j_uri="bolt://localhost:7687",
@@ -59,6 +60,7 @@ def _config(
         wiz_client_secret=CLIENT_SECRET,
         wiz_tenant_id=TENANT_ID,
         wiz_lookback_days=lookback_days,
+        wiz_project_ids=project_ids,
     )
 
 
@@ -173,6 +175,34 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     cartography.intel.wiz.start_wiz_ingestion(
         neo4j_session,
         _config(TEST_UPDATE_TAG + 1, lookback_days=30),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "WizIssue", ["id"]) == {
+        (ISSUE_ID_1,),
+    }
+    assert check_nodes(neo4j_session, "WizFinding", ["id"]) == {
+        (VULNERABILITY_ID_1,),
+        (CONFIGURATION_FINDING_ID_1,),
+        (DETECTION_ID_1,),
+    }
+
+
+def test_start_wiz_ingestion_project_filter_preserves_older_records(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    _seed_cve(neo4j_session)
+    mocker.patch("cartography.intel.wiz.get_access_token", return_value="token-1")
+    mocker.patch("cartography.intel.wiz.issues.get", side_effect=[ISSUES, []])
+    mocker.patch("cartography.intel.wiz.findings.get", side_effect=[FINDINGS, []])
+
+    # Act
+    cartography.intel.wiz.start_wiz_ingestion(neo4j_session, _config(TEST_UPDATE_TAG))
+    cartography.intel.wiz.start_wiz_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1, project_ids=["project-1"]),
     )
 
     # Assert

@@ -72,11 +72,16 @@ def start_wiz_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             tenant_id,
         )
 
-    do_cleanup = config.wiz_lookback_days is None
-    if not do_cleanup:
+    do_cleanup = config.wiz_lookback_days is None and not config.wiz_project_ids
+    if config.wiz_lookback_days is not None:
         logger.warning(
             "Wiz lookback mode is incremental; skipping Wiz cleanup so older "
             "unchanged issues and findings are not deleted.",
+        )
+    if config.wiz_project_ids:
+        logger.warning(
+            "Wiz project filter is configured; skipping Wiz cleanup because "
+            "project-filtered imports are partial tenant syncs.",
         )
 
     common_job_parameters = {

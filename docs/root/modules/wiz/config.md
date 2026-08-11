@@ -42,7 +42,7 @@ different names.
 | `--wiz-client-id-env-var` | `WIZ_CLIENT_ID` | Yes | Environment variable holding the Wiz API client ID. |
 | `--wiz-client-secret-env-var` | `WIZ_CLIENT_SECRET` | Yes | Environment variable holding the Wiz API client secret. |
 | `--wiz-tenant-id` | Hostname of `--wiz-graphql-url` | No | Identifier used to scope all Wiz nodes in the graph. |
-| `--wiz-project-ids` |  | No | Comma-separated Wiz project IDs to import when project metadata is present. |
+| `--wiz-project-ids` |  | No | Comma-separated Wiz project IDs to import when project metadata is present. Cleanup is skipped in this mode. |
 | `--wiz-lookback-days` |  | No | Fetch only Wiz issue and finding updates from the last N days. Cleanup is skipped in this mode. |
 
 ## Run Cartography
@@ -69,4 +69,6 @@ rejected failures so their status can be refreshed without cleanup.
 
 `--wiz-project-ids` is applied to records that include Wiz project metadata.
 Records without project metadata are kept so finding feeds that omit project
-data are not silently dropped.
+data are not silently dropped. Project-filtered imports are partial tenant
+syncs, so cleanup is skipped. Run an unfiltered complete sync when stale record
+cleanup is required.

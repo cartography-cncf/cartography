@@ -70,6 +70,7 @@ def get_paginated(
     results: list[dict[str, Any]] = []
     after = None
     page_count = 0
+    seen_cursors: set[str] = set()
 
     while True:
         variables: dict[str, Any] = {
@@ -82,7 +83,9 @@ def get_paginated(
             variables["orderBy"] = order_by
         data = graphql_query(session, graphql_url, token, query, variables)
         connection = data[connection_name]
-        nodes = connection.get("nodes") or []
+        nodes = connection.get("nodes")
+        if nodes is None:
+            raise RuntimeError(f"Wiz {connection_name} response omitted nodes")
         results.extend(nodes)
         page_count += 1
 
@@ -94,15 +97,20 @@ def get_paginated(
                 page_count,
             )
 
-        page_info = connection.get("pageInfo") or {}
+        page_info = connection.get("pageInfo")
+        if not isinstance(page_info, dict):
+            raise RuntimeError(f"Wiz {connection_name} response omitted pageInfo")
         if not page_info.get("hasNextPage"):
             break
         after = page_info.get("endCursor")
         if not after:
-            logger.warning(
-                "Wiz %s response set hasNextPage but omitted endCursor; stopping pagination",
-                connection_name,
+            raise RuntimeError(
+                f"Wiz {connection_name} response set hasNextPage but omitted endCursor",
             )
-            break
+        if after in seen_cursors:
+            raise RuntimeError(
+                f"Wiz {connection_name} response repeated pagination cursor {after}",
+            )
+        seen_cursors.add(after)
 
     return results

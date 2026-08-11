@@ -60,6 +60,17 @@ def test_transform_findings_extracts_detection_metadata():
     assert findings[0]["triggering_event_ids"] == ["event-1"]
 
 
+def test_transform_findings_does_not_link_detection_description_cves():
+    detection = {
+        **DETECTIONS[0],
+        "description": "Suspicious process mentioned CVE-2024-12345",
+    }
+
+    findings = transform_findings([detection], TENANT_ID)
+
+    assert findings[0]["cve_id"] is None
+
+
 def test_transform_findings_preserves_all_supported_finding_types():
     findings = transform_findings(FINDINGS, TENANT_ID)
 

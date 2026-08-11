@@ -110,7 +110,7 @@ def test_get_paginated_raises_on_graphql_errors():
         )
 
 
-def test_get_paginated_stops_when_next_page_has_no_cursor():
+def test_get_paginated_raises_when_next_page_has_no_cursor():
     session = FakeSession(
         [
             FakeResponse(
@@ -129,16 +129,58 @@ def test_get_paginated_stops_when_next_page_has_no_cursor():
         ],
     )
 
-    nodes = get_paginated(
-        session,
-        "https://api.us1.app.wiz.io/graphql",
-        "token-1",
-        "query Test { cloudResourcesV2 { nodes { id } } }",
-        "cloudResourcesV2",
+    with pytest.raises(RuntimeError, match="omitted endCursor"):
+        get_paginated(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            "query Test { cloudResourcesV2 { nodes { id } } }",
+            "cloudResourcesV2",
+        )
+
+    assert len(session.calls) == 1
+
+
+def test_get_paginated_raises_when_cursor_repeats():
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "data": {
+                        "cloudResourcesV2": {
+                            "nodes": [{"id": "resource-1"}],
+                            "pageInfo": {
+                                "hasNextPage": True,
+                                "endCursor": "cursor-1",
+                            },
+                        },
+                    },
+                },
+            ),
+            FakeResponse(
+                {
+                    "data": {
+                        "cloudResourcesV2": {
+                            "nodes": [{"id": "resource-2"}],
+                            "pageInfo": {
+                                "hasNextPage": True,
+                                "endCursor": "cursor-1",
+                            },
+                        },
+                    },
+                },
+            ),
+        ],
     )
 
-    assert nodes == [{"id": "resource-1"}]
-    assert len(session.calls) == 1
+    with pytest.raises(RuntimeError, match="repeated pagination cursor cursor-1"):
+        get_paginated(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            "query Test { cloudResourcesV2 { nodes { id } } }",
+            "cloudResourcesV2",
+        )
 
 
 def test_get_paginated_logs_progress_every_ten_pages(caplog):
