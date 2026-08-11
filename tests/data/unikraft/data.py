@@ -38,6 +38,63 @@ INSTANCES_RESPONSE = [
     },
 ]
 
+# Two metros' worth of Instance data with distinct UUIDs, used to verify that
+# resources reported by different metros land as separate nodes rather than
+# colliding. Assumes Unikraft UUIDs are globally unique (standard UUIDv4
+# practice); see UnikraftInstanceNodeProperties.id's description.
+INSTANCES_RESPONSE_BY_METRO = {
+    "fra": [
+        {
+            "uuid": "inst-fra-0001",
+            "name": "cartography-test-instance-fra",
+            "created_at": "2026-01-01T00:00:00Z",
+            "state": "running",
+            "private_fqdn": "cartography-test-instance-fra.internal",
+            "image": "cartography-test:latest",
+            "memory_mb": 128,
+            "vcpus": 1,
+            "args": "",
+            "restart_policy": "never",
+            "start_count": 1,
+            "restart_count": 0,
+            "started_at": "2026-01-01T00:00:01Z",
+            "stopped_at": None,
+            "uptime_ms": 3600000,
+            "tags": ["test"],
+            "status": "success",
+            "message": "",
+            "private_ip": "10.0.0.2",
+            "gateway": "10.0.0.1",
+            "nameserver": "10.0.0.1",
+        },
+    ],
+    "dal": [
+        {
+            "uuid": "inst-dal-0001",
+            "name": "cartography-test-instance-dal",
+            "created_at": "2026-01-01T00:00:00Z",
+            "state": "running",
+            "private_fqdn": "cartography-test-instance-dal.internal",
+            "image": "cartography-test:latest",
+            "memory_mb": 128,
+            "vcpus": 1,
+            "args": "",
+            "restart_policy": "never",
+            "start_count": 1,
+            "restart_count": 0,
+            "started_at": "2026-01-01T00:00:01Z",
+            "stopped_at": None,
+            "uptime_ms": 3600000,
+            "tags": ["test"],
+            "status": "success",
+            "message": "",
+            "private_ip": "10.0.1.2",
+            "gateway": "10.0.1.1",
+            "nameserver": "10.0.1.1",
+        },
+    ],
+}
+
 VOLUMES_RESPONSE = [
     {
         "uuid": "vol-0001",

@@ -15,7 +15,13 @@ from cartography.models.ontology.labels import LOAD_BALANCER
 
 @dataclass(frozen=True)
 class UnikraftServiceGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uuid", description="Unikraft service group UUID.")
+    id: PropertyRef = PropertyRef(
+        "uuid",
+        description=(
+            "Unikraft service group UUID. Assumed globally unique across "
+            "metros; see UnikraftInstanceNodeProperties.id."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Service group name."

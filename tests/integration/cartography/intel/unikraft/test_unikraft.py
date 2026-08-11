@@ -7,9 +7,11 @@ import cartography.intel.unikraft.instances
 import cartography.intel.unikraft.service_groups
 import cartography.intel.unikraft.volumes
 from cartography.config import Config
+from cartography.intel.unikraft.util import METRO_BASE_URLS
 from tests.data.unikraft.data import ACCOUNT_QUOTAS_RESPONSE
 from tests.data.unikraft.data import CERTIFICATES_RESPONSE
 from tests.data.unikraft.data import INSTANCES_RESPONSE
+from tests.data.unikraft.data import INSTANCES_RESPONSE_BY_METRO
 from tests.data.unikraft.data import SERVICE_GROUPS_RESPONSE
 from tests.data.unikraft.data import VOLUMES_RESPONSE
 from tests.integration.util import check_nodes
@@ -210,3 +212,54 @@ def test_start_unikraft_ingestion(
         )
         == set()
     )
+
+
+def test_unikraft_instances_distinct_per_metro(neo4j_session):
+    """
+    Two metros reporting different real instances (distinct UUIDs) must land
+    as two separate nodes, not collapse into one the way
+    test_start_unikraft_ingestion's identical-fixture-across-metros setup
+    does. This assumes Unikraft UUIDs are globally unique across metros
+    (standard UUIDv4 practice); if that assumption is ever wrong, this is
+    the behavior that would silently merge two distinct real resources into
+    one graph node.
+    """
+    # Arrange
+    neo4j_session.run(
+        "MATCH (n:UnikraftInstance) DETACH DELETE n",
+    )
+
+    def get_side_effect(session, base_url):
+        for metro, metro_base_url in METRO_BASE_URLS.items():
+            if base_url == metro_base_url:
+                return INSTANCES_RESPONSE_BY_METRO.get(metro, [])
+        return []
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ACCOUNT_ID": TEST_ACCOUNT_ID,
+    }
+
+    with patch.object(
+        cartography.intel.unikraft.instances,
+        "get",
+        side_effect=get_side_effect,
+    ):
+        # Act
+        cartography.intel.unikraft.instances.sync(
+            neo4j_session,
+            None,
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "UnikraftInstance",
+        ["id", "name", "metro"],
+    ) == {
+        ("inst-fra-0001", "cartography-test-instance-fra", "fra"),
+        ("inst-dal-0001", "cartography-test-instance-dal", "dal"),
+    }

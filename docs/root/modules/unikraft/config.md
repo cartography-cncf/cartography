@@ -41,6 +41,11 @@ The `UnikraftAccount` node is identified by the UUID returned from the
 metro-independent `/v1/users/quotas` endpoint, so no account identifier needs
 to be configured manually.
 
+Every other resource is identified by its Unikraft-assigned UUID alone,
+assumed globally unique across metros (standard UUIDv4 practice). If a UUID
+were ever reused across two metros for two different real resources, they
+would be merged into a single graph node.
+
 ### Images are not ingested
 
 Unikraft images are intentionally not ingested. The platform API docs
