@@ -31,6 +31,10 @@ class UnikraftVolumeNodeProperties(CartographyNodeProperties):
     )
     state: PropertyRef = PropertyRef("state", description="Volume lifecycle state.")
     size_mb: PropertyRef = PropertyRef("size_mb", description="Volume size in MB.")
+    size_gb: PropertyRef = PropertyRef(
+        "size_gb",
+        description="Volume size in GB, rounded from size_mb for cross-provider queries.",
+    )
     persistent: PropertyRef = PropertyRef(
         "persistent", description="Whether the volume persists across restarts."
     )

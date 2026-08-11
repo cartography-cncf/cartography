@@ -87,9 +87,11 @@ def test_start_unikraft_ingestion(
         (TEST_INSTANCE_ID, "cartography-test-instance", "unikraft"),
     }
     assert check_nodes(
-        neo4j_session, "BlockStorage", ["id", "_ont_name", "_ont_source"]
+        neo4j_session,
+        "BlockStorage",
+        ["id", "_ont_name", "_ont_size_gb", "_ont_source"],
     ) == {
-        (TEST_VOLUME_ID, "cartography-test-volume", "unikraft"),
+        (TEST_VOLUME_ID, "cartography-test-volume", 1, "unikraft"),
     }
     assert check_nodes(
         neo4j_session, "Certificate", ["id", "_ont_domain", "_ont_source"]
@@ -117,9 +119,9 @@ def test_start_unikraft_ingestion(
     assert check_nodes(
         neo4j_session,
         "UnikraftVolume",
-        ["id", "name", "size_mb", "metro"],
+        ["id", "name", "size_mb", "size_gb", "metro"],
     ) == {
-        (TEST_VOLUME_ID, "cartography-test-volume", 1024, TEST_LAST_METRO),
+        (TEST_VOLUME_ID, "cartography-test-volume", 1024, 1, TEST_LAST_METRO),
     }
     assert check_nodes(
         neo4j_session,

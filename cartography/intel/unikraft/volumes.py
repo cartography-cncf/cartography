@@ -28,6 +28,11 @@ def transform(volumes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "created_at": volume.get("created_at"),
             "state": volume.get("state"),
             "size_mb": volume.get("size_mb"),
+            "size_gb": (
+                round(volume["size_mb"] / 1024)
+                if volume.get("size_mb") is not None
+                else None
+            ),
             "persistent": volume.get("persistent"),
             "tags": volume.get("tags"),
             "status": volume.get("status"),

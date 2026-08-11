@@ -187,8 +187,7 @@ unikraft_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                # _ont_size_gb: Unikraft reports volume size in MB (size_mb), and there is
-                # no unit-conversion special_handling to normalize it to GB here.
+                OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
                 # _ont_encrypted: Unikraft's volume API does not expose encryption posture.
                 OntologyFieldMapping(ontology_field="region", node_field="metro"),
                 OntologyFieldMapping(

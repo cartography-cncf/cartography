@@ -43,4 +43,16 @@ def list_resources(
         raise ValueError(
             f"Unikraft API returned an error for {url}: {body.get('message')}"
         )
-    return (body.get("data") or {}).get(data_key) or []
+    data = body.get("data")
+    items = data.get(data_key) if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        # A real empty result is `{"data": {data_key: []}}`, which is a list.
+        # Anything else under a "success" status is a malformed/unexpected
+        # payload shape, not evidence the account has zero resources of this
+        # type -- treating it as an empty list here would make the caller's
+        # subsequent scoped cleanup delete every real node of this type.
+        raise ValueError(
+            f"Unikraft API returned a success status for {url} but no valid "
+            f"'{data_key}' list in the response body."
+        )
+    return items
