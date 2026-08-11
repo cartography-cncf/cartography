@@ -36,7 +36,7 @@ def list_resources(
     there is currently no working way to page through results beyond
     whatever a single call returns.
     """
-    response = session.request("GET", url, json=[], timeout=(60, 60))
+    response = session.get(url, timeout=(60, 60))
     response.raise_for_status()
     body = response.json()
     if body.get("status") == "error":

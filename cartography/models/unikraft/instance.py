@@ -14,7 +14,14 @@ from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
 @dataclass(frozen=True)
 class UnikraftInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uuid", description="Unikraft instance UUID.")
+    id: PropertyRef = PropertyRef(
+        "uuid",
+        description=(
+            "Unikraft instance UUID. Assumed globally unique across metros "
+            "(standard UUIDv4 practice), since instances from different "
+            "metros are merged into the graph by this id alone."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Instance name."

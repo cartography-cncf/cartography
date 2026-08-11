@@ -14,7 +14,13 @@ from cartography.models.ontology.labels import CERTIFICATE
 
 @dataclass(frozen=True)
 class UnikraftCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uuid", description="Unikraft certificate UUID.")
+    id: PropertyRef = PropertyRef(
+        "uuid",
+        description=(
+            "Unikraft certificate UUID. Assumed globally unique across "
+            "metros; see UnikraftInstanceNodeProperties.id."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Certificate name."

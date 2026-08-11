@@ -15,7 +15,13 @@ from cartography.models.ontology.labels import BLOCK_STORAGE
 
 @dataclass(frozen=True)
 class UnikraftVolumeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uuid", description="Unikraft volume UUID.")
+    id: PropertyRef = PropertyRef(
+        "uuid",
+        description=(
+            "Unikraft volume UUID. Assumed globally unique across metros; "
+            "see UnikraftInstanceNodeProperties.id."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Volume name."
