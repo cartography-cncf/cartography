@@ -29,6 +29,16 @@ class VercelDeploymentNodeProperties(CartographyNodeProperties):
     target: PropertyRef = PropertyRef(
         "target", description="Target environment for the deployment."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the deployment is `READY` with a URL and no project protection method covers it. Which methods cover it depends on whether it is a production or a preview deployment.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the deployment answers on its own URL.",
+    )
     source: PropertyRef = PropertyRef(
         "source", description="Source that initiated the deployment."
     )
