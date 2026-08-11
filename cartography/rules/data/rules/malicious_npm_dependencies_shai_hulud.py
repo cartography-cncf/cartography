@@ -58,7 +58,10 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // DISTINCT because a Dependency node is shared across repos and HAS_DEP is one
+    // edge per manifest: a monorepo pinning the same version in two manifests would
+    // otherwise emit the same row twice.
+    RETURN DISTINCT r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -1155,7 +1158,10 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // DISTINCT because a Dependency node is shared across repos and HAS_DEP is one
+    // edge per manifest: a monorepo pinning the same version in two manifests would
+    // otherwise emit the same row twice.
+    RETURN DISTINCT r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -2623,7 +2629,10 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // DISTINCT because a Dependency node is shared across repos and HAS_DEP is one
+    // edge per manifest: a monorepo pinning the same version in two manifests would
+    // otherwise emit the same row twice.
+    RETURN DISTINCT r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3121,7 +3130,10 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // DISTINCT because a Dependency node is shared across repos and HAS_DEP is one
+    // edge per manifest: a monorepo pinning the same version in two manifests would
+    // otherwise emit the same row twice.
+    RETURN DISTINCT r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3242,7 +3254,10 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
       AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
+    // DISTINCT because a Dependency node is shared across repos and HAS_DEP is one
+    // edge per manifest: a monorepo pinning the same range in two manifests would
+    // otherwise emit the same row twice.
+    RETURN DISTINCT r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3343,7 +3358,7 @@ malicious_npm_dependencies_shai_hulud = Rule(
         _malicious_npm_dependencies_shai_hulud_aug_2026_github,
         _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github,
     ),
-    version="0.3.0",
+    version="0.3.1",
     references=[
         RuleReference(
             text="StepSecurity - ChainDrop npm Worm: Bun-loaded CI/CD credential harvester with Ethereum dead-drop C2",

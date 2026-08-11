@@ -127,7 +127,10 @@ _gcp_policy_manipulation_capabilities = Fact(
          [perm IN coalesce(role.permissions, [])
             WHERE perm IN patterns OR perm = 'iam.*' OR perm = 'resourcemanager.*' OR perm = '*'] AS matched
     WHERE size(matched) > 0
-    RETURN
+    // DISTINCT because a (resource, role) pair can have several GCPPolicyBinding nodes:
+    // conditional bindings append a condition hash to the binding id. They differ in no
+    // returned column, so without this the same identity repeats once per condition.
+    RETURN DISTINCT
         scope.id AS account,
         scope.id AS account_id,
         coalesce(principal.email, principal.id) AS principal_name,
