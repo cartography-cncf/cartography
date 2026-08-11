@@ -57,6 +57,7 @@ modules/tailscale/index
 modules/tenable/index
 modules/trivy/index
 modules/ubuntu/index
+modules/unikraft/index
 modules/vercel/index
 modules/workday/index
 modules/workos/index

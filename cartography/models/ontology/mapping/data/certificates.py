@@ -71,8 +71,25 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+unikraft_mapping = OntologyMapping(
+    module_name="unikraft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="UnikraftCertificate",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="domain", node_field="common_name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="expiry", node_field="not_after"),
+                OntologyFieldMapping(ontology_field="issuer", node_field="issuer"),
+            ],
+        ),
+    ],
+)
+
 CERTIFICATES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "unikraft": unikraft_mapping,
 }

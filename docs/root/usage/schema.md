@@ -79,6 +79,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Tenable](../modules/tenable/schema.md)
 - [Trivy](../modules/trivy/schema.md)
 - [Ubuntu](../modules/ubuntu/schema.md)
+- [Unikraft](../modules/unikraft/schema.md)
 - [Vercel](../modules/vercel/schema.md)
 - [Workday](../modules/workday/schema.md)
 - [Workos](../modules/workos/schema.md)
