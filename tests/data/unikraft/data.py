@@ -12,16 +12,6 @@ ACCOUNT_QUOTAS_RESPONSE = {
     },
 }
 
-IMAGES_RESPONSE = [
-    {
-        "url": "cartography-test:latest",
-        "created_at": "2026-01-01T00:00:00Z",
-        "initrd_or_rom": False,
-        "size_in_bytes": 12345678,
-        "tags": ["test"],
-    },
-]
-
 INSTANCES_RESPONSE = [
     {
         "uuid": "inst-0001",

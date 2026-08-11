@@ -3,14 +3,12 @@ from unittest.mock import patch
 import cartography.intel.unikraft
 import cartography.intel.unikraft.account
 import cartography.intel.unikraft.certificates
-import cartography.intel.unikraft.images
 import cartography.intel.unikraft.instances
 import cartography.intel.unikraft.service_groups
 import cartography.intel.unikraft.volumes
 from cartography.config import Config
 from tests.data.unikraft.data import ACCOUNT_QUOTAS_RESPONSE
 from tests.data.unikraft.data import CERTIFICATES_RESPONSE
-from tests.data.unikraft.data import IMAGES_RESPONSE
 from tests.data.unikraft.data import INSTANCES_RESPONSE
 from tests.data.unikraft.data import SERVICE_GROUPS_RESPONSE
 from tests.data.unikraft.data import VOLUMES_RESPONSE
@@ -24,7 +22,7 @@ TEST_INSTANCE_ID = "inst-0001"
 TEST_VOLUME_ID = "vol-0001"
 TEST_CERTIFICATE_ID = "cert-0001"
 TEST_SERVICE_GROUP_ID = "svc-0001"
-TEST_IMAGE_ID = "cartography-test:latest"
+TEST_IMAGE_REF = "cartography-test:latest"
 # METRO_BASE_URLS is iterated in insertion order and every metro is mocked
 # with identical fixture data, so nodes converge and end up stamped with the
 # last metro visited.
@@ -52,18 +50,12 @@ TEST_LAST_METRO = "sfo"
     return_value=INSTANCES_RESPONSE,
 )
 @patch.object(
-    cartography.intel.unikraft.images,
-    "get",
-    return_value=IMAGES_RESPONSE,
-)
-@patch.object(
     cartography.intel.unikraft.account,
     "get_own_quotas",
     return_value=ACCOUNT_QUOTAS_RESPONSE,
 )
 def test_start_unikraft_ingestion(
     mock_get_quotas,
-    mock_get_images,
     mock_get_instances,
     mock_get_volumes,
     mock_get_certificates,
@@ -102,20 +94,10 @@ def test_start_unikraft_ingestion(
     ) == {
         (TEST_CERTIFICATE_ID, "www.example.com", "unikraft"),
     }
-    assert check_nodes(neo4j_session, "Image", ["id", "_ont_uri", "_ont_source"]) == {
-        (TEST_IMAGE_ID, TEST_IMAGE_ID, "unikraft"),
-    }
     assert check_nodes(
         neo4j_session, "LoadBalancer", ["id", "_ont_name", "_ont_source"]
     ) == {
         (TEST_SERVICE_GROUP_ID, "cartography-test-service", "unikraft"),
-    }
-    assert check_nodes(
-        neo4j_session,
-        "UnikraftImage",
-        ["id", "url", "size_in_bytes", "metro"],
-    ) == {
-        (TEST_IMAGE_ID, TEST_IMAGE_ID, 12345678, TEST_LAST_METRO),
     }
     assert check_nodes(
         neo4j_session,
@@ -126,7 +108,7 @@ def test_start_unikraft_ingestion(
             TEST_INSTANCE_ID,
             "cartography-test-instance",
             "running",
-            TEST_IMAGE_ID,
+            TEST_IMAGE_REF,
             TEST_LAST_METRO,
         ),
     }
@@ -172,16 +154,6 @@ def test_start_unikraft_ingestion(
         neo4j_session,
         "UnikraftInstance",
         "id",
-        "UnikraftImage",
-        "id",
-        "USES",
-    ) == {
-        (TEST_INSTANCE_ID, TEST_IMAGE_ID),
-    }
-    assert check_rels(
-        neo4j_session,
-        "UnikraftInstance",
-        "id",
         "UnikraftVolume",
         "id",
         "MOUNTS",
@@ -210,7 +182,6 @@ def test_start_unikraft_ingestion(
     }
 
     # Act: re-sync with every resource removed upstream, under a new update tag.
-    mock_get_images.return_value = []
     mock_get_instances.return_value = []
     mock_get_volumes.return_value = []
     mock_get_certificates.return_value = []
@@ -223,7 +194,6 @@ def test_start_unikraft_ingestion(
     assert check_nodes(neo4j_session, "UnikraftAccount", ["id"]) == {
         (TEST_ACCOUNT_ID,),
     }
-    assert check_nodes(neo4j_session, "UnikraftImage", ["id"]) == set()
     assert check_nodes(neo4j_session, "UnikraftInstance", ["id"]) == set()
     assert check_nodes(neo4j_session, "UnikraftVolume", ["id"]) == set()
     assert check_nodes(neo4j_session, "UnikraftCertificate", ["id"]) == set()

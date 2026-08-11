@@ -92,25 +92,10 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
-unikraft_mapping = OntologyMapping(
-    module_name="unikraft",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="UnikraftImage",
-            fields=[
-                OntologyFieldMapping(ontology_field="uri", node_field="url"),
-                # digest / architecture / os / variant: Unikraft's image API exposes
-                # none of these.
-            ],
-        ),
-    ],
-)
-
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
     "scaleway": scaleway_mapping,
-    "unikraft": unikraft_mapping,
 }

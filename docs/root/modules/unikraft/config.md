@@ -30,9 +30,9 @@ Unikraft Cloud is organized into five metros (`fra`, `dal`, `sin`, `was`,
 `sfo`), each with its own base URL. There is no API endpoint that lists
 available metros, so Cartography queries all five on every sync and records
 which metro each resource (`UnikraftInstance`, `UnikraftVolume`,
-`UnikraftServiceGroup`, `UnikraftCertificate`, `UnikraftImage`) was observed
-in via its `metro` property. Requests retry with backoff on rate limiting and
-server errors, but a metro that stays unreachable through those retries fails
+`UnikraftServiceGroup`, `UnikraftCertificate`) was observed in via its
+`metro` property. Requests retry with backoff on rate limiting and server
+errors, but a metro that stays unreachable through those retries fails
 the sync rather than being skipped: since cleanup is scoped to the account as
 a whole rather than per metro, silently skipping a metro would let its
 resources be deleted from the graph as if they no longer existed.
@@ -41,6 +41,17 @@ The `UnikraftAccount` node is identified by the UUID returned from the
 metro-independent `/v1/users/quotas` endpoint, so no account identifier needs
 to be configured manually.
 
+### Images are not ingested
+
+Unikraft images are intentionally not ingested. The platform API docs
+describe `GET /v1/images` and `GET /v1/image-store` on the per-metro hosts,
+but both 404 on every metro against a real account; the working endpoint
+appears to have moved to a separate, undocumented `controlplane.unikraft.cloud`
+host with a different response shape. See
+[unikraft-cloud/openapi#3](https://github.com/unikraft-cloud/openapi/issues/3)
+for details. This will be revisited once that's resolved or confirmed.
+
 ## References
 
 - [Unikraft Cloud Platform API](https://docs.unikraft.com/api/platform/v1)
+- [unikraft-cloud/openapi#3](https://github.com/unikraft-cloud/openapi/issues/3) — tracks the images API discrepancy

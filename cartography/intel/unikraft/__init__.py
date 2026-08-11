@@ -7,7 +7,6 @@ from urllib3 import Retry
 
 import cartography.intel.unikraft.account
 import cartography.intel.unikraft.certificates
-import cartography.intel.unikraft.images
 import cartography.intel.unikraft.instances
 import cartography.intel.unikraft.service_groups
 import cartography.intel.unikraft.volumes
@@ -55,13 +54,6 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
     common_job_parameters["ACCOUNT_ID"] = account_id
 
-    cartography.intel.unikraft.images.sync(
-        neo4j_session,
-        session,
-        account_id,
-        config.update_tag,
-        common_job_parameters,
-    )
     cartography.intel.unikraft.instances.sync(
         neo4j_session,
         session,
