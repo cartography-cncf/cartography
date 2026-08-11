@@ -40,6 +40,47 @@ _NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
     neo4j.exceptions.TransientError,
 )
 
+# Neo4j reports transaction-memory exhaustion as a retryable TransientError, but replaying an
+# identical payload can never succeed: the batch itself is too large for the pool. Handle these
+# by shrinking the batch (see load_graph_data) rather than by backing off.
+_TRANSACTION_MEMORY_ERROR_CODES = frozenset(
+    {
+        "Neo.TransientError.General.MemoryPoolOutOfMemoryError",
+        "Neo.TransientError.General.OutOfMemoryError",
+    }
+)
+# Below this, halving no longer buys meaningful memory relief: at single-digit batch sizes the
+# per-row fan-out dominates, so shrinking further just converts one failure into thousands of
+# slow transactions. Fail with an actionable message instead.
+_MIN_ADAPTIVE_BATCH_SIZE = 10
+
+
+class Neo4jTransactionMemoryError(Exception):
+    """
+    A write transaction exceeded Neo4j's transaction memory.
+
+    Deliberately NOT a ``neo4j.exceptions.Neo4jError`` subclass. The driver's own managed
+    transaction retry (``Session._run_transaction``) catches ``(DriverError, Neo4jError)`` and
+    replays anything whose ``is_retryable()`` is True, and ``MemoryPoolOutOfMemoryError``
+    reports True. Raising a type the driver does not recognise takes this error out of that
+    retry loop as well as out of ours.
+    """
+
+
+def _is_transaction_memory_error(exc: BaseException) -> bool:
+    """
+    Determine if an exception is Neo4j running out of transaction memory.
+
+    The driver marks every TransientError retryable, so ``_NETWORK_EXCEPTIONS`` would
+    otherwise catch this wholesale and replay the same oversized batch.
+
+    :param exc: The exception to check
+    :return: True if Neo4j exhausted its transaction memory pool or heap, False otherwise
+    """
+    if not isinstance(exc, neo4j.exceptions.Neo4jError):
+        return False
+    return exc.code in _TRANSACTION_MEMORY_ERROR_CODES
+
 
 def _is_retryable_client_error(exc: Exception) -> bool:
     """
@@ -194,6 +235,12 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 )
             return result
         except _NETWORK_EXCEPTIONS as exc:
+            if _is_transaction_memory_error(exc):
+                # Same payload, same result. Let the caller shrink the batch instead.
+                # write_list_of_dicts_tx converts execution-time memory errors before the
+                # driver ever sees them; this branch is the backstop for commit-time ones,
+                # which are raised from tx._commit() outside the transaction function.
+                raise Neo4jTransactionMemoryError(str(exc)) from exc
             if network_attempts >= _MAX_NETWORK_RETRIES - 1:
                 raise
             network_attempts += 1
@@ -612,8 +659,18 @@ def write_list_of_dicts_tx(
     Note:
         This function is typically used internally by higher-level functions like
         ``load_graph_data()`` rather than being called directly by user code.
+
+        Transaction-memory exhaustion is re-raised as ``Neo4jTransactionMemoryError``. That
+        type is invisible to the driver's managed-transaction retry, so an oversized batch
+        fails immediately instead of being replayed in full; ``load_graph_data()`` then
+        shrinks the batch and retries.
     """
-    tx.run(query, kwargs).consume()
+    try:
+        tx.run(query, kwargs).consume()
+    except neo4j.exceptions.Neo4jError as exc:
+        if _is_transaction_memory_error(exc):
+            raise Neo4jTransactionMemoryError(str(exc)) from exc
+        raise
 
 
 def write_matchlink_cartesian_product_tx(
@@ -652,13 +709,23 @@ def load_graph_data(
     This function handles retries for:
     - Network errors (ConnectionResetError)
     - Service unavailability (ServiceUnavailable, SessionExpired)
-    - Transient database errors (TransientError)
+    - Transient database errors (TransientError), except transaction-memory exhaustion
     - EntityNotFound errors during concurrent operations (ClientError with specific code)
     - BufferError with "cannot be re-sized" during concurrent multi-threaded operations
 
     EntityNotFound errors are retried because they commonly occur during concurrent
     write operations when multiple threads access the same node space. This is expected
     behavior in Neo4j's query execution pipeline, not a permanent failure.
+
+    Transaction-memory exhaustion is handled by shrinking rather than retrying, because
+    replaying an identical oversized payload can never succeed. A single row can fan out to
+    an unbounded number of relationship MERGEs (for example ``(:CVEMetadata)-[:ENRICHES]->``
+    every node carrying the ``:CVE`` label), so a batch size that is safe on one graph can
+    exhaust ``dbms.memory.transaction.total.max`` on another. On such an error the batch size
+    is halved and the same rows are retried; the reduced size then persists for the rest of
+    the load so the cost of discovering it is paid once. Shrinking is safe because a failed
+    transaction commits nothing and the generated queries are idempotent MERGEs. Modules with
+    known heavy rows should still pass an explicit ``batch_size`` rather than rely on this.
 
     Args:
         neo4j_session (neo4j.Session): The Neo4j session for database operations.
@@ -679,8 +746,13 @@ def load_graph_data(
         ... ]
         >>> load_graph_data(session, query, data, lastupdated=current_time)
 
+    Raises:
+        ValueError: If ``batch_size`` is not greater than 0.
+        Neo4jTransactionMemoryError: If Neo4j still runs out of transaction memory once the
+            batch size has been reduced to ``_MIN_ADAPTIVE_BATCH_SIZE``.
+
     Note:
-        - Data is processed in batches of 10,000 records to optimize memory usage
+        - Data is processed in batches of 10,000 records by default to optimize memory usage
           and transaction performance.
         - This function is typically called by higher-level functions like ``load()``
           rather than directly by user code.
@@ -688,14 +760,44 @@ def load_graph_data(
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
 
-    for data_batch in batch(dict_list, size=batch_size):
-        execute_write_with_retry(
-            neo4j_session,
-            write_list_of_dicts_tx,
-            query,
-            DictList=data_batch,
-            **kwargs,
-        )
+    # Materialise so we can re-slice the same rows after shrinking the batch size. Every
+    # in-repo caller already passes a list; this guards a generator caller from silent loss.
+    rows = dict_list if isinstance(dict_list, list) else list(dict_list)
+    effective_batch_size = batch_size
+    index = 0
+    while index < len(rows):
+        data_batch = rows[index : index + effective_batch_size]
+        try:
+            execute_write_with_retry(
+                neo4j_session,
+                write_list_of_dicts_tx,
+                query,
+                DictList=data_batch,
+                **kwargs,
+            )
+        except Neo4jTransactionMemoryError as exc:
+            if effective_batch_size <= _MIN_ADAPTIVE_BATCH_SIZE:
+                raise Neo4jTransactionMemoryError(
+                    f"Neo4j ran out of transaction memory even at batch_size="
+                    f"{effective_batch_size}. Each input row likely fans out to many matched "
+                    f"nodes; reduce the fan-out of this query or raise the transaction "
+                    f"memory limit named in the causing error."
+                ) from exc
+            effective_batch_size = max(
+                _MIN_ADAPTIVE_BATCH_SIZE, effective_batch_size // 2
+            )
+            logger.warning(
+                "Neo4j transaction memory exceeded. Halving batch size to %d and retrying "
+                "from row %d of %d. Consider setting an explicit batch_size constant for "
+                "this module. Error: %s",
+                effective_batch_size,
+                index,
+                len(rows),
+                exc,
+            )
+            # Retry the same offset with a smaller slice; nothing was committed.
+            continue
+        index += len(data_batch)
 
 
 def ensure_indexes(

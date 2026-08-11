@@ -9,10 +9,15 @@ from cartography.client.core.tx import _buffer_error_backoff_handler
 from cartography.client.core.tx import _entity_not_found_backoff_handler
 from cartography.client.core.tx import _is_retryable_buffer_error
 from cartography.client.core.tx import _is_retryable_client_error
+from cartography.client.core.tx import _is_transaction_memory_error
+from cartography.client.core.tx import _MIN_ADAPTIVE_BATCH_SIZE
 from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.client.core.tx import load_graph_data
 from cartography.client.core.tx import load_matchlinks_cartesian_product
+from cartography.client.core.tx import Neo4jTransactionMemoryError
+from cartography.client.core.tx import write_list_of_dicts_tx
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -55,6 +60,24 @@ def _create_client_error(
     # Set the code attribute (this is how Neo4j driver sets it internally)
     object.__setattr__(exc, "_neo4j_code", code)
     return exc
+
+
+def _create_transient_error(
+    code: str, message: str = "Test error"
+) -> neo4j.exceptions.TransientError:
+    """Helper to create a TransientError with a specific code."""
+    exc = neo4j.exceptions.TransientError(message)
+    object.__setattr__(exc, "_neo4j_code", code)
+    return exc
+
+
+def _create_memory_pool_error(
+    message: str = "Test error",
+) -> neo4j.exceptions.TransientError:
+    """Helper to create the transaction memory pool exhaustion error."""
+    return _create_transient_error(
+        "Neo.TransientError.General.MemoryPoolOutOfMemoryError", message
+    )
 
 
 def _cartesian_product_rel_schema() -> PrincipalToS3BucketCartesianProductRel:
@@ -270,6 +293,172 @@ def test_handles_none_wait_time_gracefully(mock_logger, mock_sleep):
     assert len(error_logs) == 1
     # Should still sleep (with fallback 1.0 second)
     mock_sleep.assert_called_once_with(1.0)
+
+
+# Tests for transaction memory errors
+
+
+def test_memory_pool_error_is_classified():
+    """Should recognise Neo4j transaction memory exhaustion, and nothing else."""
+    assert _is_transaction_memory_error(_create_memory_pool_error()) is True
+    assert (
+        _is_transaction_memory_error(
+            _create_transient_error("Neo.TransientError.General.OutOfMemoryError")
+        )
+        is True
+    )
+    assert (
+        _is_transaction_memory_error(
+            _create_transient_error("Neo.TransientError.Transaction.LockClientStopped")
+        )
+        is False
+    )
+    assert (
+        _is_transaction_memory_error(
+            _create_client_error("Neo.ClientError.Statement.EntityNotFound")
+        )
+        is False
+    )
+    assert _is_transaction_memory_error(ValueError("nope")) is False
+
+
+def test_raises_transaction_memory_error_without_retry():
+    """Should not retry transaction memory errors: the same payload cannot succeed."""
+    operation = MagicMock()
+    operation.side_effect = _create_memory_pool_error("pool exhausted")
+
+    with pytest.raises(Neo4jTransactionMemoryError) as exc_info:
+        _run_with_retry(operation, "test_target")
+
+    # Should only be called once (no retries, no backoff sleep)
+    operation.assert_called_once()
+    # The original error is carried by the exception chain, not copied into the message
+    assert isinstance(exc_info.value.__cause__, neo4j.exceptions.TransientError)
+    assert exc_info.value.__cause__.code == (
+        "Neo.TransientError.General.MemoryPoolOutOfMemoryError"
+    )
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_still_retries_non_memory_transient_errors(mock_sleep):
+    """Should keep retrying TransientErrors that are not memory exhaustion."""
+    operation = MagicMock()
+    operation.side_effect = [
+        _create_transient_error("Neo.TransientError.Transaction.LockClientStopped"),
+        "success",
+    ]
+
+    result = _run_with_retry(operation, "test_target")
+
+    assert result == "success"
+    assert operation.call_count == 2
+
+
+def test_write_list_of_dicts_tx_converts_memory_error():
+    """Should convert memory errors to a type the neo4j driver will not retry."""
+    mock_tx = MagicMock()
+    mock_tx.run.return_value.consume.side_effect = _create_memory_pool_error()
+
+    with pytest.raises(Neo4jTransactionMemoryError) as exc_info:
+        write_list_of_dicts_tx(mock_tx, "MERGE (n:Test)", DictList=[{"id": 1}])
+
+    # Session._run_transaction only retries (DriverError, Neo4jError), so raising a type
+    # outside that hierarchy is what keeps the driver from replaying the oversized batch.
+    assert not isinstance(exc_info.value, neo4j.exceptions.Neo4jError)
+
+
+def test_write_list_of_dicts_tx_reraises_other_neo4j_errors():
+    """Should leave non-memory Neo4j errors untouched."""
+    mock_tx = MagicMock()
+    mock_tx.run.return_value.consume.side_effect = _create_client_error(
+        "Neo.ClientError.Statement.SyntaxError"
+    )
+
+    with pytest.raises(neo4j.exceptions.ClientError):
+        write_list_of_dicts_tx(mock_tx, "MERGE (n:Test)", DictList=[{"id": 1}])
+
+
+# Tests for load_graph_data adaptive batch sizing
+
+
+def _rows(count: int) -> list:
+    return [{"id": i} for i in range(count)]
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+def test_load_graph_data_halves_batch_on_memory_error(mock_execute):
+    """Should halve the batch and retry the same rows when memory is exhausted."""
+    rows = _rows(100)
+    calls = []
+
+    def side_effect(session, tx_func, query, **kwargs):
+        batch_rows = kwargs["DictList"]
+        calls.append(batch_rows)
+        if len(batch_rows) > 50:
+            raise Neo4jTransactionMemoryError("pool exhausted")
+
+    mock_execute.side_effect = side_effect
+
+    load_graph_data(MagicMock(), "MERGE (n:Test)", rows, batch_size=100)
+
+    # First attempt at 100 fails, then two successful halves of 50
+    assert [len(c) for c in calls] == [100, 50, 50]
+    # Every row is written exactly once, in order, with nothing dropped
+    written = [row for c in calls[1:] for row in c]
+    assert written == rows
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+def test_load_graph_data_keeps_reduced_batch_size(mock_execute):
+    """Should not re-grow the batch size after a memory error."""
+    rows = _rows(80)
+    calls = []
+
+    def side_effect(session, tx_func, query, **kwargs):
+        batch_rows = kwargs["DictList"]
+        calls.append(batch_rows)
+        if len(batch_rows) > 20:
+            raise Neo4jTransactionMemoryError("pool exhausted")
+
+    mock_execute.side_effect = side_effect
+
+    load_graph_data(MagicMock(), "MERGE (n:Test)", rows, batch_size=80)
+
+    # 80 fails, 40 fails, then 20 succeeds and stays at 20 for the rest of the load
+    assert [len(c) for c in calls] == [80, 40, 20, 20, 20, 20]
+    written = [row for c in calls[2:] for row in c]
+    assert written == rows
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+def test_load_graph_data_raises_at_floor(mock_execute):
+    """Should give up with an actionable message once shrinking stops helping."""
+    mock_execute.side_effect = Neo4jTransactionMemoryError("pool exhausted")
+
+    with pytest.raises(Neo4jTransactionMemoryError) as exc_info:
+        load_graph_data(MagicMock(), "MERGE (n:Test)", _rows(100), batch_size=100)
+
+    # The actionable guidance lives here, at the one point where we actually give up
+    assert "fans out" in str(exc_info.value)
+    assert "batch_size" in str(exc_info.value)
+    assert "transaction memory limit" in str(exc_info.value)
+    # Halving is bounded: 100 -> 50 -> 25 -> 12 -> 10, then raise. Guards against a
+    # regression that loops forever.
+    assert mock_execute.call_count <= 8
+    assert len(mock_execute.call_args_list[-1].kwargs["DictList"]) == (
+        _MIN_ADAPTIVE_BATCH_SIZE
+    )
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+def test_load_graph_data_does_not_shrink_for_other_errors(mock_execute):
+    """Should not shrink the batch for failures unrelated to transaction memory."""
+    mock_execute.side_effect = neo4j.exceptions.ServiceUnavailable("Connection lost")
+
+    with pytest.raises(neo4j.exceptions.ServiceUnavailable):
+        load_graph_data(MagicMock(), "MERGE (n:Test)", _rows(100), batch_size=100)
+
+    mock_execute.assert_called_once()
 
 
 # Tests for execute_write_with_retry
