@@ -122,6 +122,484 @@ def _expression_for_alias(cypher_query: str, alias: str) -> str | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Fan-out analysis: can `identity_fields` key the rows the query returns?
+#
+# `identity_fields` is a promise that two rows of the same fact never share an
+# identity. The shape that breaks it is a query that fans out over a to-many hop
+# while the identity omits the fan-out column, so one asset yields several
+# findings with one identity and a consumer reconciling across syncs cannot tell
+# them apart. The helpers below find that shape statically; the cardinality of
+# each relationship is *injected* by the caller, so this module stays free of
+# per-module assertions about the graph.
+#
+# Known blind spots, all of them under-reporting rather than false alarms:
+# cartesian-product fan-out (two patterns joined by a property equality rather
+# than a relationship), a top-level `UNION`, variables returned out of a
+# `CALL { ... }` subquery, and `UNWIND` over a list expression.
+# ---------------------------------------------------------------------------
+
+# Functions that collapse many rows into one value. `size()` is deliberately
+# absent: it measures a list, it does not aggregate rows.
+_AGGREGATE_FUNCTIONS = frozenset(
+    {
+        "collect",
+        "count",
+        "sum",
+        "avg",
+        "min",
+        "max",
+        "stdev",
+        "stdevp",
+        "percentilecont",
+        "percentiledisc",
+    }
+)
+_AGGREGATE_CALL_RE = re.compile(
+    rf"(?i)\b({'|'.join(sorted(_AGGREGATE_FUNCTIONS))})\s*\("
+)
+_CLAUSE_KEYWORD_RE = re.compile(
+    r"(?is)\b(OPTIONAL\s+MATCH|MATCH|WHERE|WITH|RETURN|UNWIND|CALL|UNION"
+    r"|ORDER\s+BY|SKIP|LIMIT)\b"
+)
+_PATH_ASSIGNMENT_RE = re.compile(r"^\s*\w+\s*=")
+_NODE_VARIABLE_RE = re.compile(r"^\s*(\w+)")
+_LABEL_RE = re.compile(r"[:|]\s*(\w+)")
+# An identifier that is not a property name (`n.prop`) and not an alias keyword.
+_IDENTIFIER_RE = re.compile(r"(?<![\w.])[A-Za-z_]\w*")
+_ANONYMOUS_PREFIX = "__anon"
+
+
+@dataclass(frozen=True)
+class FanoutRisk:
+    """A query variable that multiplies rows without being pinned by the identity."""
+
+    variable: str
+    condition: str
+    """``"projected"``: the variable contributes an un-aggregated output column that no
+    identity field pins, so its rows differ in a column the identity ignores.
+    ``"invisible"``: the variable contributes nothing to the projection, so it only
+    duplicates rows."""
+    detail: str
+    """Human-readable explanation, meant for a test failure message."""
+
+
+@dataclass(frozen=True)
+class _Hop:
+    """One relationship step of a Cypher pattern, as written."""
+
+    left: str
+    right: str
+    direction: str
+    """``"->"``, ``"<-"`` or ``"--"``."""
+    rel_labels: frozenset[str]
+    variable_length: bool
+
+
+def _sanitize_cypher(cypher_query: str) -> str:
+    """Mask comments and string-literal bodies, preserving every character position.
+
+    Length-preserving so indices and bracket depths computed here stay valid against
+    the original query. Necessary because a `//` inside a string literal
+    (`'https://mail.google.com/'`) would otherwise swallow the rest of the line and
+    unbalance the query.
+    """
+    result = list(cypher_query)
+    index, length = 0, len(cypher_query)
+    while index < length:
+        char = cypher_query[index]
+        if char == "/" and cypher_query.startswith("//", index):
+            while index < length and cypher_query[index] != "\n":
+                result[index] = " "
+                index += 1
+        elif char in "'\"`":
+            quote = char
+            index += 1
+            while index < length and cypher_query[index] != quote:
+                if cypher_query[index] == "\\" and index + 1 < length:
+                    result[index] = "x"
+                    index += 1
+                result[index] = "x"
+                index += 1
+            index += 1
+        else:
+            index += 1
+    return "".join(result)
+
+
+def _split_top_level(text: str, separator: str = ",") -> list[str]:
+    """Split `text` on `separator` occurrences that sit outside every bracket."""
+    depths = _depths(text)
+    parts, start = [], 0
+    for index, char in enumerate(text):
+        if char == separator and depths[index] == 0:
+            parts.append(text[start:index])
+            start = index + 1
+    parts.append(text[start:])
+    return [part.strip() for part in parts if part.strip()]
+
+
+def _split_on_top_level_keyword(text: str, keyword: str) -> list[str]:
+    """Split `text` on occurrences of `keyword` that sit outside every bracket."""
+    depths = _depths(text)
+    pattern = re.compile(rf"(?i)\b{re.escape(keyword)}\b")
+    parts, start = [], 0
+    for match in pattern.finditer(text):
+        if depths[match.start()] == 0:
+            parts.append(text[start : match.start()])
+            start = match.end()
+    parts.append(text[start:])
+    return [part for part in parts if part.strip()]
+
+
+def _top_level_clauses(sanitized_query: str) -> list[tuple[str, str]]:
+    """`(KEYWORD, body)` for every clause at bracket depth 0.
+
+    A `CALL { ... }` body sits at a deeper level, so its clauses are not returned:
+    variables bound only inside a subquery cannot multiply the outer rows.
+    """
+    depths = _depths(sanitized_query)
+    starts = [
+        match
+        for match in _CLAUSE_KEYWORD_RE.finditer(sanitized_query)
+        if depths[match.start()] == 0
+    ]
+    clauses = []
+    for position, match in enumerate(starts):
+        end = starts[position + 1].start() if position + 1 < len(starts) else None
+        keyword = " ".join(match.group(1).upper().split())
+        clauses.append((keyword, sanitized_query[match.end() : end]))
+    return clauses
+
+
+def _parse_node(interior: str, anonymous_count: int) -> tuple[str, set[str]]:
+    """`(variable, labels)` of one node pattern, naming anonymous nodes so a path
+    can be chained through them."""
+    before_properties = interior.split("{", 1)[0]
+    labels = set(_LABEL_RE.findall(before_properties))
+    name_match = _NODE_VARIABLE_RE.match(before_properties)
+    if name_match and not before_properties.lstrip().startswith(":"):
+        return name_match.group(1), labels
+    return f"{_ANONYMOUS_PREFIX}{anonymous_count}", labels
+
+
+def _parse_connector(text: str) -> tuple[str, frozenset[str], bool]:
+    """`(direction, relationship labels, is variable length)` of a pattern connector."""
+    stripped = text.strip()
+    if stripped.endswith(">"):
+        direction = "->"
+    elif stripped.startswith("<"):
+        direction = "<-"
+    else:
+        direction = "--"
+    bracket = (
+        stripped[stripped.find("[") + 1 : stripped.rfind("]")]
+        if "[" in stripped
+        else ""
+    )
+    before_properties = bracket.split("{", 1)[0]
+    return (
+        direction,
+        frozenset(_LABEL_RE.findall(before_properties)),
+        "*" in before_properties,
+    )
+
+
+def _pattern_hops(
+    pattern: str, anonymous_count: int
+) -> tuple[dict[str, set[str]], list[_Hop], int]:
+    """Parse a MATCH pattern into its variables, its hops, and the anon counter."""
+    variables: dict[str, set[str]] = {}
+    hops: list[_Hop] = []
+    for sub_pattern in _split_top_level(pattern):
+        sub_pattern = _PATH_ASSIGNMENT_RE.sub("", sub_pattern, count=1)
+        nodes: list[str] = []
+        connectors: list[str] = []
+        paren_depth = bracket_depth = brace_depth = 0
+        node_start = last_end = 0
+        for index, char in enumerate(sub_pattern):
+            if char == "[":
+                bracket_depth += 1
+            elif char == "]":
+                bracket_depth -= 1
+            elif char == "{":
+                brace_depth += 1
+            elif char == "}":
+                brace_depth -= 1
+            elif char == "(" and bracket_depth == 0 and brace_depth == 0:
+                if paren_depth == 0:
+                    node_start = index
+                    connectors.append(sub_pattern[last_end:index])
+                paren_depth += 1
+            elif char == ")" and bracket_depth == 0 and brace_depth == 0:
+                paren_depth -= 1
+                if paren_depth == 0:
+                    name, labels = _parse_node(
+                        sub_pattern[node_start + 1 : index], anonymous_count
+                    )
+                    if name.startswith(_ANONYMOUS_PREFIX):
+                        anonymous_count += 1
+                    nodes.append(name)
+                    variables.setdefault(name, set()).update(labels)
+                    last_end = index + 1
+        for position in range(1, len(nodes)):
+            direction, rel_labels, variable_length = _parse_connector(
+                connectors[position]
+            )
+            hops.append(
+                _Hop(
+                    left=nodes[position - 1],
+                    right=nodes[position],
+                    direction=direction,
+                    rel_labels=rel_labels,
+                    variable_length=variable_length,
+                )
+            )
+    return variables, hops, anonymous_count
+
+
+def _alias_expressions(clauses: list[tuple[str, str]]) -> dict[str, str]:
+    """`alias -> source expression` for every `... AS alias` the query binds."""
+    expressions: dict[str, str] = {}
+    for keyword, body in clauses:
+        if keyword in ("WITH", "RETURN"):
+            items = _split_top_level(_LEADING_DISTINCT_RE.sub("", body))
+        elif keyword == "UNWIND":
+            items = [body]
+        else:
+            continue
+        for item in items:
+            match = _ITEM_ALIAS_RE.search(item)
+            if not match:
+                continue
+            alias, source = match.group(1), item[: match.start()].strip()
+            # `x AS x` re-binds a column to itself. Recording it would erase the
+            # earlier definition that says what `x` actually reads.
+            if source != alias:
+                expressions[alias] = source
+    return expressions
+
+
+def _expand_aliases(
+    expression: str,
+    alias_expressions: dict[str, str],
+    _seen: frozenset[str] = frozenset(),
+) -> str:
+    """Substitute aliases back to their source expressions.
+
+    So `RETURN ip AS external_ip` after `WITH access.public_ip AS ip` still resolves to
+    a read off `access`. An alias already expanded on the current path is left alone, so
+    a rebinding such as `WITH head(collect(user_label)) AS user` terminates.
+    """
+
+    def replace(match: re.Match) -> str:
+        name = match.group(0)
+        source = alias_expressions.get(name)
+        if source is None or name in _seen or source.strip() == name:
+            return name
+        return f"({_expand_aliases(source, alias_expressions, _seen | {name})})"
+
+    return _IDENTIFIER_RE.sub(replace, expression)
+
+
+def _aggregate_spans(expression: str) -> list[tuple[int, int]]:
+    """Character ranges of `expression` covered by an aggregating function call."""
+    spans = []
+    for match in _AGGREGATE_CALL_RE.finditer(expression):
+        depth = 0
+        for index in range(match.end() - 1, len(expression)):
+            if expression[index] == "(":
+                depth += 1
+            elif expression[index] == ")":
+                depth -= 1
+                if depth == 0:
+                    spans.append((match.start(), index + 1))
+                    break
+    return spans
+
+
+def _variable_usage(expression: str, variable: str) -> tuple[bool, bool]:
+    """`(collapsed by an aggregate, read outside every aggregate)`.
+
+    Collapsed covers both `count(sg)` and `collect(sg.name)`: either way the variable's
+    rows fold into a single value. Read-outside means the expression exposes one of the
+    variable's properties as its own value, which is what makes a fan-out visible in the
+    output. A bare carry-through (`WITH a, b, c`) is neither: it moves the variable along
+    without folding it or reading anything off it.
+    """
+    spans = _aggregate_spans(expression)
+    collapsed = read_outside = False
+    for match in re.finditer(rf"(?<![\w.])({re.escape(variable)})\s*(\.?)", expression):
+        if any(start <= match.start() < end for start, end in spans):
+            collapsed = True
+        elif match.group(2):
+            read_outside = True
+    return collapsed, read_outside
+
+
+def _anti_joined_variables(clauses: list[tuple[str, str]]) -> set[str]:
+    """Variables an `OPTIONAL MATCH ... WHERE <var> IS NULL` anti-join pins to null.
+
+    The idiom keeps only the rows where the optional pattern found nothing, so the
+    variable is null in every surviving row and cannot multiply them. Only conjunctive
+    top-level predicates count: under an `OR` the variable may still be bound.
+    """
+    pinned = set()
+    for keyword, body in clauses:
+        if keyword != "WHERE":
+            continue
+        depths = _depths(body)
+        if any(
+            depths[match.start()] == 0 for match in re.finditer(r"(?i)\bOR\b", body)
+        ):
+            continue
+        for conjunct in _split_on_top_level_keyword(body, "AND"):
+            match = re.match(r"(?is)^(\w+)\s+IS\s+NULL$", conjunct.strip())
+            if match:
+                pinned.add(match.group(1))
+    return pinned
+
+
+def _hop_is_to_one(
+    hop: _Hop,
+    source: str,
+    variables: dict[str, set[str]],
+    to_one_incoming: frozenset[tuple[str, str]],
+    to_one_outgoing: frozenset[tuple[str, str]],
+) -> bool:
+    """Does traversing `hop` away from `source` reach at most one node?
+
+    Both tables are keyed on `(relationship label, label of the arrow target)`, never on
+    the label alone: `CONTAINS` and `OWNS` are each used for a to-one edge in one module
+    and a to-many edge in another.
+    """
+    if hop.variable_length or hop.direction == "--":
+        return False
+    target_is_right = hop.direction == "->"
+    arrow_target = hop.right if target_is_right else hop.left
+    moving_with_arrow = source == (hop.left if target_is_right else hop.right)
+    table = to_one_outgoing if moving_with_arrow else to_one_incoming
+    labels = variables.get(arrow_target, set())
+    for rel_label in hop.rel_labels or {""}:
+        if (rel_label, "*") in table:
+            return True
+        if any((rel_label, label) in table for label in labels):
+            return True
+    return False
+
+
+def fanout_risks(
+    cypher_query: str,
+    asset_label: str,
+    identity_fields: tuple[str, ...],
+    *,
+    to_one_incoming: frozenset[tuple[str, str]],
+    to_one_outgoing: frozenset[tuple[str, str]],
+) -> list[FanoutRisk]:
+    """Variables whose row fan-out `identity_fields` does not account for.
+
+    Multiplicity is measured relative to the identity, not to the anchor: a variable is
+    pinned when it holds the anchor, when an identity field is read off it, or when it is
+    reachable from a pinned variable through hops that yield at most one node. Anything
+    else connected to that set multiplies rows, and is reported unless the query collapses
+    it (an aggregate) or hides it (no output column, plus `RETURN DISTINCT`).
+    """
+    sanitized = _sanitize_cypher(cypher_query)
+    clauses = _top_level_clauses(sanitized)
+
+    variables: dict[str, set[str]] = {}
+    hops: list[_Hop] = []
+    anonymous_count = 0
+    for keyword, body in clauses:
+        if keyword not in ("MATCH", "OPTIONAL MATCH"):
+            continue
+        pattern_variables, pattern_hops, anonymous_count = _pattern_hops(
+            body, anonymous_count
+        )
+        for name, labels in pattern_variables.items():
+            variables.setdefault(name, set()).update(labels)
+        hops.extend(pattern_hops)
+
+    alias_expressions = _alias_expressions(clauses)
+    pinned = {name for name, labels in variables.items() if asset_label in labels}
+    for identity_field in identity_fields:
+        expanded = _expand_aliases(
+            alias_expressions.get(identity_field, identity_field), alias_expressions
+        )
+        pinned |= {name for name in variables if any(_variable_usage(expanded, name))}
+    if not pinned:
+        # No anchor and no identity read off a matched variable: there is no reference
+        # point to measure fan-out against.
+        return []
+    pinned |= _anti_joined_variables(clauses) & set(variables)
+
+    # Grow the pinned set through to-one hops, and separately track everything the
+    # pattern connects to it. A variable joined only by a property equality is neither,
+    # and is left alone rather than reported as a guess.
+    connected = set(pinned)
+    changed = True
+    while changed:
+        changed = False
+        for hop in hops:
+            for source, other in ((hop.left, hop.right), (hop.right, hop.left)):
+                if source not in connected or other in pinned:
+                    continue
+                if other not in connected:
+                    connected.add(other)
+                    changed = True
+                if source in pinned and _hop_is_to_one(
+                    hop, source, variables, to_one_incoming, to_one_outgoing
+                ):
+                    pinned.add(other)
+                    changed = True
+
+    # Tested on the raw clause body: `_final_return_projection` has already stripped
+    # the keyword by the time it returns.
+    return_bodies = [body for keyword, body in clauses if keyword == "RETURN"]
+    returns_distinct = bool(
+        return_bodies and _LEADING_DISTINCT_RE.match(return_bodies[-1])
+    )
+    projected = [
+        _expand_aliases(item, alias_expressions)
+        for item in _projection_items(sanitized)
+    ]
+    carried = [
+        _expand_aliases(item, alias_expressions)
+        for keyword, body in clauses
+        if keyword in ("WITH", "RETURN")
+        for item in _split_top_level(_LEADING_DISTINCT_RE.sub("", body))
+    ]
+
+    risks = []
+    for variable in sorted(connected - pinned):
+        if variable.startswith(_ANONYMOUS_PREFIX):
+            continue
+        if any(_variable_usage(item, variable)[1] for item in projected):
+            risks.append(
+                FanoutRisk(
+                    variable=variable,
+                    condition="projected",
+                    detail=(
+                        f"'{variable}' multiplies rows and contributes an un-aggregated "
+                        f"output column, but no identity field is read off it"
+                    ),
+                )
+            )
+        elif not any(_variable_usage(item, variable)[0] for item in carried):
+            if not returns_distinct:
+                risks.append(
+                    FanoutRisk(
+                        variable=variable,
+                        condition="invisible",
+                        detail=(
+                            f"'{variable}' multiplies rows without contributing any "
+                            f"output column, so identical rows repeat"
+                        ),
+                    )
+                )
+    return risks
+
+
 class Module(str, Enum):
     """Services that can be monitored"""
 
@@ -428,6 +906,16 @@ class Fact:
             raise ValueError(
                 f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
                 f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
+            )
+        missing_identity = tuple(
+            name for name in self.identity_fields if name not in aliases
+        )
+        if missing_identity:
+            raise ValueError(
+                f"Fact '{self.id}' declares identity_fields {sorted(missing_identity)} "
+                f"that its cypher_query does not return (expected a '... AS <name>' alias "
+                f"in the final RETURN for each). An identity a consumer cannot read is "
+                f"not an identity."
             )
         # The anchor is only meaningful if the label and the id describe the same
         # node, so require a variable bound to asset_label and require the
