@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = (60, 60)
 _DEFAULT_PAGE_SIZE = 100
+_PROGRESS_PAGE_INTERVAL = 10
 WIZ_AUTH_AUDIENCE = "wiz-api"
 
 
@@ -64,9 +65,11 @@ def get_paginated(
     filter_by: dict[str, Any] | None = None,
     order_by: dict[str, Any] | None = None,
     page_size: int = _DEFAULT_PAGE_SIZE,
+    progress_label: str | None = None,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     after = None
+    page_count = 0
 
     while True:
         variables: dict[str, Any] = {
@@ -81,6 +84,15 @@ def get_paginated(
         connection = data[connection_name]
         nodes = connection.get("nodes") or []
         results.extend(nodes)
+        page_count += 1
+
+        if progress_label and page_count % _PROGRESS_PAGE_INTERVAL == 0:
+            logger.info(
+                "Fetched %d Wiz %s across %d page(s) so far.",
+                len(results),
+                progress_label,
+                page_count,
+            )
 
         page_info = connection.get("pageInfo") or {}
         if not page_info.get("hasNextPage"):

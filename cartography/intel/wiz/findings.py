@@ -220,6 +220,7 @@ def get(
             query,
             connection_name,
             filter_by=filter_by,
+            progress_label=f"{finding_type.lower()} findings",
         )
         logger.info(
             "Fetched %d Wiz %s findings in %.2fs",

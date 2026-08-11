@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 import cartography.intel.wiz.findings
@@ -137,6 +139,42 @@ def test_get_paginated_stops_when_next_page_has_no_cursor():
 
     assert nodes == [{"id": "resource-1"}]
     assert len(session.calls) == 1
+
+
+def test_get_paginated_logs_progress_every_ten_pages(caplog):
+    responses = []
+    for page in range(10):
+        responses.append(
+            FakeResponse(
+                {
+                    "data": {
+                        "configurationFindings": {
+                            "nodes": [{"id": f"finding-{page}"}],
+                            "pageInfo": {
+                                "hasNextPage": page < 9,
+                                "endCursor": f"cursor-{page}",
+                            },
+                        },
+                    },
+                },
+            ),
+        )
+    session = FakeSession(responses)
+
+    with caplog.at_level(logging.INFO, logger="cartography.intel.wiz.api"):
+        nodes = get_paginated(
+            session,
+            "https://api.us1.app.wiz.io/graphql",
+            "token-1",
+            "query Test { configurationFindings { nodes { id } } }",
+            "configurationFindings",
+            progress_label="configuration findings",
+        )
+
+    assert len(nodes) == 10
+    assert (
+        "Fetched 10 Wiz configuration findings across 10 page(s) so far." in caplog.text
+    )
 
 
 def test_get_issues_uses_status_changed_filter_when_since_is_set():
