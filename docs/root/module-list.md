@@ -1,11 +1,17 @@
+# Intel Modules
+
+Select a module for its supported resources, configuration, and generated
+schema documentation.
+
 ```{toctree}
-:caption: List of all intel modules with configuration instructions
+:caption: Modules
 
 modules/aibom/index
 modules/airbyte/index
 modules/anthropic/index
 modules/aws/index
 modules/azure/index
+modules/bbot/index
 modules/bigfix/index
 modules/circleci/index
 modules/cloudflare/index
@@ -52,7 +58,9 @@ modules/syft/index
 modules/tailscale/index
 modules/tenable/index
 modules/trivy/index
+modules/ubuntu/index
 modules/vercel/index
+modules/wiz/index
 modules/workday/index
 modules/workos/index
 ```

@@ -110,6 +110,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
+        "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
         "docker_scout": _LazyStage(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
@@ -121,6 +122,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
+        "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "cve_metadata": _LazyStage(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),

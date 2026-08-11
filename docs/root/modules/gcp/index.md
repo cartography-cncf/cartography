@@ -59,5 +59,6 @@ grant on its dataset are both represented, each on its own grain.
 config
 artifact-registry
 cloud-run
+permission-mapping
 schema
 ```

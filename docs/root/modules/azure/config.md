@@ -2,6 +2,23 @@
 
 ## Authentication
 
+Cartography supports Azure CLI authentication and service principal
+authentication.
+
+### Azure CLI
+
+Azure CLI authentication is the default. Sign in before running Cartography:
+
+```bash
+az login
+```
+
+Cartography uses the active Azure CLI identity. Always set either
+`--azure-subscription-id` or `--azure-sync-all-subscriptions` to select the
+subscriptions to sync explicitly.
+
+### Service principal
+
 Create a service principal for Cartography:
 
 ```bash
@@ -15,7 +32,7 @@ variables such as `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and
 
 ## Required Permissions
 
-Grant the service principal the built-in Azure
+Grant the authenticated identity the built-in Azure
 [Reader role](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader)
 on every subscription that Cartography should sync.
 
@@ -26,11 +43,32 @@ cover the management groups that Cartography should sync.
 
 ## Configure Cartography
 
-Enable service principal authentication with `--azure-sp-auth`. Use
-`--azure-sync-all-subscriptions` to sync all subscriptions visible to the
-identity.
+- Omit `--azure-sp-auth` to use the active Azure CLI session.
+- Set `--azure-sp-auth` to use the tenant ID, client ID, and client secret
+  options.
+- Set `--azure-subscription-id` to sync one specific subscription.
+- Set `--azure-sync-all-subscriptions` to discover and sync every subscription
+  visible to the authenticated identity.
+
+When neither subscription option is set, Azure CLI authentication selects the
+first subscription returned by the Azure subscription API, which may not be
+the CLI's current subscription. Service principal authentication has no
+default subscription ID and cannot sync a single subscription without
+`--azure-subscription-id`.
 
 ## Run Cartography
+
+With the active Azure CLI session and one explicit subscription:
+
+```bash
+az login
+
+cartography \
+  --selected-modules azure \
+  --azure-subscription-id "<subscription-id>"
+```
+
+With a service principal and all visible subscriptions:
 
 ```bash
 cartography \

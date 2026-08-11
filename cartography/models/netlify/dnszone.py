@@ -19,7 +19,29 @@ class NetlifyDNSZoneNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="The Netlify DNS zone id.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True, description="Zone name.")
-    domain: PropertyRef = PropertyRef("domain", description="Apex domain of the zone.")
+    domain: PropertyRef = PropertyRef(
+        "domain",
+        description="Apex domain of the zone. Taken from the domain registration's name when the domain was bought through Netlify.",
+    )
+    # Set only for a domain bought through Netlify, where the API returns the whole domain
+    # registration on `domain` and transform() flattens the renewal fields onto the zone. A
+    # domain near expiry, with auto-renew off, or with a failed payment is a hijack candidate.
+    domain_registered_at: PropertyRef = PropertyRef(
+        "domain_registered_at",
+        description="When the apex domain was registered, for a domain bought through Netlify.",
+    )
+    domain_expires_at: PropertyRef = PropertyRef(
+        "domain_expires_at",
+        description="When the domain registration expires. A near expiry is a hijack candidate.",
+    )
+    domain_auto_renew: PropertyRef = PropertyRef(
+        "domain_auto_renew",
+        description="Whether the registration renews automatically. A false value is a hijack candidate.",
+    )
+    domain_registration_status: PropertyRef = PropertyRef(
+        "domain_registration_status",
+        description="Registration status Netlify reports, e.g. `payment_succeeded`.",
+    )
     # Set when the zone is attached to a specific site rather than held at team level.
     site_id: PropertyRef = PropertyRef(
         "site_id",

@@ -18,14 +18,13 @@ hand-written page.
 
 ## Schema by module
 
-Every other schema page is reachable through its own module index; these two modules have
-no index page of their own, so they are attached here to keep them out of the orphan list.
+Every module schema page is reachable through its own module index except for the internal
+Cartography metadata schema, which is attached here to keep it out of the orphan list.
 
 ```{toctree}
 :hidden:
 
 ../modules/_cartography-metadata/schema
-../modules/ubuntu/schema
 ```
 
 - [Cartography Metadata](../modules/_cartography-metadata/schema.md)
@@ -34,6 +33,7 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Anthropic](../modules/anthropic/schema.md)
 - [AWS](../modules/aws/schema.md)
 - [Azure](../modules/azure/schema.md)
+- [BBOT](../modules/bbot/schema.md)
 - [Bigfix](../modules/bigfix/schema.md)
 - [Circleci](../modules/circleci/schema.md)
 - [Cloudflare](../modules/cloudflare/schema.md)
@@ -82,5 +82,6 @@ no index page of their own, so they are attached here to keep them out of the or
 - [Trivy](../modules/trivy/schema.md)
 - [Ubuntu](../modules/ubuntu/schema.md)
 - [Vercel](../modules/vercel/schema.md)
+- [Wiz](../modules/wiz/schema.md)
 - [Workday](../modules/workday/schema.md)
 - [Workos](../modules/workos/schema.md)

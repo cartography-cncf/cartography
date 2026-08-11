@@ -1,5 +1,7 @@
-cors1_id = "0001"  # Sample cors policy id for testing
-cors2_id = "0002"  # Sample cors policy id for testing
+# These payloads mirror `as_dict()` on azure-mgmt-cosmosdb 10.0.0 hybrid models: resource
+# fields live under `properties` with ARM camelCase names. The `resourceGroup`,
+# `database_account_id`, `database_id` and `keyspace_id` keys are the exceptions; those are
+# injected by cartography (or, here, by the mocked getters) rather than returned by the SDK.
 da1 = "/subscriptions/00-00-00-00/resourceGroups/RG/providers/Microsoft.DocumentDB/databaseAccounts/DA1"
 da2 = "/subscriptions/00-00-00-00/resourceGroups/RG/providers/Microsoft.DocumentDB/databaseAccounts/DA2"
 rg = "/subscriptions/00-00-00-00/resourceGroups/RG"
@@ -13,106 +15,123 @@ DESCRIBE_DATABASE_ACCOUNTS = [
         "type": "Microsoft.DocumentDB/databaseAccounts",
         "kind": "GlobalDocumentDB",
         "tags": {"env": "prod", "service": "cosmosdb"},
-        "provisioning_state": "Succeeded",
-        "document_endpoint": "https://ddb1.documents.azure.com:443/",
-        "is_virtual_network_filter_enabled": True,
-        "enable_automatic_failover": True,
-        "enable_multiple_write_locations": True,
-        "database_account_offer_type": "Standard",
-        "disable_key_based_metadata_write_access": False,
-        "enable_free_tier": False,
-        "enable_analytical_storage": True,
-        "consistency_policy": {
-            "default_consistency_level": "Session",
-            "max_interval_in_seconds": 5,
-            "max_staleness_prefix": 100,
+        "properties": {
+            "provisioningState": "Succeeded",
+            "documentEndpoint": "https://ddb1.documents.azure.com:443/",
+            "databaseAccountOfferType": "Standard",
+            "isVirtualNetworkFilterEnabled": True,
+            "enableAutomaticFailover": True,
+            "enableMultipleWriteLocations": True,
+            "disableKeyBasedMetadataWriteAccess": False,
+            "enableFreeTier": False,
+            "enableAnalyticalStorage": True,
+            "enableCassandraConnector": False,
+            "connectorOffer": "Small",
+            "publicNetworkAccess": "Enabled",
+            "keyVaultKeyUri": "https://kv1.vault.azure.net/keys/cmk",
+            "capabilities": [{"name": "EnableMongo"}],
+            "ipRules": [{"ipAddressOrRange": "10.0.0.0/24"}],
+            "consistencyPolicy": {
+                "defaultConsistencyLevel": "Session",
+                "maxIntervalInSeconds": 5,
+                "maxStalenessPrefix": 100,
+            },
+            "writeLocations": [
+                {
+                    "id": "DA1-eastus",
+                    "locationName": "East US",
+                    "documentEndpoint": "https://DA1-eastus.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": False,
+                },
+                {
+                    "id": "DA1-centralindia",
+                    "locationName": "Central India",
+                    "documentEndpoint": "https://DA1-centralindia.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": False,
+                },
+            ],
+            "readLocations": [
+                {
+                    "id": "DA1-eastus",
+                    "locationName": "East US",
+                    "documentEndpoint": "https://DA1-eastus.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                },
+                {
+                    "id": "DA1-centralindia",
+                    "locationName": "Central India",
+                    "documentEndpoint": "https://DA1-centralindia.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                },
+            ],
+            "locations": [
+                {
+                    "id": "DA1-eastus",
+                    "locationName": "East US",
+                    "documentEndpoint": "https://DA1-eastus.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                },
+                {
+                    "id": "DA1-centralindia",
+                    "locationName": "Central India",
+                    "documentEndpoint": "https://DA1-centralindia.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                },
+                {
+                    "id": "DA1-japaneast",
+                    "locationName": "Japan East",
+                    "documentEndpoint": "https://DA1-japaneast.documents.azure.com:443/",
+                    "provisioningState": "Succeeded",
+                    "failoverPriority": 0,
+                },
+            ],
+            "failoverPolicies": [
+                {
+                    "id": "DA1-eastus",
+                    "locationName": "East US",
+                    "failoverPriority": 0,
+                },
+            ],
+            "privateEndpointConnections": [
+                {
+                    "id": da1 + "/privateEndpointConnections/pe1",
+                    "name": "pe1",
+                    "properties": {
+                        "privateEndpoint": {
+                            "id": rg
+                            + "/providers/Microsoft.Network/privateEndpoints/pe1",
+                        },
+                        "privateLinkServiceConnectionState": {
+                            "status": "Approved",
+                            "actionsRequired": "None",
+                        },
+                    },
+                },
+            ],
+            "cors": [
+                {
+                    "allowedOrigins": "*",
+                    "allowedMethods": "GET,POST",
+                    "allowedHeaders": "x-ms-version",
+                    "exposedHeaders": "x-ms-request-charge",
+                    "maxAgeInSeconds": 3600,
+                },
+            ],
+            "virtualNetworkRules": [
+                {
+                    "id": rg + "/providers/Microsoft.Network/virtualNetworks/vn1",
+                    "ignoreMissingVNetServiceEndpoint": False,
+                },
+            ],
         },
-        "write_locations": [
-            {
-                "id": "DA1-eastus",
-                "location_name": "East US",
-                "document_endpoint": "https://DA1-eastus.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-            {
-                "id": "DA1-centralindia",
-                "location_name": "Central India",
-                "document_endpoint": "https://DA1-centralindia.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-        ],
-        "read_locations": [
-            {
-                "id": "DA1-eastus",
-                "location_name": "East US",
-                "document_endpoint": "https://DA1-eastus.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-            {
-                "id": "DA1-centralindia",
-                "location_name": "Central India",
-                "document_endpoint": "https://DA1-centralindia.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-        ],
-        "locations": [
-            {
-                "id": "DA1-eastus",
-                "location_name": "East US",
-                "document_endpoint": "https://DA1-eastus.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-            {
-                "id": "DA1-centralindia",
-                "location_name": "Central India",
-                "document_endpoint": "https://DA1-centralindia.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-            {
-                "id": "DA1-japaneast",
-                "location_name": "Japan East",
-                "document_endpoint": "https://DA1-japaneast.documents.azure.com:443/",
-                "provisioning_state": "Succeeded",
-                "failover_priority": 0,
-            },
-        ],
-        "failover_policies": [
-            {
-                "id": "DA1-eastus",
-                "location_name": "East US",
-                "failover_priority": 0,
-            },
-        ],
-        "private_endpoint_connections": [
-            {
-                "id": da1 + "/privateEndpointConnections/pe1",
-                "private_endpoint": {
-                    "id": rg + "/providers/Microsoft.Network/privateEndpoints/pe1",
-                },
-                "private_link_service_connection_state": {
-                    "status": "Approved",
-                    "actions_required": "None",
-                },
-            },
-        ],
-        "cors": [
-            {
-                "cors_policy_unique_id": cors1_id,
-                "allowed_origins": "*",
-            },
-        ],
-        "virtual_network_rules": [
-            {
-                "id": rg + "/providers/Microsoft.Network/virtualNetworks/vn1",
-                "ignore_missing_v_net_service_endpoint": False,
-            },
-        ],
     },
     {
         "id": da2,
@@ -122,53 +141,75 @@ DESCRIBE_DATABASE_ACCOUNTS = [
         "type": "Microsoft.DocumentDB/databaseAccounts",
         "kind": "GlobalDocumentDB",
         "tags": {"env": "prod", "dept": "finance"},
-        "provisioning_state": "Succeeded",
-        "document_endpoint": "https://ddb1.documents.azure.com:444/",
-        "is_virtual_network_filter_enabled": True,
-        "enable_automatic_failover": True,
-        "enable_multiple_write_locations": True,
-        "database_account_offer_type": "Standard",
-        "disable_key_based_metadata_write_access": False,
-        "enable_free_tier": False,
-        "enable_analytical_storage": True,
-        "consistency_policy": {
-            "default_consistency_level": "Session",
-            "max_interval_in_seconds": 5,
-            "max_staleness_prefix": 100,
+        "properties": {
+            "provisioningState": "Succeeded",
+            "documentEndpoint": "https://ddb1.documents.azure.com:444/",
+            "databaseAccountOfferType": "Standard",
+            "isVirtualNetworkFilterEnabled": True,
+            "enableAutomaticFailover": True,
+            "enableMultipleWriteLocations": True,
+            "disableKeyBasedMetadataWriteAccess": False,
+            "enableFreeTier": False,
+            "enableAnalyticalStorage": True,
+            "consistencyPolicy": {
+                "defaultConsistencyLevel": "Session",
+                "maxIntervalInSeconds": 5,
+                "maxStalenessPrefix": 100,
+            },
+            "failoverPolicies": [
+                {
+                    "id": "DA2-eastus",
+                    "locationName": "East US",
+                    "failoverPriority": 0,
+                },
+            ],
+            "privateEndpointConnections": [
+                {
+                    "id": da2 + "/privateEndpointConnections/pe2",
+                    "name": "pe2",
+                    "properties": {
+                        "privateEndpoint": {
+                            "id": rg
+                            + "/providers/Microsoft.Network/privateEndpoints/pe2",
+                        },
+                        "privateLinkServiceConnectionState": {
+                            "status": "Approved",
+                            "actionsRequired": "None",
+                        },
+                    },
+                },
+            ],
+            "cors": [
+                {
+                    "allowedOrigins": "*",
+                    "allowedMethods": "GET",
+                    "allowedHeaders": "x-ms-version",
+                    "exposedHeaders": "x-ms-request-charge",
+                    "maxAgeInSeconds": 600,
+                },
+            ],
+            "virtualNetworkRules": [
+                {
+                    "id": rg + "/providers/Microsoft.Network/virtualNetworks/vn2",
+                    "ignoreMissingVNetServiceEndpoint": False,
+                },
+            ],
         },
-        "failover_policies": [
-            {
-                "id": "DA2-eastus",
-                "location_name": "East US",
-                "failover_priority": 0,
-            },
-        ],
-        "private_endpoint_connections": [
-            {
-                "id": da2 + "/privateEndpointConnections/pe2",
-                "private_endpoint": {
-                    "id": rg + "/providers/Microsoft.Network/privateEndpoints/pe2",
-                },
-                "private_link_service_connection_state": {
-                    "status": "Approved",
-                    "actions_required": "None",
-                },
-            },
-        ],
-        "cors": [
-            {
-                "cors_policy_unique_id": cors2_id,
-                "allowed_origins": "*",
-            },
-        ],
-        "virtual_network_rules": [
-            {
-                "id": rg + "/providers/Microsoft.Network/virtualNetworks/vn2",
-                "ignore_missing_v_net_service_endpoint": False,
-            },
-        ],
     },
 ]
+
+
+def _throughput_options() -> dict:
+    """
+    Fresh copy per fixture: the transforms normalize these dicts in place.
+    """
+    return {
+        "throughput": 100,
+        "autoscaleSettings": {
+            "maxThroughput": 1000,
+        },
+    }
+
 
 DESCRIBE_SQL_DATABASES = [
     {
@@ -177,11 +218,9 @@ DESCRIBE_SQL_DATABASES = [
         "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
         "location": "West US",
         "tags": {},
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "sql_db1"},
+            "options": _throughput_options(),
         },
         "database_account_id": da1,
     },
@@ -191,11 +230,9 @@ DESCRIBE_SQL_DATABASES = [
         "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
         "location": "West US",
         "tags": {},
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "sql_db2"},
+            "options": _throughput_options(),
         },
         "database_account_id": da2,
     },
@@ -207,11 +244,9 @@ DESCRIBE_CASSANDRA_KEYSPACES = [
         "name": "cass_ks1",
         "type": "Microsoft.DocumentDB/databaseAccounts/cassandraKeyspaces",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "cass_ks1"},
+            "options": _throughput_options(),
         },
         "database_account_id": da1,
     },
@@ -220,11 +255,9 @@ DESCRIBE_CASSANDRA_KEYSPACES = [
         "name": "cass_ks2",
         "type": "Microsoft.DocumentDB/databaseAccounts/cassandraKeyspaces",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "cass_ks2"},
+            "options": _throughput_options(),
         },
         "database_account_id": da2,
     },
@@ -236,11 +269,9 @@ DESCRIBE_MONGODB_DATABASES = [
         "name": "mongo_db1",
         "type": "Microsoft.DocumentDB/databaseAccounts/mongodbDatabases",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "mongo_db1"},
+            "options": _throughput_options(),
         },
         "database_account_id": da1,
     },
@@ -249,11 +280,9 @@ DESCRIBE_MONGODB_DATABASES = [
         "name": "mongo_db2",
         "type": "Microsoft.DocumentDB/databaseAccounts/mongodbDatabases",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "mongo_db2"},
+            "options": _throughput_options(),
         },
         "database_account_id": da2,
     },
@@ -265,11 +294,9 @@ DESCRIBE_TABLE_RESOURCES = [
         "name": "table1",
         "type": "Microsoft.DocumentDB/databaseAccounts/tables",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "table1"},
+            "options": _throughput_options(),
         },
         "database_account_id": da1,
     },
@@ -278,11 +305,9 @@ DESCRIBE_TABLE_RESOURCES = [
         "name": "table2",
         "type": "Microsoft.DocumentDB/databaseAccounts/tables",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
-            },
+        "properties": {
+            "resource": {"id": "table2"},
+            "options": _throughput_options(),
         },
         "database_account_id": da2,
     },
@@ -294,22 +319,20 @@ DESCRIBE_SQL_CONTAINERS = [
         "name": "con1",
         "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/sqlContainers",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "test-con1",
+                "defaultTtl": 100,
+                "analyticalStorageTtl": 500,
+                "indexingPolicy": {
+                    "indexingMode": "Consistent",
+                    "automatic": True,
+                },
+                "conflictResolutionPolicy": {
+                    "mode": "LastWriterWins",
+                },
             },
-        },
-        "resource": {
-            "id": "test-con1",
-            "indexing_policy": {
-                "indexing_mode": "Consistent",
-                "automatic": True,
-            },
-            "default_ttl": 100,
-            "conflict_resolution_policy": {
-                "mode": "LastWriterWins",
-            },
+            "options": _throughput_options(),
         },
         "database_id": da1 + "/sqlDatabases/sql_db1",
     },
@@ -318,22 +341,20 @@ DESCRIBE_SQL_CONTAINERS = [
         "name": "con2",
         "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/sqlContainers",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "test-con2",
+                "defaultTtl": 100,
+                "analyticalStorageTtl": 500,
+                "indexingPolicy": {
+                    "indexingMode": "Consistent",
+                    "automatic": True,
+                },
+                "conflictResolutionPolicy": {
+                    "mode": "LastWriterWins",
+                },
             },
-        },
-        "resource": {
-            "id": "test-con2",
-            "indexing_policy": {
-                "indexing_mode": "Consistent",
-                "automatic": True,
-            },
-            "default_ttl": 100,
-            "conflict_resolution_policy": {
-                "mode": "LastWriterWins",
-            },
+            "options": _throughput_options(),
         },
         "database_id": da2 + "/sqlDatabases/sql_db2",
     },
@@ -345,16 +366,13 @@ DESCRIBE_CASSANDRA_TABLES = [
         "name": "table1",
         "type": "Microsoft.DocumentDB/databaseAccounts/cassandraKeyspaces/cassandraTables",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "table1",
+                "defaultTtl": 100,
+                "analyticalStorageTtl": 500,
             },
-        },
-        "resource": {
-            "id": "table1",
-            "default_ttl": 100,
-            "analytical_storage_ttl": 500,
+            "options": _throughput_options(),
         },
         "keyspace_id": da1 + "/cassandraKeyspaces/cass_ks1",
     },
@@ -363,16 +381,13 @@ DESCRIBE_CASSANDRA_TABLES = [
         "name": "table2",
         "type": "Microsoft.DocumentDB/databaseAccounts/cassandraKeyspaces/cassandraTables",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "table2",
+                "defaultTtl": 100,
+                "analyticalStorageTtl": 500,
             },
-        },
-        "resource": {
-            "id": "table2",
-            "default_ttl": 100,
-            "analytical_storage_ttl": 500,
+            "options": _throughput_options(),
         },
         "keyspace_id": da2 + "/cassandraKeyspaces/cass_ks2",
     },
@@ -384,15 +399,12 @@ DESCRIBE_MONGODB_COLLECTIONS = [
         "name": "col1",
         "type": "Microsoft.DocumentDB/databaseAccounts/mongodbDatabases/mongodbCollections",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "testcoll",
+                "analyticalStorageTtl": 500,
             },
-        },
-        "resource": {
-            "id": "testcoll",
-            "analytical_storage_ttl": 500,
+            "options": _throughput_options(),
         },
         "database_id": da1 + "/mongodbDatabases/mongo_db1",
     },
@@ -401,15 +413,12 @@ DESCRIBE_MONGODB_COLLECTIONS = [
         "name": "col2",
         "type": "Microsoft.DocumentDB/databaseAccounts/mongodbDatabases/mongodbCollections",
         "location": "West US",
-        "options": {
-            "throughput": 100,
-            "autoscale_settings": {
-                "max_throughput": 1000,
+        "properties": {
+            "resource": {
+                "id": "testcoll",
+                "analyticalStorageTtl": 500,
             },
-        },
-        "resource": {
-            "id": "testcoll",
-            "analytical_storage_ttl": 500,
+            "options": _throughput_options(),
         },
         "database_id": da2 + "/mongodbDatabases/mongo_db2",
     },

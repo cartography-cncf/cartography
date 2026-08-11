@@ -69,6 +69,13 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
     updatedat: PropertyRef = PropertyRef(
         "updatedat", description="Timestamp when the repository was last updated."
     )
+    fork: PropertyRef = PropertyRef(
+        "fork", description="Whether the repository is a fork."
+    )
+    parent: PropertyRef = PropertyRef(
+        "parent",
+        description="Web URL of the repository this repository was forked from.",
+    )
 
 
 @dataclass(frozen=True)
