@@ -11,6 +11,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.extra_labels import RISK
+from cartography.models.ontology.labels import CVE
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
@@ -88,6 +89,14 @@ class WizFindingNodeProperties(CartographyNodeProperties):
         "cve_id",
         extra_index=True,
         description="CVE ID associated with the finding.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="Whether the finding has a CVE identifier.",
+    )
+    is_security_issue: PropertyRef = PropertyRef(
+        "is_security_issue",
+        description="Whether the finding is a non-CVE security issue.",
     )
     cve_description: PropertyRef = PropertyRef(
         "cve_description",
@@ -321,4 +330,10 @@ class WizFindingSchema(CartographyNodeSchema):
             WizFindingToCVERel(),
         ],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([RISK, SECURITY_ISSUE])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            RISK,
+            SECURITY_ISSUE.when(is_security_issue="true"),
+            CVE.when(has_cve="true"),
+        ],
+    )

@@ -292,6 +292,9 @@ wiz_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="WizFinding",
             fields=[
+                # Wiz findings are either CVE-backed vulnerabilities or non-CVE
+                # security issues. The resolver returns this mapping by primary
+                # label, so it carries fields for both conditional ontology labels.
                 OntologyFieldMapping(
                     ontology_field="title", node_field="name", required=True
                 ),
@@ -313,6 +316,26 @@ wiz_mapping = OntologyMapping(
                     node_field="first_seen_at",
                     special_handling="coalesce",
                     extra={"fields": ["first_detected_at", "created_at"]},
+                ),
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="cve_description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(ontology_field="base_score", node_field="score"),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="cvss_severity",
+                    special_handling="mapping",
+                    extra={"map": _WIZ_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="exploitability_score",
+                    node_field="exploitability_score",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="impact_score", node_field="impact_score"
                 ),
             ],
         ),

@@ -468,6 +468,41 @@ aws_inspector_mapping = OntologyMapping(
     ],
 )
 
+# Wiz findings are either CVE-backed vulnerabilities or non-CVE security issues.
+# The ingestion resolver selects the security-issues mapping first, so that mapping
+# owns the normalized fields; this entry registers the conditional :CVE label for
+# ontology documentation and validation.
+wiz_mapping = OntologyMapping(
+    module_name="wiz",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WizFinding",
+            fields=[
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="cve_description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(ontology_field="base_score", node_field="score"),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="cvss_severity",
+                    special_handling="mapping",
+                    extra={"map": _CVSS_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="exploitability_score",
+                    node_field="exploitability_score",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="impact_score", node_field="impact_score"
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
@@ -477,4 +512,5 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentinelone": sentinelone_mapping,
     "semgrep": semgrep_mapping,
     "aws": aws_inspector_mapping,
+    "wiz": wiz_mapping,
 }

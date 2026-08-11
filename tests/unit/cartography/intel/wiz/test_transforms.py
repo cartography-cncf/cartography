@@ -31,10 +31,27 @@ def test_transform_findings_extracts_vulnerability_cve_and_resource_metadata():
     assert findings[0]["id"] == "wiz-vuln-1"
     assert findings[0]["finding_type"] == "VULNERABILITY"
     assert findings[0]["cve_id"] == CVE_ID_1
+    assert findings[0]["has_cve"] == "true"
+    assert findings[0]["is_security_issue"] == "false"
     assert findings[0]["resource_id"] == RESOURCE_ID_1
     assert findings[0]["resource_external_id"] == (
         "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
     )
+
+
+def test_transform_findings_labels_non_cve_vulnerabilities_as_security_issues():
+    finding = {
+        **VULNERABILITY_FINDINGS[0],
+        "name": "openssl vulnerability",
+        "detailedName": "openssl",
+        "description": "Package is vulnerable",
+        "link": None,
+    }
+
+    transformed = transform_findings([finding], TENANT_ID)
+
+    assert transformed[0]["has_cve"] == "false"
+    assert transformed[0]["is_security_issue"] == "true"
 
 
 def test_transform_findings_extracts_configuration_metadata():
@@ -43,6 +60,8 @@ def test_transform_findings_extracts_configuration_metadata():
     assert findings[0]["id"] == CONFIGURATION_FINDING_ID_1
     assert findings[0]["finding_type"] == "CONFIGURATION"
     assert findings[0]["result"] == "FAIL"
+    assert findings[0]["has_cve"] == "false"
+    assert findings[0]["is_security_issue"] == "true"
     assert findings[0]["updated_at"] == "2026-01-07T00:05:00Z"
     assert findings[0]["rule_id"] == "config-rule-1"
     assert findings[0]["resource_external_id"] == "arn:aws:s3:::public-bucket"
@@ -55,6 +74,8 @@ def test_transform_findings_extracts_detection_metadata():
     assert findings[0]["id"] == DETECTION_ID_1
     assert findings[0]["finding_type"] == "DETECTION"
     assert findings[0]["rule_id"] == "detect-rule-1"
+    assert findings[0]["has_cve"] == "false"
+    assert findings[0]["is_security_issue"] == "true"
     assert findings[0]["actor_ids"] == ["actor-1"]
     assert findings[0]["cloud_account_ids"] == ["cloud-account-1"]
     assert findings[0]["triggering_event_ids"] == ["event-1"]
