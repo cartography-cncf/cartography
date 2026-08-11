@@ -33,6 +33,16 @@ class SupabaseStorageBucketNodeProperties(CartographyNodeProperties):
         "public",
         description="Whether every object in the bucket is readable without authentication",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the bucket is public, meaning every object is readable without authentication.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the objects are served from the bucket itself.",
+    )
     owner: PropertyRef = PropertyRef("owner", description="Owner of the bucket")
     created_at: PropertyRef = PropertyRef(
         "created_at", description="When the bucket was created"

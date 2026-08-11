@@ -111,6 +111,24 @@ def get_stored_properties(
     return {r["id"]: {field: r[field] for field in fields} for r in records}
 
 
+def _database_exposure(restrictions_config: dict[str, Any]) -> dict[str, Any]:
+    """
+    Whether the Postgres endpoint accepts connections from anywhere.
+
+    An empty or absent allowed-CIDR list means unrestricted, per the Management API, so that
+    alone is exposure. An explicit 0.0.0.0/0 or ::/0 entry is the same thing spelled out.
+    network_restrictions_status is not consulted: its vocabulary is not documented, and
+    treating an unrecognised value as "restricted" would hide a reachable database.
+    """
+    cidrs = restrictions_config.get("dbAllowedCidrs") or []
+    cidrs_v6 = restrictions_config.get("dbAllowedCidrsV6") or []
+    exposed = not cidrs or "0.0.0.0/0" in cidrs or "::/0" in cidrs_v6
+    return {
+        "exposed_internet": exposed,
+        "exposed_internet_type": ["direct"] if exposed else None,
+    }
+
+
 def _carry_forward(
     record: dict[str, Any],
     groups: dict[str, tuple[str, ...]],
@@ -447,6 +465,7 @@ def transform_database(
         "network_restrictions_status": network_restrictions.get("status"),
         "db_allowed_cidrs": restrictions_config.get("dbAllowedCidrs"),
         "db_allowed_cidrs_v6": restrictions_config.get("dbAllowedCidrsV6"),
+        **_database_exposure(restrictions_config),
         "pitr_enabled": backups.get("pitr_enabled"),
         "walg_enabled": backups.get("walg_enabled"),
         "latest_backup_at": iso_to_datetime(latest_backup_at),
