@@ -137,6 +137,13 @@ def _expression_for_alias(cypher_query: str, alias: str) -> str | None:
 # cartesian-product fan-out (two patterns joined by a property equality rather
 # than a relationship), a top-level `UNION`, variables returned out of a
 # `CALL { ... }` subquery, and `UNWIND` over a list expression.
+#
+# The analysis is also about variables, not values. A variable counts as pinned
+# once an identity field is read off it, which assumes that column keys the node.
+# Where it does not, several distinct nodes still collapse to one identity and
+# this cannot see it: a `Dependency` is keyed on its requirement string, so one
+# repo can hold two nodes for one version ('6.2.1' and '= 6.2.1') that share the
+# identity but differ in a displayed column.
 # ---------------------------------------------------------------------------
 
 # Functions that collapse many rows into one value. `size()` is deliberately
@@ -559,10 +566,13 @@ def fanout_risks(
     returns_distinct = bool(
         return_bodies and _LEADING_DISTINCT_RE.match(return_bodies[-1])
     )
-    projected = [
-        _expand_aliases(item, alias_expressions)
-        for item in _projection_items(sanitized)
-    ]
+    raw_projection = _projection_items(sanitized)
+    # An aggregate in the final projection makes Cypher group by the remaining
+    # expressions, which folds away every variable that contributes none of them, just
+    # as DISTINCT would. Checked before alias expansion on purpose: expansion pulls in
+    # aggregates from earlier `WITH` clauses, which group at that point, not here.
+    projection_aggregates = any(_aggregate_spans(item) for item in raw_projection)
+    projected = [_expand_aliases(item, alias_expressions) for item in raw_projection]
     carried = [
         _expand_aliases(item, alias_expressions)
         for keyword, body in clauses
@@ -586,7 +596,7 @@ def fanout_risks(
                 )
             )
         elif not any(_variable_usage(item, variable)[0] for item in carried):
-            if not returns_distinct:
+            if not returns_distinct and not projection_aggregates:
                 risks.append(
                     FanoutRisk(
                         variable=variable,

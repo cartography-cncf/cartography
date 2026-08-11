@@ -372,6 +372,20 @@ def test_fanout_risks_accepts_return_distinct_for_identical_rows():
     assert _risks(query, ("instance_id",)) == set()
 
 
+def test_fanout_risks_accepts_an_aggregate_in_the_final_projection():
+    """An aggregate makes Cypher group by the other columns, folding away the rest.
+
+    `nic` contributes no output column, so grouping collapses it exactly as DISTINCT
+    would, without the query having to say DISTINCT.
+    """
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    RETURN instance.id AS instance_id, min(project.id) AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
 def test_fanout_risks_does_not_let_return_distinct_excuse_a_projected_column():
     """DISTINCT dedupes whole rows, so rows differing only outside the identity survive."""
     query = _FANOUT_QUERY.replace("RETURN", "RETURN DISTINCT")
