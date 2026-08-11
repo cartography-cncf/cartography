@@ -155,6 +155,14 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
         )
         == expected_nodes
     )
+    # exposed_internet is the cross-provider name for the same verdict.
+    assert check_nodes(
+        neo4j_session, "CloudflareR2Bucket", ["id", "exposed_internet"]
+    ) == {
+        (DONUTS_DEFAULT, True),
+        (REPORTS_DEFAULT, False),
+        (DONUTS_EU, False),
+    }
 
     # Assert the public hostnames were resolved, and that the disabled custom
     # domain (old-photos.simpson.corp) was left out
@@ -523,18 +531,24 @@ def test_get_exposure_resolves_public_domains():
     assert exposure == {
         DONUTS_DEFAULT: {
             "public": True,
+            "exposed_internet": True,
+            "exposed_internet_type": ["direct"],
             "public_domains": [R2_DEV_DOMAIN, "photos.simpson.corp"],
             "r2_dev_enabled": True,
             "zone_ids": [ZONE_ID],
         },
         REPORTS_DEFAULT: {
             "public": False,
+            "exposed_internet": False,
+            "exposed_internet_type": None,
             "public_domains": [],
             "r2_dev_enabled": False,
             "zone_ids": [],
         },
         DONUTS_EU: {
             "public": False,
+            "exposed_internet": False,
+            "exposed_internet_type": None,
             "public_domains": [],
             "r2_dev_enabled": False,
             "zone_ids": [],

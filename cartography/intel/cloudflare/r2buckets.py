@@ -271,6 +271,10 @@ def get_exposure(
 
         exposure[bucket_id(account_id, jurisdiction, bucket["name"])] = {
             "public": bool(public_domains) if complete else None,
+            # exposed_internet is the cross-provider name for the same verdict, so it
+            # inherits the tri-state: a partial read leaves it null rather than false.
+            "exposed_internet": bool(public_domains) if complete else None,
+            "exposed_internet_type": ["direct"] if public_domains else None,
             # A partial hostname list reads as authoritative once it is in the
             # graph, so it is left unknown rather than published half-filled.
             "public_domains": public_domains if complete else None,
