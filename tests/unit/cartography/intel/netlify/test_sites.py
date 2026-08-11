@@ -35,9 +35,23 @@ def test_unconditional_sso_gates_the_site():
 
 
 def test_account_level_sso_gates_the_site():
-    # The team-level requirement is already resolved for this site and its context is not
-    # ingested, so it is taken as unconditional.
-    assert _exposure(account_sso_login=True) == (False, None)
+    assert _exposure(account_sso_login=True, account_sso_login_context="all") == (
+        False,
+        None,
+    )
+
+
+def test_context_scoped_account_sso_leaves_production_exposed():
+    """The team-level gate is read like the other two rather than assumed unconditional.
+
+    Treating any account_sso_login as covering the whole site hid the public production URL
+    of a team that only required SSO on previews.
+    """
+    assert _exposure(
+        account_sso_login=True, account_sso_login_context="deploy-preview"
+    ) == (True, ["direct"])
+    # No context at all does not count either, for the same reason.
+    assert _exposure(account_sso_login=True) == (True, ["direct"])
 
 
 def test_context_scoped_gate_leaves_production_exposed():

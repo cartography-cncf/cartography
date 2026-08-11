@@ -56,12 +56,12 @@ class ScalewayLoadBalancerProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when the Load Balancer holds a public IP and has a frontend listening.",
-    )  # Populated by the SCALEWAY_LOADBALANCER_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/loadbalancers/loadbalancers.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How the Load Balancer is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_LOADBALANCER_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/loadbalancers/loadbalancers.py
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone the Load Balancer lives in."
     )

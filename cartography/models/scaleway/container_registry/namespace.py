@@ -39,12 +39,12 @@ class ScalewayContainerRegistryNamespaceProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when `is_public` is true, meaning the registry serves unauthenticated pulls.",
-    )  # Populated by the SCALEWAY_CONTAINER_REGISTRY_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/container_registry/namespaces.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How it is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_CONTAINER_REGISTRY_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/container_registry/namespaces.py
     size: PropertyRef = PropertyRef(
         "size", description="Total size in bytes of stored images."
     )

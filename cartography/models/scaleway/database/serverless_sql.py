@@ -29,12 +29,12 @@ class ScalewayServerlessSQLDatabaseProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when `is_public` is true, meaning a publicly reachable endpoint is provisioned.",
-    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/databases/serverless_sql.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How it is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_DATABASE_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/databases/serverless_sql.py
     cpu_min: PropertyRef = PropertyRef("cpu_min", description="Minimum vCPU.")
     cpu_max: PropertyRef = PropertyRef("cpu_max", description="Maximum vCPU.")
     cpu_current: PropertyRef = PropertyRef("cpu_current", description="Current vCPU.")

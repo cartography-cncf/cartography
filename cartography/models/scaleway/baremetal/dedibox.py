@@ -41,12 +41,12 @@ class ScalewayDediboxServerProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when the server holds a public IP. Bare metal has no managed firewall in front of it.",
-    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/dedibox.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How it is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/dedibox.py
     is_outsourced: PropertyRef = PropertyRef(
         "is_outsourced", description="Whether the server is outsourced."
     )

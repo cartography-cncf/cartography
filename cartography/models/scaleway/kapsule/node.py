@@ -32,12 +32,12 @@ class ScalewayKapsuleNodeProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when the node holds a public IPv4 or IPv6 address. Node-level firewalling is not modelled.",
-    )  # Populated by the SCALEWAY_KAPSULE_NODE_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/kapsule/clusters.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How it is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_KAPSULE_NODE_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/kapsule/clusters.py
     error_message: PropertyRef = PropertyRef(
         "error_message", description="Last error message reported by the node."
     )

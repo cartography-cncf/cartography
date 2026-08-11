@@ -84,15 +84,19 @@ def _exposure(site: dict[str, Any]) -> dict[str, Any]:
 
     Only a gate whose context is `all` is treated as covering the site. A context-scoped gate
     (a password on deploy previews, say) leaves production open, and reporting such a site as
-    not exposed would hide a real attack surface. `account_sso_login` is the team-level
-    requirement already resolved for this site; its context is not ingested, so it is taken as
-    unconditional.
+    not exposed would hide a real attack surface. That applies to the team-level SSO
+    requirement as much as to the two site-level gates, so its own context is read rather than
+    assumed unconditional. A gate with no context at all does not count either, for the same
+    reason: erring towards reporting exposure.
     """
     served = bool(site.get("ssl_url") or site.get("url")) and not site.get("disabled")
     gated = (
         (site.get("has_password") and site.get("password_context") == "all")
         or (site.get("sso_login") and site.get("sso_login_context") == "all")
-        or bool(site.get("account_sso_login"))
+        or (
+            site.get("account_sso_login")
+            and site.get("account_sso_login_context") == "all"
+        )
     )
     exposed = bool(served and not gated)
     return {

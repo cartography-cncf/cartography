@@ -114,6 +114,10 @@ class NetlifySiteNodeProperties(CartographyNodeProperties):
         "account_sso_login",
         description="Whether the team-level SSO requirement applies to this site.",
     )
+    account_sso_login_context: PropertyRef = PropertyRef(
+        "account_sso_login_context",
+        description="Which deploy contexts the team-level SSO requirement applies to.",
+    )
     # JWT-based role gating for Netlify Identity. `jwt_secret` is a secret and is dropped;
     # `has_jwt_secret` records only whether one is configured.
     has_jwt_secret: PropertyRef = PropertyRef(

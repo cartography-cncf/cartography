@@ -39,6 +39,10 @@ DATABASE_POSTURE_FIELDS: dict[str, tuple[str, ...]] = {
         "network_restrictions_status",
         "db_allowed_cidrs",
         "db_allowed_cidrs_v6",
+        # Derived from the same read, so it has to be restored with it: the empty-config
+        # fallback would otherwise compute "unrestricted" and overwrite a stored verdict.
+        "exposed_internet",
+        "exposed_internet_type",
     ),
     "backups": ("pitr_enabled", "walg_enabled", "latest_backup_at"),
 }

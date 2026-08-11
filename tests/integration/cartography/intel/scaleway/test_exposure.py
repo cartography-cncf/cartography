@@ -136,13 +136,14 @@ def _create_loadbalancer_graph(neo4j_session):
         ("inst-lb-private", "172.16.0.10"),
         ("inst-lb-public", None),
         ("inst-orphan", "172.16.0.99"),
+        ("inst-lb-stopped", "172.16.0.10"),
     ]:
         neo4j_session.run(
             """
             MATCH (p:ScalewayProject{id: $pid})
             MERGE (i:ScalewayInstance{id: $iid})
             SET i.public_ips = [],
-                i.state = 'running',
+                i.state = (CASE WHEN $iid ENDS WITH '-stopped' THEN 'stopped' ELSE 'running' END),
                 i.private_ip = $private_ip,
                 i.lastupdated = $tag
             MERGE (p)-[r:RESOURCE]->(i)
@@ -313,6 +314,33 @@ def test_scaleway_lb_expose_edges_and_instance_propagation(neo4j_session):
         "inst-lb-public": ["lb"],
         "inst-orphan": None,
     }
+
+
+def test_scaleway_stopped_instance_behind_a_load_balancer_is_not_exposed(neo4j_session):
+    """A stopped instance is not a live attack surface, whichever path reaches it.
+
+    inst-lb-stopped shares inst-lb-private's IP and so sits in the same backend pool; only
+    its state differs.
+    """
+    # Arrange
+    _create_base_graph(neo4j_session)
+    _create_loadbalancer_graph(neo4j_session)
+
+    # Act
+    _run_exposure_jobs(neo4j_session)
+
+    # Assert: no verdict and no EXPOSE edge, unlike its running twin.
+    result = neo4j_session.run(
+        """
+        MATCH (i:ScalewayInstance{id: 'inst-lb-stopped'})
+        RETURN i.exposed_internet AS exposed,
+               i.exposed_internet_type AS types,
+               exists((:ScalewayLoadBalancer)-[:EXPOSE]->(i)) AS has_edge
+        """,
+    ).single()
+    assert result["exposed"] is False
+    assert result["types"] is None
+    assert result["has_edge"] is False
 
 
 def test_scaleway_container_exposure_reaches_has_runtime_image(neo4j_session):

@@ -34,6 +34,7 @@ SCALEWAY_LB_EXPOSE_EDGES = AnalysisJob(
             MATCH (lb:ScalewayLoadBalancer {exposed_internet: true})-[:HAS]->(:ScalewayLBFrontend)-[:ROUTES_TO]->(backend:ScalewayLBBackend)
             MATCH (lb)<-[:RESOURCE]-(:ScalewayProject)-[:RESOURCE]->(instance:ScalewayInstance)
             WHERE backend.pool IS NOT NULL
+              AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
               AND (
                 (instance.private_ip IS NOT NULL AND instance.private_ip IN backend.pool)
                 OR EXISTS {
@@ -121,7 +122,10 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
                 "Follow the EXPOSE edges from SCALEWAY_LB_EXPOSE_EDGES rather than repeating "
                 "its pool-to-IP join, as AWS_EC2_ASSET_EXPOSURE_INSTANCE does."
             ),
-            match="MATCH (:ScalewayLoadBalancer {exposed_internet: true})-[:EXPOSE]->(instance:ScalewayInstance)",
+            match="""
+            MATCH (:ScalewayLoadBalancer {exposed_internet: true})-[:EXPOSE]->(instance:ScalewayInstance)
+            WHERE NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+            """,
             effects=(
                 SetProperty(
                     "instance", "exposed_internet", True, label="ScalewayInstance"

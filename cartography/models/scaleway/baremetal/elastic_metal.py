@@ -50,12 +50,12 @@ class ScalewayElasticMetalServerProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="`True` when the server holds a public IP. Bare metal has no managed firewall in front of it.",
-    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/elastic_metal.py
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
         extra_index=True,
         description="How it is exposed. Always `direct`.",
-    )  # Populated by the SCALEWAY_BAREMETAL_EXPOSURE analysis job.
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/elastic_metal.py
     zone: PropertyRef = PropertyRef(
         "zone", description="Zone in which the server is located."
     )
