@@ -142,6 +142,28 @@ cartography --selected-modules aws --aws-requested-syncs "ecr:pull_through_cache
 For the current identifier list, see the `RESOURCE_FUNCTIONS` dictionary in
 `cartography/intel/aws/resources.py`.
 
+### SSM Public Parameter Prefixes
+
+Cartography ingests AWS-managed public SSM parameters only when their names
+start with an allowlisted prefix. Configure a comma-separated list with
+`--aws-ssm-public-parameter-prefix-allowlist` or, when the option is omitted,
+with `AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST`.
+
+The configuration priority is:
+
+1. `--aws-ssm-public-parameter-prefix-allowlist`
+2. `AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST`
+3. The built-in defaults: `/aws/service/bottlerocket/` and
+   `/aws/service/eks/optimized-ami/`
+
+Set the CLI option or environment variable to an empty string to disable public
+parameter ingestion.
+
+```bash
+export AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST="/aws/service/eks/optimized-ami/,/aws/service/custom/"
+cartography --selected-modules aws --aws-requested-syncs ssm
+```
+
 ### Retry and Timeout Settings
 
 Cartography-managed AWS clients use these environment variables:

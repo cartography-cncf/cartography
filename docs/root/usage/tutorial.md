@@ -171,7 +171,14 @@ Cartography adds custom attributes to nodes and relationships to point out secur
 
 - `anonymous_access` indicates whether the asset allows access without needing to specify an identity.
 
-	- **S3 buckets**: `anonymous_access` is set to `True` on an S3 bucket if this bucket has an AWSS3Acl with a policy applied to it that allows the [predefined AWS "Authenticated Users" or "All Users" groups](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#specifying-grantee-predefined-groups) to access it. These determinations are made by using the [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse) library.
+	- **S3 buckets**: Two independent paths can set `anonymous_access` and
+	  `anonymous_actions`. The ACL analysis directly matches `AWSS3Acl` records
+	  whose URI names the predefined AWS
+	  ["Authenticated Users" or "All Users" groups](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#specifying-grantee-predefined-groups),
+	  then maps the ACL permission to S3 actions. Bucket policies are evaluated
+	  separately with the
+	  [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse)
+	  library.
 
 ### Extending Cartography with Analysis Jobs
 You can add your own custom attributes and relationships without writing Python code!  Here's [how](../dev/writing-analysis-jobs.md).

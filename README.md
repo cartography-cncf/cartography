@@ -146,7 +146,9 @@ All contributors and participants must follow the [CNCF Code of Conduct](https:/
 
 Submit a GitHub issue to report a bug or request a new feature. Larger discussions happen in [GitHub Discussions](https://github.com/cartography-cncf/cartography/discussions).
 
-Get started with our [developer documentation](https://docs.cartography.dev/dev/developer-guide.html).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, development
+setup, tests, DCO sign-off requirement, and pull request expectations. You do
+not need an issue assignment or maintainer permission before starting work.
 
 
 ## Who uses Cartography?

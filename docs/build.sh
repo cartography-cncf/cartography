@@ -27,9 +27,16 @@ sphinx-build -j auto --keep-going -b html "${GENERATED_RST_DIR}" "${DOCS_OUTPUT_
 SPHINX_STATUS="${PIPESTATUS[0]}"
 [[ "${SPHINX_STATUS}" -ne 0 ]] && exit "${SPHINX_STATUS}"
 
+if grep -q 'ERROR:' "${SPHINX_LOG}"; then
+    set +x
+    echo "ERROR: documentation build reported errors:" >&2
+    grep 'ERROR:' "${SPHINX_LOG}" >&2
+    exit 1
+fi
+
 # A broken cross-reference renders as a dead link without failing the build, which is how
-# 700 of them accumulated unnoticed. Everything else in the current warning baseline is
-# pre-existing, so gate on this category alone rather than on -W.
+# 700 of them accumulated unnoticed. The remaining warning baseline is pre-existing, so
+# gate on this category and hard errors rather than on -W.
 if grep -q 'myst.xref_missing' "${SPHINX_LOG}"; then
     set +x
     echo "ERROR: broken documentation cross-references:" >&2
