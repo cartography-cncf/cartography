@@ -28,7 +28,16 @@ GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
 GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
-    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+    {
+        "forbidden",
+        "insufficientPermissions",
+        "IAM_PERMISSION_DENIED",
+        # A VPC Service Controls perimeter denies the request with this specific
+        # reason rather than an IAM-style one. It still means "you can't read this
+        # resource" from the sync's perspective, so it should be skippable the same
+        # way any other permission-denied reason is, instead of crashing the sync.
+        "vpcServiceControls",
+    }
 )
 GCP_QUOTA_EXCEEDED_REASONS = frozenset(
     {
