@@ -3117,11 +3117,11 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
         { name: '@qlik/embed-runtime', version: '1.6.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3157,8 +3157,8 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
       { name: '@qlik/embed-runtime', version: '1.6.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-        MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
         WHERE REPLACE(d.requirements, "= ", "") = v.version
           AND coalesce(r.archived, false) = false
           AND coalesce(r.disabled, false) = false
@@ -3179,7 +3179,7 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
         }
         CALL {
             WITH r
-            OPTIONAL MATCH path5 = (r)--(t:GitHubTeam)
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
             RETURN path5
         }
         RETURN *
@@ -3191,7 +3191,7 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
     RETURN COUNT(r) AS count
     """,
     asset_label="GitHubRepository",
-    asset_id_field="repo",
+    asset_id_field="repo_id",
     identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
@@ -3236,13 +3236,13 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
         { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
     ] AS at_risk
     UNWIND at_risk AS a
-    MATCH (d:Dependency {ecosystem: 'npm', name: a.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
     WHERE d.requirements IS NOT NULL
       AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
       AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3278,8 +3278,8 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
       { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
     ] AS at_risk
     UNWIND at_risk AS a
-        MATCH path = (d:Dependency {ecosystem: 'npm', name: a.name})
-                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
         WHERE d.requirements IS NOT NULL
           AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
           AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
@@ -3302,7 +3302,7 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
         }
         CALL {
             WITH r
-            OPTIONAL MATCH path5 = (r)--(t:GitHubTeam)
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
             RETURN path5
         }
         RETURN *
@@ -3314,7 +3314,7 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
     RETURN COUNT(r) AS count
     """,
     asset_label="GitHubRepository",
-    asset_id_field="repo",
+    asset_id_field="repo_id",
     identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
@@ -3324,6 +3324,7 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
 # Rule
 class MaliciousNpmDependenciesShaiHuludOutput(Finding):
     repo: str | None = None
+    repo_id: str | None = None
     name: str | None = None
     current_version: str | None = None
     vulnerable_version: str | None = None
