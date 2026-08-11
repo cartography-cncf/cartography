@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import COMPUTE_INSTANCE
 
@@ -101,27 +100,6 @@ class UnikraftInstanceToAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class UnikraftInstanceToImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:UnikraftInstance)-[:USES]->(:UnikraftImage)
-class UnikraftInstanceToImageRel(CartographyRelSchema):
-    """Connects `UnikraftInstance` to the `UnikraftImage` it was booted from."""
-
-    target_node_label: str = "UnikraftImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"url": PropertyRef("image")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "USES"
-    properties: UnikraftInstanceToImageRelProperties = (
-        UnikraftInstanceToImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class UnikraftInstanceSchema(CartographyNodeSchema):
     """Represents a Unikraft Cloud instance (microVM)."""
 
@@ -130,7 +108,4 @@ class UnikraftInstanceSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: UnikraftInstanceToAccountRel = (
         UnikraftInstanceToAccountRel()
-    )
-    other_relationships: OtherRelationships = OtherRelationships(
-        [UnikraftInstanceToImageRel()],
     )
