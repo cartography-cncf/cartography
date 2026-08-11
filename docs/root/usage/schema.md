@@ -81,5 +81,6 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Trivy](../modules/trivy/schema.md)
 - [Ubuntu](../modules/ubuntu/schema.md)
 - [Vercel](../modules/vercel/schema.md)
+- [Wiz](../modules/wiz/schema.md)
 - [Workday](../modules/workday/schema.md)
 - [Workos](../modules/workos/schema.md)
