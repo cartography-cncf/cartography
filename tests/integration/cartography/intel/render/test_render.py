@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import cartography.intel.render
 import cartography.intel.render.customdomains
+import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
@@ -13,6 +14,7 @@ import cartography.intel.render.services
 import cartography.intel.render.tenants
 from cartography.config import Config
 from tests.data.render.data import CUSTOM_DOMAINS_RESPONSE
+from tests.data.render.data import DEDICATED_IPS_RESPONSE
 from tests.data.render.data import DISKS_RESPONSE
 from tests.data.render.data import ENV_GROUPS_RESPONSE
 from tests.data.render.data import ENVIRONMENTS_RESPONSE
@@ -37,12 +39,18 @@ TEST_CUSTOM_DOMAIN_ID = "cdm-test001"
 TEST_SECRET_FILE_ID = f"{TEST_SERVICE_ID}/.env"
 TEST_KEY_VALUE_ID = "red-test001"
 TEST_ENV_GROUP_ID = "evg-test001"
+TEST_DEDICATED_IP_ID = "dip-test001"
 
 
 @patch.object(
     cartography.intel.render.envgroups,
     "get",
     return_value=ENV_GROUPS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.dedicatedips,
+    "get",
+    return_value=DEDICATED_IPS_RESPONSE,
 )
 @patch.object(
     cartography.intel.render.keyvalue,
@@ -99,6 +107,7 @@ def test_start_render_ingestion(
     mock_get_custom_domains,
     mock_get_secret_files,
     mock_get_key_value,
+    mock_get_dedicated_ips,
     mock_get_env_groups,
     neo4j_session,
 ):
@@ -207,6 +216,13 @@ def test_start_render_ingestion(
         ["id", "name", "environment_id"],
     ) == {
         (TEST_ENV_GROUP_ID, "cartography-test-env-group", TEST_ENVIRONMENT_ID),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderDedicatedIP",
+        ["id", "name", "region", "status"],
+    ) == {
+        (TEST_DEDICATED_IP_ID, "cartography-test-dedicated-ip", "oregon", "RUNNING"),
     }
     assert check_nodes(
         neo4j_session,
@@ -496,9 +512,32 @@ def test_start_render_ingestion(
     ) == {
         (f"{TEST_KEY_VALUE_ID}/0.0.0.0/0", TEST_KEY_VALUE_ID),
     }
+    assert check_rels(
+        neo4j_session,
+        "RenderDedicatedIP",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_DEDICATED_IP_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderDedicatedIP",
+        "id",
+        "RenderEnvironment",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {
+        (TEST_DEDICATED_IP_ID, TEST_ENVIRONMENT_ID),
+    }
 
 
 @patch.object(cartography.intel.render.envgroups, "get", return_value=[])
+@patch.object(cartography.intel.render.dedicatedips, "get", return_value=[])
 @patch.object(cartography.intel.render.keyvalue, "get", return_value=[])
 @patch.object(cartography.intel.render.secretfiles, "get", return_value=[])
 @patch.object(cartography.intel.render.customdomains, "get", return_value=[])
@@ -522,6 +561,7 @@ def test_render_cleanup_removes_stale_resources(
     mock_get_custom_domains,
     mock_get_secret_files,
     mock_get_key_value,
+    mock_get_dedicated_ips,
     mock_get_env_groups,
     neo4j_session,
 ):

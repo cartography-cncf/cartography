@@ -3,6 +3,7 @@ import logging
 import neo4j
 
 import cartography.intel.render.customdomains
+import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
@@ -97,11 +98,20 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.update_tag,
             scoped_job_parameters,
         )
+        # Optionally scoped to environments, so this must run after environments are
+        # loaded.
+        cartography.intel.render.dedicatedips.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
         cartography.intel.render.customdomains.sync(
             neo4j_session,
             session,
             owner_id,
-            service_ids,
+            services,
             config.update_tag,
             scoped_job_parameters,
         )

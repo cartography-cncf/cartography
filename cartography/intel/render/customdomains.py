@@ -76,12 +76,19 @@ def sync(
     neo4j_session: neo4j.Session,
     session: requests.Session,
     owner_id: str,
-    service_ids: list[str],
+    services: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
     all_domains: list[dict[str, Any]] = []
-    for service_id in service_ids:
+    for service in services:
+        # Cron jobs have no persistent HTTP listener to attach a domain to - Render's
+        # dashboard doesn't offer custom domains for them, and confirmed live,
+        # GET .../custom-domains 400s ("service not found") for a cron job id instead
+        # of returning an empty list the way it does for every other service type.
+        if service.get("type") == "cron_job":
+            continue
+        service_id = service["id"]
         domains = get(session, service_id)
         all_domains.extend(transform(domains, service_id, owner_id))
     load_custom_domains(neo4j_session, all_domains, owner_id, update_tag)

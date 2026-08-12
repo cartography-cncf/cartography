@@ -35,11 +35,11 @@ sync all of them in a single run.
 - `RenderEnvGroup` (shared env var/secret file groups, linked to the services that use them)
 - `RenderIPAllowRule` (network access control: the CIDR blocks allowed to reach each
   environment, service, Postgres instance, and Key Value instance)
+- `RenderDedicatedIP` (static outbound IPv4 addresses for a workspace/region)
 
-Render's Dedicated IPs (static outbound IPv4 addresses) are not yet ingested; unlike
-everything else in this module, they carry an ongoing cost to provision, which made them
-impractical to validate against a live account during development. This may be revisited
-in a future module update.
+Render's Private Link connections are not ingested: as of this writing they have no
+public REST API (dashboard-only) and require a Pro workspace or higher, so there is
+nothing to sync regardless of plan.
 
 ### A workspace that drops out of view is not deleted
 
