@@ -12,8 +12,8 @@ from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.glue.connection import GlueConnectionSchema
 from cartography.models.aws.glue.job import GlueJobSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

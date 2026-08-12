@@ -16,8 +16,8 @@ from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
-from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import timeit
+from cartography.util.aws import is_aws_region_skippable_client_error
 
 logger = logging.getLogger(__name__)
 

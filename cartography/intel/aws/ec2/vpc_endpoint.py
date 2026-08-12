@@ -19,8 +19,8 @@ from cartography.models.aws.ec2.securitygroup_vpc_endpoint import (
 )
 from cartography.models.aws.ec2.subnet_vpc_endpoint import EC2SubnetVPCEndpointSchema
 from cartography.models.aws.ec2.vpc_endpoint import AWSVpcEndpointSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

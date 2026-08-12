@@ -15,8 +15,8 @@ from cartography.models.aws.cloudwatch.log_metric_filter import (
 )
 from cartography.models.aws.cloudwatch.loggroup import CloudWatchLogGroupSchema
 from cartography.models.aws.cloudwatch.metric_alarm import CloudWatchMetricAlarmSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

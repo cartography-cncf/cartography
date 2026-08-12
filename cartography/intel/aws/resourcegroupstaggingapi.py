@@ -14,8 +14,8 @@ from cartography.intel.aws.iam import get_user_tags
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
