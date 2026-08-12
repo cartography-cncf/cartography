@@ -7,10 +7,12 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
+import cartography.intel.gcp.audit_config
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
 import cartography.intel.gcp.iam
+import cartography.intel.gcp.log_sink
 import tests.data.gcp.crm
 from cartography.config import Config
 from cartography.graph.job import GraphJob
@@ -38,6 +40,16 @@ def _make_fake_credentials():
     cartography.intel.gcp,
     "get_gcp_credentials",
     return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp.audit_config,
+    "sync_gcp_audit_configs",
+    return_value=None,  # Skip real cloudresourcemanager calls for these tests
+)
+@patch.object(
+    cartography.intel.gcp.log_sink,
+    "sync_gcp_log_sinks",
+    return_value=None,  # Skip real logging.googleapis.com calls for these tests
 )
 @patch.object(
     cartography.intel.gcp,
@@ -76,6 +88,8 @@ def test_deferred_cleanup_order(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_sync_log_sinks,
+    mock_sync_audit_configs,
     mock_get_creds,
     neo4j_session,
 ):
@@ -144,6 +158,16 @@ def test_deferred_cleanup_order(
     return_value=_make_fake_credentials(),
 )
 @patch.object(
+    cartography.intel.gcp.audit_config,
+    "sync_gcp_audit_configs",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.gcp.log_sink,
+    "sync_gcp_log_sinks",
+    return_value=None,
+)
+@patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
     return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
@@ -177,6 +201,8 @@ def test_org_deletion_cleanup(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_sync_log_sinks,
+    mock_sync_audit_configs,
     mock_get_creds,
     neo4j_session,
 ):
@@ -242,6 +268,16 @@ def test_org_deletion_cleanup(
     return_value=_make_fake_credentials(),
 )
 @patch.object(
+    cartography.intel.gcp.audit_config,
+    "sync_gcp_audit_configs",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.gcp.log_sink,
+    "sync_gcp_log_sinks",
+    return_value=None,
+)
+@patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
     return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
@@ -275,6 +311,8 @@ def test_partial_deletion_cleanup(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_sync_log_sinks,
+    mock_sync_audit_configs,
     mock_get_creds,
     neo4j_session,
 ):
@@ -324,6 +362,16 @@ def test_partial_deletion_cleanup(
     return_value=_make_fake_credentials(),
 )
 @patch.object(
+    cartography.intel.gcp.audit_config,
+    "sync_gcp_audit_configs",
+    return_value=None,
+)
+@patch.object(
+    cartography.intel.gcp.log_sink,
+    "sync_gcp_log_sinks",
+    return_value=None,
+)
+@patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
     return_value=SKIPPED_PROJECT_RESOURCES_RESULT,  # Skip project resource sync for these tests
@@ -342,6 +390,8 @@ def test_project_migration_between_orgs(
     mock_get_org_roles,
     mock_get_predefined_roles,
     mock_sync_resources,
+    mock_sync_log_sinks,
+    mock_sync_audit_configs,
     mock_get_creds,
     neo4j_session,
 ):
