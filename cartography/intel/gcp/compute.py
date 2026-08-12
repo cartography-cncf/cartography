@@ -17,6 +17,7 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.router import sync_gcp_routers
 from cartography.intel.gcp.ssl_policy import sync_gcp_ssl_policies
 from cartography.intel.gcp.target_https_proxy import sync_gcp_target_https_proxies
 from cartography.intel.gcp.target_ssl_proxy import sync_gcp_target_ssl_proxies
@@ -2206,6 +2207,13 @@ def sync(
             common_job_parameters,
         )
         sync_gcp_vpn_tunnels(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_routers(
             neo4j_session,
             compute,
             project_id,
