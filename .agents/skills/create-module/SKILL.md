@@ -54,14 +54,65 @@ Add one entry to `TOP_LEVEL_MODULES` using the lazy wrapper. **Do not add a top-
 ```python
 TOP_LEVEL_MODULES = OrderedDict({
     ...
-    "your_service": _LazyStage("cartography.intel.your_service", "start_your_service_ingestion"),
+    "your_service": lazy_callable("cartography.intel.your_service", "start_your_service_ingestion"),
     ...
     # `analysis` must remain last
-    "analysis": _LazyStage("cartography.intel.analysis", "run"),
+    "analysis": lazy_callable("cartography.intel.analysis", "run"),
 })
 ```
 
-Pick a sensible position relative to neighbors (cloud providers grouped together, etc.). The provider's heavy SDK imports stay where they are — they only fire when this stage is selected and run.
+Pick a sensible position relative to neighbors (cloud providers grouped together, etc.).
+
+### Step 3b: Keep the entry point free of your provider SDK
+
+`start_your_service_ingestion` must be able to run its config gate *without* loading the
+provider SDK. A sync with no credentials for your service should cost nothing, and once
+cartography ships pip extras, a module whose SDK is not installed must still import so it
+can skip itself. So in `cartography/intel/your_service/__init__.py`, any import that
+reaches the SDK becomes a lazy binding from `cartography.util.lazy`. The bindings sit at
+the top of the file next to the real imports, and call sites do not change.
+
+```python
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+YourServiceClient = lazy_callable("your_service_sdk", "Client")   # instantiated in the body
+sdk_errors = lazy_import("your_service_sdk.errors")               # used in an `except`
+sync_users = lazy_callable("cartography.intel.your_service.users", "sync")
+
+
+@timeit
+def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    if not config.your_service_token:
+        logger.info("Your Service import is not configured - skipping this module.")
+        return
+    client = YourServiceClient(token=config.your_service_token)
+    sync_users(neo4j_session, client, config.update_tag, common_job_parameters)
+```
+
+Two things to watch:
+
+- **Annotations are evaluated at `def` time**, so an annotation naming a lazily bound
+  module must be a string (`-> "sdk.Client":`). For mypy to still resolve it, pair the
+  binding with a type-checking-only import:
+  ```python
+  if TYPE_CHECKING:
+      import your_service_sdk
+  else:
+      your_service_sdk = lazy_import("your_service_sdk")
+  ```
+- Modules under `cartography/intel/your_service/` other than `__init__.py` keep their
+  normal top-level SDK imports. Only the entry point needs this treatment.
+
+`tests/unit/cartography/test_import_hygiene.py` enforces this for every module and will
+fail with the offending package name if an SDK sneaks back in. It checks two things:
+importing the entry point loads nothing provider-specific, and *running* it with an
+empty `Config` does not either. The second one matters because without
+`--selected-modules` every stage is called, so the gate has to return before anything
+touches a lazy binding. Only aws, azure, gcp and oci are exempt, because they read
+ambient credentials rather than `Config` to decide whether they are configured at all.
 
 ### Step 4 — Implement the sync pattern
 
@@ -163,7 +214,8 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 
 - [ ] Entry point validates config and skips cleanly when unconfigured
 - [ ] CLI panel + `Config` fields wired, secrets resolved from env vars
-- [ ] Module registered in `cartography/sync.py:TOP_LEVEL_MODULES` via `_LazyStage`, with no top-level `import cartography.intel.<service>` added to `sync.py`
+- [ ] Module registered in `cartography/sync.py:TOP_LEVEL_MODULES` via `lazy_callable`, with no top-level `import cartography.intel.<service>` added to `sync.py`
+- [ ] Entry point imports no provider SDK: `tests/unit/cartography/test_import_hygiene.py` passes for the new module
 - [ ] Sync follows GET -> TRANSFORM -> LOAD -> CLEANUP
 - [ ] All schemas use only standard fields (`label`, `properties`, `sub_resource_relationship`, `other_relationships`, `extra_node_labels`, `scoped_cleanup`)
 - [ ] Sub-resource relationship targets a tenant-like node

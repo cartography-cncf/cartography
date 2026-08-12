@@ -13,12 +13,16 @@ from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
 from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
 from cartography.config import Config
-from cartography.intel.ontology.deprecated_indexes import (
-    drop_deprecated_ontology_indexes,
-)
 from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+drop_deprecated_ontology_indexes = lazy_callable(
+    "cartography.intel.ontology.deprecated_indexes", "drop_deprecated_ontology_indexes"
+)
 
 logger = logging.getLogger(__name__)
 

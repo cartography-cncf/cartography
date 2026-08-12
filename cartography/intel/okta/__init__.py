@@ -2,22 +2,27 @@ import logging
 from typing import Dict
 
 import neo4j
-from okta.framework.OktaError import OktaError
 
 from cartography.config import Config
-from cartography.intel.okta import applications
-from cartography.intel.okta import awssaml
-from cartography.intel.okta import factors
-from cartography.intel.okta import groups
-from cartography.intel.okta import organization
-from cartography.intel.okta import origins
-from cartography.intel.okta import roles
-from cartography.intel.okta import users
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+okta_error = lazy_import("okta.framework.OktaError")
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+OktaSyncState = lazy_callable("cartography.intel.okta.sync_state", "OktaSyncState")
+applications = lazy_import("cartography.intel.okta.applications")
+awssaml = lazy_import("cartography.intel.okta.awssaml")
+factors = lazy_import("cartography.intel.okta.factors")
+groups = lazy_import("cartography.intel.okta.groups")
+organization = lazy_import("cartography.intel.okta.organization")
+origins = lazy_import("cartography.intel.okta.origins")
+roles = lazy_import("cartography.intel.okta.roles")
+users = lazy_import("cartography.intel.okta.users")
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -131,11 +136,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             state,
             config.okta_base_domain,
         )
-    except OktaError as okta_error:
-        logger.warning(f"Unable to pull admin roles got {okta_error}")
+    except okta_error.OktaError as err:
+        logger.warning(f"Unable to pull admin roles got {err}")
 
         # Getting roles requires super admin which most won't be able to get easily
-        if okta_error.error_code == "E0000006":
+        if err.error_code == "E0000006":
             logger.warning(
                 "Unable to sync admin roles - api token needs admin rights to pull admin roles data",
             )

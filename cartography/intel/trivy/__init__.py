@@ -1,7 +1,7 @@
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
 
-import boto3
 from neo4j import Session
 
 from cartography.client.aws import list_accounts
@@ -20,10 +20,22 @@ from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import parse_report_source
-from cartography.intel.trivy.scanner import cleanup
-from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import boto3
+else:
+    boto3 = lazy_import("boto3")
+
+cleanup = lazy_callable("cartography.intel.trivy.scanner", "cleanup")
+sync_single_image = lazy_callable(
+    "cartography.intel.trivy.scanner", "sync_single_image"
+)
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client("trivy.scanner")
@@ -305,7 +317,7 @@ def sync_trivy_from_s3(
     trivy_s3_prefix: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
 ) -> None:
     # DEPRECATED: sync_trivy_from_s3() will be removed in v1.0.0.
     with S3BucketReader(

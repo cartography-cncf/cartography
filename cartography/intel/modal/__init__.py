@@ -6,29 +6,34 @@ from typing import Callable
 
 import neo4j
 
-import cartography.intel.modal.apps
-import cartography.intel.modal.dicts
-import cartography.intel.modal.domains
-import cartography.intel.modal.environment_roles
-import cartography.intel.modal.environments
-import cartography.intel.modal.functions
-import cartography.intel.modal.images
-import cartography.intel.modal.members
-import cartography.intel.modal.nfs
-import cartography.intel.modal.proxies
-import cartography.intel.modal.proxy_tokens
-import cartography.intel.modal.queues
-import cartography.intel.modal.sandboxes
-import cartography.intel.modal.secrets
-import cartography.intel.modal.service_users
-import cartography.intel.modal.volumes
-import cartography.intel.modal.workloads
-import cartography.intel.modal.workspace
 from cartography.config import Config
-from cartography.intel.modal.util import list_proxies
-from cartography.intel.modal.util import MODAL_API_ERRORS
-from cartography.intel.modal.util import ModalClient
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+_dicts = lazy_import("cartography.intel.modal.dicts")
+_nfs = lazy_import("cartography.intel.modal.nfs")
+_proxies = lazy_import("cartography.intel.modal.proxies")
+_queues = lazy_import("cartography.intel.modal.queues")
+_secrets = lazy_import("cartography.intel.modal.secrets")
+_volumes = lazy_import("cartography.intel.modal.volumes")
+modal_util = lazy_import("cartography.intel.modal.util")
+sync_apps = lazy_callable("cartography.intel.modal.apps", "sync")
+sync_domains = lazy_callable("cartography.intel.modal.domains", "sync")
+sync_environment_roles = lazy_callable(
+    "cartography.intel.modal.environment_roles", "sync"
+)
+sync_environments = lazy_callable("cartography.intel.modal.environments", "sync")
+sync_functions = lazy_callable("cartography.intel.modal.functions", "sync")
+sync_images = lazy_callable("cartography.intel.modal.images", "sync")
+sync_members = lazy_callable("cartography.intel.modal.members", "sync")
+sync_proxy_tokens = lazy_callable("cartography.intel.modal.proxy_tokens", "sync")
+sync_sandboxes = lazy_callable("cartography.intel.modal.sandboxes", "sync")
+sync_service_users = lazy_callable("cartography.intel.modal.service_users", "sync")
+sync_workloads = lazy_callable("cartography.intel.modal.workloads", "sync")
+sync_workspace = lazy_callable("cartography.intel.modal.workspace", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +70,7 @@ async def _run(
     """
     try:
         return await fn(*args)
-    except MODAL_API_ERRORS as exc:
+    except modal_util.MODAL_API_ERRORS as exc:
         logger.warning("Skipping Modal %s due to API error: %s", label, exc)
         return None
 
@@ -93,12 +98,12 @@ def _select_environments(
 
 
 async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
-    client = await ModalClient.create(
+    client = await modal_util.ModalClient.create(
         config.modal_token_id,
         config.modal_token_secret,
     )
 
-    workspace = await cartography.intel.modal.workspace.sync(
+    workspace = await sync_workspace(
         neo4j_session,
         client,
         {"UPDATE_TAG": config.update_tag},
@@ -113,7 +118,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
 
     environments = await _run(
         "environments",
-        cartography.intel.modal.environments.sync,
+        sync_environments,
         neo4j_session,
         client,
         common_job_parameters,
@@ -125,7 +130,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
     # resolved to an id.
     user_ids_by_username = await _run(
         "workspace members",
-        cartography.intel.modal.members.sync,
+        sync_members,
         neo4j_session,
         client,
         common_job_parameters,
@@ -145,7 +150,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
     else:
         await _run(
             "service users",
-            cartography.intel.modal.service_users.sync,
+            sync_service_users,
             neo4j_session,
             client,
             common_job_parameters,
@@ -154,14 +159,14 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
 
     await _run(
         "proxy tokens",
-        cartography.intel.modal.proxy_tokens.sync,
+        sync_proxy_tokens,
         neo4j_session,
         client,
         common_job_parameters,
     )
     await _run(
         "custom domains",
-        cartography.intel.modal.domains.sync,
+        sync_domains,
         neo4j_session,
         client,
         common_job_parameters,
@@ -178,7 +183,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
     # rather than repeating the identical request per environment. None means the call failed,
     # which is distinct from a workspace with no proxies, so the per-environment proxy sync is
     # skipped entirely and its existing data preserved.
-    all_proxies = await _run("proxies", list_proxies, client)
+    all_proxies = await _run("proxies", modal_util.list_proxies, client)
 
     for environment in _select_environments(environments, config.modal_environments):
         environment_job_parameters = {
@@ -191,7 +196,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
 
         await _run(
             f"environment roles ({name})",
-            cartography.intel.modal.environment_roles.sync,
+            sync_environment_roles,
             neo4j_session,
             client,
             environment_job_parameters,
@@ -200,7 +205,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         # Images before sandboxes, so the sandbox HAS_IMAGE edge can resolve.
         await _run(
             f"images ({name})",
-            cartography.intel.modal.images.sync,
+            sync_images,
             neo4j_session,
             client,
             environment_job_parameters,
@@ -211,7 +216,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         # the children are skipped rather than run against a half-loaded app set.
         apps = await _run(
             f"apps ({name})",
-            cartography.intel.modal.apps.sync,
+            sync_apps,
             neo4j_session,
             client,
             environment_job_parameters,
@@ -222,7 +227,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         # ingesting when the app list could not be read.
         await _run(
             f"sandboxes ({name})",
-            cartography.intel.modal.sandboxes.sync,
+            sync_sandboxes,
             neo4j_session,
             client,
             environment_job_parameters,
@@ -232,20 +237,18 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         # The extra-args column carries what each sync needs beyond the common parameters:
         # secrets and volumes attribute creation, proxies partition a workspace-wide listing.
         flat_resources: list[tuple[str, Any, tuple[Any, ...]]] = [
-            ("network file systems", cartography.intel.modal.nfs, ()),
-            ("dicts", cartography.intel.modal.dicts, ()),
-            ("queues", cartography.intel.modal.queues, ()),
+            ("network file systems", _nfs, ()),
+            ("dicts", _dicts, ()),
+            ("queues", _queues, ()),
         ]
         # Skipped when the member list could not be read, for the reason given above.
         if user_ids_by_username is not None:
             flat_resources[:0] = [
-                ("secrets", cartography.intel.modal.secrets, (user_ids_by_username,)),
-                ("volumes", cartography.intel.modal.volumes, (user_ids_by_username,)),
+                ("secrets", _secrets, (user_ids_by_username,)),
+                ("volumes", _volumes, (user_ids_by_username,)),
             ]
         if all_proxies is not None:
-            flat_resources.append(
-                ("proxies", cartography.intel.modal.proxies, (all_proxies,))
-            )
+            flat_resources.append(("proxies", _proxies, (all_proxies,)))
         for label, module, extra in flat_resources:
             await _run(
                 f"{label} ({name})",
@@ -266,7 +269,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
 
         await _run(
             f"functions ({name})",
-            cartography.intel.modal.functions.sync,
+            sync_functions,
             neo4j_session,
             client,
             environment_job_parameters,
@@ -274,7 +277,7 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         await _run(
             f"tasks and clusters ({name})",
-            cartography.intel.modal.workloads.sync,
+            sync_workloads,
             neo4j_session,
             client,
             environment_job_parameters,

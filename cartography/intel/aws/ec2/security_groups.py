@@ -18,8 +18,8 @@ from cartography.models.aws.ec2.security_groups import EC2SecurityGroupSchema
 from cartography.models.aws.ec2.securitygroup_instance import (
     EC2SecurityGroupInstanceSchema,
 )
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

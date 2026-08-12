@@ -27,8 +27,8 @@ from cartography.models.aws.lambda_function.event_source_mapping import (
 )
 from cartography.models.aws.lambda_function.lambda_function import AWSLambdaSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaLayerSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

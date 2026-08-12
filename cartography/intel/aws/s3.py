@@ -36,13 +36,13 @@ from cartography.models.aws.s3.bucket import S3BucketVersioningSchema
 from cartography.models.aws.s3.notification import S3BucketToSNSTopicRel
 from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
-from cartography.util import to_asynchronous
-from cartography.util import to_synchronous
+from cartography.util.aws import aws_handle_regions
+from cartography.util.aws import to_asynchronous
+from cartography.util.aws import to_synchronous
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

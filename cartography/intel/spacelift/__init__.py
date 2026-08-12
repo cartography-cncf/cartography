@@ -1,21 +1,32 @@
 import logging
 
-import boto3
 import neo4j
 import requests
 
 from cartography.config import Config
-from cartography.intel.spacelift.account import sync_account
-from cartography.intel.spacelift.ec2_ownership import sync_ec2_ownership
-from cartography.intel.spacelift.runs import sync_runs
-from cartography.intel.spacelift.spaces import sync_spaces
-from cartography.intel.spacelift.stacks import sync_stacks
-from cartography.intel.spacelift.util import get_spacelift_token
-from cartography.intel.spacelift.workerpools import sync_worker_pools
-from cartography.intel.spacelift.workers import sync_workers
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+boto3 = lazy_import("boto3")
+get_spacelift_token = lazy_callable(
+    "cartography.intel.spacelift.util", "get_spacelift_token"
+)
+sync_account = lazy_callable("cartography.intel.spacelift.account", "sync_account")
+sync_ec2_ownership = lazy_callable(
+    "cartography.intel.spacelift.ec2_ownership", "sync_ec2_ownership"
+)
+sync_runs = lazy_callable("cartography.intel.spacelift.runs", "sync_runs")
+sync_spaces = lazy_callable("cartography.intel.spacelift.spaces", "sync_spaces")
+sync_stacks = lazy_callable("cartography.intel.spacelift.stacks", "sync_stacks")
+sync_worker_pools = lazy_callable(
+    "cartography.intel.spacelift.workerpools", "sync_worker_pools"
+)
+sync_workers = lazy_callable("cartography.intel.spacelift.workers", "sync_workers")
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

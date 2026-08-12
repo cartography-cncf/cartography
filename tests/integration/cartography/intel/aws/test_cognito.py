@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.cognito
+import cartography.intel.aws.iam
 from cartography.intel.aws.cognito import sync
 from cartography.intel.aws.iam import load_role_data
 from cartography.intel.aws.iam import transform_role_trust_policies

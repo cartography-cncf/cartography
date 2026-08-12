@@ -20,9 +20,9 @@ from cartography.models.aws.ssm.instance_information import SSMInstanceInformati
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import PublicSSMParameterSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
-from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

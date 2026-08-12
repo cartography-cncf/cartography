@@ -18,12 +18,12 @@ from cartography.graph.analysis import SetProperty
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
 from cartography.intel.gcp.util import is_retryable_gcp_http_error
-from cartography.util import aws_handle_regions
 from cartography.util import batch
-from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import to_datetime
+from cartography.util.aws import aws_handle_regions
+from cartography.util.aws import is_service_control_policy_explicit_deny
 
 SAMPLE_GRAPH_JOB = """
 {

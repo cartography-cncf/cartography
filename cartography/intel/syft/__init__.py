@@ -14,8 +14,8 @@ File Naming Convention:
 
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
 
-import boto3
 from neo4j import Session
 
 from cartography.client.core.tx import load
@@ -31,10 +31,22 @@ from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import parse_report_source
-from cartography.intel.syft.parser import transform_artifacts
 from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import boto3
+else:
+    boto3 = lazy_import("boto3")
+
+transform_artifacts = lazy_callable(
+    "cartography.intel.syft.parser", "transform_artifacts"
+)
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -145,7 +157,7 @@ def sync_syft_from_s3(
     syft_s3_prefix: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
 ) -> None:
     # DEPRECATED: sync_syft_from_s3() will be removed in v1.0.0.
     with S3BucketReader(

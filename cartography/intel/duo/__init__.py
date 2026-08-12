@@ -1,28 +1,40 @@
 import logging
 import os
 from base64 import b64encode
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-import duo_client
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.duo.api_host import sync_duo_api_host
-from cartography.intel.duo.endpoints import sync_duo_endpoints
-from cartography.intel.duo.groups import sync_duo_groups
-from cartography.intel.duo.phones import sync as sync_duo_phones
-from cartography.intel.duo.tokens import sync as sync_duo_tokens
-from cartography.intel.duo.users import sync_duo_users
-from cartography.intel.duo.web_authn_credentials import (
-    sync as sync_duo_web_authn_credentials,
-)
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import duo_client
+else:
+    duo_client = lazy_import("duo_client")
+
+sync_duo_api_host = lazy_callable("cartography.intel.duo.api_host", "sync_duo_api_host")
+sync_duo_endpoints = lazy_callable(
+    "cartography.intel.duo.endpoints", "sync_duo_endpoints"
+)
+sync_duo_groups = lazy_callable("cartography.intel.duo.groups", "sync_duo_groups")
+sync_duo_phones = lazy_callable("cartography.intel.duo.phones", "sync")
+sync_duo_tokens = lazy_callable("cartography.intel.duo.tokens", "sync")
+sync_duo_users = lazy_callable("cartography.intel.duo.users", "sync_duo_users")
+sync_duo_web_authn_credentials = lazy_callable(
+    "cartography.intel.duo.web_authn_credentials", "sync"
+)
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(config: Config) -> duo_client.Admin:
+def get_client(config: Config) -> "duo_client.Admin":
     """
     Return a duo Admin client with the creds in the config object
     """
