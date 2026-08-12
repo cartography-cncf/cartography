@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -65,9 +66,34 @@ workload_identity = lazy_import("cartography.intel.azure.workload_identity")
 logger = logging.getLogger(__name__)
 
 
-def _azure_cli_config_dir() -> str:
-    """Where the az CLI stores its logged-in profile, mirroring AzureCliCredential."""
-    return os.environ.get("AZURE_CONFIG_DIR") or os.path.expanduser("~/.azure")
+def _has_authenticated_azure_cli_profile() -> bool:
+    """Whether the az CLI holds a logged-in profile with at least one subscription.
+
+    AzureCliCredential shells out to `az account get-access-token`, which needs an
+    authenticated profile, not merely an initialised config directory: az creates that
+    directory the first time it runs, and `az logout` empties the subscription list
+    while leaving the file behind.
+
+    Anything unreadable or unexpected answers True, so a surprising layout makes the
+    Azure SDK do the real check rather than skipping the module.
+    """
+    config_dir = os.environ.get("AZURE_CONFIG_DIR") or os.path.expanduser("~/.azure")
+    profile_path = os.path.join(config_dir, "azureProfile.json")
+    if not os.path.isfile(profile_path):
+        return False
+    try:
+        # az writes this file with a UTF-8 BOM.
+        with open(profile_path, encoding="utf-8-sig") as profile_file:
+            profile = json.load(profile_file)
+    except (OSError, ValueError):
+        logger.debug("Could not read %s", profile_path, exc_info=True)
+        return True
+    if not isinstance(profile, dict):
+        return True
+    subscriptions = profile.get("subscriptions")
+    if not isinstance(subscriptions, list):
+        return True
+    return bool(subscriptions)
 
 
 def _sync_data_factory(
@@ -399,11 +425,11 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     # Without service principal credentials the gate below authenticates through the
-    # az CLI, which keeps its logged-in profile in this directory. If it does not
-    # exist there is nothing for `az` to authenticate with, so skip before touching
-    # the Azure SDK. The directory existing does not prove a valid login; the
+    # az CLI. If the CLI holds no logged-in profile there is nothing for it to
+    # authenticate with, so skip before touching the Azure SDK and before spawning
+    # `az`. A profile being present does not prove the token is still valid; the
     # authentication below is still the real check.
-    if not config.azure_sp_auth and not os.path.isdir(_azure_cli_config_dir()):
+    if not config.azure_sp_auth and not _has_authenticated_azure_cli_profile():
         logger.info(
             "Azure import is not configured - skipping this module. Run 'az login', "
             "or pass --azure-sp-auth with service principal credentials. "
