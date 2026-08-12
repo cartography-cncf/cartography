@@ -843,6 +843,8 @@ def transform_gcp_firewall(fw_response: Resource) -> list[dict]:
         fw_partial_uri = f"{prefix}/{fw['name']}"
         fw["id"] = fw_partial_uri
         fw["vpc_partial_uri"] = _parse_compute_full_uri_to_partial_uri(fw["network"])
+        fw["log_logging_enabled"] = fw.get("logConfig", {}).get("enable")
+        fw["log_logging_metadata"] = fw.get("logConfig", {}).get("metadata")
 
         fw["transformed_allow_list"] = []
         fw["transformed_deny_list"] = []
