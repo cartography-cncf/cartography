@@ -12,9 +12,15 @@ from typing import Any
 
 # TODO: translate a ModuleNotFoundError raised by these helpers into an actionable
 # error naming the missing pip extra, e.g. "cartography[gcp] is not installed, run
-# pip install 'cartography[gcp]'". Only translate when exc.name does not start with
-# "cartography.", otherwise a typo in one of our own imports would be reported as a
-# missing extra. Blocked on the extras split; see the packaging migration.
+# pip install 'cartography[gcp]'". Blocked on the extras split; see the packaging
+# migration. Two constraints that a first attempt got wrong:
+#   - Only translate when exc.name does not start with "cartography.", otherwise a typo
+#     in one of our own imports gets reported as a missing extra.
+#   - Never downgrade this to a silent skip of the stage. "boto3 is missing" and "boto3
+#     is installed but one of its dependencies is broken" are indistinguishable from
+#     the exception alone, so skipping would drop the ingestion of a stage the operator
+#     did configure while the job still reports success. The extra declared for the
+#     stage is what makes the two cases separable, which is why this waits for extras.
 #
 # TODO: drop lazy_import() and lazy_callable() once the minimum supported Python is
 # 3.15 and PEP 810 (https://peps.python.org/pep-0810/) is available. Both helpers are
