@@ -1132,7 +1132,7 @@ def test_start_aws_ingestion_does_cleanup(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.dict(
-    "cartography.intel.aws.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
+    "cartography.intel.aws.resources.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
 )
 @mock.patch.object(
     cartography.intel.aws.resourcegroupstaggingapi, "sync", return_value=None
@@ -1206,7 +1206,7 @@ def test_sync_one_account_uses_owned_ecr_session_factory(
 
     # Act
     with mock.patch.dict(
-        cartography.intel.aws.RESOURCE_FUNCTIONS,
+        cartography.intel.aws.resources.RESOURCE_FUNCTIONS,
         {"ecr:image_layers": ecr_sync},
         clear=True,
     ):
@@ -1231,7 +1231,7 @@ def test_sync_one_account_uses_owned_ecr_session_factory(
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.dict(
-    "cartography.intel.aws.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
+    "cartography.intel.aws.resources.RESOURCE_FUNCTIONS", AWS_RESOURCE_FUNCTIONS_STUB
 )
 @mock.patch.object(
     cartography.intel.aws.resourcegroupstaggingapi, "sync", return_value=None
