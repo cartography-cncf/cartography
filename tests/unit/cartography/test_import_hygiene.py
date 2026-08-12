@@ -11,6 +11,7 @@ The mechanism is `cartography.util.lazy`; these tests are what keeps it honest.
 
 import ast
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -182,4 +183,93 @@ def test_lazy_callable_is_not_used_where_a_class_is_required() -> None:
         "these names are lazy_callable proxies but are used where a real class is "
         "required; bind the module with lazy_import and use module.ClassName instead:\n"
         + "\n".join(misuses)
+    )
+
+
+# Stages with no config gate at all: they always do work, so running them here would
+# hit the network or Neo4j.
+_UNGATED_STAGES = frozenset({"analysis", "create-indexes", "cve_metadata", "ontology"})
+
+# These four decide whether they are configured by asking the environment rather than
+# the Config object: boto3.Session() plus profile enumeration, Authenticator() against
+# the az CLI, oci.config.from_file("~/.oci/config"), google.auth.default(). Answering
+# that question requires the SDK, so they resolve it even when unconfigured. Everything
+# else must not, and this set is asserted exactly so it cannot quietly grow.
+_STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME = frozenset({"aws", "azure", "gcp", "oci"})
+
+_RUNTIME_PROBE = """
+import sys, json
+from unittest.mock import MagicMock
+
+from cartography.config import Config
+from cartography.sync import TOP_LEVEL_MODULES
+
+stage = TOP_LEVEL_MODULES[{stage_name!r}]
+try:
+    stage(MagicMock(), Config(neo4j_uri="bolt://localhost:7687", update_tag=1))
+except BaseException:
+    # An unconfigured module is allowed to raise; this probe is only about imports.
+    pass
+tops = sorted({{m.split('.')[0] for m in sys.modules
+               if '.' not in m and not m.startswith('_')}})
+print('@@' + json.dumps(tops))
+"""
+
+
+def _scrubbed_environment(home: str) -> dict[str, str]:
+    """An environment with no ambient cloud credentials for the probe to find."""
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("AWS_", "AZURE_", "GOOGLE_", "OCI_"))
+    }
+    env.update(
+        HOME=home,
+        AWS_EC2_METADATA_DISABLED="true",
+        AWS_CONFIG_FILE=os.path.join(home, "absent"),
+        AWS_SHARED_CREDENTIALS_FILE=os.path.join(home, "absent"),
+    )
+    return env
+
+
+def test_ambient_credential_stage_list_is_exact():
+    """Guard the exception list itself, so a new module cannot quietly join it."""
+    assert _STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME <= set(TOP_LEVEL_MODULES)
+    assert _UNGATED_STAGES <= set(TOP_LEVEL_MODULES)
+
+
+@pytest.mark.parametrize(
+    "stage_name",
+    sorted(
+        set(TOP_LEVEL_MODULES)
+        - _UNGATED_STAGES
+        - _STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME
+    ),
+)
+def test_unconfigured_stage_does_not_load_its_sdk(stage_name, tmp_path):
+    """Running an unconfigured stage must not load its provider SDK.
+
+    Importing the entry point lazily is only half the job: without --selected-modules
+    every stage is called, so the config gate has to reject the module before anything
+    resolves a lazy binding. If this fails, something above the gate in
+    `start_{stage_name}_ingestion` touches a lazily bound name.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _RUNTIME_PROBE.format(stage_name=stage_name)],
+        capture_output=True,
+        text=True,
+        env=_scrubbed_environment(str(tmp_path)),
+    )
+    assert result.returncode == 0, f"probe for {stage_name} failed:\n{result.stderr}"
+    pulled = next(
+        set(json.loads(line[2:]))
+        for line in result.stdout.splitlines()
+        if line.startswith("@@")
+    )
+    provider_sdks = {
+        name for name in (pulled - BASELINE) if name not in sys.stdlib_module_names
+    }
+    assert not provider_sdks, (
+        f"running the unconfigured {stage_name} stage loaded {sorted(provider_sdks)}; "
+        "the config gate must return before any lazy binding is touched"
     )

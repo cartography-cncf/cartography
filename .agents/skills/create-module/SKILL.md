@@ -106,8 +106,13 @@ Two things to watch:
 - Modules under `cartography/intel/your_service/` other than `__init__.py` keep their
   normal top-level SDK imports. Only the entry point needs this treatment.
 
-`tests/unit/cartography/test_import_hygiene.py` enforces the rule for every module and
-will fail with the offending package name if an SDK sneaks back in.
+`tests/unit/cartography/test_import_hygiene.py` enforces this for every module and will
+fail with the offending package name if an SDK sneaks back in. It checks two things:
+importing the entry point loads nothing provider-specific, and *running* it with an
+empty `Config` does not either. The second one matters because without
+`--selected-modules` every stage is called, so the gate has to return before anything
+touches a lazy binding. Only aws, azure, gcp and oci are exempt, because they read
+ambient credentials rather than `Config` to decide whether they are configured at all.
 
 ### Step 4 — Implement the sync pattern
 
