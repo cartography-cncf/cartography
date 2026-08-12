@@ -107,17 +107,36 @@ class _LazyCallable:
     __slots__ = ("_name", "_attr", "_module")
 
     def __init__(self, module: str, attr: str) -> None:
-        self._name = module
-        self._attr = attr
-        self._module: ModuleType | None = None
+        object.__setattr__(self, "_name", module)
+        object.__setattr__(self, "_attr", attr)
+        object.__setattr__(self, "_module", None)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def _resolve(self) -> Any:
         module = self._module
         if module is None:
-            module = self._module = importlib.import_module(self._name)
-        # Resolved on every call rather than cached, so that patching the attribute on
-        # the module keeps working the way it does for a plain attribute access.
-        return getattr(module, self._attr)(*args, **kwargs)
+            module = importlib.import_module(self._name)
+            object.__setattr__(self, "_module", module)
+        # Looked up on every access rather than cached, so that patching the attribute
+        # on the module keeps working the way it does for a plain attribute access.
+        return getattr(module, self._attr)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self._resolve()(*args, **kwargs)
+
+    def __getattr__(self, attr: str) -> Any:
+        # Bound names stand in for functions but also for classes, so reads and writes
+        # of their own attributes have to reach the real object: patching a method with
+        # `patch("pkg.SomeClass.method")` resolves it through here.
+        return getattr(self._resolve(), attr)
+
+    def __setattr__(self, attr: str, value: Any) -> None:
+        if attr in _LazyCallable.__slots__:
+            object.__setattr__(self, attr, value)
+            return
+        setattr(self._resolve(), attr, value)
+
+    def __delattr__(self, attr: str) -> None:
+        delattr(self._resolve(), attr)
 
     def __repr__(self) -> str:
         return f"lazy_callable({self._name}.{self._attr})"
