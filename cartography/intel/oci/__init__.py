@@ -1,5 +1,6 @@
 # Copyright (c) 2020, Oracle and/or its affiliates.
 import logging
+import os
 from collections import namedtuple
 from typing import Any
 from typing import Dict
@@ -29,6 +30,9 @@ utils = lazy_import("cartography.intel.oci.utils")
 # from . import compute
 
 logger = logging.getLogger(__name__)
+
+# Where the OCI SDK looks for credentials, and what the config gate checks for.
+OCI_CONFIG_PATH = "~/.oci/config"
 Resources = namedtuple("Resources", "compute iam network")
 
 
@@ -171,9 +175,21 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
+
+    # The SDK call below reads exactly this file, so checking it first lets an
+    # unconfigured sync skip OCI without importing the OCI SDK at all. Absence of the
+    # file is the same answer oci.config.from_file() would give, just cheaper.
+    if not os.path.isfile(os.path.expanduser(OCI_CONFIG_PATH)):
+        logger.info(
+            "OCI import is not configured - skipping this module. "
+            "Expected credentials at %s. See docs to configure.",
+            OCI_CONFIG_PATH,
+        )
+        return
+
     try:
         # Explicitly use Application Default Credentials.
-        credentials = oci.config.from_file("~/.oci/config", "DEFAULT")
+        credentials = oci.config.from_file(OCI_CONFIG_PATH, "DEFAULT")
         oci.config.validate_config(credentials)
         # computeClient = oci.core.ComputeClient(credentials)
     except (

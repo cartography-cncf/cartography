@@ -190,12 +190,21 @@ def test_lazy_callable_is_not_used_where_a_class_is_required() -> None:
 # hit the network or Neo4j.
 _UNGATED_STAGES = frozenset({"analysis", "create-indexes", "cve_metadata", "ontology"})
 
-# These four decide whether they are configured by asking the environment rather than
-# the Config object: boto3.Session() plus profile enumeration, Authenticator() against
-# the az CLI, oci.config.from_file("~/.oci/config"), google.auth.default(). Answering
-# that question requires the SDK, so they resolve it even when unconfigured. Everything
-# else must not, and this set is asserted exactly so it cannot quietly grow.
-_STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME = frozenset({"aws", "azure", "gcp", "oci"})
+# Two stages still resolve something when unconfigured, for reasons that cannot be
+# designed away:
+#
+# - aws: botocore's credential chain ends at the EC2 instance metadata service, which
+#   cannot be probed without a network call. A file-and-environment pre-check would
+#   silently skip AWS on any EC2 instance running with an instance profile, which is a
+#   mainstream deployment, so paying boto3 to get the right answer is the better trade.
+# - gcp: google.auth.default() pulls cryptography, and probing for Application Default
+#   Credentials contacts the GCE metadata server, which makes this too slow to assert
+#   on here. It no longer loads any GCP SDK, which was the expensive part.
+#
+# azure and oci used to be here too; they now pre-check the az CLI config directory and
+# ~/.oci/config, which is exactly what their SDK call reads. This set is asserted
+# exactly so it cannot quietly grow back.
+_STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME = frozenset({"aws", "gcp"})
 
 _RUNTIME_PROBE = """
 import sys, json

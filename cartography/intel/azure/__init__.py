@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import TYPE_CHECKING
 
 import neo4j
@@ -62,6 +63,11 @@ workload_identity = lazy_import("cartography.intel.azure.workload_identity")
 
 
 logger = logging.getLogger(__name__)
+
+
+def _azure_cli_config_dir() -> str:
+    """Where the az CLI stores its logged-in profile, mirroring AzureCliCredential."""
+    return os.environ.get("AZURE_CONFIG_DIR") or os.path.expanduser("~/.azure")
 
 
 def _sync_data_factory(
@@ -391,6 +397,19 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "permission_relationships_file": config.permission_relationships_file,
         "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
+
+    # Without service principal credentials the gate below authenticates through the
+    # az CLI, which keeps its logged-in profile in this directory. If it does not
+    # exist there is nothing for `az` to authenticate with, so skip before touching
+    # the Azure SDK. The directory existing does not prove a valid login; the
+    # authentication below is still the real check.
+    if not config.azure_sp_auth and not os.path.isdir(_azure_cli_config_dir()):
+        logger.info(
+            "Azure import is not configured - skipping this module. Run 'az login', "
+            "or pass --azure-sp-auth with service principal credentials. "
+            "See docs to configure.",
+        )
+        return
 
     if config.azure_sp_auth:
         if not (
