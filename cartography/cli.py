@@ -68,6 +68,7 @@ PANEL_BIGFIX = "BigFix Options"
 PANEL_DUO = "Duo Options"
 PANEL_WORKDAY = "Workday Options"
 PANEL_SEMGREP = "Semgrep Options"
+PANEL_SNYK = "Snyk Options"
 PANEL_SNIPEIT = "SnipeIT Options"
 PANEL_CLOUDFLARE = "Cloudflare Options"
 PANEL_TAILSCALE = "Tailscale Options"
@@ -134,6 +135,7 @@ MODULE_PANELS = {
     "duo": PANEL_DUO,
     "workday": PANEL_WORKDAY,
     "semgrep": PANEL_SEMGREP,
+    "snyk": PANEL_SNYK,
     "snipeit": PANEL_SNIPEIT,
     "cloudflare": PANEL_CLOUDFLARE,
     "tailscale": PANEL_TAILSCALE,
@@ -1381,6 +1383,36 @@ class CLI:
                     help="Semgrep OSS repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
                     rich_help_panel=PANEL_SEMGREP,
                     hidden=PANEL_SEMGREP not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Snyk Options
+            # =================================================================
+            snyk_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snyk-api-key-env-var",
+                    help="Environment variable name containing Snyk API token.",
+                    rich_help_panel=PANEL_SNYK,
+                    hidden=PANEL_SNYK not in visible_panels,
+                ),
+            ] = None,
+            snyk_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--snyk-org-id",
+                    help="Snyk organization ID to sync.",
+                    rich_help_panel=PANEL_SNYK,
+                    hidden=PANEL_SNYK not in visible_panels,
+                ),
+            ] = None,
+            snyk_base_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--snyk-base-url",
+                    help="Snyk REST API base URL.",
+                    rich_help_panel=PANEL_SNYK,
+                    hidden=PANEL_SNYK not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2968,6 +3000,15 @@ class CLI:
 
                 parse_and_validate_semgrep_ecosystems(semgrep_dependency_ecosystems)
 
+            # Read Snyk token
+            snyk_api_key = None
+            if snyk_api_key_env_var:
+                logger.debug(
+                    "Reading Snyk API token from environment variable %s",
+                    snyk_api_key_env_var,
+                )
+                snyk_api_key = os.environ.get(snyk_api_key_env_var)
+
             # Read CVE API key
             cve_api_key = None
             if cve_api_key_env_var:
@@ -3520,6 +3561,9 @@ class CLI:
                 semgrep_app_token=semgrep_app_token,
                 semgrep_dependency_ecosystems=semgrep_dependency_ecosystems,
                 semgrep_oss_source=semgrep_oss_source,
+                snyk_api_key=snyk_api_key,
+                snyk_org_id=snyk_org_id,
+                snyk_base_url=snyk_base_url,
                 snipeit_base_uri=snipeit_base_uri,
                 snipeit_token=snipeit_token,
                 snipeit_tenant_id=snipeit_tenant_id,

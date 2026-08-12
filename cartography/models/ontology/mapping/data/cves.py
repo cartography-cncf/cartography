@@ -1,3 +1,4 @@
+from cartography.models.ontology.mapping.data.snyk import SNYK_SEVERITY
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
@@ -503,6 +504,35 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+# Snyk issues are either CVE-backed vulnerabilities or advisory-only security
+# issues. The security-issues mapping owns the hybrid fields; this entry registers
+# the conditional :CVE label for ontology documentation and validation.
+snyk_mapping = OntologyMapping(
+    module_name="snyk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SnykIssue",
+            fields=[
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_score", node_field="cvss_score"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": SNYK_SEVERITY},
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
@@ -513,4 +543,5 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "semgrep": semgrep_mapping,
     "aws": aws_inspector_mapping,
     "wiz": wiz_mapping,
+    "snyk": snyk_mapping,
 }

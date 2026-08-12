@@ -266,6 +266,12 @@ class Config:
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
     :type semgrep_dependency_ecosystems: str
+    :param snyk_api_key: The Snyk API token. Optional.
+    :type snyk_api_key: str
+    :param snyk_org_id: The Snyk organization ID to sync. Optional.
+    :type snyk_org_id: str
+    :param snyk_base_url: Snyk REST API base URL. Optional.
+    :type snyk_base_url: str
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -590,6 +596,9 @@ class Config:
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         semgrep_oss_source=None,
+        snyk_api_key=None,
+        snyk_org_id=None,
+        snyk_base_url=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
@@ -832,6 +841,9 @@ class Config:
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
+        self.snyk_api_key = snyk_api_key
+        self.snyk_org_id = snyk_org_id
+        self.snyk_base_url = snyk_base_url
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
