@@ -2,16 +2,24 @@ import logging
 
 import neo4j
 
-import cartography.intel.salesforce.connectedapps
-import cartography.intel.salesforce.groups
-import cartography.intel.salesforce.organization
-import cartography.intel.salesforce.permissionsets
-import cartography.intel.salesforce.profiles
-import cartography.intel.salesforce.userroles
-import cartography.intel.salesforce.users
 from cartography.config import Config
-from cartography.intel.salesforce.util import get_salesforce_client
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+get_salesforce_client = lazy_callable(
+    "cartography.intel.salesforce.util", "get_salesforce_client"
+)
+sync_connectedapps = lazy_callable("cartography.intel.salesforce.connectedapps", "sync")
+sync_groups = lazy_callable("cartography.intel.salesforce.groups", "sync")
+sync_organization = lazy_callable("cartography.intel.salesforce.organization", "sync")
+sync_permissionsets = lazy_callable(
+    "cartography.intel.salesforce.permissionsets", "sync"
+)
+sync_profiles = lazy_callable("cartography.intel.salesforce.profiles", "sync")
+sync_userroles = lazy_callable("cartography.intel.salesforce.userroles", "sync")
+sync_users = lazy_callable("cartography.intel.salesforce.users", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -46,28 +54,14 @@ def start_salesforce_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         "UPDATE_TAG": config.update_tag,
     }
 
-    org = cartography.intel.salesforce.organization.sync(
-        neo4j_session, client, common_job_parameters
-    )
+    org = sync_organization(neo4j_session, client, common_job_parameters)
     common_job_parameters["ORG_ID"] = org["Id"]
 
     # Load permission/role nodes before users so the user relationships
     # (HAS_ROLE -> Profile, MEMBER_OF -> UserRole) attach to fully-loaded nodes.
-    cartography.intel.salesforce.profiles.sync(
-        neo4j_session, client, common_job_parameters
-    )
-    cartography.intel.salesforce.userroles.sync(
-        neo4j_session, client, common_job_parameters
-    )
-    cartography.intel.salesforce.users.sync(
-        neo4j_session, client, common_job_parameters
-    )
-    cartography.intel.salesforce.permissionsets.sync(
-        neo4j_session, client, common_job_parameters
-    )
-    cartography.intel.salesforce.groups.sync(
-        neo4j_session, client, common_job_parameters
-    )
-    cartography.intel.salesforce.connectedapps.sync(
-        neo4j_session, client, common_job_parameters
-    )
+    sync_profiles(neo4j_session, client, common_job_parameters)
+    sync_userroles(neo4j_session, client, common_job_parameters)
+    sync_users(neo4j_session, client, common_job_parameters)
+    sync_permissionsets(neo4j_session, client, common_job_parameters)
+    sync_groups(neo4j_session, client, common_job_parameters)
+    sync_connectedapps(neo4j_session, client, common_job_parameters)

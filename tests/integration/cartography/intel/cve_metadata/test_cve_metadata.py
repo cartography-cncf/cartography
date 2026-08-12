@@ -4,6 +4,8 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.cve_metadata
+import cartography.intel.cve_metadata.epss
+import cartography.intel.cve_metadata.nvd
 from cartography.config import Config
 from cartography.intel.cve_metadata import CVE_METADATA_FEED_ID
 from cartography.intel.cve_metadata import get_cve_ids_from_graph

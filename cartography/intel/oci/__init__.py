@@ -4,18 +4,24 @@ from collections import namedtuple
 from typing import Any
 from typing import Dict
 from typing import NamedTuple
+from typing import TYPE_CHECKING
 
 import neo4j
-import oci
-from oci.exceptions import ConfigFileNotFound
-from oci.exceptions import InvalidConfig
-from oci.exceptions import ProfileNotFound
 
 from cartography.config import Config
+from cartography.util.lazy import lazy_import
 
-from . import iam
-from . import organizations
-from . import utils
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import oci
+else:
+    oci = lazy_import("oci")
+
+iam = lazy_import("cartography.intel.oci.iam")
+oci_exceptions = lazy_import("oci.exceptions")
+organizations = lazy_import("cartography.intel.oci.organizations")
+utils = lazy_import("cartography.intel.oci.utils")
 
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
@@ -106,7 +112,7 @@ def _change_resources_region(resources: NamedTuple, region: str) -> None:
 
 def _get_network_resource(
     credentials: Dict[str, Any],
-) -> oci.core.virtual_network_client.VirtualNetworkClient:
+) -> "oci.core.virtual_network_client.VirtualNetworkClient":
     """
     Instantiates a OCI VirtualNetworkClient resource object to call the Network API.
      See https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm.
@@ -118,7 +124,7 @@ def _get_network_resource(
 
 def _get_iam_resource(
     credentials: Dict[str, Any],
-) -> oci.identity.identity_client.IdentityClient:
+) -> "oci.identity.identity_client.IdentityClient":
     """
     Instantiates a OCI IdentityCleint resource object to call the Identity API. This is used to users,
      ..., ... and ... data. See https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm.
@@ -130,7 +136,7 @@ def _get_iam_resource(
 
 def _get_compute_resource(
     credentials: Dict[str, Any],
-) -> oci.core.compute_client.ComputeClient:
+) -> "oci.core.compute_client.ComputeClient":
     """
     Instantiates a OCI ComputeClient resource object to call the Compute API. This is used to pull zone, instance, and
     networking data. https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm.
@@ -170,7 +176,11 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         credentials = oci.config.from_file("~/.oci/config", "DEFAULT")
         oci.config.validate_config(credentials)
         # computeClient = oci.core.ComputeClient(credentials)
-    except (ConfigFileNotFound, ProfileNotFound, InvalidConfig) as e:
+    except (
+        oci_exceptions.ConfigFileNotFound,
+        oci_exceptions.ProfileNotFound,
+        oci_exceptions.InvalidConfig,
+    ) as e:
         logger.debug("Error occurred calling oci.config.from_file.", exc_info=True)
         logger.error(
             (

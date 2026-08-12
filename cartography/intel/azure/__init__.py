@@ -1,4 +1,5 @@
 import logging
+from typing import TYPE_CHECKING
 
 import neo4j
 
@@ -9,50 +10,63 @@ from cartography.config import Config
 from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
 
-from . import aks
-from . import app_service
-from . import application_gateways
-from . import compute
-from . import container_instances
-from . import cosmosdb
-from . import data_factory
-from . import data_factory_dataset
-from . import data_factory_linked_service
-from . import data_factory_pipeline
-from . import data_lake
-from . import event_grid
-from . import event_hub
-from . import event_hub_namespace
-from . import firewall
-from . import functions
-from . import group_containers
-from . import key_vaults
-from . import load_balancers
-from . import logic_apps
-from . import management_groups
-from . import monitor
-from . import network
-from . import permission_relationships
-from . import rbac
-from . import resource_groups
-from . import security_center
-from . import sql
-from . import storage
-from . import subscription
-from . import synapse
-from . import tenant
-from . import workload_identity
-from .data_factory_util import AzureDataFactoryTransientError
-from .util.credentials import Authenticator
-from .util.credentials import Credentials
+# Submodules are bound lazily so that the provider SDK only loads once the config
+if TYPE_CHECKING:
+    from cartography.intel.azure.util.credentials import Credentials
+
+# gate below has decided that this module has something to sync.
+Authenticator = lazy_callable(
+    "cartography.intel.azure.util.credentials", "Authenticator"
+)
+aks = lazy_import("cartography.intel.azure.aks")
+data_factory_util = lazy_import("cartography.intel.azure.data_factory_util")
+app_service = lazy_import("cartography.intel.azure.app_service")
+application_gateways = lazy_import("cartography.intel.azure.application_gateways")
+compute = lazy_import("cartography.intel.azure.compute")
+container_instances = lazy_import("cartography.intel.azure.container_instances")
+cosmosdb = lazy_import("cartography.intel.azure.cosmosdb")
+data_factory = lazy_import("cartography.intel.azure.data_factory")
+data_factory_dataset = lazy_import("cartography.intel.azure.data_factory_dataset")
+data_factory_linked_service = lazy_import(
+    "cartography.intel.azure.data_factory_linked_service"
+)
+data_factory_pipeline = lazy_import("cartography.intel.azure.data_factory_pipeline")
+data_lake = lazy_import("cartography.intel.azure.data_lake")
+event_grid = lazy_import("cartography.intel.azure.event_grid")
+event_hub = lazy_import("cartography.intel.azure.event_hub")
+event_hub_namespace = lazy_import("cartography.intel.azure.event_hub_namespace")
+firewall = lazy_import("cartography.intel.azure.firewall")
+functions = lazy_import("cartography.intel.azure.functions")
+group_containers = lazy_import("cartography.intel.azure.group_containers")
+key_vaults = lazy_import("cartography.intel.azure.key_vaults")
+load_balancers = lazy_import("cartography.intel.azure.load_balancers")
+logic_apps = lazy_import("cartography.intel.azure.logic_apps")
+management_groups = lazy_import("cartography.intel.azure.management_groups")
+monitor = lazy_import("cartography.intel.azure.monitor")
+network = lazy_import("cartography.intel.azure.network")
+permission_relationships = lazy_import(
+    "cartography.intel.azure.permission_relationships"
+)
+rbac = lazy_import("cartography.intel.azure.rbac")
+resource_groups = lazy_import("cartography.intel.azure.resource_groups")
+security_center = lazy_import("cartography.intel.azure.security_center")
+sql = lazy_import("cartography.intel.azure.sql")
+storage = lazy_import("cartography.intel.azure.storage")
+subscription = lazy_import("cartography.intel.azure.subscription")
+synapse = lazy_import("cartography.intel.azure.synapse")
+tenant = lazy_import("cartography.intel.azure.tenant")
+workload_identity = lazy_import("cartography.intel.azure.workload_identity")
+
 
 logger = logging.getLogger(__name__)
 
 
 def _sync_data_factory(
     neo4j_session: neo4j.Session,
-    credentials: Credentials,
+    credentials: "Credentials",
     subscription_id: str,
     update_tag: int,
     common_job_parameters: dict,
@@ -93,7 +107,7 @@ def _sync_data_factory(
             update_tag,
             common_job_parameters,
         )
-    except AzureDataFactoryTransientError as error:
+    except data_factory_util.AzureDataFactoryTransientError as error:
         logger.warning(
             "Skipping Azure Data Factory sync after transient API failures "
             "for subscription %s (operation=%s, status_code=%s).",
@@ -105,7 +119,7 @@ def _sync_data_factory(
 
 def _sync_one_subscription(
     neo4j_session: neo4j.Session,
-    credentials: Credentials,
+    credentials: "Credentials",
     subscription_id: str,
     update_tag: int,
     common_job_parameters: dict,
@@ -303,7 +317,7 @@ def _sync_one_subscription(
 
 def _sync_tenant(
     neo4j_session: neo4j.Session,
-    credentials: Credentials,
+    credentials: "Credentials",
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
@@ -319,7 +333,7 @@ def _sync_tenant(
 
 def _sync_management_groups(
     neo4j_session: neo4j.Session,
-    credentials: Credentials,
+    credentials: "Credentials",
     update_tag: int,
     common_job_parameters: dict,
 ) -> list[dict]:
@@ -335,7 +349,7 @@ def _sync_management_groups(
 
 def _sync_multiple_subscriptions(
     neo4j_session: neo4j.Session,
-    credentials: Credentials,
+    credentials: "Credentials",
     tenant_id: str,
     subscriptions: list[dict],
     update_tag: int,

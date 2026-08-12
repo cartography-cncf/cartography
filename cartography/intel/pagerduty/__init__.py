@@ -1,18 +1,26 @@
 import logging
 
 import neo4j
-from pagerduty import RestApiV2Client
 
 from cartography.config import Config
-from cartography.intel.pagerduty.escalation_policies import sync_escalation_policies
-from cartography.intel.pagerduty.schedules import sync_schedules
-from cartography.intel.pagerduty.services import sync_services
-from cartography.intel.pagerduty.teams import sync_teams
-from cartography.intel.pagerduty.users import sync_users
-from cartography.intel.pagerduty.vendors import sync_vendors
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+RestApiV2Client = lazy_callable("pagerduty", "RestApiV2Client")
+sync_escalation_policies = lazy_callable(
+    "cartography.intel.pagerduty.escalation_policies", "sync_escalation_policies"
+)
+sync_schedules = lazy_callable(
+    "cartography.intel.pagerduty.schedules", "sync_schedules"
+)
+sync_services = lazy_callable("cartography.intel.pagerduty.services", "sync_services")
+sync_teams = lazy_callable("cartography.intel.pagerduty.teams", "sync_teams")
+sync_users = lazy_callable("cartography.intel.pagerduty.users", "sync_users")
+sync_vendors = lazy_callable("cartography.intel.pagerduty.vendors", "sync_vendors")
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

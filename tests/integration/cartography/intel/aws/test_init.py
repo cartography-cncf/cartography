@@ -13,6 +13,8 @@ from pytest import raises
 
 import cartography.config
 import cartography.intel.aws
+import cartography.intel.aws.organizations
+import cartography.intel.aws.resourcegroupstaggingapi
 import cartography.util
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
 
