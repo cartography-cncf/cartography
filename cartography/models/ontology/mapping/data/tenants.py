@@ -737,6 +737,23 @@ miradore_mapping = OntologyMapping(
     ],
 )
 
+# Render
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Render exposes no workspace lifecycle state.
+                # domain: a Render workspace has an owner email, not a domain.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -791,6 +808,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "render": render_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

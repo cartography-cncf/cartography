@@ -341,6 +341,29 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderService",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(ontology_field="type", node_field="runtime"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # state: Render's `suspended` flag is boolean, not a lifecycle vocabulary,
+                # and does not distinguish "deploying" / "live" / "build failed" states.
+                # public_ip_address / private_ip_address: Render services are reached via
+                # hostname (RenderService.url), not a stable IP.
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
@@ -348,4 +371,5 @@ COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "render": render_mapping,
 }
