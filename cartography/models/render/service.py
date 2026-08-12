@@ -89,7 +89,9 @@ class RenderServiceToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RenderServiceToTenantRelProperties = RenderServiceToTenantRelProperties()
+    properties: RenderServiceToTenantRelProperties = (
+        RenderServiceToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)

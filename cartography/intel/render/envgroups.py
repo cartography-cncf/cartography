@@ -51,7 +51,14 @@ def transform(env_groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             rows.append({**base, "service_id": None})
             continue
         for link in service_links:
-            rows.append({**base, "service_id": link.get("id")})
+            rows.append(
+                {
+                    **base,
+                    "service_id": require_non_empty(
+                        link.get("id"), "env group serviceLinks entry id"
+                    ),
+                }
+            )
     return rows
 
 

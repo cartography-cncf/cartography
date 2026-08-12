@@ -163,7 +163,13 @@ ENV_GROUPS_RESPONSE = [
         "name": "cartography-test-env-group",
         "ownerId": TEST_OWNER_ID,
         "environmentId": "evn-test001",
-        "serviceLinks": [{"id": "srv-test001", "name": "cartography-test-service", "type": "web_service"}],
+        "serviceLinks": [
+            {
+                "id": "srv-test001",
+                "name": "cartography-test-service",
+                "type": "web_service",
+            }
+        ],
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-02T00:00:00Z",
     },

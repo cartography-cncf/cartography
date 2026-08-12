@@ -24,7 +24,9 @@ class RenderDiskNodeProperties(CartographyNodeProperties):
         "ownerId", description="ID of the owning Render workspace."
     )
     service_id: PropertyRef = PropertyRef(
-        "serviceId", extra_index=True, description="ID of the service the disk is attached to."
+        "serviceId",
+        extra_index=True,
+        description="ID of the service the disk is attached to.",
     )
     size_gb: PropertyRef = PropertyRef("sizeGB", description="Size of the disk in GB.")
     mount_path: PropertyRef = PropertyRef(

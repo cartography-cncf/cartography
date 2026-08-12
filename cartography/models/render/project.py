@@ -44,7 +44,9 @@ class RenderProjectToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RenderProjectToTenantRelProperties = RenderProjectToTenantRelProperties()
+    properties: RenderProjectToTenantRelProperties = (
+        RenderProjectToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)

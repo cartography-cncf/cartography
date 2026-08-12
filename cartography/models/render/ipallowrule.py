@@ -29,7 +29,9 @@ class RenderIPAllowRuleNodeProperties(CartographyNodeProperties):
         "ownerId", description="ID of the owning Render workspace."
     )
     resource_id: PropertyRef = PropertyRef(
-        "resourceId", extra_index=True, description="ID of the resource this rule governs."
+        "resourceId",
+        extra_index=True,
+        description="ID of the resource this rule governs.",
     )
     resource_type: PropertyRef = PropertyRef(
         "resourceType",

@@ -13,7 +13,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RenderEnvGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Render environment group.")
+    id: PropertyRef = PropertyRef(
+        "id", description="ID of the Render environment group."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the environment group."
@@ -50,7 +52,9 @@ class RenderEnvGroupToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RenderEnvGroupToTenantRelProperties = RenderEnvGroupToTenantRelProperties()
+    properties: RenderEnvGroupToTenantRelProperties = (
+        RenderEnvGroupToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)

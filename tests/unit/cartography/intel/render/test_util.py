@@ -24,9 +24,7 @@ def _response(body):
 
 
 def test_list_paginated_follows_cursor_across_a_full_page():
-    page_1 = [
-        {"service": {"id": f"srv-{i}"}, "cursor": f"srv-{i}"} for i in range(100)
-    ]
+    page_1 = [{"service": {"id": f"srv-{i}"}, "cursor": f"srv-{i}"} for i in range(100)]
     page_2 = [{"service": {"id": "srv-100"}, "cursor": "srv-100"}]
     session = Mock()
     session.get.side_effect = [_response(page_1), _response(page_2)]
@@ -71,6 +69,35 @@ def test_list_paginated_raises_on_entries_missing_the_resource_key():
         list_paginated(session, URL, "service")
 
 
+def test_list_paginated_raises_on_non_object_resource_value():
+    session = Mock()
+    session.get.return_value = _response(
+        [{"secretFile": "not-an-object", "cursor": "x"}]
+    )
+
+    with pytest.raises(ValueError):
+        list_paginated(session, URL, "secretFile")
+
+
+def test_list_paginated_malformed_entry_error_never_embeds_entry_values():
+    """
+    A malformed entry's raised error must report only structural info (keys/types),
+    never the entry's raw values - some resource_key values (e.g. "secretFile") wrap
+    plaintext secret content, which must never end up in an exception message that
+    could get logged.
+    """
+    secret_value = "SUPER_SECRET_VALUE=do-not-leak-me"
+    session = Mock()
+    session.get.return_value = _response(
+        [{"cursor": "x", "unexpectedField": secret_value}]
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        list_paginated(session, URL, "secretFile")
+
+    assert secret_value not in str(exc_info.value)
+
+
 def test_list_paginated_raises_on_full_page_missing_a_trailing_cursor():
     """
     A full page whose last entry has no cursor is ambiguous, not evidence of the list's
@@ -81,7 +108,9 @@ def test_list_paginated_raises_on_full_page_missing_a_trailing_cursor():
     """
     full_page = [
         {"service": {"id": f"srv-{i}"}, "cursor": f"srv-{i}"} for i in range(99)
-    ] + [{"service": {"id": "srv-99"}}]  # last entry has no cursor
+    ] + [
+        {"service": {"id": "srv-99"}}
+    ]  # last entry has no cursor
     session = Mock()
     session.get.return_value = _response(full_page)
 

@@ -146,7 +146,12 @@ def test_start_render_ingestion(
         "RenderPostgres",
         ["id", "name", "database_name", "environment_id"],
     ) == {
-        (TEST_POSTGRES_ID, "cartography-test-db", "cartography_test", TEST_ENVIRONMENT_ID),
+        (
+            TEST_POSTGRES_ID,
+            "cartography-test-db",
+            "cartography_test",
+            TEST_ENVIRONMENT_ID,
+        ),
     }
     assert check_nodes(
         neo4j_session,
@@ -156,7 +161,9 @@ def test_start_render_ingestion(
         (TEST_DISK_ID, "data", 1, "/data", TEST_SERVICE_ID),
     }
     assert check_nodes(
-        neo4j_session, "BlockStorage", ["id", "_ont_name", "_ont_size_gb", "_ont_source"]
+        neo4j_session,
+        "BlockStorage",
+        ["id", "_ont_name", "_ont_size_gb", "_ont_source"],
     ) == {
         (TEST_DISK_ID, "data", 1, "render"),
     }
@@ -190,9 +197,7 @@ def test_start_render_ingestion(
     ) == {
         (TEST_KEY_VALUE_ID, "cartography-test-kv", "free", TEST_ENVIRONMENT_ID),
     }
-    assert check_nodes(
-        neo4j_session, "Database", ["id", "_ont_name", "_ont_type"]
-    ) == {
+    assert check_nodes(neo4j_session, "Database", ["id", "_ont_name", "_ont_type"]) == {
         (TEST_POSTGRES_ID, "cartography-test-db", "postgres"),
         (TEST_KEY_VALUE_ID, "cartography-test-kv", "redis"),
     }
@@ -373,7 +378,7 @@ def test_start_render_ingestion(
         "id",
         "RenderService",
         "id",
-        "HAS_SECRET",
+        "USES_SECRET",
         rel_direction_right=False,
     ) == {
         (TEST_SECRET_FILE_ID, TEST_SERVICE_ID),

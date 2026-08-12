@@ -30,7 +30,9 @@ class RenderSecretFileNodeProperties(CartographyNodeProperties):
         "ownerId", description="ID of the owning Render workspace."
     )
     service_id: PropertyRef = PropertyRef(
-        "serviceId", extra_index=True, description="ID of the service the secret file belongs to."
+        "serviceId",
+        extra_index=True,
+        description="ID of the service the secret file belongs to.",
     )
 
 
@@ -61,16 +63,23 @@ class RenderSecretFileToServiceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:RenderService)-[:HAS_SECRET]->(:RenderSecretFile)
+# (:RenderService)-[:USES_SECRET]->(:RenderSecretFile)
 class RenderSecretFileToServiceRel(CartographyRelSchema):
-    """Connects a Render service to a secret file mounted on it."""
+    """
+    Connects a Render service to a secret file mounted on it.
+
+    rel_label is USES_SECRET, not the more literal HAS_SECRET, because RenderService
+    carries the ComputeInstance ontology label and RenderSecretFile carries Secret, and
+    cartography/models/ontology/constraints.py enforces USES_SECRET as the canonical
+    label for any (ComputeInstance)->(Secret) edge (test_ontology_rel_constraints).
+    """
 
     target_node_label: str = "RenderService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("serviceId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_SECRET"
+    rel_label: str = "USES_SECRET"
     properties: RenderSecretFileToServiceRelProperties = (
         RenderSecretFileToServiceRelProperties()
     )

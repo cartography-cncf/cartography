@@ -68,12 +68,27 @@ def list_paginated(
 
         page: list[dict[str, Any]] = []
         for entry in body:
+            # Report only structural info (keys / types) here, never the entry's raw
+            # values - some resource_key values (e.g. "secretFile") wrap plaintext
+            # secret content, and that must never end up embedded in an exception
+            # message that could get logged.
             if not isinstance(entry, dict) or resource_key not in entry:
+                shape = (
+                    sorted(entry.keys())
+                    if isinstance(entry, dict)
+                    else type(entry).__name__
+                )
                 raise ValueError(
                     f"Render API returned a malformed entry for {url}: expected "
-                    f"a '{resource_key}' key in {entry!r}."
+                    f"a '{resource_key}' key; got {shape!r}."
                 )
-            page.append(entry[resource_key])
+            resource = entry[resource_key]
+            if not isinstance(resource, dict):
+                raise ValueError(
+                    f"Render API returned a malformed entry for {url}: expected "
+                    f"'{resource_key}' to be an object, got {type(resource).__name__}."
+                )
+            page.append(resource)
         items.extend(page)
 
         if len(page) < _PAGE_LIMIT:

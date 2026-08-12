@@ -22,7 +22,9 @@ class RenderCustomDomainNodeProperties(CartographyNodeProperties):
         "ownerId", description="ID of the owning Render workspace."
     )
     service_id: PropertyRef = PropertyRef(
-        "serviceId", extra_index=True, description="ID of the service the domain is attached to."
+        "serviceId",
+        extra_index=True,
+        description="ID of the service the domain is attached to.",
     )
     domain_type: PropertyRef = PropertyRef(
         "domainType", description="Whether the domain is an `apex` or `subdomain`."

@@ -15,7 +15,9 @@ from cartography.models.ontology.labels import DATABASE
 
 @dataclass(frozen=True)
 class RenderKeyValueNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Render Key Value instance.")
+    id: PropertyRef = PropertyRef(
+        "id", description="ID of the Render Key Value instance."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the Key Value instance."
@@ -33,7 +35,9 @@ class RenderKeyValueNodeProperties(CartographyNodeProperties):
     )
     region: PropertyRef = PropertyRef("region", description="Deployment region.")
     plan: PropertyRef = PropertyRef("plan", description="Instance plan/size.")
-    version: PropertyRef = PropertyRef("version", description="Valkey/Redis-compatible engine version.")
+    version: PropertyRef = PropertyRef(
+        "version", description="Valkey/Redis-compatible engine version."
+    )
     dashboard_url: PropertyRef = PropertyRef(
         "dashboardUrl", description="URL of the instance in the Render dashboard."
     )

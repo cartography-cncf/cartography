@@ -38,7 +38,9 @@ class RenderPostgresNodeProperties(CartographyNodeProperties):
     )
     plan: PropertyRef = PropertyRef("plan", description="Instance plan/size.")
     region: PropertyRef = PropertyRef("region", description="Deployment region.")
-    version: PropertyRef = PropertyRef("version", description="Postgres engine version.")
+    version: PropertyRef = PropertyRef(
+        "version", description="Postgres engine version."
+    )
     status: PropertyRef = PropertyRef(
         "status", description="Lifecycle status of the database."
     )
