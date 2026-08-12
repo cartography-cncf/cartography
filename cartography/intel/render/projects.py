@@ -30,7 +30,7 @@ def transform(projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
         {
             "id": require_non_empty(project.get("id"), "project id"),
             "name": project.get("name"),
-            "ownerId": project.get("owner", {}).get("id"),
+            "ownerId": (project.get("owner") or {}).get("id"),
             "createdAt": project.get("createdAt"),
             "updatedAt": project.get("updatedAt"),
         }

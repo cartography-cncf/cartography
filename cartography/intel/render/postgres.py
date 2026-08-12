@@ -30,7 +30,7 @@ def transform(instances: list[dict[str, Any]]) -> list[dict[str, Any]]:
         {
             "id": require_non_empty(instance.get("id"), "postgres id"),
             "name": instance.get("name"),
-            "ownerId": instance.get("owner", {}).get("id"),
+            "ownerId": (instance.get("owner") or {}).get("id"),
             # Not documented among the list-response fields, but accepted as a filter
             # param, so this is read defensively; a database that predates the field
             # or otherwise omits it simply gets no CONTAINS edge to its environment.
