@@ -19,6 +19,7 @@ RESOURCE_FUNCTIONS: list[str] = [
     "bigquery",
     "bigquery_connection",
     "apikeys",
+    "log_sinks",
     "policy_bindings",
     "permission_relationships",
 ]

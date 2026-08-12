@@ -42,6 +42,7 @@ from cartography.intel.gcp import gcf
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import kms
+from cartography.intel.gcp import log_sink
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
@@ -925,6 +926,18 @@ def start_gcp_ingestion(
             common_job_parameters,
             credentials=credentials,
         )
+
+        if requested_syncs is None or "log_sinks" in requested_syncs:
+            logging_client = build_client("logging", "v2", credentials=credentials)
+            log_sink.sync_gcp_log_sinks(
+                neo4j_session,
+                logging_client,
+                org_resource_name,
+                folders,
+                projects,
+                config.update_tag,
+                common_job_parameters,
+            )
 
         # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
         # This is done before project resources so that roles exist when policy bindings are created.
