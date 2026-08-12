@@ -86,6 +86,19 @@ def _sink_short_name(sink_name: str | None) -> str | None:
     return sink_name.split("/sinks/")[-1]
 
 
+def _parse_bigquery_dataset_id(destination: str | None) -> str | None:
+    if not destination:
+        return None
+    prefix = "bigquery.googleapis.com/projects/"
+    if not destination.startswith(prefix):
+        return None
+    path = destination[len(prefix) :]
+    parts = path.split("/")
+    if len(parts) != 3 or parts[1] != "datasets" or not parts[0] or not parts[2]:
+        return None
+    return f"{parts[0]}:{parts[2]}"
+
+
 @timeit
 def transform_gcp_log_sinks(
     sinks: list[dict],
@@ -103,6 +116,9 @@ def transform_gcp_log_sinks(
                 "name": name,
                 "sink_name": _sink_short_name(name),
                 "destination": sink.get("destination"),
+                "bigquery_dataset_id": _parse_bigquery_dataset_id(
+                    sink.get("destination")
+                ),
                 "filter": sink.get("filter"),
                 "description": sink.get("description"),
                 "disabled": sink.get("disabled", False),

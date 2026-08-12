@@ -30,6 +30,11 @@ def _create_prerequisite_nodes(neo4j_session):
         project_id=TEST_PROJECT_ID,
         tag=TEST_UPDATE_TAG,
     )
+    neo4j_session.run(
+        "MERGE (d:GCPBigQueryDataset {id: $dataset_id}) SET d.lastupdated = $tag",
+        dataset_id="log-project:audit_logs",
+        tag=TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
@@ -74,7 +79,14 @@ def test_sync_gcp_log_sinks(
     assert check_nodes(
         neo4j_session,
         "GCPLogSink",
-        ["id", "parent_type", "parent_id", "disabled", "include_children"],
+        [
+            "id",
+            "parent_type",
+            "parent_id",
+            "disabled",
+            "include_children",
+            "bigquery_dataset_id",
+        ],
     ) == {
         (
             "organizations/123456789012/sinks/org-audit-sink",
@@ -82,6 +94,7 @@ def test_sync_gcp_log_sinks(
             TEST_ORG_ID,
             False,
             True,
+            "log-project:audit_logs",
         ),
         (
             "folders/987654321098/sinks/folder-disabled-sink",
@@ -89,6 +102,7 @@ def test_sync_gcp_log_sinks(
             TEST_FOLDER_ID,
             True,
             False,
+            None,
         ),
         (
             "projects/test-project/sinks/project-system-event-sink",
@@ -96,6 +110,7 @@ def test_sync_gcp_log_sinks(
             f"projects/{TEST_PROJECT_ID}",
             False,
             False,
+            None,
         ),
     }
 
@@ -133,4 +148,19 @@ def test_sync_gcp_log_sinks(
         rel_direction_right=True,
     ) == {
         (TEST_PROJECT_ID, "projects/test-project/sinks/project-system-event-sink"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPLogSink",
+        "id",
+        "GCPBigQueryDataset",
+        "id",
+        "DELIVERS_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "organizations/123456789012/sinks/org-audit-sink",
+            "log-project:audit_logs",
+        ),
     }

@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -24,6 +25,10 @@ class GCPLogSinkNodeProperties(CartographyNodeProperties):
     )
     destination: PropertyRef = PropertyRef(
         "destination", description="Export destination configured for this sink."
+    )
+    bigquery_dataset_id: PropertyRef = PropertyRef(
+        "bigquery_dataset_id",
+        description="GCPBigQueryDataset ID parsed from a BigQuery sink destination, when applicable.",
     )
     filter: PropertyRef = PropertyRef(
         "filter", description="Advanced logs filter configured for this sink."
@@ -102,12 +107,33 @@ class GCPLogSinkToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPLogSinkToBigQueryDatasetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLogSinkToBigQueryDatasetRel(CartographyRelSchema):
+    target_node_label: str = "GCPBigQueryDataset"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("bigquery_dataset_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DELIVERS_TO"
+    properties: GCPLogSinkToBigQueryDatasetRelProperties = (
+        GCPLogSinkToBigQueryDatasetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPOrgLogSinkSchema(CartographyNodeSchema):
     """Representation of an organization-scoped GCP [Cloud Logging Sink](https://cloud.google.com/logging/docs/reference/v2/rest/v2/sinks)."""
 
     label: str = "GCPLogSink"
     properties: GCPLogSinkNodeProperties = GCPLogSinkNodeProperties()
     sub_resource_relationship: GCPLogSinkToOrgRel = GCPLogSinkToOrgRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLogSinkToBigQueryDatasetRel()],
+    )
 
 
 @dataclass(frozen=True)
@@ -117,6 +143,9 @@ class GCPFolderLogSinkSchema(CartographyNodeSchema):
     label: str = "GCPLogSink"
     properties: GCPLogSinkNodeProperties = GCPLogSinkNodeProperties()
     sub_resource_relationship: GCPLogSinkToFolderRel = GCPLogSinkToFolderRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLogSinkToBigQueryDatasetRel()],
+    )
 
 
 @dataclass(frozen=True)
@@ -126,3 +155,6 @@ class GCPProjectLogSinkSchema(CartographyNodeSchema):
     label: str = "GCPLogSink"
     properties: GCPLogSinkNodeProperties = GCPLogSinkNodeProperties()
     sub_resource_relationship: GCPLogSinkToProjectRel = GCPLogSinkToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLogSinkToBigQueryDatasetRel()],
+    )
