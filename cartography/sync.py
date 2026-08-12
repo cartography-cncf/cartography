@@ -290,6 +290,26 @@ class Sync:
                 except (KeyboardInterrupt, SystemExit):
                     logger.warning("Sync interrupted during stage '%s'.", stage_name)
                     raise
+                except ModuleNotFoundError as e:
+                    # A stage whose third-party dependency is absent cannot have been
+                    # configured, so skip it rather than aborting the whole sync. Our
+                    # own modules are never missing for that reason, so a
+                    # cartography.* name is a real bug and still propagates.
+                    # TODO: once the package ships pip extras, name the extra to
+                    # install here instead of the bare module.
+                    if not e.name or e.name.split(".")[0] == "cartography":
+                        logger.exception(
+                            "Unhandled exception during sync stage '%s'",
+                            stage_name,
+                        )
+                        raise
+                    logger.warning(
+                        "Skipping sync stage '%s': it needs '%s', which is not "
+                        "installed.",
+                        stage_name,
+                        e.name,
+                    )
+                    continue
                 except Exception:
                     logger.exception(
                         "Unhandled exception during sync stage '%s'",
