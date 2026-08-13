@@ -4,7 +4,6 @@ import neo4j
 
 import cartography.intel.render.blueprints
 import cartography.intel.render.customdomains
-import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
@@ -168,19 +167,6 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.update_tag,
             scoped_job_parameters,
             run_cleanup=False,
-        )
-
-        # Enrichment. Optionally scoped to environments, so this must run after
-        # environments are loaded.
-        safe_sync(
-            "dedicated IPs",
-            cartography.intel.render.dedicatedips.sync,
-            False,
-            neo4j_session=neo4j_session,
-            session=session,
-            owner_id=owner_id,
-            update_tag=config.update_tag,
-            common_job_parameters=scoped_job_parameters,
         )
 
         # Enrichment: disk children. Needs disks' returned disk ids to know which

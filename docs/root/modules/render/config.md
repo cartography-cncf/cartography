@@ -40,7 +40,6 @@ sync all of them in a single run.
 - `RenderEnvGroup` (shared env var/secret file groups, linked to the services that use them)
 - `RenderIPAllowRule` (network access control: the CIDR blocks allowed to reach each
   environment, service, Postgres instance, and Key Value instance)
-- `RenderDedicatedIP` (static outbound IPv4 addresses for a workspace/region)
 - `RenderRegistryCredential` (credentials used to pull private container images; linked to
   the services that use them)
 - `RenderWorkspaceMember` (a workspace's members and their roles)

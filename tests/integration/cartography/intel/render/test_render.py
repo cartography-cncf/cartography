@@ -8,7 +8,6 @@ import requests
 import cartography.intel.render
 import cartography.intel.render.blueprints
 import cartography.intel.render.customdomains
-import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
@@ -28,7 +27,6 @@ import cartography.intel.render.workspacemembers
 from cartography.config import Config
 from tests.data.render.data import BLUEPRINTS_RESPONSE
 from tests.data.render.data import CUSTOM_DOMAINS_RESPONSE
-from tests.data.render.data import DEDICATED_IPS_RESPONSE
 from tests.data.render.data import DISKS_RESPONSE
 from tests.data.render.data import ENV_GROUPS_RESPONSE
 from tests.data.render.data import ENV_VARS_RESPONSE
@@ -61,7 +59,6 @@ TEST_CUSTOM_DOMAIN_ID = "cdm-test001"
 TEST_SECRET_FILE_ID = f"{TEST_SERVICE_ID}/.env"
 TEST_KEY_VALUE_ID = "red-test001"
 TEST_ENV_GROUP_ID = "evg-test001"
-TEST_DEDICATED_IP_ID = "dip-test001"
 TEST_REGISTRY_CREDENTIAL_ID = "crd-test001"
 TEST_WORKSPACE_MEMBER_USER_ID = "usr-test001"
 TEST_WORKSPACE_MEMBER_ID = f"{TEST_OWNER_ID}:{TEST_WORKSPACE_MEMBER_USER_ID}"
@@ -88,7 +85,6 @@ _ALL_GET_MOCKS = [
     (cartography.intel.render.postgres, "get", POSTGRES_RESPONSE),
     (cartography.intel.render.keyvalue, "get", KEY_VALUE_RESPONSE),
     (cartography.intel.render.disks, "get", DISKS_RESPONSE),
-    (cartography.intel.render.dedicatedips, "get", DEDICATED_IPS_RESPONSE),
     (cartography.intel.render.customdomains, "get", CUSTOM_DOMAINS_RESPONSE),
     (cartography.intel.render.secretfiles, "get", SECRET_FILES_RESPONSE),
     (cartography.intel.render.envgroups, "get", ENV_GROUPS_RESPONSE),
@@ -135,7 +131,6 @@ def _empty_resource_overrides() -> dict:
         (cartography.intel.render.postgres, "get"): {"return_value": []},
         (cartography.intel.render.keyvalue, "get"): {"return_value": []},
         (cartography.intel.render.disks, "get"): {"return_value": []},
-        (cartography.intel.render.dedicatedips, "get"): {"return_value": []},
         (cartography.intel.render.customdomains, "get"): {"return_value": []},
         (cartography.intel.render.secretfiles, "get"): {"return_value": []},
         (cartography.intel.render.envgroups, "get"): {"return_value": []},
@@ -224,11 +219,6 @@ def _two_disks_response() -> list[dict[str, Any]]:
     return_value=ENV_GROUPS_RESPONSE,
 )
 @patch.object(
-    cartography.intel.render.dedicatedips,
-    "get",
-    return_value=DEDICATED_IPS_RESPONSE,
-)
-@patch.object(
     cartography.intel.render.keyvalue,
     "get",
     return_value=KEY_VALUE_RESPONSE,
@@ -289,7 +279,6 @@ def test_start_render_ingestion(
     mock_get_custom_domains,
     mock_get_secret_files,
     mock_get_key_value,
-    mock_get_dedicated_ips,
     mock_get_env_groups,
     mock_get_registry_credentials,
     mock_get_workspace_members,
@@ -407,13 +396,6 @@ def test_start_render_ingestion(
         ["id", "name", "environment_id"],
     ) == {
         (TEST_ENV_GROUP_ID, "cartography-test-env-group", TEST_ENVIRONMENT_ID),
-    }
-    assert check_nodes(
-        neo4j_session,
-        "RenderDedicatedIP",
-        ["id", "name", "region", "status"],
-    ) == {
-        (TEST_DEDICATED_IP_ID, "cartography-test-dedicated-ip", "oregon", "RUNNING"),
     }
     assert check_nodes(
         neo4j_session,
@@ -782,28 +764,6 @@ def test_start_render_ingestion(
     }
     assert check_rels(
         neo4j_session,
-        "RenderDedicatedIP",
-        "id",
-        "RenderTenant",
-        "id",
-        "RESOURCE",
-        rel_direction_right=False,
-    ) == {
-        (TEST_DEDICATED_IP_ID, TEST_OWNER_ID),
-    }
-    assert check_rels(
-        neo4j_session,
-        "RenderDedicatedIP",
-        "id",
-        "RenderEnvironment",
-        "id",
-        "APPLIES_TO",
-        rel_direction_right=True,
-    ) == {
-        (TEST_DEDICATED_IP_ID, TEST_ENVIRONMENT_ID),
-    }
-    assert check_rels(
-        neo4j_session,
         "RenderRegistryCredential",
         "id",
         "RenderTenant",
@@ -967,7 +927,6 @@ def test_start_render_ingestion(
 @patch.object(cartography.intel.render.workspacemembers, "get", return_value=[])
 @patch.object(cartography.intel.render.registrycredentials, "get", return_value=[])
 @patch.object(cartography.intel.render.envgroups, "get", return_value=[])
-@patch.object(cartography.intel.render.dedicatedips, "get", return_value=[])
 @patch.object(cartography.intel.render.keyvalue, "get", return_value=[])
 @patch.object(cartography.intel.render.secretfiles, "get", return_value=[])
 @patch.object(cartography.intel.render.customdomains, "get", return_value=[])
@@ -993,7 +952,6 @@ def test_render_cleanup_removes_stale_resources(
     mock_get_custom_domains,
     mock_get_secret_files,
     mock_get_key_value,
-    mock_get_dedicated_ips,
     mock_get_env_groups,
     mock_get_registry_credentials,
     mock_get_workspace_members,
@@ -1047,7 +1005,6 @@ def test_render_cleanup_removes_stale_resources_across_resource_types(neo4j_sess
         "RenderKeyValue",
         "RenderDisk",
         "RenderSnapshot",
-        "RenderDedicatedIP",
         "RenderCustomDomain",
         "RenderSecretFile",
         "RenderEnvGroup",

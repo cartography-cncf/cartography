@@ -172,21 +172,6 @@ KEY_VALUE_RESPONSE = [
     },
 ]
 
-DEDICATED_IPS_RESPONSE = [
-    {
-        "id": "dip-test001",
-        "name": "cartography-test-dedicated-ip",
-        "description": "",
-        "ownerId": TEST_OWNER_ID,
-        "region": "oregon",
-        "environmentIds": ["evn-test001"],
-        "ips": ["203.0.113.42"],
-        "status": "RUNNING",
-        "createdAt": "2026-01-01T00:00:00Z",
-        "updatedAt": "2026-01-02T00:00:00Z",
-    },
-]
-
 # Env var/secret file values are never returned by GET /env-groups (metadata only), so
 # there is nothing to discard here the way secretfiles.py discards `content`.
 ENV_GROUPS_RESPONSE = [
