@@ -245,6 +245,20 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+# Snowpark Container Services service status.
+_SNOWFLAKE_SERVICE_STATUS = {
+    "RUNNING": "active",
+    "READY": "active",
+    "PENDING": "creating",
+    "SUSPENDING": "updating",
+    "SUSPENDED": "unknown",
+    "DELETING": "deleting",
+    "DELETED": "deleting",
+    "FAILED": "failed",
+    "INTERNAL_ERROR": "failed",
+    "DONE": "active",
+}
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
@@ -254,4 +268,23 @@ COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "railway": railway_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeService",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="status",
+                        node_field="status",
+                        special_handling="mapping",
+                        extra={"map": _SNOWFLAKE_SERVICE_STATUS},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

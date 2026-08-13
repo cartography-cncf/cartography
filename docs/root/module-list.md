@@ -11,6 +11,7 @@ modules/airbyte/index
 modules/anthropic/index
 modules/aws/index
 modules/azure/index
+modules/bbot/index
 modules/bigfix/index
 modules/circleci/index
 modules/cloudflare/index
@@ -33,6 +34,7 @@ modules/keycloak/index
 modules/kubernetes/index
 modules/lastpass/index
 modules/microsoft/index
+modules/miradore/index
 modules/modal/index
 modules/netlify/index
 modules/oci/index
@@ -48,6 +50,7 @@ modules/sentinelone/index
 modules/sentry/index
 modules/slack/index
 modules/snipeit/index
+modules/snowflake/index
 modules/socketdev/index
 modules/spacelift/index
 modules/subimage/index

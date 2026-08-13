@@ -202,6 +202,12 @@ class Config:
     :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
     :type kandji_token: string
     :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
+    :type miradore_base_uri: string
+    :param miradore_base_uri: Miradore base URI, e.g. https://online.miradore.com. Optional.
+    :type miradore_site_name: string
+    :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
+    :type miradore_api_key: string
+    :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -353,6 +359,23 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type snowflake_account: str
+    :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
+    :type snowflake_user: str
+    :param snowflake_user: Snowflake user Cartography authenticates as. Optional.
+    :type snowflake_pat: str
+    :param snowflake_pat: Snowflake programmatic access token (PAT). Optional.
+    :type snowflake_private_key: str
+    :param snowflake_private_key: PEM-encoded RSA private key for key-pair (JWT) authentication. Optional.
+    :type snowflake_private_key_passphrase: str
+    :param snowflake_private_key_passphrase: Passphrase protecting the Snowflake private key. Optional.
+    :type snowflake_role: str
+    :param snowflake_role: Snowflake role used for SQL API statements. Optional.
+    :type snowflake_warehouse: str
+    :param snowflake_warehouse: Snowflake warehouse used to run SQL API statements. Optional.
+    :type snowflake_databases: str
+    :param snowflake_databases: Comma-separated list of Snowflake databases to sync. If unset, every
+        readable database is synced. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -470,6 +493,9 @@ class Config:
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type bbot_source: str
+    :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -523,6 +549,9 @@ class Config:
         kandji_base_uri=None,
         kandji_tenant_id=None,
         kandji_token=None,
+        miradore_base_uri=None,
+        miradore_site_name=None,
+        miradore_api_key=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -682,6 +711,15 @@ class Config:
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
+        bbot_source=None,
+        snowflake_account=None,
+        snowflake_user=None,
+        snowflake_pat=None,
+        snowflake_private_key=None,
+        snowflake_private_key_passphrase=None,
+        snowflake_role=None,
+        snowflake_warehouse=None,
+        snowflake_databases=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -753,6 +791,9 @@ class Config:
         self.kandji_base_uri = kandji_base_uri
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
+        self.miradore_base_uri = miradore_base_uri
+        self.miradore_site_name = miradore_site_name
+        self.miradore_api_key = miradore_api_key
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
@@ -836,6 +877,14 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.bbot_source = _resolve_report_source_config(
+            module="bbot",
+            source=bbot_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
@@ -931,3 +980,11 @@ class Config:
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.snowflake_account = snowflake_account
+        self.snowflake_user = snowflake_user
+        self.snowflake_pat = snowflake_pat
+        self.snowflake_private_key = snowflake_private_key
+        self.snowflake_private_key_passphrase = snowflake_private_key_passphrase
+        self.snowflake_role = snowflake_role
+        self.snowflake_warehouse = snowflake_warehouse
+        self.snowflake_databases = snowflake_databases

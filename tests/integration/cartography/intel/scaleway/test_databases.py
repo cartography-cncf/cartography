@@ -100,6 +100,10 @@ def test_load_scaleway_databases(
     )
 
     # Assert nodes
+    # exposed_internet is derived from is_public by each product's transform.
+    assert check_nodes(
+        neo4j_session, "ScalewayRdbInstance", ["id", "is_public", "exposed_internet"]
+    ) == {(TEST_RDB_INSTANCE_ID, True, True)}
     assert check_nodes(neo4j_session, "ScalewayRdbInstance", ["id", "name"]) == {
         (TEST_RDB_INSTANCE_ID, "demo-rdb"),
     }

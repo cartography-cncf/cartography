@@ -71,8 +71,9 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="CVE", dst="PackageVersion", label="AFFECTS"),
     RelConstraint(src="SecurityIssue", dst="PackageVersion", label="AFFECTS"),
     # A container/function resolves to the concrete single-platform image it
-    # runs. Materialized by resolved_image_analysis.json from the raw HAS_IMAGE
-    # references, which constraints_whitelist.py exempts as a distinct semantic.
+    # runs. Materialized by the RESOLVED_IMAGE_JOBS analysis jobs from the raw
+    # HAS_IMAGE references, which constraints_whitelist.py exempts as a distinct
+    # semantic.
     RelConstraint(src="Container", dst="Image", label="RESOLVED_IMAGE"),
     RelConstraint(src="Function", dst="Image", label="RESOLVED_IMAGE"),
     # An image/function is built from a source code repository (CI provenance).
@@ -85,4 +86,26 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     RelConstraint(src="PackageVersion", dst="Image", label="DEPLOYED"),
     # A package groups the concrete versions of itself found across the estate.
     RelConstraint(src="Package", dst="PackageVersion", label="HAS_VERSION"),
+    # An internet-facing frontend exposes the asset it puts at risk. The direction
+    # is always frontend -> backend, never the reverse: the load balancer, domain or
+    # tunnel is the means of exposure and the workload is what is at risk. Keeping
+    # this one-way is what makes a cross-provider traversal of EXPOSE meaningful.
+    #
+    # Enforced against declared edges today: AWSLoadBalancer / AWSLoadBalancerV2 to
+    # AWSEC2Instance, AWSLoadBalancerV2 to AWSLambda, and AWSLoadBalancerV2 chained
+    # to another AWSLoadBalancerV2.
+    RelConstraint(src="LoadBalancer", dst="ComputeInstance", label="EXPOSE"),
+    RelConstraint(src="LoadBalancer", dst="Function", label="EXPOSE"),
+    RelConstraint(src="LoadBalancer", dst="LoadBalancer", label="EXPOSE"),
+    # Forward-looking: the LB-to-workload edges for these two pairs are created by
+    # analysis jobs (AWS LB to ECS container, Kubernetes LB to pod and container)
+    # rather than by a node schema. test_ontology_rel_constraints only walks data
+    # models, so these two constrain future declared edges rather than today's
+    # analysis output.
+    RelConstraint(src="LoadBalancer", dst="ComputePod", label="EXPOSE"),
+    RelConstraint(src="LoadBalancer", dst="Container", label="EXPOSE"),
+    # NOTE: no constraint for the entrypoint types that are not load balancers
+    # (RailwayServiceDomain, RailwayCustomDomain, RailwayTCPProxy,
+    # ModalSandboxTunnel). They carry no ontology label, so a constraint on them
+    # would never fire. They do already use EXPOSE in the canonical direction.
 )

@@ -1,0 +1,1 @@
+"""Synthetic BBOT test data."""

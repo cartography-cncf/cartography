@@ -101,9 +101,19 @@ class RailwayServiceInstanceNodeProperties(CartographyNodeProperties):
     # Exposure signal: true when the instance is reachable from the internet through a
     # Railway-generated domain, a verified custom domain or a TCP proxy. Persisted so the
     # exposure rules can test it directly rather than re-deriving the join.
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when a Railway-generated domain, a DNS-verified custom domain or a TCP proxy is serving traffic for this instance.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How the instance is exposed: `direct` (an HTTPS domain) and/or `tcp_proxy` (a raw port with no TLS termination).",
+    )
     is_publicly_exposed: PropertyRef = PropertyRef(
         "is_publicly_exposed",
-        description="Whether the instance is reachable from the public internet.",
+        description="Whether the instance is reachable from the public internet. DEPRECATED: replaced by the cross-provider `exposed_internet` and will be removed in v1.0.0.",
     )
     created_at: PropertyRef = PropertyRef(
         "createdAt", description="Time when the service instance was created."

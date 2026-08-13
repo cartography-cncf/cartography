@@ -110,6 +110,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
+        "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
         "docker_scout": _LazyStage(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
@@ -143,6 +144,15 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.circleci", "start_circleci_ingestion"
         ),
         "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
+        "miradore": _LazyStage(
+            "cartography.intel.miradore", "start_miradore_ingestion"
+        ),
+        # Runs after the cloud providers so that stages, external volumes and
+        # integrations can attach to the S3 / GCS / Azure resources and IAM roles
+        # they point at on the first sync rather than the next one.
+        "snowflake": _LazyStage(
+            "cartography.intel.snowflake", "start_snowflake_ingestion"
+        ),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

@@ -99,11 +99,18 @@ def test_load_scaleway_serverless(
         neo4j_session, "ScalewayServerlessFunction", ["id", "name", "privacy"]
     ) == {(TEST_FUNCTION_ID, "demo-function", "public")}
     assert check_nodes(
+        neo4j_session, "ScalewayServerlessFunction", ["id", "exposed_internet"]
+    ) == {(TEST_FUNCTION_ID, True)}
+    assert check_nodes(
         neo4j_session, "ScalewayServerlessContainerNamespace", ["id", "name"]
     ) == {(TEST_CONTAINER_NAMESPACE_ID, "demo-container-namespace")}
     assert check_nodes(
         neo4j_session, "ScalewayServerlessContainer", ["id", "name", "privacy"]
     ) == {(TEST_CONTAINER_ID, "demo-container", "public")}
+    # privacy = public is what the ontology WORKLOAD_HAS_RUNTIME_IMAGE job reads.
+    assert check_nodes(
+        neo4j_session, "ScalewayServerlessContainer", ["id", "exposed_internet"]
+    ) == {(TEST_CONTAINER_ID, True)}
     assert check_nodes(
         neo4j_session,
         "ScalewayServerlessJobDefinition",

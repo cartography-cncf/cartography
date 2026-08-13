@@ -330,6 +330,9 @@ SUB_RESOURCE_REL_LABEL_EXCEPTIONS: Set[str] = {
 # entity.
 MODULES_WITHOUT_TENANT_ROOT: Set[str] = {
     "cartography.models.aibom",
+    # BBOT event nodes are associated to BbotScan with dynamic OBSERVED_IN
+    # MatchLinks rather than a static RESOURCE sub-resource relationship.
+    "cartography.models.bbot",
     "cartography.models.pagerduty",
     "cartography.models.trivy",
 }
@@ -411,6 +414,10 @@ ADDITIONAL_TOP_LEVEL_TENANT_LABELS: Set[str] = {
     # DatabricksAccount is a separate top-level tenant for the account hierarchy
     # (and is absent on the workspace-only path).
     "DatabricksAccount",
+    # SnowflakeAccount remains the root tenant for every Snowflake resource, while
+    # SnowflakeOrganization is a separate top-level tenant for the organization
+    # hierarchy (and is absent unless the collector holds ORGADMIN).
+    "SnowflakeOrganization",
 }
 
 

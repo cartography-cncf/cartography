@@ -33,6 +33,16 @@ class SupabaseEdgeFunctionNodeProperties(CartographyNodeProperties):
         "verify_jwt",
         description="Whether a valid project JWT is required to invoke the function. `false` means it is publicly invokable",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `verify_jwt` is `false`, meaning the function can be invoked without a project JWT.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the invocation URL is on the function itself.",
+    )
     import_map: PropertyRef = PropertyRef(
         "import_map", description="Whether the deployment uses an import map"
     )
