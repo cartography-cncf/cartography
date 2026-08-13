@@ -1,6 +1,34 @@
-## Ubuntu Security Configuration
+# Ubuntu Security Configuration
 
-Follow these steps to ingest Ubuntu Security CVEs and Ubuntu Security Notices with Cartography.
+## Prerequisites
 
-1. Call cartography with the `--ubuntu-security-enabled` flag.
-1. Optionally, if you are mirroring the Ubuntu Security API, pass the base URL with the `--ubuntu-security-api-url` flag. Defaults to `https://ubuntu.com`.
+The default Ubuntu Security API is public and does not require credentials.
+Cartography must be able to make HTTPS requests to `https://ubuntu.com`.
+
+## Configure Cartography
+
+Enable ingestion with `--ubuntu-security-enabled`.
+
+By default, Cartography requests CVEs and notices from
+`https://ubuntu.com`. To use a compatible mirror or proxy, set its base URL
+with `--ubuntu-security-api-url`. The server must expose these endpoints:
+
+- `/security/cves.json`
+- `/security/notices.json`
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules ubuntu \
+  --ubuntu-security-enabled
+```
+
+To use a different API base URL:
+
+```bash
+cartography \
+  --selected-modules ubuntu \
+  --ubuntu-security-enabled \
+  --ubuntu-security-api-url https://ubuntu-security.example.com
+```

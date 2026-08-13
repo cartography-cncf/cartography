@@ -1,19 +1,46 @@
 # CVE Configuration
 
 :::{important} Deprecated Module
-The `cve` module is a deprecated compatibility alias. Use the
-[CVE Metadata configuration](../cve_metadata/config.md) for current setup
-instructions.
+The `cve` module is a standalone legacy importer scheduled for removal in
+Cartography v1.0.0. New deployments should use vulnerability-scanner modules
+together with [CVE Metadata](../cve_metadata/config.md).
 :::
 
-## Legacy Options
+## Authentication
 
-These options configure the deprecated `cve` module. New deployments should use
-the `--cve-metadata-*` options described in the
-[CVE Metadata configuration](../cve_metadata/config.md).
+An NVD API key is optional. To use one, store it in an environment variable and
+pass that variable's name with `--cve-api-key-env-var`.
 
-| Option | Description |
-|--------|-------------|
-| `--cve-enabled` | Enable CVE data sync from NIST. |
-| `--cve-api-key-env-var` | Environment variable name containing the NIST NVD API v2.0 key. |
-| `--nist-cve-url` | Base URL for NIST CVE data. Default: `https://services.nvd.nist.gov/rest/json/cves/2.0/`. |
+## Configure Cartography
+
+The module does not run unless `--cve-enabled` is set, even when `cve` appears
+in `--selected-modules`.
+
+Cartography uses `https://services.nvd.nist.gov/rest/json/cves/2.0/` by
+default. Override the NVD API base URL with `--nist-cve-url` only when using a
+compatible proxy or endpoint.
+
+## Run Cartography
+
+Without an API key:
+
+```bash
+cartography \
+  --selected-modules cve \
+  --cve-enabled
+```
+
+With an API key:
+
+```bash
+export NVD_API_KEY="<key>"
+
+cartography \
+  --selected-modules cve \
+  --cve-enabled \
+  --cve-api-key-env-var NVD_API_KEY
+```
+
+## References
+
+- [NIST NVD API v2.0](https://nvd.nist.gov/developers/vulnerabilities)

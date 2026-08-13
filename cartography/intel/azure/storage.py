@@ -27,26 +27,15 @@ from cartography.models.azure.storage.tableservice import AzureStorageTableServi
 from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
 from .util.credentials import Credentials
 from .util.tag import transform_tags
 
 logger = logging.getLogger(__name__)
 
 
-def _copy_properties(data: Dict, mapping: Dict[str, tuple[str, ...]]) -> Dict:
-    properties = data.get("properties") or {}
-    for target, sources in mapping.items():
-        if target in data:
-            continue
-        for source in sources:
-            if source in properties:
-                data[target] = properties[source]
-                break
-    return data
-
-
 def transform_storage_account(account: Dict) -> Dict:
-    return _copy_properties(
+    return copy_properties(
         account,
         {
             "creation_time": ("creation_time", "creationTime"),
@@ -65,7 +54,7 @@ def transform_storage_account(account: Dict) -> Dict:
 
 
 def transform_storage_blob_container(container: Dict) -> Dict:
-    return _copy_properties(
+    return copy_properties(
         container,
         {
             "deleted": ("deleted",),
@@ -94,7 +83,7 @@ def transform_storage_blob_container(container: Dict) -> Dict:
 
 
 def transform_storage_file_share(share: Dict) -> Dict:
-    return _copy_properties(
+    return copy_properties(
         share,
         {
             "last_modified_time": ("last_modified_time", "lastModifiedTime"),
@@ -119,7 +108,7 @@ def transform_storage_file_share(share: Dict) -> Dict:
 
 
 def transform_storage_table(table: Dict) -> Dict:
-    return _copy_properties(table, {"table_name": ("table_name", "tableName")})
+    return copy_properties(table, {"table_name": ("table_name", "tableName")})
 
 
 @timeit

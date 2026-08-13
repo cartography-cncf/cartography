@@ -144,14 +144,40 @@ For the current identifier list, see the `RESOURCE_FUNCTIONS` dictionary in
 
 ### Additional Sync Options
 
-| Option | Description |
-|--------|-------------|
-| `--aws-best-effort-mode` | Continue syncing other accounts if one fails, raising exceptions at the end. |
-| `--aws-regions` | [EXPERIMENTAL] Comma-separated list of AWS regions to sync, for example `"us-east-1,us-east-2"`. Previously synced regions that are not in this list have their assets deleted. |
-| `--aws-cloudtrail-management-events-lookback-hours` | Number of hours back to retrieve CloudTrail management events. Not retrieved if not specified. |
-| `--aws-guardduty-severity-threshold` | GuardDuty severity threshold. Valid values are `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`. |
-| `--aws-ssm-public-parameter-prefix-allowlist` | Comma-separated AWS-managed public SSM parameter prefixes to ingest. Set to an empty string to disable public parameter ingestion. |
-| `--aws-tagging-api-cleanup-batch` | Batch size for Resource Groups Tagging API cleanup (`AWSTag` nodes). Default: `1000`. |
+- `--aws-regions`: [EXPERIMENTAL] Comma-separated list of AWS regions to sync,
+  for example `us-east-1,us-east-2`. Assets in previously synced regions that
+  are absent from this list are deleted.
+- `--aws-best-effort-mode`: Continue syncing the remaining accounts when one
+  account fails, raising the collected exceptions at the end.
+- `--aws-cloudtrail-management-events-lookback-hours`: Number of hours back to
+  retrieve CloudTrail management events. The events are not retrieved when the
+  option is omitted.
+- `--aws-guardduty-severity-threshold`: GuardDuty severity threshold. Valid
+  values are `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`.
+- `--aws-tagging-api-cleanup-batch`: Batch size for Resource Groups Tagging API
+  cleanup of `AWSTag` nodes. The default is `1000`.
+
+### SSM Public Parameter Prefixes
+
+Cartography ingests AWS-managed public SSM parameters only when their names
+start with an allowlisted prefix. Configure a comma-separated list with
+`--aws-ssm-public-parameter-prefix-allowlist` or, when the option is omitted,
+with `AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST`.
+
+The configuration priority is:
+
+1. `--aws-ssm-public-parameter-prefix-allowlist`
+2. `AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST`
+3. The built-in defaults: `/aws/service/bottlerocket/` and
+   `/aws/service/eks/optimized-ami/`
+
+Set the CLI option or environment variable to an empty string to disable public
+parameter ingestion.
+
+```bash
+export AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST="/aws/service/eks/optimized-ami/,/aws/service/custom/"
+cartography --selected-modules aws --aws-requested-syncs ssm
+```
 
 ### Retry and Timeout Settings
 
