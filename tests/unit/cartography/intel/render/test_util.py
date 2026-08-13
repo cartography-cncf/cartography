@@ -280,6 +280,20 @@ def test_safe_sync_optional_still_raises_on_a_genuine_value_error():
         safe_sync("widgets", sync_fn, required=False)
 
 
+def test_safe_sync_optional_still_raises_on_malformed_json():
+    """
+    requests' JSONDecodeError is also a RequestException, so safe_sync() must
+    explicitly re-raise it before the optional-endpoint outage handler. Bad JSON is a
+    malformed API response, not a transient missing optional resource.
+    """
+
+    def sync_fn():
+        raise requests.exceptions.JSONDecodeError("bad json", "", 0)
+
+    with pytest.raises(requests.exceptions.JSONDecodeError):
+        safe_sync("widgets", sync_fn, required=False)
+
+
 def test_safe_sync_passes_through_args_and_kwargs():
     calls = []
 

@@ -222,10 +222,14 @@ def safe_sync(
         A plain `ValueError` (not `IncompleteInventoryError`) is never caught here,
         even when `required=False`: it signals a genuinely malformed API response (a
         real parsing/shape bug), not routine unavailability, and must stay loud
-        regardless of whether the resource is core or optional.
+        regardless of whether the resource is core or optional. requests'
+        JSONDecodeError gets the same treatment even though it is also a
+        RequestException.
     """
     try:
         return sync_fn(**kwargs)
+    except requests.exceptions.JSONDecodeError:
+        raise
     except (requests.exceptions.RequestException, IncompleteInventoryError) as exc:
         if required:
             raise
