@@ -79,7 +79,13 @@ def transform(blueprints: list[dict[str, Any]]) -> list[dict[str, Any]]:
             resource_id = require_non_empty(
                 resource.get("id"), "blueprint resources entry id"
             )
-            row_key = _RESOURCE_TYPE_TO_ROW_KEY.get(resource.get("type"))
+            resource_type = require_non_empty(
+                resource.get("type"), "blueprint resources entry type"
+            )
+            # A recognized-but-unmodeled type (e.g. artifact_source) is legitimate and
+            # intentionally produces no linked id - see _RESOURCE_TYPE_TO_ROW_KEY's
+            # comment. Only a missing type is malformed data, checked above.
+            row_key = _RESOURCE_TYPE_TO_ROW_KEY.get(resource_type)
             row = {**base, **empty_links}
             if row_key:
                 row[row_key] = resource_id

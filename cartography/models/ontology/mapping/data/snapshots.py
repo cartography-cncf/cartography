@@ -143,9 +143,32 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderSnapshot",
+            fields=[
+                # RenderSnapshot has no display name of its own; id is the canonical
+                # identifier, matching AWSEBSSnapshot's convention.
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                OntologyFieldMapping(ontology_field="source_id", node_field="disk_id"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                # _ont_encrypted / _ont_public / _ont_region: not exposed by Render's
+                # disk snapshots API.
+            ],
+        ),
+    ],
+)
+
 SNAPSHOTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ebs_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "netlify": netlify_mapping,
+    "render": render_mapping,
 }

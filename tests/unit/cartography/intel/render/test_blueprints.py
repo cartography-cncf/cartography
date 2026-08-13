@@ -117,3 +117,23 @@ def test_transform_raises_on_blueprint_missing_an_id():
 
     with pytest.raises(ValueError):
         transform(blueprints)
+
+
+def test_transform_raises_on_resources_entry_missing_a_type():
+    """
+    A resources entry missing `type` entirely is malformed data - indistinguishable
+    from an unmapped-but-present type (e.g. `artifact_source`) unless we check for it
+    explicitly, which would silently drop the row's relationship with no error signal.
+    A present-but-unrecognized type is legitimate (see
+    test_transform_leaves_unmapped_resource_type_with_no_linked_id) and must not raise.
+    """
+    blueprints = [
+        {
+            "id": "bp-1",
+            "name": "malformed",
+            "resources": [{"id": "srv-1", "name": "no-type-here"}],
+        },
+    ]
+
+    with pytest.raises(ValueError):
+        transform(blueprints)

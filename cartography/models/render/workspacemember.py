@@ -51,7 +51,6 @@ class RenderWorkspaceMemberNodeProperties(CartographyNodeProperties):
     )
     mfa_enabled: PropertyRef = PropertyRef(
         "mfaEnabled",
-        extra_index=True,
         description="Whether the member has multi-factor authentication enabled.",
     )
 

@@ -3,12 +3,14 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SNAPSHOT
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,7 @@ class RenderSnapshotSchema(CartographyNodeSchema):
 
     label: str = "RenderSnapshot"
     properties: RenderSnapshotNodeProperties = RenderSnapshotNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SNAPSHOT])
     sub_resource_relationship: RenderSnapshotToTenantRel = RenderSnapshotToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [RenderSnapshotToDiskRel()],

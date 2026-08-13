@@ -74,14 +74,22 @@ def sync(
     owner_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    run_cleanup: bool = True,
 ) -> list[str]:
     """
     Sync the disks belonging to a single Render workspace.
 
+    :param run_cleanup: Pass False to defer this resource's cleanup to a later,
+        explicit `cleanup()` call - used because snapshots are fetched per-disk-id
+        after this call returns, so that if one of those per-disk fetches fails
+        partway through, this resource's stale disks haven't already been deleted this
+        run (which would otherwise leave that failed resource's own still-valid
+        snapshot nodes pointing at a disk that no longer exists).
     :return: The synced disk ids, so the caller can fetch their snapshots.
     """
     disks = get(session, owner_id)
     transformed = transform(disks, owner_id)
     load_disks(neo4j_session, transformed, owner_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if run_cleanup:
+        cleanup(neo4j_session, common_job_parameters)
     return [disk["id"] for disk in transformed]

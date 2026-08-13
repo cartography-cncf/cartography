@@ -1,14 +1,34 @@
+import logging
 from typing import Any
+from typing import Callable
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+logger = logging.getLogger(__name__)
+
 BASE_URL = "https://api.render.com/v1"
+SKIPPED_SYNC = object()
 
 # Render's documented GET rate limit is 400 requests/minute; a single page of any
 # list endpoint comfortably fits within that.
 _PAGE_LIMIT = 100
+
+
+class IncompleteInventoryError(ValueError):
+    """
+    Raised when a Render list response can't be proven complete - e.g. a bare-array
+    endpoint's response came back exactly at the requested `limit` with no cursor to
+    check whether more exists (see list_plain_array()'s `limit` docs).
+
+    Deliberately a distinct type from a bare ValueError (though still a ValueError
+    subclass, so existing `except ValueError`/`pytest.raises(ValueError)` callers keep
+    working): the data itself is well-formed, just possibly truncated, which is a
+    different situation from a malformed/unexpected response shape. safe_sync() catches
+    this one specifically for optional resources - a genuine malformed-response
+    ValueError is a real bug and should stay loud even for an optional resource.
+    """
 
 
 def build_session(api_key: str) -> requests.Session:
@@ -158,7 +178,7 @@ def list_plain_array(
                 f"object, got {type(entry).__name__}."
             )
     if limit is not None and len(body) == limit:
-        raise ValueError(
+        raise IncompleteInventoryError(
             f"Render API returned exactly the requested limit ({limit}) of items for "
             f"{url}. This bare-array endpoint has no documented cursor to fetch "
             f"further pages, so a full page can't be safely treated as the complete "
@@ -166,3 +186,53 @@ def list_plain_array(
             f"real resources past this page."
         )
     return body
+
+
+def safe_sync(
+    name: str,
+    sync_fn: Callable[..., Any],
+    required: bool,
+    **kwargs: Any,
+) -> Any:
+    """
+    Calls an enrichment resource's `sync()` (or any callable) and contains failures
+    that shouldn't take down the rest of a Render workspace's sync.
+
+    :param name: Human-readable resource name for the log message, e.g. "registry
+        credentials".
+    :param required: True for a core resource (tenants, projects, environments,
+        services, postgres, keyvalue, disks) - `sync_fn`'s exception is re-raised
+        unchanged, so a broken core fetch fails the whole workspace sync loudly rather
+        than silently proceeding with an incomplete inventory shape. False for an
+        enrichment resource - a `requests.exceptions.RequestException` (network error,
+        4xx/5xx) or `IncompleteInventoryError` (ambiguous/possibly-truncated bare-array
+        page) is caught, logged, and swallowed, so one enrichment
+        resource being unavailable for this workspace doesn't abort every other
+        resource that hasn't synced yet. In that swallowed-failure case this returns
+        SKIPPED_SYNC, so callers that defer a parent cleanup can tell the difference
+        between "this enrichment completed and returned None" and "this enrichment was
+        skipped because its inventory was incomplete".
+
+        Because `sync_fn` is each resource's own self-contained get/transform/
+        load/cleanup unit, catching the exception here means `load()` and `cleanup()`
+        for that resource were never reached this run - exactly "skip cleanup, keep
+        yesterday's data for this resource type until the next successful run", not a
+        separate mechanism that needs to be implemented per resource.
+
+        A plain `ValueError` (not `IncompleteInventoryError`) is never caught here,
+        even when `required=False`: it signals a genuinely malformed API response (a
+        real parsing/shape bug), not routine unavailability, and must stay loud
+        regardless of whether the resource is core or optional.
+    """
+    try:
+        return sync_fn(**kwargs)
+    except (requests.exceptions.RequestException, IncompleteInventoryError) as exc:
+        if required:
+            raise
+        logger.warning(
+            "Render %s sync failed - skipping this resource type (and its cleanup) "
+            "for this run, continuing with the rest of the workspace sync: %s",
+            name,
+            exc,
+        )
+        return SKIPPED_SYNC

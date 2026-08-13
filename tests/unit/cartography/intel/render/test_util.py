@@ -7,12 +7,17 @@ identical (to a caller's scoped cleanup) to one with only that many resources, s
 losing everything past the first page.
 """
 
+import logging
 from unittest.mock import Mock
 
 import pytest
+import requests
 
+from cartography.intel.render.util import IncompleteInventoryError
 from cartography.intel.render.util import list_paginated
 from cartography.intel.render.util import list_plain_array
+from cartography.intel.render.util import safe_sync
+from cartography.intel.render.util import SKIPPED_SYNC
 
 URL = "https://api.render.com/v1/services"
 
@@ -191,7 +196,7 @@ def test_list_plain_array_raises_when_a_full_page_could_hide_more_items():
     session = Mock()
     session.get.return_value = _response([{"id": f"crd-{i}"} for i in range(100)])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IncompleteInventoryError):
         list_plain_array(session, URL, limit=100)
 
 
@@ -202,3 +207,87 @@ def test_list_plain_array_does_not_raise_when_under_the_limit():
     items = list_plain_array(session, URL, limit=100)
 
     assert len(items) == 99
+
+
+def test_incomplete_inventory_error_is_a_value_error():
+    """
+    IncompleteInventoryError must stay a ValueError subclass so any code (or test)
+    written against list_plain_array()'s older bare-ValueError contract still works;
+    it exists to let safe_sync() distinguish "ambiguous/incomplete data" from a
+    genuinely malformed response, not to break the existing type contract.
+    """
+    assert issubclass(IncompleteInventoryError, ValueError)
+
+
+def test_safe_sync_returns_result_on_success():
+    result = safe_sync("widgets", lambda x: x * 2, required=False, x=21)
+
+    assert result == 42
+
+
+def test_safe_sync_required_reraises_request_exception():
+    def sync_fn():
+        raise requests.exceptions.HTTPError("boom")
+
+    with pytest.raises(requests.exceptions.HTTPError):
+        safe_sync("widgets", sync_fn, required=True)
+
+
+def test_safe_sync_required_reraises_incomplete_inventory_error():
+    def sync_fn():
+        raise IncompleteInventoryError("ambiguous page")
+
+    with pytest.raises(IncompleteInventoryError):
+        safe_sync("widgets", sync_fn, required=True)
+
+
+def test_safe_sync_optional_swallows_request_exception_and_returns_skipped(caplog):
+    def sync_fn():
+        raise requests.exceptions.HTTPError("boom")
+
+    with caplog.at_level(logging.WARNING):
+        result = safe_sync("widgets", sync_fn, required=False)
+
+    assert result is SKIPPED_SYNC
+    assert "widgets" in caplog.text
+
+
+def test_safe_sync_optional_swallows_incomplete_inventory_error_and_returns_skipped(
+    caplog,
+):
+    def sync_fn():
+        raise IncompleteInventoryError("ambiguous page")
+
+    with caplog.at_level(logging.WARNING):
+        result = safe_sync("widgets", sync_fn, required=False)
+
+    assert result is SKIPPED_SYNC
+    assert "widgets" in caplog.text
+
+
+def test_safe_sync_optional_still_raises_on_a_genuine_value_error():
+    """
+    A ValueError that is NOT IncompleteInventoryError signals malformed data - a real
+    parsing/shape bug, not "this workspace doesn't have full access to this optional
+    resource." safe_sync() must not swallow this even for required=False, or genuine
+    bugs in enrichment resources would silently vanish instead of surfacing.
+    """
+
+    def sync_fn():
+        raise ValueError("Render record is missing required non-empty id.")
+
+    with pytest.raises(ValueError):
+        safe_sync("widgets", sync_fn, required=False)
+
+
+def test_safe_sync_passes_through_args_and_kwargs():
+    calls = []
+
+    def sync_fn(a, b, c=None):
+        calls.append((a, b, c))
+        return "ok"
+
+    result = safe_sync("widgets", sync_fn, required=True, a=1, b=2, c=3)
+
+    assert result == "ok"
+    assert calls == [(1, 2, 3)]

@@ -154,10 +154,18 @@ def sync(
     owner_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    run_cleanup: bool = True,
 ) -> tuple[list[str], list[dict[str, Any]]]:
     """
     Sync the services belonging to a single Render workspace.
 
+    :param run_cleanup: Pass False to defer this resource's cleanup to a later,
+        explicit `cleanup()` call - used when other resources (custom domains, secret
+        files, env vars, header rules, routes) are fetched per-service-id after this
+        call returns, so that if one of those per-service fetches fails partway
+        through, this resource's stale services haven't already been deleted this run
+        (which would otherwise leave that failed resource's own still-valid child
+        nodes pointing at a service that no longer exists).
     :return: A tuple of (service ids, raw un-transformed service objects). The ids let
         the caller fetch custom domains and secret files; the raw objects let the caller
         read each service's embedded `ipAllowList` without a second network call.
@@ -170,5 +178,6 @@ def sync(
     }
     apply_latest_deploys(transformed, latest_deploys)
     load_services(neo4j_session, transformed, owner_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if run_cleanup:
+        cleanup(neo4j_session, common_job_parameters)
     return [service["id"] for service in transformed], services
