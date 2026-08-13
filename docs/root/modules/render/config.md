@@ -26,16 +26,30 @@ sync all of them in a single run.
 - `RenderProject`
 - `RenderEnvironment`
 - `RenderService` (web services, background workers, cron jobs, private services, and
-  static sites)
+  static sites) — includes the service's most recent deploy as properties
+  (`latest_deploy_id`, `latest_deploy_status`, etc.); full deploy history is not
+  ingested as separate nodes, since it's unbounded time-series data outside this
+  module's scope (the same reasoning that excludes Render's Logs/Metrics/Audit Logs)
 - `RenderPostgres`
 - `RenderDisk`
+- `RenderSnapshot` (point-in-time snapshots of a disk)
 - `RenderCustomDomain`
 - `RenderSecretFile`
+- `RenderEnvVar` (environment variables set directly on a service)
 - `RenderKeyValue` (Valkey/Redis-compatible instances)
 - `RenderEnvGroup` (shared env var/secret file groups, linked to the services that use them)
 - `RenderIPAllowRule` (network access control: the CIDR blocks allowed to reach each
   environment, service, Postgres instance, and Key Value instance)
 - `RenderDedicatedIP` (static outbound IPv4 addresses for a workspace/region)
+- `RenderRegistryCredential` (credentials used to pull private container images; linked to
+  the services that use them)
+- `RenderWorkspaceMember` (a workspace's members and their roles)
+- `RenderLogStream` (a workspace's external log stream destination, if configured)
+- `RenderHeaderRule` and `RenderRoute` (custom response headers and redirect/rewrite rules
+  — Render-documented **static-site-only** features; not applicable to web services,
+  private services, background workers, or cron jobs)
+- `RenderBlueprint` (an Infrastructure-as-Code definition, linked to the services,
+  Postgres instances, Key Value instances, and environment groups it manages)
 
 Render's Private Link connections are not ingested: as of this writing they have no
 public REST API (dashboard-only) and require a Pro workspace or higher, so there is
@@ -60,6 +74,10 @@ deliberately never stores that material:
   `content` alongside its `name`. Only `name` is ingested — `content` is discarded in
   `cartography/intel/render/secretfiles.py` before it ever reaches the graph, is never
   logged, and is never persisted anywhere.
+- `GET /services/{serviceId}/env-vars` returns each variable's full plaintext `value`
+  alongside its `key`. Only `key` is ingested — `value` is discarded in
+  `cartography/intel/render/envvars.py` the same way, and never reaches the graph, logs,
+  or storage.
 - `GET /env-groups` returns only group metadata (name, linked services) — env var values
   and secret file contents are not included in that response and Cartography never calls
   the separate endpoints that would return them.

@@ -756,6 +756,30 @@ miradore_mapping = OntologyMapping(
     ],
 )
 
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderWorkspaceMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="mfa_enabled"
+                ),
+                # active: Render's `status` is a string ("active"/"inactive"), not
+                # already the boolean this ontology field expects, and there is no
+                # "mapping" special_handling precedent for string-to-boolean in this
+                # codebase to normalize it safely - left unmapped rather than guessed.
+                # username / firstname / lastname / lastactivity: Not exposed by the
+                # workspace members endpoint.
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -787,6 +811,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,
+    "render": render_mapping,
     "netlify": netlify_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",

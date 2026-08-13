@@ -107,3 +107,62 @@ def list_paginated(
             )
 
     return items
+
+
+def list_plain_array(
+    session: requests.Session,
+    url: str,
+    params: dict[str, Any] | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Calls a Render list endpoint whose response is a bare array of resource objects,
+    not the `{"<resource_key>": {...}, "cursor": ...}` wrapper `list_paginated()`
+    handles (e.g. workspace members, registry credentials, disk snapshots).
+
+    Always makes a single, unpaginated GET. These endpoints document `limit`/`cursor`
+    params, but - unlike the wrapped endpoints, where cursor is returned as an opaque
+    sibling field on every item - no cursor value is present anywhere in a bare-array
+    response, and Render's pagination docs are explicit that cursor is not derived
+    from a resource's own id. There is no documented way to construct a valid next-page
+    cursor here.
+
+    :param limit: Pass an endpoint's documented `limit` query param when it defaults to
+        a page smaller than a real account could plausibly have (e.g. registry
+        credentials defaults to 20, max 100 - passing 100 here avoids truncating a
+        20+-item account on the *default* page size, which is a real risk this
+        function had before `limit` existed). If the response still comes back exactly
+        `limit` items long, this raises: that's genuinely ambiguous between "the
+        account has exactly `limit` items" and "there are more, unreachable with no
+        cursor" - and a caller's scoped cleanup would delete every real resource past
+        this page if it silently accepted a possibly-truncated page as complete.
+
+    Raises rather than returning an empty list on a malformed response, so a bad or
+    unexpected payload shape cannot be mistaken by a caller's scoped cleanup for a real
+    empty inventory of this resource type.
+    """
+    request_params = dict(params or {})
+    if limit is not None:
+        request_params["limit"] = limit
+    response = session.get(url, params=request_params, timeout=(60, 60))
+    response.raise_for_status()
+    body = response.json()
+    if not isinstance(body, list):
+        raise ValueError(
+            f"Render API returned a non-list response for {url}: {type(body)}."
+        )
+    for entry in body:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"Render API returned a malformed entry for {url}: expected an "
+                f"object, got {type(entry).__name__}."
+            )
+    if limit is not None and len(body) == limit:
+        raise ValueError(
+            f"Render API returned exactly the requested limit ({limit}) of items for "
+            f"{url}. This bare-array endpoint has no documented cursor to fetch "
+            f"further pages, so a full page can't be safely treated as the complete "
+            f"inventory - refusing to proceed rather than let scoped cleanup delete "
+            f"real resources past this page."
+        )
+    return body

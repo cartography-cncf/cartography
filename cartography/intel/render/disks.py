@@ -74,8 +74,14 @@ def sync(
     owner_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[str]:
+    """
+    Sync the disks belonging to a single Render workspace.
+
+    :return: The synced disk ids, so the caller can fetch their snapshots.
+    """
     disks = get(session, owner_id)
     transformed = transform(disks, owner_id)
     load_disks(neo4j_session, transformed, owner_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    return [disk["id"] for disk in transformed]

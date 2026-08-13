@@ -25,10 +25,55 @@ def get(session: requests.Session, owner_id: str) -> list[dict[str, Any]]:
     )
 
 
+@timeit
+def get_latest_deploy(
+    session: requests.Session, service_id: str
+) -> dict[str, Any] | None:
+    """
+    :return: The service's single most recent deploy, or None if it has never deployed.
+
+    Deliberately does not use list_paginated(): only the newest deploy is wanted here
+    (Render returns deploys newest-first), not a full page of deploy history, which
+    would be unbounded time-series data poorly suited to a current-state graph - see
+    RenderServiceNodeProperties.latest_deploy_id's comment.
+    """
+    response = session.get(
+        f"{BASE_URL}/services/{service_id}/deploys",
+        params={"limit": 1},
+        timeout=(60, 60),
+    )
+    response.raise_for_status()
+    body = response.json()
+    if not isinstance(body, list):
+        raise ValueError(
+            f"Render API returned a non-list deploys response for service "
+            f"{service_id}: {type(body)}."
+        )
+    if not body:
+        return None
+    entry = body[0]
+    if not isinstance(entry, dict) or "deploy" not in entry:
+        shape = (
+            sorted(entry.keys()) if isinstance(entry, dict) else type(entry).__name__
+        )
+        raise ValueError(
+            f"Render API returned a malformed deploy entry for service "
+            f"{service_id}: expected a 'deploy' key; got {shape!r}."
+        )
+    deploy = entry["deploy"]
+    if not isinstance(deploy, dict):
+        raise ValueError(
+            f"Render API returned a malformed deploy entry for service "
+            f"{service_id}: expected 'deploy' to be an object, got {type(deploy).__name__}."
+        )
+    return deploy
+
+
 def transform(services: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed = []
     for service in services:
         details = service.get("serviceDetails") or {}
+        registry_credential = service.get("registryCredential") or {}
         transformed.append(
             {
                 "id": require_non_empty(service.get("id"), "service id"),
@@ -48,11 +93,32 @@ def transform(services: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "region": details.get("region"),
                 "url": details.get("url"),
                 "numInstances": details.get("numInstances"),
+                "registryCredentialId": registry_credential.get("id"),
                 "createdAt": service.get("createdAt"),
                 "updatedAt": service.get("updatedAt"),
             }
         )
     return transformed
+
+
+def apply_latest_deploys(
+    services: list[dict[str, Any]],
+    latest_deploys: dict[str, dict[str, Any] | None],
+) -> None:
+    """Mutates `services` rows in place, adding latestDeploy* fields from `latest_deploys`."""
+    for service in services:
+        deploy = latest_deploys.get(service["id"])
+        if deploy is None:
+            continue
+        commit = deploy.get("commit") or {}
+        image = deploy.get("image") or {}
+        service["latestDeployId"] = deploy.get("id")
+        service["latestDeployStatus"] = deploy.get("status")
+        service["latestDeployTrigger"] = deploy.get("trigger")
+        service["latestDeployCreatedAt"] = deploy.get("createdAt")
+        service["latestDeployFinishedAt"] = deploy.get("finishedAt")
+        service["latestDeployCommitMessage"] = commit.get("message")
+        service["latestDeployImageRef"] = image.get("ref")
 
 
 @timeit
@@ -98,6 +164,11 @@ def sync(
     """
     services = get(session, owner_id)
     transformed = transform(services)
+    latest_deploys = {
+        service["id"]: get_latest_deploy(session, service["id"])
+        for service in transformed
+    }
+    apply_latest_deploys(transformed, latest_deploys)
     load_services(neo4j_session, transformed, owner_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     return [service["id"] for service in transformed], services

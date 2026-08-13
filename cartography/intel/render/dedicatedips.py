@@ -7,7 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.render.util import BASE_URL
-from cartography.intel.render.util import list_paginated
+from cartography.intel.render.util import list_plain_array
 from cartography.intel.render.util import require_non_empty
 from cartography.models.render.dedicatedip import RenderDedicatedIPSchema
 from cartography.util import timeit
@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(session: requests.Session, owner_id: str) -> list[dict[str, Any]]:
-    return list_paginated(
+    # Render's "List dedicated IPs" endpoint returns a bare array, not the
+    # {"dedicatedIP": {...}, "cursor": ...} wrapper list_paginated() expects - using
+    # list_paginated() here would raise on the first non-empty response as malformed.
+    return list_plain_array(
         session,
         f"{BASE_URL}/dedicated-ips",
-        "dedicatedIP",
-        params={"ownerId": owner_id},
+        params={"ownerId": [owner_id]},
     )
 
 
@@ -34,7 +36,9 @@ def transform(dedicated_ips: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     rows = []
     for dedicated_ip in dedicated_ips:
-        dedicated_ip_id = require_non_empty(dedicated_ip.get("id"), "dedicated IP set id")
+        dedicated_ip_id = require_non_empty(
+            dedicated_ip.get("id"), "dedicated IP set id"
+        )
         base = {
             "id": dedicated_ip_id,
             "name": dedicated_ip.get("name"),

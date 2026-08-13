@@ -48,7 +48,10 @@ SERVICES_RESPONSE = [
         "name": "cartography-test-service",
         "ownerId": TEST_OWNER_ID,
         "environmentId": "evn-test001",
-        "type": "web_service",
+        # static_site (not web_service) so this fixture also exercises header
+        # rules/routes, which Render only supports for static sites - see
+        # headerrules.py / routes.py.
+        "type": "static_site",
         "slug": "cartography-test-service",
         "repo": "https://github.com/example/cartography-test-service",
         "branch": "main",
@@ -59,6 +62,7 @@ SERVICES_RESPONSE = [
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-02T00:00:00Z",
         "ipAllowList": [{"cidrBlock": "203.0.113.0/24", "description": "office"}],
+        "registryCredential": {"id": "crd-test001"},
         "serviceDetails": {
             "runtime": "docker",
             "plan": "starter",
@@ -74,6 +78,19 @@ SERVICES_RESPONSE = [
         },
     },
 ]
+
+# get_latest_deploy() reads response[0]["deploy"] directly (it does not go through
+# list_paginated()), so this fixture is already unwrapped to that inner "deploy" object -
+# matching what services.get_latest_deploy() returns to its caller.
+LATEST_DEPLOY_RESPONSE = {
+    "id": "dep-test001",
+    "status": "live",
+    "trigger": "api",
+    "createdAt": "2026-01-03T00:00:00Z",
+    "finishedAt": "2026-01-03T00:05:00Z",
+    "commit": {"id": "abc123", "message": "Initial commit"},
+    "image": {"ref": "docker.io/example/app:latest"},
+}
 
 DISKS_RESPONSE = [
     {
@@ -187,5 +204,90 @@ ENV_GROUPS_RESPONSE = [
         ],
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-02T00:00:00Z",
+    },
+]
+
+REGISTRY_CREDENTIALS_RESPONSE = [
+    {
+        "id": "crd-test001",
+        "name": "cartography-test-registry-credential",
+        "username": "cartography-bot",
+        "registry": "DOCKER",
+        "updatedAt": "2026-01-02T00:00:00Z",
+    },
+]
+
+WORKSPACE_MEMBERS_RESPONSE = [
+    {
+        "userId": "usr-test001",
+        "name": "Cartography Test User",
+        "email": "test-user@example.com",
+        "status": "active",
+        "role": "ADMIN",
+        "mfaEnabled": True,
+    },
+]
+
+# get() returns None (not []) when a workspace has no log stream configured (404) -
+# LOG_STREAM_RESPONSE represents the configured case.
+LOG_STREAM_RESPONSE = {
+    "endpoint": "https://logs.example.com/ingest",
+    "preview": "drop",
+}
+
+# `value` mirrors what the live API actually returns alongside `key`, so tests can
+# assert it is discarded rather than merely absent from the fixture.
+ENV_VARS_RESPONSE = [
+    {
+        "key": "DATABASE_URL",
+        "value": "postgres://do-not-ingest-me",
+    },
+]
+
+HEADER_RULES_RESPONSE = [
+    {
+        "id": "hdr-test001",
+        "path": "/*",
+        "name": "X-Frame-Options",
+        "value": "DENY",
+    },
+]
+
+ROUTES_RESPONSE = [
+    {
+        "id": "rte-test001",
+        "type": "rewrite",
+        "source": "/old-path",
+        "destination": "/new-path",
+        "priority": 0,
+    },
+]
+
+SNAPSHOTS_RESPONSE = [
+    {
+        "instanceId": "srv-test001",
+        "createdAt": "2026-01-03T00:00:00Z",
+        "snapshotKey": "snp-test001-rotates-every-fetch",
+    },
+]
+
+BLUEPRINTS_RESPONSE = [
+    {
+        "id": "bpr-test001",
+        "name": "cartography-test-blueprint",
+        "ownerId": TEST_OWNER_ID,
+        "status": "created",
+        "autoSync": True,
+        "repo": "https://github.com/example/cartography-test-blueprint",
+        "branch": "main",
+        "path": "render.yaml",
+        "lastSync": "2026-01-02T00:00:00Z",
+        "resources": [
+            {
+                "id": "srv-test001",
+                "name": "cartography-test-service",
+                "type": "web_service",
+            },
+        ],
     },
 ]

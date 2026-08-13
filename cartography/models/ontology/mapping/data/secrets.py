@@ -202,7 +202,8 @@ netlify_mapping = OntologyMapping(
 
 # Render secret files carry no timestamps or rotation metadata in the list API - only a
 # name (and a content value that Cartography deliberately never ingests; see
-# cartography/intel/render/secretfiles.py).
+# cartography/intel/render/secretfiles.py). Env vars are mapped the same way, keyed on
+# `key` rather than `name` - see cartography/intel/render/envvars.py.
 render_mapping = OntologyMapping(
     module_name="render",
     nodes=[
@@ -211,6 +212,14 @@ render_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RenderEnvVar",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="key", required=True
                 ),
             ],
         ),

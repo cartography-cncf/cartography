@@ -1,30 +1,47 @@
 from unittest.mock import patch
 
 import cartography.intel.render
+import cartography.intel.render.blueprints
 import cartography.intel.render.customdomains
 import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
+import cartography.intel.render.envvars
+import cartography.intel.render.headerrules
 import cartography.intel.render.keyvalue
+import cartography.intel.render.logstream
 import cartography.intel.render.postgres
 import cartography.intel.render.projects
+import cartography.intel.render.registrycredentials
+import cartography.intel.render.routes
 import cartography.intel.render.secretfiles
 import cartography.intel.render.services
+import cartography.intel.render.snapshots
 import cartography.intel.render.tenants
+import cartography.intel.render.workspacemembers
 from cartography.config import Config
+from tests.data.render.data import BLUEPRINTS_RESPONSE
 from tests.data.render.data import CUSTOM_DOMAINS_RESPONSE
 from tests.data.render.data import DEDICATED_IPS_RESPONSE
 from tests.data.render.data import DISKS_RESPONSE
 from tests.data.render.data import ENV_GROUPS_RESPONSE
+from tests.data.render.data import ENV_VARS_RESPONSE
 from tests.data.render.data import ENVIRONMENTS_RESPONSE
+from tests.data.render.data import HEADER_RULES_RESPONSE
 from tests.data.render.data import KEY_VALUE_RESPONSE
+from tests.data.render.data import LATEST_DEPLOY_RESPONSE
+from tests.data.render.data import LOG_STREAM_RESPONSE
 from tests.data.render.data import OWNERS_RESPONSE
 from tests.data.render.data import POSTGRES_RESPONSE
 from tests.data.render.data import PROJECTS_RESPONSE
+from tests.data.render.data import REGISTRY_CREDENTIALS_RESPONSE
+from tests.data.render.data import ROUTES_RESPONSE
 from tests.data.render.data import SECRET_FILES_RESPONSE
 from tests.data.render.data import SERVICES_RESPONSE
+from tests.data.render.data import SNAPSHOTS_RESPONSE
 from tests.data.render.data import TEST_OWNER_ID
+from tests.data.render.data import WORKSPACE_MEMBERS_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -40,8 +57,56 @@ TEST_SECRET_FILE_ID = f"{TEST_SERVICE_ID}/.env"
 TEST_KEY_VALUE_ID = "red-test001"
 TEST_ENV_GROUP_ID = "evg-test001"
 TEST_DEDICATED_IP_ID = "dip-test001"
+TEST_REGISTRY_CREDENTIAL_ID = "crd-test001"
+TEST_WORKSPACE_MEMBER_USER_ID = "usr-test001"
+TEST_WORKSPACE_MEMBER_ID = f"{TEST_OWNER_ID}:{TEST_WORKSPACE_MEMBER_USER_ID}"
+TEST_ENV_VAR_ID = f"{TEST_SERVICE_ID}/DATABASE_URL"
+TEST_HEADER_RULE_ID = "hdr-test001"
+TEST_ROUTE_ID = "rte-test001"
+TEST_SNAPSHOT_ID = f"{TEST_DISK_ID}/2026-01-03T00:00:00Z"
+TEST_BLUEPRINT_ID = "bpr-test001"
 
 
+@patch.object(
+    cartography.intel.render.blueprints,
+    "get",
+    return_value=BLUEPRINTS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.routes,
+    "get",
+    return_value=ROUTES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.headerrules,
+    "get",
+    return_value=HEADER_RULES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.envvars,
+    "get",
+    return_value=ENV_VARS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.snapshots,
+    "get",
+    return_value=SNAPSHOTS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.logstream,
+    "get",
+    return_value=LOG_STREAM_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.workspacemembers,
+    "get",
+    return_value=WORKSPACE_MEMBERS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.registrycredentials,
+    "get",
+    return_value=REGISTRY_CREDENTIALS_RESPONSE,
+)
 @patch.object(
     cartography.intel.render.envgroups,
     "get",
@@ -79,6 +144,11 @@ TEST_DEDICATED_IP_ID = "dip-test001"
 )
 @patch.object(
     cartography.intel.render.services,
+    "get_latest_deploy",
+    return_value=LATEST_DEPLOY_RESPONSE,
+)
+@patch.object(
+    cartography.intel.render.services,
     "get",
     return_value=SERVICES_RESPONSE,
 )
@@ -102,6 +172,7 @@ def test_start_render_ingestion(
     mock_get_projects,
     mock_get_environments,
     mock_get_services,
+    mock_get_latest_deploy,
     mock_get_postgres,
     mock_get_disks,
     mock_get_custom_domains,
@@ -109,6 +180,14 @@ def test_start_render_ingestion(
     mock_get_key_value,
     mock_get_dedicated_ips,
     mock_get_env_groups,
+    mock_get_registry_credentials,
+    mock_get_workspace_members,
+    mock_get_log_stream,
+    mock_get_snapshots,
+    mock_get_env_vars,
+    mock_get_header_rules,
+    mock_get_routes,
+    mock_get_blueprints,
     neo4j_session,
 ):
     # Arrange
@@ -192,6 +271,7 @@ def test_start_render_ingestion(
     }
     assert check_nodes(neo4j_session, "Secret", ["id", "_ont_name", "_ont_source"]) == {
         (TEST_SECRET_FILE_ID, ".env", "render"),
+        (TEST_ENV_VAR_ID, "DATABASE_URL", "render"),
     }
     # The secret file's plaintext content must never reach the graph.
     secret_file_props = neo4j_session.run(
@@ -253,6 +333,78 @@ def test_start_render_ingestion(
             TEST_KEY_VALUE_ID,
             "RenderKeyValue",
         ),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderRegistryCredential",
+        ["id", "name", "registry"],
+    ) == {
+        (TEST_REGISTRY_CREDENTIAL_ID, "cartography-test-registry-credential", "DOCKER"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderWorkspaceMember",
+        ["id", "user_id", "email", "role"],
+    ) == {
+        (
+            TEST_WORKSPACE_MEMBER_ID,
+            TEST_WORKSPACE_MEMBER_USER_ID,
+            "test-user@example.com",
+            "ADMIN",
+        ),
+    }
+    assert check_nodes(
+        neo4j_session, "UserAccount", ["id", "_ont_email", "_ont_source"]
+    ) == {
+        (TEST_WORKSPACE_MEMBER_ID, "test-user@example.com", "render"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderLogStream",
+        ["id", "endpoint", "preview"],
+    ) == {
+        (TEST_OWNER_ID, "https://logs.example.com/ingest", "drop"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderEnvVar",
+        ["id", "key", "service_id"],
+    ) == {
+        (TEST_ENV_VAR_ID, "DATABASE_URL", TEST_SERVICE_ID),
+    }
+    # The env var's plaintext value must never reach the graph.
+    env_var_props = neo4j_session.run(
+        "MATCH (n:RenderEnvVar {id: $id}) RETURN properties(n) AS props",
+        id=TEST_ENV_VAR_ID,
+    ).single()["props"]
+    assert "value" not in env_var_props
+    assert check_nodes(
+        neo4j_session,
+        "RenderHeaderRule",
+        ["id", "name", "value", "service_id"],
+    ) == {
+        (TEST_HEADER_RULE_ID, "X-Frame-Options", "DENY", TEST_SERVICE_ID),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderRoute",
+        ["id", "type", "source", "destination", "service_id"],
+    ) == {
+        (TEST_ROUTE_ID, "rewrite", "/old-path", "/new-path", TEST_SERVICE_ID),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderSnapshot",
+        ["id", "disk_id", "instance_id"],
+    ) == {
+        (TEST_SNAPSHOT_ID, TEST_DISK_ID, TEST_SERVICE_ID),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RenderBlueprint",
+        ["id", "name", "status", "auto_sync"],
+    ) == {
+        (TEST_BLUEPRINT_ID, "cartography-test-blueprint", "created", True),
     }
 
     # Assert relationships
@@ -534,8 +686,170 @@ def test_start_render_ingestion(
     ) == {
         (TEST_DEDICATED_IP_ID, TEST_ENVIRONMENT_ID),
     }
+    assert check_rels(
+        neo4j_session,
+        "RenderRegistryCredential",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_REGISTRY_CREDENTIAL_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderService",
+        "id",
+        "RenderRegistryCredential",
+        "id",
+        "USES_CREDENTIAL",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SERVICE_ID, TEST_REGISTRY_CREDENTIAL_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderWorkspaceMember",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_WORKSPACE_MEMBER_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderLogStream",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_OWNER_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderEnvVar",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_ENV_VAR_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderEnvVar",
+        "id",
+        "RenderService",
+        "id",
+        "USES_SECRET",
+        rel_direction_right=False,
+    ) == {
+        (TEST_ENV_VAR_ID, TEST_SERVICE_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderHeaderRule",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_HEADER_RULE_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderHeaderRule",
+        "id",
+        "RenderService",
+        "id",
+        "HAS_HEADER_RULE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_HEADER_RULE_ID, TEST_SERVICE_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderRoute",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_ROUTE_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderRoute",
+        "id",
+        "RenderService",
+        "id",
+        "HAS_ROUTE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_ROUTE_ID, TEST_SERVICE_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderSnapshot",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_SNAPSHOT_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderSnapshot",
+        "id",
+        "RenderDisk",
+        "id",
+        "HAS_SNAPSHOT",
+        rel_direction_right=False,
+    ) == {
+        (TEST_SNAPSHOT_ID, TEST_DISK_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderBlueprint",
+        "id",
+        "RenderTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_BLUEPRINT_ID, TEST_OWNER_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RenderBlueprint",
+        "id",
+        "RenderService",
+        "id",
+        "CONTAINS",
+        rel_direction_right=True,
+    ) == {
+        (TEST_BLUEPRINT_ID, TEST_SERVICE_ID),
+    }
 
 
+@patch.object(cartography.intel.render.blueprints, "get", return_value=[])
+@patch.object(cartography.intel.render.routes, "get", return_value=[])
+@patch.object(cartography.intel.render.headerrules, "get", return_value=[])
+@patch.object(cartography.intel.render.envvars, "get", return_value=[])
+@patch.object(cartography.intel.render.snapshots, "get", return_value=[])
+@patch.object(cartography.intel.render.logstream, "get", return_value=None)
+@patch.object(cartography.intel.render.workspacemembers, "get", return_value=[])
+@patch.object(cartography.intel.render.registrycredentials, "get", return_value=[])
 @patch.object(cartography.intel.render.envgroups, "get", return_value=[])
 @patch.object(cartography.intel.render.dedicatedips, "get", return_value=[])
 @patch.object(cartography.intel.render.keyvalue, "get", return_value=[])
@@ -543,6 +857,7 @@ def test_start_render_ingestion(
 @patch.object(cartography.intel.render.customdomains, "get", return_value=[])
 @patch.object(cartography.intel.render.disks, "get", return_value=[])
 @patch.object(cartography.intel.render.postgres, "get", return_value=[])
+@patch.object(cartography.intel.render.services, "get_latest_deploy", return_value=None)
 @patch.object(cartography.intel.render.services, "get", return_value=[])
 @patch.object(cartography.intel.render.environments, "get", return_value=[])
 @patch.object(cartography.intel.render.projects, "get", return_value=[])
@@ -556,6 +871,7 @@ def test_render_cleanup_removes_stale_resources(
     mock_get_projects,
     mock_get_environments,
     mock_get_services,
+    mock_get_latest_deploy,
     mock_get_postgres,
     mock_get_disks,
     mock_get_custom_domains,
@@ -563,6 +879,14 @@ def test_render_cleanup_removes_stale_resources(
     mock_get_key_value,
     mock_get_dedicated_ips,
     mock_get_env_groups,
+    mock_get_registry_credentials,
+    mock_get_workspace_members,
+    mock_get_log_stream,
+    mock_get_snapshots,
+    mock_get_env_vars,
+    mock_get_header_rules,
+    mock_get_routes,
+    mock_get_blueprints,
     neo4j_session,
 ):
     """

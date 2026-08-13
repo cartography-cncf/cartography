@@ -65,11 +65,43 @@ class RenderServiceNodeProperties(CartographyNodeProperties):
     num_instances: PropertyRef = PropertyRef(
         "numInstances", description="Number of running instances."
     )
+    registry_credential_id: PropertyRef = PropertyRef(
+        "registryCredentialId",
+        extra_index=True,
+        description="ID of the registry credential used to pull this service's image, if any.",
+    )
     created_at: PropertyRef = PropertyRef(
         "createdAt", description="Time when the service was created."
     )
     updated_at: PropertyRef = PropertyRef(
         "updatedAt", description="Time when the service was last modified."
+    )
+    # Latest deploy only, not full deploy history: Render's deploy history is
+    # unbounded and time-series in nature (a poor fit for a current-state graph),
+    # so only "what's live right now" is captured, mirroring how RailwayServiceInstance
+    # carries latest_deployment_id/latest_deployment_status instead of a node per deploy.
+    latest_deploy_id: PropertyRef = PropertyRef(
+        "latestDeployId", description="ID of the most recent deploy."
+    )
+    latest_deploy_status: PropertyRef = PropertyRef(
+        "latestDeployStatus", description="Status of the most recent deploy."
+    )
+    latest_deploy_trigger: PropertyRef = PropertyRef(
+        "latestDeployTrigger", description="What triggered the most recent deploy."
+    )
+    latest_deploy_created_at: PropertyRef = PropertyRef(
+        "latestDeployCreatedAt", description="When the most recent deploy was created."
+    )
+    latest_deploy_finished_at: PropertyRef = PropertyRef(
+        "latestDeployFinishedAt", description="When the most recent deploy finished."
+    )
+    latest_deploy_commit_message: PropertyRef = PropertyRef(
+        "latestDeployCommitMessage",
+        description="Commit message for the most recent deploy, if deployed from git.",
+    )
+    latest_deploy_image_ref: PropertyRef = PropertyRef(
+        "latestDeployImageRef",
+        description="Image reference for the most recent deploy, if deployed from an image.",
     )
 
 
@@ -116,6 +148,27 @@ class RenderServiceToEnvironmentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RenderServiceToRegistryCredentialRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RenderService)-[:USES_CREDENTIAL]->(:RenderRegistryCredential)
+class RenderServiceToRegistryCredentialRel(CartographyRelSchema):
+    """Connects a service to the registry credential used to pull its image, if any."""
+
+    target_node_label: str = "RenderRegistryCredential"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("registryCredentialId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_CREDENTIAL"
+    properties: RenderServiceToRegistryCredentialRelProperties = (
+        RenderServiceToRegistryCredentialRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RenderServiceSchema(CartographyNodeSchema):
     """A Render service (web service, background worker, cron job, private service, or static site)."""
 
@@ -124,5 +177,5 @@ class RenderServiceSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: RenderServiceToTenantRel = RenderServiceToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [RenderServiceToEnvironmentRel()],
+        [RenderServiceToEnvironmentRel(), RenderServiceToRegistryCredentialRel()],
     )

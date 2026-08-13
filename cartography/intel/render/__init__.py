@@ -2,18 +2,26 @@ import logging
 
 import neo4j
 
+import cartography.intel.render.blueprints
 import cartography.intel.render.customdomains
 import cartography.intel.render.dedicatedips
 import cartography.intel.render.disks
 import cartography.intel.render.envgroups
 import cartography.intel.render.environments
+import cartography.intel.render.envvars
+import cartography.intel.render.headerrules
 import cartography.intel.render.ipallowrules
 import cartography.intel.render.keyvalue
+import cartography.intel.render.logstream
 import cartography.intel.render.postgres
 import cartography.intel.render.projects
+import cartography.intel.render.registrycredentials
+import cartography.intel.render.routes
 import cartography.intel.render.secretfiles
 import cartography.intel.render.services
+import cartography.intel.render.snapshots
 import cartography.intel.render.tenants
+import cartography.intel.render.workspacemembers
 from cartography.config import Config
 from cartography.intel.render.util import build_session
 from cartography.util import timeit
@@ -55,6 +63,32 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         logger.info("Syncing Render workspace %s", owner_id)
         scoped_job_parameters = {**common_job_parameters, "OWNER_ID": owner_id}
 
+        # No dependency on any other resource type in this workspace, so these run
+        # first. registrycredentials runs ahead of services so a fresh sync's first
+        # run can resolve RenderService's USES_CREDENTIAL edge immediately rather than
+        # one cycle later (low-stakes either way - the edge is a best-effort match).
+        cartography.intel.render.registrycredentials.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        cartography.intel.render.workspacemembers.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        cartography.intel.render.logstream.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+
         project_ids = cartography.intel.render.projects.sync(
             neo4j_session,
             session,
@@ -91,10 +125,20 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.update_tag,
             scoped_job_parameters,
         )
-        cartography.intel.render.disks.sync(
+        disk_ids = cartography.intel.render.disks.sync(
             neo4j_session,
             session,
             owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        # Needs disks.sync()'s returned disk ids to know which disks to fetch
+        # snapshots for.
+        cartography.intel.render.snapshots.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            disk_ids,
             config.update_tag,
             scoped_job_parameters,
         )
@@ -125,6 +169,42 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         # Env groups link to services, so this must run after services are loaded.
         cartography.intel.render.envgroups.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        # Needs service_ids, so must run after services are loaded.
+        cartography.intel.render.envvars.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            service_ids,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        # Both need the raw services list (for the cron_job type filter and service
+        # ids), so must run after services are loaded.
+        cartography.intel.render.headerrules.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            services,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        cartography.intel.render.routes.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            services,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+        # Its 4-way conditional match resolves against services/postgres/keyvalue/
+        # envgroups, so this must run after all of those are loaded.
+        cartography.intel.render.blueprints.sync(
             neo4j_session,
             session,
             owner_id,

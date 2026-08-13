@@ -13,7 +13,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RenderDedicatedIPNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="ID of the Render dedicated IP set.")
+    id: PropertyRef = PropertyRef(
+        "id", description="ID of the Render dedicated IP set."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the dedicated IP set."
@@ -24,10 +26,10 @@ class RenderDedicatedIPNodeProperties(CartographyNodeProperties):
     owner_id: PropertyRef = PropertyRef(
         "ownerId", description="ID of the owning Render workspace."
     )
-    region: PropertyRef = PropertyRef("region", description="Region of the dedicated IP set.")
-    ips: PropertyRef = PropertyRef(
-        "ips", description="Assigned static IPv4 addresses."
+    region: PropertyRef = PropertyRef(
+        "region", description="Region of the dedicated IP set."
     )
+    ips: PropertyRef = PropertyRef("ips", description="Assigned static IPv4 addresses.")
     status: PropertyRef = PropertyRef(
         "status",
         description="Lifecycle status: UNKNOWN, CREATING, PENDING, RUNNING, FAILED, DELETING, or DELETED.",
