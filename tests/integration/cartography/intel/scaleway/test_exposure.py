@@ -24,6 +24,8 @@ def _create_base_graph(neo4j_session):
     inst-nopubip   open inbound rule but no public IP       -> not exposed
     inst-stopped   public IP + open inbound rule, stopped   -> not exposed
     inst-pat       no public IP, reached by a gateway PAT   -> pat
+    inst-default   public IP, SG default-accepts, NO rule   -> direct
+    inst-default-nopubip  same group but no public IP       -> not exposed
     """
     neo4j_session.run(
         "MERGE (p:ScalewayProject{id: $pid}) SET p.lastupdated = $tag",
@@ -40,6 +42,8 @@ def _create_base_graph(neo4j_session):
         ("inst-nopubip", [], "running", None),
         ("inst-stopped", ["fip-5"], "stopped", None),
         ("inst-pat", [], "running", "192.168.1.10"),
+        ("inst-default", ["fip-6"], "running", None),
+        ("inst-default-nopubip", [], "running", None),
     ]
     for instance_id, public_ips, state, private_ip in instances:
         neo4j_session.run(
@@ -75,7 +79,7 @@ def _create_base_graph(neo4j_session):
             """
             MATCH (i:ScalewayInstance{id: $iid})
             MERGE (sg:ScalewaySecurityGroup{id: $sgid})
-            SET sg.lastupdated = $tag
+            SET sg.inbound_default_policy = 'drop', sg.lastupdated = $tag
             MERGE (i)-[m:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg)
             SET m.lastupdated = $tag
             MERGE (rule:ScalewaySecurityGroupRule{id: $rid})
@@ -95,6 +99,21 @@ def _create_base_graph(neo4j_session):
             direction=direction,
             action=action,
             ip_range=ip_range,
+            tag=TEST_UPDATE_TAG,
+        )
+
+    # A group whose inbound default policy accepts, carrying no rule whatsoever: the only
+    # thing that can mark its members exposed is the default policy itself.
+    for instance_id in ("inst-default", "inst-default-nopubip"):
+        neo4j_session.run(
+            """
+            MATCH (i:ScalewayInstance{id: $iid})
+            MERGE (sg:ScalewaySecurityGroup{id: 'sg-default-accept'})
+            SET sg.inbound_default_policy = 'accept', sg.lastupdated = $tag
+            MERGE (i)-[m:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg)
+            SET m.lastupdated = $tag
+            """,
+            iid=instance_id,
             tag=TEST_UPDATE_TAG,
         )
 
@@ -268,6 +287,9 @@ def test_scaleway_instance_exposure(neo4j_session):
     assert verdicts == {
         "inst-direct": (True, ["direct"]),
         "inst-pat": (True, ["pat"]),
+        # A default-accept group needs no explicit rule to let traffic through.
+        "inst-default": (True, ["direct"]),
+        "inst-default-nopubip": (False, None),
         "inst-outbound": (False, None),
         "inst-drop": (False, None),
         "inst-scoped": (False, None),

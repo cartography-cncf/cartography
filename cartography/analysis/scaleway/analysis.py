@@ -93,6 +93,35 @@ SCALEWAY_INSTANCE_EXPOSURE = AnalysisJob(
         ),
         AnalysisStatement(
             comment=(
+                "A Security Group whose inbound_default_policy is 'accept' lets through any "
+                "inbound traffic no rule matched, so a public-IP instance in such a group is "
+                "reachable even with no explicit 0.0.0.0/0 rule. Without this the instance "
+                "falls through to the final pass and is persisted as not exposed, which is "
+                "the one direction this verdict must not get wrong. Ordering between an "
+                "accept default and an explicit drop is not modelled, so this errs towards "
+                "reporting exposure."
+            ),
+            match="""
+            MATCH (instance:ScalewayInstance)-[:MEMBER_OF_SCALEWAY_SECURITY_GROUP]->(sg:ScalewaySecurityGroup)
+            WHERE size(coalesce(instance.public_ips, [])) > 0
+              AND NOT coalesce(instance.state, 'running') IN ['stopped', 'stopped_in_place']
+              AND sg.inbound_default_policy = 'accept'
+            WITH DISTINCT instance
+            """,
+            effects=(
+                SetProperty(
+                    "instance", "exposed_internet", True, label="ScalewayInstance"
+                ),
+                AddToSet(
+                    "instance",
+                    "exposed_internet_type",
+                    "direct",
+                    label="ScalewayInstance",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            comment=(
                 "A Public Gateway PAT rule forwards a public port to a private instance. "
                 "Matched by private IP within the project, so overlapping private IPs across "
                 "private networks can over-match, as in the scaleway_instance_pat_exposed rule."
