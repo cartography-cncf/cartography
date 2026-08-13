@@ -7,6 +7,7 @@ CLIENT_SECRET = "test-client-secret"
 RESOURCE_ID_1 = "wiz-resource-1"
 ISSUE_ID_1 = "wiz-issue-1"
 VULNERABILITY_ID_1 = "wiz-vuln-1"
+NON_CVE_VULNERABILITY_ID = "wiz-vuln-no-cve-1"
 CONFIGURATION_FINDING_ID_1 = "wiz-config-1"
 DETECTION_ID_1 = "wiz-detection-1"
 CVE_ID_1 = "CVE-2024-12345"
@@ -85,6 +86,25 @@ VULNERABILITY_FINDINGS = [
             "subscriptionName": "prod-aws",
             "subscriptionExternalId": "123456789012",
         },
+    },
+]
+
+NON_CVE_VULNERABILITY_FINDINGS = [
+    {
+        **VULNERABILITY_FINDINGS[0],
+        "id": NON_CVE_VULNERABILITY_ID,
+        "portalUrl": "https://app.wiz.io/vulnerability/wiz-vuln-no-cve-1",
+        "name": "openssl advisory",
+        "CVEDescription": None,
+        "CVSSSeverity": "MEDIUM",
+        "score": 5.0,
+        "exploitabilityScore": None,
+        "impactScore": None,
+        "hasExploit": False,
+        "vendorSeverity": "MEDIUM",
+        "firstDetectedAt": "2026-01-06T00:00:00Z",
+        "description": "Vendor advisory without a CVE identifier",
+        "link": None,
     },
 ]
 
@@ -199,4 +219,9 @@ DETECTIONS = [
     },
 ]
 
-FINDINGS = VULNERABILITY_FINDINGS + CONFIGURATION_FINDINGS + DETECTIONS
+FINDINGS = (
+    VULNERABILITY_FINDINGS
+    + NON_CVE_VULNERABILITY_FINDINGS
+    + CONFIGURATION_FINDINGS
+    + DETECTIONS
+)

@@ -26,6 +26,7 @@ from cartography.graph.analysis import SetRelationshipPropertyIfMissing
 from cartography.graph.analysisbuilder import properties_set
 from cartography.graph.analysisbuilder import relationships_added
 from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
+from cartography.models.bbot.events import BBOT_RELATIONSHIP_CATALOG
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -709,6 +710,25 @@ def iter_relationship_catalog() -> Iterator[RelationshipCatalogDefinition]:
         )
         for resource in AWS_TAGGABLE_RESOURCES
     ]
+    definitions.extend(
+        RelationshipCatalogDefinition(
+            module="bbot",
+            source_label=source_label,
+            target_label=target_label,
+            relationship_name=relationship_name,
+            description=description,
+            properties=(
+                "firstseen",
+                "lastupdated",
+                "_sub_resource_label",
+                "_sub_resource_id",
+            ),
+            catalog_path=("cartography.models.bbot.events.BBOT_RELATIONSHIP_CATALOG"),
+        )
+        for source_label, relationship_name, target_label, description in (
+            BBOT_RELATIONSHIP_CATALOG
+        )
+    )
     definitions.extend(
         RelationshipCatalogDefinition(
             module="gcp",

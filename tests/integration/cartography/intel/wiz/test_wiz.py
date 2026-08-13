@@ -12,6 +12,7 @@ from tests.data.wiz import FINDINGS
 from tests.data.wiz import GRAPHQL_URL
 from tests.data.wiz import ISSUE_ID_1
 from tests.data.wiz import ISSUES
+from tests.data.wiz import NON_CVE_VULNERABILITY_ID
 from tests.data.wiz import RESOURCE_ID_1
 from tests.data.wiz import TENANT_ID
 from tests.data.wiz import VULNERABILITY_ID_1
@@ -104,9 +105,72 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         ["id", "finding_type", "cve_id", "resource_id"],
     ) == {
         (VULNERABILITY_ID_1, "VULNERABILITY", CVE_ID_1, RESOURCE_ID_1),
+        (NON_CVE_VULNERABILITY_ID, "VULNERABILITY", None, RESOURCE_ID_1),
         (CONFIGURATION_FINDING_ID_1, "CONFIGURATION", None, "wiz-resource-config-1"),
         (DETECTION_ID_1, "DETECTION", None, "wiz-detection-resource-1"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "SecurityIssue",
+        [
+            "id",
+            "_ont_title",
+            "_ont_severity",
+            "_ont_status",
+            "_ont_type",
+            "_ont_first_seen",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            ISSUE_ID_1,
+            "Public VM",
+            "high",
+            "open",
+            "CLOUD_CONFIGURATION",
+            "2026-01-03T00:00:00Z",
+            "wiz",
+        ),
+        (
+            NON_CVE_VULNERABILITY_ID,
+            "openssl advisory",
+            "medium",
+            "open",
+            "VULNERABILITY",
+            "2026-01-06T00:00:00Z",
+            "wiz",
+        ),
+        (
+            CONFIGURATION_FINDING_ID_1,
+            "S3 bucket is public",
+            "critical",
+            "open",
+            "CONFIGURATION",
+            "2026-01-07T00:00:00Z",
+            "wiz",
+        ),
+        (
+            DETECTION_ID_1,
+            "Suspicious process",
+            "high",
+            None,
+            "DETECTION",
+            "2026-01-08T00:00:00Z",
+            "wiz",
+        ),
+    }
+    assert (
+        {
+            tuple(record.values())
+            for record in neo4j_session.run(
+                """
+            MATCH (n:WizFinding:CVE)
+            RETURN n.id, n._ont_cve_id, n._ont_base_severity, n._ont_source
+            """,
+            )
+        }
+        == {(VULNERABILITY_ID_1, CVE_ID_1, "high", "wiz")}
+    )
 
     assert check_rels(
         neo4j_session,
@@ -125,6 +189,7 @@ def test_start_wiz_ingestion_loads_nodes_and_relationships(neo4j_session, mocker
         "RESOURCE",
     ) == {
         (TENANT_ID, VULNERABILITY_ID_1),
+        (TENANT_ID, NON_CVE_VULNERABILITY_ID),
         (TENANT_ID, CONFIGURATION_FINDING_ID_1),
         (TENANT_ID, DETECTION_ID_1),
     }
@@ -183,6 +248,7 @@ def test_start_wiz_ingestion_lookback_mode_preserves_older_records(
     }
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == {
         (VULNERABILITY_ID_1,),
+        (NON_CVE_VULNERABILITY_ID,),
         (CONFIGURATION_FINDING_ID_1,),
         (DETECTION_ID_1,),
     }
@@ -211,6 +277,7 @@ def test_start_wiz_ingestion_project_filter_preserves_older_records(
     }
     assert check_nodes(neo4j_session, "WizFinding", ["id"]) == {
         (VULNERABILITY_ID_1,),
+        (NON_CVE_VULNERABILITY_ID,),
         (CONFIGURATION_FINDING_ID_1,),
         (DETECTION_ID_1,),
     }

@@ -218,4 +218,47 @@ OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
     "cloudflare": cloudflare_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeStage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="location", node_field="region"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="has_encryption_key",
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeExternalVolumeStorageLocation",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    # An external volume location is encrypted unless its
+                    # encryption type is explicitly NONE.
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="encryption_type",
+                        special_handling="mapping",
+                        extra={
+                            "map": {
+                                "NONE": False,
+                                "AWS_SSE_S3": True,
+                                "AWS_SSE_KMS": True,
+                                "GCS_SSE_KMS": True,
+                            },
+                        },
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

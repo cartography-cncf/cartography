@@ -408,4 +408,54 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "workos": workos_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeRole",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="type",
+                        node_field="role_type",
+                        special_handling="mapping",
+                        extra={"map": {"BUILTIN": "builtin", "CUSTOM": "custom"}},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="scope",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "account"},
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeDatabaseRole",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="qualified_name",
+                        required=True,
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "custom"},
+                    ),
+                    # A database role's privileges are confined to one database,
+                    # which is the closest fit to the canonical `namespace` scope;
+                    # the canonical set has no `database` value.
+                    OntologyFieldMapping(
+                        ontology_field="scope",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "namespace"},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

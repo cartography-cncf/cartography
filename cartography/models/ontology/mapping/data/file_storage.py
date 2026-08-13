@@ -88,4 +88,24 @@ FILE_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeStage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="location", node_field="region"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="has_encryption_key",
+                    ),
+                ],
+            ),
+        ],
+    ),
 }
