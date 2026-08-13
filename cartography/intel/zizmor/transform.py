@@ -22,6 +22,7 @@ import json
 import logging
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import PurePosixPath
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,6 @@ _ZIZMOR_FINDING_REQUIRED_FIELDS: dict[str, type | tuple[type, ...]] = {
 }
 _HIDDEN_LOCATION_KIND = "Hidden"
 _PRIMARY_LOCATION_KIND = "Primary"
-_WORKFLOW_ROOT_MARKER = ".github/"
 
 
 def looks_like_zizmor_report(document: Any) -> bool:
@@ -77,9 +77,24 @@ def _is_zizmor_finding(finding: Any) -> bool:
     if not isinstance(finding, dict):
         return False
 
-    return all(
+    if not all(
         isinstance(finding.get(name), expected_type)
         for name, expected_type in _ZIZMOR_FINDING_REQUIRED_FIELDS.items()
+    ):
+        return False
+
+    # Locations are checked here rather than skipped later on. A dropped location
+    # can silently cost a relationship, for example when the malformed one was
+    # the `uses` location that resolves the action, and the finding would still
+    # look complete enough to let its report authorize cleanup.
+    return all(_is_zizmor_location(location) for location in finding["locations"])
+
+
+def _is_zizmor_location(location: Any) -> bool:
+    return (
+        isinstance(location, dict)
+        and isinstance(location.get("symbolic"), dict)
+        and isinstance(location.get("concrete"), dict)
     )
 
 
@@ -90,6 +105,16 @@ def _normalize_workflow_path(key: Any) -> str | None:
     `symbolic.key` is an externally tagged enum with three shapes:
     `{"Local": {"verbatim_path": ...}}`, `{"Remote": {"slug": ..., "path": ...}}`,
     and `{"Stdin": {}}`. Only the first two resolve to a path we can join on.
+
+    A local path is whatever was passed on zizmor's command line, and nothing in
+    the report says where the repository root is. A relative path is already
+    repository-relative when zizmor was run from the repository root, which is
+    what the module documents. An absolute path is not: guessing the root from
+    it cannot be made correct, because a repository may itself be named
+    `.github`, so any rule picking a `.github/` segment is wrong for someone.
+    Absolute paths are therefore refused rather than turned into a path that
+    silently matches no workflow. Callers count the refusal, which withholds
+    cleanup for that repository.
     """
     if not isinstance(key, dict):
         return None
@@ -109,17 +134,26 @@ def _normalize_workflow_path(key: Any) -> str | None:
     if not isinstance(verbatim_path, str) or not verbatim_path.strip():
         return None
 
-    path = verbatim_path.strip()
-    # `verbatim_path` is whatever was passed on the command line, so it may be
-    # absolute or prefixed with `./`. Cut at `.github/` to recover the path as
-    # GitHubWorkflow.path stores it.
-    marker_index = path.find(_WORKFLOW_ROOT_MARKER)
-    if marker_index != -1:
-        return path[marker_index:]
+    path = PurePosixPath(verbatim_path.strip())
+    if path.is_absolute():
+        logger.warning(
+            "Cannot make the absolute path %s repository-relative. Run zizmor "
+            "from the repository root so that it reports relative paths.",
+            verbatim_path,
+        )
+        return None
 
-    while path.startswith("./"):
-        path = path[2:]
-    return path or None
+    if ".." in path.parts:
+        logger.warning(
+            "Cannot make the path %s repository-relative because it escapes the "
+            "directory zizmor was run from.",
+            verbatim_path,
+        )
+        return None
+
+    # Strip the `./` segments that `zizmor .` produces.
+    parts = [part for part in path.parts if part != "."]
+    return str(PurePosixPath(*parts)) if parts else None
 
 
 def _format_route(symbolic: dict[str, Any]) -> str:
@@ -148,22 +182,15 @@ def _format_route(symbolic: dict[str, Any]) -> str:
 def _visible_locations(finding: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Return the finding's locations, dropping zizmor's internal `Hidden` ones.
-    """
-    locations = finding.get("locations")
-    if not isinstance(locations, list):
-        return []
 
-    visible: list[dict[str, Any]] = []
-    for location in locations:
-        if not isinstance(location, dict):
-            continue
-        symbolic = location.get("symbolic")
-        if not isinstance(symbolic, dict):
-            continue
-        if symbolic.get("kind") == _HIDDEN_LOCATION_KIND:
-            continue
-        visible.append(location)
-    return visible
+    Every location is well-formed here: _is_zizmor_finding rejected the report
+    otherwise.
+    """
+    return [
+        location
+        for location in finding["locations"]
+        if location["symbolic"].get("kind") != _HIDDEN_LOCATION_KIND
+    ]
 
 
 def _primary_locations(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -186,6 +213,27 @@ def _primary_locations(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return locations[:1]
 
 
+def _looks_like_uses_reference(candidate: str) -> bool:
+    """
+    Whether a string is a complete `uses` value rather than a fragment of one.
+
+    A location routed at a `uses` key does not necessarily carry the whole
+    reference. `ref-version-mismatch`, for instance, makes its version comment
+    the primary location, so that location's feature is just `v3` while a
+    related location holds `actions/checkout@<sha>`. Building an action id from
+    the fragment would look for an action named `<owner>:v3` and lose the edge.
+
+    Every complete form is recognizable: a local action path, a Docker
+    reference, or an `owner/repo` slug with an optional path and ref.
+    """
+    if candidate.startswith("./") or candidate.startswith("docker://"):
+        return True
+    # `owner/repo`, `owner/repo@ref`, or `owner/repo/path@ref`. A bare version
+    # such as `v3` or a lone comment has no slash and is rejected here.
+    owner, separator, remainder = candidate.partition("/")
+    return bool(separator) and bool(owner) and bool(remainder)
+
+
 def _extract_uses_reference(locations: list[dict[str, Any]]) -> str | None:
     """
     Recover the raw `uses` reference a finding points at, if any.
@@ -195,6 +243,9 @@ def _extract_uses_reference(locations: list[dict[str, Any]]) -> str | None:
     impostor-commit, known-vulnerable-actions, stale-action-refs, ref-confusion,
     typosquat-uses, forbidden-uses, archived-uses and superfluous-actions without
     needing to track zizmor's audit registry.
+
+    Locations carrying only a fragment of the reference are skipped in favour of
+    one carrying the whole thing; see `_looks_like_uses_reference`.
     """
     for location in locations:
         if not _format_route(location["symbolic"]).endswith(".uses"):
@@ -213,7 +264,10 @@ def _extract_uses_reference(locations: list[dict[str, Any]]) -> str | None:
         # A KeyOnly location's feature is the bare key, which carries no value.
         if not candidate or candidate == "uses":
             continue
-        return candidate.strip("\"'")
+        candidate = candidate.strip("\"'")
+        if not _looks_like_uses_reference(candidate):
+            continue
+        return candidate
     return None
 
 

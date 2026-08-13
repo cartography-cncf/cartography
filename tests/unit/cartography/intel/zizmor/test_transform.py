@@ -10,6 +10,8 @@ import pytest
 
 from cartography.intel.zizmor.transform import _build_action_id
 from cartography.intel.zizmor.transform import _extract_uses_reference
+from cartography.intel.zizmor.transform import _format_route
+from cartography.intel.zizmor.transform import _looks_like_uses_reference
 from cartography.intel.zizmor.transform import _normalize_workflow_path
 from cartography.intel.zizmor.transform import looks_like_zizmor_report
 from cartography.intel.zizmor.transform import transform_zizmor_report
@@ -118,16 +120,36 @@ def test_looks_like_zizmor_report_rejects_corruption_past_the_first_entry():
             ".github/workflows/ci.yml",
         ),
         (
+            {"Local": {"verbatim_path": ".github/workflows/ci.yml"}},
+            ".github/workflows/ci.yml",
+        ),
+        # Absolute paths are refused: nothing in the report says where the
+        # repository root is, so they cannot be made repository-relative.
+        (
             {
                 "Local": {
                     "verbatim_path": "/home/runner/work/repo/repo/.github/workflows/ci.yml"
                 }
             },
-            ".github/workflows/ci.yml",
+            None,
+        ),
+        # A repository named `.github` is why guessing the root cannot work: no
+        # rule picking a `.github/` segment is right for both this and the above.
+        (
+            {
+                "Local": {
+                    "verbatim_path": "/home/runner/work/.github/.github/.github/workflows/ci.yml"
+                }
+            },
+            None,
         ),
         (
-            {"Local": {"verbatim_path": ".github/workflows/ci.yml"}},
-            ".github/workflows/ci.yml",
+            {"Local": {"verbatim_path": "/home/runner/work/repo/repo/action.yml"}},
+            None,
+        ),
+        (
+            {"Local": {"verbatim_path": "../other/.github/workflows/ci.yml"}},
+            None,
         ),
         (
             {
@@ -225,6 +247,68 @@ def test_extract_uses_reference_is_none_for_run_block():
         )
     ]
     assert _extract_uses_reference(locations) is None
+
+
+def test_extract_uses_reference_prefers_a_complete_reference_over_a_fragment():
+    """
+    `ref-version-mismatch` makes the version comment its primary location, so
+    that location's feature is just `v3` while a related one holds the whole
+    reference. Building an action id from `v3` loses the AFFECTS edge.
+
+    This is real `zizmor --persona=pedantic` output.
+    """
+    document = json.loads(
+        Path("tests/data/zizmor/zizmor_report_ref_version_mismatch.json").read_text()
+    )
+    visible = [
+        location
+        for location in document[0]["locations"]
+        if location["symbolic"]["kind"] != "Hidden"
+    ]
+    primaries = [loc for loc in visible if loc["symbolic"]["kind"] == "Primary"]
+    related = [loc for loc in visible if loc["symbolic"]["kind"] != "Primary"]
+    # Both are routed at the same `uses` key, and the transform looks at the
+    # primary first, which here carries only the version comment.
+    assert primaries[0]["concrete"]["feature"] == "v3"
+    assert _format_route(primaries[0]["symbolic"]).endswith(".uses")
+
+    assert (
+        _extract_uses_reference([*primaries, *related])
+        == "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
+    )
+
+
+def test_transform_zizmor_report_resolves_action_for_ref_version_mismatch():
+    document = json.loads(
+        Path("tests/data/zizmor/zizmor_report_ref_version_mismatch.json").read_text()
+    )
+
+    rows = transform_zizmor_report(document, REPO_CONTEXT).rows
+
+    assert len(rows) == 1
+    assert rows[0]["audit_id"] == "ref-version-mismatch"
+    assert (
+        rows[0]["action_id"]
+        == "simpsoncorp:actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
+    )
+
+
+@pytest.mark.parametrize(
+    "candidate,expected",
+    [
+        ("actions/checkout@v4", True),
+        ("actions/checkout", True),
+        ("octo-org/repo/.github/workflows/wf.yml@v1", True),
+        ("./.github/actions/build", True),
+        ("docker://alpine:3.8", True),
+        # Fragments of a reference, not a reference.
+        ("v3", False),
+        ("", False),
+        ("/leading-slash", False),
+    ],
+)
+def test_looks_like_uses_reference(candidate, expected):
+    assert _looks_like_uses_reference(candidate) is expected
 
 
 def test_build_action_id_matches_github_module():
@@ -482,6 +566,48 @@ def test_transform_zizmor_report_rejects_wrong_field_types(field, value):
         ValueError, match="Zizmor report contains an entry that is not a finding"
     ):
         transform_zizmor_report([finding], REPO_CONTEXT)
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "not-a-location",
+        {"concrete": {}},
+        {"symbolic": "not-a-dict", "concrete": {}},
+        {"symbolic": {}, "concrete": "not-a-dict"},
+    ],
+)
+def test_transform_zizmor_report_rejects_malformed_locations(location):
+    """
+    Dropping a malformed location silently costs whatever it carried, such as
+    the `uses` location that resolves the action, while the finding still looks
+    complete enough for its report to authorize cleanup.
+    """
+    finding = _load_sample()[1]
+    finding["locations"].append(location)
+
+    assert looks_like_zizmor_report([finding]) is False
+    with pytest.raises(
+        ValueError, match="Zizmor report contains an entry that is not a finding"
+    ):
+        transform_zizmor_report([finding], REPO_CONTEXT)
+
+
+def test_transform_zizmor_report_skips_findings_with_absolute_paths():
+    """
+    An absolute path cannot be made repository-relative, so it would match no
+    workflow. It is skipped and counted, which withholds cleanup.
+    """
+    finding = _load_sample()[0]
+    for location in finding["locations"]:
+        location["symbolic"]["key"] = {
+            "Local": {"verbatim_path": "/home/runner/work/repo/repo/.github/wf.yml"}
+        }
+
+    result = transform_zizmor_report([finding], REPO_CONTEXT)
+
+    assert result.rows == []
+    assert result.skipped == 1
 
 
 def test_transform_zizmor_report_rejects_non_list_document():

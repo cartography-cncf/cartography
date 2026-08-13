@@ -51,10 +51,18 @@ stale relationships as well as stale nodes. See below.
 
 ## Suppressed findings
 
-Findings suppressed by a `# zizmor: ignore[...]` comment or by the zizmor
-configuration file are still present in the report, and Cartography still
-ingests them. They are marked with `ignored = true` rather than dropped, so
-that suppressions remain auditable.
+A finding suppressed by a `# zizmor: ignore[...]` comment is marked
+`ignored = true` and ingested rather than dropped, so that suppressions remain
+auditable.
+
+This only works if the report was produced with `--no-ignores`. Without that
+flag zizmor omits suppressed findings from its output entirely, so they never
+reach the graph and `ignored` is never true. See
+[configuration](config.md).
+
+`ignored` reflects comment-based suppression only. A rule disabled through
+zizmor's configuration file is reported like any other finding, with
+`ignored = false`.
 
 ## Cleanup behavior
 

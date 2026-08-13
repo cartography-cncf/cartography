@@ -59,8 +59,10 @@ class ZizmorFindingNodeProperties(CartographyNodeProperties):
     ignored: PropertyRef = PropertyRef(
         "ignored",
         description=(
-            "Whether the finding was suppressed by a `# zizmor: ignore[...]` comment "
-            "or by the zizmor configuration file."
+            "Whether the finding was suppressed by a `# zizmor: ignore[...]` comment. "
+            "Only true when the report was produced with `--no-ignores`, since zizmor "
+            "otherwise omits suppressed findings entirely. Rules disabled through "
+            "zizmor's configuration file are reported like any other finding."
         ),
     )
     repository: PropertyRef = PropertyRef(

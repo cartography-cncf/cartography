@@ -11,14 +11,26 @@
     "locations": [
       {
         "symbolic": {
-          "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
           "annotation": "this step",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "greet" },
-              { "Key": "steps" },
-              { "Index": 0 }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "greet"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              }
             ]
           },
           "feature_kind": "Normal",
@@ -26,9 +38,18 @@
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 6, "column": 8 },
-            "end_point": { "row": 7, "column": 0 },
-            "offset_span": { "start": 86, "end": 136 }
+            "start_point": {
+              "row": 6,
+              "column": 8
+            },
+            "end_point": {
+              "row": 7,
+              "column": 0
+            },
+            "offset_span": {
+              "start": 86,
+              "end": 136
+            }
           },
           "feature": "run: echo \"Hello ${{ github.event.issue.title }}\"\n",
           "comments": []
@@ -36,30 +57,55 @@
       },
       {
         "symbolic": {
-          "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
           "annotation": "may expand into attacker-controllable code",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "greet" },
-              { "Key": "steps" },
-              { "Index": 0 },
-              { "Key": "run" }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "greet"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              },
+              {
+                "Key": "run"
+              }
             ]
           },
           "feature_kind": {
             "Subfeature": {
               "after": 13,
-              "fragment": { "Raw": "github.event.issue.title" }
+              "fragment": {
+                "Raw": "github.event.issue.title"
+              }
             }
           },
           "kind": "Primary"
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 6, "column": 29 },
-            "end_point": { "row": 6, "column": 53 },
-            "offset_span": { "start": 107, "end": 131 }
+            "start_point": {
+              "row": 6,
+              "column": 29
+            },
+            "end_point": {
+              "row": 6,
+              "column": 53
+            },
+            "offset_span": {
+              "start": 107,
+              "end": 131
+            }
           },
           "feature": "echo \"Hello ${{ github.event.issue.title }}\"",
           "comments": []
@@ -70,7 +116,11 @@
     "fixes": [
       {
         "title": "replace expression with environment variable",
-        "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+        "key": {
+          "Local": {
+            "verbatim_path": "./.github/workflows/ci.yml"
+          }
+        },
         "disposition": "unsafe"
       }
     ]
@@ -87,14 +137,26 @@
     "locations": [
       {
         "symbolic": {
-          "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
           "annotation": "this step",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "greet" },
-              { "Key": "steps" },
-              { "Index": 1 }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "greet"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 1
+              }
             ]
           },
           "feature_kind": "Normal",
@@ -102,9 +164,18 @@
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 9, "column": 8 },
-            "end_point": { "row": 9, "column": 34 },
-            "offset_span": { "start": 180, "end": 206 }
+            "start_point": {
+              "row": 9,
+              "column": 8
+            },
+            "end_point": {
+              "row": 9,
+              "column": 34
+            },
+            "offset_span": {
+              "start": 180,
+              "end": 206
+            }
           },
           "feature": "uses: actions/checkout@v4",
           "comments": []
@@ -112,15 +183,29 @@
       },
       {
         "symbolic": {
-          "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
           "annotation": "action is not pinned to a hash",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "greet" },
-              { "Key": "steps" },
-              { "Index": 1 },
-              { "Key": "uses" }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "greet"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 1
+              },
+              {
+                "Key": "uses"
+              }
             ]
           },
           "feature_kind": "Normal",
@@ -128,9 +213,18 @@
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 9, "column": 14 },
-            "end_point": { "row": 9, "column": 34 },
-            "offset_span": { "start": 186, "end": 206 }
+            "start_point": {
+              "row": 9,
+              "column": 14
+            },
+            "end_point": {
+              "row": 9,
+              "column": 34
+            },
+            "offset_span": {
+              "start": 186,
+              "end": 206
+            }
           },
           "feature": "actions/checkout@v4",
           "comments": []
@@ -154,21 +248,34 @@
         "symbolic": {
           "key": {
             "Local": {
-              "verbatim_path": "/home/runner/work/sample_repo/sample_repo/.github/workflows/deploy.yml"
+              "verbatim_path": "./.github/workflows/deploy.yml"
             }
           },
           "annotation": "default permissions used due to no permissions: block",
           "route": {
-            "route": [{ "Key": "permissions" }]
+            "route": [
+              {
+                "Key": "permissions"
+              }
+            ]
           },
           "feature_kind": "KeyOnly",
           "kind": "Primary"
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 2, "column": 0 },
-            "end_point": { "row": 2, "column": 11 },
-            "offset_span": { "start": 20, "end": 31 }
+            "start_point": {
+              "row": 2,
+              "column": 0
+            },
+            "end_point": {
+              "row": 2,
+              "column": 11
+            },
+            "offset_span": {
+              "start": 20,
+              "end": 31
+            }
           },
           "feature": "permissions",
           "comments": []
@@ -203,11 +310,21 @@
           "annotation": "uses a commit that does not exist upstream",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "publish" },
-              { "Key": "steps" },
-              { "Index": 0 },
-              { "Key": "uses" }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "publish"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              },
+              {
+                "Key": "uses"
+              }
             ]
           },
           "feature_kind": "Normal",
@@ -215,9 +332,18 @@
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 11, "column": 14 },
-            "end_point": { "row": 11, "column": 68 },
-            "offset_span": { "start": 240, "end": 294 }
+            "start_point": {
+              "row": 11,
+              "column": 14
+            },
+            "end_point": {
+              "row": 11,
+              "column": 68
+            },
+            "offset_span": {
+              "start": 240,
+              "end": 294
+            }
           },
           "feature": "uses: actions/setup-node@0000000000000000000000000000000000000000",
           "comments": []
@@ -239,15 +365,29 @@
     "locations": [
       {
         "symbolic": {
-          "key": { "Local": { "verbatim_path": "./.github/workflows/ci.yml" } },
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
           "annotation": "action is not pinned to a hash",
           "route": {
             "route": [
-              { "Key": "jobs" },
-              { "Key": "greet" },
-              { "Key": "steps" },
-              { "Index": 2 },
-              { "Key": "uses" }
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "greet"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 2
+              },
+              {
+                "Key": "uses"
+              }
             ]
           },
           "feature_kind": "Normal",
@@ -255,9 +395,18 @@
         },
         "concrete": {
           "location": {
-            "start_point": { "row": 12, "column": 14 },
-            "end_point": { "row": 12, "column": 44 },
-            "offset_span": { "start": 300, "end": 330 }
+            "start_point": {
+              "row": 12,
+              "column": 14
+            },
+            "end_point": {
+              "row": 12,
+              "column": 44
+            },
+            "offset_span": {
+              "start": 300,
+              "end": 330
+            }
           },
           "feature": "uses: ./.github/actions/build",
           "comments": []
