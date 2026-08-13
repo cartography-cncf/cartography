@@ -73,20 +73,26 @@ class ModalSandboxTunnelToEnvironmentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ModalSandboxToTunnelRelProperties(CartographyRelProperties):
+class ModalSandboxTunnelToSandboxRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:ModalSandbox)-[:EXPOSES]->(:ModalSandboxTunnel)
-class ModalSandboxToTunnelRel(CartographyRelSchema):
+# (:ModalSandboxTunnel)-[:EXPOSE]->(:ModalSandbox)
+#
+# EXPOSE always points from the internet-facing entrypoint to the asset it puts at risk,
+# matching the LoadBalancer-[:EXPOSE]->workload convention used by AWS, GCP, Azure and
+# Kubernetes. The tunnel is the entrypoint; the sandbox is the asset at risk.
+class ModalSandboxTunnelToSandboxRel(CartographyRelSchema):
     target_node_label: str = "ModalSandbox"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("sandbox_id")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "EXPOSES"
-    properties: ModalSandboxToTunnelRelProperties = ModalSandboxToTunnelRelProperties()
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "EXPOSE"
+    properties: ModalSandboxTunnelToSandboxRelProperties = (
+        ModalSandboxTunnelToSandboxRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -101,5 +107,5 @@ class ModalSandboxTunnelSchema(CartographyNodeSchema):
         ModalSandboxTunnelToEnvironmentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [ModalSandboxToTunnelRel()],
+        [ModalSandboxTunnelToSandboxRel()],
     )

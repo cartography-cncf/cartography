@@ -209,6 +209,9 @@ class Module(str, Enum):
     SCALEWAY = "Scaleway"
     """Scaleway cloud services"""
 
+    SUPABASE = "Supabase"
+    """Supabase backend-as-a-service"""
+
     SEMGREP = "Semgrep"
     """Semgrep code security"""
 
@@ -273,6 +276,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.PAGERDUTY: "pagerduty",
     Module.RAILWAY: "railway",
     Module.SCALEWAY: "scaleway",
+    Module.SUPABASE: "supabase",
     Module.SEMGREP: "semgrep",
     Module.SENTINELONE: "sentinelone",
     Module.SNIPEIT: "snipeit",

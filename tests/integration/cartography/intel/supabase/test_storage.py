@@ -67,6 +67,14 @@ def test_load_supabase_storage_buckets(mock_get, neo4j_session):
         == expected_nodes
     )
 
+    # A public bucket serves every object without authentication.
+    assert check_nodes(
+        neo4j_session, "SupabaseStorageBucket", ["id", "exposed_internet"]
+    ) == {
+        (f"{TEST_PROJECT_REF}/avatars", True),
+        (f"{TEST_PROJECT_REF}/reactor-logs", False),
+    }
+
     assert check_rels(
         neo4j_session,
         "SupabaseStorageBucket",
