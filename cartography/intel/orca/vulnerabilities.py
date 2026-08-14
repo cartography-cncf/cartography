@@ -19,12 +19,13 @@ from cartography.models.orca import OrcaVulnerabilityFindingSchema
 from cartography.util import timeit
 
 PAGE_SIZE = 1000
+VULNERABILITY_MODEL = "VulnerabilityV2"
 
 
 def build_query() -> dict[str, Any]:
     return {
         "query": {
-            "models": ["VulnerabilityV2"],
+            "models": [VULNERABILITY_MODEL],
             "type": "object_set",
             "with": {
                 "operator": "and",
@@ -58,7 +59,7 @@ def _optional_bool(value: Any) -> bool | None:
 
 
 def _related_object(row: dict[str, Any], field: str) -> dict[str, Any]:
-    return require_object(row.get(field), f"Orca VulnerabilityV2.{field}")
+    return require_object(row.get(field), f"Orca vulnerability.{field}")
 
 
 def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
@@ -70,7 +71,7 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(value, list) and all(isinstance(item, dict) for item in value):
         return value or [{}]
     raise ValueError(
-        "Orca VulnerabilityV2.InstalledPackage must be an object or object list",
+        "Orca vulnerability.InstalledPackage must be an object or object list",
     )
 
 
@@ -79,17 +80,17 @@ def _references(vulnerability: dict[str, Any]) -> list[str]:
     if value is None:
         references: list[str] = []
     elif isinstance(value, str):
-        references = [require_nonempty_string(value, "Orca VulnerabilityV2.References")]
+        references = [require_nonempty_string(value, "Orca vulnerability.References")]
     elif isinstance(value, list) and all(isinstance(item, str) for item in value):
         references = [
-            require_nonempty_string(item, "Orca VulnerabilityV2.References")
+            require_nonempty_string(item, "Orca vulnerability.References")
             for item in value
         ]
     else:
-        raise ValueError("Orca VulnerabilityV2.References must be a list or string")
+        raise ValueError("Orca vulnerability.References must be a list or string")
     source_link = optional_nonempty_string(
         vulnerability.get("SourceLink"),
-        "Orca VulnerabilityV2.SourceLink",
+        "Orca vulnerability.SourceLink",
     )
     if source_link is not None:
         references = [*references, source_link]
@@ -100,17 +101,17 @@ def _package_key(package: dict[str, Any]) -> tuple[str, ...]:
     for key in ("id", "PURL", "CPE"):
         value = optional_nonempty_string(
             field_value(package, key),
-            f"Orca VulnerabilityV2.InstalledPackage.{key}",
+            f"Orca vulnerability.InstalledPackage.{key}",
         )
         if value is not None:
             return (key.casefold(), value)
     name = optional_nonempty_string(
         field_value(package, "Name"),
-        "Orca VulnerabilityV2.InstalledPackage.Name",
+        "Orca vulnerability.InstalledPackage.Name",
     )
     version = optional_nonempty_string(
         field_value(package, "Version"),
-        "Orca VulnerabilityV2.InstalledPackage.Version",
+        "Orca vulnerability.InstalledPackage.Version",
     )
     if name or version:
         normalized_name = (name or "").casefold()
@@ -142,11 +143,11 @@ def transform(
         inventory = _related_object(vulnerability, "Inventory")
         target_context = inventory_target_context(
             inventory,
-            "Orca VulnerabilityV2.Inventory",
+            "Orca vulnerability.Inventory",
         )
         target_orca_asset_unique_id = require_nonempty_string(
             target_context["target_orca_asset_unique_id"],
-            "Orca VulnerabilityV2 Inventory.AssetUniqueId",
+            "Orca vulnerability Inventory.AssetUniqueId",
         )
 
         raw_orca_id = vulnerability.get("id")
@@ -154,12 +155,12 @@ def transform(
             raw_orca_id = vulnerability.get("base_id_uuid")
         orca_id = optional_nonempty_string(
             raw_orca_id,
-            "Orca VulnerabilityV2 identifier",
+            "Orca vulnerability identifier",
         )
 
         cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
         if not cve_ids:
-            raise ValueError("Orca VulnerabilityV2 row omitted a canonical CveId")
+            raise ValueError("Orca vulnerability row omitted a canonical CveId")
         common_fields = {
             "orca_id": orca_id,
             "description": vulnerability.get("Description"),
@@ -179,7 +180,7 @@ def transform(
             "upstream_disposition": vulnerability.get("UpstreamDisposition"),
             "first_seen": parse_datetime(
                 vulnerability.get("FirstSeen"),
-                "Orca VulnerabilityV2.FirstSeen",
+                "Orca vulnerability.FirstSeen",
             ),
             **target_context,
         }

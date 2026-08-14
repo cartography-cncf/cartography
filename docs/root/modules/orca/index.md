@@ -18,11 +18,10 @@ one Orca target, scoped to an installed package when Orca supplies package
 context. Two targets affected by the same CVE remain distinct findings.
 
 The module does not enumerate Orca Inventory or create duplicate `OrcaAsset`
-nodes. Its Alert and VulnerabilityV2 queries request the related Inventory
-object only as finding context. Exact Orca and provider-native target
-identifiers, account and region context, and the raw Orca target type are
-retained as finding properties. They do not create an `AFFECTS` relationship in
-the current module.
+nodes. Its finding queries request the related Inventory object only as finding
+context. Exact Orca and provider-native target identifiers, account and region
+context, and the raw Orca target type are retained as finding properties. They
+do not create an `AFFECTS` relationship in the current module.
 
 Future provider linking can use an explicit allowlist of Orca target types and
 authoritative provider-native identifiers to connect findings to the canonical

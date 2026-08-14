@@ -71,7 +71,7 @@ cartography \
 ## Troubleshooting
 
 An HTTP `401` usually indicates an invalid or expired token. An HTTP `403` or
-missing Alert or VulnerabilityV2 results usually indicates that the token lacks
+missing alert or vulnerability results usually indicates that the token lacks
 one of the required organization-wide read capabilities or is scoped too
 narrowly. Missing related Inventory fields can also indicate that the tenant's
 Serving Layer contract differs; verify the query and response in Orca's
