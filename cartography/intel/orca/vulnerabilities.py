@@ -1,6 +1,5 @@
 import hashlib
 import json
-import re
 from typing import Any
 
 import neo4j
@@ -9,11 +8,16 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
+from cartography.intel.orca.response import canonical_cve_ids
+from cartography.intel.orca.response import field_value
+from cartography.intel.orca.response import optional_nonempty_string
+from cartography.intel.orca.response import parse_datetime
+from cartography.intel.orca.response import require_nonempty_string
+from cartography.intel.orca.response import require_object
 from cartography.models.orca import OrcaVulnerabilitySchema
 from cartography.util import timeit
 
 PAGE_SIZE = 1000
-_CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
 
 def build_query() -> dict[str, Any]:
@@ -41,23 +45,9 @@ def build_query() -> dict[str, Any]:
     }
 
 
-def _normalize_cve_ids(value: Any) -> list[str]:
-    values = value if isinstance(value, list) else [value]
-    result = {
-        str(candidate).strip().upper()
-        for candidate in values
-        if candidate is not None and _CVE_RE.fullmatch(str(candidate).strip())
-    }
-    if not result:
-        raise ValueError("Orca VulnerabilityV2 row omitted a canonical CveId")
-    return sorted(result)
-
-
 def _optional_bool(value: Any) -> bool | None:
     if value is None:
         return None
-    if isinstance(value, bool):
-        return value
     normalized = str(value).strip().lower()
     if normalized in {"true", "yes", "1"}:
         return True
@@ -66,72 +56,64 @@ def _optional_bool(value: Any) -> bool | None:
     raise ValueError(f"Unexpected Orca boolean value {value!r}")
 
 
-def _value(data: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        if key not in data:
-            continue
-        value = data[key]
-        if isinstance(value, dict) and "value" in value:
-            return value.get("value")
-        return value
-    return None
-
-
 def _related_object(row: dict[str, Any], field: str) -> dict[str, Any]:
-    value = row.get(field)
-    if isinstance(value, dict) and "value" in value:
-        value = value.get("value")
-    if isinstance(value, list):
-        if len(value) != 1 or not isinstance(value[0], dict):
-            raise TypeError(f"Orca VulnerabilityV2.{field} must contain one object")
-        value = value[0]
-    if not isinstance(value, dict):
-        raise TypeError(f"Orca VulnerabilityV2.{field} must be an object")
-    return value
+    return require_object(row.get(field), f"Orca VulnerabilityV2.{field}")
 
 
 def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     value = row.get("InstalledPackage")
-    if isinstance(value, dict) and "value" in value:
-        value = value.get("value")
     if value is None:
         return [{}]
     if isinstance(value, dict):
         return [value]
     if isinstance(value, list) and all(isinstance(item, dict) for item in value):
         return value or [{}]
-    raise TypeError(
+    raise ValueError(
         "Orca VulnerabilityV2.InstalledPackage must be an object or object list",
     )
 
 
 def _references(vulnerability: dict[str, Any]) -> list[str]:
-    references = vulnerability.get("References") or []
-    if isinstance(references, str):
-        references = [references]
-    if not isinstance(references, list):
+    value = vulnerability.get("References")
+    if value is None:
+        references: list[str] = []
+    elif isinstance(value, str):
+        references = [require_nonempty_string(value, "Orca VulnerabilityV2.References")]
+    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        references = [
+            require_nonempty_string(item, "Orca VulnerabilityV2.References")
+            for item in value
+        ]
+    else:
         raise ValueError("Orca VulnerabilityV2.References must be a list or string")
-    source_link = vulnerability.get("SourceLink")
-    if source_link:
-        references = [*references, source_link]
-    return sorted(
-        {str(reference).strip() for reference in references if str(reference).strip()},
+    source_link = optional_nonempty_string(
+        vulnerability.get("SourceLink"),
+        "Orca VulnerabilityV2.SourceLink",
     )
+    if source_link is not None:
+        references = [*references, source_link]
+    return sorted(set(references))
 
 
 def _package_key(package: dict[str, Any]) -> str:
-    package_id = _value(package, "id")
-    if package_id:
-        return str(package_id).strip()
-    for key in ("PURL", "CPE"):
-        value = _value(package, key)
-        if value:
-            return str(value).strip()
-    name = _value(package, "Name")
-    version = _value(package, "Version")
+    for key in ("id", "PURL", "CPE"):
+        value = optional_nonempty_string(
+            field_value(package, key),
+            f"Orca VulnerabilityV2.InstalledPackage.{key}",
+        )
+        if value is not None:
+            return value
+    name = optional_nonempty_string(
+        field_value(package, "Name"),
+        "Orca VulnerabilityV2.InstalledPackage.Name",
+    )
+    version = optional_nonempty_string(
+        field_value(package, "Version"),
+        "Orca VulnerabilityV2.InstalledPackage.Version",
+    )
     if name or version:
-        normalized_name = str(name or "").strip().casefold()
-        normalized_version = str(version or "").strip()
+        normalized_name = (name or "").casefold()
+        normalized_version = version or ""
         return f"{normalized_name}@{normalized_version}"
     return "asset-wide"
 
@@ -157,29 +139,54 @@ def transform(
     transformed: list[dict[str, Any]] = []
     for vulnerability in raw_vulnerabilities:
         inventory = _related_object(vulnerability, "Inventory")
-        asset_unique_id = _value(inventory, "AssetUniqueId", "asset_unique_id")
-        if not isinstance(asset_unique_id, str) or not asset_unique_id.strip():
-            raise ValueError(
-                "Orca VulnerabilityV2 Inventory.AssetUniqueId must be nonempty",
-            )
-        asset_unique_id = asset_unique_id.strip()
-        inventory_id = _value(inventory, "id", "base_id_uuid")
-        if inventory_id is not None:
-            if not isinstance(inventory_id, str) or not inventory_id.strip():
-                raise ValueError(
-                    "Orca VulnerabilityV2 Inventory identifier must be nonempty",
-                )
-            inventory_id = inventory_id.strip()
+        asset_unique_id = require_nonempty_string(
+            field_value(inventory, "AssetUniqueId", "asset_unique_id"),
+            "Orca VulnerabilityV2 Inventory.AssetUniqueId",
+        )
+        inventory_id = optional_nonempty_string(
+            field_value(inventory, "id", "base_id_uuid"),
+            "Orca VulnerabilityV2 Inventory identifier",
+        )
 
-        orca_id = vulnerability.get("id") or vulnerability.get("base_id_uuid")
-        if orca_id is not None:
-            if not isinstance(orca_id, str) or not orca_id.strip():
-                raise ValueError("Orca VulnerabilityV2 identifier must be nonempty")
-            orca_id = orca_id.strip()
+        raw_orca_id = vulnerability.get("id")
+        if raw_orca_id is None:
+            raw_orca_id = vulnerability.get("base_id_uuid")
+        orca_id = optional_nonempty_string(
+            raw_orca_id,
+            "Orca VulnerabilityV2 identifier",
+        )
+
+        cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
+        if not cve_ids:
+            raise ValueError("Orca VulnerabilityV2 row omitted a canonical CveId")
+        common_fields = {
+            "orca_id": orca_id,
+            "description": vulnerability.get("Description"),
+            "references": _references(vulnerability),
+            "cvss_source": vulnerability.get("CvssSource"),
+            "base_score": vulnerability.get("CvssScore"),
+            "base_severity": vulnerability.get("CvssSeverity"),
+            "vector_string": vulnerability.get("CvssVector"),
+            "epss_percentile": vulnerability.get("EpssPercentile"),
+            "epss_probability": vulnerability.get("EpssProbability"),
+            "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
+            "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
+            "patch_available": _optional_bool(
+                vulnerability.get("PatchAvailable"),
+            ),
+            "trending": _optional_bool(vulnerability.get("Trending")),
+            "upstream_disposition": vulnerability.get("UpstreamDisposition"),
+            "first_seen": parse_datetime(
+                vulnerability.get("FirstSeen"),
+                "Orca VulnerabilityV2.FirstSeen",
+            ),
+            "inventory_id": inventory_id,
+            "asset_unique_id": asset_unique_id,
+        }
 
         for package in _related_packages(vulnerability):
             package_key = _package_key(package)
-            for cve_id in _normalize_cve_ids(vulnerability.get("CveId")):
+            for cve_id in cve_ids:
                 transformed.append(
                     {
                         "id": _vulnerability_id(
@@ -188,37 +195,18 @@ def transform(
                             cve_id,
                             package_key,
                         ),
-                        "orca_id": orca_id,
                         "cve_id": cve_id,
-                        "description": vulnerability.get("Description"),
-                        "references": _references(vulnerability),
-                        "cvss_source": vulnerability.get("CvssSource"),
-                        "base_score": vulnerability.get("CvssScore"),
-                        "base_severity": vulnerability.get("CvssSeverity"),
-                        "vector_string": vulnerability.get("CvssVector"),
-                        "epss_percentile": vulnerability.get("EpssPercentile"),
-                        "epss_probability": vulnerability.get("EpssProbability"),
-                        "has_exploit": _optional_bool(
-                            vulnerability.get("HasExploit"),
+                        **common_fields,
+                        "package_id": field_value(package, "id"),
+                        "package_base_id_uuid": field_value(
+                            package,
+                            "base_id_uuid",
                         ),
-                        "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
-                        "patch_available": _optional_bool(
-                            vulnerability.get("PatchAvailable"),
-                        ),
-                        "trending": _optional_bool(vulnerability.get("Trending")),
-                        "upstream_disposition": vulnerability.get(
-                            "UpstreamDisposition",
-                        ),
-                        "first_seen": vulnerability.get("FirstSeen"),
-                        "package_id": _value(package, "id"),
-                        "package_base_id_uuid": _value(package, "base_id_uuid"),
-                        "package_name": _value(package, "Name"),
-                        "package_version": _value(package, "Version"),
-                        "purl": _value(package, "PURL"),
-                        "cpe": _value(package, "CPE"),
-                        "source_package": _value(package, "SourcePackage"),
-                        "inventory_id": inventory_id,
-                        "asset_unique_id": asset_unique_id,
+                        "package_name": field_value(package, "Name"),
+                        "package_version": field_value(package, "Version"),
+                        "purl": field_value(package, "PURL"),
+                        "cpe": field_value(package, "CPE"),
+                        "source_package": field_value(package, "SourcePackage"),
                     },
                 )
     return transformed

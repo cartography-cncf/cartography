@@ -31,7 +31,6 @@ SYNC_METADATA_ID = f"OrcaOrganization_{ORGANIZATION_ID}_OrcaData"
 
 @pytest.fixture(autouse=True)
 def cleanup_orca_test_data(neo4j_session):
-    # Arrange
     neo4j_session.run(
         """
         MATCH (n)
@@ -56,7 +55,6 @@ def cleanup_orca_test_data(neo4j_session):
 
     yield
 
-    # Assert/teardown
     neo4j_session.run(
         """
         MATCH (n)
@@ -124,13 +122,10 @@ def test_start_orca_ingestion_loads_traversable_ontology_graph(
     neo4j_session,
     mocker,
 ):
-    # Arrange
     _patch_orca_api(mocker)
 
-    # Act
     cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
 
-    # Assert
     assert check_nodes(
         neo4j_session,
         "OrcaOrganization",
@@ -209,7 +204,6 @@ def test_start_orca_ingestion_loads_traversable_ontology_graph(
 
 
 def test_vulnerability_affects_is_scoped_by_organization(neo4j_session, mocker):
-    # Arrange
     other_organization_id = "other-orca-organization"
     other_organization = {
         "id": other_organization_id,
@@ -227,10 +221,8 @@ def test_vulnerability_affects_is_scoped_by_organization(neo4j_session, mocker):
     )
     _patch_orca_api(mocker)
 
-    # Act
     cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
 
-    # Assert
     assert check_rels(
         neo4j_session,
         "OrcaVulnerability",
@@ -255,11 +247,9 @@ def test_vulnerability_affects_is_scoped_by_organization(neo4j_session, mocker):
 
 
 def test_cve_metadata_enriches_orca_vulnerability(neo4j_session, mocker):
-    # Arrange
     _patch_orca_api(mocker)
     cartography.intel.orca.start_orca_ingestion(neo4j_session, _config())
 
-    # Act
     cartography.intel.cve_metadata.load_cve_metadata_feed(
         neo4j_session,
         TEST_UPDATE_TAG,
@@ -271,7 +261,6 @@ def test_cve_metadata_enriches_orca_vulnerability(neo4j_session, mocker):
         TEST_UPDATE_TAG,
     )
 
-    # Assert
     assert check_rels(
         neo4j_session,
         "CVEMetadata",
@@ -283,7 +272,6 @@ def test_cve_metadata_enriches_orca_vulnerability(neo4j_session, mocker):
 
 
 def test_complete_second_sync_removes_stale_orca_data(neo4j_session, mocker):
-    # Arrange
     datasets = _patch_orca_api(mocker)
     cartography.intel.orca.start_orca_ingestion(
         neo4j_session,
@@ -293,13 +281,11 @@ def test_complete_second_sync_removes_stale_orca_data(neo4j_session, mocker):
     datasets["Alert"] = []
     datasets["VulnerabilityV2"] = []
 
-    # Act
     cartography.intel.orca.start_orca_ingestion(
         neo4j_session,
         _config(TEST_UPDATE_TAG + 1),
     )
 
-    # Assert
     assert check_nodes(neo4j_session, "OrcaAsset", ["id"]) == {(ASSET_ID_2,)}
     assert check_nodes(neo4j_session, "OrcaAlert", ["id"]) == set()
     assert check_nodes(neo4j_session, "OrcaVulnerability", ["id"]) == set()
@@ -358,7 +344,6 @@ def test_complete_second_sync_removes_stale_orca_data(neo4j_session, mocker):
 
 
 def test_failed_second_sync_preserves_last_known_good_data(neo4j_session, mocker):
-    # Arrange
     datasets = _patch_orca_api(mocker)
     query = cartography.intel.orca.api.serving_layer_query
     original_query = query.side_effect
@@ -382,7 +367,6 @@ def test_failed_second_sync_preserves_last_known_good_data(neo4j_session, mocker
 
     query.side_effect = fail_on_second_vulnerability_page
 
-    # Act
     with pytest.raises(
         requests.HTTPError, match="synthetic vulnerability page failure"
     ):
@@ -391,7 +375,6 @@ def test_failed_second_sync_preserves_last_known_good_data(neo4j_session, mocker
             _config(TEST_UPDATE_TAG + 1),
         )
 
-    # Assert
     assert check_nodes(neo4j_session, "OrcaAsset", ["id"]) == {
         (ASSET_ID_1,),
         (ASSET_ID_2,),
@@ -448,7 +431,6 @@ def test_alert_affects_edge_retargets_and_sync_is_idempotent(
     neo4j_session,
     mocker,
 ):
-    # Arrange
     datasets = _patch_orca_api(mocker)
     cartography.intel.orca.start_orca_ingestion(
         neo4j_session,
@@ -461,7 +443,6 @@ def test_alert_affects_edge_retargets_and_sync_is_idempotent(
     retargeted_vulnerability["Inventory"]["AssetUniqueId"] = "asset-unique-2"
     datasets["VulnerabilityV2"] = [retargeted_vulnerability]
 
-    # Act
     cartography.intel.orca.start_orca_ingestion(
         neo4j_session,
         _config(TEST_UPDATE_TAG + 1),
@@ -471,7 +452,6 @@ def test_alert_affects_edge_retargets_and_sync_is_idempotent(
         _config(TEST_UPDATE_TAG + 1),
     )
 
-    # Assert
     assert check_rels(
         neo4j_session,
         "OrcaAlert",

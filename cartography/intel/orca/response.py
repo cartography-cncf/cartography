@@ -1,0 +1,80 @@
+import re
+from datetime import datetime
+from typing import Any
+
+_CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
+
+
+def unwrap_value(value: Any) -> Any:
+    """Unwrap a value from Orca's Serving Layer field envelope."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def field_value(data: dict[str, Any], *keys: str) -> Any:
+    """Return the first present Orca field, unwrapping its value envelope."""
+    for key in keys:
+        if key in data:
+            return unwrap_value(data[key])
+    return None
+
+
+def require_nonempty_string(value: Any, field: str) -> str:
+    """Return a normalized required string or reject the malformed field."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a nonempty string")
+    return value.strip()
+
+
+def optional_nonempty_string(value: Any, field: str) -> str | None:
+    """Normalize an optional string while rejecting malformed present values."""
+    if value is None:
+        return None
+    return require_nonempty_string(value, field)
+
+
+def require_object(value: Any, field: str) -> dict[str, Any]:
+    """Return a required JSON object or reject the malformed field."""
+    if not isinstance(value, dict):
+        raise ValueError(f"{field} must be an object")
+    return value
+
+
+def canonical_cve_ids(*values: Any) -> list[str]:
+    """Return the distinct canonical CVE identifiers in Orca fields."""
+    candidates: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str):
+            candidates.append(value)
+            continue
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            candidates.extend(value)
+            continue
+        raise ValueError("Orca CVE fields must contain strings")
+
+    return sorted(
+        {
+            candidate.strip().upper()
+            for candidate in candidates
+            if _CVE_RE.fullmatch(candidate.strip())
+        },
+    )
+
+
+def parse_datetime(value: Any, field: str) -> datetime | None:
+    """Parse an optional Orca RFC 3339 timestamp into a Neo4j-safe datetime."""
+    if value is None:
+        return None
+    normalized = require_nonempty_string(value, field)
+    try:
+        timestamp = datetime.fromisoformat(
+            f"{normalized[:-1]}+00:00" if normalized.endswith("Z") else normalized,
+        )
+    except ValueError as exc:
+        raise ValueError(f"{field} must be an RFC 3339 timestamp") from exc
+    if timestamp.tzinfo is None:
+        raise ValueError(f"{field} must include a UTC offset")
+    return timestamp

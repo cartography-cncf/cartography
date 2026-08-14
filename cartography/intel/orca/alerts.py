@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import Any
 
 import neo4j
@@ -9,13 +8,18 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
 from cartography.intel.orca.assets import make_asset_id
+from cartography.intel.orca.response import canonical_cve_ids
+from cartography.intel.orca.response import field_value
+from cartography.intel.orca.response import parse_datetime
+from cartography.intel.orca.response import require_nonempty_string
+from cartography.intel.orca.response import require_object
+from cartography.intel.orca.response import unwrap_value
 from cartography.models.orca import OrcaAlertSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 100
-_CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
 
 def build_query() -> dict[str, Any]:
@@ -34,48 +38,35 @@ def build_query() -> dict[str, Any]:
     }
 
 
-def _value(data: dict[str, Any], key: str) -> Any:
-    value = data.get(key)
-    if isinstance(value, dict) and "value" in value:
-        return value.get("value")
-    return value
-
-
-def _required_value(data: dict[str, Any], key: str) -> Any:
-    value = data[key]
-    if isinstance(value, dict) and "value" in value:
-        return value["value"]
-    return value
-
-
-def _normalize_cve_ids(*values: Any) -> list[str]:
-    candidates: list[Any] = []
-    for value in values:
-        if isinstance(value, list):
-            candidates.extend(value)
-        elif value is not None:
-            candidates.append(value)
-    return sorted(
-        {
-            str(candidate).strip().upper()
-            for candidate in candidates
-            if _CVE_RE.fullmatch(str(candidate).strip())
-        },
-    )
-
-
-def _inventory_from_alert(raw_alert: dict[str, Any], data: dict[str, Any]) -> Any:
+def _inventory_id_from_alert(
+    raw_alert: dict[str, Any],
+    data: dict[str, Any],
+) -> str | None:
     inventory = raw_alert.get("Inventory")
     if inventory is None:
-        inventory = _value(data, "Inventory")
-    if isinstance(inventory, dict) and "value" in inventory:
-        inventory = inventory.get("value")
+        inventory = field_value(data, "Inventory")
+    inventory = unwrap_value(inventory)
+    if inventory is None:
+        return None
     if isinstance(inventory, list):
         # An alert is only safe to correlate when Orca supplies one unambiguous
         # inventory record. Never choose an arbitrary asset from a multi-value
         # response.
-        return inventory[0] if len(inventory) == 1 else None
-    return inventory
+        if len(inventory) != 1:
+            return None
+        inventory = inventory[0]
+    inventory = require_object(inventory, "Orca Alert.Inventory")
+    inventory_id = inventory.get("id")
+    if inventory_id is None:
+        return None
+    return require_nonempty_string(inventory_id, "Orca Alert.Inventory.id")
+
+
+def _asset_data(data: dict[str, Any]) -> dict[str, Any]:
+    asset_data = field_value(data, "AssetData")
+    if asset_data is None:
+        return {}
+    return require_object(asset_data, "Orca Alert.AssetData")
 
 
 def transform(
@@ -85,46 +76,51 @@ def transform(
     transformed: list[dict[str, Any]] = []
     unresolved_assets = 0
     for raw_alert in raw_alerts:
-        data = raw_alert.get("data") or raw_alert
-        if not isinstance(data, dict):
-            raise ValueError("Orca Alert.data must be an object")
-        alert_id = _required_value(data, "AlertId")
-        if not isinstance(alert_id, str) or not alert_id:
-            raise ValueError("Orca AlertId must be a nonempty string")
+        data = require_object(
+            raw_alert["data"] if "data" in raw_alert else raw_alert,
+            "Orca Alert.data",
+        )
+        alert_id = require_nonempty_string(
+            unwrap_value(data["AlertId"]),
+            "Orca AlertId",
+        )
 
-        inventory = _inventory_from_alert(raw_alert, data)
-        inventory_id = inventory.get("id") if isinstance(inventory, dict) else None
+        inventory_id = _inventory_id_from_alert(raw_alert, data)
         asset_id = (
             make_asset_id(organization_id, inventory_id)
-            if isinstance(inventory_id, str) and inventory_id
+            if inventory_id is not None
             else None
         )
         if asset_id is None:
             unresolved_assets += 1
 
-        asset_data = _value(data, "AssetData") or {}
-        if not isinstance(asset_data, dict):
-            asset_data = {}
-        alert_type = _value(data, "AlertType")
-        title = _value(data, "Title") or alert_type or f"Orca alert {alert_id}"
+        asset_data = _asset_data(data)
+        alert_type = field_value(data, "AlertType")
+        title = field_value(data, "Title") or alert_type or f"Orca alert {alert_id}"
         transformed.append(
             {
                 "id": f"orca:{organization_id}:{alert_id}",
                 "orca_id": alert_id,
                 "title": title,
-                "details": _value(data, "Details"),
-                "severity": _value(data, "Severity"),
-                "category": _value(data, "Category"),
+                "details": field_value(data, "Details"),
+                "severity": field_value(data, "Severity"),
+                "category": field_value(data, "Category"),
                 "alert_type": alert_type,
-                "orca_score": _value(data, "OrcaScore"),
-                "status": _value(data, "Status"),
-                "created_at": _value(data, "CreatedAt"),
-                "last_seen": _value(data, "LastSeen"),
-                "console_url": _value(data, "ConsoleUrlLink"),
-                "cve_ids": _normalize_cve_ids(
-                    _value(data, "CveId"),
-                    _value(data, "CveIds"),
-                    _value(data, "CVEs"),
+                "orca_score": field_value(data, "OrcaScore"),
+                "status": field_value(data, "Status"),
+                "created_at": parse_datetime(
+                    field_value(data, "CreatedAt"),
+                    "Orca Alert.CreatedAt",
+                ),
+                "last_seen": parse_datetime(
+                    field_value(data, "LastSeen"),
+                    "Orca Alert.LastSeen",
+                ),
+                "console_url": field_value(data, "ConsoleUrlLink"),
+                "cve_ids": canonical_cve_ids(
+                    field_value(data, "CveId"),
+                    field_value(data, "CveIds"),
+                    field_value(data, "CVEs"),
                 ),
                 "asset_id": asset_id,
                 "asset_name": asset_data.get("asset_name"),

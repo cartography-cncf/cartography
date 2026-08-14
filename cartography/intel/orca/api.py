@@ -1,4 +1,3 @@
-import copy
 import hashlib
 import json
 import logging
@@ -83,12 +82,15 @@ def _request_json(
     json_body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     endpoint = normalize_api_endpoint(api_endpoint)
-    response = session.request(
-        method,
-        f"{endpoint}{path}",
-        json=json_body,
-        timeout=REQUEST_TIMEOUT,
-    )
+    try:
+        response = session.request(
+            method,
+            f"{endpoint}{path}",
+            json=json_body,
+            timeout=REQUEST_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Orca {method} {path} request failed") from exc
     try:
         response.raise_for_status()
     except requests.HTTPError as exc:
@@ -144,6 +146,13 @@ def serving_layer_query(
     )
 
 
+def _require_total_items(value: Any, error_message: str) -> int:
+    # bool subclasses int, but is not a valid API item count.
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RuntimeError(error_message)
+    return value
+
+
 def iter_serving_layer_pages(
     session: requests.Session,
     api_endpoint: str,
@@ -170,10 +179,12 @@ def iter_serving_layer_pages(
                 f"Orca {result_name} pagination exceeded {max_pages} pages",
             )
 
-        payload = copy.deepcopy(query)
-        payload["limit"] = page_size
-        payload["start_at_index"] = start_index
-        payload["get_results_and_count"] = total_items is None
+        payload = {
+            **query,
+            "limit": page_size,
+            "start_at_index": start_index,
+            "get_results_and_count": total_items is None,
+        }
         response = serving_layer_query(session, api_endpoint, payload)
 
         rows = response.get("data")
@@ -186,15 +197,14 @@ def iter_serving_layer_pages(
 
         response_total = response.get("total_items")
         if total_items is None:
-            if isinstance(response_total, bool) or not isinstance(response_total, int):
-                raise RuntimeError(
-                    f"Orca {result_name} response omitted integer total_items",
-                )
-            if response_total < 0:
+            total_items = _require_total_items(
+                response_total,
+                f"Orca {result_name} response omitted integer total_items",
+            )
+            if total_items < 0:
                 raise RuntimeError(
                     f"Orca {result_name} response returned negative total_items",
                 )
-            total_items = response_total
             required_pages = (total_items + page_size - 1) // page_size
             if required_pages > max_pages:
                 raise RuntimeError(
@@ -202,10 +212,10 @@ def iter_serving_layer_pages(
                     f"exceeding the {max_pages}-page safety limit",
                 )
         elif response_total is not None:
-            if isinstance(response_total, bool) or not isinstance(response_total, int):
-                raise RuntimeError(
-                    f"Orca {result_name} returned a malformed total_items",
-                )
+            response_total = _require_total_items(
+                response_total,
+                f"Orca {result_name} returned a malformed total_items",
+            )
             if response_total != total_items:
                 raise RuntimeError(
                     f"Orca {result_name} total_items changed during pagination",
@@ -232,8 +242,6 @@ def iter_serving_layer_pages(
         page_signatures.add(page_signature)
 
         next_index = start_index + len(rows)
-        if next_index <= start_index:
-            raise RuntimeError(f"Orca {result_name} pagination made no progress")
         if next_index > total_items:
             raise RuntimeError(
                 f"Orca {result_name} returned more rows than total_items",

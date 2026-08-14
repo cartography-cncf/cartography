@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import neo4j
@@ -7,10 +6,13 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
+from cartography.intel.orca.response import field_value
+from cartography.intel.orca.response import optional_nonempty_string
+from cartography.intel.orca.response import parse_datetime
+from cartography.intel.orca.response import require_nonempty_string
+from cartography.intel.orca.response import require_object
 from cartography.models.orca import OrcaAssetSchema
 from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 100
 
@@ -29,25 +31,24 @@ def make_asset_id(organization_id: str, inventory_id: str) -> str:
     return f"orca:{organization_id}:{inventory_id}"
 
 
-def _value(data: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        if key not in data:
-            continue
-        value = data[key]
-        if isinstance(value, dict) and "value" in value:
-            return value.get("value")
-        return value
-    return None
-
-
 def _normalize_tags(value: Any) -> list[str]:
     if isinstance(value, dict):
         return [f"{key}={value[key]}" for key in sorted(value)]
-    if isinstance(value, list):
-        return [str(item) for item in value]
     if value is None:
         return []
-    return [str(value)]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return [item.strip() for item in value if item.strip()]
+    raise ValueError("Orca Inventory.Tags must be an object or string list")
+
+
+def _normalize_zones(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [require_nonempty_string(value, "Orca Inventory.Zones")]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return [require_nonempty_string(item, "Orca Inventory.Zones") for item in value]
+    raise ValueError("Orca Inventory.Zones must be a string or string list")
 
 
 def transform(
@@ -57,70 +58,87 @@ def transform(
     transformed: list[dict[str, Any]] = []
     seen_asset_unique_ids: set[str] = set()
     for raw_asset in raw_assets:
-        orca_id = raw_asset["id"]
-        if not isinstance(orca_id, str) or not orca_id:
-            raise ValueError("Orca Inventory.id must be a nonempty string")
-        data = raw_asset.get("data") or {}
-        if not isinstance(data, dict):
-            raise ValueError("Orca Inventory.data must be an object")
-        asset_unique_id = raw_asset.get("asset_unique_id") or _value(
-            data,
-            "AssetUniqueId",
+        orca_id = require_nonempty_string(raw_asset["id"], "Orca Inventory.id")
+        data = require_object(raw_asset.get("data", {}), "Orca Inventory.data")
+        asset_unique_id = raw_asset.get("asset_unique_id")
+        if asset_unique_id is None:
+            asset_unique_id = field_value(data, "AssetUniqueId")
+        asset_unique_id = optional_nonempty_string(
+            asset_unique_id,
+            "Orca Inventory.asset_unique_id",
         )
         if asset_unique_id is not None:
-            if not isinstance(asset_unique_id, str) or not asset_unique_id.strip():
-                raise ValueError(
-                    "Orca Inventory.asset_unique_id must be a nonempty string",
-                )
-            asset_unique_id = asset_unique_id.strip()
             if asset_unique_id in seen_asset_unique_ids:
                 raise ValueError(
                     "Orca Inventory response contained duplicate asset_unique_id values",
                 )
             seen_asset_unique_ids.add(asset_unique_id)
-        zones = _value(data, "Zones", "AvailabilityZones")
+        last_seen = raw_asset.get("last_seen")
+        if last_seen is None:
+            last_seen = field_value(data, "LastSeen")
         transformed.append(
             {
                 "id": make_asset_id(organization_id, orca_id),
                 "orca_id": orca_id,
                 "asset_unique_id": asset_unique_id,
                 "group_unique_id": raw_asset.get("group_unique_id")
-                or _value(data, "GroupUniqueId"),
+                or field_value(data, "GroupUniqueId"),
                 "cluster_unique_id": raw_asset.get("cluster_unique_id")
-                or _value(data, "cluster_unique_id", "ClusterUniqueId"),
-                "name": raw_asset.get("name") or _value(data, "Name"),
-                "asset_type": raw_asset.get("type") or _value(data, "Type"),
-                "category": _value(data, "NewCategory", "Category"),
-                "subcategory": _value(data, "NewSubCategory", "SubCategory"),
-                "cloud_provider": _value(data, "CloudProvider", "CloudPlatform"),
-                "cloud_account_id": _value(
+                or field_value(data, "cluster_unique_id", "ClusterUniqueId"),
+                "name": raw_asset.get("name") or field_value(data, "Name"),
+                "asset_type": raw_asset.get("type") or field_value(data, "Type"),
+                "category": field_value(data, "NewCategory", "Category"),
+                "subcategory": field_value(
+                    data,
+                    "NewSubCategory",
+                    "SubCategory",
+                ),
+                "cloud_provider": field_value(
+                    data,
+                    "CloudProvider",
+                    "CloudPlatform",
+                ),
+                "cloud_account_id": field_value(
                     data,
                     "CloudAccountId",
                     "AccountId",
                     "SubscriptionId",
                     "ProjectId",
                 ),
-                "cloud_account_name": _value(data, "CloudAccountName", "AccountName"),
-                "region": _value(data, "Region"),
-                "zones": (
-                    zones if isinstance(zones, list) else ([zones] if zones else [])
+                "cloud_account_name": field_value(
+                    data,
+                    "CloudAccountName",
+                    "AccountName",
                 ),
-                "provider_id": _value(
+                "region": field_value(data, "Region"),
+                "zones": _normalize_zones(
+                    field_value(data, "Zones", "AvailabilityZones"),
+                ),
+                "provider_id": field_value(
                     data,
                     "UiUniqueField",
                     "ProviderId",
                     "ResourceId",
                 ),
-                "arn": _value(data, "Arn"),
-                "state": _value(data, "State"),
-                "exposure": _value(data, "Exposure"),
-                "risk_level": _value(data, "RiskLevel"),
-                "orca_score": _value(data, "OrcaScore"),
-                "console_url": _value(data, "ConsoleUrlLink"),
-                "tags": _normalize_tags(_value(data, "Tags")),
-                "first_seen": _value(data, "FirstSeen"),
-                "last_seen": raw_asset.get("last_seen") or _value(data, "LastSeen"),
-                "creation_time": _value(data, "CreationTime"),
+                "arn": field_value(data, "Arn"),
+                "state": field_value(data, "State"),
+                "exposure": field_value(data, "Exposure"),
+                "risk_level": field_value(data, "RiskLevel"),
+                "orca_score": field_value(data, "OrcaScore"),
+                "console_url": field_value(data, "ConsoleUrlLink"),
+                "tags": _normalize_tags(field_value(data, "Tags")),
+                "first_seen": parse_datetime(
+                    field_value(data, "FirstSeen"),
+                    "Orca Inventory.FirstSeen",
+                ),
+                "last_seen": parse_datetime(
+                    last_seen,
+                    "Orca Inventory.LastSeen",
+                ),
+                "creation_time": parse_datetime(
+                    field_value(data, "CreationTime"),
+                    "Orca Inventory.CreationTime",
+                ),
             },
         )
     return transformed

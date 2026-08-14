@@ -30,12 +30,10 @@ def _mapping_fields(
 
 
 def test_orca_schemas_use_supported_ontology_labels() -> None:
-    # Arrange
     organization = OrcaOrganizationSchema()
     alert = OrcaAlertSchema()
     vulnerability = OrcaVulnerabilitySchema()
 
-    # Act and assert
     assert _extra_labels(organization) == {"Tenant"}
     assert _extra_labels(alert) == {"SecurityIssue"}
     assert _extra_labels(vulnerability) == {"CVE"}
@@ -54,13 +52,11 @@ def test_orca_child_schemas_use_flat_organization_ownership() -> None:
         OrcaAlertSchema(),
         OrcaVulnerabilitySchema(),
     ):
-        # Act
         relationship = schema.sub_resource_relationship
         assert relationship is not None
         organization_id = getattr(relationship.target_node_matcher, "id")
         organization_property = getattr(schema.properties, "organization_id")
 
-        # Assert
         assert relationship.target_node_label == "OrcaOrganization"
         assert relationship.rel_label == "RESOURCE"
         assert relationship.direction is LinkDirection.INWARD
@@ -72,7 +68,6 @@ def test_orca_child_schemas_use_flat_organization_ownership() -> None:
 
 def test_orca_findings_affect_orca_assets() -> None:
     for schema in (OrcaAlertSchema(), OrcaVulnerabilitySchema()):
-        # Act
         assert schema.other_relationships is not None
         relationships = [
             relationship
@@ -80,7 +75,6 @@ def test_orca_findings_affect_orca_assets() -> None:
             if relationship.rel_label == "AFFECTS"
         ]
 
-        # Assert
         assert len(relationships) == 1
         relationship = relationships[0]
         assert relationship.target_node_label == "OrcaAsset"
@@ -111,7 +105,6 @@ def test_orca_node_properties_are_documented() -> None:
         OrcaAlertSchema(),
         OrcaVulnerabilitySchema(),
     ):
-        # Act
         undocumented = [
             model_field.name
             for model_field in fields(schema.properties)
@@ -122,12 +115,10 @@ def test_orca_node_properties_are_documented() -> None:
             and not property_ref.description
         ]
 
-        # Assert
         assert undocumented == []
 
 
 def test_orca_ontology_mappings_use_provider_semantics() -> None:
-    # Arrange
     tenant_fields = _mapping_fields(
         TENANTS_ONTOLOGY_MAPPING["orca"],
         "OrcaOrganization",
@@ -141,7 +132,6 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
         "OrcaVulnerability",
     )
 
-    # Act and assert
     assert tenant_fields["name"].node_field == "name"
     assert tenant_fields["name"].required is True
 
