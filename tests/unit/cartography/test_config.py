@@ -32,8 +32,10 @@ def test_bbot_source_preserves_config_positional_compatibility() -> None:
 
 
 def test_orca_config_is_appended_for_positional_compatibility() -> None:
+    # Act
     parameters = list(inspect.signature(Config.__init__).parameters)
 
+    # Assert
     assert parameters.index("orca_api_endpoint") > parameters.index(
         "snowflake_databases",
     )
@@ -41,12 +43,14 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
 
 
 def test_config_stores_orca_credentials() -> None:
+    # Act
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         orca_api_endpoint="https://api.orcasecurity.io",
         orca_api_token="secret-token",
     )
 
+    # Assert
     assert config.orca_api_endpoint == "https://api.orcasecurity.io"
     assert config.orca_api_token == "secret-token"
 

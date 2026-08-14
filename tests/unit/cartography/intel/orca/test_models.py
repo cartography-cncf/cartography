@@ -41,10 +41,12 @@ def _mapping_fields(
 
 
 def test_orca_schemas_use_supported_ontology_labels() -> None:
+    # Arrange
     organization = OrcaOrganizationSchema()
     alert = OrcaAlertSchema()
     vulnerability = OrcaVulnerabilityFindingSchema()
 
+    # Assert
     assert _extra_labels(organization) == {"Tenant"}
     assert _extra_labels(alert) == {"SecurityIssue"}
     assert _extra_labels(vulnerability) == {"CVE"}
@@ -58,6 +60,7 @@ def test_orca_schemas_use_supported_ontology_labels() -> None:
 
 
 def test_orca_child_schemas_use_flat_organization_ownership() -> None:
+    # Act and assert
     for schema in (
         OrcaAlertSchema(),
         OrcaVulnerabilityFindingSchema(),
@@ -77,11 +80,13 @@ def test_orca_child_schemas_use_flat_organization_ownership() -> None:
 
 
 def test_orca_findings_do_not_create_asset_relationships() -> None:
+    # Act and assert
     for schema in (OrcaAlertSchema(), OrcaVulnerabilityFindingSchema()):
         assert schema.other_relationships is None
 
 
 def test_orca_findings_retain_consistent_target_context() -> None:
+    # Act and assert
     for schema in (OrcaAlertSchema(), OrcaVulnerabilityFindingSchema()):
         properties = {
             model_field.name: getattr(schema.properties, model_field.name)
@@ -106,6 +111,7 @@ def test_orca_findings_retain_consistent_target_context() -> None:
 
 
 def test_orca_node_properties_are_documented() -> None:
+    # Act and assert
     for schema in (
         OrcaOrganizationSchema(),
         OrcaAlertSchema(),
@@ -125,6 +131,7 @@ def test_orca_node_properties_are_documented() -> None:
 
 
 def test_orca_ontology_mappings_use_provider_semantics() -> None:
+    # Arrange
     tenant_fields = _mapping_fields(
         TENANTS_ONTOLOGY_MAPPING["orca"],
         "OrcaOrganization",
@@ -138,6 +145,7 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
         "OrcaVulnerabilityFinding",
     )
 
+    # Assert
     assert tenant_fields["name"].node_field == "name"
     assert tenant_fields["name"].required is True
 

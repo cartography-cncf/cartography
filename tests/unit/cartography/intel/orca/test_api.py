@@ -9,6 +9,7 @@ from cartography.intel.orca import api
 
 
 def test_normalize_api_endpoint_accepts_origin_and_trailing_slash() -> None:
+    # Act and assert
     assert (
         api.normalize_api_endpoint("https://api.orcasecurity.example/")
         == "https://api.orcasecurity.example"
@@ -28,14 +29,17 @@ def test_normalize_api_endpoint_accepts_origin_and_trailing_slash() -> None:
     ],
 )  # type: ignore[misc]
 def test_normalize_api_endpoint_rejects_non_origins(endpoint: str) -> None:
+    # Act and assert
     with pytest.raises(ValueError, match="Orca API endpoint"):
         api.normalize_api_endpoint(endpoint)
 
 
 def test_create_session_uses_token_auth_and_bounded_read_retries() -> None:
+    # Act
     session = api.create_session("test-token")
     retry = cast(HTTPAdapter, session.get_adapter("https://")).max_retries
 
+    # Assert
     assert session.headers["Authorization"] == "Token test-token"
     assert retry.total == 4
     assert retry.status_forcelist == api._RETRY_STATUS_CODES
@@ -48,6 +52,7 @@ def test_create_session_uses_token_auth_and_bounded_read_retries() -> None:
 
 
 def test_get_organization_uses_identity_endpoint(mocker) -> None:
+    # Arrange
     response = MagicMock()
     response.json.return_value = {
         "data": {
@@ -58,11 +63,13 @@ def test_get_organization_uses_identity_endpoint(mocker) -> None:
     session = MagicMock(spec=requests.Session)
     session.request.return_value = response
 
+    # Act
     organization = api.get_organization(
         session,
         "https://api.orcasecurity.example/",
     )
 
+    # Assert
     assert organization == {
         "id": "org-1",
         "name": "Example",
@@ -78,11 +85,13 @@ def test_get_organization_uses_identity_endpoint(mocker) -> None:
 
 
 def test_get_organization_sanitizes_transport_errors() -> None:
+    # Arrange
     session = MagicMock(spec=requests.Session)
     session.request.side_effect = requests.ConnectTimeout(
         "synthetic low-level transport details",
     )
 
+    # Act and assert
     with pytest.raises(
         RuntimeError,
         match=r"^Orca GET /api/user/action request failed$",
@@ -93,6 +102,7 @@ def test_get_organization_sanitizes_transport_errors() -> None:
 
 
 def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
+    # Arrange
     query = {"query": {"models": ["Alert"]}}
     query_call = mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
@@ -102,6 +112,7 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
         ],
     )
 
+    # Act
     pages = list(
         api.iter_serving_layer_pages(
             MagicMock(),
@@ -112,6 +123,7 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
         ),
     )
 
+    # Assert
     assert pages == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
     first_payload = query_call.call_args_list[0].args[2]
     second_payload = query_call.call_args_list[1].args[2]
@@ -148,11 +160,13 @@ def test_iter_serving_layer_pages_rejects_incomplete_responses(
     responses: list[dict],
     message: str,
 ) -> None:
+    # Arrange
     mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=responses,
     )
 
+    # Act and assert
     with pytest.raises(RuntimeError, match=message):
         list(
             api.iter_serving_layer_pages(
@@ -166,11 +180,13 @@ def test_iter_serving_layer_pages_rejects_incomplete_responses(
 
 
 def test_iter_serving_layer_pages_rejects_excessive_page_count(mocker) -> None:
+    # Arrange
     mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         return_value={"data": [{"id": "1"}], "total_items": 11},
     )
 
+    # Act and assert
     with pytest.raises(RuntimeError, match="page safety limit"):
         list(
             api.iter_serving_layer_pages(

@@ -23,19 +23,20 @@ organization:
 | Operation | Required access |
 |-----------|-----------------|
 | `GET /api/user/action` | Read the current organization's ID and name. |
-| `POST /api/serving-layer/query` | Query the organization-wide `Alert` and `VulnerabilityV2` datasets, including their related Inventory fields. |
+| `POST /api/serving-layer/query` | Query the organization-wide `Alert` and `VulnerabilityV2` datasets. `VulnerabilityV2` responses must include the related Inventory context described below. |
 
 The Serving Layer query uses HTTP `POST`, but it is a read-only query. Do not
 grant create, update, or delete permissions for this integration.
 
-Cartography does not enumerate the standalone `Inventory` dataset. It requests
-an Inventory object only as related context in Alert and VulnerabilityV2
-queries. Before the first production sync, use the authenticated Serving Layer
-Request Builder to confirm that VulnerabilityV2 results include a stable
-related `Inventory.AssetUniqueId`; Cartography uses it to distinguish CVE
-occurrences on different targets. Related provider identifiers, account and
-region fields are retained when available, but are not used to guess asset
-relationships.
+Cartography does not enumerate the standalone `Inventory` dataset.
+`VulnerabilityV2` queries require related Inventory context so
+`Inventory.AssetUniqueId` can distinguish CVE occurrences on different
+targets. Alert queries request related Inventory only as optional context;
+alerts still ingest when Orca omits it. Before the first production sync, use
+the authenticated Serving Layer Request Builder to confirm the
+`VulnerabilityV2` field and whether Alert results include related Inventory.
+Related provider identifiers, account and region fields are retained when
+available, but are not used to guess asset relationships.
 
 Do not restrict the token to only a subset of the organization's accounts,
 business units, or assets. The module performs a complete organization sync;
@@ -66,6 +67,8 @@ cartography \
   --selected-modules orca \
   --orca-api-endpoint https://api.orcasecurity.io
 ```
+
+## Troubleshooting
 
 An HTTP `401` usually indicates an invalid or expired token. An HTTP `403` or
 missing Alert or VulnerabilityV2 results usually indicates that the token lacks
