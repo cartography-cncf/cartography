@@ -462,7 +462,11 @@ huntress_mapping = OntologyMapping(
                     special_handling="mapping",
                     extra={"map": _HUNTRESS_INCIDENT_STATUS},
                 ),
-                OntologyFieldMapping(ontology_field="first_seen", node_field="sent_at"),
+                # first_seen: left unmapped. An incident report carries no detection or
+                # creation timestamp; the only candidate, `sent_at`, is when a SOC
+                # analyst notified the customer, which is strictly later than first
+                # observation. Mapping it would skew any cross-provider finding-age
+                # query, so the raw value stays on `sent_at` alone.
                 # The `type` field is left unmapped: `indicator_types` is a list of the
                 # threat indicators found, so it does not reduce to the single
                 # categorical value the canonical field carries.

@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.huntress.util import get_paginated_huntress_items
+from cartography.intel.huntress.util import required_id
 from cartography.models.huntress.incident_report import HuntressIncidentReportSchema
 from cartography.util import timeit
 
@@ -50,7 +51,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
         remediations = report.get("remediations")
         result.append(
             {
-                "id": report["id"],
+                "id": required_id(report, "IncidentReport"),
                 "organization_id": report.get("organization_id"),
                 "agent_id": report.get("agent_id"),
                 "subject": report.get("subject"),

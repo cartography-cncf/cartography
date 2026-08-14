@@ -256,7 +256,13 @@ def test_cleanup_drops_stale_agents_and_spares_other_accounts(
     ):
         _sync_everything(neo4j_session, TEST_UPDATE_TAG + 2)
 
-    # Assert: the stale agent is gone, and the other account's agent is untouched
+    # Assert: the stale agent node itself is deleted, not merely detached from its
+    # account, and the other account's agent is untouched.
+    assert check_nodes(neo4j_session, "HuntressAgent", ["id"]) == {
+        (3001,),
+        (3002,),
+        (9001,),
+    }
     assert check_rels(
         neo4j_session,
         "HuntressAccount",

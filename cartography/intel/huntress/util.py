@@ -120,3 +120,21 @@ def get_huntress_item(
             f"Huntress API returned a body without the expected '{key}' object",
         )
     return item
+
+
+def required_id(item: dict[str, Any], item_type: str) -> int:
+    """Return the required `id` of a Huntress resource, failing loudly when unusable.
+
+    The id becomes the graph identity, so a null or blank one would reach the ingestion
+    `MERGE` as `id: None` and collapse every malformed record onto a single node. Reject
+    it at the API boundary instead. Indexing raises `KeyError` when the attribute is
+    absent, and the explicit check covers an `id` that is present but not the int64 the
+    API documents.
+    """
+    raw_id = item["id"]
+    # `bool` is an `int` subclass, so exclude it explicitly.
+    if isinstance(raw_id, bool) or not isinstance(raw_id, int):
+        raise ValueError(
+            f"Huntress returned a {item_type} whose id is not an integer: {raw_id!r}",
+        )
+    return raw_id

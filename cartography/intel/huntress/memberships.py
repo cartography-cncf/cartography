@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.huntress.util import get_paginated_huntress_items
+from cartography.intel.huntress.util import required_id
 from cartography.models.huntress.role import HuntressRoleSchema
 from cartography.models.huntress.user import HuntressUserSchema
 from cartography.util import timeit
@@ -53,24 +54,25 @@ def transform(
     either the account or one organization. Roles are therefore synthesised and deduped
     here, and a user's memberships are folded into one node per user.
     """
-    users: dict[Any, dict[str, Any]] = {}
+    users: dict[int, dict[str, Any]] = {}
     roles: dict[str, dict[str, Any]] = {}
 
     for membership in api_result:
         user = membership.get("user")
-        if not isinstance(user, dict) or user.get("id") is None:
-            logger.warning(
-                "Huntress membership %s has no user attached; skipping it.",
-                membership.get("id"),
+        # Every membership documents a user. A malformed one is not skipped: skipping it
+        # would leave that user out of the load while the cleanup below still runs,
+        # silently deleting a console user a previous sync had ingested.
+        if not isinstance(user, dict):
+            raise ValueError(
+                f"Huntress returned membership {membership.get('id')!r} with no user object",
             )
-            continue
+        user_id = required_id(user, "membership user")
 
         organization = membership.get("organization")
         organization_id = (
             organization.get("id") if isinstance(organization, dict) else None
         )
 
-        user_id = user["id"]
         entry = users.setdefault(
             user_id,
             {

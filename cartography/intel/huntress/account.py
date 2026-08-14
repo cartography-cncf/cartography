@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.intel.huntress.util import get_huntress_item
+from cartography.intel.huntress.util import required_id
 from cartography.models.huntress.account import HuntressAccountSchema
 from cartography.util import timeit
 
@@ -19,7 +20,7 @@ def get(api_session: requests.Session, base_uri: str) -> dict[str, Any]:
 
 def transform(api_result: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": api_result["id"],
+        "id": required_id(api_result, "Account"),
         "name": api_result.get("name"),
         "subdomain": api_result.get("subdomain"),
         "status": api_result.get("status"),

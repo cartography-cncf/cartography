@@ -8,6 +8,7 @@ from requests.adapters import HTTPAdapter
 from cartography.intel.huntress.util import create_huntress_api_session
 from cartography.intel.huntress.util import get_huntress_item
 from cartography.intel.huntress.util import get_paginated_huntress_items
+from cartography.intel.huntress.util import required_id
 
 TEST_BASE_URI = "https://api.huntress.io"
 
@@ -116,3 +117,19 @@ def test_get_huntress_item_rejects_a_body_without_the_object() -> None:
 
     with pytest.raises(ValueError, match="without the expected 'account' object"):
         get_huntress_item(api_session, TEST_BASE_URI, "account", "account")
+
+
+@pytest.mark.parametrize("bad_id", [None, "", "  ", "3001", 3.5, True, []])
+def test_required_id_rejects_an_unusable_id(bad_id):
+    """The id becomes the graph identity, so a blank one would collapse nodes together."""
+    with pytest.raises(ValueError, match="id is not an integer"):
+        required_id({"id": bad_id}, "Agent")
+
+
+def test_required_id_raises_when_the_key_is_absent() -> None:
+    with pytest.raises(KeyError):
+        required_id({"hostname": "homer-desktop"}, "Agent")
+
+
+def test_required_id_returns_the_integer() -> None:
+    assert required_id({"id": 3001}, "Agent") == 3001

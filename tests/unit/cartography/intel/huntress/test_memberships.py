@@ -77,13 +77,27 @@ def test_transform_dedupes_a_role_shared_by_two_users() -> None:
     assert {user["role_ids"][0] for user in users} == {"1000/Admin"}
 
 
-def test_transform_skips_a_membership_without_a_user() -> None:
+def test_transform_rejects_a_membership_without_a_user() -> None:
+    """Skipping it would omit the user from the load while cleanup still deleted it."""
     memberships = [{"id": 1, "permissions": "Admin", "user": None}]
 
-    users, roles = transform(memberships, TEST_ACCOUNT_ID)
+    with pytest.raises(ValueError, match="no user object"):
+        transform(memberships, TEST_ACCOUNT_ID)
 
-    assert users == []
-    assert roles == []
+
+@pytest.mark.parametrize("bad_id", [None, "", "6001", 0.5, True])
+def test_transform_rejects_an_unusable_user_id(bad_id):
+    """A blank or non-integer id would collapse every malformed user onto one node."""
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "user": {"id": bad_id, "email": "lisa@example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="id is not an integer"):
+        transform(memberships, TEST_ACCOUNT_ID)
 
 
 def test_transform_keeps_a_user_whose_membership_has_no_permission_label() -> None:
