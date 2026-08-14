@@ -7,9 +7,11 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
-from cartography.intel.orca.assets import make_asset_id
 from cartography.intel.orca.response import canonical_cve_ids
+from cartography.intel.orca.response import empty_target_context
 from cartography.intel.orca.response import field_value
+from cartography.intel.orca.response import inventory_target_context
+from cartography.intel.orca.response import optional_nonempty_string
 from cartography.intel.orca.response import parse_datetime
 from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
@@ -23,8 +25,8 @@ PAGE_SIZE = 100
 
 
 def build_query() -> dict[str, Any]:
-    # Request the related Inventory graph. AFFECTS is created only when the
-    # response actually includes one unambiguous Inventory.id.
+    # Related Inventory is optional target context. V1 does not load Inventory
+    # nodes or create finding-to-asset relationships.
     return {
         "query": {
             "models": ["Alert"],
@@ -38,28 +40,24 @@ def build_query() -> dict[str, Any]:
     }
 
 
-def _inventory_id_from_alert(
+def _target_context_from_alert(
     raw_alert: dict[str, Any],
     data: dict[str, Any],
-) -> str | None:
+) -> dict[str, str | None]:
     inventory = raw_alert.get("Inventory")
     if inventory is None:
         inventory = field_value(data, "Inventory")
     inventory = unwrap_value(inventory)
     if inventory is None:
-        return None
+        return empty_target_context()
     if isinstance(inventory, list):
         # An alert is only safe to correlate when Orca supplies one unambiguous
         # inventory record. Never choose an arbitrary asset from a multi-value
         # response.
         if len(inventory) != 1:
-            return None
+            return empty_target_context()
         inventory = inventory[0]
-    inventory = require_object(inventory, "Orca Alert.Inventory")
-    inventory_id = inventory.get("id")
-    if inventory_id is None:
-        return None
-    return require_nonempty_string(inventory_id, "Orca Alert.Inventory.id")
+    return inventory_target_context(inventory, "Orca Alert.Inventory")
 
 
 def _asset_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -74,7 +72,7 @@ def transform(
     organization_id: str,
 ) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
-    unresolved_assets = 0
+    unresolved_targets = 0
     for raw_alert in raw_alerts:
         data = require_object(
             raw_alert["data"] if "data" in raw_alert else raw_alert,
@@ -85,16 +83,29 @@ def transform(
             "Orca AlertId",
         )
 
-        inventory_id = _inventory_id_from_alert(raw_alert, data)
-        asset_id = (
-            make_asset_id(organization_id, inventory_id)
-            if inventory_id is not None
-            else None
-        )
-        if asset_id is None:
-            unresolved_assets += 1
+        target_context = _target_context_from_alert(raw_alert, data)
+        if not any(
+            target_context[key]
+            for key in (
+                "target_orca_inventory_id",
+                "target_orca_asset_unique_id",
+                "target_provider_id",
+                "target_arn",
+            )
+        ):
+            unresolved_targets += 1
 
         asset_data = _asset_data(data)
+        if target_context["target_name"] is None:
+            target_context["target_name"] = optional_nonempty_string(
+                asset_data.get("asset_name"),
+                "Orca Alert.AssetData.asset_name",
+            )
+        if target_context["target_type"] is None:
+            target_context["target_type"] = optional_nonempty_string(
+                asset_data.get("asset_type"),
+                "Orca Alert.AssetData.asset_type",
+            )
         alert_type = field_value(data, "AlertType")
         title = field_value(data, "Title") or alert_type or f"Orca alert {alert_id}"
         transformed.append(
@@ -122,16 +133,13 @@ def transform(
                     field_value(data, "CveIds"),
                     field_value(data, "CVEs"),
                 ),
-                "asset_id": asset_id,
-                "asset_name": asset_data.get("asset_name"),
-                "asset_type": asset_data.get("asset_type"),
+                **target_context,
             },
         )
-    if unresolved_assets:
+    if unresolved_targets:
         logger.warning(
-            "%d Orca alerts lacked one unambiguous Inventory.id and were loaded "
-            "without AFFECTS edges.",
-            unresolved_assets,
+            "%d Orca alerts loaded without exact target identifiers.",
+            unresolved_targets,
         )
     return transformed
 

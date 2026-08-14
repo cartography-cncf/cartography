@@ -23,16 +23,19 @@ organization:
 | Operation | Required access |
 |-----------|-----------------|
 | `GET /api/user/action` | Read the current organization's ID and name. |
-| `POST /api/serving-layer/query` | Query the `Inventory`, `Alert`, and `VulnerabilityV2` datasets. |
+| `POST /api/serving-layer/query` | Query the organization-wide `Alert` and `VulnerabilityV2` datasets, including their related Inventory fields. |
 
 The Serving Layer query uses HTTP `POST`, but it is a read-only query. Do not
 grant create, update, or delete permissions for this integration.
 
-Before the first production sync, use the authenticated Serving Layer Request
-Builder for the tenant to confirm that an Alert full-graph response includes
-the related `Inventory.id`. Cartography only creates an alert `AFFECTS` edge
-when that exact identifier is present; alerts without it remain
-organization-owned and are not correlated by name, type, or IP address.
+Cartography does not enumerate the standalone `Inventory` dataset. It requests
+an Inventory object only as related context in Alert and VulnerabilityV2
+queries. Before the first production sync, use the authenticated Serving Layer
+Request Builder to confirm that VulnerabilityV2 results include a stable
+related `Inventory.AssetUniqueId`; Cartography uses it to distinguish CVE
+occurrences on different targets. Related provider identifiers, account and
+region fields are retained when available, but are not used to guess asset
+relationships.
 
 Do not restrict the token to only a subset of the organization's accounts,
 business units, or assets. The module performs a complete organization sync;
@@ -64,9 +67,12 @@ cartography \
   --orca-api-endpoint https://api.orcasecurity.io
 ```
 
-An HTTP `401` usually indicates an invalid or expired token. An HTTP `403`, or
-missing datasets in the response, indicates that the token lacks one of the
-required organization-wide read capabilities or is scoped too narrowly.
+An HTTP `401` usually indicates an invalid or expired token. An HTTP `403` or
+missing Alert or VulnerabilityV2 results usually indicates that the token lacks
+one of the required organization-wide read capabilities or is scoped too
+narrowly. Missing related Inventory fields can also indicate that the tenant's
+Serving Layer contract differs; verify the query and response in Orca's
+authenticated Request Builder.
 
 ## References
 

@@ -30,7 +30,7 @@ class OrcaOrganizationNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class OrcaOrganizationSchema(CartographyNodeSchema):
-    """An Orca organization containing the resources observed by Orca."""
+    """An Orca organization whose security findings are ingested by Cartography."""
 
     label: str = "OrcaOrganization"
     properties: OrcaOrganizationNodeProperties = OrcaOrganizationNodeProperties()

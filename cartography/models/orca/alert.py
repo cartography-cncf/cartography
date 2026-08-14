@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import SECURITY_ISSUE
 
@@ -83,19 +82,47 @@ class OrcaAlertNodeProperties(CartographyNodeProperties):
         "cve_ids",
         description="CVE identifiers referenced by the alert.",
     )
-    asset_id: PropertyRef = PropertyRef(
-        "asset_id",
+    target_orca_inventory_id: PropertyRef = PropertyRef(
+        "target_orca_inventory_id",
         extra_index=True,
-        description="Stable identifier of the affected Orca asset.",
+        description="Orca inventory identifier associated with the alert target.",
     )
-    asset_name: PropertyRef = PropertyRef(
-        "asset_name",
-        description="Fallback display name of the affected asset from the alert.",
-    )
-    asset_type: PropertyRef = PropertyRef(
-        "asset_type",
+    target_orca_asset_unique_id: PropertyRef = PropertyRef(
+        "target_orca_asset_unique_id",
         extra_index=True,
-        description="Fallback Orca type of the affected asset from the alert.",
+        description="Orca AssetUniqueId associated with the alert target.",
+    )
+    target_provider_id: PropertyRef = PropertyRef(
+        "target_provider_id",
+        extra_index=True,
+        description="Provider-native identifier associated with the alert target.",
+    )
+    target_arn: PropertyRef = PropertyRef(
+        "target_arn",
+        extra_index=True,
+        description="Amazon Resource Name associated with the alert target.",
+    )
+    target_cloud_provider: PropertyRef = PropertyRef(
+        "target_cloud_provider",
+        extra_index=True,
+        description="Cloud provider associated with the alert target.",
+    )
+    target_cloud_account_id: PropertyRef = PropertyRef(
+        "target_cloud_account_id",
+        extra_index=True,
+        description="Provider-native account, subscription, or project identifier associated with the alert target.",
+    )
+    target_region: PropertyRef = PropertyRef(
+        "target_region",
+        description="Cloud region associated with the alert target.",
+    )
+    target_name: PropertyRef = PropertyRef(
+        "target_name",
+        description="Display name reported for the alert target.",
+    )
+    target_type: PropertyRef = PropertyRef(
+        "target_type",
+        description="Orca resource type reported for the alert target.",
     )
 
 
@@ -130,45 +157,10 @@ class OrcaAlertToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class OrcaAlertToAssetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef(
-        "lastupdated",
-        set_in_kwargs=True,
-        description="Timestamp when Orca last reported the affected asset.",
-    )
-
-
-@dataclass(frozen=True)
-class OrcaAlertToAssetRel(CartographyRelSchema):
-    """Links an Orca alert to the asset that it affects."""
-
-    target_node_label: str = "OrcaAsset"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "id": PropertyRef(
-                "asset_id",
-                description="Stable identifier of the affected Orca asset.",
-            ),
-            "lastupdated": PropertyRef(
-                "lastupdated",
-                set_in_kwargs=True,
-                description="Current sync timestamp required for an asset match.",
-            ),
-        },
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "AFFECTS"
-    properties: OrcaAlertToAssetRelProperties = OrcaAlertToAssetRelProperties()
-
-
-@dataclass(frozen=True)
 class OrcaAlertSchema(CartographyNodeSchema):
     """A security issue reported and prioritized by Orca."""
 
     label: str = "OrcaAlert"
     properties: OrcaAlertNodeProperties = OrcaAlertNodeProperties()
     sub_resource_relationship: OrcaAlertToOrganizationRel = OrcaAlertToOrganizationRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [OrcaAlertToAssetRel()],
-    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECURITY_ISSUE])

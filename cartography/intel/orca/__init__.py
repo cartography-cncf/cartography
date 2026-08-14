@@ -3,7 +3,6 @@ import logging
 import neo4j
 
 import cartography.intel.orca.alerts
-import cartography.intel.orca.assets
 import cartography.intel.orca.vulnerabilities
 from cartography.config import Config
 from cartography.intel.orca import api
@@ -18,7 +17,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    """Ingest organization-wide Orca inventory and security findings."""
+    """Ingest organization-wide Orca security findings."""
     api_endpoint = config.orca_api_endpoint
     api_token = config.orca_api_token
     if not api_endpoint and not api_token:
@@ -47,13 +46,6 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             organization,
             config.update_tag,
         )
-        cartography.intel.orca.assets.sync(
-            neo4j_session,
-            session,
-            api_endpoint,
-            organization_id,
-            config.update_tag,
-        )
         cartography.intel.orca.alerts.sync(
             neo4j_session,
             session,
@@ -78,11 +70,6 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session,
             common_job_parameters,
         )
-        cartography.intel.orca.assets.cleanup(
-            neo4j_session,
-            common_job_parameters,
-        )
-
         merge_module_sync_metadata(
             neo4j_session,
             group_type="OrcaOrganization",

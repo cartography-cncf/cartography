@@ -11,9 +11,20 @@ from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MA
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.orca import OrcaAlertSchema
-from cartography.models.orca import OrcaAssetSchema
 from cartography.models.orca import OrcaOrganizationSchema
-from cartography.models.orca import OrcaVulnerabilitySchema
+from cartography.models.orca import OrcaVulnerabilityFindingSchema
+
+TARGET_CONTEXT_PROPERTIES = {
+    "target_orca_inventory_id",
+    "target_orca_asset_unique_id",
+    "target_provider_id",
+    "target_arn",
+    "target_cloud_provider",
+    "target_cloud_account_id",
+    "target_region",
+    "target_name",
+    "target_type",
+}
 
 
 def _extra_labels(schema: CartographyNodeSchema) -> set[str]:
@@ -32,7 +43,7 @@ def _mapping_fields(
 def test_orca_schemas_use_supported_ontology_labels() -> None:
     organization = OrcaOrganizationSchema()
     alert = OrcaAlertSchema()
-    vulnerability = OrcaVulnerabilitySchema()
+    vulnerability = OrcaVulnerabilityFindingSchema()
 
     assert _extra_labels(organization) == {"Tenant"}
     assert _extra_labels(alert) == {"SecurityIssue"}
@@ -48,9 +59,8 @@ def test_orca_schemas_use_supported_ontology_labels() -> None:
 
 def test_orca_child_schemas_use_flat_organization_ownership() -> None:
     for schema in (
-        OrcaAssetSchema(),
         OrcaAlertSchema(),
-        OrcaVulnerabilitySchema(),
+        OrcaVulnerabilityFindingSchema(),
     ):
         relationship = schema.sub_resource_relationship
         assert relationship is not None
@@ -66,44 +76,40 @@ def test_orca_child_schemas_use_flat_organization_ownership() -> None:
         assert organization_property.set_in_kwargs is True
 
 
-def test_orca_findings_affect_orca_assets() -> None:
-    for schema in (OrcaAlertSchema(), OrcaVulnerabilitySchema()):
-        assert schema.other_relationships is not None
-        relationships = [
-            relationship
-            for relationship in schema.other_relationships.rels
-            if relationship.rel_label == "AFFECTS"
-        ]
+def test_orca_findings_do_not_create_asset_relationships() -> None:
+    for schema in (OrcaAlertSchema(), OrcaVulnerabilityFindingSchema()):
+        assert schema.other_relationships is None
 
-        assert len(relationships) == 1
-        relationship = relationships[0]
-        assert relationship.target_node_label == "OrcaAsset"
-        assert relationship.direction is LinkDirection.OUTWARD
-        current_asset = getattr(relationship.target_node_matcher, "lastupdated")
-        assert current_asset.name == "lastupdated"
-        assert current_asset.set_in_kwargs is True
-        if schema.label == "OrcaAlert":
-            assert getattr(relationship.target_node_matcher, "id").name == "asset_id"
-        else:
-            organization_id = getattr(
-                relationship.target_node_matcher,
-                "organization_id",
-            )
-            asset_unique_id = getattr(
-                relationship.target_node_matcher,
-                "asset_unique_id",
-            )
-            assert organization_id.name == "ORCA_ORGANIZATION_ID"
-            assert organization_id.set_in_kwargs is True
-            assert asset_unique_id.name == "asset_unique_id"
+
+def test_orca_findings_retain_consistent_target_context() -> None:
+    for schema in (OrcaAlertSchema(), OrcaVulnerabilityFindingSchema()):
+        properties = {
+            model_field.name: getattr(schema.properties, model_field.name)
+            for model_field in fields(schema.properties)
+        }
+
+        assert TARGET_CONTEXT_PROPERTIES <= properties.keys()
+        for property_name in TARGET_CONTEXT_PROPERTIES:
+            assert properties[property_name].name == property_name
+
+        for property_name in {
+            "target_orca_inventory_id",
+            "target_orca_asset_unique_id",
+            "target_provider_id",
+            "target_arn",
+            "target_cloud_account_id",
+        }:
+            assert properties[property_name].extra_index is True
+
+        for property_name in {"target_name", "target_region", "target_type"}:
+            assert properties[property_name].extra_index is False
 
 
 def test_orca_node_properties_are_documented() -> None:
     for schema in (
         OrcaOrganizationSchema(),
-        OrcaAssetSchema(),
         OrcaAlertSchema(),
-        OrcaVulnerabilitySchema(),
+        OrcaVulnerabilityFindingSchema(),
     ):
         undocumented = [
             model_field.name
@@ -129,7 +135,7 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
     )
     vulnerability_fields = _mapping_fields(
         CVES_ONTOLOGY_MAPPING["orca"],
-        "OrcaVulnerability",
+        "OrcaVulnerabilityFinding",
     )
 
     assert tenant_fields["name"].node_field == "name"

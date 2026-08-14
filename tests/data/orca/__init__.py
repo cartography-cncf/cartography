@@ -11,60 +11,11 @@ ORGANIZATION: dict[str, Any] = {
 
 INVENTORY_ID_1 = "11111111-1111-4111-8111-111111111111"
 INVENTORY_ID_2 = "22222222-2222-4222-8222-222222222222"
-ASSET_ID_1 = f"orca:{ORGANIZATION_ID}:{INVENTORY_ID_1}"
-ASSET_ID_2 = f"orca:{ORGANIZATION_ID}:{INVENTORY_ID_2}"
-
-ASSETS: list[dict[str, Any]] = [
-    {
-        "id": INVENTORY_ID_1,
-        "type": "AwsEc2Instance",
-        "name": "synthetic-app-server",
-        "asset_unique_id": "asset-unique-1",
-        "group_unique_id": "group-1",
-        "cluster_unique_id": "cluster-1",
-        "last_seen": "2026-08-13T12:00:00Z",
-        "data": {
-            "NewCategory": {"value": "Compute Services"},
-            "NewSubCategory": {"value": "Virtual Instances"},
-            "CloudProvider": {"value": "aws"},
-            "CloudAccountId": {"value": "111122223333"},
-            "Region": {"value": "us-west-2"},
-            "Zones": {"value": ["us-west-2a"]},
-            "UiUniqueField": {"value": "i-00000000000000001"},
-            "Arn": {
-                "value": "arn:aws:ec2:us-west-2:111122223333:instance/i-00000000000000001"
-            },
-            "State": {"value": "running"},
-            "Exposure": {"value": "Internet facing"},
-            "RiskLevel": {"value": "high"},
-            "OrcaScore": {"value": 8.5},
-            "ConsoleUrlLink": {"value": "https://app.example/assets/1"},
-            "Tags": {"value": {"environment": "test", "owner": "security"}},
-            "FirstSeen": {"value": "2026-08-01T12:00:00Z"},
-            "CreationTime": {"value": "2026-07-01T12:00:00Z"},
-        },
-    },
-    {
-        "id": INVENTORY_ID_2,
-        "type": "AzureStorageAccount",
-        "name": "synthetic-storage",
-        "asset_unique_id": "asset-unique-2",
-        "group_unique_id": "group-2",
-        "cluster_unique_id": "cluster-2",
-        "last_seen": "2026-08-13T12:05:00Z",
-        "data": {
-            "NewCategory": {"value": "Data Storage"},
-            "NewSubCategory": {"value": "Object Storage"},
-            "CloudProvider": {"value": "azure"},
-            "CloudAccountId": {"value": "subscription-1"},
-            "Region": {"value": "westus2"},
-            "UiUniqueField": {"value": "storage-account-1"},
-            "RiskLevel": {"value": "low"},
-            "OrcaScore": {"value": 2.1},
-            "Tags": {"value": {}},
-        },
-    },
-]
+ASSET_UNIQUE_ID_1 = "asset-unique-1"
+ASSET_UNIQUE_ID_2 = "asset-unique-2"
+PROVIDER_ID_1 = "i-00000000000000001"
+PROVIDER_ID_2 = "storage-account-1"
+TARGET_ARN_1 = "arn:aws:ec2:us-west-2:111122223333:instance/i-00000000000000001"
 
 ALERT_ID_1 = "orca-alert-1"
 ALERT_ID_2 = "orca-alert-without-inventory"
@@ -90,7 +41,19 @@ ALERTS: list[dict[str, Any]] = [
                 }
             },
         },
-        "Inventory": {"id": INVENTORY_ID_1},
+        "Inventory": {
+            "id": INVENTORY_ID_1,
+            "type": "AwsEc2Instance",
+            "name": "synthetic-app-server",
+            "asset_unique_id": ASSET_UNIQUE_ID_1,
+            "data": {
+                "UiUniqueField": {"value": PROVIDER_ID_1},
+                "Arn": {"value": TARGET_ARN_1},
+                "CloudProvider": {"value": "aws"},
+                "CloudAccountId": {"value": "111122223333"},
+                "Region": {"value": "us-west-2"},
+            },
+        },
     },
     {
         "id": "alert-row-2",
@@ -136,7 +99,14 @@ VULNERABILITIES: list[dict[str, Any]] = [
         # carries base_id_uuid and AssetUniqueId, not its top-level Inventory.id.
         "Inventory": {
             "base_id_uuid": "related-inventory-base-uuid-not-top-level-id",
-            "AssetUniqueId": "asset-unique-1",
+            "AssetUniqueId": ASSET_UNIQUE_ID_1,
+            "UiUniqueField": PROVIDER_ID_1,
+            "Arn": TARGET_ARN_1,
+            "CloudProvider": "aws",
+            "CloudAccountId": "111122223333",
+            "Region": "us-west-2",
+            "Name": "synthetic-app-server",
+            "Type": "AwsEc2Instance",
         },
         "InstalledPackage": {
             # Orca's public fixture uses the graph-wide base UUID here rather

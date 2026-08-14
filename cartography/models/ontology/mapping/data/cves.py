@@ -522,7 +522,7 @@ orca_mapping = OntologyMapping(
     module_name="orca",
     nodes=[
         OntologyNodeMapping(
-            node_label="OrcaVulnerability",
+            node_label="OrcaVulnerabilityFinding",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="cve_id",

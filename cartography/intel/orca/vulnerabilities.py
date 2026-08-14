@@ -10,11 +10,12 @@ from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
 from cartography.intel.orca.response import canonical_cve_ids
 from cartography.intel.orca.response import field_value
+from cartography.intel.orca.response import inventory_target_context
 from cartography.intel.orca.response import optional_nonempty_string
 from cartography.intel.orca.response import parse_datetime
 from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
-from cartography.models.orca import OrcaVulnerabilitySchema
+from cartography.models.orca import OrcaVulnerabilityFindingSchema
 from cartography.util import timeit
 
 PAGE_SIZE = 1000
@@ -53,7 +54,7 @@ def _optional_bool(value: Any) -> bool | None:
         return True
     if normalized in {"false", "no", "0"}:
         return False
-    raise ValueError(f"Unexpected Orca boolean value {value!r}")
+    raise ValueError("Unexpected Orca boolean value")
 
 
 def _related_object(row: dict[str, Any], field: str) -> dict[str, Any]:
@@ -95,14 +96,14 @@ def _references(vulnerability: dict[str, Any]) -> list[str]:
     return sorted(set(references))
 
 
-def _package_key(package: dict[str, Any]) -> str:
+def _package_key(package: dict[str, Any]) -> tuple[str, ...]:
     for key in ("id", "PURL", "CPE"):
         value = optional_nonempty_string(
             field_value(package, key),
             f"Orca VulnerabilityV2.InstalledPackage.{key}",
         )
         if value is not None:
-            return value
+            return (key.casefold(), value)
     name = optional_nonempty_string(
         field_value(package, "Name"),
         "Orca VulnerabilityV2.InstalledPackage.Name",
@@ -114,18 +115,18 @@ def _package_key(package: dict[str, Any]) -> str:
     if name or version:
         normalized_name = (name or "").casefold()
         normalized_version = version or ""
-        return f"{normalized_name}@{normalized_version}"
-    return "asset-wide"
+        return ("name-version", normalized_name, normalized_version)
+    return ("asset-wide",)
 
 
 def _vulnerability_id(
     organization_id: str,
-    asset_unique_id: str,
+    target_orca_asset_unique_id: str,
     cve_id: str,
-    package_key: str,
+    package_key: tuple[str, ...],
 ) -> str:
     identity = json.dumps(
-        [organization_id, asset_unique_id, cve_id, package_key],
+        [organization_id, target_orca_asset_unique_id, cve_id, package_key],
         separators=(",", ":"),
     )
     digest = hashlib.sha256(identity.encode()).hexdigest()
@@ -139,13 +140,13 @@ def transform(
     transformed: list[dict[str, Any]] = []
     for vulnerability in raw_vulnerabilities:
         inventory = _related_object(vulnerability, "Inventory")
-        asset_unique_id = require_nonempty_string(
-            field_value(inventory, "AssetUniqueId", "asset_unique_id"),
-            "Orca VulnerabilityV2 Inventory.AssetUniqueId",
+        target_context = inventory_target_context(
+            inventory,
+            "Orca VulnerabilityV2.Inventory",
         )
-        inventory_id = optional_nonempty_string(
-            field_value(inventory, "id", "base_id_uuid"),
-            "Orca VulnerabilityV2 Inventory identifier",
+        target_orca_asset_unique_id = require_nonempty_string(
+            target_context["target_orca_asset_unique_id"],
+            "Orca VulnerabilityV2 Inventory.AssetUniqueId",
         )
 
         raw_orca_id = vulnerability.get("id")
@@ -180,8 +181,7 @@ def transform(
                 vulnerability.get("FirstSeen"),
                 "Orca VulnerabilityV2.FirstSeen",
             ),
-            "inventory_id": inventory_id,
-            "asset_unique_id": asset_unique_id,
+            **target_context,
         }
 
         for package in _related_packages(vulnerability):
@@ -191,7 +191,7 @@ def transform(
                     {
                         "id": _vulnerability_id(
                             organization_id,
-                            asset_unique_id,
+                            target_orca_asset_unique_id,
                             cve_id,
                             package_key,
                         ),
@@ -220,7 +220,7 @@ def load_vulnerabilities(
 ) -> None:
     load(
         neo4j_session,
-        OrcaVulnerabilitySchema(),
+        OrcaVulnerabilityFindingSchema(),
         vulnerabilities,
         lastupdated=update_tag,
         ORCA_ORGANIZATION_ID=organization_id,
@@ -262,6 +262,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(OrcaVulnerabilitySchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    GraphJob.from_node_schema(
+        OrcaVulnerabilityFindingSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)

@@ -93,7 +93,7 @@ def test_get_organization_sanitizes_transport_errors() -> None:
 
 
 def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
-    query = {"query": {"models": ["Inventory"]}}
+    query = {"query": {"models": ["Alert"]}}
     query_call = mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
@@ -108,7 +108,7 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
             "https://api.orcasecurity.example",
             query,
             page_size=2,
-            result_name="assets",
+            result_name="alerts",
         ),
     )
 
@@ -158,9 +158,9 @@ def test_iter_serving_layer_pages_rejects_incomplete_responses(
             api.iter_serving_layer_pages(
                 MagicMock(),
                 "https://api.orcasecurity.example",
-                {"query": {"models": ["Inventory"]}},
+                {"query": {"models": ["Alert"]}},
                 page_size=1,
-                result_name="assets",
+                result_name="alerts",
             ),
         )
 
@@ -176,9 +176,9 @@ def test_iter_serving_layer_pages_rejects_excessive_page_count(mocker) -> None:
             api.iter_serving_layer_pages(
                 MagicMock(),
                 "https://api.orcasecurity.example",
-                {"query": {"models": ["Inventory"]}},
+                {"query": {"models": ["Alert"]}},
                 page_size=1,
-                result_name="assets",
+                result_name="alerts",
                 max_pages=10,
             ),
         )
