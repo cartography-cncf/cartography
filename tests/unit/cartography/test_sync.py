@@ -28,6 +28,7 @@ def test_default_sync_runs_cve_metadata_after_cve_producers():
         "crowdstrike",
         "cve",
         "github",
+        "orca",
         "semgrep",
         "trivy",
         "ubuntu",

@@ -30,6 +30,21 @@ _INSPECTOR_SEVERITY = {
     "INFORMATIONAL": "info",
 }
 
+# Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
+# lowercase variants so normalized results remain stable across API casing.
+_ORCA_CVSS_SEVERITY = {
+    "NONE": "info",
+    "LOW": "low",
+    "MEDIUM": "medium",
+    "HIGH": "high",
+    "CRITICAL": "critical",
+    "none": "info",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
 # GitHub GraphQL severity (uppercase API + lowercase fixture variants)
 _GITHUB_SEVERITY = {
     "LOW": "low",
@@ -503,6 +518,46 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaVulnerability",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="cve_id",
+                    node_field="cve_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="references",
+                    node_field="references",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="vector_string",
+                    node_field="vector_string",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_score",
+                    node_field="base_score",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="base_severity",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_CVSS_SEVERITY},
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
@@ -513,4 +568,5 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "semgrep": semgrep_mapping,
     "aws": aws_inspector_mapping,
     "wiz": wiz_mapping,
+    "orca": orca_mapping,
 }
