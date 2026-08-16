@@ -43,6 +43,28 @@ def get_container_repositories(
     return repositories
 
 
+def get_container_repositories_for_projects(
+    gitlab_url: str,
+    token: str,
+    project_ids: list[int],
+) -> list[dict[str, Any]]:
+    repositories = []
+    for project_id in project_ids:
+        logger.debug("Fetching container repositories for project ID %s", project_id)
+        repos = get_paginated(
+            gitlab_url,
+            token,
+            f"/api/v4/projects/{project_id}/registry/repositories",
+        )
+        repositories.extend(repos)
+    logger.info(
+        "Fetched %d container repositories for %d project(s)",
+        len(repositories),
+        len(project_ids),
+    )
+    return repositories
+
+
 def transform_container_repositories(
     raw_repositories: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
