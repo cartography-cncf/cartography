@@ -37,10 +37,10 @@ def test_transform_and_load_account(mock_do_manager, mock_api, neo4j_session):
         ["id", "uuid", "droplet_limit", "floating_ip_limit", "status"],
     ) == {
         (
-            account_res.uuid,
-            account_res.uuid,
-            account_res.droplet_limit,
-            account_res.floating_ip_limit,
-            account_res.status,
+            account_res.get("uuid", ""),
+            account_res.get("uuid", ""),
+            account_res.get("droplet_limit", 0),
+            account_res.get("floating_ip_limit", 0),
+            account_res.get("status", ""),
         ),
     }

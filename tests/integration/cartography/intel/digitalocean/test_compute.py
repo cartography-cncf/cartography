@@ -20,8 +20,8 @@ TEST_UPDATE_TAG = 123456789
 def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
     droplet_res = tests.data.digitalocean.compute.DROPLETS_RESPONSE
     test_droplet = droplet_res[0]
-    account_id = "123-4567-8789"
-    project_id = "project_1"
+    account_id = "test-account-uuid"
+    project_id = "test-project-uuid"
 
     _ensure_local_neo4j_has_project_data(neo4j_session)
 
@@ -31,8 +31,10 @@ def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
         account_id,
         {
             str(project_id): [
-                "do:droplet:" + test_droplet.id,
-            ],
+                {
+                    "urn": f"do:droplet:{test_droplet.get("id", "")}",
+                }
+            ]
         },
         TEST_UPDATE_TAG,
         {
@@ -51,7 +53,11 @@ def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
             "ip_address",
         ],
     ) == {
-        (test_droplet.id, test_droplet.name, test_droplet.ip_address),
+        (
+            test_droplet.get("id", ""),
+            test_droplet.get("name", ""),
+            "111.222.333.444",
+        ),
     }
     # Check the projects relationships
     assert check_rels(
@@ -64,7 +70,7 @@ def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
         rel_direction_right=False,
     ) == {
         (
-            test_droplet.id,
+            test_droplet.get("id", 0),
             project_id,
         ),
     }

@@ -40,7 +40,7 @@ def test_transform_and_load_projects(
 
     projects_res = tests.data.digitalocean.management.PROJECTS_RESPONSE
     test_project = projects_res[0]
-    account_id = "123-4567-8789"
+    account_id = "test-account-uuid"
 
     cartography.intel.digitalocean.management.sync(
         neo4j_session,
@@ -57,9 +57,9 @@ def test_transform_and_load_projects(
         ["id", "name", "owner_uuid"],
     ) == {
         (
-            test_project.id,
-            test_project.name,
-            test_project.owner_uuid,
+            test_project.get("id"),
+            test_project.get("name"),
+            test_project.get("owner_uuid"),
         ),
     }
 
@@ -74,7 +74,7 @@ def test_transform_and_load_projects(
         rel_direction_right=False,
     ) == {
         (
-            test_project.id,
+            test_project.get("id"),
             account_id,
         ),
     }

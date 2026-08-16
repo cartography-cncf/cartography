@@ -1,17 +1,23 @@
-from digitalocean import Project
-
 PROJECTS_RESPONSE = [
-    Project(
-        id="project_1",
-        name="project_1_awesome",
-        owner_uuid="12345-12345-12345-12345",
-        description="my awesome project",
-        is_default=True,
-        created_at="2021-03-03T21:29:35Z",
-        updated_at="2021-03-04T21:29:35Z",
-    ),
+    {
+        "id": "test-project-uuid",
+        "owner_uuid": "test-owner-uuid",
+        "owner_id": 11223344,
+        "name": "project_1",
+        "description": "Update your project information under Settings",
+        "purpose": "",
+        "environment": "",
+        "is_default": True,
+        "created_at": "2026-02-18T01:44:47Z",
+        "updated_at": "2026-02-18T01:44:47Z",
+    }
 ]
 
 PROJECT_RESOURCES_RESPONSE = [
-    "do:droplet:12345678",
+    {
+        "urn": "do:droplet:568030246",
+        "assigned_at": "2026-04-29T19:04:22.167913Z",
+        "links": {"self": "https://api.digitalocean.com/v2/droplets/568030246"},
+        "status": "ok",
+    }
 ]

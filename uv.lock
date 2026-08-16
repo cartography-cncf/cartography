@@ -819,6 +819,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pagerduty" },
     { name = "policyuniverse" },
+    { name = "pydo" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "python-dateutil" },
     { name = "python-digitalocean" },
@@ -922,6 +923,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=26.0.0" },
     { name = "pagerduty", specifier = ">=4.0.1" },
     { name = "policyuniverse", specifier = ">=1.1.0.0" },
+    { name = "pydo", specifier = ">=0.40.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.0.0" },
     { name = "python-dateutil", specifier = ">=2.9.0" },
     { name = "python-digitalocean", specifier = ">=1.16.0" },
@@ -3257,6 +3259,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/f2/f11dd73284122713f5f89fc940f370d035fa8e1e078d446b3313955157fe/pydantic_core-2.41.5-pp311-pypy311_pp73-musllinux_1_1_armv7l.whl", hash = "sha256:a668ce24de96165bb239160b3d854943128f4334822900534f2fe947930e5770", size = 2330317, upload-time = "2025-11-04T13:43:40.406Z" },
     { url = "https://files.pythonhosted.org/packages/88/9d/b06ca6acfe4abb296110fb1273a4d848a0bfb2ff65f3ee92127b3244e16b/pydantic_core-2.41.5-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:f14f8f046c14563f8eb3f45f499cc658ab8d10072961e07225e507adb700e93f", size = 2316992, upload-time = "2025-11-04T13:43:43.602Z" },
     { url = "https://files.pythonhosted.org/packages/36/c7/cfc8e811f061c841d7990b0201912c3556bfeb99cdcb7ed24adc8d6f8704/pydantic_core-2.41.5-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:56121965f7a4dc965bff783d70b907ddf3d57f6eba29b6d2e5dabfaf07799c51", size = 2145302, upload-time = "2025-11-04T13:43:46.64Z" },
+]
+
+[[package]]
+name = "pydo"
+version = "0.40.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "azure-identity" },
+    { name = "isodate" },
+    { name = "msrest" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/79/5e792b550f1cedd9a2568c68a314eae17fba90b2141e139c7e525f4a636a/pydo-0.40.0.tar.gz", hash = "sha256:af53bb4324ae51811254fd2e777db32dc20040fda0a04aa6a132298f98b1e3fc", size = 2860217, upload-time = "2026-08-03T10:38:42.457Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/39/db/d7cb1d39d351e60f40d187bd548dcf12459de727570562ce949a87c073c7/pydo-0.40.0-py3-none-any.whl", hash = "sha256:3c5e8801659978dc42a78b97ded6de49c93f686bd454eca62943069188f3786b", size = 2928785, upload-time = "2026-08-03T10:38:40.797Z" },
 ]
 
 [[package]]
