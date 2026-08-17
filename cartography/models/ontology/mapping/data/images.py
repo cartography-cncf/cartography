@@ -98,4 +98,20 @@ IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "github": github_mapping,
     "gitlab": gitlab_mapping,
     "scaleway": scaleway_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeImage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="digest", node_field="digest", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="uri", node_field="image_path"),
+                    # architecture / os / variant: the image-repository listing
+                    # reports no platform metadata.
+                ],
+            ),
+        ],
+    ),
 }

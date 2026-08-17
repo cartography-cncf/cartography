@@ -538,7 +538,10 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     """,
     asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    # SUBJECT is one-to-many and KubernetesServiceAccount ids are namespaced, so one
+    # binding can subject the 'default' account of several namespaces: one row each,
+    # differing only by namespace.
+    identity_fields=("binding_id", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -577,7 +580,9 @@ _k8s_default_sa_role_bindings = Fact(
     """,
     asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    # See _k8s_default_sa_cluster_role_bindings: one binding, one row per namespaced
+    # 'default' service account it subjects.
+    identity_fields=("binding_id", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -681,7 +686,7 @@ kubernetes_default_service_account_bindings = Rule(
         _k8s_default_sa_automount_enabled,
     ),
     tags=("rbac", "service-accounts", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.5"),

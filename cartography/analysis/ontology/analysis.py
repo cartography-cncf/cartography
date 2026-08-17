@@ -126,6 +126,15 @@ DEVICE_OWNS_LINKING = AnalysisJob(
             ),
             incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:MiradoreUser)-[:OWNS]->(:MiradoreDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
     ),
 )
 DEVICE_AFFECTS_S1_FINDING = AnalysisJob(

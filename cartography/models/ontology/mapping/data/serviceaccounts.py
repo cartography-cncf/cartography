@@ -169,4 +169,23 @@ SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
         ],
     ),
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeServiceUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="email", node_field="email"),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="disabled",
+                        special_handling="invert_boolean",
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

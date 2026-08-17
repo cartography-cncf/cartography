@@ -58,6 +58,7 @@ PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
+PANEL_MIRADORE = "Miradore Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
@@ -79,6 +80,7 @@ PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
@@ -100,6 +102,7 @@ PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
+PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -120,6 +123,7 @@ MODULE_PANELS = {
     "crowdstrike": PANEL_CROWDSTRIKE,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
+    "miradore": PANEL_MIRADORE,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
@@ -143,6 +147,7 @@ MODULE_PANELS = {
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
@@ -162,6 +167,7 @@ MODULE_PANELS = {
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
+    "snowflake": PANEL_SNOWFLAKE,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1037,6 +1043,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Miradore Options
+            # =================================================================
+            miradore_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-base-uri",
+                    help="Miradore base URI. Defaults to https://online.miradore.com.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_site_name: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-site-name",
+                    help="Miradore site name, which identifies the tenant.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-api-key-env-var",
+                    help="Environment variable name containing the Miradore API authentication key.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Kubernetes Options
             # =================================================================
             k8s_kubeconfig: Annotated[
@@ -1667,6 +1703,81 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Snowflake Options
+            # =================================================================
+            snowflake_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-account",
+                    help="Snowflake account identifier, e.g. MYORG-MYACCOUNT.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_user: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-user",
+                    help="Snowflake user Cartography authenticates as.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-pat-env-var",
+                    help="Environment variable name containing the Snowflake programmatic access token (PAT).",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded RSA private key for key-pair (JWT) authentication.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_passphrase_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-passphrase-env-var",
+                    help="Environment variable name containing the passphrase protecting the Snowflake private key.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_role: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-role",
+                    help="Snowflake role used for SQL API statements. Should match the user's default role, which is what the object API uses.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_warehouse: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-warehouse",
+                    help="Snowflake warehouse used to run SQL API statements.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_databases: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-databases",
+                    help="Comma-separated list of Snowflake databases to sync. If unset, every readable database is synced.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -1832,6 +1943,18 @@ class CLI:
                     help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=True,
+                ),
+            ] = None,
+            # =================================================================
+            # Zizmor Options
+            # =================================================================
+            zizmor_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--zizmor-source",
+                    help="Zizmor repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_ZIZMOR,
+                    hidden=PANEL_ZIZMOR not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2696,6 +2819,25 @@ class CLI:
                         "A Kandji base URI was provided but a token was not."
                     )
 
+            # Read Miradore API key
+            miradore_api_key = None
+            if miradore_site_name:
+                if miradore_api_key_env_var:
+                    logger.debug(
+                        "Reading Miradore API key from environment variable %s",
+                        miradore_api_key_env_var,
+                    )
+                    miradore_api_key = os.environ.get(miradore_api_key_env_var)
+                elif os.environ.get("MIRADORE_API_KEY"):
+                    logger.debug(
+                        "Reading Miradore API key from environment variable MIRADORE_API_KEY",
+                    )
+                    miradore_api_key = os.environ.get("MIRADORE_API_KEY")
+                else:
+                    logger.warning(
+                        "A Miradore site name was provided but an API key was not."
+                    )
+
             if statsd_enabled:
                 logger.debug(
                     "statsd enabled. Sending metrics to server %s:%d. Metrics have prefix '%s'.",
@@ -3070,6 +3212,34 @@ class CLI:
                 s3_bucket=None,
                 s3_prefix=None,
             )
+            snowflake_pat = None
+            if snowflake_pat_env_var:
+                logger.debug(
+                    "Reading Snowflake programmatic access token from environment variable %s",
+                    snowflake_pat_env_var,
+                )
+                snowflake_pat = os.environ.get(snowflake_pat_env_var)
+            snowflake_private_key = None
+            if snowflake_private_key_env_var:
+                # Read the key whenever the env-var flag is set, even if the
+                # passphrase is missing, so the module entry's credential guard
+                # sees the asymmetric configuration and fails loudly instead of
+                # silently skipping ingestion.
+                logger.debug(
+                    "Reading Snowflake private key from environment variable %s",
+                    snowflake_private_key_env_var,
+                )
+                snowflake_private_key = os.environ.get(snowflake_private_key_env_var)
+            snowflake_private_key_passphrase = None
+            if snowflake_private_key_passphrase_env_var:
+                logger.debug(
+                    "Reading Snowflake private key passphrase from environment variable %s",
+                    snowflake_private_key_passphrase_env_var,
+                )
+                snowflake_private_key_passphrase = os.environ.get(
+                    snowflake_private_key_passphrase_env_var,
+                )
+
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -3320,6 +3490,9 @@ class CLI:
                 kandji_base_uri=kandji_base_uri,
                 kandji_tenant_id=kandji_tenant_id,
                 kandji_token=kandji_token,
+                miradore_base_uri=miradore_base_uri,
+                miradore_site_name=miradore_site_name,
+                miradore_api_key=miradore_api_key,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
@@ -3410,6 +3583,14 @@ class CLI:
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
                 bbot_source=bbot_source,
+                snowflake_account=snowflake_account,
+                snowflake_user=snowflake_user,
+                snowflake_pat=snowflake_pat,
+                snowflake_private_key=snowflake_private_key,
+                snowflake_private_key_passphrase=snowflake_private_key_passphrase,
+                snowflake_role=snowflake_role,
+                snowflake_warehouse=snowflake_warehouse,
+                snowflake_databases=snowflake_databases,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
@@ -3431,6 +3612,7 @@ class CLI:
                 aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
+                zizmor_source=zizmor_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,

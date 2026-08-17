@@ -82,11 +82,23 @@ def transform_loadbalancers(
     # partial child payload can't strand children under PROJECT_ID=None.
     project_by_lb_id = {lb.id: lb.project_id for lb in lbs}
 
+    # A load balancer forwards internet traffic when it holds a public IP and something is
+    # listening on it. The LB API has no scheme field, so the IP is the signal; a private,
+    # private-network-only load balancer returns an empty ip list.
+    lb_ids_with_frontend = {
+        lb_id
+        for frontend in frontends
+        if (lb_id := (scaleway_obj_to_dict(frontend).get("lb") or {}).get("id"))
+    }
+
     for lb in lbs:
         formatted_lb = scaleway_obj_to_dict(lb)
         ip_addresses = [ip["ip_address"] for ip in (formatted_lb.get("ip") or [])]
         formatted_lb["ip_addresses"] = ip_addresses
         formatted_lb["ip_address"] = ip_addresses[0] if ip_addresses else None
+        exposed = bool(ip_addresses) and lb.id in lb_ids_with_frontend
+        formatted_lb["exposed_internet"] = exposed
+        formatted_lb["exposed_internet_type"] = ["direct"] if exposed else None
         lbs_by_project.setdefault(lb.project_id, []).append(formatted_lb)
 
     for frontend in frontends:

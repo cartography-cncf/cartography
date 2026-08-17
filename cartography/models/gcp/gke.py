@@ -98,7 +98,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
         "exposed_internet",
         extra_index=True,
         description="Set to `True` if at least among `private_nodes`, `private_endpoint_enabled`, or `master_authorized_networks` are disabled.",
-    )  # Populated by gcp_gke_asset_exposure.json.
+    )  # Populated by the GCP_GKE_ASSET_EXPOSURE analysis job.
     private_nodes: PropertyRef = PropertyRef(
         "private_nodes",
         description="If enabled, all nodes are given only private addresses and communicate with the master via private networking.",

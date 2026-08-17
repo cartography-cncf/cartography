@@ -72,9 +72,37 @@ def transform_netlify_sites(sites: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "functions_dir": build_settings.get("functions_dir"),
                 "deploy_key_id": build_settings.get("deploy_key_id"),
                 "has_jwt_secret": bool(site.get("jwt_secret")),
+                **_exposure(site),
             },
         )
     return transformed
+
+
+def _exposure(site: dict[str, Any]) -> dict[str, Any]:
+    """
+    A Netlify site is served to anyone by construction unless an access gate covers it.
+
+    Only a gate whose context is `all` is treated as covering the site. A context-scoped gate
+    (a password on deploy previews, say) leaves production open, and reporting such a site as
+    not exposed would hide a real attack surface. That applies to the team-level SSO
+    requirement as much as to the two site-level gates, so its own context is read rather than
+    assumed unconditional. A gate with no context at all does not count either, for the same
+    reason: erring towards reporting exposure.
+    """
+    served = bool(site.get("ssl_url") or site.get("url")) and not site.get("disabled")
+    gated = (
+        (site.get("has_password") and site.get("password_context") == "all")
+        or (site.get("sso_login") and site.get("sso_login_context") == "all")
+        or (
+            site.get("account_sso_login")
+            and site.get("account_sso_login_context") == "all"
+        )
+    )
+    exposed = bool(served and not gated)
+    return {
+        "exposed_internet": exposed,
+        "exposed_internet_type": ["direct"] if exposed else None,
+    }
 
 
 @timeit
