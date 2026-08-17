@@ -1,33 +1,40 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import cartography.intel.digitalocean.compute
+import tests.data.digitalocean.management
+
 import tests.data.digitalocean.compute
-from tests.integration.cartography.intel.digitalocean.test_management import (
-    _ensure_local_neo4j_has_project_data,
-)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(
-    cartography.intel.digitalocean.compute,
-    "get_droplets",
-    return_value=tests.data.digitalocean.compute.DROPLETS_RESPONSE,
-)
-@patch("digitalocean.Manager")
-def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
-    droplet_res = tests.data.digitalocean.compute.DROPLETS_RESPONSE
+def _ensure_local_neo4j_has_project_data(neo4j_session):
+    data = cartography.intel.digitalocean.management.transform_projects(
+        tests.data.digitalocean.management.PROJECTS_RESPONSE.get("projects", [])
+    )
+    cartography.intel.digitalocean.management.load_projects(
+        neo4j_session, data, "123-4567-8789", TEST_UPDATE_TAG
+    )
+
+
+def test_transform_and_load_droplets(neo4j_session):
+    droplet_res = tests.data.digitalocean.compute.DROPLETS_RESPONSE.get("droplets", [])
     test_droplet = droplet_res[0]
     account_id = "test-account-uuid"
     project_id = "test-project-uuid"
+
+    mock_client = MagicMock()
+    mock_client.droplets.list.return_value = (
+        tests.data.digitalocean.compute.DROPLETS_RESPONSE
+    )
 
     _ensure_local_neo4j_has_project_data(neo4j_session)
 
     cartography.intel.digitalocean.compute.sync(
         neo4j_session,
-        mock_do_manager,
+        mock_client,
         account_id,
         {
             str(project_id): [
