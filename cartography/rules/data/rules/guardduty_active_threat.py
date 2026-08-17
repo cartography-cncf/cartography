@@ -73,7 +73,10 @@ aws_guardduty_active_threat = Fact(
     """,
     asset_label="AWSGuardDutyFinding",
     asset_id_field="finding_id",
-    identity_fields=("finding_arn",),
+    # Not finding_arn: `Arn` is soft-mapped at ingest, so every finding the API
+    # returns without one would share a null identity. `Id` is required there and is
+    # the node's primary key.
+    identity_fields=("finding_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -110,7 +113,7 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(
         iso27001_annex_a("8.16"),
         soc2_tsc("CC7.2"),

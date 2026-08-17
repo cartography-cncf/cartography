@@ -216,7 +216,15 @@ _azure_trust_relationship_manipulation = Fact(
             )
         ] AS matched
     WHERE size(matched) > 0
-    RETURN DISTINCT
+    // One finding per (principal, role definition), matching the AWS and GCP facts: the
+    // same role can be assigned to a principal at several scopes and a definition can
+    // carry several permission sets, so fold both fan-outs into the returned lists
+    // instead of repeating one identity across rows.
+    UNWIND matched AS matched_action
+    WITH sub, rd, principal,
+        collect(DISTINCT matched_action) AS actions,
+        collect(DISTINCT ra.scope) AS resources
+    RETURN
         sub.id AS account,
         sub.id AS account_id,
         coalesce(principal.user_principal_name,
@@ -227,8 +235,8 @@ _azure_trust_relationship_manipulation = Fact(
             WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal']][0] AS principal_type,
         rd.id AS policy_id,
         rd.role_name AS policy_name,
-        matched AS actions,
-        [ra.scope] AS resources
+        actions,
+        resources
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""

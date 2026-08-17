@@ -124,6 +124,16 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "architecture_normalized",
         description="Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`).",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the container's pod is targeted by an internet-exposed service. `False` otherwise.",
+    )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `lb`.",
+    )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

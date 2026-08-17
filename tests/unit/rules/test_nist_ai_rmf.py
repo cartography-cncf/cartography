@@ -23,6 +23,7 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": "0.2.1",
         "ai_third_party_app_inventory": "0.1.1",
         "ai_third_party_app_sensitive_scopes": "0.1.1",
+        "aibom_agent_inventory": "0.1.1",
     }
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES

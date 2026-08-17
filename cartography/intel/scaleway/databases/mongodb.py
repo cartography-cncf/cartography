@@ -84,6 +84,8 @@ def _flatten_mongo_endpoints(formatted: dict[str, Any]) -> None:
                 private_port = port
 
     formatted["is_public"] = is_public
+    formatted["exposed_internet"] = is_public
+    formatted["exposed_internet_type"] = ["direct"] if is_public else None
     formatted["public_endpoint_dns"] = public_dns
     formatted["public_endpoint_port"] = public_port
     formatted["private_endpoint_dns"] = private_dns

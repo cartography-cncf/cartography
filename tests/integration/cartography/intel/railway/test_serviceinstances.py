@@ -199,6 +199,19 @@ def test_railway_service_instance_no_edge_when_repo_absent(neo4j_session):
     )
 
 
+def _exposure_types_by_id(neo4j_session):
+    """check_nodes cannot hash a list-valued property, so read the types directly."""
+    return {
+        row["id"]: row["types"]
+        for row in neo4j_session.run(
+            """
+            MATCH (si:RailwayServiceInstance)
+            RETURN si.id AS id, si.exposed_internet_type AS types
+            """,
+        )
+    }
+
+
 def test_railway_service_instance_exposure_flag(neo4j_session):
     # Act: no TCP proxies, so exposure comes purely from domains.
     _sync_compute_tier(neo4j_session)
@@ -207,10 +220,24 @@ def test_railway_service_instance_exposure_flag(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayServiceInstance",
+        ["id", "exposed_internet"],
+    ) == {
+        (WEB_INSTANCE_ID, True),
+        (POSTGRES_INSTANCE_ID, False),
+    }
+    # The deprecated flag stays in step with the canonical one until v1.0.0.
+    assert check_nodes(
+        neo4j_session,
+        "RailwayServiceInstance",
         ["id", "is_publicly_exposed"],
     ) == {
         (WEB_INSTANCE_ID, True),
         (POSTGRES_INSTANCE_ID, False),
+    }
+    # HTTPS domains only, so no tcp_proxy path.
+    assert _exposure_types_by_id(neo4j_session) == {
+        WEB_INSTANCE_ID: ["direct"],
+        POSTGRES_INSTANCE_ID: None,
     }
 
 
@@ -231,10 +258,16 @@ def test_railway_service_instance_exposed_by_tcp_proxy(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayServiceInstance",
-        ["id", "is_publicly_exposed"],
+        ["id", "exposed_internet"],
     ) == {
         (WEB_INSTANCE_ID, True),
         (POSTGRES_INSTANCE_ID, True),
+    }
+    # A TCP proxy publishes a raw port with no TLS, so it is recorded separately from the
+    # HTTPS domains that expose web.
+    assert _exposure_types_by_id(neo4j_session) == {
+        WEB_INSTANCE_ID: ["direct"],
+        POSTGRES_INSTANCE_ID: ["tcp_proxy"],
     }
 
 
@@ -276,4 +309,6 @@ def test_unverified_custom_domain_alone_is_not_exposure():
         {},
     )
 
+    assert result["project-1"][0]["exposed_internet"] is False
+    assert result["project-1"][0]["exposed_internet_type"] is None
     assert result["project-1"][0]["is_publicly_exposed"] is False
