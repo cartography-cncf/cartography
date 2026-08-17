@@ -3,14 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import LOAD_BALANCER
 
 
 @dataclass(frozen=True)
@@ -91,13 +89,16 @@ class GCPTargetHttpsProxyToSslPolicyRel(CartographyRelSchema):
     )
 
 
+# No `LoadBalancer` ontology label: a target proxy is a component inside a GCP load
+# balancer rather than the load balancer itself, the same way AzureLoadBalancerRule and
+# AzureLoadBalancerFrontendIP carry no label while AzureLoadBalancer does. GCPForwardingRule
+# is the labelled entry point for this provider.
 @dataclass(frozen=True)
 class GCPTargetHttpsProxySchema(CartographyNodeSchema):
     """Representation of a GCP [Target HTTPS Proxy](https://cloud.google.com/compute/docs/reference/rest/v1/targetHttpsProxies), used by external and internal HTTPS load balancers to terminate TLS."""
 
     label: str = "GCPTargetHttpsProxy"
     properties: GCPTargetHttpsProxyNodeProperties = GCPTargetHttpsProxyNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPTargetHttpsProxyToProjectRel = (
         GCPTargetHttpsProxyToProjectRel()
     )
