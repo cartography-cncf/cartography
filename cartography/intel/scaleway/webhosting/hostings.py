@@ -26,7 +26,7 @@ def sync(
     update_tag: int,
 ) -> None:
     hostings = get(client, org_id)
-    hostings_by_project = transform_hostings(hostings)
+    hostings_by_project = transform_hostings(hostings, projects_id)
     load_hostings(neo4j_session, hostings_by_project, update_tag)
     cleanup(neo4j_session, projects_id, common_job_parameters)
 
@@ -42,12 +42,26 @@ def get(
 
 def transform_hostings(
     hostings: list[HostingSummary],
+    projects_id: list[str],
 ) -> dict[str, list[dict[str, Any]]]:
+    # `ListHostings` is scoped to the organization while cleanup is scoped to the
+    # projects returned by the project sync. Keeping the load scope inside the
+    # cleanup scope guarantees that every node we write is reachable by a scoped
+    # cleanup: a hosting attached to an unknown project would get no RESOURCE edge
+    # to a ScalewayProject, and the generated cleanup traverses that edge, so it
+    # would linger as a stale node forever.
+    known_projects = set(projects_id)
     result: dict[str, list[dict[str, Any]]] = {}
     for hosting in hostings:
-        formatted = scaleway_obj_to_dict(hosting)
-
-        result.setdefault(hosting.project_id, []).append(formatted)
+        if hosting.project_id not in known_projects:
+            logger.warning(
+                "Skipping Scaleway Web Hosting account '%s': its project '%s' is not "
+                "part of the synced organization projects.",
+                hosting.id,
+                hosting.project_id,
+            )
+            continue
+        result.setdefault(hosting.project_id, []).append(scaleway_obj_to_dict(hosting))
     return result
 
 

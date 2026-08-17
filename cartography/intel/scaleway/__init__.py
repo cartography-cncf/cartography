@@ -301,7 +301,8 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
 
-    # Web Hosting
+    # Web Hosting (loaded after DNS so the EXPOSE edges to ScalewayRegisteredDomain
+    # and ScalewayDnsZone resolve).
     cartography.intel.scaleway.webhosting.hostings.sync(
         neo4j_session,
         client,
