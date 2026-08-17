@@ -16,6 +16,10 @@ VERCEL_PROJECTS = [
         "rootDirectory": "apps/web",
         "gitForkProtection": True,
         "skewProtectionMaxAge": 3600,
+        # Vercel Authentication covering every deployment, so nothing is public.
+        "ssoProtection": {"deploymentType": "all"},
+        "passwordProtection": None,
+        "trustedSources": None,
     },
     {
         "id": "prj_def",
@@ -34,5 +38,14 @@ VERCEL_PROJECTS = [
         "rootDirectory": "apps/docs",
         "gitForkProtection": False,
         "skewProtectionMaxAge": 7200,
+        # SSO is preview-only, and password protection stops at the production deployment
+        # URLs. The password must never reach the graph. trustedSources is set to show it is
+        # not read: it is an OIDC authentication path, not an access restriction.
+        "ssoProtection": {"deploymentType": "preview"},
+        "passwordProtection": {
+            "deploymentType": "prod_deployment_urls_and_all_previews",
+            "password": "do-not-ingest-me",
+        },
+        "trustedSources": {"oidcProviders": {"acme-idp": []}},
     },
 ]

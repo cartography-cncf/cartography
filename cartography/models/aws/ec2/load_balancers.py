@@ -43,6 +43,11 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
     createdtime: PropertyRef = PropertyRef(
         "createdtime", description="The date and time the load balancer was created."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the scheme is `internet-facing` and a source security group opens a listener port to `0.0.0.0/0`. `False` otherwise.",
+    )  # Populated by the AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

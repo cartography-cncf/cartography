@@ -338,8 +338,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # HAS_IMAGE is the raw ingest-time (:Container|:Function)->(:Image)
         # reference, matched by runtime digest at load time and possibly pointing
         # at a manifest list. The canonical RESOLVED_IMAGE edge is derived from it
-        # by resolved_image_analysis.json (resolving manifest lists to the concrete
-        # single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
+        # by the RESOLVED_IMAGE_JOBS analysis jobs (resolving manifest lists to the
+        # concrete single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
         # distinct semantic rather than a violation of RESOLVED_IMAGE.
         KubernetesContainerToECRImageRel,
         KubernetesContainerToGitLabContainerImageRel,

@@ -1,6 +1,7 @@
 import pytest
 
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import fanout_risks
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
@@ -245,6 +246,12 @@ def test_fact_rejects_asset_id_field_only_bound_in_intermediate_with():
         Fact(**_fact_kwargs(cypher_query=query))
 
 
+def test_fact_rejects_identity_field_not_returned_by_query():
+    """An identity a consumer cannot read from the output is not an identity."""
+    with pytest.raises(ValueError, match="cypher_query does not return"):
+        Fact(**_fact_kwargs(identity_fields=("user_arn", "policy_arn")))
+
+
 def test_fact_rejects_asset_id_field_from_a_different_node():
     """The (label, id) anchor must describe one node, not two."""
     query = "MATCH (u:AWSUser) MATCH (r:AWSRole) RETURN r.arn AS user_arn"
@@ -286,3 +293,155 @@ def test_returned_aliases_reads_only_the_final_projection():
         "pod_names",
         "cluster_name",
     }
+
+
+# `(parent)-[:RESOURCE]->(child)` ownership, the one invariant these cases rely on.
+_TO_ONE_IN = frozenset({("RESOURCE", "*")})
+_TO_ONE_OUT: frozenset[tuple[str, str]] = frozenset()
+
+
+def _risks(
+    query: str, identity_fields: tuple[str, ...], asset_label: str = "GCPInstance"
+):
+    return {
+        (risk.variable, risk.condition)
+        for risk in fanout_risks(
+            query,
+            asset_label,
+            identity_fields,
+            to_one_incoming=_TO_ONE_IN,
+            to_one_outgoing=_TO_ONE_OUT,
+        )
+    }
+
+
+_FANOUT_QUERY = """
+MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+MATCH (instance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(access:GCPNicAccessConfig)
+RETURN
+    instance.id AS instance_id,
+    project.id AS project_id,
+    access.public_ip AS external_ip
+"""
+
+
+def test_fanout_risks_flags_a_projected_column_the_identity_omits():
+    """The reported shape: one row per access config, identity keyed on the instance.
+
+    `project` must not be flagged alongside it: it is reached by walking a RESOURCE
+    edge backwards, so it is the single owning project, not a fan-out.
+    """
+    assert _risks(_FANOUT_QUERY, ("instance_id",)) == {("access", "projected")}
+
+
+def test_fanout_risks_accepts_the_identity_that_includes_the_fan_out_column():
+    """Folding the fan-out column into the identity resolves it."""
+    assert _risks(_FANOUT_QUERY, ("instance_id", "external_ip")) == set()
+
+
+def test_fanout_risks_measures_multiplicity_against_the_identity_not_the_anchor():
+    """Pinning a variable also pins whatever is to-one from it.
+
+    `access` is pinned by `external_ip`, so the project that owns it is pinned too even
+    though the walk to it starts two hops from the anchor.
+    """
+    query = _FANOUT_QUERY.replace(
+        "MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)",
+        "MATCH (project:GCPProject)-[:RESOURCE]->(access)",
+    ).replace("MATCH (instance)-", "MATCH (instance:GCPInstance)-")
+    assert _risks(query, ("instance_id", "external_ip")) == set()
+
+
+def test_fanout_risks_flags_a_variable_that_only_duplicates_rows():
+    """A to-many hop contributing no output column repeats identical rows."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    RETURN instance.id AS instance_id, project.id AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == {("nic", "invisible")}
+
+
+def test_fanout_risks_accepts_return_distinct_for_identical_rows():
+    """`RETURN DISTINCT` collapses duplicates, so an invisible fan-out is resolved."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    RETURN DISTINCT instance.id AS instance_id, project.id AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
+def test_fanout_risks_accepts_an_aggregate_in_the_final_projection():
+    """An aggregate makes Cypher group by the other columns, folding away the rest.
+
+    `nic` contributes no output column, so grouping collapses it exactly as DISTINCT
+    would, without the query having to say DISTINCT.
+    """
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    RETURN instance.id AS instance_id, min(project.id) AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
+def test_fanout_risks_does_not_let_return_distinct_excuse_a_projected_column():
+    """DISTINCT dedupes whole rows, so rows differing only outside the identity survive."""
+    query = _FANOUT_QUERY.replace("RETURN", "RETURN DISTINCT")
+    assert _risks(query, ("instance_id",)) == {("access", "projected")}
+
+
+def test_fanout_risks_accepts_an_aggregated_fan_out():
+    """An aggregate folds the extra rows into one value."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(access:GCPNicAccessConfig)
+    WITH instance, project, collect(DISTINCT access.public_ip) AS external_ips
+    RETURN instance.id AS instance_id, project.id AS project_id, external_ips
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
+def test_fanout_risks_ignores_a_variable_bound_only_in_a_subquery():
+    """`EXISTS { ... }` and `CALL { ... }` filter rows, they do not multiply them."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    WHERE EXISTS { (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface) }
+    RETURN instance.id AS instance_id, project.id AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
+def test_fanout_risks_accepts_an_optional_match_anti_join():
+    """`OPTIONAL MATCH` plus `IS NULL` keeps only rows where nothing matched."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    OPTIONAL MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    WITH instance, project, nic
+    WHERE nic IS NULL
+    RETURN instance.id AS instance_id, project.id AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == set()
+
+
+def test_fanout_risks_survives_a_comment_marker_inside_a_string_literal():
+    """A `//` inside a literal must not be read as the start of a comment."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
+    WHERE nic.name <> 'https://example.com/'
+    RETURN instance.id AS instance_id, project.id AS project_id
+    """
+    assert _risks(query, ("instance_id",)) == {("nic", "invisible")}
+
+
+def test_fanout_risks_resolves_an_identity_field_through_an_intermediate_with():
+    """A `WITH x AS y` rename must still trace the identity back to its variable."""
+    query = """
+    MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
+    MATCH (instance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(access:GCPNicAccessConfig)
+    WITH instance, access.public_ip AS ip
+    RETURN instance.id AS instance_id, ip AS external_ip
+    """
+    assert _risks(query, ("instance_id", "external_ip")) == set()
