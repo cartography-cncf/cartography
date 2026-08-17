@@ -11,42 +11,16 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import aggregated_response_cleanup_safe
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
+from cartography.intel.gcp.util import merge_aggregated_scope_items
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.compute.ssl_policy import GCPSslPolicySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-_SCOPE_NO_RESULTS_WARNING = "NO_RESULTS_ON_PAGE"
-_EXPECTED_SKIP_CATEGORIES = ("api_disabled", "billing_disabled", "forbidden")
-
-
-def _aggregated_response_cleanup_safe(response: Resource) -> bool:
-    for scoped_list in response.get("items", {}).values():
-        warning = scoped_list.get("warning")
-        if warning and warning.get("code") != _SCOPE_NO_RESULTS_WARNING:
-            return False
-    return True
-
-
-def _merge_aggregated_scope_items(
-    items: dict[str, dict],
-    response: Resource,
-) -> None:
-    for scope, scoped_list in response.get("items", {}).items():
-        target_scoped_list = items.setdefault(scope, {})
-        target_scoped_list.setdefault("sslPolicies", []).extend(
-            scoped_list.get("sslPolicies", [])
-        )
-        warning = scoped_list.get("warning")
-        existing_warning = target_scoped_list.get("warning")
-        if warning and (
-            not existing_warning
-            or existing_warning.get("code") == _SCOPE_NO_RESULTS_WARNING
-        ):
-            target_scoped_list["warning"] = warning
 
 
 @timeit
@@ -70,7 +44,7 @@ def get_gcp_ssl_policies(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            if classify_gcp_http_error(e) in _EXPECTED_SKIP_CATEGORIES:
+            if classify_gcp_http_error(e) in GCP_EXPECTED_SKIP_CATEGORIES:
                 logger.warning(
                     "GCP: Unable to list SSL policies for project %s; skipping this collector. %s",
                     project_id,
@@ -78,7 +52,7 @@ def get_gcp_ssl_policies(
                 )
                 return None
             raise
-        _merge_aggregated_scope_items(items, res)
+        merge_aggregated_scope_items(items, res, "sslPolicies")
         response_id = res.get("id", response_id)
         req = compute.sslPolicies().aggregatedList_next(
             previous_request=req,
@@ -161,7 +135,6 @@ def sync_gcp_ssl_policies(
     neo4j_session: neo4j.Session,
     compute: Resource,
     project_id: str,
-    regions: list[str],
     gcp_update_tag: int,
     common_job_parameters: dict,
 ) -> None:
@@ -175,5 +148,5 @@ def sync_gcp_ssl_policies(
     policies = transform_gcp_ssl_policies(response, project_id)
     load_gcp_ssl_policies(neo4j_session, policies, gcp_update_tag, project_id)
 
-    if _aggregated_response_cleanup_safe(response):
+    if aggregated_response_cleanup_safe(response):
         cleanup_gcp_ssl_policies(neo4j_session, common_job_parameters)

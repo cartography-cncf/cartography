@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import GCP_EXPECTED_SKIP_CATEGORIES
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.compute.target_ssl_proxy import GCPTargetSslProxySchema
@@ -39,11 +40,7 @@ def get_gcp_target_ssl_proxies(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            if classify_gcp_http_error(e) in (
-                "api_disabled",
-                "billing_disabled",
-                "forbidden",
-            ):
+            if classify_gcp_http_error(e) in GCP_EXPECTED_SKIP_CATEGORIES:
                 logger.warning(
                     "GCP: Unable to list target SSL proxies for project %s; skipping this collector. %s",
                     project_id,

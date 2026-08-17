@@ -92,7 +92,6 @@ def test_sync_gcp_ssl_policy_and_target_proxies(
         neo4j_session,
         MagicMock(),
         TEST_PROJECT_ID,
-        [TEST_REGION],
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -100,7 +99,6 @@ def test_sync_gcp_ssl_policy_and_target_proxies(
         neo4j_session,
         MagicMock(),
         TEST_PROJECT_ID,
-        [TEST_REGION],
         TEST_UPDATE_TAG,
         common_job_parameters,
     )

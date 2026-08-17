@@ -256,7 +256,7 @@ def test_get_gcp_ssl_policies_preserves_unreachable_warning_across_pages():
     assert response["items"]["regions/us-central1"]["warning"] == {
         "code": "UNREACHABLE",
     }
-    assert not cartography.intel.gcp.ssl_policy._aggregated_response_cleanup_safe(
+    assert not cartography.intel.gcp.ssl_policy.aggregated_response_cleanup_safe(
         response,
     )
 
@@ -303,7 +303,7 @@ def test_get_gcp_target_https_proxies_preserves_unreachable_warning_across_pages
         "code": "UNREACHABLE",
     }
     assert (
-        not cartography.intel.gcp.target_https_proxy._aggregated_response_cleanup_safe(
+        not cartography.intel.gcp.target_https_proxy.aggregated_response_cleanup_safe(
             response,
         )
     )
@@ -327,7 +327,6 @@ def test_sync_gcp_ssl_policies_skips_cleanup_when_global_list_denied():
             MagicMock(),
             compute,
             TEST_PROJECT_ID,
-            [],
             123,
             {"PROJECT_ID": TEST_PROJECT_ID, "UPDATE_TAG": 123},
         )
@@ -353,7 +352,6 @@ def test_sync_gcp_target_https_proxies_skips_cleanup_when_global_list_denied():
             MagicMock(),
             compute,
             TEST_PROJECT_ID,
-            [],
             123,
             {"PROJECT_ID": TEST_PROJECT_ID, "UPDATE_TAG": 123},
         )

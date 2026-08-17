@@ -1561,7 +1561,6 @@ def sync(
             neo4j_session,
             compute,
             project_id,
-            regions,
             gcp_update_tag,
             common_job_parameters,
         )
@@ -1569,7 +1568,6 @@ def sync(
             neo4j_session,
             compute,
             project_id,
-            regions,
             gcp_update_tag,
             common_job_parameters,
         )
