@@ -5,14 +5,13 @@ from typing import List
 from typing import Optional
 
 import neo4j
-
 from pydo import Client
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.digitalocean.util.pagination import get_paginated_list
 from cartography.models.digitalocean.droplet import DODropletSchema
 from cartography.util import timeit
-from cartography.intel.digitalocean.util.pagination import get_paginated_list
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +38,11 @@ def sync(
 def get_droplets(client: Client) -> list:
     return get_paginated_list(client.droplets.list, "droplets")
 
+
 @timeit
-def get_ips(droplet: dict[str, Any]) -> tuple[Optional[str], Optional[str], Optional[str]]:
+def get_ips(
+    droplet: dict[str, Any],
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
     # Get IPv4 addresses
     ipv4_networks = droplet.get("networks", {}).get("v4", [])
     public_ip = next(

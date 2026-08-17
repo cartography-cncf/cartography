@@ -1,9 +1,8 @@
 from unittest.mock import MagicMock
 
 import cartography.intel.digitalocean.compute
-import tests.data.digitalocean.management
-
 import tests.data.digitalocean.compute
+import tests.data.digitalocean.management
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 

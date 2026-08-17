@@ -8,9 +8,9 @@ from pydo import Client
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.digitalocean.util.pagination import get_paginated_list
 from cartography.models.digitalocean.project import DOProjectSchema
 from cartography.util import timeit
-from cartography.intel.digitalocean.util.pagination import get_paginated_list
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def sync(
     load_projects(neo4j_session, projects, account_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
-    return get_projects_resources(client,projects_res)
+    return get_projects_resources(client, projects_res)
 
 
 @timeit
@@ -42,7 +42,9 @@ def get_projects_resources(client: Client, projects_res: list) -> dict:
     result = {}
     for p in projects_res:
         id = p.get("id")
-        resources = get_paginated_list(client.projects.list_resources, "resources", project_id=id)
+        resources = get_paginated_list(
+            client.projects.list_resources, "resources", project_id=id
+        )
         result[id] = resources
     return result
 

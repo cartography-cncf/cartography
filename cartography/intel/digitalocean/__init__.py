@@ -1,6 +1,5 @@
 import logging
 
-
 import neo4j
 from pydo import Client
 
@@ -32,14 +31,14 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
         "UPDATE_TAG": config.update_tag,
     }
     client = Client(token=config.digitalocean_token)
-    
+
     account_id = platform.sync(
         neo4j_session, client, config.update_tag, common_job_parameters
     )
     if not account_id:
         logger.warning("No account ID found, skipping further DigitalOcean ingestion.")
         return
-    
+
     common_job_parameters["ACCOUNT_ID"] = str(account_id)
     projects_resources = management.sync(
         neo4j_session,
