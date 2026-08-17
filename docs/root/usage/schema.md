@@ -86,3 +86,4 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Wiz](../modules/wiz/schema.md)
 - [Workday](../modules/workday/schema.md)
 - [Workos](../modules/workos/schema.md)
+- [Zizmor](../modules/zizmor/schema.md)

@@ -496,6 +496,10 @@ class Config:
     :type bbot_source: str
     :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
         s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
+    :type zizmor_source: str
+    :param zizmor_source: Report source locator for the Zizmor repository mapping file.
+        Accepts a local file, s3://bucket/key, gs://bucket/object, or
+        azblob://account/container/blob. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -693,6 +697,7 @@ class Config:
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
+        zizmor_source=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
@@ -975,6 +980,7 @@ class Config:
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
+        self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
