@@ -16,7 +16,7 @@ def get_paginated_list(
     """
     Retrieves a paginated list of items from a DigitalOcean API endpoint.
     If there is no next page, then it's the last page and the functino will stop fetching more pages.
-    Default per_page is 20, and current max_pages is set to 100 to limit the number of API calls.
+    Default per_page is 20, and current max_pages is set to 10000 to limit the number of API calls.
     e.g.
     {
         "<target_key>": [<list of items>],
@@ -31,6 +31,9 @@ def get_paginated_list(
     }
     """
     data: list[dict[str, Any]] = []
+
+    if max_pages is not None and max_pages <= 0:
+        raise ValueError("max_pages must be positive or None.")
 
     page_num = 1
 
