@@ -50,6 +50,16 @@ class AzureGroupContainerNodeProperties(CartographyNodeProperties):
         "os_type",
         description="Operating system type used by the container group.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the container group has a public IP address, or an IP with no subnet attachment. `False` otherwise.",
+    )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_CONTAINER analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the AZURE_COMPUTE_ASSET_EXPOSURE_CONTAINER analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

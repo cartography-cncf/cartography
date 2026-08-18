@@ -110,17 +110,22 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
+        "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
         "docker_scout": _LazyStage(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
         "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
         "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
         "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        # Must run after `github` so that the workflows, actions, and repositories
+        # that findings attach to already exist.
+        "zizmor": _LazyStage("cartography.intel.zizmor", "start_zizmor_ingestion"),
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
+        "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "cve_metadata": _LazyStage(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
@@ -142,6 +147,15 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.circleci", "start_circleci_ingestion"
         ),
         "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
+        "miradore": _LazyStage(
+            "cartography.intel.miradore", "start_miradore_ingestion"
+        ),
+        # Runs after the cloud providers so that stages, external volumes and
+        # integrations can attach to the S3 / GCS / Azure resources and IAM roles
+        # they point at on the first sync rather than the next one.
+        "snowflake": _LazyStage(
+            "cartography.intel.snowflake", "start_snowflake_ingestion"
+        ),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
         "analysis": _LazyStage("cartography.intel.analysis", "run"),

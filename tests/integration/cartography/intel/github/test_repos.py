@@ -149,6 +149,28 @@ def test_sync_github_repos(
         ("https://github.com/cartography-cncf/cartography", "Makefile"),
     }
 
+    # Assert - Verify fork and parent attributes
+    assert check_nodes(neo4j_session, "GitHubRepository", ["id", "fork", "parent"]) == {
+        ("https://github.com/simpsoncorp/sample_repo", False, None),
+        (
+            "https://github.com/simpsoncorp/SampleRepo2",
+            True,
+            "https://github.com/cartography-cncf/cartography",
+        ),
+        (
+            "https://github.com/cartography-cncf/cartography",
+            True,
+            "https://github.com/some-upstream-org/cartography",
+        ),
+    }
+
+    # Assert - Verify the fork attribute is projected onto the CodeRepository ontology label
+    assert check_nodes(neo4j_session, "CodeRepository", ["id", "_ont_fork"]) == {
+        ("https://github.com/simpsoncorp/sample_repo", False),
+        ("https://github.com/simpsoncorp/SampleRepo2", True),
+        ("https://github.com/cartography-cncf/cartography", True),
+    }
+
 
 @patch.object(
     cartography.intel.github.repos,

@@ -16,6 +16,9 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.ssl_policy import sync_gcp_ssl_policies
+from cartography.intel.gcp.target_https_proxy import sync_gcp_target_https_proxies
+from cartography.intel.gcp.target_ssl_proxy import sync_gcp_target_ssl_proxies
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_permission_denied_error
@@ -1394,7 +1397,6 @@ def sync_gcp_forwarding_rules(
     load_gcp_forwarding_rules(
         neo4j_session, forwarding_rules, gcp_update_tag, project_id
     )
-    cleanup_gcp_forwarding_rules(neo4j_session, common_job_parameters)
 
     for r in regions:
         fwd_response = get_gcp_regional_forwarding_rules(project_id, r, compute)
@@ -1405,6 +1407,8 @@ def sync_gcp_forwarding_rules(
         load_gcp_forwarding_rules(
             neo4j_session, forwarding_rules, gcp_update_tag, project_id
         )
+
+    cleanup_gcp_forwarding_rules(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1471,7 +1475,22 @@ def sync(
     if zones is None:
         return
     else:
-        project_metadata = get_gcp_compute_project_metadata(project_id, compute)
+        try:
+            project_metadata = get_gcp_compute_project_metadata(project_id, compute)
+        except HttpError as e:
+            # zones.list already succeeded above, so the Compute API is enabled and
+            # the project exists -- the only realistic 403 left here is missing the
+            # compute.projects.get permission specifically. Same skip-and-log
+            # treatment as get_zones_in_project() uses two lines above.
+            if is_permission_denied_error(e):
+                logger.info(
+                    "Your GCP identity does not have the compute.projects.get permission for project %s; "
+                    "skipping compute sync for this project. %s",
+                    project_id,
+                    summarize_gcp_http_error(e),
+                )
+                return
+            raise
         update_gcp_project_compute_metadata(
             neo4j_session,
             project_id,
@@ -1509,14 +1528,6 @@ def sync(
             gcp_update_tag,
             common_job_parameters,
         )
-        sync_gcp_forwarding_rules(
-            neo4j_session,
-            compute,
-            project_id,
-            regions,
-            gcp_update_tag,
-            common_job_parameters,
-        )
         sync_gcp_instance_groups(
             neo4j_session,
             compute,
@@ -1536,6 +1547,38 @@ def sync(
             common_job_parameters,
         )
         sync_gcp_backend_services(
+            neo4j_session,
+            compute,
+            project_id,
+            regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        # SSL policies must exist before target proxies (USES rel), and target
+        # proxies must exist before forwarding rules (ROUTES_TO rel) -- same
+        # load-before-reference requirement as Cloud Armor -> backend services above.
+        sync_gcp_ssl_policies(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_target_https_proxies(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_target_ssl_proxies(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_forwarding_rules(
             neo4j_session,
             compute,
             project_id,

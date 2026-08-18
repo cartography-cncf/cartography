@@ -118,10 +118,33 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
+snowflake_mapping = OntologyMapping(
+    module_name="snowflake",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SnowflakeNetworkPolicy",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # A Snowflake network policy only ever gates inbound connections
+                # to the account.
+                OntologyFieldMapping(
+                    ontology_field="direction",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "inbound"},
+                ),
+            ],
+        ),
+    ],
+)
+
 FIREWALLS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "databricks": databricks_mapping,
     "cloudflare": cloudflare_mapping,
+    "snowflake": snowflake_mapping,
 }

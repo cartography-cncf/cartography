@@ -11,6 +11,7 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # - default_branch: Default branch name
 # - public: Whether the repository is publicly accessible
 # - archived: Whether the repository is archived
+# - fork: Whether the repository was created as a fork of another repository
 
 github_mapping = OntologyMapping(
     module_name="github",
@@ -35,11 +36,14 @@ github_mapping = OntologyMapping(
                     special_handling="invert_boolean",
                 ),
                 OntologyFieldMapping(ontology_field="archived", node_field="archived"),
+                OntologyFieldMapping(ontology_field="fork", node_field="fork"),
             ],
         ),
     ],
 )
 
+# NOTE: GitLab has forks too (a project carries `forked_from_project` rather than a boolean),
+# but the GitLab module does not ingest that data yet, so `fork` is deliberately unmapped here.
 gitlab_mapping = OntologyMapping(
     module_name="gitlab",
     nodes=[

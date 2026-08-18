@@ -18,17 +18,17 @@ The Semgrep Cloud token requires the **Agent (CI)** and **Web API** scopes.
 
 ## Configure Cartography
 
-### Semgrep Cloud
+### Semgrep Cloud Configuration
 
 Use `--semgrep-app-token-env-var` to provide the name of the environment variable containing the token.
 
-### Semgrep OSS
+### Semgrep OSS Configuration
 
 Use `--semgrep-oss-source` to provide the path to a repository mapping YAML file.
 
 ## Run Cartography
 
-### Semgrep Cloud
+### Run Semgrep Cloud
 
 ```bash
 export SEMGREP_APP_TOKEN='<app-token>'
@@ -37,7 +37,7 @@ cartography \
   --semgrep-app-token-env-var SEMGREP_APP_TOKEN
 ```
 
-### Semgrep OSS
+### Run Semgrep OSS
 
 ```bash
 cartography \

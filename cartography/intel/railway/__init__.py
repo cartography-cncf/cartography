@@ -21,6 +21,7 @@ from cartography.config import Config
 from cartography.intel.railway.queries import ME_QUERY
 from cartography.intel.railway.utils import call_railway_api
 from cartography.intel.railway.utils import RailwayGraphQLError
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -233,4 +234,15 @@ def _sync_workspace(
         common_job_parameters,
         bundles,
         update_tag,
+    )
+
+    # DEPRECATED: compatibility migration that drops the legacy
+    # (:RailwayServiceInstance)-[:EXPOSE]->(domain) edges left by the direction flip.
+    # Generated cleanup only matches the new orientation, so without this a graph upgraded
+    # in place would hold both. Scoped to instances this run refreshed, so a workspace this
+    # run never touched keeps its edges until its own sync. Remove in v1.0.0.
+    run_analysis_job(
+        "railway_expose_edge_direction_migration.json",
+        neo4j_session,
+        common_job_parameters,
     )
