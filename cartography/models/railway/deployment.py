@@ -53,6 +53,18 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef(
         "createdAt", description="Time when the deployment was created."
     )
+    # Copied from the parent RailwayServiceInstance.source_image onto the current revision so
+    # the image ontology can reach it. Railway only exposes an image reference for the current
+    # deployment, so historical revisions leave these null.
+    image_uri: PropertyRef = PropertyRef(
+        "image_uri",
+        extra_index=True,
+        description="Container image reference this deployment runs, when deployed from a registry.",
+    )
+    image_digest: PropertyRef = PropertyRef(
+        "image_digest",
+        description="Digest (e.g. `sha256:...`) when `image_uri` is pinned by digest; `None` for tag-based references.",
+    )
 
 
 @dataclass(frozen=True)
@@ -102,6 +114,92 @@ class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RailwayDeploymentToECRImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayDeployment)-[:HAS_IMAGE]->(:AWSECRImage), joined on digest.
+class RailwayDeploymentToECRImageRel(CartographyRelSchema):
+    """Links a deployment to the image it runs, hosted in Amazon ECR."""
+
+    target_node_label: str = "AWSECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToECRImageRelProperties = (
+        RailwayDeploymentToECRImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGitLabContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayDeployment)-[:HAS_IMAGE]->(:GitLabContainerImage), joined on digest.
+class RailwayDeploymentToGitLabContainerImageRel(CartographyRelSchema):
+    """Links a deployment to the image it runs, hosted in the GitLab registry."""
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToGitLabContainerImageRelProperties = (
+        RailwayDeploymentToGitLabContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGCPArtifactRegistryImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayDeployment)-[:HAS_IMAGE]->(:GCPArtifactRegistryImage), joined on digest.
+class RailwayDeploymentToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """Links a deployment to the image it runs, hosted in Artifact Registry."""
+
+    target_node_label: str = "GCPArtifactRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToGCPArtifactRegistryImageRelProperties = (
+        RailwayDeploymentToGCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:RailwayDeployment)-[:HAS_IMAGE]->(:GitHubContainerImage), joined on digest.
+class RailwayDeploymentToGitHubContainerImageRel(CartographyRelSchema):
+    """Links a deployment to the image it runs, hosted in GitHub Container Registry."""
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToGitHubContainerImageRelProperties = (
+        RailwayDeploymentToGitHubContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 # A deployment is one concrete revision of a service instance, so the revision that is
 # actually running plays the Container role to the instance's ComputeService - the same split
 # GCP Cloud Run uses for Service and ServiceContainer.
@@ -124,5 +222,9 @@ class RailwayDeploymentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RailwayDeploymentToServiceInstanceRel(),
+            RailwayDeploymentToECRImageRel(),
+            RailwayDeploymentToGitLabContainerImageRel(),
+            RailwayDeploymentToGCPArtifactRegistryImageRel(),
+            RailwayDeploymentToGitHubContainerImageRel(),
         ],
     )
