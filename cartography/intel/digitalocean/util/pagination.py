@@ -4,11 +4,13 @@ from collections.abc import Callable
 from collections.abc import MutableMapping
 from typing import Any
 
+DEFAULT_MAX_PAGES = 10000
+
 
 def get_paginated_list(
     list_function: Callable[..., MutableMapping[str, Any]],
     target_key: str,
-    max_pages: int = 100,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
@@ -30,11 +32,24 @@ def get_paginated_list(
     """
     data: list[dict[str, Any]] = []
 
-    for page_num in range(1, max_pages + 1):
+    page_num = 1
+
+    while True:
         result = list_function(page=page_num, **kwargs)
-        data.extend(result.get(target_key, []))
+
+        if target_key not in result:
+            raise RuntimeError(f"Expected key '{target_key}' in paginated response.")
+
+        data.extend(result[target_key])
 
         if not result.get("links", {}).get("pages", {}).get("next"):
             break
+
+        if max_pages is not None and page_num >= max_pages:
+            raise RuntimeError(
+                f"Reached maximum page limit of {max_pages} while more pages are available."
+            )
+
+        page_num += 1
 
     return data

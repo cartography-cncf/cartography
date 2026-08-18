@@ -41,9 +41,7 @@ def sync(
 @timeit
 def get_account(client: Client) -> Dict[str, Any]:
     result = client.account.get()
-    if result is None:
-        return {}
-    return result.get("account", {})
+    return result["account"]
 
 
 @timeit

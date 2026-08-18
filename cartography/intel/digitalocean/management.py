@@ -54,7 +54,7 @@ def transform_projects(project_res: list) -> list:
     result = list()
     for p in project_res:
         project = {
-            "id": p.get("id"),
+            "id": p["id"],
             "name": p.get("name"),
             "owner_uuid": p.get("owner_uuid"),
             "description": p.get("description"),

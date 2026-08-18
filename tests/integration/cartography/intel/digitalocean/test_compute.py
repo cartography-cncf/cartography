@@ -38,7 +38,7 @@ def test_transform_and_load_droplets(neo4j_session):
         {
             str(project_id): [
                 {
-                    "urn": f"do:droplet:{test_droplet.get("id", "")}",
+                    "urn": f"do:droplet:{test_droplet.get('id', '')}",
                 }
             ]
         },
