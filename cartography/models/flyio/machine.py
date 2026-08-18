@@ -36,9 +36,7 @@ class FlyMachineNodeProperties(CartographyNodeProperties):
         "image_repository", description="Image repository."
     )
     image_tag: PropertyRef = PropertyRef("image_tag", description="Image tag.")
-    image_digest: PropertyRef = PropertyRef(
-        "image_digest", description="Image digest."
-    )
+    image_digest: PropertyRef = PropertyRef("image_digest", description="Image digest.")
     cpu_kind: PropertyRef = PropertyRef("cpu_kind", description="Machine CPU kind.")
     cpus: PropertyRef = PropertyRef("cpus", description="Number of CPUs.")
     memory_mb: PropertyRef = PropertyRef("memory_mb", description="Memory size in MB.")
@@ -65,7 +63,9 @@ class FlyMachineNodeProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updated_at", description="Last update timestamp."
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)

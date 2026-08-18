@@ -7,16 +7,21 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
 from cartography.models.flyio.ip import FlyIPSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-FLY_IPS_QUERY = """
-query ($appName: String!) {
+FLY_INGRESS_IPS_QUERY = """
+query ($appName: String!, $limit: Int!, $after: String) {
   app(name: $appName) {
-    ipAddresses {
+    ipAddresses(first: $limit, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         address
@@ -33,7 +38,18 @@ query ($appName: String!) {
       }
     }
     sharedIpAddress
-    egressIpAddresses {
+  }
+}
+"""
+
+FLY_EGRESS_IPS_QUERY = """
+query ($appName: String!, $limit: Int!, $after: String) {
+  app(name: $appName) {
+    egressIpAddresses(first: $limit, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         ip
@@ -74,13 +90,66 @@ def get(
     api_session: requests.Session,
     graphql_url: str,
     app_name: str,
+    page_size: int = 100,
 ) -> dict[str, Any]:
-    return post_graphql(
+    ingress_response = _get_ip_connection(
         api_session,
         graphql_url,
-        FLY_IPS_QUERY,
-        {"appName": app_name},
+        FLY_INGRESS_IPS_QUERY,
+        app_name,
+        "ipAddresses",
+        page_size,
     )
+    egress_ips = _get_ip_connection(
+        api_session,
+        graphql_url,
+        FLY_EGRESS_IPS_QUERY,
+        app_name,
+        "egressIpAddresses",
+        page_size,
+    )["nodes"]
+    return {
+        "app": {
+            "ipAddresses": {"nodes": ingress_response["nodes"]},
+            "sharedIpAddress": ingress_response["sharedIpAddress"],
+            "egressIpAddresses": {"nodes": egress_ips},
+        },
+    }
+
+
+def _get_ip_connection(
+    api_session: requests.Session,
+    graphql_url: str,
+    query: str,
+    app_name: str,
+    connection_name: str,
+    page_size: int,
+) -> dict[str, Any]:
+    ips = []
+    shared_ip_address = None
+    after = None
+    while True:
+        response = post_graphql(
+            api_session,
+            graphql_url,
+            query,
+            {"appName": app_name, "limit": page_size, "after": after},
+        )
+        app = response.get("app") or {}
+        connection = app.get(connection_name) or {}
+        ips.extend(connection.get("nodes") or [])
+        if "sharedIpAddress" in app:
+            shared_ip_address = app.get("sharedIpAddress")
+        after = get_next_cursor(
+            connection.get("pageInfo") or {},
+            after,
+            connection_name,
+        )
+        if not after:
+            return {
+                "nodes": ips,
+                "sharedIpAddress": shared_ip_address,
+            }
 
 
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:

@@ -37,7 +37,9 @@ class FlyMachineServiceNodeProperties(CartographyNodeProperties):
     machine_id: PropertyRef = PropertyRef(
         "machine_id", extra_index=True, description="Fly Machine ID."
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,12 @@ class FlyMachineServicePortNodeProperties(CartographyNodeProperties):
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     port: PropertyRef = PropertyRef("port", description="Public port.")
+    start_port: PropertyRef = PropertyRef(
+        "start_port", description="First public port in the exposed range."
+    )
+    end_port: PropertyRef = PropertyRef(
+        "end_port", description="Last public port in the exposed range."
+    )
     handlers: PropertyRef = PropertyRef(
         "handlers", description="Fly.io handlers applied to the public port."
     )
@@ -113,7 +121,9 @@ class FlyMachineServicePortNodeProperties(CartographyNodeProperties):
     service_id: PropertyRef = PropertyRef(
         "service_id", extra_index=True, description="Fly Machine Service ID."
     )
-    app_id: PropertyRef = PropertyRef("APP_ID", set_in_kwargs=True)
+    app_id: PropertyRef = PropertyRef(
+        "APP_ID", set_in_kwargs=True, description="Fly app ID."
+    )
 
 
 @dataclass(frozen=True)

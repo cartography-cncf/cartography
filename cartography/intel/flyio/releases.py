@@ -6,7 +6,9 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.release import FlyReleaseSchema
 from cartography.util import timeit
 
@@ -86,20 +88,21 @@ def get(
         release_connection = app.get("releases") or {}
         releases.extend(release_connection.get("nodes") or [])
         page_info = release_connection.get("pageInfo") or {}
-        if not page_info.get("hasNextPage"):
+        next_cursor = get_next_cursor(page_info, after, "releases")
+        if not next_cursor:
             break
-        after = page_info.get("endCursor")
+        after = next_cursor
     return {"app": {"releases": {"nodes": releases}}}
 
 
 def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     app = response.get("app") or {}
     releases = app.get("releases") or {}
-    return [
-        _transform_release(release)
-        for release in releases.get("nodes") or []
-        if release.get("id")
-    ]
+    result = []
+    for release in releases.get("nodes") or []:
+        require_non_empty(release["id"], "release id")
+        result.append(_transform_release(release))
+    return result
 
 
 def _transform_release(release: dict[str, Any]) -> dict[str, Any]:

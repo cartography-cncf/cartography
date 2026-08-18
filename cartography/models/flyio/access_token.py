@@ -15,9 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class FlyAccessTokenNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Fly token ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef(
-        "name", extra_index=True, description="Token name."
-    )
+    name: PropertyRef = PropertyRef("name", extra_index=True, description="Token name.")
     expires_at: PropertyRef = PropertyRef(
         "expires_at", description="Token expiration timestamp."
     )

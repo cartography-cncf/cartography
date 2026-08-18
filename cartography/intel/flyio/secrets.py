@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.secret import FlySecretSchema
 from cartography.util import timeit
 
@@ -45,16 +46,19 @@ def get(
 
 
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
-    return [
-        {
-            "id": f"{app_id}/{secret['name']}",
-            "name": secret["name"],
-            "digest": secret.get("digest"),
-            "created_at": secret.get("created_at"),
-            "updated_at": secret.get("updated_at"),
-        }
-        for secret in response["secrets"]
-    ]
+    secrets = []
+    for secret in response["secrets"]:
+        name = require_non_empty(secret["name"], "secret name")
+        secrets.append(
+            {
+                "id": f"{app_id}/{name}",
+                "name": name,
+                "digest": secret.get("digest"),
+                "created_at": secret.get("created_at"),
+                "updated_at": secret.get("updated_at"),
+            },
+        )
+    return secrets
 
 
 @timeit

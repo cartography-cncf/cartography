@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.app import FlyAppSchema
 from cartography.models.flyio.organization import FlyOrganizationSchema
 from cartography.util import timeit
@@ -28,7 +29,9 @@ def sync(
     )
     apps = transform_apps(response)
     organizations = transform_organizations(response, org_slug)
-    load_organizations(neo4j_session, organizations, common_job_parameters["UPDATE_TAG"])
+    load_organizations(
+        neo4j_session, organizations, common_job_parameters["UPDATE_TAG"]
+    )
     load_apps(
         neo4j_session,
         apps,
@@ -76,10 +79,11 @@ def transform_organizations(
 def transform_apps(response: dict[str, Any]) -> list[dict[str, Any]]:
     apps = []
     for app in response["apps"]:
+        app_id = require_non_empty(app["id"], "app id")
         organization = app.get("organization") or {}
         apps.append(
             {
-                "id": app["id"],
+                "id": app_id,
                 "name": app["name"],
                 "internal_numeric_id": app.get("internal_numeric_id"),
                 "network": app.get("network"),

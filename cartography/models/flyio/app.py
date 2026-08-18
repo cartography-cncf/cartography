@@ -41,7 +41,11 @@ class FlyAppNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Organization slug returned by Fly.io.",
     )
-    organization_id: PropertyRef = PropertyRef("ORGANIZATION_ID", set_in_kwargs=True)
+    organization_id: PropertyRef = PropertyRef(
+        "ORGANIZATION_ID",
+        set_in_kwargs=True,
+        description="Organization ID used as the sync scope.",
+    )
 
 
 @dataclass(frozen=True)

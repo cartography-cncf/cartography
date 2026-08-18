@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.machine import FlyMachineSchema
 from cartography.models.flyio.service import FlyMachineServicePortSchema
 from cartography.models.flyio.service import FlyMachineServiceSchema
@@ -68,9 +69,7 @@ def get(
 def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for machine in machines:
-        machine_id = machine["id"]
-        if not machine_id:
-            raise ValueError("Fly Machine record is missing required non-empty id.")
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         guest = config.get("guest") or {}
         restart = config.get("restart") or {}
@@ -109,11 +108,15 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     services = []
     for machine in machines:
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = service.get("protocol")
-            internal_port = service.get("internal_port")
-            service_id = f"{machine['id']}/{protocol}/{internal_port}"
+            protocol = require_non_empty(service["protocol"], "service protocol")
+            internal_port = require_non_empty(
+                service["internal_port"],
+                "service internal_port",
+            )
+            service_id = f"{machine_id}/{protocol}/{internal_port}"
             services.append(
                 {
                     "id": service_id,
@@ -123,7 +126,7 @@ def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "autostart": service.get("autostart"),
                     "min_machines_running": service.get("min_machines_running"),
                     "force_instance_key": service.get("force_instance_key"),
-                    "machine_id": machine["id"],
+                    "machine_id": machine_id,
                 }
             )
     return services
@@ -132,17 +135,40 @@ def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_service_ports(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ports = []
     for machine in machines:
+        machine_id = require_non_empty(machine["id"], "machine id")
         config = machine.get("config") or {}
         for service in config.get("services") or []:
-            protocol = service.get("protocol")
-            internal_port = service.get("internal_port")
-            service_id = f"{machine['id']}/{protocol}/{internal_port}"
+            protocol = require_non_empty(service["protocol"], "service protocol")
+            internal_port = require_non_empty(
+                service["internal_port"],
+                "service internal_port",
+            )
+            service_id = f"{machine_id}/{protocol}/{internal_port}"
             for port in service.get("ports") or []:
                 external_port = port.get("port")
+                start_port = port.get("start_port")
+                end_port = port.get("end_port")
+                if external_port is not None:
+                    port_id_suffix = require_non_empty(
+                        external_port,
+                        "service external port",
+                    )
+                else:
+                    start_port = require_non_empty(
+                        start_port,
+                        "service external start_port",
+                    )
+                    end_port = require_non_empty(
+                        end_port,
+                        "service external end_port",
+                    )
+                    port_id_suffix = f"{start_port}-{end_port}"
                 ports.append(
                     {
-                        "id": f"{service_id}/{external_port}",
+                        "id": f"{service_id}/{port_id_suffix}",
                         "port": external_port,
+                        "start_port": start_port,
+                        "end_port": end_port,
                         "handlers": port.get("handlers"),
                         "force_https": port.get("force_https"),
                         "service_id": service_id,
