@@ -48,6 +48,7 @@ _CONFIG_MEDIA_TYPES = frozenset(
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _RETRY_STATUSES = (429, 500, 502, 503, 504)
 _DOCKER_API_HOST = "registry-1.docker.io"
+_PUBLIC_ECR_AUTHORITY = ("public.ecr.aws", 443)
 _MAX_REDIRECTS = 5
 _MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 _MAX_CONFIG_BYTES = 16 * 1024 * 1024
@@ -620,13 +621,23 @@ class AnonymousRegistryClient:
             raise RegistryAuthenticationError(
                 "cross-host registry redirect requires authentication",
             )
-        token = self._fetch_bearer_token(challenge, repository)
+        token = self._fetch_bearer_token(
+            challenge,
+            repository,
+            allow_public_ecr_scope=_authority(url) == _PUBLIC_ECR_AUTHORITY,
+        )
         headers["Authorization"] = f"Bearer {token}"
         response = self._get(url, headers=headers)
         _raise_for_status(response, url)
         return response, token
 
-    def _fetch_bearer_token(self, challenge: str, repository: str) -> str:
+    def _fetch_bearer_token(
+        self,
+        challenge: str,
+        repository: str,
+        *,
+        allow_public_ecr_scope: bool,
+    ) -> str:
         scheme, separator, parameters = challenge.partition(" ")
         if not separator or scheme.lower() != "bearer":
             raise RegistryAuthenticationError(
@@ -644,16 +655,19 @@ class AnonymousRegistryClient:
                 raise RegistryAuthenticationError(
                     "registry Bearer challenge has invalid scope",
                 )
-            scope_parts = challenge_scope.split(":", 2)
-            if (
-                len(scope_parts) != 3
-                or scope_parts[0] != "repository"
-                or scope_parts[1] != repository
-                or "pull" not in scope_parts[2].split(",")
-            ):
-                raise RegistryAuthenticationError(
-                    "registry Bearer challenge has invalid scope"
-                )
+            if allow_public_ecr_scope and challenge_scope == "aws":
+                requested_scope = challenge_scope
+            else:
+                scope_parts = challenge_scope.split(":", 2)
+                if (
+                    len(scope_parts) != 3
+                    or scope_parts[0] != "repository"
+                    or scope_parts[1] != repository
+                    or "pull" not in scope_parts[2].split(",")
+                ):
+                    raise RegistryAuthenticationError(
+                        "registry Bearer challenge has invalid scope"
+                    )
         query = {"scope": requested_scope, "client_id": "cartography"}
         service = values.get("service")
         if service:

@@ -27,6 +27,7 @@ from cartography.client.container_registry import RegistryUnsupportedArtifactErr
 
 _PUBLIC_IP = "93.184.216.34"
 _REGISTRY = "registry.example.com"
+_PUBLIC_ECR = "public.ecr.aws"
 _REPOSITORY = "team/service"
 
 
@@ -286,6 +287,102 @@ def test_anonymous_bearer_challenge_uses_minimal_pull_scope_and_hides_token(
         f"Bearer {secret}"
     )
     assert secret not in caplog.text
+
+
+def test_public_ecr_accepts_its_anonymous_aws_scope() -> None:
+    # Arrange
+    secret = "synthetic-public-ecr-token"
+    repository = "docker/library/alpine"
+    manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
+    challenge = (
+        'Bearer realm="https://public.ecr.aws/token/",'
+        'service="public.ecr.aws",scope="aws"'
+    )
+    manifest_url = f"https://{_PUBLIC_ECR}/v2/{repository}/manifests/3.20"
+    session = _mock_session(
+        [
+            _response(
+                401,
+                headers={"WWW-Authenticate": challenge},
+                url=manifest_url,
+            ),
+            _response(200, _json_bytes({"token": secret})),
+            _manifest_response(manifest, OCI_IMAGE_MANIFEST),
+            _response(200, config),
+        ],
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act
+    resolved = client.resolve(f"{_PUBLIC_ECR}/{repository}:3.20")
+
+    # Assert
+    assert resolved.top.type == "image"
+    token_call = session.get.call_args_list[1]
+    assert token_call.args[0] == "https://public.ecr.aws/token/"
+    assert token_call.kwargs["params"] == {
+        "scope": "aws",
+        "client_id": "cartography",
+        "service": "public.ecr.aws",
+    }
+    assert "Authorization" not in token_call.kwargs["headers"]
+    assert session.get.call_args_list[2].kwargs["headers"]["Authorization"] == (
+        f"Bearer {secret}"
+    )
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "registry",
+    [_REGISTRY, "public.ecr.aws.example.com", "public.ecr.aws:444"],
+)
+def test_aws_scope_is_rejected_outside_exact_public_ecr_authority(
+    registry: str,
+) -> None:
+    # Arrange
+    challenge = (
+        'Bearer realm="https://public.ecr.aws/token/",'
+        'service="public.ecr.aws",scope="aws"'
+    )
+    manifest_url = f"https://{registry}/v2/{_REPOSITORY}/manifests/stable"
+    session = _mock_session(
+        [
+            _response(
+                401,
+                headers={"WWW-Authenticate": challenge},
+                url=manifest_url,
+            ),
+        ],
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryAuthenticationError, match="invalid scope"):
+        client.resolve(f"{registry}/{_REPOSITORY}:stable")
+    assert session.get.call_count == 1
+
+
+def test_public_ecr_rejects_other_nonstandard_scopes() -> None:
+    # Arrange
+    challenge = (
+        'Bearer realm="https://public.ecr.aws/token/",'
+        'service="public.ecr.aws",scope="registry:catalog:*"'
+    )
+    manifest_url = f"https://{_PUBLIC_ECR}/v2/{_REPOSITORY}/manifests/stable"
+    session = _mock_session(
+        [
+            _response(
+                401,
+                headers={"WWW-Authenticate": challenge},
+                url=manifest_url,
+            ),
+        ],
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryAuthenticationError, match="invalid scope"):
+        client.resolve(f"{_PUBLIC_ECR}/{_REPOSITORY}:stable")
+    assert session.get.call_count == 1
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]
