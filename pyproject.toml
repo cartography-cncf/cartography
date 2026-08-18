@@ -120,6 +120,19 @@ dependencies = [
 # Comes from Git tag
 dynamic = [ "version" ]
 
+[project.optional-dependencies]
+# Swaps the pure-Python Bolt codec for the Rust one maintained by Neo4j. It ships as a
+# separate distribution that installs itself as `neo4j._rust`, which the driver picks up
+# on its own, so nothing in cartography imports it and nothing needs to be configured.
+# Install with `cartography[neo4j-rust]` to get it; plain `cartography` is unchanged.
+#
+# The version's first three segments must match the `neo4j` driver's (the fourth is this
+# package's own patch level), and neo4j-rust-ext pins `neo4j==X.Y.Z` accordingly, so the
+# floor here has to stay in step with the `neo4j` floor above.
+neo4j-rust = [
+    "neo4j-rust-ext>=6.0.0.0",
+]
+
 [dependency-groups]
 dev = [
     "moto>=5.0.0",

@@ -1,4 +1,5 @@
 import importlib
+import importlib.util
 import logging
 import re
 import time
@@ -400,6 +401,21 @@ class Sync:
         return available_modules
 
 
+def _log_neo4j_bolt_codec() -> None:
+    """Report whether the Rust Bolt codec (`cartography[neo4j-rust]`) is in use.
+
+    neo4j-rust-ext is picked up by the driver without any import or config on our side,
+    so this log line is the only way for an operator to tell which codec they got.
+    """
+    if importlib.util.find_spec("neo4j._rust") is not None:
+        logger.info("Using the Rust Bolt codec from neo4j-rust-ext.")
+    else:
+        logger.info(
+            "Using the pure-Python Bolt codec. Installing cartography[neo4j-rust] pulls in "
+            "neo4j-rust-ext, which speeds up talking to Neo4j.",
+        )
+
+
 def run_with_config(sync: Sync, config: Config) -> int:
     """
     Execute a sync task with comprehensive configuration and error handling.
@@ -450,6 +466,8 @@ def run_with_config(sync: Sync, config: Config) -> int:
                 prefix=config.statsd_prefix,
             ),
         )
+
+    _log_neo4j_bolt_codec()
 
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
