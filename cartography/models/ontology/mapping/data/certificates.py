@@ -71,8 +71,25 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyCertificate",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="domain", node_field="hostname", required=True
+                ),
+                # expiry: Not available from the Fly Machines certificates endpoint.
+                OntologyFieldMapping(ontology_field="issuer", node_field="issuers"),
+            ],
+        ),
+    ],
+)
+
 CERTIFICATES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
+    "flyio": flyio_mapping,
     "netlify": netlify_mapping,
 }
