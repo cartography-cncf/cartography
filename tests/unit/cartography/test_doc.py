@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from cartography.models.introspection import inspect_data_model
+from cartography.models.schema_docs import generated_schema_modules
 from cartography.models.schema_docs import MANUAL_SCHEMA_MODULES
 from cartography.sync import Sync
 
@@ -18,9 +20,10 @@ def test_schema_doc():
     content = (REPOSITORY_ROOT / "docs/root/usage/schema.md").read_text()
 
     linked_modules = link_regex.findall(content)
-    # MANUAL_SCHEMA_MODULES also covers graph data written outside an intel module, which
-    # the sync module list does not know about.
+    # Include generated shared models that are written by provider modules but are not
+    # independently selectable intel modules.
     existing_modules = set(MANUAL_SCHEMA_MODULES)
+    existing_modules.update(generated_schema_modules(inspect_data_model()))
     for m in Sync.list_intel_modules():
         if m in (
             "analysis",
