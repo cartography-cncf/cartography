@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from cartography.config import Config
 import cartography.intel.flyio
 import cartography.intel.flyio.access_tokens
 import cartography.intel.flyio.apps
@@ -11,6 +10,7 @@ import cartography.intel.flyio.releases
 import cartography.intel.flyio.secrets
 import cartography.intel.flyio.users
 import cartography.intel.flyio.volumes
+from cartography.config import Config
 from tests.data.flyio.access_tokens import APP_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.access_tokens import ORG_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.apps import APPS_RESPONSE

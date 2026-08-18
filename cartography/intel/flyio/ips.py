@@ -125,9 +125,9 @@ def _get_ip_connection(
     connection_name: str,
     page_size: int,
 ) -> dict[str, Any]:
-    ips = []
+    ips: list[dict[str, Any]] = []
     shared_ip_address = None
-    after = None
+    after: str | None = None
     while True:
         response = post_graphql(
             api_session,

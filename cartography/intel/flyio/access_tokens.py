@@ -152,8 +152,8 @@ def _get_token_connection(
     connection_path: tuple[str, str],
     page_size: int,
 ) -> list[dict[str, Any]]:
-    tokens = []
-    after = None
+    tokens: list[dict[str, Any]] = []
+    after: str | None = None
     while True:
         response = post_graphql(
             api_session,

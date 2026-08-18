@@ -52,12 +52,12 @@ def get(
     base_url: str,
     app_name: str,
 ) -> dict[str, Any]:
-    certificates = []
-    skipped_certificate_details = []
-    next_cursor = None
+    certificates: list[dict[str, Any]] = []
+    skipped_certificate_details: list[str] = []
+    next_cursor: str | None = None
     while True:
-        current_cursor = next_cursor
-        params = {}
+        current_cursor: str | None = next_cursor
+        params: dict[str, str] = {}
         if current_cursor:
             params["cursor"] = current_cursor
         response = get_json(
@@ -102,12 +102,12 @@ def get(
 
 
 def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
-    certificates = []
+    certificates: list[dict[str, Any]] = []
     for cert in response["certificates"]:
         hostname = require_non_empty(cert.get("hostname"), "certificate hostname")
-        issued_certificates = []
-        sources = []
-        issuers = []
+        issued_certificates: list[dict[str, Any]] = []
+        sources: list[str] = []
+        issuers: list[str] = []
         for issued_cert in cert.get("certificates") or []:
             if issued_cert.get("source"):
                 sources.append(issued_cert["source"])

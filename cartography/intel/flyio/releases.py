@@ -75,8 +75,8 @@ def get(
     app_name: str,
     page_size: int = 100,
 ) -> dict[str, Any]:
-    releases = []
-    after = None
+    releases: list[dict[str, Any]] = []
+    after: str | None = None
     while True:
         response = post_graphql(
             api_session,

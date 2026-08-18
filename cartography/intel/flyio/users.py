@@ -10,9 +10,9 @@ from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
 from cartography.intel.flyio.util import require_non_empty
+from cartography.models.flyio.user import FlyUserSchema
 from cartography.models.flyio.user import FlyUserToOrganizationMemberMatchLink
 from cartography.models.flyio.user import FlyUserToOrganizationResourceMatchLink
-from cartography.models.flyio.user import FlyUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -74,8 +74,8 @@ def get(
     org_slug: str,
     page_size: int = 100,
 ) -> dict[str, Any]:
-    edges = []
-    after = None
+    edges: list[dict[str, Any]] = []
+    after: str | None = None
     while True:
         response = post_graphql(
             api_session,
