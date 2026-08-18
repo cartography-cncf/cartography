@@ -68,6 +68,7 @@ def get_container_repository_tags(
     return detailed_tags
 
 
+@timeit
 def get_all_container_repository_tags(
     gitlab_url: str,
     token: str,

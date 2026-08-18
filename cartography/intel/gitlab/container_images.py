@@ -149,8 +149,10 @@ def _get_manifest_digest(
         )
     except requests.exceptions.RequestException as e:
         logger.debug(
-            f"HEAD digest probe failed for {repository_name}:{reference}: {e}. "
-            f"Falling back to a full manifest fetch."
+            "HEAD digest probe failed for %s:%s: %s. Falling back to a full manifest fetch.",
+            repository_name,
+            reference,
+            e,
         )
         return None
 
