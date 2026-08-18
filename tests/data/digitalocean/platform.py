@@ -1,4 +1,6 @@
-ACCOUNT_RESPONSE = {
+from typing import Any
+
+ACCOUNT_RESPONSE: dict[str, Any] = {
     "account": {
         "droplet_limit": 10,
         "floating_ip_limit": 10,

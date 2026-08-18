@@ -1,4 +1,6 @@
-DROPLETS_RESPONSE = {
+from typing import Any
+
+DROPLETS_RESPONSE: dict[str, Any] = {
     "droplets": [
         {
             "id": 568030246,

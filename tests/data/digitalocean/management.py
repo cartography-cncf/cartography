@@ -1,4 +1,6 @@
-PROJECTS_RESPONSE = {
+from typing import Any
+
+PROJECTS_RESPONSE: dict[str, Any] = {
     "projects": [
         {
             "id": "test-project-uuid",
@@ -22,7 +24,7 @@ PROJECTS_RESPONSE = {
     "meta": {"total": 2},
 }
 
-PROJECTS_RESPONSE_PAGINATED = [
+PROJECTS_RESPONSE_PAGINATED: list[dict[str, Any]] = [
     {
         "projects": [
             {
@@ -58,7 +60,7 @@ PROJECTS_RESPONSE_PAGINATED = [
     },
 ]
 
-PROJECT_RESOURCES_RESPONSE = {
+PROJECT_RESOURCES_RESPONSE: dict[str, Any] = {
     "resources": [
         {
             "urn": "do:droplet:568030246",
