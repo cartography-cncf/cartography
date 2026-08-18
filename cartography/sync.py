@@ -1,5 +1,4 @@
 import importlib
-import importlib.util
 import logging
 import re
 import time
@@ -16,6 +15,21 @@ from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
+
+try:
+    # Whether the driver actually swapped in the Rust codec from neo4j-rust-ext. This is
+    # the only reliable signal: the extension can be installed and still fail to import
+    # (an ABI mismatch, say), and the driver handles that ImportError by staying on the
+    # pure-Python path, so merely finding the module says nothing about what is in use.
+    #
+    # Private, hence the guard: a driver upgrade that moves the symbol must not take the
+    # sync down over a log line. None then means "not the Rust codec, or we cannot tell",
+    # and all of those cases are reported the same way, which understates rather than
+    # overstates. The integration matrix asserts on this same symbol, so a move breaks CI
+    # loudly instead of silently degrading the log.
+    from neo4j._codec.packstream.v1 import _rust_pack
+except ImportError:  # pragma: no cover
+    _rust_pack = None
 
 logger = logging.getLogger(__name__)
 
@@ -407,7 +421,7 @@ def _log_neo4j_bolt_codec() -> None:
     neo4j-rust-ext is picked up by the driver without any import or config on our side,
     so this log line is the only way for an operator to tell which codec they got.
     """
-    if importlib.util.find_spec("neo4j._rust") is not None:
+    if _rust_pack is not None:
         logger.info("Using the Rust Bolt codec from neo4j-rust-ext.")
     else:
         logger.info(
