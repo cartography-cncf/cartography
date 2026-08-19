@@ -53,7 +53,6 @@ def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
             {
                 "id": f"{app_id}/{name}",
                 "name": name,
-                "digest": secret.get("digest"),
                 "created_at": secret.get("created_at"),
                 "updated_at": secret.get("updated_at"),
             },

@@ -6,6 +6,7 @@ APPS_RESPONSE = {
             "name": "nhmhvxo3b9",
             "internal_numeric_id": 6726989,
             "network": "default",
+            "network_cidr": "fdaa:10:e286::/48",
             "status": "deployed",
             "machine_count": 3,
             "volume_count": 1,
@@ -14,8 +15,6 @@ APPS_RESPONSE = {
                 "slug": "jonathanfemi-example-com",
                 "internal_numeric_id": 977819,
             },
-            "cname_target": "5grkpx.nhmhvxo3b9.fly.dev",
-            "app_role": "",
         },
     ],
 }

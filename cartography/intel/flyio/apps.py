@@ -87,11 +87,10 @@ def transform_apps(response: dict[str, Any]) -> list[dict[str, Any]]:
                 "name": app["name"],
                 "internal_numeric_id": app.get("internal_numeric_id"),
                 "network": app.get("network"),
+                "network_cidr": app.get("network_cidr"),
                 "status": app.get("status"),
                 "machine_count": app.get("machine_count"),
                 "volume_count": app.get("volume_count"),
-                "cname_target": app.get("cname_target"),
-                "app_role": app.get("app_role"),
                 "organization_slug": organization.get("slug"),
             }
         )

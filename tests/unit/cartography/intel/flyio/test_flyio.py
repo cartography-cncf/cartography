@@ -69,11 +69,10 @@ def test_transform_apps_and_organizations():
             "name": "nhmhvxo3b9",
             "internal_numeric_id": 6726989,
             "network": "default",
+            "network_cidr": "fdaa:10:e286::/48",
             "status": "deployed",
             "machine_count": 3,
             "volume_count": 1,
-            "cname_target": "5grkpx.nhmhvxo3b9.fly.dev",
-            "app_role": "",
             "organization_slug": "jonathanfemi-example-com",
         },
     ]
@@ -323,14 +322,12 @@ def test_transform_secrets_scopes_names_to_app():
         {
             "id": f"{TEST_APP_ID}/SECRET_KEY",
             "name": "SECRET_KEY",
-            "digest": "fd78cec242f907ba",
             "created_at": "2025-02-22T00:18:21Z",
             "updated_at": "2025-02-22T00:18:21Z",
         },
         {
             "id": f"{TEST_APP_ID}/FLY_API_TOKEN",
             "name": "FLY_API_TOKEN",
-            "digest": "7e3ce4aff82bb8bb",
             "created_at": "2025-02-23T16:43:33Z",
             "updated_at": "2025-02-23T16:43:33Z",
         },

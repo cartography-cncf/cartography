@@ -21,9 +21,6 @@ class FlySecretNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Secret name."
     )
-    digest: PropertyRef = PropertyRef(
-        "digest", description="Fly.io digest for the secret value."
-    )
     created_at: PropertyRef = PropertyRef(
         "created_at", description="Creation timestamp."
     )

@@ -23,18 +23,15 @@ class FlyAppNodeProperties(CartographyNodeProperties):
         "internal_numeric_id", description="Fly.io internal numeric app ID."
     )
     network: PropertyRef = PropertyRef("network", description="Fly.io network name.")
+    network_cidr: PropertyRef = PropertyRef(
+        "network_cidr", description="Fly.io network CIDR."
+    )
     status: PropertyRef = PropertyRef("status", description="App status.")
     machine_count: PropertyRef = PropertyRef(
         "machine_count", description="Number of Machines reported by the app summary."
     )
     volume_count: PropertyRef = PropertyRef(
         "volume_count", description="Number of Volumes reported by the app summary."
-    )
-    cname_target: PropertyRef = PropertyRef(
-        "cname_target", description="App CNAME target."
-    )
-    app_role: PropertyRef = PropertyRef(
-        "app_role", description="App role returned by Fly.io."
     )
     organization_slug: PropertyRef = PropertyRef(
         "organization_slug",
