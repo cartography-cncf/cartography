@@ -51,24 +51,7 @@ jobs:
         run: make test_unit
 
   integration-tests:
-    name: integration-tests (${{ matrix.codec }} Bolt codec)
     runs-on: ubuntu-latest
-    strategy:
-      # Report both codecs on a failure rather than cancelling the sibling job: knowing
-      # whether a break is codec-specific is the whole point of running both.
-      fail-fast: false
-      matrix:
-        # Both codecs are shipped, so both are tested. Plain `cartography` gets the
-        # pure-Python one; `cartography[neo4j-rust]`, which is what the published Docker
-        # image installs, gets the Rust one. The jobs run in parallel, so covering the
-        # second codec costs no extra wall-clock.
-        include:
-          - codec: pure-Python
-            sync_args: ""
-            rust_expected: "false"
-          - codec: Rust
-            sync_args: "--extra neo4j-rust"
-            rust_expected: "true"
     env:
       NEO4J_DOCKER_IMAGE: neo4j:5-community
     steps:
@@ -84,27 +67,44 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install the project
-        run: uv sync --frozen --dev ${{ matrix.sync_args }}
-      - name: Confirm the ${{ matrix.codec }} Bolt codec is the one in use
-        # Without this, a mistake in the matrix would leave both jobs on the same codec
-        # and silently report coverage we do not have. `_rust_pack` is private, but it is
-        # the only thing that proves the driver actually picked the extension up: the
-        # shared object can be installed and still fail to load.
-        env:
-          RUST_EXPECTED: ${{ matrix.rust_expected }}
+        run: uv sync --frozen --dev
+      - name: Run integration tests
+        run: make test_integration
+
+  # Same suite as above, on the Rust Bolt codec. Both are shipped: plain `cartography`
+  # gets the pure-Python one, `cartography[neo4j-rust]` (what the published Docker image
+  # installs) gets the Rust one, so both are tested. Runs in parallel with the job above,
+  # so the second codec costs no extra wall-clock.
+  integration-tests-rust:
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --dev --extra neo4j-rust
+      - name: Confirm the Rust Bolt codec is the one in use
+        # Without this, an install that quietly failed to pick the extension up would
+        # leave this job testing the pure-Python codec while reporting green. `_rust_pack`
+        # is private, but it is the only thing that proves the driver actually loaded the
+        # extension: the shared object can be installed and still fail to load.
         run: |
           uv run --frozen python - <<'PY'
-          import os
-
           from neo4j._codec.packstream.v1 import _rust_pack
 
-          in_use = _rust_pack is not None
-          expected = os.environ["RUST_EXPECTED"] == "true"
-          if in_use != expected:
-              raise SystemExit(
-                  f"Expected the Rust Bolt codec to be in use: {expected}, but got: {in_use}"
-              )
-          print(f"Rust Bolt codec in use: {in_use}")
+          if _rust_pack is None:
+              raise SystemExit("Expected the Rust Bolt codec, got the pure-Python one")
+          print("Rust Bolt codec in use.")
           PY
       - name: Run integration tests
         run: make test_integration
