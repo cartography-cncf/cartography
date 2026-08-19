@@ -39,7 +39,6 @@ def get_droplets(client: Client) -> list:
     return get_paginated_list(client.droplets.list, "droplets")
 
 
-@timeit
 def get_ips(
     droplet: dict[str, Any],
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
