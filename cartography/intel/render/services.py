@@ -121,6 +121,28 @@ def apply_latest_deploys(
         service["latestDeployImageRef"] = image.get("ref")
 
 
+def get_latest_deploys(
+    session: requests.Session,
+    services: list[dict[str, Any]],
+) -> dict[str, dict[str, Any] | None]:
+    latest_deploys = {}
+    for service in services:
+        service_id = service["id"]
+        try:
+            latest_deploys[service_id] = get_latest_deploy(session, service_id)
+        except requests.exceptions.JSONDecodeError:
+            raise
+        except requests.exceptions.RequestException as exc:
+            logger.warning(
+                "Render latest deploy fetch failed for service %s; loading the "
+                "service without latest deploy metadata for this run: %s",
+                service_id,
+                exc,
+            )
+            latest_deploys[service_id] = None
+    return latest_deploys
+
+
 @timeit
 def load_services(
     neo4j_session: neo4j.Session,
@@ -172,10 +194,7 @@ def sync(
     """
     services = get(session, owner_id)
     transformed = transform(services)
-    latest_deploys = {
-        service["id"]: get_latest_deploy(session, service["id"])
-        for service in transformed
-    }
+    latest_deploys = get_latest_deploys(session, transformed)
     apply_latest_deploys(transformed, latest_deploys)
     load_services(neo4j_session, transformed, owner_id, update_tag)
     if run_cleanup:

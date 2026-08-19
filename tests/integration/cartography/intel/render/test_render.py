@@ -1111,6 +1111,32 @@ def test_core_resource_failure_aborts_the_workspace_sync(neo4j_session):
             cartography.intel.render.start_render_ingestion(neo4j_session, _config())
 
 
+def test_latest_deploy_failure_does_not_abort_service_sync(neo4j_session):
+    """
+    Latest deploy details are service enrichment, not the service inventory itself. If
+    that per-service metadata fetch fails after the service list succeeded, keep the
+    service node and omit only the latest-deploy fields for this run.
+    """
+    with ExitStack() as stack:
+        _patch_all_resources(
+            stack,
+            overrides={
+                (cartography.intel.render.services, "get_latest_deploy"): {
+                    "side_effect": requests.exceptions.HTTPError("boom"),
+                },
+            },
+        )
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(
+        neo4j_session,
+        "RenderService",
+        ["id", "name", "latest_deploy_id"],
+    ) == {
+        (TEST_SERVICE_ID, "cartography-test-service", None),
+    }
+
+
 def test_service_child_cleanup_is_skipped_when_its_fetch_fails_halfway(neo4j_session):
     """
     Env vars are fetched per-service-id; a failure partway through that loop must not
