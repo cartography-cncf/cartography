@@ -76,33 +76,6 @@ class RenderServiceNodeProperties(CartographyNodeProperties):
     updated_at: PropertyRef = PropertyRef(
         "updatedAt", description="Time when the service was last modified."
     )
-    # Latest deploy only, not full deploy history: Render's deploy history is
-    # unbounded and time-series in nature (a poor fit for a current-state graph),
-    # so only "what's live right now" is captured, mirroring how RailwayServiceInstance
-    # carries latest_deployment_id/latest_deployment_status instead of a node per deploy.
-    latest_deploy_id: PropertyRef = PropertyRef(
-        "latestDeployId", description="ID of the most recent deploy."
-    )
-    latest_deploy_status: PropertyRef = PropertyRef(
-        "latestDeployStatus", description="Status of the most recent deploy."
-    )
-    latest_deploy_trigger: PropertyRef = PropertyRef(
-        "latestDeployTrigger", description="What triggered the most recent deploy."
-    )
-    latest_deploy_created_at: PropertyRef = PropertyRef(
-        "latestDeployCreatedAt", description="When the most recent deploy was created."
-    )
-    latest_deploy_finished_at: PropertyRef = PropertyRef(
-        "latestDeployFinishedAt", description="When the most recent deploy finished."
-    )
-    latest_deploy_commit_message: PropertyRef = PropertyRef(
-        "latestDeployCommitMessage",
-        description="Commit message for the most recent deploy, if deployed from git.",
-    )
-    latest_deploy_image_ref: PropertyRef = PropertyRef(
-        "latestDeployImageRef",
-        description="Image reference for the most recent deploy, if deployed from an image.",
-    )
 
 
 @dataclass(frozen=True)
@@ -178,4 +151,64 @@ class RenderServiceSchema(CartographyNodeSchema):
     sub_resource_relationship: RenderServiceToTenantRel = RenderServiceToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [RenderServiceToEnvironmentRel(), RenderServiceToRegistryCredentialRel()],
+    )
+
+
+@dataclass(frozen=True)
+class RenderServiceLatestDeployProperties(CartographyNodeProperties):
+    """
+    Latest deploy only, not full deploy history: Render's deploy history is unbounded
+    and time-series in nature (a poor fit for a current-state graph), so only "what's
+    live right now" is captured, mirroring how RailwayServiceInstance carries
+    latest_deployment_id/latest_deployment_status instead of a node per deploy.
+
+    Kept as a separate facet schema from RenderServiceNodeProperties (sharing the same
+    `RenderService` label/id, but with no sub_resource_relationship of its own - see
+    RenderServiceLatestDeploySchema) so a transient per-service deploy-fetch failure
+    can be loaded via a load() call that never mentions these properties for the
+    affected service, instead of nulling out real data from the last successful sync.
+    See services.py's get_latest_deploys()/build_latest_deploy_rows().
+    """
+
+    id: PropertyRef = PropertyRef("id", description="ID of the Render service.")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    latest_deploy_id: PropertyRef = PropertyRef(
+        "latestDeployId", description="ID of the most recent deploy."
+    )
+    latest_deploy_status: PropertyRef = PropertyRef(
+        "latestDeployStatus", description="Status of the most recent deploy."
+    )
+    latest_deploy_trigger: PropertyRef = PropertyRef(
+        "latestDeployTrigger", description="What triggered the most recent deploy."
+    )
+    latest_deploy_created_at: PropertyRef = PropertyRef(
+        "latestDeployCreatedAt", description="When the most recent deploy was created."
+    )
+    latest_deploy_finished_at: PropertyRef = PropertyRef(
+        "latestDeployFinishedAt", description="When the most recent deploy finished."
+    )
+    latest_deploy_commit_message: PropertyRef = PropertyRef(
+        "latestDeployCommitMessage",
+        description="Commit message for the most recent deploy, if deployed from git.",
+    )
+    latest_deploy_image_ref: PropertyRef = PropertyRef(
+        "latestDeployImageRef",
+        description="Image reference for the most recent deploy, if deployed from an image.",
+    )
+
+
+@dataclass(frozen=True)
+class RenderServiceLatestDeploySchema(CartographyNodeSchema):
+    """
+    A facet of the existing `RenderService` node (same label, same `id`) that only ever
+    sets the latest-deploy properties. Deliberately has no `sub_resource_relationship`
+    of its own - RenderServiceSchema already owns this node's lifecycle/cleanup; this
+    schema exists purely so a `load()` call using it can update deploy metadata for a
+    subset of services without touching (or nulling) any other property, including on
+    services excluded from that subset - see services.py.
+    """
+
+    label: str = "RenderService"
+    properties: RenderServiceLatestDeployProperties = (
+        RenderServiceLatestDeployProperties()
     )

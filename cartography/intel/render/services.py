@@ -9,10 +9,17 @@ from cartography.graph.job import GraphJob
 from cartography.intel.render.util import BASE_URL
 from cartography.intel.render.util import list_paginated
 from cartography.intel.render.util import require_non_empty
+from cartography.models.render.service import RenderServiceLatestDeploySchema
 from cartography.models.render.service import RenderServiceSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Sentinel distinguishing "this service's deploy fetch failed transiently this run"
+# from a real `None` ("this service genuinely has no deploys yet"). Only a real `None`
+# should null out latestDeploy* properties; a failed fetch must leave them untouched -
+# see get_latest_deploys()/build_latest_deploy_rows().
+DEPLOY_FETCH_FAILED = object()
 
 
 @timeit
@@ -35,7 +42,7 @@ def get_latest_deploy(
     Deliberately does not use list_paginated(): only the newest deploy is wanted here
     (Render returns deploys newest-first), not a full page of deploy history, which
     would be unbounded time-series data poorly suited to a current-state graph - see
-    RenderServiceNodeProperties.latest_deploy_id's comment.
+    RenderServiceLatestDeployProperties' docstring.
     """
     response = session.get(
         f"{BASE_URL}/services/{service_id}/deploys",
@@ -101,46 +108,75 @@ def transform(services: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return transformed
 
 
-def apply_latest_deploys(
-    services: list[dict[str, Any]],
-    latest_deploys: dict[str, dict[str, Any] | None],
-) -> None:
-    """Mutates `services` rows in place, adding latestDeploy* fields from `latest_deploys`."""
-    for service in services:
-        deploy = latest_deploys.get(service["id"])
-        if deploy is None:
-            continue
-        commit = deploy.get("commit") or {}
-        image = deploy.get("image") or {}
-        service["latestDeployId"] = deploy.get("id")
-        service["latestDeployStatus"] = deploy.get("status")
-        service["latestDeployTrigger"] = deploy.get("trigger")
-        service["latestDeployCreatedAt"] = deploy.get("createdAt")
-        service["latestDeployFinishedAt"] = deploy.get("finishedAt")
-        service["latestDeployCommitMessage"] = commit.get("message")
-        service["latestDeployImageRef"] = image.get("ref")
-
-
 def get_latest_deploys(
     session: requests.Session,
     services: list[dict[str, Any]],
-) -> dict[str, dict[str, Any] | None]:
-    latest_deploys = {}
+) -> dict[str, Any]:
+    """
+    :return: A mapping from service id to one of:
+        - a deploy dict (the service's most recent deploy)
+        - None (the service genuinely has no deploys yet, per Render)
+        - DEPLOY_FETCH_FAILED (the per-service fetch failed transiently)
+
+    A transient failure is deliberately distinguished from "no deploys yet" so
+    build_latest_deploy_rows() can exclude that service entirely from the follow-up
+    load() call, rather than nulling out real latest-deploy data from the last
+    successful sync.
+    """
+    latest_deploys: dict[str, Any] = {}
     for service in services:
         service_id = service["id"]
         try:
             latest_deploys[service_id] = get_latest_deploy(session, service_id)
-        except requests.exceptions.JSONDecodeError:
+        except ValueError:
+            # Malformed response shapes - including JSONDecodeError, which is a
+            # ValueError subclass on every requests version this project supports
+            # (unlike requests.exceptions.JSONDecodeError, which only exists from
+            # requests 2.27 on and would raise AttributeError while being evaluated
+            # as an except target on older installs) - indicate a real parsing bug,
+            # not routine unavailability, and must stay loud.
             raise
         except requests.exceptions.RequestException as exc:
             logger.warning(
-                "Render latest deploy fetch failed for service %s; loading the "
-                "service without latest deploy metadata for this run: %s",
+                "Render latest deploy fetch failed for service %s; leaving its "
+                "existing latest deploy data untouched for this run rather than "
+                "overwriting it with nulls: %s",
                 service_id,
                 exc,
             )
-            latest_deploys[service_id] = None
+            latest_deploys[service_id] = DEPLOY_FETCH_FAILED
     return latest_deploys
+
+
+def build_latest_deploy_rows(
+    latest_deploys: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Builds one row per service whose deploy fetch succeeded this run - either with
+    real deploy data or a confirmed "no deploys yet" result - for load_latest_deploys().
+    Services excluded here (DEPLOY_FETCH_FAILED) are never passed to that load() call,
+    so their existing latestDeploy* properties from the last successful sync are left
+    untouched instead of being nulled out by a transient failure.
+    """
+    rows = []
+    for service_id, deploy in latest_deploys.items():
+        if deploy is DEPLOY_FETCH_FAILED:
+            continue
+        commit = (deploy or {}).get("commit") or {}
+        image = (deploy or {}).get("image") or {}
+        rows.append(
+            {
+                "id": service_id,
+                "latestDeployId": (deploy or {}).get("id"),
+                "latestDeployStatus": (deploy or {}).get("status"),
+                "latestDeployTrigger": (deploy or {}).get("trigger"),
+                "latestDeployCreatedAt": (deploy or {}).get("createdAt"),
+                "latestDeployFinishedAt": (deploy or {}).get("finishedAt"),
+                "latestDeployCommitMessage": commit.get("message"),
+                "latestDeployImageRef": image.get("ref"),
+            }
+        )
+    return rows
 
 
 @timeit
@@ -156,6 +192,29 @@ def load_services(
         data,
         lastupdated=update_tag,
         OWNER_ID=owner_id,
+    )
+
+
+@timeit
+def load_latest_deploys(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Sets latestDeploy* properties on the RenderService nodes already loaded by
+    load_services(), restricted to the services in `data` (built by
+    build_latest_deploy_rows()). A service excluded from `data` is never mentioned in
+    this call's Cypher SET clause, so its existing latestDeploy* properties are left
+    exactly as they were - see RenderServiceLatestDeploySchema.
+    """
+    if not data:
+        return
+    load(
+        neo4j_session,
+        RenderServiceLatestDeploySchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 
@@ -194,9 +253,13 @@ def sync(
     """
     services = get(session, owner_id)
     transformed = transform(services)
-    latest_deploys = get_latest_deploys(session, transformed)
-    apply_latest_deploys(transformed, latest_deploys)
     load_services(neo4j_session, transformed, owner_id, update_tag)
+    latest_deploys = get_latest_deploys(session, transformed)
+    load_latest_deploys(
+        neo4j_session,
+        build_latest_deploy_rows(latest_deploys),
+        update_tag,
+    )
     if run_cleanup:
         cleanup(neo4j_session, common_job_parameters)
     return [service["id"] for service in transformed], services

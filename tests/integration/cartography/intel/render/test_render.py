@@ -1113,9 +1113,14 @@ def test_core_resource_failure_aborts_the_workspace_sync(neo4j_session):
 
 def test_latest_deploy_failure_does_not_abort_service_sync(neo4j_session):
     """
-    Latest deploy details are service enrichment, not the service inventory itself. If
-    that per-service metadata fetch fails after the service list succeeded, keep the
-    service node and omit only the latest-deploy fields for this run.
+    Latest deploy details are service enrichment, not the service inventory itself. A
+    per-service metadata fetch failure must not abort the sync - the service node
+    itself must still load. (What happens to latest_deploy_id specifically on a
+    failure depends on whether prior deploy data already exists for this service -
+    see build_latest_deploy_rows()'s unit tests and
+    test_latest_deploy_failure_preserves_prior_successful_deploy_data below for that;
+    neo4j_session is module-scoped and shared across this file's tests, so this test
+    intentionally does not assert a specific latest_deploy_id value here.)
     """
     with ExitStack() as stack:
         _patch_all_resources(
@@ -1131,9 +1136,48 @@ def test_latest_deploy_failure_does_not_abort_service_sync(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RenderService",
-        ["id", "name", "latest_deploy_id"],
+        ["id", "name"],
     ) == {
-        (TEST_SERVICE_ID, "cartography-test-service", None),
+        (TEST_SERVICE_ID, "cartography-test-service"),
+    }
+
+
+def test_latest_deploy_failure_preserves_prior_successful_deploy_data(neo4j_session):
+    """
+    A transient failure on a *later* sync (one that already has real latest-deploy
+    data from a prior successful run) must not null that data out - see
+    services.py's DEPLOY_FETCH_FAILED/build_latest_deploy_rows(). Only a confirmed
+    "no deploys yet" result (a real None) should ever null these fields.
+    """
+    with ExitStack() as stack:
+        _patch_all_resources(stack)
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(
+        neo4j_session,
+        "RenderService",
+        ["id", "latest_deploy_id", "latest_deploy_status"],
+    ) == {
+        (TEST_SERVICE_ID, "dep-test001", "live"),
+    }
+
+    with ExitStack() as stack:
+        _patch_all_resources(
+            stack,
+            overrides={
+                (cartography.intel.render.services, "get_latest_deploy"): {
+                    "side_effect": requests.exceptions.HTTPError("boom"),
+                },
+            },
+        )
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(
+        neo4j_session,
+        "RenderService",
+        ["id", "latest_deploy_id", "latest_deploy_status"],
+    ) == {
+        (TEST_SERVICE_ID, "dep-test001", "live"),
     }
 
 
