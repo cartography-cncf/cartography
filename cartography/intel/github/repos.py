@@ -454,6 +454,19 @@ def _get_repo_dep_manifests(
             )
             return manifests, False
 
+        # GitHub can return a usable page alongside errors, e.g. a FORBIDDEN or a
+        # timeout on a nested field, which yields a manifest whose dependencies are
+        # silently missing. Keep what we got, but never let cleanup delete the rest.
+        if resp.get("errors"):
+            cleanup_safe = False
+            logger.warning(
+                "GitHub returned errors alongside a usable dependency manifest page "
+                "for repo %s; the page may be incomplete, so manifest cleanup is "
+                "disabled for this repo. Errors: %s",
+                repo,
+                resp["errors"],
+            )
+
         manifest_page_info = dep_manifests.get("pageInfo", {})
         manifest_cursor = manifest_page_info.get("endCursor")
         has_next_manifest = manifest_page_info.get("hasNextPage", False)
@@ -519,6 +532,17 @@ def _get_repo_dep_manifests(
                     len(all_dep_nodes),
                 )
                 break
+
+            if dep_resp.get("errors"):
+                cleanup_safe = False
+                logger.warning(
+                    "GitHub returned errors alongside a usable dependency page for %s "
+                    "in repo %s; the page may be incomplete, so manifest cleanup is "
+                    "disabled for this repo. Errors: %s",
+                    blob_path,
+                    repo,
+                    dep_resp["errors"],
+                )
 
             dep_nodes_list = dep_dep_manifests.get("nodes") or []
             if not dep_nodes_list:

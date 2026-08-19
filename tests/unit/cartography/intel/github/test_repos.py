@@ -701,6 +701,66 @@ def test_fetch_manifest_page_does_not_retry_forbidden():
     mock_sleep.assert_not_called()
 
 
+def test_get_repo_dep_manifests_marks_errors_on_usable_page_unsafe_for_cleanup(
+    caplog,
+):
+    """
+    GitHub can refuse or time out a nested field while still returning a usable
+    page, which yields a manifest whose dependencies are silently missing. Keep the
+    partial data but never let cleanup delete what we could not read.
+    """
+    # Arrange
+    partial_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {"endCursor": None, "hasNextPage": False},
+                        "nodes": [
+                            {
+                                "blobPath": "/package.json",
+                                "dependencies": {
+                                    "pageInfo": {
+                                        "endCursor": None,
+                                        "hasNextPage": False,
+                                    },
+                                    "nodes": [],
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+        "errors": [
+            {
+                "type": "FORBIDDEN",
+                "message": "Resource not accessible by integration",
+                "path": ["organization", "repository", "dependencyGraphManifests"],
+            },
+        ],
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        return_value=partial_page,
+    ):
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert: the partial manifest is kept, but cleanup must not run.
+    assert result == [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    assert cleanup_safe is False
+    assert "the page may be incomplete" in caplog.text
+
+
 def test_get_dep_manifests_for_repos_keeps_going_after_repo_scoped_forbidden(caplog):
     """
     The dependency graph is enabled per repository and token permissions can differ
