@@ -1,6 +1,36 @@
+from unittest.mock import Mock
+
 import pytest
 
+from cartography.intel.render.envgroups import get
 from cartography.intel.render.envgroups import transform
+
+
+def _response(body):
+    mock_response = Mock()
+    mock_response.json.return_value = body
+    mock_response.raise_for_status.return_value = None
+    return mock_response
+
+
+def test_get_parses_render_s_undocumented_bare_array_env_groups_response():
+    """
+    Render's OpenAPI spec documents GET /env-groups as returning a bare array of
+    envGroupMeta objects - not the {"envGroup": {...}, "cursor": ...} wrapper used by
+    most other list endpoints (confirmed against
+    https://api-docs.render.com/v1.0/openapi/render-public-api-1.json, and matching
+    the same bare-array shape already handled for /registrycredentials and
+    /dedicated-ips). get() must unwrap this shape directly rather than routing it
+    through list_paginated(), which would raise on every real, non-empty response.
+    """
+    session = Mock()
+    session.get.return_value = _response(
+        [{"id": "evg-1", "name": "shared", "ownerId": "tea-1"}],
+    )
+
+    groups = get(session, "tea-1")
+
+    assert groups == [{"id": "evg-1", "name": "shared", "ownerId": "tea-1"}]
 
 
 def test_transform_emits_one_row_per_linked_service():

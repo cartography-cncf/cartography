@@ -7,7 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.render.util import BASE_URL
-from cartography.intel.render.util import list_paginated
+from cartography.intel.render.util import list_plain_array
 from cartography.intel.render.util import require_non_empty
 from cartography.models.render.envgroup import RenderEnvGroupSchema
 from cartography.util import timeit
@@ -19,11 +19,19 @@ logger = logging.getLogger(__name__)
 def get(session: requests.Session, owner_id: str) -> list[dict[str, Any]]:
     # Env group contents (env var values, secret file contents) are never fetched here -
     # only this metadata endpoint is called.
-    return list_paginated(
+    #
+    # Unlike most other list endpoints, GET /env-groups returns a bare array of
+    # envGroupMeta objects, not the {"envGroup": {...}, "cursor": ...} wrapper -
+    # confirmed against Render's published OpenAPI spec. This documents `limit`
+    # (default 20, max 100) the same way /registrycredentials does; pass the max
+    # explicitly to avoid truncating a workspace with more than 20 env groups on the
+    # default page size - see list_plain_array()'s `limit` docs for why a full page
+    # still raises rather than being silently treated as complete.
+    return list_plain_array(
         session,
         f"{BASE_URL}/env-groups",
-        "envGroup",
         params={"ownerId": [owner_id]},
+        limit=100,
     )
 
 
