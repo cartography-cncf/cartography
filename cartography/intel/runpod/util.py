@@ -77,7 +77,7 @@ def id_list(value: Any, field_name: str) -> list[str]:
                 str(require_non_empty(entry.get("id"), f"{field_name} entry id"))
             )
         else:
-            ids.append(str(entry))
+            ids.append(str(require_non_empty(entry, f"{field_name} entry id")))
     return ids
 
 

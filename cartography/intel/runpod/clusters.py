@@ -58,6 +58,12 @@ def transform(clusters: list[dict[str, Any]], account_id: str) -> list[dict[str,
             if any(key in pods for key in ("count", "total"))
             else cluster.get("podCount")
         )
+        if "running" in pods:
+            running_pod_count = first_present(pods, "running")
+        elif "RUNNING" in by_status:
+            running_pod_count = first_present(by_status, "RUNNING")
+        else:
+            running_pod_count = cluster.get("runningPodCount")
         transformed.append(
             {
                 "id": require_non_empty(cluster.get("id"), "cluster id"),
@@ -69,11 +75,7 @@ def transform(clusters: list[dict[str, Any]], account_id: str) -> list[dict[str,
                 or cluster.get("gpuTypeId"),
                 "gpu_count": _cluster_gpu_count(gpu, compute, pod_count, cluster),
                 "pod_count": pod_count,
-                "running_pod_count": (
-                    first_present(pods, "running")
-                    if "running" in pods
-                    else by_status.get("RUNNING") or cluster.get("runningPodCount")
-                ),
+                "running_pod_count": running_pod_count,
                 "primary_pod_id": primary_pod.get("id")
                 or primary_pod.get("podId")
                 or cluster.get("primaryPodId"),

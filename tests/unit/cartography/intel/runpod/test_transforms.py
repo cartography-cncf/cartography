@@ -142,6 +142,13 @@ def test_serverless_transform_rejects_malformed_object_id_lists():
         transform_serverless([endpoint], ACCOUNT_ID)
 
 
+def test_serverless_transform_rejects_empty_scalar_id_lists():
+    endpoint = {"id": "endpoint-1", "gpuTypeIds": [""]}
+
+    with pytest.raises(ValueError):
+        transform_serverless([endpoint], ACCOUNT_ID)
+
+
 def test_serverless_transform_preserves_intentionally_empty_new_field():
     rows = transform_serverless(
         [
@@ -255,6 +262,36 @@ def test_cluster_transform_handles_non_object_pods_block():
     assert rows[0]["gpu_count"] == 8
     assert rows[0]["pod_count"] == 4
     assert rows[0]["running_pod_count"] == 3
+
+
+def test_cluster_transform_preserves_zero_running_pod_count():
+    rows = transform_clusters(
+        [
+            {
+                "id": "cluster-1",
+                "pods": {"total": 4, "byStatus": {"RUNNING": 0}},
+                "runningPodCount": 3,
+            }
+        ],
+        ACCOUNT_ID,
+    )
+
+    assert rows[0]["running_pod_count"] == 0
+
+
+def test_cluster_transform_preserves_zero_top_level_running_pod_count():
+    rows = transform_clusters(
+        [
+            {
+                "id": "cluster-1",
+                "pods": {"total": 4, "running": 0},
+                "runningPodCount": 3,
+            }
+        ],
+        ACCOUNT_ID,
+    )
+
+    assert rows[0]["running_pod_count"] == 0
 
 
 def test_catalog_transform_accepts_documented_v2_shape():
