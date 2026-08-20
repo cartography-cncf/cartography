@@ -928,18 +928,6 @@ def start_gcp_ingestion(
             credentials=credentials,
         )
 
-        if requested_syncs is None or "log_sinks" in requested_syncs:
-            logging_client = build_client("logging", "v2", credentials=credentials)
-            log_sink.sync_gcp_log_sinks(
-                neo4j_session,
-                logging_client,
-                org_resource_name,
-                folders,
-                projects,
-                config.update_tag,
-                common_job_parameters,
-            )
-
         if requested_syncs is None or "audit_config" in requested_syncs:
             resourcemanager_client = build_client(
                 "cloudresourcemanager",
@@ -989,6 +977,20 @@ def start_gcp_ingestion(
             requested_syncs=requested_syncs,
             org_role_permissions_by_name=org_role_permissions_by_name,
         )
+
+        # Run log sinks after project resources so BigQuery dataset destinations
+        # collected in this sync already exist before DELIVERS_TO relationships are matched.
+        if requested_syncs is None or "log_sinks" in requested_syncs:
+            logging_client = build_client("logging", "v2", credentials=credentials)
+            log_sink.sync_gcp_log_sinks(
+                neo4j_session,
+                logging_client,
+                org_resource_name,
+                folders,
+                projects,
+                config.update_tag,
+                common_job_parameters,
+            )
 
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs
