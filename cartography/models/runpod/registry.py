@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import SECRET
 from cartography.models.runpod._relationships import RunPodToAccountRel
 
 
@@ -32,4 +34,5 @@ class RunPodRegistryCredentialSchema(CartographyNodeSchema):
     properties: RunPodRegistryCredentialNodeProperties = (
         RunPodRegistryCredentialNodeProperties()
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SECRET])
     sub_resource_relationship: RunPodToAccountRel = RunPodToAccountRel()

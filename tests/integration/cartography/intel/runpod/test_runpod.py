@@ -100,6 +100,38 @@ def test_start_runpod_ingestion(neo4j_session):
     assert check_nodes(neo4j_session, "RunPodDataCenter", ["id", "country_code"]) == {
         ("EU-SE-1", "SE"),
     }
+    assert check_nodes(neo4j_session, "Tenant", ["id", "_ont_name", "_ont_source"]) == {
+        (TEST_ACCOUNT_ID, TEST_ACCOUNT_ID, "runpod"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "ComputeInstance",
+        ["id", "_ont_name", "_ont_state", "_ont_region", "_ont_type", "_ont_source"],
+    ) == {
+        ("pod-1", "training-pod", "running", "EU-SE-1", "NVIDIA A100", "runpod"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "ComputeCluster",
+        ["id", "_ont_name", "_ont_source"],
+    ) == {
+        ("cluster-1", "training-cluster", "runpod"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "FileStorage",
+        ["id", "_ont_name", "_ont_location", "_ont_source"],
+    ) == {
+        ("volume-1", "models", "EU-SE-1", "runpod"),
+    }
+    assert check_nodes(neo4j_session, "Secret", ["id", "_ont_name", "_ont_source"]) == {
+        ("registry-1", "private-registry", "runpod"),
+    }
+    assert check_nodes(
+        neo4j_session, "ComputeService", ["id", "_ont_name", "_ont_source"]
+    ) == {
+        ("endpoint-1", "inference", "runpod"),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -132,6 +164,14 @@ def test_start_runpod_ingestion(neo4j_session):
         "RunPodRegistryCredential",
         "id",
         "USES_REGISTRY_CREDENTIAL",
+    ) == {("pod-1", "registry-1")}
+    assert check_rels(
+        neo4j_session,
+        "RunPodPod",
+        "id",
+        "RunPodRegistryCredential",
+        "id",
+        "USES_SECRET",
     ) == {("pod-1", "registry-1")}
     assert check_rels(
         neo4j_session,

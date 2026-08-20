@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_CLUSTER
 from cartography.models.runpod._relationships import RunPodResourceRelProperties
 from cartography.models.runpod._relationships import RunPodToAccountRel
 
@@ -22,7 +24,6 @@ class RunPodClusterNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Display name of the cluster."
     )
-    status: PropertyRef = PropertyRef("status", description="Current cluster status.")
     data_center_id: PropertyRef = PropertyRef(
         "data_center_id", extra_index=True, description="RunPod data center ID."
     )
@@ -86,6 +87,7 @@ class RunPodClusterSchema(CartographyNodeSchema):
 
     label: str = "RunPodCluster"
     properties: RunPodClusterNodeProperties = RunPodClusterNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_CLUSTER])
     sub_resource_relationship: RunPodToAccountRel = RunPodToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

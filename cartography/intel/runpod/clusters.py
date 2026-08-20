@@ -63,7 +63,6 @@ def transform(clusters: list[dict[str, Any]], account_id: str) -> list[dict[str,
                 "id": require_non_empty(cluster.get("id"), "cluster id"),
                 "account_id": account_id,
                 "name": cluster.get("name"),
-                "status": cluster.get("status"),
                 "data_center_id": cluster.get("dataCenterId"),
                 "gpu_type_id": gpu.get("id")
                 or compute.get("gpuTypeId")

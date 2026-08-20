@@ -93,7 +93,6 @@ CLUSTERS_RESPONSE = [
     {
         "id": "cluster-1",
         "name": "training-cluster",
-        "status": "RUNNING",
         "dataCenterId": "EU-SE-1",
         "gpu": {"id": "NVIDIA A100", "count": 8},
         "pods": {"count": 4, "running": 4},

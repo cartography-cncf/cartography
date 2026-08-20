@@ -3,12 +3,14 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_INSTANCE
 from cartography.models.runpod._relationships import RunPodResourceRelProperties
 from cartography.models.runpod._relationships import RunPodToAccountRel
 
@@ -119,6 +121,19 @@ class RunPodPodToRegistryCredentialRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RunPodPodToSecretRel(CartographyRelSchema):
+    """Canonical ontology edge for a pod consuming a registry credential secret."""
+
+    target_node_label: str = "RunPodRegistryCredential"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("registry_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET"
+    properties: RunPodResourceRelProperties = RunPodResourceRelProperties()
+
+
+@dataclass(frozen=True)
 class RunPodPodToDataCenterRel(CartographyRelSchema):
     """Connects a pod to the data center where it runs."""
 
@@ -137,12 +152,14 @@ class RunPodPodSchema(CartographyNodeSchema):
 
     label: str = "RunPodPod"
     properties: RunPodPodNodeProperties = RunPodPodNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: RunPodToAccountRel = RunPodToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RunPodPodToNetworkVolumeRel(),
             RunPodPodToTemplateRel(),
             RunPodPodToRegistryCredentialRel(),
+            RunPodPodToSecretRel(),
             RunPodPodToDataCenterRel(),
         ],
     )

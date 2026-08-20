@@ -271,6 +271,21 @@ CLUSTERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp_gke": gcp_gke_mapping,
     "kubernetes": kubernetes_mapping,
     "scaleway_kapsule": scaleway_kapsule_mapping,
+    "runpod": OntologyMapping(
+        module_name="runpod",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="RunPodCluster",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    # status: RunPod's v2 Cluster schema does not expose a
+                    # cluster lifecycle/status field.
+                ],
+            ),
+        ],
+    ),
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

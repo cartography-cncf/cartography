@@ -226,6 +226,7 @@ def test_cluster_transform_accepts_documented_v2_shape():
     assert rows[0]["running_pod_count"] == 3
     assert rows[0]["primary_pod_id"] == "pod-1"
     assert rows[0]["template_id"] == "template-1"
+    assert "status" not in rows[0]
 
 
 def test_cluster_transform_unwraps_nested_template():
