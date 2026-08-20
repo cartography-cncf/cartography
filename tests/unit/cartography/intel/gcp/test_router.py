@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp.router
+from cartography.intel.gcp.util import aggregated_response_cleanup_safe
 from tests.data.gcp.router import ROUTER_AGGREGATED_RESPONSE
 from tests.data.gcp.router import ROUTER_PAGE_1_RESPONSE
 from tests.data.gcp.router import ROUTER_PAGE_2_RESPONSE
@@ -103,4 +104,4 @@ def test_get_gcp_routers_preserves_unreachable_warning_across_pages():
     assert response["items"]["regions/us-central1"]["warning"] == {
         "code": "UNREACHABLE",
     }
-    assert not cartography.intel.gcp.router._aggregated_response_cleanup_safe(response)
+    assert not aggregated_response_cleanup_safe(response)
