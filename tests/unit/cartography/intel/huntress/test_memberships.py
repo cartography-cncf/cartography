@@ -42,18 +42,21 @@ def test_transform_folds_memberships_into_users_and_roles() -> None:
     users_by_id = {user["id"]: user for user in users}
     assert set(users_by_id) == {6001, 6002}
     # Homer holds an account-wide grant and an organization-scoped one.
-    assert users_by_id[6001]["role_ids"] == ["1000/Admin", "2002/Security Engineer"]
+    assert users_by_id[6001]["role_ids"] == [
+        "account/1000/Admin",
+        "org/2002/Security Engineer",
+    ]
     assert users_by_id[6001]["organization_ids"] == [2002]
-    assert users_by_id[6002]["role_ids"] == ["2001/Read-only"]
+    assert users_by_id[6002]["role_ids"] == ["org/2001/Read-only"]
     assert users_by_id[6002]["organization_ids"] == [2001]
 
     assert {
         (role["id"], role["name"], role["scope"], role["organization_id"])
         for role in roles
     } == {
-        ("1000/Admin", "Admin", "account", None),
-        ("2001/Read-only", "Read-only", "org", 2001),
-        ("2002/Security Engineer", "Security Engineer", "org", 2002),
+        ("account/1000/Admin", "Admin", "account", None),
+        ("org/2001/Read-only", "Read-only", "org", 2001),
+        ("org/2002/Security Engineer", "Security Engineer", "org", 2002),
     }
 
 
@@ -74,7 +77,7 @@ def test_transform_dedupes_a_role_shared_by_two_users() -> None:
     users, roles = transform(memberships, TEST_ACCOUNT_ID)
 
     assert len(roles) == 1
-    assert {user["role_ids"][0] for user in users} == {"1000/Admin"}
+    assert {user["role_ids"][0] for user in users} == {"account/1000/Admin"}
 
 
 def test_transform_rejects_a_membership_without_a_user() -> None:
@@ -117,3 +120,39 @@ def test_transform_keeps_a_user_whose_membership_has_no_permission_label() -> No
         }
     ]
     assert roles == []
+
+
+def test_transform_keeps_colliding_account_and_organization_ids_apart() -> None:
+    """Account and organization ids come from separate sequences and can collide.
+
+    Without the scope type in the role id, an account-wide `Admin` and an `Admin` scoped
+    to the organization that happens to share the account's number would merge into one
+    role, and each holder would be handed the other one's scope.
+    """
+    colliding_id = TEST_ACCOUNT_ID
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "account": {"id": colliding_id},
+            "user": {"id": 1, "email": "lisa@example.com"},
+        },
+        {
+            "id": 2,
+            "permissions": "Admin",
+            "organization": {"id": colliding_id},
+            "user": {"id": 2, "email": "bart@example.com"},
+        },
+    ]
+
+    users, roles = transform(memberships, TEST_ACCOUNT_ID)
+
+    assert {(role["id"], role["scope"], role["organization_id"]) for role in roles} == {
+        (f"account/{colliding_id}/Admin", "account", None),
+        (f"org/{colliding_id}/Admin", "org", colliding_id),
+    }
+    users_by_id = {user["id"]: user for user in users}
+    assert users_by_id[1]["role_ids"] == [f"account/{colliding_id}/Admin"]
+    assert users_by_id[1]["organization_ids"] == []
+    assert users_by_id[2]["role_ids"] == [f"org/{colliding_id}/Admin"]
+    assert users_by_id[2]["organization_ids"] == [colliding_id]

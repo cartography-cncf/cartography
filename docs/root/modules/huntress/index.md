@@ -25,7 +25,7 @@ total count and the distinct types rather than a remediation list.
 Huntress identifiers are unique across the platform, so nodes are keyed on the
 raw API identifier. The one exception is `HuntressRole`: Huntress exposes no role
 object, only a bare permission label on each membership, so a role is synthesised
-as `<account or organization ID>/<permission label>`. That keeps the same label
+as `<scope>/<account or organization ID>/<permission label>`. That keeps the same label
 granted on the account and on an organization as two distinct grants. Roles carry
 the `PermissionRole` label and users reach them through `HAS_ROLE`.
 

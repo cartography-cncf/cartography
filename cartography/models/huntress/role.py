@@ -19,7 +19,9 @@ class HuntressRoleNodeProperties(CartographyNodeProperties):
     # on an organization stays two distinct grants.
     id: PropertyRef = PropertyRef(
         "id",
-        description="Synthesised as `<account or organization ID>/<permission label>`.",
+        description=(
+            "Synthesised as `<scope>/<account or organization ID>/<permission label>`."
+        ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef(

@@ -89,14 +89,19 @@ def transform(
         permissions = membership.get("permissions")
         if permissions is None:
             continue
+        # The scope type is part of the id. Account and organization ids come from
+        # separate Huntress sequences, so the numbers can collide; without the prefix,
+        # account 42 and organization 42 would collapse onto one role node and hand
+        # every holder of one grant the other one's scope.
+        scope = "org" if organization_id is not None else "account"
         scope_id = organization_id if organization_id is not None else account_id
-        role_id = f"{scope_id}/{permissions}"
+        role_id = f"{scope}/{scope_id}/{permissions}"
         roles.setdefault(
             role_id,
             {
                 "id": role_id,
                 "name": permissions,
-                "scope": "org" if organization_id is not None else "account",
+                "scope": scope,
                 "organization_id": organization_id,
             },
         )

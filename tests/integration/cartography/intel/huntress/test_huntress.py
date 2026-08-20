@@ -184,9 +184,9 @@ def test_sync_huntress(
     # Assert: roles are synthesised per scope, so the same label granted on the account
     # and on an organization stays two distinct grants
     assert check_nodes(neo4j_session, "HuntressRole", ["id", "name", "scope"]) == {
-        ("1000/Admin", "Admin", "account"),
-        ("2001/Read-only", "Read-only", "org"),
-        ("2002/Security Engineer", "Security Engineer", "org"),
+        ("account/1000/Admin", "Admin", "account"),
+        ("org/2001/Read-only", "Read-only", "org"),
+        ("org/2002/Security Engineer", "Security Engineer", "org"),
     }
     assert check_rels(
         neo4j_session,
@@ -197,9 +197,9 @@ def test_sync_huntress(
         "HAS_ROLE",
         rel_direction_right=True,
     ) == {
-        (6001, "1000/Admin"),
-        (6001, "2002/Security Engineer"),
-        (6002, "2001/Read-only"),
+        (6001, "account/1000/Admin"),
+        (6001, "org/2002/Security Engineer"),
+        (6002, "org/2001/Read-only"),
     }
     assert check_rels(
         neo4j_session,
@@ -314,9 +314,85 @@ def test_memberships_permission_denied_keeps_previously_ingested_users(
     # Assert: the users and roles from the first run survived
     assert check_nodes(neo4j_session, "HuntressUser", ["id"]) == {(6001,), (6002,)}
     assert check_nodes(neo4j_session, "HuntressRole", ["id"]) == {
-        ("1000/Admin",),
-        ("2001/Read-only",),
-        ("2002/Security Engineer",),
+        ("account/1000/Admin",),
+        ("org/2001/Read-only",),
+        ("org/2002/Security Engineer",),
+    }
+
+    # Cleanup
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+
+# An organization whose id collides with the account's, which Huntress allows because the
+# two ids come from separate sequences.
+_COLLIDING_ORGANIZATION = [
+    {"id": TEST_ACCOUNT_ID, "name": "Collides", "key": "collides"}
+]
+_COLLIDING_MEMBERSHIPS = [
+    {
+        "id": 1,
+        "permissions": "Admin",
+        "account": {"id": TEST_ACCOUNT_ID},
+        "user": {"id": 6001, "email": "homer@springfield.example.com"},
+    },
+    {
+        "id": 2,
+        "permissions": "Admin",
+        "organization": {"id": TEST_ACCOUNT_ID},
+        "user": {"id": 6002, "email": "marge@springfield.example.com"},
+    },
+]
+
+
+@patch.object(cartography.intel.huntress.account, "get", return_value=ACCOUNT)
+@patch.object(
+    cartography.intel.huntress.organizations,
+    "get",
+    return_value=_COLLIDING_ORGANIZATION,
+)
+@patch.object(cartography.intel.huntress.agents, "get", return_value=[])
+@patch.object(cartography.intel.huntress.incident_reports, "get", return_value=[])
+@patch.object(
+    cartography.intel.huntress.memberships, "get", return_value=_COLLIDING_MEMBERSHIPS
+)
+def test_roles_stay_distinct_when_an_organization_id_equals_the_account_id(
+    mock_memberships_get,
+    mock_incident_reports_get,
+    mock_agents_get,
+    mock_organizations_get,
+    mock_account_get,
+    neo4j_session,
+):
+    """Regression: the numeric id alone is not a unique role identity.
+
+    Keying a role on `<id>/<label>` alone merged an account-wide grant with an
+    organization-scoped one sharing that number, so each holder ended up attached to the
+    other one's grant.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    _sync_everything(neo4j_session)
+
+    # Assert: two separate role nodes survive, each with its own scope
+    assert check_nodes(neo4j_session, "HuntressRole", ["id", "scope"]) == {
+        (f"account/{TEST_ACCOUNT_ID}/Admin", "account"),
+        (f"org/{TEST_ACCOUNT_ID}/Admin", "org"),
+    }
+
+    # Assert: neither user picked up the other's grant
+    assert check_rels(
+        neo4j_session,
+        "HuntressUser",
+        "id",
+        "HuntressRole",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (6001, f"account/{TEST_ACCOUNT_ID}/Admin"),
+        (6002, f"org/{TEST_ACCOUNT_ID}/Admin"),
     }
 
     # Cleanup
