@@ -59,6 +59,42 @@ stale and will be deleted via a [cleanup job](https://docs.cartography.dev/dev/w
 To keep data updated, you can run `cartography` as part of a periodic script (cronjobs in Linux, scheduled tasks in
 Windows). Determine your needs for data freshness and adjust accordingly.
 
+## Performance
+
+### Faster Neo4j driver
+
+Neo4j publishes [neo4j-rust-ext](https://github.com/neo4j/neo4j-python-driver-rust-ext), a Rust implementation of the
+Bolt protocol codec used by the Python driver. Because a Cartography sync spends a lot of its time serializing large
+batches of nodes and relationships over Bolt, this is one of the cheapest wins available: measured sync speedups are in
+the 20-30% range, and Neo4j reports up to 10x on workloads dominated by driver overhead.
+
+Install it through the `neo4j-rust` extra:
+
+```bash
+uv tool install 'cartography[neo4j-rust]'
+```
+
+or, with pip:
+
+```bash
+pip install 'cartography[neo4j-rust]'
+```
+
+Nothing else changes: the extension registers itself where the Neo4j driver looks for it, so there is no flag to set
+and no code path specific to it. Cartography logs which codec it picked up at the start of every sync:
+
+```
+Using the Rust Bolt codec from neo4j-rust-ext.
+```
+
+Pre-built wheels cover Linux, macOS and Windows on x86-64 and arm64. On a platform with no matching wheel, pip falls
+back to building from source, which needs a Rust toolchain; installing plain `cartography` avoids that entirely.
+
+If you hit a driver-level bug, reinstall without the extra before reporting it, so the pure-Python codec can confirm
+the behavior.
+
+The published Docker image already installs the extra, so containers get the Rust codec with no action on your part.
+
 ## Observability
 
 ### statsd
