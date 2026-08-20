@@ -4,6 +4,7 @@ import pytest
 import requests
 
 from cartography.intel.render.services import build_latest_deploy_rows
+from cartography.intel.render.services import build_ontology_state_rows
 from cartography.intel.render.services import DEPLOY_FETCH_FAILED
 from cartography.intel.render.services import get_latest_deploy
 from cartography.intel.render.services import get_latest_deploys
@@ -168,3 +169,68 @@ def test_build_latest_deploy_rows_excludes_a_service_whose_fetch_failed():
     rows = build_latest_deploy_rows({SERVICE_ID: DEPLOY_FETCH_FAILED})
 
     assert rows == []
+
+
+def test_build_ontology_state_rows_reports_the_real_deploy_status_when_not_suspended():
+    rows = build_ontology_state_rows(
+        {SERVICE_ID: {"id": "dep-1", "status": "live"}},
+        [{"id": SERVICE_ID, "suspended": "not_suspended"}],
+    )
+
+    assert rows == [{"id": SERVICE_ID, "effectiveDeployStatus": "live"}]
+
+
+def test_build_ontology_state_rows_reports_suspended_regardless_of_deploy_status():
+    """
+    Suspending a service does not create a new deploy or change latest_deploy_status,
+    so a naive read of deploy status alone would keep reporting a suspended service as
+    "live"/"running" for the ontology's ComputeInstance._ont_state. effectiveDeployStatus
+    must override to "suspended" whenever the service's own suspended field is set,
+    regardless of what its last real deploy status was.
+    """
+    rows = build_ontology_state_rows(
+        {SERVICE_ID: {"id": "dep-1", "status": "live"}},
+        [{"id": SERVICE_ID, "suspended": "suspended"}],
+    )
+
+    assert rows == [{"id": SERVICE_ID, "effectiveDeployStatus": "suspended"}]
+
+
+def test_build_ontology_state_rows_reports_suspended_even_when_deploy_fetch_failed():
+    """
+    The bug this function exists to fix: `suspended` comes from the core service list,
+    which always succeeds if a workspace sync gets this far, so a service that became
+    suspended must be reported as such even when its (unrelated) deploy-fetch call
+    failed transiently this same run - unlike latestDeployStatus, which has no
+    reliable value to report without a successful fetch and correctly preserves its
+    prior value instead (see build_latest_deploy_rows()).
+    """
+    rows = build_ontology_state_rows(
+        {SERVICE_ID: DEPLOY_FETCH_FAILED},
+        [{"id": SERVICE_ID, "suspended": "suspended"}],
+    )
+
+    assert rows == [{"id": SERVICE_ID, "effectiveDeployStatus": "suspended"}]
+
+
+def test_build_ontology_state_rows_excludes_a_service_that_is_neither_suspended_nor_fetched():
+    """
+    Only when there is genuinely no reliable current information (not suspended, and
+    the deploy fetch also failed) should a service be excluded, preserving whatever
+    effectiveDeployStatus was set on the last successful run.
+    """
+    rows = build_ontology_state_rows(
+        {SERVICE_ID: DEPLOY_FETCH_FAILED},
+        [{"id": SERVICE_ID, "suspended": "not_suspended"}],
+    )
+
+    assert rows == []
+
+
+def test_build_ontology_state_rows_includes_a_null_row_when_genuinely_no_deploys():
+    rows = build_ontology_state_rows(
+        {SERVICE_ID: None},
+        [{"id": SERVICE_ID, "suspended": "not_suspended"}],
+    )
+
+    assert rows == [{"id": SERVICE_ID, "effectiveDeployStatus": None}]

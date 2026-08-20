@@ -10,6 +10,7 @@ from cartography.intel.render.util import BASE_URL
 from cartography.intel.render.util import list_paginated
 from cartography.intel.render.util import require_non_empty
 from cartography.models.render.service import RenderServiceLatestDeploySchema
+from cartography.models.render.service import RenderServiceOntologyStateSchema
 from cartography.models.render.service import RenderServiceSchema
 from cartography.util import timeit
 
@@ -179,6 +180,35 @@ def build_latest_deploy_rows(
     return rows
 
 
+def build_ontology_state_rows(
+    latest_deploys: dict[str, Any],
+    services: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Builds one row per service for `effectiveDeployStatus` specifically - see
+    RenderServiceOntologyStateProperties' docstring for why this has different
+    inclusion logic from build_latest_deploy_rows(): a suspended service's effective
+    status is always "suspended" regardless of deploy-fetch outcome, so it must still
+    update on a transient deploy-fetch failure. A service is excluded here (preserving
+    its prior effectiveDeployStatus) only when it is NOT suspended AND its deploy
+    fetch failed this run - i.e. there is no reliable current information for it
+    either way.
+    """
+    rows = []
+    for service in services:
+        service_id = service["id"]
+        suspended = service.get("suspended") == "suspended"
+        deploy = latest_deploys.get(service_id)
+        if suspended:
+            effective_status: Any = "suspended"
+        elif deploy is DEPLOY_FETCH_FAILED:
+            continue
+        else:
+            effective_status = (deploy or {}).get("status")
+        rows.append({"id": service_id, "effectiveDeployStatus": effective_status})
+    return rows
+
+
 @timeit
 def load_services(
     neo4j_session: neo4j.Session,
@@ -213,6 +243,27 @@ def load_latest_deploys(
     load(
         neo4j_session,
         RenderServiceLatestDeploySchema(),
+        data,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_ontology_state(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Sets effectiveDeployStatus on the RenderService nodes already loaded by
+    load_services(), restricted to the services in `data` (built by
+    build_ontology_state_rows()). See RenderServiceOntologyStateSchema.
+    """
+    if not data:
+        return
+    load(
+        neo4j_session,
+        RenderServiceOntologyStateSchema(),
         data,
         lastupdated=update_tag,
     )
@@ -258,6 +309,11 @@ def sync(
     load_latest_deploys(
         neo4j_session,
         build_latest_deploy_rows(latest_deploys),
+        update_tag,
+    )
+    load_ontology_state(
+        neo4j_session,
+        build_ontology_state_rows(latest_deploys, transformed),
         update_tag,
     )
     if run_cleanup:

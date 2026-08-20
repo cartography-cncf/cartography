@@ -325,9 +325,13 @@ def test_start_render_ingestion(
         (TEST_SERVICE_ID, "cartography-test-service", TEST_ENVIRONMENT_ID),
     }
     assert check_nodes(
-        neo4j_session, "ComputeInstance", ["id", "_ont_name", "_ont_source"]
+        neo4j_session,
+        "ComputeInstance",
+        ["id", "_ont_name", "_ont_state", "_ont_source"],
     ) == {
-        (TEST_SERVICE_ID, "cartography-test-service", "render"),
+        # "live" (the raw RenderService.latest_deploy_status) normalizes to the
+        # shared ComputeInstance canonical state "running".
+        (TEST_SERVICE_ID, "cartography-test-service", "running", "render"),
     }
     assert check_nodes(
         neo4j_session,
@@ -1178,6 +1182,91 @@ def test_latest_deploy_failure_preserves_prior_successful_deploy_data(neo4j_sess
         ["id", "latest_deploy_id", "latest_deploy_status"],
     ) == {
         (TEST_SERVICE_ID, "dep-test001", "live"),
+    }
+
+
+def test_suspended_service_reports_suspended_ontology_state_regardless_of_deploy_status(
+    neo4j_session,
+):
+    """
+    Render's `suspended` field is its own string enum ("suspended"/"not_suspended"),
+    not a boolean, and suspending a service does not create a new deploy or change
+    latest_deploy_status - see RenderServiceLatestDeployProperties.effective_deploy_status
+    for why ComputeInstance._ont_state must read that combined field, not
+    latest_deploy_status alone.
+    """
+    suspended_service = {**SERVICES_RESPONSE[0], "suspended": "suspended"}
+    with ExitStack() as stack:
+        _patch_all_resources(
+            stack,
+            overrides={
+                (cartography.intel.render.services, "get"): {
+                    "return_value": [suspended_service],
+                },
+            },
+        )
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(
+        neo4j_session,
+        "RenderService",
+        ["id", "latest_deploy_status"],
+    ) == {
+        (TEST_SERVICE_ID, "live"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "ComputeInstance",
+        ["id", "_ont_state"],
+    ) == {
+        (TEST_SERVICE_ID, "suspended"),
+    }
+
+
+def test_ontology_state_updates_to_suspended_even_when_deploy_fetch_fails(
+    neo4j_session,
+):
+    """
+    The bug this test guards against: a service becomes suspended on a run where its
+    (unrelated) deploy-fetch call also fails transiently. Because `suspended` comes
+    from the core service list - which always succeeds if a workspace sync gets this
+    far - ComputeInstance._ont_state must still update to "suspended" that run, not
+    remain stuck at its prior value (e.g. "running") just because the deploy fetch
+    failed. See services.py's build_ontology_state_rows() and its distinct inclusion
+    logic from build_latest_deploy_rows().
+    """
+    with ExitStack() as stack:
+        _patch_all_resources(stack)
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(neo4j_session, "ComputeInstance", ["id", "_ont_state"]) == {
+        (TEST_SERVICE_ID, "running"),
+    }
+
+    suspended_service = {**SERVICES_RESPONSE[0], "suspended": "suspended"}
+    with ExitStack() as stack:
+        _patch_all_resources(
+            stack,
+            overrides={
+                (cartography.intel.render.services, "get"): {
+                    "return_value": [suspended_service],
+                },
+                (cartography.intel.render.services, "get_latest_deploy"): {
+                    "side_effect": requests.exceptions.HTTPError("boom"),
+                },
+            },
+        )
+        cartography.intel.render.start_render_ingestion(neo4j_session, _config())
+
+    assert check_nodes(neo4j_session, "ComputeInstance", ["id", "_ont_state"]) == {
+        (TEST_SERVICE_ID, "suspended"),
+    }
+    # latestDeployStatus correctly preserves its prior value despite the failed fetch -
+    # only effectiveDeployStatus/_ont_state needed to update.
+    assert check_nodes(
+        neo4j_session, "RenderService", ["id", "latest_deploy_status"]
+    ) == {
+        (TEST_SERVICE_ID, "live"),
     }
 
 

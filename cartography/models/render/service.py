@@ -212,3 +212,58 @@ class RenderServiceLatestDeploySchema(CartographyNodeSchema):
     properties: RenderServiceLatestDeployProperties = (
         RenderServiceLatestDeployProperties()
     )
+
+
+@dataclass(frozen=True)
+class RenderServiceOntologyStateProperties(CartographyNodeProperties):
+    """
+    A third facet, deliberately separate from both RenderServiceNodeProperties and
+    RenderServiceLatestDeployProperties, holding only `effective_deploy_status` - the
+    source field for ComputeInstance._ont_state (see
+    cartography/models/ontology/mapping/data/computeinstance.py).
+
+    `effective_deploy_status` is `latest_deploy_status`, overridden to "suspended"
+    when the service's `suspended` field is set. Render does not create a new deploy
+    or change latest_deploy_status when a service is suspended, so latest_deploy_status
+    alone can't distinguish a suspended-but-otherwise-live service from one that's
+    actually running.
+
+    It needs its own facet, separate from RenderServiceLatestDeployProperties, because
+    the two fields have different correct behavior when a deploy-fetch call fails
+    transiently: `suspended` comes from the core service list, which always succeeds
+    if a workspace sync gets this far, so effective_deploy_status can and must still
+    update to "suspended" that run even when the deploy fetch fails - unlike
+    latestDeployStatus/latestDeployId/etc., which have no reliable value to report
+    without a successful fetch and correctly preserve their prior value instead. A
+    row for a service is only omitted here (preserving its prior effective_deploy_status)
+    when it is NOT suspended AND its deploy fetch also failed this run - i.e. there is
+    no reliable current information for it either way. See
+    services.py's build_ontology_state_rows().
+    """
+
+    id: PropertyRef = PropertyRef("id", description="ID of the Render service.")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    effective_deploy_status: PropertyRef = PropertyRef(
+        "effectiveDeployStatus",
+        description=(
+            "latest_deploy_status, overridden to 'suspended' when the service is "
+            "suspended. Source field for ComputeInstance._ont_state - not intended "
+            "for direct use elsewhere."
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class RenderServiceOntologyStateSchema(CartographyNodeSchema):
+    """
+    A facet of the existing `RenderService` node (same label, same `id`) that only
+    ever sets `effective_deploy_status`. Deliberately has no `sub_resource_relationship`
+    of its own, and is deliberately a separate schema/load() call from
+    RenderServiceLatestDeploySchema - see RenderServiceOntologyStateProperties'
+    docstring for why the two facets need independent per-row inclusion logic.
+    """
+
+    label: str = "RenderService"
+    properties: RenderServiceOntologyStateProperties = (
+        RenderServiceOntologyStateProperties()
+    )

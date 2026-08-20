@@ -11,6 +11,9 @@ from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.models.ontology.mapping import SEMANTIC_LABEL_BY_CATEGORY
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping.data.computeinstance import (
+    COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
@@ -437,6 +440,35 @@ def test_aws_account_status_ontology_map_covers_all_states():
         "SUSPENDED": "suspended",
         "PENDING_CLOSURE": "pending_deletion",
         "CLOSED": "closed",
+    }
+
+
+def test_render_service_deploy_status_ontology_map_covers_all_states():
+    """
+    RenderService._ont_state must normalize every value in Render's documented
+    deployStatus enum (https://api-docs.render.com/reference/retrieve-deploy).
+    Unmapped values become NULL (CASE without ELSE), so a canceled or failed
+    deploy would silently lose its ontology state if omitted.
+    """
+    render = COMPUTE_INSTANCE_ONTOLOGY_MAPPING["render"]
+    service = next(n for n in render.nodes if n.node_label == "RenderService")
+    state = next(f for f in service.fields if f.ontology_field == "state")
+
+    assert state.special_handling == "mapping"
+    assert state.node_field == "effective_deploy_status"
+    assert state.extra["map"] == {
+        "created": "pending",
+        "queued": "pending",
+        "pre_deploy_in_progress": "starting",
+        "build_in_progress": "starting",
+        "update_in_progress": "starting",
+        "live": "running",
+        "deactivated": "stopped",
+        "build_failed": "error",
+        "update_failed": "error",
+        "pre_deploy_failed": "error",
+        "canceled": "unknown",
+        "suspended": "suspended",
     }
 
 
