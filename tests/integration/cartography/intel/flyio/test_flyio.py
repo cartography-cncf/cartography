@@ -208,9 +208,11 @@ def test_start_flyio_ingestion(
     assert certificate["status"] == "active"
     assert certificate["certificate_authorities"] == ["lets_encrypt"]
     assert certificate["sources"] == ["fly"]
-    assert check_nodes(neo4j_session, "Tenant", ["id", "_ont_name"]) == {
-        (TEST_ORG_SLUG, "jonathanfemi@example.com"),
-        (TEST_APP_ID, TEST_APP_NAME),
+    assert check_nodes(neo4j_session, "Tenant", ["id", "_ont_name", "_ont_status"]) == {
+        (TEST_ORG_SLUG, "jonathanfemi@example.com", None),
+        # "deployed" (the raw FlyApp.status, still asserted separately above)
+        # normalizes to the shared Tenant canonical status "active".
+        (TEST_APP_ID, TEST_APP_NAME, "active"),
     }
     assert check_nodes(
         neo4j_session,
@@ -224,14 +226,32 @@ def test_start_flyio_ingestion(
         "ComputeInstance",
         ["id", "_ont_name", "_ont_region", "_ont_state", "_ont_source"],
     ) == {
-        (TEST_MACHINE_ID, "dry-rain-8738", "lhr", "started", "flyio"),
+        # "started" (the raw FlyMachine.state, still asserted separately above)
+        # normalizes to the shared ComputeInstance canonical state "running".
+        (TEST_MACHINE_ID, "dry-rain-8738", "lhr", "running", "flyio"),
     }
     assert check_nodes(
         neo4j_session,
         "BlockStorage",
-        ["id", "_ont_name", "_ont_size_gb", "_ont_encrypted", "_ont_source"],
+        [
+            "id",
+            "_ont_name",
+            "_ont_size_gb",
+            "_ont_encrypted",
+            "_ont_state",
+            "_ont_source",
+        ],
     ) == {
-        ("vol_vlykw0x679gyz5p4", "cartography_test_data", 1, True, "flyio"),
+        # "created" (the raw FlyVolume.state) normalizes to the shared
+        # BlockStorage canonical state "available".
+        (
+            "vol_vlykw0x679gyz5p4",
+            "cartography_test_data",
+            1,
+            True,
+            "available",
+            "flyio",
+        ),
     }
     assert check_nodes(neo4j_session, "Secret", ["id", "_ont_name"]) == {
         (f"{TEST_APP_ID}/SECRET_KEY", "SECRET_KEY"),

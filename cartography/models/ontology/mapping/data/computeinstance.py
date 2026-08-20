@@ -341,6 +341,29 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+# Fly Machine state, per https://fly.io/docs/machines/machine-states/ (the full
+# documented state machine, not just the values a single fixture/account happens to
+# show).
+_FLYIO_MACHINE_STATE = {
+    "created": "pending",
+    "creating": "pending",
+    "starting": "starting",
+    "started": "running",
+    "stopping": "stopping",
+    "stopped": "stopped",
+    "suspending": "stopping",
+    "suspended": "suspended",
+    "restarting": "starting",
+    "replacing": "unknown",
+    "updating": "unknown",
+    "destroying": "terminated",
+    "destroyed": "terminated",
+    "replaced": "terminated",
+    "migrated": "terminated",
+    "failed": "error",
+    "launch_failed": "error",
+}
+
 flyio_mapping = OntologyMapping(
     module_name="flyio",
     nodes=[
@@ -356,7 +379,12 @@ flyio_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="private_ip_address", node_field="private_ip"
                 ),
-                OntologyFieldMapping(ontology_field="state", node_field="state"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _FLYIO_MACHINE_STATE},
+                ),
                 OntologyFieldMapping(ontology_field="type", node_field="cpu_kind"),
                 OntologyFieldMapping(
                     ontology_field="created_at", node_field="created_at"

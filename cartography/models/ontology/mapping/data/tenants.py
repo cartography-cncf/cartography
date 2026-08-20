@@ -738,6 +738,25 @@ miradore_mapping = OntologyMapping(
 )
 
 
+# Fly App status. Unlike Machine/Volume states, Fly does not publish a formal enum
+# for this field anywhere in the Machines API OpenAPI spec or docs. All three values
+# below are confirmed live: "pending" and "suspended" from a real account's own apps;
+# "deployed" only appeared after taking a throwaway app through a full `fly deploy`
+# release (build+release+rollout) - creating and starting a Machine directly via the
+# raw Machines API left the app's status at "pending" the whole time, confirming
+# "deployed" is set by the deploy workflow, not by machine state. A "running" value
+# was hypothesized from community reports but never observed as a distinct status in
+# either test above (a fully deployed app with started Machines still reports
+# "deployed"), so it's deliberately omitted rather than guessed at: any future value
+# not in this dict resolves to NULL (see cartography/graph/querybuilder.py's mapping
+# special_handling), which is a safer failure mode than silently coercing an unknown
+# real value to the wrong canonical status.
+_FLYIO_APP_STATUS = {
+    "pending": "unknown",
+    "deployed": "active",
+    "suspended": "suspended",
+}
+
 flyio_mapping = OntologyMapping(
     module_name="flyio",
     nodes=[
@@ -757,7 +776,12 @@ flyio_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _FLYIO_APP_STATUS},
+                ),
                 # domain: Not available
             ],
         ),
