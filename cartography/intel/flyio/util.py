@@ -9,6 +9,12 @@ def require_non_empty(value: Any, field_name: str) -> Any:
     return value
 
 
+def require_list(value: Any, field_name: str) -> list[Any]:
+    if not isinstance(value, list):
+        raise ValueError(f"Fly.io response is missing required list {field_name}.")
+    return value
+
+
 def get_next_cursor(
     page_info: dict[str, Any],
     previous_cursor: str | None,

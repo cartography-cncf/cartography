@@ -7,6 +7,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
+from cartography.intel.flyio.util import require_list
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.app import FlyAppSchema
 from cartography.models.flyio.organization import FlyOrganizationSchema
@@ -55,7 +56,7 @@ def transform_organizations(
     org_slug: str,
 ) -> list[dict[str, Any]]:
     orgs_by_id: dict[str, dict[str, Any]] = {}
-    for app in response["apps"]:
+    for app in require_list(response.get("apps"), "apps"):
         org = app.get("organization") or {}
         slug = org.get("slug") or org_slug
         orgs_by_id[org_slug] = {
@@ -78,13 +79,14 @@ def transform_organizations(
 
 def transform_apps(response: dict[str, Any]) -> list[dict[str, Any]]:
     apps = []
-    for app in response["apps"]:
-        app_id = require_non_empty(app["id"], "app id")
+    for app in require_list(response.get("apps"), "apps"):
+        app_id = require_non_empty(app.get("id"), "app id")
+        app_name = require_non_empty(app.get("name"), "app name")
         organization = app.get("organization") or {}
         apps.append(
             {
                 "id": app_id,
-                "name": app["name"],
+                "name": app_name,
                 "internal_numeric_id": app.get("internal_numeric_id"),
                 "network": app.get("network"),
                 "network_cidr": app.get("network_cidr"),

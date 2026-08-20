@@ -9,6 +9,7 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_list
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.user import FlyUserSchema
 from cartography.models.flyio.user import FlyUserToOrganizationMemberMatchLink
@@ -85,7 +86,7 @@ def get(
         )
         organization = response.get("organization") or {}
         members = organization.get("members") or {}
-        edges.extend(members.get("edges") or [])
+        edges.extend(require_list(members.get("edges"), "members.edges"))
         after = get_next_cursor(members.get("pageInfo") or {}, after, "members")
         if not after:
             return {"organization": {"members": {"edges": edges}}}
@@ -95,7 +96,7 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     organization = response.get("organization") or {}
     members = organization.get("members") or {}
     users_by_id = {}
-    for edge in members.get("edges") or []:
+    for edge in require_list(members.get("edges"), "members.edges"):
         user = edge.get("node") or {}
         user_id = require_non_empty(user.get("id"), "user id")
         users_by_id[user_id] = {

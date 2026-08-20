@@ -118,6 +118,35 @@ def test_transform_apps_rejects_empty_ids():
         cartography.intel.flyio.apps.transform_apps(response)
 
 
+@pytest.mark.parametrize(
+    ("missing_field", "expected_message"),
+    [
+        ("id", "required non-empty app id"),
+        ("name", "required non-empty app name"),
+    ],
+)
+def test_transform_apps_rejects_missing_required_fields(
+    missing_field,
+    expected_message,
+):
+    # Arrange
+    app = {**APPS_RESPONSE["apps"][0]}
+    app.pop(missing_field)
+    response = {"apps": [app]}
+
+    # Act and assert
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.apps.transform_apps(response)
+
+
+def test_transform_apps_rejects_missing_apps_list():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list apps"):
+        cartography.intel.flyio.apps.transform_apps({})
+    with pytest.raises(ValueError, match="missing required list apps"):
+        cartography.intel.flyio.apps.transform_organizations({}, "personal")
+
+
 def test_transform_machines_does_not_store_env_values():
     # Act
     machines = cartography.intel.flyio.machines.transform_machines(MACHINES_RESPONSE)
@@ -164,6 +193,26 @@ def test_transform_machines_rejects_empty_ids():
     # Act and assert
     with pytest.raises(ValueError, match="required non-empty machine id"):
         cartography.intel.flyio.machines.transform_machines(machines)
+
+
+def test_transform_machines_rejects_missing_ids():
+    # Arrange
+    machine = {**MACHINES_RESPONSE[0]}
+    machine.pop("id")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty machine id"):
+        cartography.intel.flyio.machines.transform_machines([machine])
+
+
+def test_transform_machines_rejects_non_list_input():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list machines"):
+        cartography.intel.flyio.machines.transform_machines({})
+    with pytest.raises(ValueError, match="missing required list machines"):
+        cartography.intel.flyio.machines.transform_services({})
+    with pytest.raises(ValueError, match="missing required list machines"):
+        cartography.intel.flyio.machines.transform_service_ports({})
 
 
 def test_transform_services_and_ports():
@@ -282,6 +331,57 @@ def test_transform_services_reject_empty_identity_components(
         cartography.intel.flyio.machines.transform_service_ports([machine])
 
 
+@pytest.mark.parametrize(
+    ("missing_field", "expected_message"),
+    [
+        ("id", "required non-empty machine id"),
+        ("protocol", "required non-empty service protocol"),
+        ("internal_port", "required non-empty service internal_port"),
+    ],
+)
+def test_transform_services_reject_missing_identity_components(
+    missing_field,
+    expected_message,
+):
+    # Arrange
+    service = {**MACHINES_RESPONSE[0]["config"]["services"][0]}
+    machine = {
+        **MACHINES_RESPONSE[0],
+        "config": {
+            **MACHINES_RESPONSE[0]["config"],
+            "services": [service],
+        },
+    }
+    if missing_field == "id":
+        machine.pop("id")
+    else:
+        service.pop(missing_field)
+
+    # Act and assert
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.machines.transform_services([machine])
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.machines.transform_service_ports([machine])
+
+
+def test_transform_services_rejects_missing_machine_id_even_without_services():
+    # Arrange
+    machine = {
+        **MACHINES_RESPONSE[0],
+        "id": "",
+        "config": {
+            **MACHINES_RESPONSE[0]["config"],
+            "services": [],
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty machine id"):
+        cartography.intel.flyio.machines.transform_services([machine])
+    with pytest.raises(ValueError, match="required non-empty machine id"):
+        cartography.intel.flyio.machines.transform_service_ports([machine])
+
+
 def test_transform_service_ports_reject_empty_external_ports():
     # Arrange
     machine = {
@@ -343,6 +443,23 @@ def test_transform_secrets_rejects_empty_names():
         cartography.intel.flyio.secrets.transform(response, TEST_APP_ID)
 
 
+def test_transform_secrets_rejects_missing_names():
+    # Arrange
+    secret = {**SECRETS_RESPONSE["secrets"][0]}
+    secret.pop("name")
+    response = {"secrets": [secret]}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty secret name"):
+        cartography.intel.flyio.secrets.transform(response, TEST_APP_ID)
+
+
+def test_transform_secrets_rejects_missing_secrets_list():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list secrets"):
+        cartography.intel.flyio.secrets.transform({}, TEST_APP_ID)
+
+
 def test_transform_volumes_and_certificates():
     # Act
     volumes = cartography.intel.flyio.volumes.transform(VOLUMES_RESPONSE)
@@ -387,6 +504,22 @@ def test_transform_volumes_rejects_empty_ids():
         cartography.intel.flyio.volumes.transform(volumes)
 
 
+def test_transform_volumes_rejects_missing_ids():
+    # Arrange
+    volume = {**VOLUMES_RESPONSE[0]}
+    volume.pop("id")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty volume id"):
+        cartography.intel.flyio.volumes.transform([volume])
+
+
+def test_transform_volumes_rejects_non_list_input():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list volumes"):
+        cartography.intel.flyio.volumes.transform({})
+
+
 def test_transform_certificates_rejects_empty_hostnames():
     # Arrange
     response = {
@@ -401,6 +534,12 @@ def test_transform_certificates_rejects_empty_hostnames():
     # Act and assert
     with pytest.raises(ValueError, match="required non-empty certificate hostname"):
         cartography.intel.flyio.certificates.transform(response, TEST_APP_ID)
+
+
+def test_transform_certificates_rejects_missing_certificates_list():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list certificates"):
+        cartography.intel.flyio.certificates.transform({}, TEST_APP_ID)
 
 
 def test_transform_ips():
@@ -462,6 +601,58 @@ def test_transform_ips():
             "network_organization_slug": None,
         },
     ]
+
+
+@pytest.mark.parametrize(
+    ("ip_section", "missing_field", "expected_message"),
+    [
+        ("ipAddresses", "address", "required non-empty ingress IP address"),
+        ("egressIpAddresses", "ip", "required non-empty egress IP address"),
+    ],
+)
+def test_transform_ips_reject_missing_required_addresses(
+    ip_section,
+    missing_field,
+    expected_message,
+):
+    # Arrange
+    ip_node = {**IPS_RESPONSE["app"][ip_section]["nodes"][0]}
+    ip_node.pop(missing_field)
+    response = {
+        "app": {
+            "ipAddresses": {"nodes": []},
+            "sharedIpAddress": None,
+            "egressIpAddresses": {"nodes": []},
+            ip_section: {"nodes": [ip_node]},
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.ips.transform(response, TEST_APP_ID)
+
+
+@pytest.mark.parametrize(
+    ("ip_section", "expected_message"),
+    [
+        ("ipAddresses", "missing required list ipAddresses.nodes"),
+        ("egressIpAddresses", "missing required list egressIpAddresses.nodes"),
+    ],
+)
+def test_transform_ips_rejects_null_nodes_lists(ip_section, expected_message):
+    # Arrange
+    response = {
+        "app": {
+            "ipAddresses": {"nodes": []},
+            "sharedIpAddress": None,
+            "egressIpAddresses": {"nodes": []},
+            ip_section: {"nodes": None},
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match=expected_message):
+        cartography.intel.flyio.ips.transform(response, TEST_APP_ID)
 
 
 def test_transform_users():
@@ -609,6 +800,22 @@ def test_transform_access_tokens_rejects_empty_ids():
         cartography.intel.flyio.access_tokens.transform(tokens)
 
 
+def test_transform_access_tokens_rejects_null_nodes_lists():
+    # Act and assert
+    with pytest.raises(
+        ValueError, match="missing required list limitedAccessTokens.nodes"
+    ):
+        cartography.intel.flyio.access_tokens.transform_organization_tokens(
+            {"organization": {"limitedAccessTokens": {"nodes": None}}},
+        )
+    with pytest.raises(
+        ValueError, match="missing required list limitedAccessTokens.nodes"
+    ):
+        cartography.intel.flyio.access_tokens.transform_app_tokens(
+            {"app": {"limitedAccessTokens": {"nodes": None}}},
+        )
+
+
 def test_transform_releases():
     # Act
     releases = cartography.intel.flyio.releases.transform(RELEASES_RESPONSE)
@@ -670,6 +877,25 @@ def test_transform_releases_rejects_empty_ids():
     # Act and assert
     with pytest.raises(ValueError, match="required non-empty release id"):
         cartography.intel.flyio.releases.transform(response)
+
+
+def test_transform_releases_rejects_missing_ids():
+    # Arrange
+    release = {**RELEASES_RESPONSE["app"]["releases"]["nodes"][0]}
+    release.pop("id")
+    response = {"app": {"releases": {"nodes": [release]}}}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="required non-empty release id"):
+        cartography.intel.flyio.releases.transform(response)
+
+
+def test_transform_releases_rejects_null_nodes_list():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list releases.nodes"):
+        cartography.intel.flyio.releases.transform(
+            {"app": {"releases": {"nodes": None}}},
+        )
 
 
 @patch.object(cartography.intel.flyio.users, "post_graphql")
@@ -762,6 +988,36 @@ def test_get_users_rejects_missing_next_cursor(mock_post_graphql):
 
     # Act and assert
     with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.users.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "personal",
+        )
+
+
+def test_transform_users_rejects_null_edges_list():
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list members.edges"):
+        cartography.intel.flyio.users.transform(
+            {"organization": {"members": {"edges": None}}},
+        )
+
+
+@patch.object(cartography.intel.flyio.users, "post_graphql")
+def test_get_users_rejects_null_edges_list(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "organization": {
+            "members": {
+                "edges": None,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list members.edges"):
         cartography.intel.flyio.users.get(
             api_session,
             "https://api.fly.io/graphql",
@@ -884,6 +1140,30 @@ def test_get_app_access_tokens_rejects_repeated_cursor(mock_post_graphql):
             api_session,
             "https://api.fly.io/graphql",
             "example-app",
+        )
+
+
+@patch.object(cartography.intel.flyio.access_tokens, "post_graphql")
+def test_get_access_tokens_rejects_null_nodes_list(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "organization": {
+            "limitedAccessTokens": {
+                "nodes": None,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(
+        ValueError, match="missing required list limitedAccessTokens.nodes"
+    ):
+        cartography.intel.flyio.access_tokens.get_organization(
+            api_session,
+            "https://api.fly.io/graphql",
+            "personal",
         )
 
 
@@ -1019,6 +1299,28 @@ def test_get_releases_rejects_missing_or_repeated_next_cursor(
         )
 
 
+@patch.object(cartography.intel.flyio.releases, "post_graphql")
+def test_get_releases_rejects_null_nodes_list(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "app": {
+            "releases": {
+                "nodes": None,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list releases.nodes"):
+        cartography.intel.flyio.releases.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "example-app",
+        )
+
+
 @patch.object(cartography.intel.flyio.ips, "post_graphql")
 def test_get_ips_uses_graphql(mock_post_graphql):
     # Arrange
@@ -1130,6 +1432,29 @@ def test_get_ips_rejects_non_advancing_cursor(mock_post_graphql):
 
     # Act and assert
     with pytest.raises(ValueError, match="advancing endCursor"):
+        cartography.intel.flyio.ips.get(
+            api_session,
+            "https://api.fly.io/graphql",
+            "example-app",
+        )
+
+
+@patch.object(cartography.intel.flyio.ips, "post_graphql")
+def test_get_ips_rejects_null_nodes_list(mock_post_graphql):
+    # Arrange
+    api_session = Mock()
+    mock_post_graphql.return_value = {
+        "app": {
+            "ipAddresses": {
+                "nodes": None,
+                "pageInfo": {"hasNextPage": False, "endCursor": None},
+            },
+            "sharedIpAddress": None,
+        },
+    }
+
+    # Act and assert
+    with pytest.raises(ValueError, match="missing required list ipAddresses.nodes"):
         cartography.intel.flyio.ips.get(
             api_session,
             "https://api.fly.io/graphql",

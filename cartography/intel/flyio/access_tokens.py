@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_list
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.access_token import FlyAppAccessTokenSchema
 from cartography.models.flyio.access_token import FlyOrganizationAccessTokenSchema
@@ -163,7 +164,9 @@ def _get_token_connection(
         )
         parent = response.get(connection_path[0]) or {}
         connection = parent.get(connection_path[1]) or {}
-        tokens.extend(connection.get("nodes") or [])
+        tokens.extend(
+            require_list(connection.get("nodes"), f"{connection_path[1]}.nodes")
+        )
         after = get_next_cursor(
             connection.get("pageInfo") or {},
             after,
@@ -176,13 +179,13 @@ def _get_token_connection(
 def transform_organization_tokens(response: dict[str, Any]) -> list[dict[str, Any]]:
     organization = response.get("organization") or {}
     tokens = organization.get("limitedAccessTokens") or {}
-    return transform(tokens.get("nodes") or [])
+    return transform(require_list(tokens.get("nodes"), "limitedAccessTokens.nodes"))
 
 
 def transform_app_tokens(response: dict[str, Any]) -> list[dict[str, Any]]:
     app = response.get("app") or {}
     tokens = app.get("limitedAccessTokens") or {}
-    return transform(tokens.get("nodes") or [])
+    return transform(require_list(tokens.get("nodes"), "limitedAccessTokens.nodes"))
 
 
 def transform(tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -8,6 +8,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_list
 from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.release import FlyReleaseSchema
 from cartography.util import timeit
@@ -86,7 +87,7 @@ def get(
         )
         app = response.get("app") or {}
         release_connection = app.get("releases") or {}
-        releases.extend(release_connection.get("nodes") or [])
+        releases.extend(require_list(release_connection.get("nodes"), "releases.nodes"))
         page_info = release_connection.get("pageInfo") or {}
         next_cursor = get_next_cursor(page_info, after, "releases")
         if not next_cursor:
@@ -99,16 +100,15 @@ def transform(response: dict[str, Any]) -> list[dict[str, Any]]:
     app = response.get("app") or {}
     releases = app.get("releases") or {}
     result = []
-    for release in releases.get("nodes") or []:
-        require_non_empty(release["id"], "release id")
-        result.append(_transform_release(release))
+    for release in require_list(releases.get("nodes"), "releases.nodes"):
+        release_id = require_non_empty(release.get("id"), "release id")
+        result.append({"id": release_id, **_transform_release(release)})
     return result
 
 
 def _transform_release(release: dict[str, Any]) -> dict[str, Any]:
     user = release.get("user") or {}
     return {
-        "id": release["id"],
         "version": release.get("version"),
         "stable": release.get("stable"),
         "in_progress": release.get("inProgress"),

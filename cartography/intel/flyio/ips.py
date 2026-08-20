@@ -9,6 +9,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_next_cursor
 from cartography.intel.flyio.util import post_graphql
+from cartography.intel.flyio.util import require_list
+from cartography.intel.flyio.util import require_non_empty
 from cartography.models.flyio.ip import FlyIPSchema
 from cartography.util import timeit
 
@@ -137,7 +139,7 @@ def _get_ip_connection(
         )
         app = response.get("app") or {}
         connection = app.get(connection_name) or {}
-        ips.extend(connection.get("nodes") or [])
+        ips.extend(require_list(connection.get("nodes"), f"{connection_name}.nodes"))
         if "sharedIpAddress" in app:
             shared_ip_address = app.get("sharedIpAddress")
         after = get_next_cursor(
@@ -157,7 +159,7 @@ def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
     ip_addresses = app.get("ipAddresses") or {}
     ips = [
         _transform_ingress_ip(ip_address, app_id)
-        for ip_address in ip_addresses.get("nodes") or []
+        for ip_address in require_list(ip_addresses.get("nodes"), "ipAddresses.nodes")
     ]
 
     shared_ip_address = app.get("sharedIpAddress")
@@ -172,7 +174,10 @@ def transform(response: dict[str, Any], app_id: str) -> list[dict[str, Any]]:
         )
 
     egress_ip_addresses = app.get("egressIpAddresses") or {}
-    for ip_address in egress_ip_addresses.get("nodes") or []:
+    for ip_address in require_list(
+        egress_ip_addresses.get("nodes"),
+        "egressIpAddresses.nodes",
+    ):
         ips.append(_transform_egress_ip(ip_address, app_id))
 
     return ips
@@ -185,7 +190,7 @@ def _transform_ingress_ip(
     network = ip_address.get("network") or {}
     organization = network.get("organization") or {}
     return _build_ip(
-        address=ip_address["address"],
+        address=require_non_empty(ip_address.get("address"), "ingress IP address"),
         app_id=app_id,
         ip_id=ip_address.get("id"),
         ip_type=ip_address.get("type"),
@@ -204,7 +209,7 @@ def _transform_egress_ip(
 ) -> dict[str, Any]:
     version = ip_address.get("version")
     return _build_ip(
-        address=ip_address["ip"],
+        address=require_non_empty(ip_address.get("ip"), "egress IP address"),
         app_id=app_id,
         ip_id=ip_address.get("id"),
         ip_type=f"egress_v{version}" if version else "egress",
