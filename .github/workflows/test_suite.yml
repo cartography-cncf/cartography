@@ -43,7 +43,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install the project
-        run: uv sync --frozen --all-extras --dev
+        # No extras on purpose: the only one is neo4j-rust, and unit tests mock the Neo4j
+        # driver, so they never encode a Bolt frame. The codec is covered by the
+        # integration matrix below, which talks to a real database.
+        run: uv sync --frozen --dev
       - name: Run unit tests
         run: make test_unit
 
@@ -64,7 +67,45 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install the project
-        run: uv sync --frozen --all-extras --dev
+        run: uv sync --frozen --dev
+      - name: Run integration tests
+        run: make test_integration
+
+  # Same suite as above, on the Rust Bolt codec. Both are shipped: plain `cartography`
+  # gets the pure-Python one, `cartography[neo4j-rust]` (what the published Docker image
+  # installs) gets the Rust one, so both are tested. Runs in parallel with the job above,
+  # so the second codec costs no extra wall-clock.
+  integration-tests-rust:
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --dev --extra neo4j-rust
+      - name: Confirm the Rust Bolt codec is the one in use
+        # Without this, an install that quietly failed to pick the extension up would
+        # leave this job testing the pure-Python codec while reporting green. `_rust_pack`
+        # is private, but it is the only thing that proves the driver actually loaded the
+        # extension: the shared object can be installed and still fail to load.
+        run: |
+          uv run --frozen python - <<'PY'
+          from neo4j._codec.packstream.v1 import _rust_pack
+
+          if _rust_pack is None:
+              raise SystemExit("Expected the Rust Bolt codec, got the pure-Python one")
+          print("Rust Bolt codec in use.")
+          PY
       - name: Run integration tests
         run: make test_integration
 

@@ -34,6 +34,8 @@ Cartography is a Python tool that pulls infrastructure assets and their relation
 pip install cartography
 ```
 
+Install `cartography[neo4j-rust]` instead to swap in Neo4j's Rust Bolt codec, which cuts sync time by roughly 20-30%. See [Faster Neo4j driver](https://docs.cartography.dev/ops.html#faster-neo4j-driver).
+
 ### Start Neo4j database
 
 ```bash
