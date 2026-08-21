@@ -1,3 +1,4 @@
+from cartography.models.ontology.mapping.data.snyk import SNYK_SEVERITY
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
@@ -12,9 +13,10 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 #
 # Pure CVE nodes are intentionally excluded: they are covered by the `CVE`
 # extra label and CVE semantic mapping, which plays the ontology role for
-# CVE-linked detections. The one exception is SemgrepSCAFinding, a hybrid that is
-# :SecurityIssue when advisory-only and :CVE when CVE-backed; its single mapping
-# lives here and additionally carries the CVE fields (see its node mapping below).
+# CVE-linked detections. SemgrepSCAFinding, WizFinding, and SnykIssue are
+# hybrids that are :SecurityIssue when advisory-only and :CVE when CVE-backed;
+# their mappings live here and additionally carry the CVE fields. Label-gated
+# queries only read the fields relevant to the label actually present.
 
 # Semgrep severity (transform upper-cases the raw value; supports both the
 # low/medium/high/critical and info/warning/error vocabularies).
@@ -73,6 +75,13 @@ _SEMGREP_SECRETS_STATUS = {
 _SOCKETDEV_STATUS = {
     "open": "open",
     "cleared": "ignored",
+}
+
+# Snyk issue status
+_SNYK_STATUS = {
+    "open": "open",
+    "ignored": "ignored",
+    "resolved": "fixed",
 }
 
 bbot_mapping = OntologyMapping(
@@ -293,6 +302,52 @@ socketdev_mapping = OntologyMapping(
     ],
 )
 
+snyk_mapping = OntologyMapping(
+    module_name="snyk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SnykIssue",
+            fields=[
+                # SecurityIssue fields (advisory-only findings)
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": SNYK_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SNYK_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="created_at"
+                ),
+                # CVE fields (CVE-backed findings)
+                OntologyFieldMapping(ontology_field="cve_id", node_field="cve_id"),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_score", node_field="cvss_score"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": SNYK_SEVERITY},
+                ),
+            ],
+        ),
+    ],
+)
+
 wiz_mapping = OntologyMapping(
     module_name="wiz",
     nodes=[
@@ -425,6 +480,7 @@ SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,
+    "snyk": snyk_mapping,
     "wiz": wiz_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,

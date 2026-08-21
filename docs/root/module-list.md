@@ -46,6 +46,7 @@ modules/railway/index
 modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index
+modules/snyk/index
 modules/sentinelone/index
 modules/sentry/index
 modules/slack/index
