@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import logging
 import re
 import time
@@ -311,7 +312,11 @@ class Sync:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
                 try:
-                    stage_func(neo4j_session, config)
+                    sig = inspect.signature(stage_func)
+                    if "neo4j_driver" in sig.parameters:
+                        stage_func(neo4j_session, config, neo4j_driver=neo4j_driver)
+                    else:
+                        stage_func(neo4j_session, config)
                 except (KeyboardInterrupt, SystemExit):
                     logger.warning("Sync interrupted during stage '%s'.", stage_name)
                     raise

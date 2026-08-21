@@ -378,7 +378,12 @@ def test_project_migration_between_orgs(
     projects_org2_initial = []  # No projects in org2 initially
 
     # Mock data for first sync
-    def get_projects_initial(org_resource_name, folders, credentials=None):
+    def get_projects_initial(
+        org_resource_name,
+        folders,
+        credentials=None,
+        exclude_org_root_projects=True,
+    ):
         if org_resource_name == "organizations/1337":
             return projects_org1_initial
         elif org_resource_name == "organizations/9999":
@@ -449,7 +454,12 @@ def test_project_migration_between_orgs(
     ]
 
     # Mock data for second sync
-    def get_projects_after_migration(org_resource_name, folders, credentials=None):
+    def get_projects_after_migration(
+        org_resource_name,
+        folders,
+        credentials=None,
+        exclude_org_root_projects=True,
+    ):
         if org_resource_name == "organizations/1337":
             return projects_org1_after
         elif org_resource_name == "organizations/9999":

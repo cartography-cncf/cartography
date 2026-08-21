@@ -135,7 +135,6 @@ def test_get_gcp_projects_skips_default_apps_script_parent_only():
         listed_parent.kwargs["parent"]
         for listed_parent in mock_client.list_projects.call_args_list
     } == {
-        "organizations/123456789012",
         "folders/business",
         "folders/engineering",
         "folders/system",
@@ -144,8 +143,11 @@ def test_get_gcp_projects_skips_default_apps_script_parent_only():
         call(parent="folders/default-apps-script")
         not in mock_client.list_projects.call_args_list
     )
+    assert (
+        call(parent="organizations/123456789012")
+        not in mock_client.list_projects.call_args_list
+    )
     assert {project["projectId"] for project in projects} == {
-        "org-root-project",
         "business-project",
         "standard-apps-script-project",
     }

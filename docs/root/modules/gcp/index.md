@@ -3,7 +3,7 @@
 Cartography supports ingesting Google Cloud Platform resources, including:
 
 - **Cloud Resource Manager**: Organizations, Folders, Projects
-- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies
+- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels
 - **Storage**: Buckets
 - **DNS**: Zones, Record Sets
 - **IAM**: Service Accounts, Roles, Policy Bindings
