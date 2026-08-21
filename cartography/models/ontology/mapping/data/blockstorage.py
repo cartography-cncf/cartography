@@ -166,9 +166,29 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderDisk",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
+                # _ont_encrypted: not exposed by the Render API.
+                # _ont_region: disks have no region of their own; they inherit their
+                # attached service's region, which is not duplicated onto RenderDisk.
+                # _ont_state: Render disks have no lifecycle status field.
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "render": render_mapping,
 }

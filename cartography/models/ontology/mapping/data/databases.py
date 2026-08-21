@@ -463,6 +463,51 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderPostgres",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "postgres"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # endpoint / port: only available inside the connection string, which
+                # holds a plaintext password and is deliberately never ingested.
+                # encrypted: not exposed by the Render API.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="RenderKeyValue",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Render's Key Value instances run Valkey, a Redis-compatible fork.
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "redis"},
+                ),
+                OntologyFieldMapping(ontology_field="version", node_field="version"),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # endpoint / port: only available inside the connection string, which
+                # holds a plaintext password and is deliberately never ingested.
+                # encrypted: not exposed by the Render API.
+            ],
+        ),
+    ],
+)
+
 DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
@@ -471,6 +516,7 @@ DATABASES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "databricks": databricks_mapping,
     "supabase": supabase_mapping,
     "netlify": netlify_mapping,
+    "render": render_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[
