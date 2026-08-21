@@ -819,9 +819,9 @@ dependencies = [
     { name = "packaging" },
     { name = "pagerduty" },
     { name = "policyuniverse" },
+    { name = "pydo" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "python-dateutil" },
-    { name = "python-digitalocean" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "scaleway" },
@@ -922,9 +922,9 @@ requires-dist = [
     { name = "packaging", specifier = ">=26.0.0" },
     { name = "pagerduty", specifier = ">=4.0.1" },
     { name = "policyuniverse", specifier = ">=1.1.0.0" },
+    { name = "pydo", specifier = ">=0.40.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.0.0" },
     { name = "python-dateutil", specifier = ">=2.9.0" },
-    { name = "python-digitalocean", specifier = ">=1.16.0" },
     { name = "pyyaml", specifier = ">=5.3.1" },
     { name = "requests", specifier = ">=2.22.0" },
     { name = "scaleway", specifier = ">=2.10.0" },
@@ -2232,15 +2232,6 @@ wheels = [
 ]
 
 [[package]]
-name = "jsonpickle"
-version = "4.1.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e4/a6/d07afcfdef402900229bcca795f80506b207af13a838d4d99ad45abf530c/jsonpickle-4.1.1.tar.gz", hash = "sha256:f86e18f13e2b96c1c1eede0b7b90095bbb61d99fedc14813c44dc2f361dbbae1", size = 316885, upload-time = "2025-06-02T20:36:11.57Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/73/04df8a6fa66d43a9fd45c30f283cc4afff17da671886e451d52af60bdc7e/jsonpickle-4.1.1-py3-none-any.whl", hash = "sha256:bb141da6057898aa2438ff268362b126826c812a1721e31cf08a6e142910dc91", size = 47125, upload-time = "2025-06-02T20:36:08.647Z" },
-]
-
-[[package]]
 name = "kubernetes"
 version = "36.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3260,6 +3251,22 @@ wheels = [
 ]
 
 [[package]]
+name = "pydo"
+version = "0.40.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "azure-identity" },
+    { name = "isodate" },
+    { name = "msrest" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/79/5e792b550f1cedd9a2568c68a314eae17fba90b2141e139c7e525f4a636a/pydo-0.40.0.tar.gz", hash = "sha256:af53bb4324ae51811254fd2e777db32dc20040fda0a04aa6a132298f98b1e3fc", size = 2860217, upload-time = "2026-08-03T10:38:42.457Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/39/db/d7cb1d39d351e60f40d187bd548dcf12459de727570562ce949a87c073c7/pydo-0.40.0-py3-none-any.whl", hash = "sha256:3c5e8801659978dc42a78b97ded6de49c93f686bd454eca62943069188f3786b", size = 2928785, upload-time = "2026-08-03T10:38:40.797Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3394,19 +3401,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
-name = "python-digitalocean"
-version = "1.17.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "jsonpickle" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/f7/43cb73fb393c4c0da36294b6040c7424bc904042d55c1b37c73ecc9e7714/python-digitalocean-1.17.0.tar.gz", hash = "sha256:107854fde1aafa21774e8053cf253b04173613c94531f75d5a039ad770562b24", size = 33586, upload-time = "2021-10-02T21:05:21.803Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/4f/87c17d4e23a62273c192656300e92a26bf6d5d8b2908cf2fc4a5a96da4b2/python_digitalocean-1.17.0-py3-none-any.whl", hash = "sha256:0032168e022e85fca314eb3f8dfaabf82087f2ed40839eb28f1eeeeca5afb1fa", size = 40298, upload-time = "2021-10-02T21:05:20.806Z" },
 ]
 
 [[package]]

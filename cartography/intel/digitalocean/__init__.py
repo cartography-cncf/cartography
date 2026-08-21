@@ -1,7 +1,7 @@
 import logging
 
 import neo4j
-from digitalocean import Manager
+from pydo import Client
 
 from cartography.config import Config
 from cartography.intel.digitalocean import compute
@@ -30,22 +30,26 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    manager = Manager(token=config.digitalocean_token)
+    client = Client(token=config.digitalocean_token)
 
     account_id = platform.sync(
-        neo4j_session, manager, config.update_tag, common_job_parameters
+        neo4j_session, client, config.update_tag, common_job_parameters
     )
+    if not account_id:
+        logger.warning("No account ID found, skipping further DigitalOcean ingestion.")
+        return
+
     common_job_parameters["ACCOUNT_ID"] = str(account_id)
     projects_resources = management.sync(
         neo4j_session,
-        manager,
+        client,
         account_id,
         config.update_tag,
         common_job_parameters,
     )
     compute.sync(
         neo4j_session,
-        manager,
+        client,
         account_id,
         projects_resources,
         config.update_tag,

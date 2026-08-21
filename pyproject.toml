@@ -60,7 +60,6 @@ dependencies = [
     "statsd>=4.0.0",
     "packaging>=26.0.0",
     "packageurl-python>=0.17.0",
-    "python-digitalocean>=1.16.0",
     "azure-mgmt-compute>=38.1.0",
     "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-keyvault>=10.0.0",
@@ -116,6 +115,7 @@ dependencies = [
     # is not a Modal API error, so it would abort the whole module rather than skip a
     # resource. Every other RPC used is present from 1.5.0.
     "modal>=1.5.3,<2",
+    "pydo>=0.40.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
