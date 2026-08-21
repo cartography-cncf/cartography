@@ -20,6 +20,9 @@ from cartography.intel.gcp.artifact_registry.repository import (
     ArtifactRegistryRepositorySyncResult,
 )
 from cartography.intel.gcp.artifact_registry.supply_chain import _build_layer_dicts
+from cartography.intel.gcp.artifact_registry.supply_chain import (
+    load_image_layer_relationships,
+)
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_layers
 from cartography.intel.gcp.artifact_registry.supply_chain import load_image_provenance
 from cartography.intel.gcp.artifact_registry.util import (
@@ -764,6 +767,7 @@ def test_orphan_image_cleanup_preserves_current_update_images(neo4j_session):
 def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleaned_up(
     neo4j_session,
 ):
+    # Arrange
     project_id = "test-gar-supply-chain-project"
     repo_id = f"projects/{project_id}/locations/us-central1/repositories/docker-repo"
     _clear_gar_project(neo4j_session, project_id)
@@ -817,7 +821,8 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         "history": "RUN stale",
     }
 
-    load_image_provenance(
+    # Act
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -829,7 +834,13 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         project_id,
         TEST_UPDATE_TAG,
     )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        TEST_UPDATE_TAG,
+    )
 
+    # Assert
     first_image_id = docker_images[0]["digest"]
     image_result = neo4j_session.run(
         """
@@ -902,11 +913,72 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert layer_result["rel_sub_resource_label"] == "GCPProject"
     assert layer_result["rel_sub_resource_id"] == project_id
 
+    expected_memberships = {
+        (update["digest"], diff_id)
+        for update in provenance_updates
+        for diff_id in update["layer_diff_ids"]
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPArtifactRegistryImage",
+            "digest",
+            "GCPArtifactRegistryImageLayer",
+            "diff_id",
+            "HAS_LAYER",
+        )
+        >= expected_memberships
+    )
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "digest",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "HEAD",
+    ) >= {
+        (update["digest"], update["layer_diff_ids"][0]) for update in provenance_updates
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImage",
+        "digest",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "TAIL",
+    ) >= {
+        (update["digest"], update["layer_diff_ids"][-1])
+        for update in provenance_updates
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "GCPArtifactRegistryImageLayer",
+        "diff_id",
+        "NEXT",
+    ) >= {
+        (update["layer_diff_ids"][0], update["layer_diff_ids"][1])
+        for update in provenance_updates
+    }
+
+    relationship_state = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {digest: $digest})
+        -[relationship:HAS_LAYER]->(:GCPArtifactRegistryImageLayer)
+        RETURN relationship.firstseen AS firstseen,
+               relationship.lastupdated AS lastupdated
+        """,
+        digest=first_image_id,
+    ).data()
+    assert {row["lastupdated"] for row in relationship_state} == {TEST_UPDATE_TAG}
+
     image_firstseen = image_result["firstseen"]
     layer_node_firstseen = layer_result["node_firstseen"]
     layer_rel_firstseen = layer_result["rel_firstseen"]
 
-    load_image_provenance(
+    # Act
+    merged_provenance_updates = load_image_provenance(
         neo4j_session,
         provenance_updates,
         project_id,
@@ -918,7 +990,13 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
         project_id,
         TEST_UPDATE_TAG + 1,
     )
+    load_image_layer_relationships(
+        neo4j_session,
+        merged_provenance_updates,
+        TEST_UPDATE_TAG + 1,
+    )
 
+    # Assert
     rerun_result = neo4j_session.run(
         """
         MATCH (:GCPProject {id: $project_id})
@@ -942,13 +1020,30 @@ def test_load_gar_supply_chain_enrichment_split_phases_are_idempotent_and_cleane
     assert rerun_result["layer_lastupdated"] == TEST_UPDATE_TAG + 1
     assert rerun_result["rel_firstseen"] == layer_rel_firstseen
     assert rerun_result["rel_lastupdated"] == TEST_UPDATE_TAG + 1
+    rerun_relationship_state = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {digest: $digest})
+        -[relationship:HAS_LAYER]->(:GCPArtifactRegistryImageLayer)
+        RETURN relationship.firstseen AS firstseen,
+               relationship.lastupdated AS lastupdated
+        """,
+        digest=first_image_id,
+    ).data()
+    assert {row["firstseen"] for row in rerun_relationship_state} == {
+        row["firstseen"] for row in relationship_state
+    }
+    assert {row["lastupdated"] for row in rerun_relationship_state} == {
+        TEST_UPDATE_TAG + 1,
+    }
 
+    # Act
     GraphJob.from_node_schema(
         GCPArtifactRegistryImageLayerSchema(),
         {"PROJECT_ID": project_id, "UPDATE_TAG": TEST_UPDATE_TAG + 1},
         iterationsize=1,
     ).run(neo4j_session)
 
+    # Assert
     assert (
         neo4j_session.run(
             """
