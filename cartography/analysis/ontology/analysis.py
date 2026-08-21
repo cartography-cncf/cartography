@@ -175,10 +175,30 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
         ),
     ),
 )
+DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
+    name="Ontology - HuntressIncidentReport AFFECTS Device linking",
+    short_name="ontology_devices_huntress_incident_report_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:HuntressAgent)<-[:AFFECTS]-(f:HuntressIncidentReport)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="HuntressIncidentReport",
+                    target_label="Device",
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+    ),
+)
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
+    DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",

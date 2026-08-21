@@ -208,6 +208,12 @@ class Config:
     :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
     :type miradore_api_key: string
     :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
+    :type huntress_base_uri: string
+    :param huntress_base_uri: Huntress API base URI, e.g. https://api.huntress.io. Optional.
+    :type huntress_api_key: string
+    :param huntress_api_key: Huntress account API key, used as the basic auth user. Optional.
+    :type huntress_api_secret: string
+    :param huntress_api_secret: Huntress API secret key, used as the basic auth password. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -556,6 +562,9 @@ class Config:
         miradore_base_uri=None,
         miradore_site_name=None,
         miradore_api_key=None,
+        huntress_base_uri=None,
+        huntress_api_key=None,
+        huntress_api_secret=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -799,6 +808,9 @@ class Config:
         self.miradore_base_uri = miradore_base_uri
         self.miradore_site_name = miradore_site_name
         self.miradore_api_key = miradore_api_key
+        self.huntress_base_uri = huntress_base_uri
+        self.huntress_api_key = huntress_api_key
+        self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled

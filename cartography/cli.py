@@ -56,6 +56,7 @@ PANEL_GSUITE = "GSuite Options"
 PANEL_GOOGLE_WORKSPACE = "Google Workspace Options"
 PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
+PANEL_HUNTRESS = "Huntress Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_MIRADORE = "Miradore Options"
@@ -121,6 +122,7 @@ MODULE_PANELS = {
     "googleworkspace": PANEL_GOOGLE_WORKSPACE,
     "digitalocean": PANEL_DIGITALOCEAN,
     "crowdstrike": PANEL_CROWDSTRIKE,
+    "huntress": PANEL_HUNTRESS,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
     "miradore": PANEL_MIRADORE,
@@ -980,6 +982,36 @@ class CLI:
                     help="CrowdStrike API URL for self-hosted instances.",
                     rich_help_panel=PANEL_CROWDSTRIKE,
                     hidden=PANEL_CROWDSTRIKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Huntress Options
+            # =================================================================
+            huntress_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-api-key-env-var",
+                    help="Environment variable name containing the Huntress account API key.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
+                ),
+            ] = None,
+            huntress_api_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-api-secret-env-var",
+                    help="Environment variable name containing the Huntress API secret key.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
+                ),
+            ] = None,
+            huntress_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-base-uri",
+                    help="Huntress API base URI, e.g. https://api.huntress.io.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2838,6 +2870,40 @@ class CLI:
                         "A Miradore site name was provided but an API key was not."
                     )
 
+            huntress_api_key = None
+            if huntress_api_key_env_var:
+                logger.debug(
+                    "Reading Huntress API key from environment variable %s",
+                    huntress_api_key_env_var,
+                )
+                huntress_api_key = os.environ.get(huntress_api_key_env_var)
+            elif os.environ.get("HUNTRESS_API_KEY"):
+                logger.debug(
+                    "Reading Huntress API key from environment variable HUNTRESS_API_KEY",
+                )
+                huntress_api_key = os.environ.get("HUNTRESS_API_KEY")
+
+            huntress_api_secret = None
+            if huntress_api_secret_env_var:
+                logger.debug(
+                    "Reading Huntress API secret from environment variable %s",
+                    huntress_api_secret_env_var,
+                )
+                huntress_api_secret = os.environ.get(huntress_api_secret_env_var)
+            elif os.environ.get("HUNTRESS_API_SECRET"):
+                logger.debug(
+                    "Reading Huntress API secret from environment variable HUNTRESS_API_SECRET",
+                )
+                huntress_api_secret = os.environ.get("HUNTRESS_API_SECRET")
+
+            # Both halves of the basic auth pair are needed. Warn when only one turned up,
+            # otherwise the module would silently skip itself and look like a no-op.
+            if bool(huntress_api_key) != bool(huntress_api_secret):
+                logger.warning(
+                    "A Huntress API key or secret was provided but not both; "
+                    "the Huntress module will be skipped.",
+                )
+
             if statsd_enabled:
                 logger.debug(
                     "statsd enabled. Sending metrics to server %s:%d. Metrics have prefix '%s'.",
@@ -3493,6 +3559,9 @@ class CLI:
                 miradore_base_uri=miradore_base_uri,
                 miradore_site_name=miradore_site_name,
                 miradore_api_key=miradore_api_key,
+                huntress_base_uri=huntress_base_uri,
+                huntress_api_key=huntress_api_key,
+                huntress_api_secret=huntress_api_secret,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
