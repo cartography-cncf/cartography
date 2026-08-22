@@ -255,7 +255,7 @@ def paginate_vertex_api(
     # Safety limit to prevent infinite pagination loops
     max_pages = 1000
 
-    for page_num in range(max_pages):
+    for _ in range(max_pages):
         params: dict[str, str] = {}
         if page_token:
             params["pageToken"] = page_token
@@ -285,13 +285,9 @@ def paginate_vertex_api(
         if not page_token:
             break
     else:
-        logger.warning(
-            "Reached max page limit (%d) for Vertex AI %s in %s for project %s. "
-            "Some resources may not have been fetched.",
-            max_pages,
-            resource_type,
-            location,
-            project_id,
+        raise RuntimeError(
+            f"Reached max page limit ({max_pages}) for Vertex AI {resource_type} "
+            f"in {location} for project {project_id}; pagination incomplete.",
         )
 
     logger.debug(
