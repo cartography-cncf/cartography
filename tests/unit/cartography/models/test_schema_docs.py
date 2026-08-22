@@ -286,6 +286,23 @@ def test_every_generated_module_renders_documented_content():
         assert "No description provided." not in page, module
 
 
+def test_runpod_generated_schema_documents_ontology_mappings():
+    # Arrange
+    model = inspect_data_model()
+
+    # Act
+    generated = render_module_schema(model, "runpod")
+
+    # Assert
+    assert "> **Ontology Mapping**: This node uses the ontology label" in generated
+    assert "RunPodPod" in generated
+    assert "[`ComputeInstance`](#ontology-computeinstance)" in generated
+    assert "RunPodRegistryCredential" in generated
+    assert "[`Secret`](#ontology-secret)" in generated
+    assert "RunPodServerlessEndpoint" in generated
+    assert "[`ComputeService`](#ontology-computeservice)" in generated
+
+
 def test_write_schema_docs_overwrites_every_generated_page(tmp_path: Path):
     # Arrange
     model = inspect_data_model(lastpass_models)
