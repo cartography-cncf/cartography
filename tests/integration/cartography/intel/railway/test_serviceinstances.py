@@ -1,8 +1,17 @@
+import copy
+
+import pytest
+
 import cartography.intel.railway.environments
 import cartography.intel.railway.serviceinstances
 import cartography.intel.railway.services
 import tests.data.railway.bundles
 import tests.data.railway.workspaces
+from cartography.client.container_registry import OCI_IMAGE_INDEX
+from cartography.client.container_registry import OCI_IMAGE_MANIFEST
+from cartography.client.container_registry import RegistryTransientError
+from cartography.client.container_registry import ResolvedRegistryArtifact
+from cartography.client.container_registry import ResolvedRegistryReference
 from tests.integration.cartography.intel.railway.test_projects import (
     _common_job_parameters,
 )
@@ -22,29 +31,80 @@ WEB_INSTANCE_ID = "88888888-8888-8888-8888-888888888888"
 POSTGRES_INSTANCE_ID = "99999999-9999-9999-9999-999999999999"
 
 BUNDLES = {TEST_PROJECT_ID: tests.data.railway.bundles.RAILWAY_PROJECT_BUNDLE}
+EXTERNAL_IMAGE_DIGEST = f"sha256:{'e' * 64}"
 
 
-def _sync_compute_tier(neo4j_session, tcp_proxies_by_instance=None):
+class _RegistryClient:
+    def __init__(self, error=None, artifact_type="image"):
+        self.error = error
+        self.artifact_type = artifact_type
+
+    def resolve(self, reference):
+        if self.error:
+            raise self.error
+        digest = reference.digest or EXTERNAL_IMAGE_DIGEST
+        return ResolvedRegistryReference(
+            reference=reference,
+            top=ResolvedRegistryArtifact(
+                digest=digest,
+                media_type=(
+                    OCI_IMAGE_MANIFEST
+                    if self.artifact_type == "image"
+                    else OCI_IMAGE_INDEX
+                ),
+                type=self.artifact_type,
+                size=512,
+                os="linux" if self.artifact_type == "image" else None,
+                architecture="amd64" if self.artifact_type == "image" else None,
+                config_digest=(
+                    f"sha256:{'f' * 64}" if self.artifact_type == "image" else None
+                ),
+            ),
+        )
+
+
+@pytest.fixture(autouse=True)
+def _clear_external_images(neo4j_session):
+    neo4j_session.run(
+        "MATCH (n:ExternalContainerImageReference) DETACH DELETE n",
+    ).consume()
+    neo4j_session.run("MATCH (n:ExternalContainerImage) DETACH DELETE n").consume()
+    yield
+    neo4j_session.run(
+        "MATCH (n:ExternalContainerImageReference) DETACH DELETE n",
+    ).consume()
+    neo4j_session.run("MATCH (n:ExternalContainerImage) DETACH DELETE n").consume()
+
+
+def _sync_compute_tier(
+    neo4j_session,
+    tcp_proxies_by_instance=None,
+    *,
+    bundles=BUNDLES,
+    registry_client=None,
+    update_tag=TEST_UPDATE_TAG,
+):
     _ensure_local_neo4j_has_test_workspace_and_projects(neo4j_session)
     cartography.intel.railway.environments.sync(
         neo4j_session,
-        _common_job_parameters(),
-        BUNDLES,
-        TEST_UPDATE_TAG,
+        _common_job_parameters(update_tag),
+        bundles,
+        update_tag,
     )
     cartography.intel.railway.services.sync(
         neo4j_session,
-        _common_job_parameters(),
-        BUNDLES,
-        TEST_UPDATE_TAG,
+        _common_job_parameters(update_tag),
+        bundles,
+        update_tag,
     )
-    cartography.intel.railway.serviceinstances.sync(
+    return cartography.intel.railway.serviceinstances.sync(
         neo4j_session,
-        _common_job_parameters(),
-        BUNDLES,
+        _common_job_parameters(update_tag),
+        bundles,
         tcp_proxies_by_instance or {},
         tests.data.railway.workspaces.RAILWAY_WORKSPACE,
-        TEST_UPDATE_TAG,
+        update_tag,
+        registry_client or _RegistryClient(),
     )
 
 
@@ -193,6 +253,115 @@ def test_railway_service_instance_no_edge_when_repo_absent(neo4j_session):
             "GitHubRepository",
             "fullname",
             "DEPLOYED_FROM",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+
+def test_railway_explicit_public_image_uses_reference_graph(neo4j_session):
+    # Arrange
+    bundle = copy.deepcopy(tests.data.railway.bundles.RAILWAY_PROJECT_BUNDLE)
+    instances = cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundle
+    )
+    web = next(instance for instance in instances if instance["id"] == WEB_INSTANCE_ID)
+    web["source"]["image"] = "postgres:16"
+
+    # Act
+    _sync_compute_tier(neo4j_session, bundles={TEST_PROJECT_ID: bundle})
+
+    # Assert: Docker defaults are explicit, and the source-built service stays separate.
+    assert check_nodes(
+        neo4j_session,
+        "RailwayServiceInstance",
+        ["id", "source_image_normalized", "resolved_source_image_digest"],
+    ) == {
+        (
+            WEB_INSTANCE_ID,
+            "docker.io/library/postgres:16",
+            EXTERNAL_IMAGE_DIGEST,
+        ),
+        (POSTGRES_INSTANCE_ID, None, None),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RailwayServiceInstance",
+        "id",
+        "ExternalContainerImageReference",
+        "id",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (WEB_INSTANCE_ID, "docker.io/library/postgres:16"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "ExternalContainerImageReference",
+        "id",
+        "ExternalContainerImage",
+        "digest",
+        "IMAGE",
+        rel_direction_right=True,
+    ) >= {
+        ("docker.io/library/postgres:16", EXTERNAL_IMAGE_DIGEST),
+    }
+
+
+def test_registry_failure_preserves_last_verified_service_image_edge(neo4j_session):
+    # Arrange
+    _sync_compute_tier(neo4j_session, update_tag=1)
+
+    # Act
+    _sync_compute_tier(
+        neo4j_session,
+        registry_client=_RegistryClient(RegistryTransientError("temporary failure")),
+        update_tag=2,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "RailwayServiceInstance",
+        "id",
+        "ExternalContainerImageReference",
+        "id",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (WEB_INSTANCE_ID, "docker.io/nginxdemos/hello:latest"),
+    }
+
+
+def test_registry_failure_for_changed_reference_cleans_stale_service_image_edge(
+    neo4j_session,
+):
+    # Arrange
+    _sync_compute_tier(neo4j_session, update_tag=1)
+    bundle = copy.deepcopy(tests.data.railway.bundles.RAILWAY_PROJECT_BUNDLE)
+    instances = cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundle,
+    )
+    web = next(instance for instance in instances if instance["id"] == WEB_INSTANCE_ID)
+    web["source"]["image"] = "postgres:16"
+
+    # Act
+    _sync_compute_tier(
+        neo4j_session,
+        bundles={TEST_PROJECT_ID: bundle},
+        registry_client=_RegistryClient(RegistryTransientError("temporary failure")),
+        update_tag=2,
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "RailwayServiceInstance",
+            "id",
+            "ExternalContainerImageReference",
+            "id",
+            "HAS_IMAGE",
             rel_direction_right=True,
         )
         == set()

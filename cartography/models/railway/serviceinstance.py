@@ -37,6 +37,41 @@ class RailwayServiceInstanceNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Container image run by the instance, when deployed from a registry.",
     )
+    source_image_normalized: PropertyRef = PropertyRef(
+        "source_image_normalized",
+        extra_index=True,
+        description="Docker-normalized form of the configured container image reference.",
+    )
+    source_image_registry: PropertyRef = PropertyRef(
+        "source_image_registry",
+        description="Normalized registry host from the configured image reference.",
+    )
+    source_image_repository: PropertyRef = PropertyRef(
+        "source_image_repository",
+        description="Repository path from the configured image reference.",
+    )
+    source_image_tag: PropertyRef = PropertyRef(
+        "source_image_tag",
+        description="Mutable tag from the configured image reference, when present.",
+    )
+    source_image_digest: PropertyRef = PropertyRef(
+        "source_image_digest",
+        extra_index=True,
+        description="Immutable digest explicitly pinned in the configured image reference, when present.",
+    )
+    source_image_reference_type: PropertyRef = PropertyRef(
+        "source_image_reference_type",
+        description="Whether the configured image selects a mutable `tag` or an immutable `digest`.",
+    )
+    resolved_source_image_digest: PropertyRef = PropertyRef(
+        "resolved_source_image_digest",
+        extra_index=True,
+        description="Canonical top-level manifest or index digest returned by the external registry.",
+    )
+    resolved_source_image_reference: PropertyRef = PropertyRef(
+        "resolved_source_image_reference",
+        description="Normalized external reference verified during this sync.",
+    )
     source_repo: PropertyRef = PropertyRef(
         "source_repo",
         extra_index=True,
@@ -209,6 +244,40 @@ class RailwayServiceInstanceToGitHubRepositoryRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RailwayServiceInstanceToExternalContainerImageReferenceRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    source_reference: PropertyRef = PropertyRef(
+        "source_image",
+        description="Original image reference configured on the Railway service instance.",
+    )
+    normalized_reference: PropertyRef = PropertyRef(
+        "source_image_normalized",
+        description="Docker-normalized configured image reference.",
+    )
+    reference_type: PropertyRef = PropertyRef(
+        "source_image_reference_type",
+        description="Whether the configured reference selects a tag or a digest.",
+    )
+
+
+@dataclass(frozen=True)
+class RailwayServiceInstanceToExternalContainerImageReferenceRel(CartographyRelSchema):
+    """Links a Railway service configuration to its verified registry reference."""
+
+    target_node_label: str = "ExternalContainerImageReference"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resolved_source_image_reference")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayServiceInstanceToExternalContainerImageReferenceRelProperties = (
+        RailwayServiceInstanceToExternalContainerImageReferenceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RailwayServiceInstanceSchema(CartographyNodeSchema):
     """A Railway service deployed into a specific environment."""
 
@@ -227,5 +296,6 @@ class RailwayServiceInstanceSchema(CartographyNodeSchema):
             RailwayServiceInstanceToServiceRel(),
             RailwayServiceInstanceToEnvironmentRel(),
             RailwayServiceInstanceToGitHubRepositoryRel(),
+            RailwayServiceInstanceToExternalContainerImageReferenceRel(),
         ],
     )
