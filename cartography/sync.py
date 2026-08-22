@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import logging
 import re
 import time
@@ -311,7 +312,23 @@ class Sync:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
                 try:
-                    stage_func(neo4j_session, config)
+                    # Resolve lazy stages before inspecting the signature, otherwise
+                    # we inspect _LazyStage.__call__ (*args, **kwargs) which never
+                    # has a "neo4j_driver" parameter.
+                    if isinstance(stage_func, _LazyStage):
+                        if stage_func._resolved is None:
+                            stage_func._resolved = getattr(
+                                importlib.import_module(stage_func._module),
+                                stage_func._attr,
+                            )
+                        resolved_func = stage_func._resolved
+                    else:
+                        resolved_func = stage_func
+                    sig = inspect.signature(resolved_func)
+                    if "neo4j_driver" in sig.parameters:
+                        stage_func(neo4j_session, config, neo4j_driver=neo4j_driver)
+                    else:
+                        stage_func(neo4j_session, config)
                 except (KeyboardInterrupt, SystemExit):
                     logger.warning("Sync interrupted during stage '%s'.", stage_name)
                     raise

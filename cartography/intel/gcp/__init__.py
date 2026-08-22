@@ -1,5 +1,8 @@
 import logging
 from collections import namedtuple
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import NamedTuple
@@ -106,6 +109,13 @@ service_names = Services(
 
 
 class GCPProjectResourcesSyncResult(NamedTuple):
+    policy_bindings_cleanup_safe: bool
+    policy_bindings_cleanup_skip_reason: str | None = None
+
+
+class GCPOrgSyncResult(NamedTuple):
+    org_resource_name: str
+    org_cleanup_params: dict[str, Any]
     policy_bindings_cleanup_safe: bool
     policy_bindings_cleanup_skip_reason: str | None = None
 
@@ -806,11 +816,161 @@ def _sync_project_resources(
     )
 
 
+def _sync_org(
+    neo4j_driver: neo4j.Driver | None,
+    config: Config,
+    org: Dict,
+    credentials: GoogleCredentials,
+    requested_syncs: Set[str] | None,
+    base_common_job_parameters: Dict,
+    neo4j_session: neo4j.Session | None = None,
+) -> GCPOrgSyncResult | None:
+    """
+    Sync a single GCP organization's folders, projects, and resources.
+    Creates its own Neo4j session for thread safety when driver is provided.
+    If session is provided (fallback for single-org or no-driver case), uses it directly.
+    :return: GCPOrgSyncResult or None if the org is invalid.
+    """
+    org_resource_name = org.get("name", "")
+    if not org_resource_name or "/" not in org_resource_name:
+        logger.error(f"Invalid org resource name: {org_resource_name}")
+        return None
+
+    common_job_parameters = dict(base_common_job_parameters)
+    common_job_parameters["ORG_RESOURCE_NAME"] = org_resource_name
+
+    def _do_sync(session: neo4j.Session) -> None:
+        nonlocal folders, projects, project_resources_result
+
+        folders = sync_gcp_folders(
+            session,
+            config.update_tag,
+            common_job_parameters,
+            org_resource_name,
+            credentials=credentials,
+            excluded_folder_ids=config.gcp_excluded_folder_ids,
+        )
+
+        projects = sync_gcp_projects(
+            session,
+            org_resource_name,
+            folders,
+            config.update_tag,
+            common_job_parameters,
+            credentials=credentials,
+            exclude_org_root_projects=config.gcp_exclude_org_root_projects,
+        )
+
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            logger.info(f"Syncing organization-level IAM for {org_resource_name}")
+            iam_client = build_client("iam", "v1", credentials=credentials)
+            org_roles = iam.sync_org_iam(
+                session,
+                iam_client,
+                org_resource_name,
+                config.update_tag,
+                common_job_parameters,
+            )
+            org_role_permissions_by_name = iam.build_role_permissions_by_name(org_roles)
+        else:
+            org_role_permissions_by_name = {}
+
+        project_resources_result = _sync_project_resources(
+            session,
+            projects,
+            config.update_tag,
+            common_job_parameters,
+            credentials=credentials,
+            requested_syncs=requested_syncs,
+            org_role_permissions_by_name=org_role_permissions_by_name,
+        )
+
+        policy_bindings_requested = (
+            requested_syncs is None or "policy_bindings" in requested_syncs
+        )
+        if project_resources_result.policy_bindings_cleanup_safe:
+            policy_bindings.cleanup_inherited_policy_bindings(
+                session,
+                common_job_parameters,
+                [folder["name"] for folder in folders if folder.get("name")],
+            )
+        elif policy_bindings_requested:
+            if (
+                project_resources_result.policy_bindings_cleanup_skip_reason
+                == "no_projects"
+            ):
+                logger.info(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "no GCP projects were discovered. Preserving existing inherited "
+                    "policy bindings.",
+                    org_resource_name,
+                )
+            else:
+                logger.warning(
+                    "Skipping inherited GCP policy bindings cleanup for %s because "
+                    "not every project policy bindings sync succeeded. Preserving "
+                    "existing inherited policy bindings.",
+                    org_resource_name,
+                )
+
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            logger.debug(
+                f"Running cleanup for org-level IAM roles in {org_resource_name}"
+            )
+            iam.cleanup_org_roles(session, common_job_parameters)
+
+        logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
+        GraphJob.from_node_schema(
+            GCPProjectSchema(), common_job_parameters, cascade_delete=True
+        ).run(session)
+        GraphJob.from_node_schema(
+            GCPFolderSchema(), common_job_parameters, cascade_delete=True
+        ).run(session)
+
+    folders: List[Dict] = []
+    projects: List[Dict] = []
+    project_resources_result: GCPProjectResourcesSyncResult | None = None
+
+    if neo4j_session is not None:
+        _do_sync(neo4j_session)
+    elif neo4j_driver is not None:
+        with neo4j_driver.session(database=config.neo4j_database) as session:
+            _do_sync(session)
+    else:
+        raise ValueError("Either neo4j_driver or neo4j_session must be provided")
+
+    org_cleanup_params = dict(common_job_parameters)
+
+    return GCPOrgSyncResult(
+        org_resource_name=org_resource_name,
+        org_cleanup_params=org_cleanup_params,
+        policy_bindings_cleanup_safe=(
+            project_resources_result.policy_bindings_cleanup_safe
+            if project_resources_result
+            else False
+        ),
+        policy_bindings_cleanup_skip_reason=(
+            project_resources_result.policy_bindings_cleanup_skip_reason
+            if project_resources_result
+            else None
+        ),
+    )
+
+
 @timeit
 def start_gcp_ingestion(
     neo4j_session: neo4j.Session,
     config: Config,
     credentials: Optional[GoogleCredentials] = None,
+    neo4j_driver: Optional[neo4j.Driver] = None,
 ) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
@@ -883,6 +1043,7 @@ def start_gcp_ingestion(
         config.update_tag,
         common_job_parameters,
         credentials=credentials,
+        excluded_org_ids=config.gcp_excluded_org_ids,
     )
 
     # Track org cleanup jobs to run at the very end
@@ -897,132 +1058,66 @@ def start_gcp_ingestion(
     any_policy_bindings_synced = False
     policy_bindings_sync_failed = False
 
-    # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
-    for org in orgs:
-        org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
-        if not org_resource_name or "/" not in org_resource_name:
-            logger.error(f"Invalid org resource name: {org_resource_name}")
-            continue
+    # For each org, sync its folders and projects (as sub-resources), then ingest per-project services.
+    # Use parallel execution when neo4j_driver is available for better performance.
+    org_cleanup_jobs = []
+    any_policy_bindings_synced = False
+    policy_bindings_sync_failed = False
 
-        # Store the full resource name for cleanup operations
-        common_job_parameters["ORG_RESOURCE_NAME"] = org_resource_name
-
-        # Sync folders under org
-        folders = sync_gcp_folders(
-            neo4j_session,
-            config.update_tag,
-            common_job_parameters,
-            org_resource_name,
-            credentials=credentials,
+    if neo4j_driver is not None and len(orgs) > 1:
+        logger.info(
+            "Syncing %d GCP organizations in parallel (one thread per org)",
+            len(orgs),
         )
-
-        # Sync projects under org and each folder
-        projects = sync_gcp_projects(
-            neo4j_session,
-            org_resource_name,
-            folders,
-            config.update_tag,
-            common_job_parameters,
-            credentials=credentials,
-        )
-
-        # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
-        # This is done before project resources so that roles exist when policy bindings are created.
-        # Gate behind iam or policy_bindings since these are the only modules that need role nodes.
-        if (
-            requested_syncs is None
-            or "iam" in requested_syncs
-            or "policy_bindings" in requested_syncs
-        ):
+        with ThreadPoolExecutor(max_workers=len(orgs)) as executor:
+            futures = {
+                executor.submit(
+                    _sync_org,
+                    neo4j_driver,
+                    config,
+                    org,
+                    credentials,
+                    requested_syncs,
+                    common_job_parameters,
+                ): org
+                for org in orgs
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                if result is None:
+                    continue
+                org_cleanup_jobs.append(
+                    (GCPOrganizationSchema, result.org_cleanup_params, True)
+                )
+                if result.policy_bindings_cleanup_safe:
+                    any_policy_bindings_synced = True
+                else:
+                    policy_bindings_sync_failed = True
+    else:
+        if neo4j_driver is None and len(orgs) > 1:
             logger.info(
-                f"Syncing organization-level IAM for {org_resource_name}",
+                "Syncing %d GCP organizations sequentially (neo4j_driver not provided)",
+                len(orgs),
             )
-            iam_client = build_client("iam", "v1", credentials=credentials)
-            org_roles = iam.sync_org_iam(
-                neo4j_session,
-                iam_client,
-                org_resource_name,
-                config.update_tag,
+        for org in orgs:
+            result = _sync_org(
+                neo4j_driver,
+                config,
+                org,
+                credentials,
+                requested_syncs,
                 common_job_parameters,
+                neo4j_session=neo4j_session,
             )
-            org_role_permissions_by_name = iam.build_role_permissions_by_name(org_roles)
-        else:
-            org_role_permissions_by_name = {}
-
-        # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
-        project_resources_result = _sync_project_resources(
-            neo4j_session,
-            projects,
-            config.update_tag,
-            common_job_parameters,
-            credentials=credentials,
-            requested_syncs=requested_syncs,
-            org_role_permissions_by_name=org_role_permissions_by_name,
-        )
-
-        policy_bindings_requested = (
-            requested_syncs is None or "policy_bindings" in requested_syncs
-        )
-        if project_resources_result.policy_bindings_cleanup_safe:
-            any_policy_bindings_synced = True
-        else:
-            policy_bindings_sync_failed = True
-        if project_resources_result.policy_bindings_cleanup_safe:
-            policy_bindings.cleanup_inherited_policy_bindings(
-                neo4j_session,
-                common_job_parameters,
-                [folder["name"] for folder in folders if folder.get("name")],
+            if result is None:
+                continue
+            org_cleanup_jobs.append(
+                (GCPOrganizationSchema, result.org_cleanup_params, True)
             )
-        elif policy_bindings_requested:
-            if (
-                project_resources_result.policy_bindings_cleanup_skip_reason
-                == "no_projects"
-            ):
-                logger.info(
-                    "Skipping inherited GCP policy bindings cleanup for %s because "
-                    "no GCP projects were discovered. Preserving existing inherited "
-                    "policy bindings.",
-                    org_resource_name,
-                )
+            if result.policy_bindings_cleanup_safe:
+                any_policy_bindings_synced = True
             else:
-                logger.warning(
-                    "Skipping inherited GCP policy bindings cleanup for %s because "
-                    "not every project policy bindings sync succeeded. Preserving "
-                    "existing inherited policy bindings.",
-                    org_resource_name,
-                )
-
-        # Clean up org-level roles for this org (after all project resources have been synced)
-        if (
-            requested_syncs is None
-            or "iam" in requested_syncs
-            or "policy_bindings" in requested_syncs
-        ):
-            logger.debug(
-                f"Running cleanup for org-level IAM roles in {org_resource_name}"
-            )
-            iam.cleanup_org_roles(neo4j_session, common_job_parameters)
-
-        # Clean up projects and folders for this org (children before parents).
-        # Use cascade_delete=True to also delete orphaned child resources when a
-        # project/folder is deleted. This handles the case where a project was deleted
-        # between syncs - its resources would otherwise remain as orphans since resource
-        # cleanup is scoped to PROJECT_ID and we only sync existing projects.
-        logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
-        GraphJob.from_node_schema(
-            GCPProjectSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            GCPFolderSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
-
-        # Save org cleanup job for later (with cascade_delete for defense in depth)
-        org_cleanup_jobs.append(
-            (GCPOrganizationSchema, dict(common_job_parameters), True)
-        )
-
-        # Remove org ID from common job parameters after processing
-        del common_job_parameters["ORG_RESOURCE_NAME"]
+                policy_bindings_sync_failed = True
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
     # Use cascade_delete=True to clean up any remaining org children
