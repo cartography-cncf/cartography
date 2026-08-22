@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Snowflake Configuration - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Snowflake Schema" href="schema.html" /><link rel="prev" title="Snowflake" href="index.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/snowflake/config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/snowflake/config.html"/>
+  <meta property="og:title" content="Snowflake Configuration"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Snowflake</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a><ul>
+<li><a class="reference internal" href="#service-user-and-warehouse">Service User and Warehouse</a></li>
+<li><a class="reference internal" href="#network-policy">Network Policy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#authentication">Authentication</a><ul>
+<li><a class="reference internal" href="#key-pair-jwt">Key-Pair (JWT)</a></li>
+<li><a class="reference internal" href="#programmatic-access-token">Programmatic Access Token</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#required-permissions">Required Permissions</a></li>
+<li><a class="reference internal" href="#optional-permissions">Optional Permissions</a></li>
+<li><a class="reference internal" href="#configure-cartography">Configure Cartography</a></li>
+<li><a class="reference internal" href="#run-cartography">Run Cartography</a></li>
+<li><a class="reference internal" href="#advanced-configuration">Advanced Configuration</a></li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/snowflake/config.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Snowflake</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Snowflake Configuration</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/snowflake/config.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/snowflake/config.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/snowflake/config.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/snowflake/config.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/snowflake/config.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="snowflake-configuration">
+<h1>Snowflake Configuration<a class="headerlink" href="#snowflake-configuration" title="Link to this heading">#</a></h1>
+<p>Cartography needs a Snowflake account identifier, a user, one credential, and a
+warehouse to run SQL statements on.</p>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h2>
+<section id="service-user-and-warehouse">
+<h3>Service User and Warehouse<a class="headerlink" href="#service-user-and-warehouse" title="Link to this heading">#</a></h3>
+<p>Create a dedicated service user and a warehouse for it. <code class="docutils literal notranslate"><span class="pre">TYPE</span> <span class="pre">=</span> <span class="pre">SERVICE</span></code> means
+the user cannot log in interactively and cannot hold a password, which is what
+you want for a collector:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">USERADMIN</span><span class="p">;</span>
+</span><span data-line="2"><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">TYPE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SERVICE</span>
+</span><span data-line="3"><span class="w">  </span><span class="k">COMMENT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Cartography inventory collector&#39;</span><span class="p">;</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">SYSADMIN</span><span class="p">;</span>
+</span><span data-line="6"><span class="k">CREATE</span><span class="w"> </span><span class="n">WAREHOUSE</span><span class="w"> </span><span class="n">CARTOGRAPHY_WH</span>
+</span><span data-line="7"><span class="w">  </span><span class="n">WAREHOUSE_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XSMALL</span><span class="w"> </span><span class="n">AUTO_SUSPEND</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="n">AUTO_RESUME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span><span class="p">;</span>
+</span></pre></div>
+</div>
+</section>
+<section id="network-policy">
+<h3>Network Policy<a class="headerlink" href="#network-policy" title="Link to this heading">#</a></h3>
+<p>Snowflake requires a network policy to be in effect for the user before it will
+accept a programmatic access token. Key-pair authentication does not require one,
+but restricting where the collector may connect from is worth doing either way.</p>
+<p>Snowflake’s guidance is that new policies use <strong>network rules</strong> rather than the
+older <code class="docutils literal notranslate"><span class="pre">ALLOWED_IP_LIST</span></code> and <code class="docutils literal notranslate"><span class="pre">BLOCKED_IP_LIST</span></code> parameters. Create a rule holding
+the addresses Cartography egresses from, then a policy that allows it:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">SECURITYADMIN</span><span class="p">;</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">CREATE</span><span class="w"> </span><span class="n">NETWORK</span><span class="w"> </span><span class="k">RULE</span><span class="w"> </span><span class="n">CARTOGRAPHY_EGRESS</span>
+</span><span data-line="4"><span class="w">  </span><span class="k">TYPE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">IPV4</span>
+</span><span data-line="5"><span class="w">  </span><span class="k">MODE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INGRESS</span>
+</span><span data-line="6"><span class="w">  </span><span class="n">VALUE_LIST</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;198.51.100.10&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;203.0.113.0/24&#39;</span><span class="p">)</span>
+</span><span data-line="7"><span class="w">  </span><span class="k">COMMENT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Addresses the Cartography collector connects from&#39;</span><span class="p">;</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="k">CREATE</span><span class="w"> </span><span class="n">NETWORK</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">CARTOGRAPHY_POLICY</span>
+</span><span data-line="10"><span class="w">  </span><span class="n">ALLOWED_NETWORK_RULE_LIST</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;CARTOGRAPHY_EGRESS&#39;</span><span class="p">)</span>
+</span><span data-line="11"><span class="w">  </span><span class="k">COMMENT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Restricts the Cartography service user to its collector hosts&#39;</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Attach it to the service user, not to the account, so it constrains only the
+collector:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">NETWORK_POLICY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CARTOGRAPHY_POLICY</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Verify what is actually in force:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">SHOW</span><span class="w"> </span><span class="k">PARAMETERS</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">&#39;NETWORK_POLICY&#39;</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Cartography ingests the policy and its rules as <code class="docutils literal notranslate"><span class="pre">SnowflakeNetworkPolicy</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SnowflakeNetworkRule</span></code> nodes, linked by <code class="docutils literal notranslate"><span class="pre">ALLOWS</span></code> and <code class="docutils literal notranslate"><span class="pre">BLOCKS</span></code>, with a
+<code class="docutils literal notranslate"><span class="pre">GOVERNED_BY</span></code> edge from every user and account the policy applies to. So once
+configured, the collector’s own network restriction is visible in the graph
+alongside everything else.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Three details that cause surprises:</p>
+<ul class="simple">
+<li><p><strong>Precedence is most-specific-wins.</strong> A policy on a security integration
+overrides one on a user, which overrides one on the account. Only one policy
+per level is active at a time, so attaching a policy to the user replaces any
+account-level policy for that user rather than adding to it.</p></li>
+<li><p><strong>Blocked beats allowed.</strong> If an address appears in both lists, Snowflake
+applies the blocked list first.</p></li>
+<li><p><strong>You can lock yourself out.</strong> Your own address must be in the allowed list, or
+activation fails. An empty policy denies every IPv4 address.</p></li>
+</ul>
+</div>
+<p>Creating a policy needs <code class="docutils literal notranslate"><span class="pre">SECURITYADMIN</span></code> or the global <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">NETWORK</span> <span class="pre">POLICY</span></code>
+privilege. Attaching one to a user needs <code class="docutils literal notranslate"><span class="pre">OWNERSHIP</span></code> on the user plus <code class="docutils literal notranslate"><span class="pre">USAGE</span></code> on
+the policy; attaching one to the whole account needs the global <code class="docutils literal notranslate"><span class="pre">ATTACH</span> <span class="pre">POLICY</span></code>
+privilege.</p>
+<p>If you need to run Cartography before a policy is in place, a token can carry a
+time-limited exemption instead. This is for bootstrapping and testing only: it
+expires, and until it does the token is usable from anywhere.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">MODIFY</span><span class="w"> </span><span class="n">PROGRAMMATIC</span><span class="w"> </span><span class="k">ACCESS</span><span class="w"> </span><span class="n">TOKEN</span><span class="w"> </span><span class="n">CARTOGRAPHY_PAT</span>
+</span><span data-line="2"><span class="w">  </span><span class="k">SET</span><span class="w"> </span><span class="n">MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Cartography surfaces the remaining exemption on the
+<code class="docutils literal notranslate"><span class="pre">SnowflakeProgrammaticAccessToken</span></code> node, so a token left exempt is auditable.</p>
+</section>
+</section>
+<section id="authentication">
+<h2>Authentication<a class="headerlink" href="#authentication" title="Link to this heading">#</a></h2>
+<p>Snowflake’s REST API does not accept passwords. Cartography supports the two
+credential types Snowflake offers a machine identity. Key-pair is the stronger
+choice: the private key never leaves your infrastructure, whereas a token is a
+bearer secret that is replayable if it leaks.</p>
+<section id="key-pair-jwt">
+<h3>Key-Pair (JWT)<a class="headerlink" href="#key-pair-jwt" title="Link to this heading">#</a></h3>
+<p>Generate an encrypted RSA key pair and register the public half on the user:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">openssl<span class="w"> </span>genrsa<span class="w"> </span><span class="m">2048</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>pkcs8<span class="w"> </span>-topk8<span class="w"> </span>-v2<span class="w"> </span>aes-256-cbc<span class="w"> </span>-inform<span class="w"> </span>PEM<span class="w"> </span>-out<span class="w"> </span>snowflake_key.p8
+</span><span data-line="2">openssl<span class="w"> </span>rsa<span class="w"> </span>-in<span class="w"> </span>snowflake_key.p8<span class="w"> </span>-pubout<span class="w"> </span>-out<span class="w"> </span>snowflake_key.pub
+</span></pre></div>
+</div>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">USERADMIN</span><span class="p">;</span>
+</span><span data-line="2"><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;contents of snowflake_key.pub, without the BEGIN/END lines&gt;&#39;</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Put the PEM-encoded private key in one environment variable and its passphrase
+in another. Cartography signs a short-lived assertion per sync and re-mints it
+before Snowflake’s one-hour ceiling.</p>
+</section>
+<section id="programmatic-access-token">
+<h3>Programmatic Access Token<a class="headerlink" href="#programmatic-access-token" title="Link to this heading">#</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">USERADMIN</span><span class="p">;</span>
+</span><span data-line="2"><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="n">PROGRAMMATIC</span><span class="w"> </span><span class="k">ACCESS</span><span class="w"> </span><span class="n">TOKEN</span><span class="w"> </span><span class="n">CARTOGRAPHY_PAT</span>
+</span><span data-line="3"><span class="w">  </span><span class="n">ROLE_RESTRICTION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;CARTOGRAPHY_RO&#39;</span>
+</span><span data-line="4"><span class="w">  </span><span class="n">DAYS_TO_EXPIRY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Snowflake returns the secret once. Store it in an environment variable, keep the
+expiry short, set <code class="docutils literal notranslate"><span class="pre">ROLE_RESTRICTION</span></code> so the token cannot be used with a more
+privileged role, and revoke it when it is no longer needed.</p>
+</section>
+</section>
+<section id="required-permissions">
+<h2>Required Permissions<a class="headerlink" href="#required-permissions" title="Link to this heading">#</a></h2>
+<p>The object API endpoints take no role parameter: they run as the user’s <strong>default
+role</strong>. So the role below must be set as the default role, not merely granted.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">USE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">ACCOUNTADMIN</span><span class="p">;</span>
+</span><span data-line="2"><span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="3"><span class="k">GRANT</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="p">;</span>
+</span><span data-line="4"><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">CARTOGRAPHY_SVC</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">DEFAULT_ROLE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="c1">-- Run SQL statements.</span>
+</span><span data-line="7"><span class="k">GRANT</span><span class="w"> </span><span class="k">USAGE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">WAREHOUSE</span><span class="w"> </span><span class="n">CARTOGRAPHY_WH</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="8"><span class="c1">-- Read the SNOWFLAKE.ACCOUNT_USAGE views: identities, grants, credential posture</span>
+</span><span data-line="9"><span class="c1">-- and policy attachments. This is a read-only privilege.</span>
+</span><span data-line="10"><span class="k">GRANT</span><span class="w"> </span><span class="n">IMPORTED</span><span class="w"> </span><span class="k">PRIVILEGES</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">SNOWFLAKE</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="11"><span class="c1">-- Account-level metadata: warehouses, resource monitors, parameters.</span>
+</span><span data-line="12"><span class="k">GRANT</span><span class="w"> </span><span class="n">MONITOR</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="13"><span class="c1">-- Walk the data hierarchy.</span>
+</span><span data-line="14"><span class="k">GRANT</span><span class="w"> </span><span class="k">USAGE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">DATABASES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="15"><span class="k">GRANT</span><span class="w"> </span><span class="k">USAGE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">SCHEMAS</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="16"><span class="k">GRANT</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="17"><span class="k">GRANT</span><span class="w"> </span><span class="k">USAGE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">FUTURE</span><span class="w"> </span><span class="n">SCHEMAS</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span><span data-line="18"><span class="k">GRANT</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">FUTURE</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">ACCOUNT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">CARTOGRAPHY_RO</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>This set is entirely read-only. With it, Cartography reads roles, database roles,
+the role hierarchy and every grant from <code class="docutils literal notranslate"><span class="pre">SNOWFLAKE.ACCOUNT_USAGE</span></code>
+(<code class="docutils literal notranslate"><span class="pre">ROLES</span></code>, <code class="docutils literal notranslate"><span class="pre">GRANTS_TO_ROLES</span></code> and <code class="docutils literal notranslate"><span class="pre">GRANTS_TO_USERS</span></code>), which lags real time by up to
+two hours but requires no privilege that can modify anything.</p>
+<p><code class="docutils literal notranslate"><span class="pre">IMPORTED</span> <span class="pre">PRIVILEGES</span> <span class="pre">ON</span> <span class="pre">DATABASE</span> <span class="pre">SNOWFLAKE</span></code> is the one grant in that list you
+should not drop. The object API and <code class="docutils literal notranslate"><span class="pre">SHOW</span> <span class="pre">ROLES</span></code> return only the roles the
+collector’s own role can see, and a partial answer is indistinguishable from a
+complete one, so without the <code class="docutils literal notranslate"><span class="pre">ACCOUNT_USAGE</span></code> views Cartography cannot establish
+that it saw every role. It then keeps the data it has and skips role, database
+role and grant cleanup rather than risk deleting roles it merely could not see.
+The graph stays correct, but stale roles are never removed.</p>
+</section>
+<section id="optional-permissions">
+<h2>Optional Permissions<a class="headerlink" href="#optional-permissions" title="Link to this heading">#</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Privilege</p></th>
+<th class="head"><p>Enables</p></th>
+<th class="head"><p>Cost of granting</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MANAGE</span> <span class="pre">GRANTS</span> <span class="pre">ON</span> <span class="pre">ACCOUNT</span></code></p></td>
+<td><p>Makes the object API and <code class="docutils literal notranslate"><span class="pre">SHOW</span> <span class="pre">GRANTS</span></code> account-wide, so roles and grants are current rather than up to two hours stale.</p></td>
+<td><p>Not read-only: a role with <code class="docutils literal notranslate"><span class="pre">MANAGE</span> <span class="pre">GRANTS</span></code> can also grant and revoke privileges account-wide. Grant it only if the staleness matters more than the blast radius.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MODIFY</span> <span class="pre">PROGRAMMATIC</span> <span class="pre">AUTHENTICATION</span> <span class="pre">METHODS</span></code> on a user</p></td>
+<td><p>Listing that user’s programmatic access tokens. Without it Cartography inventories only the tokens of the user it authenticates as, and reports the surface incomplete so no token is deleted at cleanup. A <code class="docutils literal notranslate"><span class="pre">USER</span></code> object has no plain <code class="docutils literal notranslate"><span class="pre">MODIFY</span></code> privilege, and no account-level privilege substitutes for this one.</p></td>
+<td><p>Far from read-only: the same privilege grants creating, rotating and deleting that user’s tokens and key pairs. There is no view-only equivalent, so the honest choice is usually to leave it ungranted and accept partial token coverage.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ORGADMIN</span></code></p></td>
+<td><p>Listing the other accounts in the organization, so they appear as <code class="docutils literal notranslate"><span class="pre">SnowflakeAccount</span></code> nodes.</p></td>
+<td><p>A highly privileged organization-level role. Usually not worth it; Cartography syncs the connected account either way.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Cartography prefers the <code class="docutils literal notranslate"><span class="pre">ACCOUNT_USAGE</span></code> views for roles and grants and logs which
+path it used. It falls back to the per-role object API only when those views are
+unreadable; that path costs two requests per role and, as above, cannot establish
+completeness, so the affected cleanups are skipped. Without <code class="docutils literal notranslate"><span class="pre">ORGADMIN</span></code>, only the
+connected account is synced. Without <code class="docutils literal notranslate"><span class="pre">MODIFY</span> <span class="pre">PROGRAMMATIC</span> <span class="pre">AUTHENTICATION</span> <span class="pre">METHODS</span></code>
+on a user, that user’s programmatic access tokens are not listed. Every surface Snowflake refuses is skipped along with
+its cleanup, so a missing privilege never deletes previously collected data.</p>
+</section>
+<section id="configure-cartography">
+<h2>Configure Cartography<a class="headerlink" href="#configure-cartography" title="Link to this heading">#</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-account</span></code></p></td>
+<td><p>Account identifier, <code class="docutils literal notranslate"><span class="pre">MYORG-MYACCOUNT</span></code> or <code class="docutils literal notranslate"><span class="pre">MYORG.MYACCOUNT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-user</span></code></p></td>
+<td><p>User to authenticate as.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-pat-env-var</span></code></p></td>
+<td><p>Environment variable holding the programmatic access token.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-private-key-env-var</span></code></p></td>
+<td><p>Environment variable holding the PEM-encoded RSA private key.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-private-key-passphrase-env-var</span></code></p></td>
+<td><p>Environment variable holding the key’s passphrase.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-role</span></code></p></td>
+<td><p>Role used for SQL statements. Set it to the user’s default role.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-warehouse</span></code></p></td>
+<td><p>Warehouse used to run SQL statements.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--snowflake-databases</span></code></p></td>
+<td><p>Comma-separated databases to sync. Defaults to every readable database.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Supply exactly one of <code class="docutils literal notranslate"><span class="pre">--snowflake-pat-env-var</span></code> or
+<code class="docutils literal notranslate"><span class="pre">--snowflake-private-key-env-var</span></code>. Setting a passphrase without a private key is
+a configuration error and fails loudly rather than silently skipping the module.</p>
+</section>
+<section id="run-cartography">
+<h2>Run Cartography<a class="headerlink" href="#run-cartography" title="Link to this heading">#</a></h2>
+<p>With a key pair:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">  </span>--selected-modules<span class="w"> </span>snowflake<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>--snowflake-account<span class="w"> </span>MYORG-MYACCOUNT<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">  </span>--snowflake-user<span class="w"> </span>CARTOGRAPHY_SVC<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">  </span>--snowflake-private-key-env-var<span class="w"> </span>SNOWFLAKE_PRIVATE_KEY<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">  </span>--snowflake-private-key-passphrase-env-var<span class="w"> </span>SNOWFLAKE_PRIVATE_KEY_PASSPHRASE<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">  </span>--snowflake-role<span class="w"> </span>CARTOGRAPHY_RO<span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">  </span>--snowflake-warehouse<span class="w"> </span>CARTOGRAPHY_WH
+</span></pre></div>
+</div>
+<p>With a programmatic access token:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">  </span>--selected-modules<span class="w"> </span>snowflake<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>--snowflake-account<span class="w"> </span>MYORG-MYACCOUNT<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">  </span>--snowflake-user<span class="w"> </span>CARTOGRAPHY_SVC<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">  </span>--snowflake-pat-env-var<span class="w"> </span>SNOWFLAKE_PAT<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">  </span>--snowflake-role<span class="w"> </span>CARTOGRAPHY_RO<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">  </span>--snowflake-warehouse<span class="w"> </span>CARTOGRAPHY_WH
+</span></pre></div>
+</div>
+</section>
+<section id="advanced-configuration">
+<h2>Advanced Configuration<a class="headerlink" href="#advanced-configuration" title="Link to this heading">#</a></h2>
+<p>Cartography syncs one account per run. To cover several accounts, run it once per
+account; each account is a separate <code class="docutils literal notranslate"><span class="pre">SnowflakeAccount</span></code> tenant and its objects are
+scoped to it, so the runs do not interfere.</p>
+<p>On accounts with very many schemas, restrict the walk with
+<code class="docutils literal notranslate"><span class="pre">--snowflake-databases</span></code>. The <code class="docutils literal notranslate"><span class="pre">SNOWFLAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">SNOWFLAKE_SAMPLE_DATA</span></code> databases
+and databases created from an inbound share are skipped automatically: they are
+provider-managed and enumerating them is slow and usually unauthorized.</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<p><strong><code class="docutils literal notranslate"><span class="pre">390432</span> <span class="pre">Network</span> <span class="pre">policy</span> <span class="pre">is</span> <span class="pre">required.</span></code></strong> The user has no network policy in effect,
+which Snowflake requires before it will accept a programmatic access token.
+Attach one as shown under Prerequisites, or use key-pair authentication, which
+carries no such requirement. If the sync worked previously and then began failing
+with this error, a <code class="docutils literal notranslate"><span class="pre">MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT</span></code> exemption on the
+token has expired.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">390144</span> <span class="pre">JWT</span> <span class="pre">token</span> <span class="pre">is</span> <span class="pre">invalid.</span></code></strong> The registered public key does not match the
+private key in use, or the account identifier is wrong. Compare the fingerprint
+Snowflake holds with the one your key produces:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">snow<span class="w"> </span>sql<span class="w"> </span>-q<span class="w"> </span><span class="s2">&quot;DESC USER CARTOGRAPHY_SVC&quot;</span><span class="w"> </span>--format<span class="w"> </span>JSON<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>RSA_PUBLIC_KEY_FP
+</span></pre></div>
+</div>
+<p><strong>Empty users, roles or grants.</strong> The role lacks both <code class="docutils literal notranslate"><span class="pre">MANAGE</span> <span class="pre">GRANTS</span></code> and
+<code class="docutils literal notranslate"><span class="pre">IMPORTED</span> <span class="pre">PRIVILEGES</span> <span class="pre">ON</span> <span class="pre">DATABASE</span> <span class="pre">SNOWFLAKE</span></code>, so neither the real-time nor the
+<code class="docutils literal notranslate"><span class="pre">ACCOUNT_USAGE</span></code> path is readable. Grant the latter.</p>
+<p><strong>Only one user’s programmatic access tokens appear.</strong> Listing another user’s
+tokens requires <code class="docutils literal notranslate"><span class="pre">MODIFY</span> <span class="pre">PROGRAMMATIC</span> <span class="pre">AUTHENTICATION</span> <span class="pre">METHODS</span></code> on that user, which no
+account-level privilege implies.
+The log names how many users could not be read, and the surface is reported
+incomplete so the tokens already collected are not deleted.</p>
+<p><strong>Objects missing from one database only.</strong> The role has no <code class="docutils literal notranslate"><span class="pre">USAGE</span></code> on that
+database or its schemas. Snowflake reports an unauthorized object identically to
+a nonexistent one, so Cartography logs the skip rather than guessing.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/snowflake-rest-api">Snowflake REST APIs</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/developer-guide/snowflake-rest-api/authentication">Authenticating to the REST API</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/user-guide/programmatic-access-tokens">Programmatic access tokens</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/user-guide/key-pair-auth">Key-pair authentication</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/user-guide/network-policies">Network policies</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/user-guide/network-rules">Network rules</a></p></li>
+<li><p><a class="reference external" href="https://docs.snowflake.com/en/sql-reference/account-usage">ACCOUNT_USAGE views</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Snowflake</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="schema.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Snowflake Schema</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script></body>
+</html>

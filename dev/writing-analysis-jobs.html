@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>How to extend Cartography with Analysis Jobs - Cartography Documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="How to write a new intel module" href="writing-intel-modules.html" /><link rel="prev" title="Cartography Developer Guide" href="developer-guide.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/dev/writing-analysis-jobs.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/dev/writing-analysis-jobs.html"/>
+  <meta property="og:title" content="How to extend Cartography with Analysis Jobs"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../module-list.html">Intel Modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modules/zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modules/zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Developer docs</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a><ul>
+<li><a class="reference internal" href="#the-stages">The stages</a></li>
+<li><a class="reference internal" href="#how-to-run">How to run</a></li>
+<li><a class="reference internal" href="#typed-job-syntax">Typed job syntax</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">Example job: which of my EC2 instances is accessible to any host on the internet?</a><ul>
+<li><a class="reference internal" href="#cleanup-ordering">Cleanup ordering</a></li>
+<li><a class="reference internal" href="#run-the-typed-job">Run the typed job</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#custom-json-jobs-legacy-format">Custom JSON jobs (legacy format)</a></li>
+<li><a class="reference internal" href="#recap">Recap</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/dev/writing-analysis-jobs.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Developer docs</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">How to extend Cartography with Analysis Jobs</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/dev/writing-analysis-jobs.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/dev/writing-analysis-jobs.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/dev/writing-analysis-jobs.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/dev/writing-analysis-jobs.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/dev/writing-analysis-jobs.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="how-to-extend-cartography-with-analysis-jobs">
+<h1>How to extend Cartography with Analysis Jobs<a class="headerlink" href="#how-to-extend-cartography-with-analysis-jobs" title="Link to this heading">#</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p>In a nutshell, Analysis Jobs let you add your own customizations to Cartography by writing Neo4j queries. This helps you add powerful enhancements to your data without the need to write Python code.</p>
+<section id="the-stages">
+<h3>The stages<a class="headerlink" href="#the-stages" title="Link to this heading">#</a></h3>
+<p>There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/sync.py">cartography.sync.build_default_sync()</a>). This tutorial focuses on Analysis Jobs.</p>
+</section>
+<section id="how-to-run">
+<h3>How to run<a class="headerlink" href="#how-to-run" title="Link to this heading">#</a></h3>
+<p>Built-in enrichment Analysis Jobs are typed Python definitions under <code class="docutils literal notranslate"><span class="pre">cartography/analysis/*/analysis.py</span></code>; the remaining built-in JSON jobs are migration/cleanup-only compatibility jobs. Custom JSON Analysis Jobs are still supported with <code class="docutils literal notranslate"><span class="pre">--analysis-job-directory</span></code>; each JSON file contains a list of Neo4j statements which get run in order. Although the order of statements within a single job is preserved, we don’t guarantee the order in which jobs are executed.</p>
+</section>
+<section id="typed-job-syntax">
+<h3>Typed job syntax<a class="headerlink" href="#typed-job-syntax" title="Link to this heading">#</a></h3>
+<p>Typed Analysis Jobs declare a Cypher match pattern and the effect Cartography should apply. The framework compiles the write query and the cleanup query from those effects. This minimal example is illustrative and is not a built-in job:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">AnalysisJob</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Example public IP marker&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">short_name</span><span class="o">=</span><span class="s2">&quot;example_public_ip&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">statements</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="5">        <span class="n">AnalysisStatement</span><span class="p">(</span>
+</span><span data-line="6">            <span class="n">match</span><span class="o">=</span><span class="s2">&quot;MATCH (instance:AWSEC2Instance) WHERE instance.publicipaddress IS NOT NULL&quot;</span><span class="p">,</span>
+</span><span data-line="7">            <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="8">                <span class="n">SetProperty</span><span class="p">(</span><span class="s2">&quot;instance&quot;</span><span class="p">,</span> <span class="s2">&quot;has_public_ip&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">),</span>
+</span><span data-line="9">            <span class="p">),</span>
+</span><span data-line="10">        <span class="p">),</span>
+</span><span data-line="11">    <span class="p">),</span>
+</span><span data-line="12"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>The typed syntax has three parts:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">AnalysisJob(scope=CleanupScopedTo(...))
+</span><span data-line="2">    -&gt; AnalysisStatement(match=&quot;MATCH ...&quot;, effects=(...))
+</span><span data-line="3">        -&gt; SetProperty / AddToSet / AddRelationship / SetRelationshipProperty
+</span></pre></div>
+</div>
+<pre  class="mermaid">
+        flowchart LR
+    job[&quot;AnalysisJob&quot;] --&gt; scope[&quot;scope: CleanupScopedTo&quot;]
+    job --&gt; stmt[&quot;AnalysisStatement&quot;]
+    stmt --&gt; match[&quot;match: Cypher pattern&quot;]
+    stmt --&gt; effects[&quot;effects&quot;]
+    effects --&gt; write[&quot;generated write query&quot;]
+    effects --&gt; cleanup[&quot;generated cleanup query&quot;]
+    </pre><p>Common primitives:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Primitive</p></th>
+<th class="head"><p>Use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SetProperty(node,</span> <span class="pre">property,</span> <span class="pre">value,</span> <span class="pre">label=...)</span></code></p></td>
+<td><p>Set one node property and derive cleanup for that label.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SetProperties(node,</span> <span class="pre">{property:</span> <span class="pre">value},</span> <span class="pre">label=...)</span></code></p></td>
+<td><p>Set several node properties with one effect.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">AddToSet(node,</span> <span class="pre">property,</span> <span class="pre">value,</span> <span class="pre">label=...)</span></code></p></td>
+<td><p>Add a value to a list property without duplicates.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">AddValuesToSet(node,</span> <span class="pre">property,</span> <span class="pre">values,</span> <span class="pre">label=...)</span></code></p></td>
+<td><p>Add several values to a list property without duplicates.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">AddRelationship(source,</span> <span class="pre">rel,</span> <span class="pre">target,</span> <span class="pre">source_label=...,</span> <span class="pre">target_label=...)</span></code></p></td>
+<td><p>MERGE a relationship, set <code class="docutils literal notranslate"><span class="pre">firstseen</span></code> on create, set <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> every run, and derive stale-edge cleanup.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SetRelationshipProperty(rel,</span> <span class="pre">property,</span> <span class="pre">value,</span> <span class="pre">source_label=...,</span> <span class="pre">rel_label=...)</span></code></p></td>
+<td><p>Set a relationship property and derive property cleanup.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Var(&quot;node.property&quot;)</span></code></p></td>
+<td><p>Use a Cypher variable or property reference as a value.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Param(&quot;UPDATE_TAG&quot;)</span></code></p></td>
+<td><p>Use a Cypher parameter as a value.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">RawCypher(&quot;coalesce(...)&quot;)</span></code></p></td>
+<td><p>Use a raw Cypher expression as a value.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CleanupScopedTo(label,</span> <span class="pre">id_param)</span></code></p></td>
+<td><p>Constrain generated cleanup to one tenant/account/project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">label</span></code> is required for node-property effects because cleanup needs to know which label owns the property. Plain Python strings become quoted Cypher strings, so use <code class="docutils literal notranslate"><span class="pre">Var</span></code>, <code class="docutils literal notranslate"><span class="pre">Param</span></code>, or <code class="docutils literal notranslate"><span class="pre">RawCypher</span></code> when the value should compile as Cypher.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CleanupScopedTo(...)</span></code> lives on the <code class="docutils literal notranslate"><span class="pre">AnalysisJob</span></code> and describes the resource boundary used during generated cleanup, for example <code class="docutils literal notranslate"><span class="pre">CleanupScopedTo(&quot;AWSAccount&quot;,</span> <span class="pre">&quot;AWS_ID&quot;)</span></code>. For relationship effects, <code class="docutils literal notranslate"><span class="pre">scoped_to=&quot;source&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;target&quot;</span></code> lives on <code class="docutils literal notranslate"><span class="pre">AddRelationship</span></code> and chooses which endpoint is connected to that scoped resource. Keep the default <code class="docutils literal notranslate"><span class="pre">source</span></code> when the source node is under the scoped account/project; override it to <code class="docutils literal notranslate"><span class="pre">target</span></code> when only the target node is under that scope.</p>
+</section>
+</section>
+<section id="example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">
+<h2>Example job: which of my EC2 instances is accessible to any host on the internet?<a class="headerlink" href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet" title="Link to this heading">#</a></h2>
+<p>The built-in <code class="docutils literal notranslate"><span class="pre">AWS_EC2_ASSET_EXPOSURE_INSTANCE</span></code> job lives in <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py">cartography/analysis/aws/analysis.py</a>. It marks an instance as internet-exposed when one of these conditions is true:</p>
+<ol class="arabic simple">
+<li><p>The instance has a public IP and is attached, directly or through a network interface, to a security group that permits <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code>.</p></li>
+<li><p>An internet-exposed classic load balancer exposes the instance.</p></li>
+<li><p>An internet-exposed v2 load balancer exposes the instance.</p></li>
+</ol>
+<p>The current typed definition is:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">AWS_EC2_ASSET_EXPOSURE_INSTANCE</span> <span class="o">=</span> <span class="n">AnalysisJob</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;AWS EC2 instance internet exposure&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">short_name</span><span class="o">=</span><span class="s2">&quot;aws_ec2_asset_exposure_instance&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">cleanup_iterationsize</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">statements</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="6">        <span class="n">AnalysisStatement</span><span class="p">(</span>
+</span><span data-line="7">            <span class="n">match</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="8"><span class="s2">            MATCH (:AWSIpRange{id: &#39;0.0.0.0/0&#39;})</span>
+</span><span data-line="9"><span class="s2">              -[:MEMBER_OF_IP_RULE]-&gt;(:AWSIpPermissionInbound)</span>
+</span><span data-line="10"><span class="s2">              -[:MEMBER_OF_EC2_SECURITY_GROUP]-&gt;(:AWSEC2SecurityGroup)</span>
+</span><span data-line="11"><span class="s2">              &lt;-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]</span>
+</span><span data-line="12"><span class="s2">              -(instance:AWSEC2Instance)</span>
+</span><span data-line="13"><span class="s2">            WHERE instance.publicipaddress IS NOT NULL</span>
+</span><span data-line="14"><span class="s2">            &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="15">            <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="16">                <span class="n">SetProperty</span><span class="p">(</span>
+</span><span data-line="17">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="18">                    <span class="s2">&quot;exposed_internet&quot;</span><span class="p">,</span>
+</span><span data-line="19">                    <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="20">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="21">                <span class="p">),</span>
+</span><span data-line="22">                <span class="n">AddToSet</span><span class="p">(</span>
+</span><span data-line="23">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="24">                    <span class="s2">&quot;exposed_internet_type&quot;</span><span class="p">,</span>
+</span><span data-line="25">                    <span class="s2">&quot;direct&quot;</span><span class="p">,</span>
+</span><span data-line="26">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="27">                <span class="p">),</span>
+</span><span data-line="28">            <span class="p">),</span>
+</span><span data-line="29">        <span class="p">),</span>
+</span><span data-line="30">        <span class="n">AnalysisStatement</span><span class="p">(</span>
+</span><span data-line="31">            <span class="n">match</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="32">                <span class="s2">&quot;MATCH (:AWSLoadBalancer{exposed_internet: true})&quot;</span>
+</span><span data-line="33">                <span class="s2">&quot;-[:EXPOSE]-&gt;(instance:AWSEC2Instance)&quot;</span>
+</span><span data-line="34">            <span class="p">),</span>
+</span><span data-line="35">            <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="36">                <span class="n">SetProperty</span><span class="p">(</span>
+</span><span data-line="37">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="38">                    <span class="s2">&quot;exposed_internet&quot;</span><span class="p">,</span>
+</span><span data-line="39">                    <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="40">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="41">                <span class="p">),</span>
+</span><span data-line="42">                <span class="n">AddToSet</span><span class="p">(</span>
+</span><span data-line="43">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="44">                    <span class="s2">&quot;exposed_internet_type&quot;</span><span class="p">,</span>
+</span><span data-line="45">                    <span class="s2">&quot;elb&quot;</span><span class="p">,</span>
+</span><span data-line="46">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="47">                <span class="p">),</span>
+</span><span data-line="48">            <span class="p">),</span>
+</span><span data-line="49">        <span class="p">),</span>
+</span><span data-line="50">        <span class="n">AnalysisStatement</span><span class="p">(</span>
+</span><span data-line="51">            <span class="n">match</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="52">                <span class="s2">&quot;MATCH (:AWSLoadBalancerV2{exposed_internet: true})&quot;</span>
+</span><span data-line="53">                <span class="s2">&quot;-[:EXPOSE]-&gt;(instance:AWSEC2Instance)&quot;</span>
+</span><span data-line="54">            <span class="p">),</span>
+</span><span data-line="55">            <span class="n">effects</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="56">                <span class="n">SetProperty</span><span class="p">(</span>
+</span><span data-line="57">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="58">                    <span class="s2">&quot;exposed_internet&quot;</span><span class="p">,</span>
+</span><span data-line="59">                    <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="60">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="61">                <span class="p">),</span>
+</span><span data-line="62">                <span class="n">AddToSet</span><span class="p">(</span>
+</span><span data-line="63">                    <span class="s2">&quot;instance&quot;</span><span class="p">,</span>
+</span><span data-line="64">                    <span class="s2">&quot;exposed_internet_type&quot;</span><span class="p">,</span>
+</span><span data-line="65">                    <span class="s2">&quot;elbv2&quot;</span><span class="p">,</span>
+</span><span data-line="66">                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;AWSEC2Instance&quot;</span><span class="p">,</span>
+</span><span data-line="67">                <span class="p">),</span>
+</span><span data-line="68">            <span class="p">),</span>
+</span><span data-line="69">        <span class="p">),</span>
+</span><span data-line="70">    <span class="p">),</span>
+</span><span data-line="71"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>The match clauses only identify the rows to update. The effects describe the graph changes, and the framework generates both the write statements and the corresponding cleanup statements.</p>
+<section id="cleanup-ordering">
+<h3>Cleanup ordering<a class="headerlink" href="#cleanup-ordering" title="Link to this heading">#</a></h3>
+<p>The compiler determines cleanup ordering from the effect type:</p>
+<ul class="simple">
+<li><p>Node-property effects such as <code class="docutils literal notranslate"><span class="pre">SetProperty</span></code> and <code class="docutils literal notranslate"><span class="pre">AddToSet</span></code> remove values left by the previous run before applying current matches.</p></li>
+<li><p>Relationship effects such as <code class="docutils literal notranslate"><span class="pre">AddRelationship</span></code> run their <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> statements first and delete relationships with an old <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> value afterward. This avoids a window where concurrent readers see all managed relationships disappear.</p></li>
+</ul>
+<p>Do not add handwritten cleanup statements to a typed job when an existing effect can express the change.</p>
+</section>
+<section id="run-the-typed-job">
+<h3>Run the typed job<a class="headerlink" href="#run-the-typed-job" title="Link to this heading">#</a></h3>
+<p>Built-in typed jobs are converted to <code class="docutils literal notranslate"><span class="pre">GraphJob</span></code> statements and executed with <code class="docutils literal notranslate"><span class="pre">run_typed_analysis_job()</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">run_typed_analysis_job</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">AWS_EC2_ASSET_EXPOSURE_INSTANCE</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">common_job_parameters</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>After the job runs, query the generated properties:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">AWSEC2Instance</span><span class="w"> </span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">exposed_internet_type</span>
+</span><span data-line="3"><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">id</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="custom-json-jobs-legacy-format">
+<h2>Custom JSON jobs (legacy format)<a class="headerlink" href="#custom-json-jobs-legacy-format" title="Link to this heading">#</a></h2>
+<p>Custom JSON jobs remain supported through <code class="docutils literal notranslate"><span class="pre">--analysis-job-directory</span></code>. Use them only when the typed effect model cannot express the required operation. Statements run in file order, but Cartography does not guarantee the order in which separate job files run.</p>
+<p>JSON jobs must provide their own cleanup and batching behavior. For node properties, remove stale values before setting current values. For managed relationships, <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> current relationships before deleting edges whose <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> does not match <code class="docutils literal notranslate"><span class="pre">$UPDATE_TAG</span></code>.</p>
+</section>
+<section id="recap">
+<h2>Recap<a class="headerlink" href="#recap" title="Link to this heading">#</a></h2>
+<p>Prefer typed Analysis Jobs for built-in enrichment. Declare a match and one or more effects, let the compiler generate cleanup, and add an explicit scope when the job manages only one account, project, or tenant.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="developer-guide.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Cartography Developer Guide</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="writing-intel-modules.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">How to write a new intel module</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>

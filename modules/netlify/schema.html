@@ -1,0 +1,3499 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Netlify Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Oracle Cloud Infrastructure" href="../oci/index.html" /><link rel="prev" title="Netlify Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/netlify/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/netlify/schema.html"/>
+  <meta property="og:title" content="Netlify Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Netlify</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">Netlify Configuration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#netlifyaccount">NetlifyAccount</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyagentrunner">NetlifyAgentRunner</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifybuildhook">NetlifyBuildHook</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifycertificate">NetlifyCertificate</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydatabasebranch">NetlifyDatabaseBranch</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydatabasesnapshot">NetlifyDatabaseSnapshot</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydeploy">NetlifyDeploy</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydeploykey">NetlifyDeployKey</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydevserver">NetlifyDevServer</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydnsrecord">NetlifyDNSRecord</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifydnszone">NetlifyDNSZone</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyenvvar">NetlifyEnvVar</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyform">NetlifyForm</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyfunction">NetlifyFunction</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyhook">NetlifyHook</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyinvite">NetlifyInvite</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyserviceinstance">NetlifyServiceInstance</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifysite">NetlifySite</a><ul>
+<li><a class="reference internal" href="#id33">Properties</a></li>
+<li><a class="reference internal" href="#id34">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifysnippet">NetlifySnippet</a><ul>
+<li><a class="reference internal" href="#id35">Properties</a></li>
+<li><a class="reference internal" href="#id36">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#netlifyuser">NetlifyUser</a><ul>
+<li><a class="reference internal" href="#id37">Properties</a></li>
+<li><a class="reference internal" href="#id38">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Netlify</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Netlify Schema</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/netlify/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/netlify/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/netlify/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/netlify/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/netlify/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="netlify-schema">
+<h1>Netlify Schema<a class="headerlink" href="#netlify-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    NetlifyAccount -- RESOURCE --&gt; NetlifyAgentRunner
+    NetlifyAccount -- RESOURCE --&gt; NetlifyBuildHook
+    NetlifyAccount -- RESOURCE --&gt; NetlifyCertificate
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDNSRecord
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDNSZone
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDatabaseBranch
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDatabaseSnapshot
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDeploy
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDeployKey
+    NetlifyAccount -- RESOURCE --&gt; NetlifyDevServer
+    NetlifyAccount -- RESOURCE --&gt; NetlifyEnvVar
+    NetlifyAccount -- RESOURCE --&gt; NetlifyForm
+    NetlifyAccount -- RESOURCE --&gt; NetlifyFunction
+    NetlifyAccount -- RESOURCE --&gt; NetlifyHook
+    NetlifyAccount -- RESOURCE --&gt; NetlifyInvite
+    NetlifyAccount -- RESOURCE --&gt; NetlifyServiceInstance
+    NetlifyAccount -- RESOURCE --&gt; NetlifySite
+    NetlifyAccount -- RESOURCE --&gt; NetlifySnippet
+    NetlifyAccount -- RESOURCE --&gt; NetlifyUser
+    NetlifyAgentRunner -- CREATED_BY --&gt; NetlifyUser
+    NetlifyAgentRunner -- FORKED_FROM --&gt; NetlifyAgentRunner
+    NetlifyDNSZone -- HAS_DNS_RECORD --&gt; NetlifyDNSRecord
+    NetlifyDatabaseBranch -- HAS_SNAPSHOT --&gt; NetlifyDatabaseSnapshot
+    NetlifyDeploy -- DEPLOYED_BY --&gt; NetlifyUser
+    NetlifyEnvVar -- UPDATED_BY --&gt; NetlifyUser
+    NetlifyInvite -- INVITED_TO --&gt; NetlifyAccount
+    NetlifySite -- HAS_AGENT_RUNNER --&gt; NetlifyAgentRunner
+    NetlifySite -- HAS_BUILD_HOOK --&gt; NetlifyBuildHook
+    NetlifySite -- HAS_CERTIFICATE --&gt; NetlifyCertificate
+    NetlifySite -- HAS_DATABASE_BRANCH --&gt; NetlifyDatabaseBranch
+    NetlifySite -- HAS_DEPLOY --&gt; NetlifyDeploy
+    NetlifySite -- HAS_DEV_SERVER --&gt; NetlifyDevServer
+    NetlifySite -- HAS_DNS_ZONE --&gt; NetlifyDNSZone
+    NetlifySite -- HAS_ENV_VAR --&gt; NetlifyEnvVar
+    NetlifySite -- HAS_FORM --&gt; NetlifyForm
+    NetlifySite -- HAS_FUNCTION --&gt; NetlifyFunction
+    NetlifySite -- HAS_NOTIFICATION_HOOK --&gt; NetlifyHook
+    NetlifySite -- HAS_SERVICE_INSTANCE --&gt; NetlifyServiceInstance
+    NetlifySite -- HAS_SNIPPET --&gt; NetlifySnippet
+    NetlifySite -- USES_DEPLOY_KEY --&gt; NetlifyDeployKey
+    NetlifyUser -- MEMBER_OF --&gt; NetlifyAccount
+    </pre><section id="netlifyaccount">
+<h2>NetlifyAccount<a class="headerlink" href="#netlifyaccount" title="Link to this heading">#</a></h2>
+<p>A Netlify team, the tenant that owns every other Netlify resource. Netlify has a single
+tenancy level: one Cartography run syncs one team, and every other node in this module is
+scoped to it.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify team id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>billing_email</p></td>
+<td><p></p></td>
+<td><p>Billing contact address.</p></td>
+</tr>
+<tr class="row-even"><td><p>block_site_transfers</p></td>
+<td><p></p></td>
+<td><p>Whether transferring sites out of the team is blocked.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the team was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>enforce_mfa</p></td>
+<td><p></p></td>
+<td><p>Whether MFA is enforced for team members (<code class="docutils literal notranslate"><span class="pre">not_enforced</span></code> / <code class="docutils literal notranslate"><span class="pre">enforced</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>enforce_saml</p></td>
+<td><p></p></td>
+<td><p>Whether SAML sign-in is enforced for team members.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_site_password</p></td>
+<td><p></p></td>
+<td><p>Whether a team-wide site password is set.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lifecycle_state</p></td>
+<td><p></p></td>
+<td><p>Team lifecycle state, e.g. <code class="docutils literal notranslate"><span class="pre">active</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>members_count</p></td>
+<td><p></p></td>
+<td><p>Number of accepted members.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the team.</p></td>
+</tr>
+<tr class="row-even"><td><p>org_mfa_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the parent organization has MFA turned on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>org_saml_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the parent organization has SAML turned on.</p></td>
+</tr>
+<tr class="row-even"><td><p>owner_ids</p></td>
+<td><p></p></td>
+<td><p>User ids of the team owners.</p></td>
+</tr>
+<tr class="row-odd"><td><p>roles_allowed</p></td>
+<td><p></p></td>
+<td><p>Member roles this plan permits.</p></td>
+</tr>
+<tr class="row-even"><td><p>saml_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether SAML is configured on this team.</p></td>
+</tr>
+<tr class="row-odd"><td><p>saml_session_expiration</p></td>
+<td><p></p></td>
+<td><p>SAML session lifetime in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_access</p></td>
+<td><p></p></td>
+<td><p>Default site access granted to members (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>, …).</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_password_context</p></td>
+<td><p></p></td>
+<td><p>Which deploy contexts the site password applies to.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_sso_login</p></td>
+<td><p></p></td>
+<td><p>Whether team SSO is required to view the team’s sites.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_sso_login_context</p></td>
+<td><p></p></td>
+<td><p>Which deploy contexts the site SSO requirement applies to.</p></td>
+</tr>
+<tr class="row-even"><td><p>slug</p></td>
+<td><p>Yes</p></td>
+<td><p>URL slug of the team, used to address it in the API.</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_administration_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether Netlify support staff may access the team’s resources.</p></td>
+</tr>
+<tr class="row-even"><td><p>team_registration_domains</p></td>
+<td><p></p></td>
+<td><p>Email domains whose users can join the team without an invite.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type_name</p></td>
+<td><p></p></td>
+<td><p>Human-readable plan name, e.g. <code class="docutils literal notranslate"><span class="pre">Free</span></code>, <code class="docutils literal notranslate"><span class="pre">Pro</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>type_slug</p></td>
+<td><p></p></td>
+<td><p>Plan identifier, e.g. <code class="docutils literal notranslate"><span class="pre">credit-free</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the team was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">lifecycle_state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyAgentRunner)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyBuildHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyCertificate)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDNSZone)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDatabaseBranch)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDatabaseSnapshot)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDeploy)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDeployKey)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDevServer)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyEnvVar)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyForm)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyInvite)</span></code>: The team that issued the invitation. The same address can be invited to several teams.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyServiceInstance)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifySite)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifySnippet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyUser)</span></code>: The team this person is a member of. The identity itself is shared across teams.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyInvite)-[:INVITED_TO]-&gt;(:NetlifyAccount)</span></code>: An outstanding invitation to a team. Deliberately not a membership edge: the address is not
+a member of anything until it accepts.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>When the invitation was issued.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invite_id</p></td>
+<td><p>Netlify’s id for the invitation, when it reports one.</p></td>
+</tr>
+<tr class="row-even"><td><p>membership_id</p></td>
+<td><p>Id of the membership row holding the invitation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pending</p></td>
+<td><p>Whether Netlify still reports the invitation as pending.</p></td>
+</tr>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role the address is invited to hold in this team.</p></td>
+</tr>
+<tr class="row-odd"><td><p>self_invite_state</p></td>
+<td><p>State of a self-service join request, when the address asked to join.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_access</p></td>
+<td><p>Site access the invitation grants (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>, …).</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>When the invitation was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyUser)-[:MEMBER_OF]-&gt;(:NetlifyAccount)</span></code>: Membership of a team. Everything that varies per team is carried here rather than on the
+person, because the same human holds a different role, site access grant and invitation
+state in every team they belong to. <code class="docutils literal notranslate"><span class="pre">pending</span></code> in particular is per team, so whether someone
+is active is a fact about the membership, not about the identity.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>When the membership was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invite_id</p></td>
+<td><p>Id of the outstanding invitation, when there is one.</p></td>
+</tr>
+<tr class="row-even"><td><p>managed_by_directory_sync</p></td>
+<td><p>Whether this membership is provisioned by directory sync.</p></td>
+</tr>
+<tr class="row-odd"><td><p>membership_id</p></td>
+<td><p>Id of the membership row in this team.</p></td>
+</tr>
+<tr class="row-even"><td><p>pending</p></td>
+<td><p>Whether an invitation to this team is still outstanding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role</p></td>
+<td><p>Role held in this team, e.g. <code class="docutils literal notranslate"><span class="pre">Owner</span></code>, <code class="docutils literal notranslate"><span class="pre">Collaborator</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_access</p></td>
+<td><p>Which of the team’s sites this member can reach (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>, …).</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>When the membership was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="netlifyagentrunner">
+<h2>NetlifyAgentRunner<a class="headerlink" href="#netlifyagentrunner" title="Link to this heading">#</a></h2>
+<p>A Netlify AI agent runner: a non-human principal that edits a site’s code and can push
+branches and open pull requests on its behalf.</p>
+<p>Only the runner is ingested, not its sessions: a session is a live execution record
+(prompt, step list, result diff) rather than inventory.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify agent runner id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>active_session_created_at</p></td>
+<td><p></p></td>
+<td><p>When the currently active session started.</p></td>
+</tr>
+<tr class="row-even"><td><p>base_deploy_id</p></td>
+<td><p></p></td>
+<td><p>Deploy the runner started from.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch the runner started from.</p></td>
+</tr>
+<tr class="row-even"><td><p>code_origin</p></td>
+<td><p></p></td>
+<td><p>Where the runner’s starting code came from, e.g. <code class="docutils literal notranslate"><span class="pre">zip</span></code>, <code class="docutils literal notranslate"><span class="pre">git</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the runner was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>current_task</p></td>
+<td><p></p></td>
+<td><p>What the runner is doing right now.</p></td>
+</tr>
+<tr class="row-odd"><td><p>done_at</p></td>
+<td><p></p></td>
+<td><p>When the runner finished.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_result_diff</p></td>
+<td><p></p></td>
+<td><p>Whether the runner produced a diff.</p></td>
+</tr>
+<tr class="row-odd"><td><p>latest_session_is_published</p></td>
+<td><p></p></td>
+<td><p>Whether the most recent session’s result was published.</p></td>
+</tr>
+<tr class="row-even"><td><p>latest_session_mode</p></td>
+<td><p></p></td>
+<td><p>Mode of the most recent session.</p></td>
+</tr>
+<tr class="row-odd"><td><p>latest_session_state</p></td>
+<td><p></p></td>
+<td><p>State of the runner’s most recent session.</p></td>
+</tr>
+<tr class="row-even"><td><p>merge_commit_error</p></td>
+<td><p></p></td>
+<td><p>Why creating the merge commit failed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>merge_commit_sha</p></td>
+<td><p></p></td>
+<td><p>Merge commit the runner created.</p></td>
+</tr>
+<tr class="row-even"><td><p>merge_target_available</p></td>
+<td><p></p></td>
+<td><p>Whether the runner can merge its result.</p></td>
+</tr>
+<tr class="row-odd"><td><p>needs_git_sync</p></td>
+<td><p></p></td>
+<td><p>Whether the runner’s branch is behind its base.</p></td>
+</tr>
+<tr class="row-even"><td><p>parent_agent_runner_id</p></td>
+<td><p></p></td>
+<td><p>Runner this one was forked from.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pr_branch</p></td>
+<td><p></p></td>
+<td><p>Branch the pull request is based on.</p></td>
+</tr>
+<tr class="row-even"><td><p>pr_error</p></td>
+<td><p></p></td>
+<td><p>Why opening the pull request failed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pr_number</p></td>
+<td><p></p></td>
+<td><p>Pull request number.</p></td>
+</tr>
+<tr class="row-even"><td><p>pr_state</p></td>
+<td><p></p></td>
+<td><p>Pull request state.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pr_url</p></td>
+<td><p></p></td>
+<td><p>Pull request the runner opened.</p></td>
+</tr>
+<tr class="row-even"><td><p>result_branch</p></td>
+<td><p></p></td>
+<td><p>Branch the runner pushed its result to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sha</p></td>
+<td><p></p></td>
+<td><p>Commit the runner produced.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the runner works on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Runner state, e.g. <code class="docutils literal notranslate"><span class="pre">new</span></code>, <code class="docutils literal notranslate"><span class="pre">running</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>title</p></td>
+<td><p></p></td>
+<td><p>Title Netlify derived from the prompt.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the runner was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>user_id</p></td>
+<td><p></p></td>
+<td><p>User who started the runner.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyAgentRunner)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAgentRunner)-[:CREATED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who started this agent runner.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAgentRunner)-[:FORKED_FROM]-&gt;(:NetlifyAgentRunner)</span></code>: The runner this one was forked from, when it started as a fork of another.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_AGENT_RUNNER]-&gt;(:NetlifyAgentRunner)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifybuildhook">
+<h2>NetlifyBuildHook<a class="headerlink" href="#netlifybuildhook" title="Link to this heading">#</a></h2>
+<p>An incoming build hook: an unauthenticated URL that triggers a production deploy.</p>
+<p>The URL is not ingested. Anyone holding it can deploy the site, so it is bearer-equivalent
+and belongs in a secret store, not in the graph.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify build hook id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch the hook builds when triggered.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the hook was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>draft</p></td>
+<td><p></p></td>
+<td><p>Whether the hook produces a draft deploy.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the hook deploys.</p></td>
+</tr>
+<tr class="row-odd"><td><p>title</p></td>
+<td><p></p></td>
+<td><p>Display title.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyBuildHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_BUILD_HOOK]-&gt;(:NetlifyBuildHook)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifycertificate">
+<h2>NetlifyCertificate<a class="headerlink" href="#netlifycertificate" title="Link to this heading">#</a></h2>
+<p>The TLS certificate serving a Netlify site’s custom domains.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-certificate"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Certificate</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;site_id&gt;_ssl</span></code>. Netlify’s TLS endpoint returns a certificate with no identifier of any kind, and a site has at most one. Nothing time-varying goes into the id: folding <code class="docutils literal notranslate"><span class="pre">expires_at</span></code> in would give the node a new identity on every renewal and defeat cleanup.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the certificate was issued.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Primary domain, the first entry of <code class="docutils literal notranslate"><span class="pre">domains</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domains</p></td>
+<td><p></p></td>
+<td><p>Every domain the certificate covers.</p></td>
+</tr>
+<tr class="row-even"><td><p>expires_at</p></td>
+<td><p></p></td>
+<td><p>When the certificate expires.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the certificate serves.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Certificate state, e.g. <code class="docutils literal notranslate"><span class="pre">issued</span></code>, <code class="docutils literal notranslate"><span class="pre">provisioning</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the certificate was last renewed.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_domain</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">domain</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_expiry</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">expires_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyCertificate)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_CERTIFICATE]-&gt;(:NetlifyCertificate)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydatabasebranch">
+<h2>NetlifyDatabaseBranch<a class="headerlink" href="#netlifydatabasebranch" title="Link to this heading">#</a></h2>
+<p>A branch of a Netlify DB (Neon) Postgres database attached to a site.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-database"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Database</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite <code class="docutils literal notranslate"><span class="pre">&lt;site_id&gt;|&lt;branch_id&gt;</span></code>. Netlify’s <code class="docutils literal notranslate"><span class="pre">branch_id</span></code> is only unique within a site: the primary branch is called <code class="docutils literal notranslate"><span class="pre">production</span></code> on every Netlify DB.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch_id</p></td>
+<td><p></p></td>
+<td><p>Netlify’s branch identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>compute_last_active</p></td>
+<td><p></p></td>
+<td><p>When the compute endpoint last served a query.</p></td>
+</tr>
+<tr class="row-odd"><td><p>compute_max_cu</p></td>
+<td><p></p></td>
+<td><p>Maximum autoscaling compute units.</p></td>
+</tr>
+<tr class="row-even"><td><p>compute_min_cu</p></td>
+<td><p></p></td>
+<td><p>Minimum autoscaling compute units.</p></td>
+</tr>
+<tr class="row-odd"><td><p>compute_state</p></td>
+<td><p></p></td>
+<td><p>State of the branch’s compute endpoint, e.g. <code class="docutils literal notranslate"><span class="pre">active</span></code>, <code class="docutils literal notranslate"><span class="pre">idle</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>compute_suspend_timeout_seconds</p></td>
+<td><p></p></td>
+<td><p>Idle seconds before the compute endpoint suspends.</p></td>
+</tr>
+<tr class="row-odd"><td><p>connection_roles</p></td>
+<td><p></p></td>
+<td><p>Database roles Netlify issued a connection string for.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the branch was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_active_at</p></td>
+<td><p></p></td>
+<td><p>When the branch was last active.</p></td>
+</tr>
+<tr class="row-even"><td><p>logical_size_bytes</p></td>
+<td><p></p></td>
+<td><p>Logical size of the branch’s data.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Branch name.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the database is attached to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Branch state, e.g. <code class="docutils literal notranslate"><span class="pre">ready</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the branch was last modified.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_encrypted</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDatabaseBranch)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDatabaseBranch)-[:HAS_SNAPSHOT]-&gt;(:NetlifyDatabaseSnapshot)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DATABASE_BRANCH]-&gt;(:NetlifyDatabaseBranch)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydatabasesnapshot">
+<h2>NetlifyDatabaseSnapshot<a class="headerlink" href="#netlifydatabasesnapshot" title="Link to this heading">#</a></h2>
+<p>A point-in-time snapshot of a Netlify DB branch.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-snapshot"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify snapshot id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the snapshot was taken.</p></td>
+</tr>
+<tr class="row-even"><td><p>expires_at</p></td>
+<td><p></p></td>
+<td><p>When the snapshot is deleted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>manual</p></td>
+<td><p></p></td>
+<td><p>Whether the snapshot was taken by hand rather than on Netlify’s schedule.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Derived <code class="docutils literal notranslate"><span class="pre">&lt;source_branch_id&gt;&#64;&lt;timestamp&gt;</span></code>. Netlify gives a snapshot no name of its own.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the snapshotted database belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_branch_id</p></td>
+<td><p></p></td>
+<td><p>Netlify’s branch identifier of the snapshotted branch.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_branch_node_id</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NetlifyDatabaseBranch.id</span></code> of the snapshotted branch.</p></td>
+</tr>
+<tr class="row-even"><td><p>timestamp</p></td>
+<td><p></p></td>
+<td><p>Point in time the snapshot captures.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_encrypted</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_public</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source_id</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">source_branch_node_id</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDatabaseSnapshot)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDatabaseBranch)-[:HAS_SNAPSHOT]-&gt;(:NetlifyDatabaseSnapshot)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydeploy">
+<h2>NetlifyDeploy<a class="headerlink" href="#netlifydeploy" title="Link to this heading">#</a></h2>
+<p>The deploy currently published on a Netlify site.</p>
+<p>Only the published deploy is ingested. Netlify keeps the full deploy history behind a
+paginated endpoint that can hold thousands of entries per site, and the published deploy is
+embedded in the site payload, so this costs no extra API request and yields a bounded,
+deterministic set that cleanup can safely treat as exhaustive.</p>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify deploy id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin_url</p></td>
+<td><p></p></td>
+<td><p>Netlify admin URL for the deploy.</p></td>
+</tr>
+<tr class="row-even"><td><p>agent_runner_id</p></td>
+<td><p></p></td>
+<td><p>Set when a Netlify AI agent runner produced the deploy rather than a human.</p></td>
+</tr>
+<tr class="row-odd"><td><p>blobs_region</p></td>
+<td><p></p></td>
+<td><p>Region the deploy’s blob store lives in.</p></td>
+</tr>
+<tr class="row-even"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch the deploy was built from.</p></td>
+</tr>
+<tr class="row-odd"><td><p>build_id</p></td>
+<td><p></p></td>
+<td><p>Id of the build that produced the deploy, when there was one.</p></td>
+</tr>
+<tr class="row-even"><td><p>commit_message</p></td>
+<td><p></p></td>
+<td><p>Commit message.</p></td>
+</tr>
+<tr class="row-odd"><td><p>commit_ref</p></td>
+<td><p>Yes</p></td>
+<td><p>Commit SHA the deploy was built from.</p></td>
+</tr>
+<tr class="row-even"><td><p>commit_url</p></td>
+<td><p></p></td>
+<td><p>Link to the commit on the git provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>committer</p></td>
+<td><p></p></td>
+<td><p>Committer handle.</p></td>
+</tr>
+<tr class="row-even"><td><p>context</p></td>
+<td><p></p></td>
+<td><p>Deploy context, e.g. <code class="docutils literal notranslate"><span class="pre">production</span></code>, <code class="docutils literal notranslate"><span class="pre">deploy-preview</span></code>, <code class="docutils literal notranslate"><span class="pre">branch-deploy</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the deploy was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>database_branch_id</p></td>
+<td><p></p></td>
+<td><p>Netlify DB branch this deploy is wired to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deploy_source</p></td>
+<td><p></p></td>
+<td><p>How the deploy was submitted, e.g. <code class="docutils literal notranslate"><span class="pre">cli</span></code>, <code class="docutils literal notranslate"><span class="pre">git</span></code>, <code class="docutils literal notranslate"><span class="pre">api</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>deploy_ssl_url</p></td>
+<td><p></p></td>
+<td><p>HTTPS permalink of this specific deploy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deploy_time</p></td>
+<td><p></p></td>
+<td><p>How long the deploy took, in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p>deploy_url</p></td>
+<td><p></p></td>
+<td><p>Permalink URL of this specific deploy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>draft</p></td>
+<td><p></p></td>
+<td><p>Whether the deploy is a draft.</p></td>
+</tr>
+<tr class="row-even"><td><p>edge_functions_present</p></td>
+<td><p></p></td>
+<td><p>Whether the deploy ships edge functions.</p></td>
+</tr>
+<tr class="row-odd"><td><p>error_message</p></td>
+<td><p></p></td>
+<td><p>Failure reason, when the deploy failed.</p></td>
+</tr>
+<tr class="row-even"><td><p>framework</p></td>
+<td><p></p></td>
+<td><p>Framework Netlify detected.</p></td>
+</tr>
+<tr class="row-odd"><td><p>functions_region</p></td>
+<td><p></p></td>
+<td><p>Region the deploy’s functions run in.</p></td>
+</tr>
+<tr class="row-even"><td><p>locked</p></td>
+<td><p></p></td>
+<td><p>Whether the deploy is pinned as published.</p></td>
+</tr>
+<tr class="row-odd"><td><p>manual_deploy</p></td>
+<td><p></p></td>
+<td><p>Whether a prebuilt artifact was uploaded rather than built from git.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Site name at deploy time.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pending_review_reason</p></td>
+<td><p></p></td>
+<td><p>Why the deploy is awaiting review.</p></td>
+</tr>
+<tr class="row-even"><td><p>public_repo</p></td>
+<td><p></p></td>
+<td><p>Whether the source repository was public at deploy time.</p></td>
+</tr>
+<tr class="row-odd"><td><p>published_at</p></td>
+<td><p></p></td>
+<td><p>When the deploy became the published one.</p></td>
+</tr>
+<tr class="row-even"><td><p>required_edge_functions</p></td>
+<td><p></p></td>
+<td><p>Edge function ids the deploy requires.</p></td>
+</tr>
+<tr class="row-odd"><td><p>required_functions</p></td>
+<td><p></p></td>
+<td><p>Function ids the deploy requires.</p></td>
+</tr>
+<tr class="row-even"><td><p>review_id</p></td>
+<td><p></p></td>
+<td><p>Pull request number the deploy previews.</p></td>
+</tr>
+<tr class="row-odd"><td><p>review_url</p></td>
+<td><p></p></td>
+<td><p>Pull request URL the deploy previews.</p></td>
+</tr>
+<tr class="row-even"><td><p>secrets_scan_files_scanned</p></td>
+<td><p></p></td>
+<td><p>Number of files Netlify’s secrets scanner checked.</p></td>
+</tr>
+<tr class="row-odd"><td><p>secrets_scan_matches_count</p></td>
+<td><p></p></td>
+<td><p>Number of secrets the scanner matched. The matched values themselves are never ingested.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site this deploy belongs to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>skipped</p></td>
+<td><p></p></td>
+<td><p>Whether the build was skipped.</p></td>
+</tr>
+<tr class="row-even"><td><p>ssl_url</p></td>
+<td><p></p></td>
+<td><p>HTTPS URL served by this deploy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Deploy state, e.g. <code class="docutils literal notranslate"><span class="pre">ready</span></code>, <code class="docutils literal notranslate"><span class="pre">error</span></code>, <code class="docutils literal notranslate"><span class="pre">building</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>strict_contributor_verification_failure</p></td>
+<td><p></p></td>
+<td><p>True when Netlify could not verify the committer against the team. Unattributed code reached the site.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the deploy was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>Primary URL served by this deploy.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDeploy)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDeploy)-[:DEPLOYED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who triggered the deploy, when Netlify attributes it to one.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DEPLOY]-&gt;(:NetlifyDeploy)</span></code>: The deploy currently published on the site. Cartography ingests only the published
+deploy, not the site’s deploy history, so a site has at most one of these.</p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydeploykey">
+<h2>NetlifyDeployKey<a class="headerlink" href="#netlifydeploykey" title="Link to this heading">#</a></h2>
+<p>An SSH deploy key Netlify uses to clone a site’s source repository.</p>
+<p>The team edge is a MatchLink and the sites-using-it edge is declared on NetlifySite; see the
+module docstring.</p>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify deploy key id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the key was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>public_key</p></td>
+<td><p></p></td>
+<td><p>Public half of the SSH keypair.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDeployKey)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:USES_DEPLOY_KEY]-&gt;(:NetlifyDeployKey)</span></code>: The SSH key the site uses to clone its private repository. This edge is also what
+determines which keys are ingested at all: Netlify lists deploy keys per token rather
+than per team, so only keys a team’s own sites reference are attached to that team.</p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydevserver">
+<h2>NetlifyDevServer<a class="headerlink" href="#netlifydevserver" title="Link to this heading">#</a></h2>
+<p>A Netlify cloud dev server: an ephemeral container running a site’s working copy.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeinstance"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeInstance</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify dev server id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch the dev server serves.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>done_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server shut down.</p></td>
+</tr>
+<tr class="row-even"><td><p>enqueued_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server was requested.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment</p></td>
+<td><p></p></td>
+<td><p>Environment name the dev server runs as.</p></td>
+</tr>
+<tr class="row-even"><td><p>error_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server failed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_activity_at</p></td>
+<td><p></p></td>
+<td><p>Last request the dev server served.</p></td>
+</tr>
+<tr class="row-even"><td><p>live_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server became reachable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the dev server runs a copy of.</p></td>
+</tr>
+<tr class="row-even"><td><p>starting_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server began starting.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Dev server state, e.g. <code class="docutils literal notranslate"><span class="pre">enqueued</span></code>, <code class="docutils literal notranslate"><span class="pre">starting</span></code>, <code class="docutils literal notranslate"><span class="pre">live</span></code>, <code class="docutils literal notranslate"><span class="pre">done</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>stop_reason</p></td>
+<td><p></p></td>
+<td><p>Why the dev server stopped.</p></td>
+</tr>
+<tr class="row-odd"><td><p>title</p></td>
+<td><p></p></td>
+<td><p>Display title.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the dev server was last modified.</p></td>
+</tr>
+<tr class="row-odd"><td><p>url</p></td>
+<td><p>Yes</p></td>
+<td><p>Public hostname serving the dev server.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">branch</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_state</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDevServer)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DEV_SERVER]-&gt;(:NetlifyDevServer)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PublicIP)-[:POINTS_TO]-&gt;(:ComputeInstance)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydnsrecord">
+<h2>NetlifyDNSRecord<a class="headerlink" href="#netlifydnsrecord" title="Link to this heading">#</a></h2>
+<p>A record in a Netlify DNS zone.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-dnsrecord"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">DNSRecord</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify DNS record id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>dns_zone_id</p></td>
+<td><p></p></td>
+<td><p>Id of the zone holding the record.</p></td>
+</tr>
+<tr class="row-even"><td><p>flag</p></td>
+<td><p></p></td>
+<td><p>CAA flag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>hostname</p></td>
+<td><p></p></td>
+<td><p>Record hostname as Netlify reports it.</p></td>
+</tr>
+<tr class="row-even"><td><p>managed</p></td>
+<td><p></p></td>
+<td><p>Whether Netlify created and maintains the record itself. A false value means someone set it by hand.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Record hostname. Netlify calls this <code class="docutils literal notranslate"><span class="pre">hostname</span></code>; it is copied to <code class="docutils literal notranslate"><span class="pre">name</span></code> for the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p>priority</p></td>
+<td><p></p></td>
+<td><p>Priority, for <code class="docutils literal notranslate"><span class="pre">MX</span></code> and <code class="docutils literal notranslate"><span class="pre">SRV</span></code> records.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the record points at, when Netlify manages it.</p></td>
+</tr>
+<tr class="row-even"><td><p>tag</p></td>
+<td><p></p></td>
+<td><p>CAA tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ttl</p></td>
+<td><p></p></td>
+<td><p>Time to live, in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Record type, e.g. <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">CNAME</span></code>, <code class="docutils literal notranslate"><span class="pre">MX</span></code>, <code class="docutils literal notranslate"><span class="pre">TXT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>value</p></td>
+<td><p>Yes</p></td>
+<td><p>Record value or target.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">type</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_value</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">value</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDNSZone)-[:HAS_DNS_RECORD]-&gt;(:NetlifyDNSRecord)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifydnszone">
+<h2>NetlifyDNSZone<a class="headerlink" href="#netlifydnszone" title="Link to this heading">#</a></h2>
+<p>A DNS zone hosted on Netlify DNS.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-dnszone"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">DNSZone</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify DNS zone id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the zone was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>dedicated</p></td>
+<td><p></p></td>
+<td><p>Whether the zone is on dedicated nameservers.</p></td>
+</tr>
+<tr class="row-odd"><td><p>dns_servers</p></td>
+<td><p></p></td>
+<td><p>Nameservers the zone must be delegated to.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain</p></td>
+<td><p></p></td>
+<td><p>Apex domain of the zone. Taken from the domain registration’s name when the domain was bought through Netlify.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain_auto_renew</p></td>
+<td><p></p></td>
+<td><p>Whether the registration renews automatically. A false value is a hijack candidate.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain_expires_at</p></td>
+<td><p></p></td>
+<td><p>When the domain registration expires. A near expiry is a hijack candidate.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain_registered_at</p></td>
+<td><p></p></td>
+<td><p>When the apex domain was registered, for a domain bought through Netlify.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain_registration_status</p></td>
+<td><p></p></td>
+<td><p>Registration status Netlify reports, e.g. <code class="docutils literal notranslate"><span class="pre">payment_succeeded</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>errors</p></td>
+<td><p></p></td>
+<td><p>Delegation or validation problems Netlify reports. A zone in error is a dangling-delegation candidate.</p></td>
+</tr>
+<tr class="row-even"><td><p>ipv6_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether IPv6 records are enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Zone name.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the zone is attached to, when it is not held at team level.</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_record_types</p></td>
+<td><p></p></td>
+<td><p>Record types the zone accepts.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the zone was last modified.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_public</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyDNSZone)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDNSZone)-[:HAS_DNS_RECORD]-&gt;(:NetlifyDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DNS_ZONE]-&gt;(:NetlifyDNSZone)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyenvvar">
+<h2>NetlifyEnvVar<a class="headerlink" href="#netlifyenvvar" title="Link to this heading">#</a></h2>
+<p>A Netlify environment variable, team-wide or scoped to one site.</p>
+<p>Values are never ingested. Netlify masks a secret value down to its last four characters and
+returns a non-secret value in full, so transform() drops the <code class="docutils literal notranslate"><span class="pre">values[].value</span></code> field
+entirely and keeps only the contexts each value was set for.</p>
+<blockquote>
+<div><p><strong>Conditional Labels</strong>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">is_secret_flag</span></code> equals <code class="docutils literal notranslate"><span class="pre">true</span></code>. A cross-provider Secret resource in Cartography’s ontology.</p></li>
+</ul>
+</div></blockquote>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite <code class="docutils literal notranslate"><span class="pre">&lt;account_id&gt;|&lt;site_id&gt;|&lt;key&gt;</span></code>, with <code class="docutils literal notranslate"><span class="pre">_account</span></code> in place of the site id for a team-wide variable. The key is the only stable natural identifier, and the same key can exist at both scopes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>contexts</p></td>
+<td><p></p></td>
+<td><p>Deploy contexts the variable is set for.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_secret</p></td>
+<td><p></p></td>
+<td><p>Whether Netlify marks the variable secret.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_secret_flag</p></td>
+<td><p></p></td>
+<td><p>String mirror of <code class="docutils literal notranslate"><span class="pre">is_secret</span></code>. Conditional extra labels are compared as Cypher strings, so a real boolean would never match.</p></td>
+</tr>
+<tr class="row-even"><td><p>key</p></td>
+<td><p>Yes</p></td>
+<td><p>Variable name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>scope</p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">site</span></code> or <code class="docutils literal notranslate"><span class="pre">account</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>scopes</p></td>
+<td><p></p></td>
+<td><p>Where the variable is readable: <code class="docutils literal notranslate"><span class="pre">builds</span></code>, <code class="docutils literal notranslate"><span class="pre">functions</span></code>, <code class="docutils literal notranslate"><span class="pre">runtime</span></code>, <code class="docutils literal notranslate"><span class="pre">post_processing</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site, empty for a team-wide variable.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the variable was last changed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">key</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_updated_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">updated_at</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyEnvVar)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyEnvVar)-[:UPDATED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who last changed this variable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_ENV_VAR]-&gt;(:NetlifyEnvVar)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyform">
+<h2>NetlifyForm<a class="headerlink" href="#netlifyform" title="Link to this heading">#</a></h2>
+<p>A form Netlify detected on a site, together with the submissions it collects.</p>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify form id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the form was first detected.</p></td>
+</tr>
+<tr class="row-even"><td><p>field_names</p></td>
+<td><p></p></td>
+<td><p>Names of the form’s input fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Form name, from the <code class="docutils literal notranslate"><span class="pre">name</span></code> attribute of the HTML form.</p></td>
+</tr>
+<tr class="row-even"><td><p>paths</p></td>
+<td><p></p></td>
+<td><p>Site paths the form was detected on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the form was detected on.</p></td>
+</tr>
+<tr class="row-even"><td><p>submission_count</p></td>
+<td><p></p></td>
+<td><p>Number of submissions Netlify has stored.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyForm)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_FORM]-&gt;(:NetlifyForm)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyfunction">
+<h2>NetlifyFunction<a class="headerlink" href="#netlifyfunction" title="Link to this heading">#</a></h2>
+<p>A serverless function deployed on a Netlify site.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-function"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Function</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite <code class="docutils literal notranslate"><span class="pre">&lt;site_id&gt;|&lt;branch&gt;|&lt;name&gt;</span></code>. Netlify’s own function ids are content hashes that change on every build, so keying on them would create a new node per deploy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch the function bundle was built from.</p></td>
+</tr>
+<tr class="row-even"><td><p>content_digest</p></td>
+<td><p></p></td>
+<td><p>Digest of the function’s built artifact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the function bundle was built.</p></td>
+</tr>
+<tr class="row-even"><td><p>endpoint</p></td>
+<td><p></p></td>
+<td><p>Publicly reachable invocation URL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invocation_mode</p></td>
+<td><p></p></td>
+<td><p>How the function is invoked, e.g. <code class="docutils literal notranslate"><span class="pre">stream</span></code>, <code class="docutils literal notranslate"><span class="pre">buffer</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>log_type</p></td>
+<td><p></p></td>
+<td><p>Logging pipeline the function reports to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>memory_mb</p></td>
+<td><p></p></td>
+<td><p>Memory allocated to the function, in MB.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Function name, which is also its route segment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider</p></td>
+<td><p></p></td>
+<td><p>Underlying compute provider, e.g. <code class="docutils literal notranslate"><span class="pre">aws_lambda</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>provider_account_id</p></td>
+<td><p></p></td>
+<td><p>Provider account the function runs in.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider_function_id</p></td>
+<td><p></p></td>
+<td><p>Netlify’s per-build function id.</p></td>
+</tr>
+<tr class="row-even"><td><p>region</p></td>
+<td><p></p></td>
+<td><p>Region the function runs in.</p></td>
+</tr>
+<tr class="row-odd"><td><p>runtime</p></td>
+<td><p></p></td>
+<td><p>Runtime the function executes on, e.g. <code class="docutils literal notranslate"><span class="pre">nodejs24.x</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>schedule</p></td>
+<td><p></p></td>
+<td><p>Cron expression, when the function runs on a schedule rather than on request.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the function is deployed on.</p></td>
+</tr>
+<tr class="row-even"><td><p>size_bytes</p></td>
+<td><p></p></td>
+<td><p>Size of the built artifact.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_deployment_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_memory</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">memory_mb</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_runtime</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">runtime</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_FUNCTION]-&gt;(:NetlifyFunction)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyhook">
+<h2>NetlifyHook<a class="headerlink" href="#netlifyhook" title="Link to this heading">#</a></h2>
+<p>An outgoing notification hook: where Netlify reports a site’s deploy events.</p>
+<p>The hook’s <code class="docutils literal notranslate"><span class="pre">data</span></code> object is not ingested. Depending on the hook type it holds the Slack
+incoming-webhook URL, the target webhook URL, or a git provider access token, all of which
+are credentials.</p>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify hook id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the hook was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>disabled</p></td>
+<td><p></p></td>
+<td><p>Whether the hook is turned off.</p></td>
+</tr>
+<tr class="row-odd"><td><p>event</p></td>
+<td><p></p></td>
+<td><p>Deploy lifecycle event that fires it, e.g. <code class="docutils literal notranslate"><span class="pre">deploy_created</span></code>, <code class="docutils literal notranslate"><span class="pre">deploy_failed</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site whose events the hook reports.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Destination kind, e.g. <code class="docutils literal notranslate"><span class="pre">url</span></code>, <code class="docutils literal notranslate"><span class="pre">slack</span></code>, <code class="docutils literal notranslate"><span class="pre">email</span></code>, <code class="docutils literal notranslate"><span class="pre">github_commit_status</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the hook was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_NOTIFICATION_HOOK]-&gt;(:NetlifyHook)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyinvite">
+<h2>NetlifyInvite<a class="headerlink" href="#netlifyinvite" title="Link to this heading">#</a></h2>
+<p>An email address invited to a Netlify team that has not accepted yet.</p>
+<p>A team member is invited by email address alone, so the membership exists before any Netlify
+user is attached to it. NetlifyUser is keyed on the user id, so those rows get their own node
+keyed on the email, the only identity they have. An existing user invited to a further team
+is a NetlifyUser with a pending membership instead, since the person already exists.</p>
+<p>It carries no ontology label on purpose: there is no account behind the address, so calling
+it a user account would put a non-existent identity into cross-provider identity queries.</p>
+<p>The node is deleted once no team holds the invitation any more, which is what happens when it
+is accepted or revoked. An address still invited elsewhere survives.</p>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The invited email address.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>The invited email address.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyInvite)</span></code>: The team that issued the invitation. The same address can be invited to several teams.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyInvite)-[:INVITED_TO]-&gt;(:NetlifyAccount)</span></code>: An outstanding invitation to a team. Deliberately not a membership edge: the address is not
+a member of anything until it accepts.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>When the invitation was issued.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invite_id</p></td>
+<td><p>Netlify’s id for the invitation, when it reports one.</p></td>
+</tr>
+<tr class="row-even"><td><p>membership_id</p></td>
+<td><p>Id of the membership row holding the invitation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pending</p></td>
+<td><p>Whether Netlify still reports the invitation as pending.</p></td>
+</tr>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role the address is invited to hold in this team.</p></td>
+</tr>
+<tr class="row-odd"><td><p>self_invite_state</p></td>
+<td><p>State of a self-service join request, when the address asked to join.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_access</p></td>
+<td><p>Site access the invitation grants (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>, …).</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>When the invitation was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="netlifyserviceinstance">
+<h2>NetlifyServiceInstance<a class="headerlink" href="#netlifyserviceinstance" title="Link to this heading">#</a></h2>
+<p>A third-party add-on installed on a Netlify site.</p>
+<p>The instance’s <code class="docutils literal notranslate"><span class="pre">config</span></code> and <code class="docutils literal notranslate"><span class="pre">env</span></code> objects are not ingested: they hold the add-on’s
+provisioned credentials, and <code class="docutils literal notranslate"><span class="pre">auth_url</span></code> is a pre-authenticated sign-in link.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-thirdpartyapp"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify service instance id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the add-on was installed.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_name</p></td>
+<td><p></p></td>
+<td><p>Add-on display name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_path</p></td>
+<td><p></p></td>
+<td><p>Site path the add-on is mounted at.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_slug</p></td>
+<td><p>Yes</p></td>
+<td><p>Add-on slug, its stable identifier.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the add-on is installed on.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the add-on was last modified.</p></td>
+</tr>
+<tr class="row-odd"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>Add-on URL.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_client_id</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">service_slug</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_enabled</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">service_name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyServiceInstance)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_SERVICE_INSTANCE]-&gt;(:NetlifyServiceInstance)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:AUTHORIZED]-&gt;(:ThirdPartyApp)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>scopes</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">AUTHORIZED</span> <span class="pre">ThirdPartyApp</span> <span class="pre">linking</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="netlifysite">
+<h2>NetlifySite<a class="headerlink" href="#netlifysite" title="Link to this heading">#</a></h2>
+<p>A Netlify site: the deployed web application, its entry points and its build settings.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id33">
+<h3>Properties<a class="headerlink" href="#id33" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify site id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>account_sso_login</p></td>
+<td><p></p></td>
+<td><p>Whether the team-level SSO requirement applies to this site.</p></td>
+</tr>
+<tr class="row-even"><td><p>account_sso_login_context</p></td>
+<td><p></p></td>
+<td><p>Which deploy contexts the team-level SSO requirement applies to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin_url</p></td>
+<td><p></p></td>
+<td><p>Netlify admin URL for the site.</p></td>
+</tr>
+<tr class="row-even"><td><p>automatic_tls_provisioning</p></td>
+<td><p></p></td>
+<td><p>Whether Netlify provisions certificates automatically.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch_deploy_custom_domain</p></td>
+<td><p></p></td>
+<td><p>Custom domain pattern for branch deploys.</p></td>
+</tr>
+<tr class="row-even"><td><p>build_command</p></td>
+<td><p></p></td>
+<td><p>Build command.</p></td>
+</tr>
+<tr class="row-odd"><td><p>build_image</p></td>
+<td><p></p></td>
+<td><p>Build image the site builds on, e.g. <code class="docutils literal notranslate"><span class="pre">noble</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the site was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>custom_domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Customer’s own primary domain, if set.</p></td>
+</tr>
+<tr class="row-even"><td><p>default_domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Always-present <code class="docutils literal notranslate"><span class="pre">*.netlify.app</span></code> hostname.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deploy_key_id</p></td>
+<td><p></p></td>
+<td><p>Id of the deploy key used to clone the repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>deploy_preview_custom_domain</p></td>
+<td><p></p></td>
+<td><p>Custom domain pattern for deploy previews.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deploy_retention_in_days</p></td>
+<td><p></p></td>
+<td><p>How long deploys are kept.</p></td>
+</tr>
+<tr class="row-even"><td><p>disabled</p></td>
+<td><p></p></td>
+<td><p>Whether the site has been taken offline.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disabled_reason</p></td>
+<td><p></p></td>
+<td><p>Why the site was taken offline.</p></td>
+</tr>
+<tr class="row-even"><td><p>dns_zone_id</p></td>
+<td><p></p></td>
+<td><p>Id of the Netlify DNS zone serving the site, if any.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain_aliases</p></td>
+<td><p></p></td>
+<td><p>Additional domains serving the same site.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> when the site is served and no access gate covers it. Only a gate whose context is <code class="docutils literal notranslate"><span class="pre">all</span></code> counts, since a context-scoped one leaves production open.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet_type</p></td>
+<td><p>Yes</p></td>
+<td><p>How it is exposed. Always <code class="docutils literal notranslate"><span class="pre">direct</span></code>, since the site is served at its own URL.</p></td>
+</tr>
+<tr class="row-even"><td><p>force_ssl</p></td>
+<td><p></p></td>
+<td><p>Whether plain HTTP is redirected to HTTPS.</p></td>
+</tr>
+<tr class="row-odd"><td><p>functions_dir</p></td>
+<td><p></p></td>
+<td><p>Directory holding the serverless functions.</p></td>
+</tr>
+<tr class="row-even"><td><p>functions_region</p></td>
+<td><p></p></td>
+<td><p>Region the site’s serverless functions run in.</p></td>
+</tr>
+<tr class="row-odd"><td><p>functions_timeout</p></td>
+<td><p></p></td>
+<td><p>Function timeout in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p>git_provider</p></td>
+<td><p></p></td>
+<td><p>Git provider backing the site, e.g. <code class="docutils literal notranslate"><span class="pre">github</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_database</p></td>
+<td><p></p></td>
+<td><p>Whether a Netlify DB is attached.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_jwt_secret</p></td>
+<td><p></p></td>
+<td><p>Whether a Netlify Identity JWT signing secret is configured. The secret itself is dropped.</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_password</p></td>
+<td><p></p></td>
+<td><p>Whether the site is behind a password. The password itself is never returned by the API.</p></td>
+</tr>
+<tr class="row-even"><td><p>identity_instance_id</p></td>
+<td><p></p></td>
+<td><p>Netlify Identity instance backing the site, if any.</p></td>
+</tr>
+<tr class="row-odd"><td><p>jwt_roles_path</p></td>
+<td><p></p></td>
+<td><p>JSON path in the JWT where Netlify reads role claims.</p></td>
+</tr>
+<tr class="row-even"><td><p>lifecycle_state</p></td>
+<td><p></p></td>
+<td><p>Site lifecycle state, e.g. <code class="docutils literal notranslate"><span class="pre">active</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>managed_dns</p></td>
+<td><p></p></td>
+<td><p>Whether the site’s DNS is hosted on Netlify DNS.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Site name, which is also its <code class="docutils literal notranslate"><span class="pre">*.netlify.app</span></code> subdomain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_context</p></td>
+<td><p></p></td>
+<td><p>Which deploy contexts the password applies to.</p></td>
+</tr>
+<tr class="row-even"><td><p>plan</p></td>
+<td><p></p></td>
+<td><p>Plan the site is billed on, e.g. <code class="docutils literal notranslate"><span class="pre">nf_team_dev</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>prerender</p></td>
+<td><p></p></td>
+<td><p>Prerendering setting.</p></td>
+</tr>
+<tr class="row-even"><td><p>prevent_non_git_prod_deploys</p></td>
+<td><p></p></td>
+<td><p>Whether production deploys must come from git rather than an upload.</p></td>
+</tr>
+<tr class="row-odd"><td><p>publish_dir</p></td>
+<td><p></p></td>
+<td><p>Directory published as the site root.</p></td>
+</tr>
+<tr class="row-even"><td><p>repo_allowed_branches</p></td>
+<td><p></p></td>
+<td><p>Branches Netlify is allowed to build.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repo_branch</p></td>
+<td><p></p></td>
+<td><p>Production branch.</p></td>
+</tr>
+<tr class="row-even"><td><p>repo_path</p></td>
+<td><p>Yes</p></td>
+<td><p>Source repository in <code class="docutils literal notranslate"><span class="pre">owner/name</span></code> form, used to join to <code class="docutils literal notranslate"><span class="pre">GitHubRepository</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repo_private_logs</p></td>
+<td><p></p></td>
+<td><p>Whether build logs are kept private.</p></td>
+</tr>
+<tr class="row-even"><td><p>repo_public</p></td>
+<td><p></p></td>
+<td><p>Whether the source repository is public.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repo_stop_builds</p></td>
+<td><p></p></td>
+<td><p>Whether automatic builds are paused.</p></td>
+</tr>
+<tr class="row-even"><td><p>repo_url</p></td>
+<td><p></p></td>
+<td><p>Source repository URL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ssl</p></td>
+<td><p></p></td>
+<td><p>Whether a TLS certificate is in place.</p></td>
+</tr>
+<tr class="row-even"><td><p>ssl_status</p></td>
+<td><p></p></td>
+<td><p>Provisioning status of the certificate.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ssl_url</p></td>
+<td><p></p></td>
+<td><p>HTTPS URL of the site.</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_login</p></td>
+<td><p></p></td>
+<td><p>Whether Netlify SSO is required to view the site.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_login_context</p></td>
+<td><p></p></td>
+<td><p>Which deploy contexts the SSO requirement applies to.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Site state, e.g. <code class="docutils literal notranslate"><span class="pre">current</span></code>, <code class="docutils literal notranslate"><span class="pre">building</span></code>, <code class="docutils literal notranslate"><span class="pre">error</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the site was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>Yes</p></td>
+<td><p>Primary URL of the site.</p></td>
+</tr>
+<tr class="row-odd"><td><p>use_edge_handlers</p></td>
+<td><p></p></td>
+<td><p>Whether edge handlers are enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>use_forms</p></td>
+<td><p></p></td>
+<td><p>Whether form detection is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>use_functions</p></td>
+<td><p></p></td>
+<td><p>Whether serverless functions are enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id34">
+<h3>Relationships<a class="headerlink" href="#id34" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifySite)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:DEPLOYED_FROM]-&gt;(:GitHubRepository)</span></code>: The GitHub repository the site builds from, joined on the repository’s full name.
+Best effort: the edge only exists if that repository has also been ingested.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_AGENT_RUNNER]-&gt;(:NetlifyAgentRunner)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_BUILD_HOOK]-&gt;(:NetlifyBuildHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_CERTIFICATE]-&gt;(:NetlifyCertificate)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DATABASE_BRANCH]-&gt;(:NetlifyDatabaseBranch)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DEPLOY]-&gt;(:NetlifyDeploy)</span></code>: The deploy currently published on the site. Cartography ingests only the published
+deploy, not the site’s deploy history, so a site has at most one of these.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DEV_SERVER]-&gt;(:NetlifyDevServer)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_DNS_ZONE]-&gt;(:NetlifyDNSZone)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_ENV_VAR]-&gt;(:NetlifyEnvVar)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_FORM]-&gt;(:NetlifyForm)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_FUNCTION]-&gt;(:NetlifyFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_NOTIFICATION_HOOK]-&gt;(:NetlifyHook)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_SERVICE_INSTANCE]-&gt;(:NetlifyServiceInstance)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_SNIPPET]-&gt;(:NetlifySnippet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:USES_DEPLOY_KEY]-&gt;(:NetlifyDeployKey)</span></code>: The SSH key the site uses to clone its private repository. This edge is also what
+determines which keys are ingested at all: Netlify lists deploy keys per token rather
+than per team, so only keys a team’s own sites reference are attached to that team.</p></li>
+</ul>
+</section>
+</section>
+<section id="netlifysnippet">
+<h2>NetlifySnippet<a class="headerlink" href="#netlifysnippet" title="Link to this heading">#</a></h2>
+<p>A snippet: arbitrary markup Netlify injects into every page a site serves.</p>
+<p>Snippets execute in every visitor’s browser with the site’s origin, so a third-party script
+added here has the same reach as first-party code.</p>
+<section id="id35">
+<h3>Properties<a class="headerlink" href="#id35" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Composite <code class="docutils literal notranslate"><span class="pre">&lt;site_id&gt;|&lt;snippet_index&gt;</span></code>. Netlify’s snippet id is the snippet’s position in the site’s list, so it collides across sites and is renumbered when an earlier snippet is deleted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>general</p></td>
+<td><p></p></td>
+<td><p>The injected markup.</p></td>
+</tr>
+<tr class="row-even"><td><p>general_position</p></td>
+<td><p></p></td>
+<td><p>Where the general markup is injected: <code class="docutils literal notranslate"><span class="pre">head</span></code> or <code class="docutils literal notranslate"><span class="pre">footer</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>goal</p></td>
+<td><p></p></td>
+<td><p>The goal-tracking markup.</p></td>
+</tr>
+<tr class="row-even"><td><p>goal_position</p></td>
+<td><p></p></td>
+<td><p>Where the goal markup is injected.</p></td>
+</tr>
+<tr class="row-odd"><td><p>site_id</p></td>
+<td><p></p></td>
+<td><p>Id of the site the snippet is injected into.</p></td>
+</tr>
+<tr class="row-even"><td><p>snippet_index</p></td>
+<td><p></p></td>
+<td><p>Netlify’s positional snippet id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>title</p></td>
+<td><p></p></td>
+<td><p>Display title.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id36">
+<h3>Relationships<a class="headerlink" href="#id36" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifySnippet)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifySite)-[:HAS_SNIPPET]-&gt;(:NetlifySnippet)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="netlifyuser">
+<h2>NetlifyUser<a class="headerlink" href="#netlifyuser" title="Link to this heading">#</a></h2>
+<p>A member of a Netlify team, keyed on the person rather than on the membership row, so one
+human is one node even when they belong to several teams.</p>
+<p>The node is never deleted by a team’s cleanup: other teams and other modules may still
+reference the identity. Removing someone from a team drops that team’s edges and leaves a
+bare node behind, so ask who is on a team by traversing the membership edge rather than by
+node existence.</p>
+<p>A membership Netlify has not linked a user to becomes a NetlifyInvite instead. The split is
+on whether a user exists, not on whether the membership is pending: someone who already has
+a Netlify account and is invited to a further team stays a NetlifyUser with a pending
+membership.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id37">
+<h3>Properties<a class="headerlink" href="#id37" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>The Netlify user id of the person.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>avatar</p></td>
+<td><p></p></td>
+<td><p>Avatar image URL.</p></td>
+</tr>
+<tr class="row-even"><td><p>connected_account_providers</p></td>
+<td><p></p></td>
+<td><p>Identity providers linked to the account, e.g. <code class="docutils literal notranslate"><span class="pre">[&quot;google&quot;]</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>Email address.</p></td>
+</tr>
+<tr class="row-even"><td><p>full_name</p></td>
+<td><p></p></td>
+<td><p>Display name. Netlify never splits this into first and last name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_activity_date</p></td>
+<td><p></p></td>
+<td><p>Date of last activity, as a date string.</p></td>
+</tr>
+<tr class="row-even"><td><p>mfa_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the account has MFA enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">full_name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_has_mfa</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">mfa_enabled</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_lastactivity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">last_activity_date</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id38">
+<h3>Relationships<a class="headerlink" href="#id38" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAccount)-[:RESOURCE]-&gt;(:NetlifyUser)</span></code>: The team this person is a member of. The identity itself is shared across teams.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyAgentRunner)-[:CREATED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who started this agent runner.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyDeploy)-[:DEPLOYED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who triggered the deploy, when Netlify attributes it to one.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyEnvVar)-[:UPDATED_BY]-&gt;(:NetlifyUser)</span></code>: The team member who last changed this variable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:NetlifyUser)-[:MEMBER_OF]-&gt;(:NetlifyAccount)</span></code>: Membership of a team. Everything that varies per team is carried here rather than on the
+person, because the same human holds a different role, site access grant and invitation
+state in every team they belong to. <code class="docutils literal notranslate"><span class="pre">pending</span></code> in particular is per team, so whether someone
+is active is a fact about the membership, not about the identity.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>When the membership was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invite_id</p></td>
+<td><p>Id of the outstanding invitation, when there is one.</p></td>
+</tr>
+<tr class="row-even"><td><p>managed_by_directory_sync</p></td>
+<td><p>Whether this membership is provisioned by directory sync.</p></td>
+</tr>
+<tr class="row-odd"><td><p>membership_id</p></td>
+<td><p>Id of the membership row in this team.</p></td>
+</tr>
+<tr class="row-even"><td><p>pending</p></td>
+<td><p>Whether an invitation to this team is still outstanding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>role</p></td>
+<td><p>Role held in this team, e.g. <code class="docutils literal notranslate"><span class="pre">Owner</span></code>, <code class="docutils literal notranslate"><span class="pre">Collaborator</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>site_access</p></td>
+<td><p>Which of the team’s sites this member can reach (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>, …).</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p>When the membership was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:UserAccount)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Netlify Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../oci/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Oracle Cloud Infrastructure</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script></body>
+</html>
