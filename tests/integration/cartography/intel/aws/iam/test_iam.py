@@ -236,6 +236,110 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     assert actual == expected
 
 
+def _trust_edge_properties(neo4j_session, role_arn: str) -> dict:
+    result = neo4j_session.run(
+        """
+        MATCH (r:AWSRole{arn: $role_arn})-[t:TRUSTS_AWS_PRINCIPAL]->(p:AWSPrincipal)
+        RETURN p.arn AS principal_arn,
+               t.has_condition AS has_condition,
+               t.condition_keys AS condition_keys,
+               t.conditions AS conditions
+        """,
+        role_arn=role_arn,
+    )
+    return {record["principal_arn"]: dict(record) for record in result}
+
+
+def test_trust_conditions_are_loaded_onto_the_edge(neo4j_session):
+    """Two roles differing only in sub scoping must not produce identical trust edges."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    provider_arn = tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN
+
+    pinned = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
+    )[provider_arn]
+    org_wide = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-org-wide"
+    )[provider_arn]
+
+    assert pinned["has_condition"] is True
+    assert org_wide["has_condition"] is True
+    assert (
+        pinned["condition_keys"]
+        == org_wide["condition_keys"]
+        == [
+            "token.actions.githubusercontent.com:aud",
+            "token.actions.githubusercontent.com:sub",
+        ]
+    )
+    assert "repo:octo-org/octo-repo:ref:refs/heads/main" in pinned["conditions"]
+    assert "repo:octo-org/*" in org_wide["conditions"]
+    assert pinned["conditions"] != org_wide["conditions"]
+
+
+def test_unconditional_trust_edge_is_not_flagged(neo4j_session):
+    """An unconditional Allow anywhere in the trust policy wins for that principal."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    mixed = _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-mixed"
+    )[tests.data.aws.iam.GITHUB_OIDC_PROVIDER_ARN]
+
+    assert mixed["has_condition"] is False
+    assert mixed["condition_keys"] == []
+    assert mixed["conditions"] is None
+
+
+def test_stale_trust_edges_are_cleaned_up(neo4j_session):
+    """A trust removed from the policy must not survive the next sync."""
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    assert _trust_edge_properties(
+        neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
+    )
+
+    # Re-sync at a later tag with the trust policy emptied out.
+    untrusting = {
+        "Roles": [
+            {
+                **role,
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [],
+                },
+            }
+            for role in tests.data.aws.iam.LIST_ROLES_GITHUB_OIDC["Roles"]
+        ],
+    }
+    cartography.intel.aws.iam.sync_role_assumptions(
+        neo4j_session,
+        untrusting,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert (
+        _trust_edge_properties(
+            neo4j_session, "arn:aws:iam::000000000000:role/gha-pinned"
+        )
+        == {}
+    )
+
+
 def test_sync_saml_providers(neo4j_session):
     _create_base_account(neo4j_session)
 
