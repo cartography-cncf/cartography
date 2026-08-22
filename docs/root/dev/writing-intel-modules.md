@@ -9,7 +9,7 @@ running, testing, and linting your code there.
 
 ## The fast way
 
-To get started coding without reading this doc, just copy the structure of our [AWS EMR module](https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py) and use it as an example. For a longer written explanation of the "how" and "why", read on.
+To get started coding without reading this doc, use the AWS EMR implementation as an example. Its [ingestion code](https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py) contains the API and sync functions, while its [declarative data model](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/emr.py) defines nodes and relationships. For a longer written explanation of the "how" and "why", read on.
 
 ## Configuration and credential management
 
@@ -139,7 +139,7 @@ Neo4j handles fields in `datetime` format, so when a date is returned as a strin
 
 ### Load
 
-[As seen in our AWS EMR example](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
+[As seen in our AWS EMR ingestion code](https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/master/cartography/client/core/tx.py):
 ```python
 def load_emr_clusters(
         neo4j_session: neo4j.Session,
@@ -168,7 +168,7 @@ When defining nodes and properties, please follow the naming convention below:
 
 #### Defining a node
 
-As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema code](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
+As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema code](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/emr.py):
 
 ```python
 @dataclass(frozen=True)
@@ -178,14 +178,14 @@ class EMRClusterSchema(CartographyNodeSchema):
     sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
 ```
 
-An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and contains a node label, properties, and connection to its [sub-resource](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228): an `AWSAccount`.
+An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and contains a node label, properties, and a connection to its [sub-resource](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/core/nodes.py): an `AWSAccount`.
 
 Note that the typehints are necessary for Python dataclasses to work properly.
 
 
 #### Defining node properties
 
-Here's our [EMRClusterNodeProperties code](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
+Here's our [EMRClusterNodeProperties code](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/emr.py):
 
 ```python
 @dataclass(frozen=True)
@@ -199,9 +199,9 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
     security_configuration: PropertyRef = PropertyRef('SecurityConfiguration')
 ```
 
-A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
+A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/core/common.py) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
 
-For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `AWSEMRCluster` node using the value located at key `'id'` on each dict in the list.
+For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `AWSEMRCluster` node using the value located at key `'Id'` on each dict in the list. The `PropertyRef` argument is case-sensitive and names the source field, while the dataclass attribute names the Neo4j property.
 
 As another example, `region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)` tells the querybuilder to set a field called `region` on the `AWSEMRCluster` node using a keyword argument called `Region` supplied to `cartography.client.core.tx.load()`. `set_in_kwargs=True` is useful in cases where we want every object loaded by a single call to `load()` to have the same value for a given attribute.
 
@@ -383,9 +383,9 @@ case-sensitive, so uppercase variants do not match.
 (defining-relationships)=
 #### Defining relationships
 
-Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
+Relationships can be defined on `CartographyNodeSchema` through its [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/core/nodes.py) field or its [other_relationships](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/core/relationships.py) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/master/tests/data/graph/querybuilder/sample_models/interesting_asset.py)).
 
-As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccountRel](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
+As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccountRel](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/emr.py):
 
 ```python
 @dataclass(frozen=True)
@@ -403,8 +403,8 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 This class is best described by explaining how it is processed: `build_ingestion_query()` will traverse the `EMRClusterSchema` to its `sub_resource_relationship` field and find the above `EMRClusterToAWSAccountRel` object. With this information, we know to
 - draw a relationship to an `AWSAccount` node (1) using the label "`RESOURCE`" (4)
 - by matching on the AWSAccount's "`id`" field" (2)
-- where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the AWSEMRCluster (3)
-- making sure to define a set of properties for the relationship (5). The [full example RelProperties](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91) is very short:
+- where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/core/relationships.py) is pointed _inward_ toward the AWSEMRCluster (3)
+- making sure to define a set of properties for the relationship (5). The [full example RelProperties](https://github.com/cartography-cncf/cartography/blob/master/cartography/models/aws/emr.py) is very short:
 
 ```python
 @dataclass(frozen=True)
@@ -506,7 +506,7 @@ UNWIND $DictList AS item
         }
 ```
 
-And that's basically all you need to know to understand how to define your own nodes and relationships using cartography's data objects. For more information, you can view the [object model API documentation](https://github.com/cartography-cncf/cartography/blob/master/cartography/graph/model.py) as a reference.
+And that's basically all you need to know to understand how to define your own nodes and relationships using cartography's data objects. For more information, view the [model API documentation](../references/model) as a reference.
 
 ### Additional concepts
 
@@ -537,10 +537,12 @@ All `cartography` intel modules set the `lastupdated` property on all nodes and 
 
 #### All relationships need these fields
 
-Cartography currently does not create indexes on relationships, so in most cases we should keep relationships lightweight with only these two fields:
+Keep relationships lightweight unless an ingestion or query path requires additional properties. Standard relationships typically contain these two fields:
 
 - `lastupdated` - See [below](#lastupdated-and-firstseen) on how this gets set automatically.
 - `firstseen` - See [below](#lastupdated-and-firstseen) on how this gets set automatically.
+
+For MatchLinks loaded with `load_matchlinks()`, Cartography also creates a composite relationship index on `_sub_resource_label` and `_sub_resource_id`. Those stable keys support scoped cleanup; `lastupdated` is deliberately excluded because it changes on every sync.
 
 #### Run queries only on indexed fields for best performance
 
@@ -661,7 +663,7 @@ We have just added new nodes and relationships to the graph, and we have also up
 by using `MERGE`. We now need to delete nodes and relationships that no longer exist, and we do this by removing
 all nodes and relationships that have `lastupdated` NOT set to the `update_tag` of this current run.
 
-By using Cartography schema objects, a cleanup function is [trivial to write](https://github.com/cartography-cncf/cartography/blob/82e1dd0e851475381ac8f2a9a08027d67ec1d772/cartography/intel/aws/emr.py#L77-L80):
+By using Cartography schema objects, a cleanup function is [trivial to write](https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py):
 
 ```python
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
@@ -774,9 +776,11 @@ the AWS EC2 instance example [here](https://github.com/cartography-cncf/cartogra
 - If needed, add unit tests to `tests/unit/cartography/intel`. As seen in this GCP [example](https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py),
   these tests ensure that `transform*` manipulates the data in expected ways.
 
-- Add integration tests to  `tests/integration/cartography/intel`. See this AWS EC2 instance [example](https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/integration/cartography/intel/aws/ec2/test_ec2_instances.py#L17-L22).
-  These tests assume that you have neo4j running at localhost:7687 with no password, and ensure that nodes loaded to the
-  graph match your mock data.
+- Add integration tests to `tests/integration/cartography/intel`. See this AWS EC2 instance [example](https://github.com/cartography-cncf/cartography/blob/master/tests/integration/cartography/intel/aws/ec2/test_ec2_instances.py).
+  By default, integration tests start a disposable Neo4j test container and
+  verify that the loaded nodes and relationships match the mock data. Docker
+  must be running. To use an existing Neo4j instance instead, set `NEO4J_URL`;
+  integration tests delete all nodes from that database.
 
 ## Other
 

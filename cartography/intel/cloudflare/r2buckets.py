@@ -207,7 +207,9 @@ def get_custom_domains(
             exc_info=True,
         )
         return None
-    return [domain.to_dict() for domain in response.domains]
+    # Like the bucket listing above, the SDK types `domains` as required but the
+    # API omits it for a bucket without any custom domain.
+    return [domain.to_dict() for domain in response.domains or []]
 
 
 def bucket_id(account_id: str, jurisdiction: str, bucket_name: str) -> str:
@@ -268,7 +270,15 @@ def get_exposure(
                     zone_ids.append(domain["zoneId"])
 
         exposure[bucket_id(account_id, jurisdiction, bucket["name"])] = {
-            "public": bool(public_domains) if complete else None,
+            # One enabled domain is enough to make the bucket readable, so a positive
+            # finding is definitive even if the other domain source failed. Only the
+            # negative answer needs a complete read: without one, "no domain seen" cannot
+            # be told apart from "did not manage to look".
+            "public": True if public_domains else (False if complete else None),
+            "exposed_internet": (
+                True if public_domains else (False if complete else None)
+            ),
+            "exposed_internet_type": ["direct"] if public_domains else None,
             # A partial hostname list reads as authoritative once it is in the
             # graph, so it is left unknown rather than published half-filled.
             "public_domains": public_domains if complete else None,

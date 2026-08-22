@@ -48,6 +48,10 @@ def transform_servers(
     result: dict[str, list[dict[str, Any]]] = {}
     for server in servers:
         formatted = scaleway_obj_to_dict(server)
+        # Apple silicon calls its public address `ip` rather than `public_ip`. Same as the
+        # other bare metal products: no managed firewall, so the address is the signal.
+        formatted["exposed_internet"] = formatted.get("ip") is not None
+        formatted["exposed_internet_type"] = ["direct"] if formatted.get("ip") else None
         result.setdefault(server.project_id, []).append(formatted)
     return result
 

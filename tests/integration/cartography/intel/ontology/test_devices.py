@@ -952,3 +952,175 @@ def test_link_ontology_devices_from_jamf_email_skips_empty_and_non_matching(
         ).single()["count"]
         == 0
     )
+
+
+def test_load_ontology_devices_from_miradore_devices(neo4j_session):
+    """Miradore devices should populate the canonical Device and match on serial number."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:MiradoreDevice {
+            id: 1001,
+            hostname: 'marge-macbook',
+            os_platform: 'macOS',
+            os_version: '15.5',
+            model: 'MacBookPro18,3',
+            platform: 'macOS',
+            manufacturer: 'Apple',
+            serial_number: 'C02XY1234567',
+            lastupdated: $update_tag
+        })
+        CREATE (:MiradoreDevice {
+            id: 1003,
+            hostname: 'lisa-pixel',
+            os_platform: 'Android',
+            os_version: '15',
+            model: 'Pixel 8',
+            platform: 'Android',
+            manufacturer: 'Google',
+            serial_number: 'PIXEL8SERIAL01',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        [
+            "hostname",
+            "os",
+            "os_version",
+            "model",
+            "platform",
+            "manufacturer",
+            "serial_number",
+        ],
+    ) == {
+        (
+            "marge-macbook",
+            "macOS",
+            "15.5",
+            "MacBookPro18,3",
+            "macOS",
+            "Apple",
+            "C02XY1234567",
+        ),
+        (
+            "lisa-pixel",
+            "Android",
+            "15",
+            "Pixel 8",
+            "Android",
+            "Google",
+            "PIXEL8SERIAL01",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "MiradoreDevice",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {
+        ("C02XY1234567", "C02XY1234567"),
+        ("PIXEL8SERIAL01", "PIXEL8SERIAL01"),
+    }
+
+
+def test_load_ontology_devices_matches_miradore_device_by_hostname(neo4j_session):
+    """A Miradore device with no serial number should still match on hostname."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:MiradoreDevice {
+            id: 1005,
+            hostname: 'miradore-host-fallback',
+            os_platform: 'WindowsDesktop',
+            os_version: '10.0.22631',
+            lastupdated: $update_tag
+        })
+        CREATE (:KandjiDevice {
+            id: 'kandji-host-fallback',
+            device_name: 'miradore-host-fallback',
+            platform: 'Mac',
+            os_version: '15.5',
+            serial_number: 'SN-SHARED-HOSTNAME',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["kandji", "miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "MiradoreDevice",
+        "hostname",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("miradore-host-fallback", "miradore-host-fallback")}
+
+
+def test_link_ontology_devices_from_miradore_user(neo4j_session):
+    """A Miradore user account should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'mbsimpson@simpson.corp'})
+        SET u.email = 'mbsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (mu:MiradoreUser:UserAccount {
+            id: 2001,
+            email: 'mbsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        CREATE (md:MiradoreDevice {
+            id: 1001,
+            hostname: 'marge-macbook',
+            os_platform: 'macOS',
+            serial_number: 'C02XY1234567',
+            lastupdated: $update_tag
+        })
+        CREATE (u)-[:HAS_ACCOUNT {lastupdated: $update_tag}]->(mu)
+        CREATE (mu)-[:OWNS {lastupdated: $update_tag}]->(md)
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("mbsimpson@simpson.corp", "marge-macbook")}

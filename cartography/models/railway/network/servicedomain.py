@@ -66,7 +66,11 @@ class RailwayServiceDomainToServiceInstanceRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-# (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayServiceDomain)
+# (:RailwayServiceDomain)-[:EXPOSE]->(:RailwayServiceInstance)
+#
+# EXPOSE always points from the internet-facing entrypoint to the asset it puts at risk,
+# matching the LoadBalancer-[:EXPOSE]->workload convention used by AWS, GCP, Azure and
+# Kubernetes. That is what makes a cross-provider traversal of this edge meaningful.
 #
 # Keyed by the (service, environment) pair, since that is what the Railway payload carries.
 # The matcher uses exposed_* rather than the plain ids: transform() leaves those null unless
@@ -82,7 +86,7 @@ class RailwayServiceDomainToServiceInstanceRel(CartographyRelSchema):
             "environment_id": PropertyRef("exposed_environment_id"),
         },
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "EXPOSE"
     properties: RailwayServiceDomainToServiceInstanceRelProperties = (
         RailwayServiceDomainToServiceInstanceRelProperties()

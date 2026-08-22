@@ -165,4 +165,29 @@ IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "keycloak": keycloak_mapping,
     "gcp": gcp_mapping,
     "supabase": supabase_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeSecurityIntegration",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="protocol", node_field="protocol"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="issuer",
+                        node_field="saml2_issuer",
+                        special_handling="coalesce",
+                        extra={"fields": ["external_oauth_issuer"]},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="enabled", node_field="enabled"
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

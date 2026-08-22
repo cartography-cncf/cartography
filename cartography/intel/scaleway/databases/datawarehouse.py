@@ -53,6 +53,10 @@ def transform_deployments(
         formatted["is_public"] = any(
             bool(getattr(e, "public", None)) for e in (deployment.endpoints or [])
         )
+        formatted["exposed_internet"] = formatted["is_public"]
+        formatted["exposed_internet_type"] = (
+            ["direct"] if formatted["is_public"] else None
+        )
         result.setdefault(deployment.project_id, []).append(formatted)
     return result
 

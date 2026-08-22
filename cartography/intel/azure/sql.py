@@ -4,7 +4,6 @@ from typing import Dict
 from typing import Generator
 from typing import Iterable
 from typing import List
-from typing import Mapping
 from typing import Tuple
 
 import neo4j
@@ -47,22 +46,10 @@ from cartography.models.azure.sql.transparentdataencryption import (
 from cartography.models.azure.tags.sql_tag import AzureSQLServerTagsSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
-
-
-def _copy_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
-    properties = data.get("properties") or {}
-    for target, sources in mapping.items():
-        if target in data:
-            continue
-        for source in sources:
-            if source in properties:
-                data[target] = properties[source]
-                break
-    return data
-
 
 SQL_SERVER_PROPERTY_MAP = {
     "state": ("state",),
@@ -142,19 +129,19 @@ SQL_DETAIL_PROPERTY_MAP = {
 
 
 def transform_sql_server(server: Dict) -> Dict:
-    return _copy_properties(server, SQL_SERVER_PROPERTY_MAP)
+    return copy_properties(server, SQL_SERVER_PROPERTY_MAP)
 
 
 def transform_sql_database(database: Dict) -> Dict:
-    return _copy_properties(database, SQL_DATABASE_PROPERTY_MAP)
+    return copy_properties(database, SQL_DATABASE_PROPERTY_MAP)
 
 
 def transform_sql_firewall_rule(rule: Dict) -> Dict:
-    return _copy_properties(rule, SQL_FIREWALL_RULE_PROPERTY_MAP)
+    return copy_properties(rule, SQL_FIREWALL_RULE_PROPERTY_MAP)
 
 
 def transform_sql_detail(data: Dict) -> Dict:
-    return _copy_properties(data, SQL_DETAIL_PROPERTY_MAP)
+    return copy_properties(data, SQL_DETAIL_PROPERTY_MAP)
 
 
 @timeit

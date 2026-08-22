@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import typer
 from typing_extensions import Annotated
 
+from cartography import _MIN_PYTHON
+from cartography import _MIN_PYTHON_STR
 from cartography.config import Config
 from cartography.version import get_release_version_and_commit_revision
 
@@ -56,6 +58,7 @@ PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
+PANEL_MIRADORE = "Miradore Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
@@ -72,15 +75,18 @@ PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DATABRICKS = "Databricks Options"
+PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
+PANEL_WIZ = "Wiz Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -96,6 +102,7 @@ PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
+PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -116,6 +123,7 @@ MODULE_PANELS = {
     "crowdstrike": PANEL_CROWDSTRIKE,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
+    "miradore": PANEL_MIRADORE,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
@@ -134,16 +142,19 @@ MODULE_PANELS = {
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "databricks": PANEL_DATABRICKS,
+    "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
+    "wiz": PANEL_WIZ,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -156,6 +167,7 @@ MODULE_PANELS = {
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
+    "snowflake": PANEL_SNOWFLAKE,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1031,6 +1043,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Miradore Options
+            # =================================================================
+            miradore_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-base-uri",
+                    help="Miradore base URI. Defaults to https://online.miradore.com.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_site_name: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-site-name",
+                    help="Miradore site name, which identifies the tenant.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-api-key-env-var",
+                    help="Environment variable name containing the Miradore API authentication key.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Kubernetes Options
             # =================================================================
             k8s_kubeconfig: Annotated[
@@ -1649,6 +1691,93 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # BBOT Options
+            # =================================================================
+            bbot_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--bbot-source",
+                    help="BBOT report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_BBOT,
+                    hidden=PANEL_BBOT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Snowflake Options
+            # =================================================================
+            snowflake_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-account",
+                    help="Snowflake account identifier, e.g. MYORG-MYACCOUNT.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_user: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-user",
+                    help="Snowflake user Cartography authenticates as.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-pat-env-var",
+                    help="Environment variable name containing the Snowflake programmatic access token (PAT).",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded RSA private key for key-pair (JWT) authentication.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_passphrase_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-passphrase-env-var",
+                    help="Environment variable name containing the passphrase protecting the Snowflake private key.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_role: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-role",
+                    help="Snowflake role used for SQL API statements. Should match the user's default role, which is what the object API uses.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_warehouse: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-warehouse",
+                    help="Snowflake warehouse used to run SQL API statements.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_databases: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-databases",
+                    help="Comma-separated list of Snowflake databases to sync. If unset, every readable database is synced.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -1814,6 +1943,18 @@ class CLI:
                     help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=True,
+                ),
+            ] = None,
+            # =================================================================
+            # Zizmor Options
+            # =================================================================
+            zizmor_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--zizmor-source",
+                    help="Zizmor repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_ZIZMOR,
+                    hidden=PANEL_ZIZMOR not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1983,6 +2124,80 @@ class CLI:
                     hidden=PANEL_TENABLE not in visible_panels,
                 ),
             ] = 180,
+            # =================================================================
+            # Wiz Options
+            # =================================================================
+            wiz_graphql_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-graphql-url",
+                    help="Wiz GraphQL API endpoint, e.g. https://api.us17.app.wiz.io/graphql.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_auth_url: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-auth-url",
+                    help="Wiz OAuth token endpoint.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "https://auth.app.wiz.io/oauth/token",
+            wiz_client_id_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-id-env-var",
+                    help="Environment variable name containing the Wiz API client ID.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_ID",
+            wiz_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-secret-env-var",
+                    help="Environment variable name containing the Wiz API client secret.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_SECRET",
+            wiz_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-tenant-id",
+                    help=(
+                        "Identifier used to scope all Wiz nodes in the graph "
+                        "(the WizTenant node id). Defaults to the hostname of --wiz-graphql-url."
+                    ),
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_project_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-project-ids",
+                    help="Comma-separated list of Wiz project IDs to import when project metadata is present.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_lookback_days: Annotated[
+                int | None,
+                typer.Option(
+                    "--wiz-lookback-days",
+                    help=(
+                        "Fetch only Wiz issue and finding updates from the last N days. "
+                        "When set, Wiz cleanup is skipped so older unchanged records are preserved. "
+                        "Omit for a complete sync with cleanup."
+                    ),
+                    min=1,
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Keycloak Options
             # =================================================================
@@ -2604,6 +2819,25 @@ class CLI:
                         "A Kandji base URI was provided but a token was not."
                     )
 
+            # Read Miradore API key
+            miradore_api_key = None
+            if miradore_site_name:
+                if miradore_api_key_env_var:
+                    logger.debug(
+                        "Reading Miradore API key from environment variable %s",
+                        miradore_api_key_env_var,
+                    )
+                    miradore_api_key = os.environ.get(miradore_api_key_env_var)
+                elif os.environ.get("MIRADORE_API_KEY"):
+                    logger.debug(
+                        "Reading Miradore API key from environment variable MIRADORE_API_KEY",
+                    )
+                    miradore_api_key = os.environ.get("MIRADORE_API_KEY")
+                else:
+                    logger.warning(
+                        "A Miradore site name was provided but an API key was not."
+                    )
+
             if statsd_enabled:
                 logger.debug(
                     "statsd enabled. Sending metrics to server %s:%d. Metrics have prefix '%s'.",
@@ -2971,6 +3205,41 @@ class CLI:
                     databricks_account_client_secret_env_var,
                 )
 
+            resolved_bbot_source = _resolve_report_source_option(
+                module="bbot",
+                source=bbot_source,
+                local_path=None,
+                s3_bucket=None,
+                s3_prefix=None,
+            )
+            snowflake_pat = None
+            if snowflake_pat_env_var:
+                logger.debug(
+                    "Reading Snowflake programmatic access token from environment variable %s",
+                    snowflake_pat_env_var,
+                )
+                snowflake_pat = os.environ.get(snowflake_pat_env_var)
+            snowflake_private_key = None
+            if snowflake_private_key_env_var:
+                # Read the key whenever the env-var flag is set, even if the
+                # passphrase is missing, so the module entry's credential guard
+                # sees the asymmetric configuration and fails loudly instead of
+                # silently skipping ingestion.
+                logger.debug(
+                    "Reading Snowflake private key from environment variable %s",
+                    snowflake_private_key_env_var,
+                )
+                snowflake_private_key = os.environ.get(snowflake_private_key_env_var)
+            snowflake_private_key_passphrase = None
+            if snowflake_private_key_passphrase_env_var:
+                logger.debug(
+                    "Reading Snowflake private key passphrase from environment variable %s",
+                    snowflake_private_key_passphrase_env_var,
+                )
+                snowflake_private_key_passphrase = os.environ.get(
+                    snowflake_private_key_passphrase_env_var,
+                )
+
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -3000,6 +3269,8 @@ class CLI:
                 s3_prefix=aibom_s3_prefix,
             )
 
+            if resolved_bbot_source:
+                logger.debug("BBOT source: %s", resolved_bbot_source)
             if resolved_docker_scout_source:
                 logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
             if resolved_trivy_source:
@@ -3008,7 +3279,6 @@ class CLI:
                 logger.debug("Syft source: %s", resolved_syft_source)
             if resolved_aibom_source:
                 logger.debug("AIBOM source: %s", resolved_aibom_source)
-
             # Read Scaleway secret key
             scaleway_secret_key = None
             if scaleway_secret_key_env_var:
@@ -3063,6 +3333,34 @@ class CLI:
                     tenable_secret_key_env_var,
                 )
                 tenable_secret_key = os.environ.get(tenable_secret_key_env_var)
+
+            # Read Wiz API credentials
+            wiz_client_id = None
+            if wiz_client_id_env_var:
+                logger.debug(
+                    "Reading Wiz client ID from environment variable %s",
+                    wiz_client_id_env_var,
+                )
+                wiz_client_id = os.environ.get(wiz_client_id_env_var)
+            wiz_client_secret = None
+            if wiz_client_secret_env_var:
+                logger.debug(
+                    "Reading Wiz client secret from environment variable %s",
+                    wiz_client_secret_env_var,
+                )
+                wiz_client_secret = os.environ.get(wiz_client_secret_env_var)
+
+            wiz_project_ids_list = None
+            if wiz_project_ids:
+                wiz_project_ids_list = [
+                    project_id.strip()
+                    for project_id in wiz_project_ids.split(",")
+                    if project_id.strip()
+                ]
+                logger.debug(
+                    "Parsed %d Wiz project IDs to sync",
+                    len(wiz_project_ids_list),
+                )
 
             # Read Keycloak client secret
             keycloak_client_secret = None
@@ -3192,6 +3490,9 @@ class CLI:
                 kandji_base_uri=kandji_base_uri,
                 kandji_tenant_id=kandji_tenant_id,
                 kandji_token=kandji_token,
+                miradore_base_uri=miradore_base_uri,
+                miradore_site_name=miradore_site_name,
+                miradore_api_key=miradore_api_key,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
@@ -3281,6 +3582,15 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                bbot_source=bbot_source,
+                snowflake_account=snowflake_account,
+                snowflake_user=snowflake_user,
+                snowflake_pat=snowflake_pat,
+                snowflake_private_key=snowflake_private_key,
+                snowflake_private_key_passphrase=snowflake_private_key_passphrase,
+                snowflake_role=snowflake_role,
+                snowflake_warehouse=snowflake_warehouse,
+                snowflake_databases=snowflake_databases,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
@@ -3302,6 +3612,7 @@ class CLI:
                 aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
+                zizmor_source=zizmor_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
@@ -3316,6 +3627,13 @@ class CLI:
                 tenable_access_key=tenable_access_key,
                 tenable_secret_key=tenable_secret_key,
                 tenable_findings_lookback_days=tenable_findings_lookback_days,
+                wiz_graphql_url=wiz_graphql_url,
+                wiz_auth_url=wiz_auth_url,
+                wiz_client_id=wiz_client_id,
+                wiz_client_secret=wiz_client_secret,
+                wiz_tenant_id=wiz_tenant_id,
+                wiz_project_ids=wiz_project_ids_list,
+                wiz_lookback_days=wiz_lookback_days,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
@@ -3377,15 +3695,11 @@ def main(argv=None):
 
     # Show Python version deprecation warning visibly to CLI users.
     # The library-level DeprecationWarning in __init__.py is hidden by default.
-    from cartography import _MIN_PYTHON
-    from cartography import _MIN_PYTHON_STR
-
     if sys.version_info < _MIN_PYTHON:
         logger.warning(
             "Cartography is tested on Python %s+ only. "
-            "Backward compatibility with Python 3.10-3.12 is not guaranteed. "
-            "Python 3.10 support will be removed in October 2026. "
-            "See: https://github.com/cartography-cncf/cartography/issues/2205",
+            "Backward compatibility with Python 3.11 and 3.12 is not guaranteed. "
+            "Python 3.10 and older are not supported.",
             _MIN_PYTHON_STR,
         )
 

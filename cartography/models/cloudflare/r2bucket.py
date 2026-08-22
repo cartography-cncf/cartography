@@ -51,6 +51,16 @@ class CloudflareR2BucketNodeProperties(CartographyNodeProperties):
             "r2.dev domain or an enabled custom domain."
         ),
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when an enabled r2.dev or custom domain serves the bucket. Left null when either domain source could not be read, since a partial read must not downgrade a reachable bucket.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the bucket is served at its own hostname.",
+    )
     r2_dev_enabled: PropertyRef = PropertyRef(
         "r2_dev_enabled",
         description="Whether the bucket is served on its managed r2.dev domain.",

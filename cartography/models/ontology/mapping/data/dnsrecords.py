@@ -26,8 +26,8 @@ aws_mapping = OntologyMapping(
 
 # GCP
 # GCPRecordSet.data is list-valued, so it is not mapped to the scalar _ont_value:
-# toString(_ont_value) in ontology_dnsrecords_linking.json rejects lists. GCP record
-# linking is done directly off the raw list field via UNWIND dns.data in that job.
+# toString(_ont_value) in the DNS_RECORD_LINKING_JOBS analysis jobs rejects lists. GCP
+# record linking is done directly off the raw list field via UNWIND dns.data in those jobs.
 gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
@@ -77,6 +77,23 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+# BBOT
+bbot_mapping = OntologyMapping(
+    module_name="bbot",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BbotDNSName",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 # Supabase
 supabase_mapping = OntologyMapping(
     module_name="supabase",
@@ -117,6 +134,7 @@ DNSRECORDS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
     "vercel": vercel_mapping,
+    "bbot": bbot_mapping,
     "supabase": supabase_mapping,
     "netlify": netlify_mapping,
 }

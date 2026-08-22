@@ -149,6 +149,28 @@ def test_sync_github_repos(
         ("https://github.com/cartography-cncf/cartography", "Makefile"),
     }
 
+    # Assert - Verify fork and parent attributes
+    assert check_nodes(neo4j_session, "GitHubRepository", ["id", "fork", "parent"]) == {
+        ("https://github.com/simpsoncorp/sample_repo", False, None),
+        (
+            "https://github.com/simpsoncorp/SampleRepo2",
+            True,
+            "https://github.com/cartography-cncf/cartography",
+        ),
+        (
+            "https://github.com/cartography-cncf/cartography",
+            True,
+            "https://github.com/some-upstream-org/cartography",
+        ),
+    }
+
+    # Assert - Verify the fork attribute is projected onto the CodeRepository ontology label
+    assert check_nodes(neo4j_session, "CodeRepository", ["id", "_ont_fork"]) == {
+        ("https://github.com/simpsoncorp/sample_repo", False),
+        ("https://github.com/simpsoncorp/SampleRepo2", True),
+        ("https://github.com/cartography-cncf/cartography", True),
+    }
+
 
 @patch.object(
     cartography.intel.github.repos,
@@ -1010,6 +1032,14 @@ def test_sync_github_rulesets_cleanup(
     assert check_nodes(neo4j_session, "GitHubRulesetRule", ["id"]) == set()
 
 
+# The test repo data carries no privileged fields, so `sync()` reaches out for them.
+# Stub the fetch: unpatched it calls the real api.github.com and burns ~30s in retry
+# backoff before the sync swallows the error.
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    return_value={},
+)
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",
@@ -1018,7 +1048,11 @@ def test_sync_github_rulesets_cleanup(
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
 def test_sync_collaborators_per_repo(
-    mock_repo_collaborators, mock_get_repos, mock_get_dep_manifests, neo4j_session
+    mock_repo_collaborators,
+    mock_get_repos,
+    mock_get_dep_manifests,
+    mock_get_privileged_details,
+    neo4j_session,
 ):
     """
     Test that collaborators are synced correctly per repository.
