@@ -45,14 +45,14 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Account quotas are metro-independent, so any base URL works here.
     account_base_url = next(iter(METRO_BASE_URLS.values()))
-    account_id = cartography.intel.unikraft.account.sync(
+    account_id, expected_counts = cartography.intel.unikraft.account.sync(
         neo4j_session,
         session,
         account_base_url,
         config.update_tag,
-        common_job_parameters,
     )
     common_job_parameters["ACCOUNT_ID"] = account_id
+    cartography.intel.unikraft.account.cleanup(neo4j_session, common_job_parameters)
 
     cartography.intel.unikraft.instances.sync(
         neo4j_session,
@@ -60,6 +60,7 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
+        expected_counts.get("instances"),
     )
     cartography.intel.unikraft.volumes.sync(
         neo4j_session,
@@ -67,6 +68,7 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
+        expected_counts.get("volumes"),
     )
     cartography.intel.unikraft.certificates.sync(
         neo4j_session,
@@ -81,4 +83,5 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
+        expected_counts.get("service_groups"),
     )

@@ -30,6 +30,18 @@ def transform(response: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def used_counts(response: dict[str, Any]) -> dict[str, int]:
+    """
+    Returns the account's current resource-in-use counts as reported by
+    /v1/users/quotas (e.g. {"instances": 4, "volumes": 2, "service_groups": 1}).
+    Used by other resource syncs to notice a truncated, unpaginated list response
+    -- see util.warn_if_count_mismatch().
+    """
+    quotas = (response.get("data") or {}).get("quotas") or []
+    quota = quotas[0] if quotas else {}
+    return quota.get("used") or {}
+
+
 @timeit
 def load_account(
     neo4j_session: neo4j.Session,
@@ -60,10 +72,15 @@ def sync(
     session: requests.Session,
     base_url: str,
     update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> str:
+) -> tuple[str, dict[str, int]]:
+    """
+    :return: A tuple of (account id, the account's current used-resource counts).
+    Deliberately does not call cleanup() here: this schema has no
+    sub_resource_relationship today, but its cleanup must still run with a fully
+    built common_job_parameters (including ACCOUNT_ID) once one exists, matching
+    every other resource's cleanup call -- see start_unikraft_ingestion().
+    """
     response = get_own_quotas(session, base_url)
     account = transform(response)
     load_account(neo4j_session, account, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
-    return account["id"]
+    return account["id"], used_counts(response)

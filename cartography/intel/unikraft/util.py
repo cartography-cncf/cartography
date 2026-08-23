@@ -56,3 +56,34 @@ def list_resources(
             f"'{data_key}' list in the response body."
         )
     return items
+
+
+def check_count_matches(
+    resource_name: str,
+    expected: int | None,
+    actual: int,
+) -> None:
+    """
+    Unikraft's list endpoints have no working pagination (see list_resources()), so a
+    single-page response could be silently truncated for an account with more
+    resources of a type than the API's implicit per-page cap. The account quota
+    endpoint separately reports how many resources of some types currently exist
+    (`used.<resource_name>`), which gives an independent signal to notice truncation:
+    if the total number of records list_resources() actually returned across every
+    metro doesn't match the quota's reported count, raise instead of proceeding.
+
+    Callers must call this BEFORE running cleanup for the resource type: cleanup
+    treats every node not seen in this sync as stale and deletes it, so proceeding
+    to cleanup on a suspected-truncated fetch would delete real, still-existing
+    resources -- the same risk list_resources() already guards against for a
+    malformed response, per its own docstring. `expected` is None for resource types
+    quotas doesn't track (e.g. certificates), in which case there is nothing to
+    compare against and this is a no-op.
+    """
+    if expected is not None and actual != expected:
+        raise ValueError(
+            f"Unikraft {resource_name} sync fetched {actual} records across all "
+            f"metros, but the account quota reports {expected} in use. Refusing to "
+            "run cleanup on a fetch that may be truncated (pagination is not "
+            "supported; see list_resources())."
+        )

@@ -8,7 +8,6 @@ import cartography.intel.unikraft.service_groups
 import cartography.intel.unikraft.volumes
 from cartography.config import Config
 from cartography.intel.unikraft.util import METRO_BASE_URLS
-from tests.data.unikraft.data import ACCOUNT_QUOTAS_RESPONSE
 from tests.data.unikraft.data import CERTIFICATES_RESPONSE
 from tests.data.unikraft.data import INSTANCES_RESPONSE
 from tests.data.unikraft.data import INSTANCES_RESPONSE_BY_METRO
@@ -29,6 +28,36 @@ TEST_IMAGE_REF = "cartography-test:latest"
 # with identical fixture data, so nodes converge and end up stamped with the
 # last metro visited.
 TEST_LAST_METRO = "sfo"
+
+
+def _quotas_response(used_per_resource: int) -> dict:
+    """
+    Builds a /v1/users/quotas response with a chosen `used` count for every resource
+    type check_count_matches() cross-checks. Needed because the
+    fixture-per-metro mocking below returns the SAME single-item response for every
+    metro (see TEST_LAST_METRO comment above), so the raw per-metro fetch total
+    check_count_matches() sees is len(METRO_BASE_URLS) times the real resource count,
+    not the real resource count itself -- the quotas mock must match that per phase
+    or check_count_matches() would (correctly) raise on data this test never actually
+    truncated.
+    """
+    return {
+        "status": "success",
+        "data": {
+            "quotas": [
+                {
+                    "uuid": TEST_ACCOUNT_ID,
+                    "status": "success",
+                    "message": "",
+                    "used": {
+                        "instances": used_per_resource,
+                        "volumes": used_per_resource,
+                        "service_groups": used_per_resource,
+                    },
+                },
+            ],
+        },
+    }
 
 
 @patch.object(
@@ -54,7 +83,10 @@ TEST_LAST_METRO = "sfo"
 @patch.object(
     cartography.intel.unikraft.account,
     "get_own_quotas",
-    return_value=ACCOUNT_QUOTAS_RESPONSE,
+    side_effect=[
+        _quotas_response(len(METRO_BASE_URLS)),
+        _quotas_response(0),
+    ],
 )
 def test_start_unikraft_ingestion(
     mock_get_quotas,
@@ -254,6 +286,7 @@ def test_unikraft_instances_distinct_per_metro(neo4j_session):
             TEST_ACCOUNT_ID,
             TEST_UPDATE_TAG,
             common_job_parameters,
+            None,
         )
 
     # Assert

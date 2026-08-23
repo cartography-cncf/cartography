@@ -6,6 +6,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.unikraft.util import check_count_matches
 from cartography.intel.unikraft.util import list_resources
 from cartography.intel.unikraft.util import METRO_BASE_URLS
 from cartography.intel.unikraft.util import require_non_empty
@@ -85,9 +86,13 @@ def sync(
     account_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    expected_count: int | None,
 ) -> None:
+    total_fetched = 0
     for metro, base_url in METRO_BASE_URLS.items():
         volumes = get(session, base_url)
+        total_fetched += len(volumes)
         transformed = transform(volumes)
         load_volumes(neo4j_session, transformed, account_id, metro, update_tag)
+    check_count_matches("volumes", expected_count, total_fetched)
     cleanup(neo4j_session, common_job_parameters)
