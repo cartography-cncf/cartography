@@ -125,6 +125,9 @@ cartography --selected-modules gcp
 |----------|-------------|
 | `--gcp-requested-syncs` | Comma-separated GCP resources to sync, such as `compute,iam,storage` |
 | `--gcp-permission-relationships-file` | Path to the GCP permission relationship mapping file |
+| `--gcp-excluded-org-ids` | Comma-separated GCP organization IDs to exclude from ingestion, e.g. `"123456789012,987654321098"` |
+| `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
+| `--gcp-exclude-org-root-projects` / `--gcp-include-org-root-projects` | Exclude (default) or include projects attached directly to the organization root, i.e. not inside any folder |
 
 ## Troubleshooting
 
