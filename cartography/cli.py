@@ -102,6 +102,7 @@ PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
+PANEL_RENDER = "Render Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -167,6 +168,7 @@ MODULE_PANELS = {
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
+    "render": PANEL_RENDER,
     "snowflake": PANEL_SNOWFLAKE,
     "analysis": PANEL_ANALYSIS,
 }
@@ -2598,6 +2600,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Render Options
+            # =================================================================
+            render_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--render-api-key-env-var",
+                    help="Environment variable name containing a Render API key.",
+                    rich_help_panel=PANEL_RENDER,
+                    hidden=PANEL_RENDER not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -3108,6 +3122,15 @@ class CLI:
                 else None
             )
 
+            # Read Render API key
+            render_api_key = None
+            if render_api_key_env_var:
+                logger.debug(
+                    "Reading Render API key from environment variable %s",
+                    render_api_key_env_var,
+                )
+                render_api_key = os.environ.get(render_api_key_env_var)
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -3560,6 +3583,7 @@ class CLI:
                 modal_token_id=modal_token_id,
                 modal_token_secret=modal_token_secret,
                 modal_environments=modal_environment_list,
+                render_api_key=render_api_key,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
