@@ -195,7 +195,7 @@ class Config:
     :type gcp_excluded_folder_ids: list[str]
     :param gcp_excluded_folder_ids: List of GCP folder IDs to exclude from ingestion (entire subtree is skipped). Optional.
     :type gcp_exclude_org_root_projects: bool
-    :param gcp_exclude_org_root_projects: If True (default), projects attached directly to the organization root are excluded. Optional.
+    :param gcp_exclude_org_root_projects: If True, projects attached directly to the organization root are excluded. Defaults to False. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
@@ -733,7 +733,7 @@ class Config:
         snowflake_databases=None,
         gcp_excluded_org_ids=None,
         gcp_excluded_folder_ids=None,
-        gcp_exclude_org_root_projects=True,
+        gcp_exclude_org_root_projects=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

@@ -858,13 +858,14 @@ class CLI:
                 typer.Option(
                     "--gcp-exclude-org-root-projects/--gcp-include-org-root-projects",
                     help=(
-                        "If set (default), projects attached directly to the organization root "
-                        "(not inside any folder) are excluded from ingestion."
+                        "If set, projects attached directly to the organization root "
+                        "(not inside any folder) are excluded from ingestion. "
+                        "Included by default."
                     ),
                     rich_help_panel=PANEL_GCP,
                     hidden=PANEL_GCP not in visible_panels,
                 ),
-            ] = True,
+            ] = False,
             # =================================================================
             # OCI Options
             # =================================================================

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def _get_project_parents_to_list(
     org_resource_name: str,
     folders: List[Dict],
-    exclude_org_root_projects: bool = True,
+    exclude_org_root_projects: bool = False,
 ) -> set[str]:
     """
     Build the parent set for list_projects(), excluding documented default Apps Script folders.
@@ -41,7 +41,7 @@ def get_gcp_projects(
     org_resource_name: str,
     folders: List[Dict],
     credentials: Optional[GoogleCredentials] = None,
-    exclude_org_root_projects: bool = True,
+    exclude_org_root_projects: bool = False,
 ) -> List[Dict]:
     """
     Return list of ACTIVE GCP projects under the specified organization
@@ -127,7 +127,7 @@ def sync_gcp_projects(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     credentials: Optional[GoogleCredentials] = None,
-    exclude_org_root_projects: bool = True,
+    exclude_org_root_projects: bool = False,
 ) -> List[Dict]:
     """
     Get and sync GCP project data to Neo4j.

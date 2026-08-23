@@ -382,7 +382,7 @@ def test_project_migration_between_orgs(
         org_resource_name,
         folders,
         credentials=None,
-        exclude_org_root_projects=True,
+        exclude_org_root_projects=False,
     ):
         if org_resource_name == "organizations/1337":
             return projects_org1_initial
@@ -458,7 +458,7 @@ def test_project_migration_between_orgs(
         org_resource_name,
         folders,
         credentials=None,
-        exclude_org_root_projects=True,
+        exclude_org_root_projects=False,
     ):
         if org_resource_name == "organizations/1337":
             return projects_org1_after
