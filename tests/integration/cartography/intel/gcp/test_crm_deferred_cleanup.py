@@ -591,3 +591,156 @@ def test_cleanup_with_multiple_orgs(neo4j_session):
     # Verify only org1's folder is cleaned up
     remaining_folders = check_nodes(neo4j_session, "GCPFolder", ["id"])
     assert remaining_folders == {("folders/2000",)}, "Only org2's folder should remain"
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp,
+    "_sync_project_resources",
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
+)
+@patch.object(
+    cartography.intel.gcp.crm.projects,
+    "get_gcp_projects",
+)
+@patch.object(
+    cartography.intel.gcp.crm.folders,
+    "get_gcp_folders",
+)
+@patch.object(
+    cartography.intel.gcp.crm.orgs,
+    "get_gcp_organizations",
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
+def test_excluded_org_is_pruned_from_graph(
+    mock_get_org_roles,
+    mock_get_predefined_roles,
+    mock_get_orgs,
+    mock_get_folders,
+    mock_get_projects,
+    mock_sync_resources,
+    mock_get_creds,
+    neo4j_session,
+):
+    """
+    An org added to --gcp-excluded-org-ids after being synced must be removed
+    from the graph (with all of its folders and projects), while non-excluded
+    orgs are left untouched.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    two_orgs = [
+        {
+            "name": "organizations/1337",
+            "displayName": "example.com",
+            "lifecycleState": "ACTIVE",
+        },
+        {
+            "name": "organizations/9999",
+            "displayName": "another.com",
+            "lifecycleState": "ACTIVE",
+        },
+    ]
+    folders_by_org = {
+        "organizations/1337": [
+            {
+                "name": "folders/1000",
+                "parent": "organizations/1337",
+                "displayName": "folder1",
+                "lifecycleState": "ACTIVE",
+            },
+        ],
+        "organizations/9999": [
+            {
+                "name": "folders/2000",
+                "parent": "organizations/9999",
+                "displayName": "folder2",
+                "lifecycleState": "ACTIVE",
+            },
+        ],
+    }
+    projects_by_org = {
+        "organizations/1337": [
+            {
+                "createTime": "2021-01-01T00:00:00Z",
+                "lifecycleState": "ACTIVE",
+                "name": "org1-project",
+                "parent": "folders/1000",
+                "projectId": "project-org1",
+                "projectNumber": "111111111111",
+            },
+        ],
+        "organizations/9999": [
+            {
+                "createTime": "2021-01-01T00:00:00Z",
+                "lifecycleState": "ACTIVE",
+                "name": "org2-project",
+                "parent": "folders/2000",
+                "projectId": "project-org2",
+                "projectNumber": "222222222222",
+            },
+        ],
+    }
+
+    def get_orgs_respecting_exclusion(credentials=None, excluded_org_ids=None):
+        excluded = excluded_org_ids or set()
+        return [o for o in two_orgs if o["name"].split("/")[-1] not in excluded]
+
+    mock_get_orgs.side_effect = get_orgs_respecting_exclusion
+    mock_get_folders.side_effect = lambda org_resource_name, credentials=None, excluded_folder_ids=None: folders_by_org[
+        org_resource_name
+    ]
+    mock_get_projects.side_effect = lambda org_resource_name, folders, credentials=None, exclude_org_root_projects=False: projects_by_org[
+        org_resource_name
+    ]
+
+    # First sync: both orgs ingested.
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG,
+    )
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    assert check_nodes(neo4j_session, "GCPOrganization", ["id"]) == {
+        ("organizations/1337",),
+        ("organizations/9999",),
+    }
+    assert check_nodes(neo4j_session, "GCPFolder", ["id"]) == {
+        ("folders/1000",),
+        ("folders/2000",),
+    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
+        ("project-org1",),
+        ("project-org2",),
+    }
+
+    # Second sync: org 1337 is now excluded.
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG_V2,
+        gcp_excluded_org_ids=["1337"],
+    )
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    assert check_nodes(neo4j_session, "GCPOrganization", ["id"]) == {
+        ("organizations/9999",),
+    }, "Excluded org must be deleted from the graph"
+    assert check_nodes(neo4j_session, "GCPFolder", ["id"]) == {
+        ("folders/2000",),
+    }, "Excluded org's folders must be deleted"
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
+        ("project-org2",),
+    }, "Excluded org's projects must be deleted; other org untouched"

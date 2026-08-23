@@ -8,6 +8,7 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.util import timeit
 
@@ -79,3 +80,48 @@ def sync_gcp_organizations(
     )
     load_gcp_organizations(neo4j_session, data, gcp_update_tag)
     return data
+
+
+@timeit
+def cleanup_excluded_gcp_organizations(
+    neo4j_session: neo4j.Session,
+    excluded_org_ids: set[str],
+) -> None:
+    """
+    Delete explicitly excluded organizations and all of their resources.
+
+    Excluded orgs are filtered out of the org loop entirely, so no per-org
+    cleanup job ever runs for them. Since an exclusion means "remove this org
+    from the graph", prune them here by ID. This is deliberately scoped to the
+    explicitly excluded IDs rather than to stale orgs in general: an org that
+    disappears due to temporary access loss (not exclusion) must keep its data.
+    """
+    org_names = sorted(
+        org_id if org_id.startswith("organizations/") else f"organizations/{org_id}"
+        for org_id in excluded_org_ids
+    )
+    if not org_names:
+        return
+
+    logger.info(
+        "Deleting %d excluded GCP organization(s) and their resources: %s",
+        len(org_names),
+        ", ".join(org_names),
+    )
+    # All resources in an org are reachable from the org node via outgoing
+    # RESOURCE relationships (org -> folders/projects, project -> its
+    # resources), so a variable-length traversal cascades the deletion.
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (o:GCPOrganization)
+        WHERE o.id IN $ORG_NAMES
+        CALL (o) {
+            OPTIONAL MATCH (o)-[:RESOURCE*]->(child)
+            WITH child WHERE child IS NOT NULL
+            DETACH DELETE child
+        }
+        DETACH DELETE o
+        """,
+        ORG_NAMES=org_names,
+    )

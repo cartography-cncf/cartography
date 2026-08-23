@@ -131,12 +131,20 @@ cartography --selected-modules gcp
 
 ```{warning}
 Exclusions are destructive to already-ingested data. If you add an exclusion
-flag *after* resources were synced without it, the newly excluded organizations,
-folder subtrees, or org-root projects are no longer listed, so the next sync's
-cleanup treats them as stale and **deletes them — and all of their synced
-resources — from Neo4j**. To keep previously-ingested data in the graph, remove
-it manually before enabling the exclusion, or accept the deletion as the
-intended pruning.
+flag *after* resources were synced without it, the next sync removes the newly
+excluded data from Neo4j:
+
+- `--gcp-excluded-org-ids`: the organization and all of its synced folders,
+  projects, and resources are deleted immediately during that sync.
+- `--gcp-excluded-folder-ids` and `--gcp-exclude-org-root-projects`: the
+  excluded folder subtrees and org-root projects are no longer listed, go
+  stale, and are deleted (with all of their synced resources) by the
+  org-scoped cleanup.
+
+This pruning only applies to explicitly excluded scopes. An organization that
+disappears for other reasons — for example temporary permission or access
+loss — is *not* deleted; its data is preserved so it can recover on a later
+sync.
 ```
 
 ## Troubleshooting

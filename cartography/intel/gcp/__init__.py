@@ -56,6 +56,7 @@ from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
+from cartography.intel.gcp.crm.orgs import cleanup_excluded_gcp_organizations
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
 from cartography.intel.gcp.util import classify_gcp_http_error
@@ -1034,6 +1035,12 @@ def start_gcp_ingestion(
         GraphJob.from_node_schema(schema_class(), params, cascade_delete=cascade).run(
             neo4j_session
         )
+
+    # Excluded orgs never enter the org loop, so no cleanup job covers them.
+    # Prune them (and everything under them) explicitly: exclusion means the
+    # org should not be in the graph.
+    if config.gcp_excluded_org_ids:
+        cleanup_excluded_gcp_organizations(neo4j_session, config.gcp_excluded_org_ids)
 
     if requested_syncs is None or "compute" in requested_syncs:
         run_analysis_job(
