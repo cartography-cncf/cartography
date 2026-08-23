@@ -202,7 +202,7 @@ def test_start_unikraft_ingestion(
         "id",
         "UnikraftInstance",
         "id",
-        "EXPOSES",
+        "EXPOSE",
     ) == {
         (TEST_SERVICE_GROUP_ID, TEST_INSTANCE_ID),
     }

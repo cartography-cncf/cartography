@@ -94,7 +94,7 @@ class UnikraftServiceGroupToInstanceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:UnikraftServiceGroup)-[:EXPOSES]->(:UnikraftInstance)
+# (:UnikraftServiceGroup)-[:EXPOSE]->(:UnikraftInstance)
 class UnikraftServiceGroupToInstanceRel(CartographyRelSchema):
     """Connects `UnikraftServiceGroup` to the `UnikraftInstance`s it exposes."""
 
@@ -103,7 +103,7 @@ class UnikraftServiceGroupToInstanceRel(CartographyRelSchema):
         {"id": PropertyRef("instance_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "EXPOSES"
+    rel_label: str = "EXPOSE"
     properties: UnikraftServiceGroupToInstanceRelProperties = (
         UnikraftServiceGroupToInstanceRelProperties()
     )
