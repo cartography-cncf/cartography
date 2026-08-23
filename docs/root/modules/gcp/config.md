@@ -126,6 +126,16 @@ cartography --selected-modules gcp
 | `--gcp-requested-syncs` | Comma-separated GCP resources to sync, such as `compute,iam,storage` |
 | `--gcp-permission-relationships-file` | Path to the GCP permission relationship mapping file |
 
+## Parallel organization sync
+
+When multiple GCP organizations are accessible to the Cartography identity,
+each organization is synced in its own thread (one thread per organization),
+with a dedicated Neo4j session per thread. This is automatic and requires no
+configuration. Organizations remain independent: folders, projects, IAM, and
+per-project resources for one organization are fully synced and cleaned up
+within its own thread, and organization-level cleanup still runs once at the
+very end, after all organizations complete.
+
 ## Troubleshooting
 
 - If an API is not enabled on the host or quota project, Cartography logs a
