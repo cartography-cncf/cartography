@@ -883,6 +883,7 @@ def start_gcp_ingestion(
         config.update_tag,
         common_job_parameters,
         credentials=credentials,
+        excluded_org_ids=config.gcp_excluded_org_ids,
     )
 
     # Track org cleanup jobs to run at the very end
@@ -914,6 +915,7 @@ def start_gcp_ingestion(
             common_job_parameters,
             org_resource_name,
             credentials=credentials,
+            excluded_folder_ids=config.gcp_excluded_folder_ids,
         )
 
         # Sync projects under org and each folder
@@ -924,6 +926,7 @@ def start_gcp_ingestion(
             config.update_tag,
             common_job_parameters,
             credentials=credentials,
+            exclude_org_root_projects=config.gcp_exclude_org_root_projects,
         )
 
         # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.

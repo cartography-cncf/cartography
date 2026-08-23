@@ -17,15 +17,23 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_gcp_organizations(
     credentials: Optional[GoogleCredentials] = None,
+    excluded_org_ids: Optional[set[str]] = None,
 ) -> List[Dict]:
     """
     Return list of GCP organizations that the authenticated principal can access using the high-level client.
     Returns empty list on error.
+    :param credentials: GCP credentials.
+    :param excluded_org_ids: Set of organization IDs to exclude from ingestion.
     :return: List of org dicts with keys: name, displayName, lifecycleState.
     """
+    excluded = excluded_org_ids or set()
     client = resourcemanager_v3.OrganizationsClient(credentials=credentials)
     orgs = []
     for org in client.search_organizations():
+        org_id = org.name.split("/")[-1]
+        if org_id in excluded:
+            logger.info("Excluding GCP organization %s from ingestion.", org.name)
+            continue
         orgs.append(
             {
                 "name": org.name,
@@ -59,12 +67,15 @@ def sync_gcp_organizations(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     credentials: Optional[GoogleCredentials] = None,
+    excluded_org_ids: Optional[set[str]] = None,
 ) -> List[Dict]:
     """
     Get GCP organization data using the CRM v1 resource object and load the data to Neo4j.
     Returns the list of organizations synced.
     """
     logger.debug("Syncing GCP organizations")
-    data = get_gcp_organizations(credentials=credentials)
+    data = get_gcp_organizations(
+        credentials=credentials, excluded_org_ids=excluded_org_ids
+    )
     load_gcp_organizations(neo4j_session, data, gcp_update_tag)
     return data
