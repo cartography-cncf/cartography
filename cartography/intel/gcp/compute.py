@@ -213,26 +213,45 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
     return gcp_api_execute_with_retry(req)
 
 
+def _is_skippable_vpn_list_error(e: HttpError) -> bool:
+    """
+    Return True if a vpnGateways/vpnTunnels list HttpError is an expected
+    access or configuration failure (invalid region, missing list permission,
+    API not enabled, billing disabled, or project not found) for which the
+    region should be skipped rather than aborting the whole project sync.
+    """
+    return classify_gcp_http_error(e) in (
+        "invalid",
+        "forbidden",
+        "api_disabled",
+        "billing_disabled",
+        "not_found",
+    )
+
+
 @timeit
 def get_gcp_vpn_gateways(projectid: str, region: str, compute: Resource) -> dict | None:
     """
     Return list of all HA VPN gateways in the given projectid and region. Returns
-    None if the region is invalid or if the API call times out (to prevent partial
-    data from triggering cleanup that would delete valid nodes).
+    None if the region is invalid, if the API call times out, or if the call fails
+    with an expected access/configuration error (e.g. the identity lacks the
+    compute.vpnGateways.list permission), so that other Compute resources still
+    sync and cleanup is safely suppressed for the project.
     :param projectid: The project ID
     :param region: The region to pull VPN gateways from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all GCP VPN gateways for a given project,
-        or None if region is invalid or the request times out
+        or None if the region must be skipped
     """
     try:
         req = compute.vpnGateways().list(project=projectid, region=region)
     except HttpError as e:
-        if classify_gcp_http_error(e) == "invalid":
+        if _is_skippable_vpn_list_error(e):
             logger.warning(
-                "GCP: Invalid region %s for project %s; skipping VPN gateway sync for this region.",
-                region,
+                "GCP: vpnGateways.list failed for project %s region %s; skipping VPN gateway sync for this region. %s",
                 projectid,
+                region,
+                summarize_gcp_http_error(e),
             )
             return None
         raise
@@ -250,11 +269,12 @@ def get_gcp_vpn_gateways(projectid: str, region: str, compute: Resource) -> dict
             )
             return None
         except HttpError as e:
-            if classify_gcp_http_error(e) == "invalid":
+            if _is_skippable_vpn_list_error(e):
                 logger.warning(
-                    "GCP: Invalid region %s for project %s; skipping VPN gateway sync for this region.",
-                    region,
+                    "GCP: vpnGateways.list failed for project %s region %s; skipping VPN gateway sync for this region. %s",
                     projectid,
+                    region,
+                    summarize_gcp_http_error(e),
                 )
                 return None
             raise
@@ -270,22 +290,25 @@ def get_gcp_vpn_gateways(projectid: str, region: str, compute: Resource) -> dict
 def get_gcp_vpn_tunnels(projectid: str, region: str, compute: Resource) -> dict | None:
     """
     Return list of all VPN tunnels in the given projectid and region. Returns
-    None if the region is invalid or if the API call times out (to prevent partial
-    data from triggering cleanup that would delete valid nodes).
+    None if the region is invalid, if the API call times out, or if the call fails
+    with an expected access/configuration error (e.g. the identity lacks the
+    compute.vpnTunnels.list permission), so that other Compute resources still
+    sync and cleanup is safely suppressed for the project.
     :param projectid: The project ID
     :param region: The region to pull VPN tunnels from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all GCP VPN tunnels for a given project,
-        or None if region is invalid or the request times out
+        or None if the region must be skipped
     """
     try:
         req = compute.vpnTunnels().list(project=projectid, region=region)
     except HttpError as e:
-        if classify_gcp_http_error(e) == "invalid":
+        if _is_skippable_vpn_list_error(e):
             logger.warning(
-                "GCP: Invalid region %s for project %s; skipping VPN tunnel sync for this region.",
-                region,
+                "GCP: vpnTunnels.list failed for project %s region %s; skipping VPN tunnel sync for this region. %s",
                 projectid,
+                region,
+                summarize_gcp_http_error(e),
             )
             return None
         raise
@@ -303,11 +326,12 @@ def get_gcp_vpn_tunnels(projectid: str, region: str, compute: Resource) -> dict 
             )
             return None
         except HttpError as e:
-            if classify_gcp_http_error(e) == "invalid":
+            if _is_skippable_vpn_list_error(e):
                 logger.warning(
-                    "GCP: Invalid region %s for project %s; skipping VPN tunnel sync for this region.",
-                    region,
+                    "GCP: vpnTunnels.list failed for project %s region %s; skipping VPN tunnel sync for this region. %s",
                     projectid,
+                    region,
+                    summarize_gcp_http_error(e),
                 )
                 return None
             raise
