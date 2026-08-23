@@ -12,6 +12,7 @@ import cartography.intel.unikraft.service_groups
 import cartography.intel.unikraft.volumes
 from cartography.config import Config
 from cartography.intel.unikraft.util import METRO_BASE_URLS
+from cartography.intel.unikraft.util import require_tracked_count
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
-        expected_counts.get("instances"),
+        require_tracked_count(expected_counts, "instances"),
     )
     cartography.intel.unikraft.volumes.sync(
         neo4j_session,
@@ -68,7 +69,7 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
-        expected_counts.get("volumes"),
+        require_tracked_count(expected_counts, "volumes"),
     )
     cartography.intel.unikraft.certificates.sync(
         neo4j_session,
@@ -83,5 +84,5 @@ def start_unikraft_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         account_id,
         config.update_tag,
         common_job_parameters,
-        expected_counts.get("service_groups"),
+        require_tracked_count(expected_counts, "service_groups"),
     )

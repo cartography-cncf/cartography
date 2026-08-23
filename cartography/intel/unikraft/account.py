@@ -35,7 +35,7 @@ def used_counts(response: dict[str, Any]) -> dict[str, int]:
     Returns the account's current resource-in-use counts as reported by
     /v1/users/quotas (e.g. {"instances": 4, "volumes": 2, "service_groups": 1}).
     Used by other resource syncs to notice a truncated, unpaginated list response
-    -- see util.warn_if_count_mismatch().
+    -- see util.check_count_matches().
     """
     quotas = (response.get("data") or {}).get("quotas") or []
     quota = quotas[0] if quotas else {}

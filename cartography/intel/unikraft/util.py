@@ -87,3 +87,23 @@ def check_count_matches(
             "run cleanup on a fetch that may be truncated (pagination is not "
             "supported; see list_resources())."
         )
+
+
+def require_tracked_count(used_counts: dict[str, int], resource_name: str) -> int:
+    """
+    Returns the account quota's `used` count for a resource type this module relies
+    on for truncation detection (instances, volumes, service_groups - see
+    check_count_matches()). Unlike certificates, which the quotas endpoint genuinely
+    never reports, a missing count here means the quota response itself is malformed,
+    not that this resource type is untracked. Raising instead of defaulting to None
+    fails closed: check_count_matches() treats expected=None as "nothing to compare,
+    skip the check", so silently defaulting would disable the truncation guard
+    exactly when the quota data it depends on can't be trusted.
+    """
+    if resource_name not in used_counts:
+        raise ValueError(
+            f"Unikraft account quota response is missing the expected "
+            f"'{resource_name}' used-count; refusing to skip the truncation check "
+            "for a resource type quotas is known to track."
+        )
+    return used_counts[resource_name]
