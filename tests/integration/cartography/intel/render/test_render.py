@@ -89,11 +89,13 @@ def test_start_render_ingestion(
     assert check_nodes(
         neo4j_session,
         "ComputeInstance",
-        ["id", "_ont_name", "_ont_state", "_ont_source"],
+        ["id", "_ont_name", "_ont_type", "_ont_state", "_ont_source"],
     ) == {
         # "live" (the raw deploy status) normalizes to the shared ComputeInstance
-        # canonical state "running".
-        (TEST_SERVICE_ID, "cartography-test-service", "running", "render"),
+        # canonical state "running". _ont_type comes from the service's plan
+        # ("starter"), not its runtime - consistent with every other provider's
+        # ComputeInstance.type mapping (instance size/plan, not OS/runtime).
+        (TEST_SERVICE_ID, "cartography-test-service", "starter", "running", "render"),
     }
     assert check_nodes(neo4j_session, "Tenant", ["id"]) == {
         (TEST_OWNER_ID,),

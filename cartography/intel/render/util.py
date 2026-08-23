@@ -53,6 +53,7 @@ def list_paginated(
     request_params: dict[str, Any] = dict(params or {})
     request_params["limit"] = _PAGE_LIMIT
     cursor: str | None = None
+    seen_cursors: set[str] = set()
 
     while True:
         page_params = dict(request_params)
@@ -105,5 +106,13 @@ def list_paginated(
                 f"Render API returned a full page for {url} but the last entry has "
                 f"no 'cursor' value; refusing to treat this as the end of the list."
             )
+        if cursor in seen_cursors:
+            # A repeated cursor can never legitimately advance the page - looping on
+            # it forever would hang the sync instead of surfacing the bad response.
+            raise ValueError(
+                f"Render API returned the same cursor {cursor!r} for {url} on "
+                f"consecutive full pages; refusing to loop indefinitely."
+            )
+        seen_cursors.add(cursor)
 
     return items

@@ -47,12 +47,19 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         logger.info("Syncing Render workspace %s", owner_id)
         scoped_job_parameters = {**common_job_parameters, "OWNER_ID": owner_id}
 
+        # Cleanup for RenderProject/RenderEnvironment is deferred until every
+        # descendant has finished loading (run bottom-up below), so a transient
+        # failure partway through this tenant's descendant fetches doesn't leave a
+        # still-valid descendant pointing at a project/environment that cleanup
+        # already deleted this run - see projects.py/environments.py's sync()
+        # docstrings.
         project_ids = cartography.intel.render.projects.sync(
             neo4j_session,
             session,
             owner_id,
             config.update_tag,
             scoped_job_parameters,
+            run_cleanup=False,
         )
 
         cartography.intel.render.environments.sync(
@@ -62,6 +69,7 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             project_ids,
             config.update_tag,
             scoped_job_parameters,
+            run_cleanup=False,
         )
 
         cartography.intel.render.services.sync(
@@ -69,5 +77,14 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             session,
             owner_id,
             config.update_tag,
+            scoped_job_parameters,
+        )
+
+        cartography.intel.render.environments.cleanup(
+            neo4j_session,
+            scoped_job_parameters,
+        )
+        cartography.intel.render.projects.cleanup(
+            neo4j_session,
             scoped_job_parameters,
         )

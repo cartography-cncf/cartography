@@ -379,7 +379,7 @@ render_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
-                OntologyFieldMapping(ontology_field="type", node_field="runtime"),
+                OntologyFieldMapping(ontology_field="type", node_field="plan"),
                 OntologyFieldMapping(
                     ontology_field="created_at", node_field="created_at"
                 ),

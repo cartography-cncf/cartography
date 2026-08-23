@@ -80,15 +80,22 @@ def sync(
     project_ids: list[str],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    run_cleanup: bool = True,
 ) -> list[dict[str, Any]]:
     """
     Sync the environments belonging to a single Render workspace.
 
+    :param run_cleanup: Pass False to defer this resource's cleanup to a later,
+        explicit `cleanup()` call - used when descendant resources (services) are
+        fetched through this call's results after it returns, so that a stale
+        environment isn't already deleted out from under still-valid descendants -
+        see projects.py's `sync()` docstring for the same rationale.
     :return: The raw (un-transformed) environment objects, so the caller can read their
         embedded `ipAllowList` without a second network call.
     """
     environments = get(session, project_ids)
     transformed = transform(environments, owner_id)
     load_environments(neo4j_session, transformed, owner_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if run_cleanup:
+        cleanup(neo4j_session, common_job_parameters)
     return environments

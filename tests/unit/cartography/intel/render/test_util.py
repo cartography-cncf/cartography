@@ -116,3 +116,19 @@ def test_list_paginated_raises_on_full_page_missing_a_trailing_cursor():
 
     with pytest.raises(ValueError):
         list_paginated(session, URL, "service")
+
+
+def test_list_paginated_raises_on_a_repeated_cursor_instead_of_looping_forever():
+    """
+    A full page whose last entry's cursor repeats the previous page's cursor can never
+    legitimately advance pagination - looping on it would hang the sync instead of
+    surfacing the bad response.
+    """
+    repeating_page = [
+        {"service": {"id": f"srv-{i}"}, "cursor": "srv-99"} for i in range(100)
+    ]
+    session = Mock()
+    session.get.return_value = _response(repeating_page)
+
+    with pytest.raises(ValueError):
+        list_paginated(session, URL, "service")

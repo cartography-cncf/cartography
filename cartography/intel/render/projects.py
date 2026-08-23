@@ -71,14 +71,23 @@ def sync(
     owner_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    run_cleanup: bool = True,
 ) -> list[str]:
     """
     Sync the projects belonging to a single Render workspace.
 
+    :param run_cleanup: Pass False to defer this resource's cleanup to a later,
+        explicit `cleanup()` call - used when descendant resources (environments,
+        services) are fetched through these project ids after this call returns, so
+        that if one of those descendant fetches fails partway through, a stale
+        project isn't already deleted out from under still-valid descendants (which
+        would otherwise leave those descendants pointing at a project that no longer
+        exists, until the descendant's own cleanup eventually catches up).
     :return: The synced project ids, so the caller can fetch their environments.
     """
     projects = get(session, owner_id)
     transformed = transform(projects)
     load_projects(neo4j_session, transformed, owner_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if run_cleanup:
+        cleanup(neo4j_session, common_job_parameters)
     return [project["id"] for project in transformed]

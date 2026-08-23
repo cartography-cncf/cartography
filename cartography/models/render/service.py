@@ -68,7 +68,11 @@ class RenderServiceNodeProperties(CartographyNodeProperties):
     registry_credential_id: PropertyRef = PropertyRef(
         "registryCredentialId",
         extra_index=True,
-        description="ID of the registry credential used to pull this service's image, if any.",
+        description=(
+            "ID of the registry credential used to pull this service's image, if "
+            "any. Not yet a relationship - RenderRegistryCredential is added in a "
+            "later PR."
+        ),
     )
     created_at: PropertyRef = PropertyRef(
         "createdAt", description="Time when the service was created."
@@ -121,27 +125,6 @@ class RenderServiceToEnvironmentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class RenderServiceToRegistryCredentialRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:RenderService)-[:USES_CREDENTIAL]->(:RenderRegistryCredential)
-class RenderServiceToRegistryCredentialRel(CartographyRelSchema):
-    """Connects a service to the registry credential used to pull its image, if any."""
-
-    target_node_label: str = "RenderRegistryCredential"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("registryCredentialId")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "USES_CREDENTIAL"
-    properties: RenderServiceToRegistryCredentialRelProperties = (
-        RenderServiceToRegistryCredentialRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class RenderServiceSchema(CartographyNodeSchema):
     """A Render service (web service, background worker, cron job, private service, or static site)."""
 
@@ -150,7 +133,7 @@ class RenderServiceSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: RenderServiceToTenantRel = RenderServiceToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [RenderServiceToEnvironmentRel(), RenderServiceToRegistryCredentialRel()],
+        [RenderServiceToEnvironmentRel()],
     )
 
 
