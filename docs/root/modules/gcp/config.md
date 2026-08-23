@@ -129,6 +129,16 @@ cartography --selected-modules gcp
 | `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
 | `--gcp-exclude-org-root-projects` / `--gcp-include-org-root-projects` | Include (default) or exclude projects attached directly to the organization root, i.e. not inside any folder |
 
+```{warning}
+Exclusions are destructive to already-ingested data. If you add an exclusion
+flag *after* resources were synced without it, the newly excluded organizations,
+folder subtrees, or org-root projects are no longer listed, so the next sync's
+cleanup treats them as stale and **deletes them — and all of their synced
+resources — from Neo4j**. To keep previously-ingested data in the graph, remove
+it manually before enabling the exclusion, or accept the deletion as the
+intended pruning.
+```
+
 ## Troubleshooting
 
 - If an API is not enabled on the host or quota project, Cartography logs a
