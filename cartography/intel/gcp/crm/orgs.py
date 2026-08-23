@@ -95,6 +95,10 @@ def cleanup_excluded_gcp_organizations(
     from the graph", prune them here by ID. This is deliberately scoped to the
     explicitly excluded IDs rather than to stale orgs in general: an org that
     disappears due to temporary access loss (not exclusion) must keep its data.
+
+    Descendants still reachable via RESOURCE relationships from a non-excluded
+    organization are preserved — predefined GCPRole nodes (e.g. roles/viewer)
+    are shared by every org and must survive the pruning of one of them.
     """
     org_names = sorted(
         org_id if org_id.startswith("organizations/") else f"organizations/{org_id}"
@@ -109,8 +113,11 @@ def cleanup_excluded_gcp_organizations(
         ", ".join(org_names),
     )
     # All resources in an org are reachable from the org node via outgoing
-    # RESOURCE relationships (org -> folders/projects, project -> its
+    # RESOURCE relationships (org -> folders/projects/roles, project -> its
     # resources), so a variable-length traversal cascades the deletion.
+    # Children still reachable from a non-excluded org (e.g. predefined
+    # GCPRole nodes like roles/viewer, which are shared by every org) must be
+    # preserved; only data owned solely by the excluded orgs is deleted.
     run_write_query(
         neo4j_session,
         """
@@ -118,7 +125,12 @@ def cleanup_excluded_gcp_organizations(
         WHERE o.id IN $ORG_NAMES
         CALL (o) {
             OPTIONAL MATCH (o)-[:RESOURCE*]->(child)
-            WITH child WHERE child IS NOT NULL
+            WITH child
+            WHERE child IS NOT NULL
+            AND NOT EXISTS {
+                MATCH (other:GCPOrganization)-[:RESOURCE*]->(child)
+                WHERE NOT other.id IN $ORG_NAMES
+            }
             DETACH DELETE child
         }
         DETACH DELETE o

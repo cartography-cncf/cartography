@@ -12,6 +12,7 @@ import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
 import cartography.intel.gcp.iam
 import tests.data.gcp.crm
+import tests.data.gcp.iam
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
@@ -744,3 +745,186 @@ def test_excluded_org_is_pruned_from_graph(
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("project-org2",),
     }, "Excluded org's projects must be deleted; other org untouched"
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp,
+    "_sync_project_resources",
+    return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
+)
+@patch.object(
+    cartography.intel.gcp.crm.projects,
+    "get_gcp_projects",
+)
+@patch.object(
+    cartography.intel.gcp.crm.folders,
+    "get_gcp_folders",
+)
+@patch.object(
+    cartography.intel.gcp.crm.orgs,
+    "get_gcp_organizations",
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=tests.data.gcp.iam.LIST_PREDEFINED_ROLES_RESPONSE["roles"],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+)
+def test_excluded_org_pruning_preserves_shared_predefined_roles(
+    mock_get_org_roles,
+    mock_get_predefined_roles,
+    mock_get_orgs,
+    mock_get_folders,
+    mock_get_projects,
+    mock_sync_resources,
+    mock_get_creds,
+    neo4j_session,
+):
+    """
+    Predefined GCPRole nodes (roles/owner, roles/viewer, ...) are shared:
+    every org attaches to the same node via RESOURCE. Pruning an excluded org
+    must not delete them nor the retained org's relationship to them, while
+    org-specific custom roles of the excluded org are deleted.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    two_orgs = [
+        {
+            "name": "organizations/1337",
+            "displayName": "example.com",
+            "lifecycleState": "ACTIVE",
+        },
+        {
+            "name": "organizations/9999",
+            "displayName": "another.com",
+            "lifecycleState": "ACTIVE",
+        },
+    ]
+    custom_roles_by_org = {
+        "organizations/1337": [
+            {
+                "name": "organizations/1337/roles/customRole1",
+                "title": "Custom Role 1",
+                "includedPermissions": ["resourcemanager.projects.get"],
+                "etag": "etag_1",
+                "deleted": False,
+            },
+        ],
+        "organizations/9999": [
+            {
+                "name": "organizations/9999/roles/customRole2",
+                "title": "Custom Role 2",
+                "includedPermissions": ["resourcemanager.projects.get"],
+                "etag": "etag_2",
+                "deleted": False,
+            },
+        ],
+    }
+    folders_by_org = {
+        "organizations/1337": [
+            {
+                "name": "folders/1000",
+                "parent": "organizations/1337",
+                "displayName": "folder1",
+                "lifecycleState": "ACTIVE",
+            },
+        ],
+        "organizations/9999": [],
+    }
+    projects_by_org = {
+        "organizations/1337": [
+            {
+                "createTime": "2021-01-01T00:00:00Z",
+                "lifecycleState": "ACTIVE",
+                "name": "org1-project",
+                "parent": "folders/1000",
+                "projectId": "project-org1",
+                "projectNumber": "111111111111",
+            },
+        ],
+        "organizations/9999": [],
+    }
+
+    mock_get_orgs.side_effect = lambda credentials=None, excluded_org_ids=None: [
+        o
+        for o in two_orgs
+        if o["name"].split("/")[-1] not in (excluded_org_ids or set())
+    ]
+    mock_get_org_roles.side_effect = (
+        lambda iam_client, org_id, **kwargs: custom_roles_by_org[org_id]
+    )
+    mock_get_folders.side_effect = lambda org_resource_name, credentials=None, excluded_folder_ids=None: folders_by_org[
+        org_resource_name
+    ]
+    mock_get_projects.side_effect = lambda org_resource_name, folders, credentials=None, exclude_org_root_projects=False: projects_by_org[
+        org_resource_name
+    ]
+
+    # First sync: both orgs ingest the same predefined roles.
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG,
+    )
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    predefined_role_ids = {
+        role["name"]
+        for role in tests.data.gcp.iam.LIST_PREDEFINED_ROLES_RESPONSE["roles"]
+    }
+    roles_before = {
+        role_id for (role_id,) in check_nodes(neo4j_session, "GCPRole", ["id"])
+    }
+    assert predefined_role_ids <= roles_before
+    assert "organizations/1337/roles/customRole1" in roles_before
+    assert "organizations/9999/roles/customRole2" in roles_before
+
+    # Second sync: org 1337 is excluded and must be pruned.
+    config = Config(
+        neo4j_uri=settings.get("NEO4J_URL"),
+        update_tag=TEST_UPDATE_TAG_V2,
+        gcp_excluded_org_ids=["1337"],
+    )
+    cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    # Excluded org's own data is gone.
+    assert check_nodes(neo4j_session, "GCPOrganization", ["id"]) == {
+        ("organizations/9999",),
+    }
+    assert check_nodes(neo4j_session, "GCPFolder", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == set()
+
+    roles_after = {
+        role_id for (role_id,) in check_nodes(neo4j_session, "GCPRole", ["id"])
+    }
+    assert (
+        predefined_role_ids <= roles_after
+    ), "Shared predefined roles must survive pruning of the excluded org"
+    assert (
+        "organizations/1337/roles/customRole1" not in roles_after
+    ), "Excluded org's custom role must be deleted"
+    assert (
+        "organizations/9999/roles/customRole2" in roles_after
+    ), "Retained org's custom role must survive"
+
+    # The retained org still has its RESOURCE relationships to shared roles.
+    org_role_rels = check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPRole",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert ("organizations/9999", "roles/viewer") in org_role_rels
+    assert all(
+        org_id == "organizations/9999" for org_id, _ in org_role_rels
+    ), "No RESOURCE rels from the excluded org may remain"
