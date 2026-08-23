@@ -2,7 +2,9 @@ import logging
 
 import neo4j
 
+import cartography.intel.render.environments
 import cartography.intel.render.projects
+import cartography.intel.render.services
 import cartography.intel.render.tenants
 from cartography.config import Config
 from cartography.intel.render.util import build_session
@@ -45,7 +47,24 @@ def start_render_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         logger.info("Syncing Render workspace %s", owner_id)
         scoped_job_parameters = {**common_job_parameters, "OWNER_ID": owner_id}
 
-        cartography.intel.render.projects.sync(
+        project_ids = cartography.intel.render.projects.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+
+        cartography.intel.render.environments.sync(
+            neo4j_session,
+            session,
+            owner_id,
+            project_ids,
+            config.update_tag,
+            scoped_job_parameters,
+        )
+
+        cartography.intel.render.services.sync(
             neo4j_session,
             session,
             owner_id,

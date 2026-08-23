@@ -24,10 +24,13 @@ sync all of them in a single run.
 
 - `RenderTenant` (a Render workspace/`owner`)
 - `RenderProject`
+- `RenderEnvironment`
+- `RenderService` (also labeled as a `ComputeInstance` in the
+  [ontology](../ontology/index.md))
 
 This is the first of several planned PRs adding Render resources; more resource types
-(environments, services, databases, and others) will be added incrementally in
-follow-up PRs once this initial shape is reviewed.
+(databases, disks, secrets, and others) will be added incrementally in follow-up PRs
+once this initial shape is reviewed.
 
 ### A workspace that drops out of view is not deleted
 
