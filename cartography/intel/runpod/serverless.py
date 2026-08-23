@@ -6,10 +6,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.runpod.pods import _port_summaries
-from cartography.intel.runpod.util import first_present
-from cartography.intel.runpod.util import first_present_list
 from cartography.intel.runpod.util import get_list
 from cartography.intel.runpod.util import id_list
+from cartography.intel.runpod.util import require_list_field
 from cartography.intel.runpod.util import require_non_empty
 from cartography.models.runpod.serverless import RunPodServerlessEndpointSchema
 from cartography.util import timeit
@@ -21,7 +20,12 @@ def get(session: requests.Session, base_url: str) -> list[dict[str, Any]]:
 
 
 def _gpu_type_ids(endpoint: dict[str, Any]) -> list[str]:
-    gpu_ids = first_present_list(endpoint, "gpuTypeIds", "gpuIds")
+    if "gpuTypeIds" in endpoint:
+        gpu_ids = require_list_field(endpoint, "gpuTypeIds")
+    elif "gpuIds" in endpoint:
+        gpu_ids = require_list_field(endpoint, "gpuIds")
+    else:
+        gpu_ids = []
     if gpu_ids:
         return id_list(gpu_ids, "gpuTypeIds")
     gpu = endpoint.get("gpu") or {}
@@ -33,10 +37,23 @@ def _gpu_type_ids(endpoint: dict[str, Any]) -> list[str]:
 
 
 def _network_volume_ids(endpoint: dict[str, Any]) -> list[str]:
-    return id_list(
-        first_present_list(endpoint, "networkVolumeIds", "networkVolumes"),
-        "networkVolumeIds",
-    )
+    if "networkVolumeIds" in endpoint:
+        network_volume_ids = require_list_field(endpoint, "networkVolumeIds")
+    elif "networkVolumes" in endpoint:
+        network_volume_ids = require_list_field(endpoint, "networkVolumes")
+    else:
+        network_volume_ids = []
+    return id_list(network_volume_ids, "networkVolumeIds")
+
+
+def _scaler_value(scaler: dict[str, Any], endpoint: dict[str, Any]) -> Any:
+    if "value" in scaler:
+        return scaler["value"]
+    if "queueDelay" in scaler:
+        return scaler["queueDelay"]
+    if "requestCount" in scaler:
+        return scaler["requestCount"]
+    return endpoint.get("scalerValue")
 
 
 def transform(endpoints: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
@@ -55,32 +72,20 @@ def transform(endpoints: list[dict[str, Any]], account_id: str) -> list[dict[str
                 "data_center_ids": endpoint.get("dataCenterIds") or [],
                 "network_volume_ids": _network_volume_ids(endpoint),
                 "workers_min": (
-                    first_present(workers, "min")
-                    if "min" in workers
-                    else endpoint.get("workersMin")
+                    workers["min"] if "min" in workers else endpoint.get("workersMin")
                 ),
                 "workers_max": (
-                    first_present(workers, "max")
-                    if "max" in workers
-                    else endpoint.get("workersMax")
+                    workers["max"] if "max" in workers else endpoint.get("workersMax")
                 ),
                 "idle_timeout": (
-                    first_present(workers, "idleTimeout")
+                    workers["idleTimeout"]
                     if "idleTimeout" in workers
                     else endpoint.get("idleTimeout")
                 ),
                 "scaler_type": (
-                    first_present(scaler, "type")
-                    if "type" in scaler
-                    else endpoint.get("scalerType")
+                    scaler["type"] if "type" in scaler else endpoint.get("scalerType")
                 ),
-                "scaler_value": (
-                    first_present(scaler, "value", "queueDelay", "requestCount")
-                    if any(
-                        key in scaler for key in ("value", "queueDelay", "requestCount")
-                    )
-                    else endpoint.get("scalerValue")
-                ),
+                "scaler_value": _scaler_value(scaler, endpoint),
                 "timeout": endpoint.get("timeout"),
                 "created_at": endpoint.get("createdAt"),
                 "ports": _port_summaries(endpoint.get("ports")),

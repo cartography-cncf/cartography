@@ -1,15 +1,10 @@
-import logging
 from typing import Any
-from typing import Callable
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-logger = logging.getLogger(__name__)
-
 BASE_URL = "https://api.runpod.io/v2"
-SKIPPED_SYNC = object()
 
 
 def build_session(api_key: str) -> requests.Session:
@@ -31,33 +26,15 @@ def require_non_empty(value: Any, field_name: str) -> Any:
     return value
 
 
-def first_present(record: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        if key in record:
-            return record[key]
-    return None
-
-
-def first_not_none(record: dict[str, Any], *keys: str) -> Any:
-    for key in keys:
-        value = record.get(key)
-        if value is not None:
-            return value
-    return None
-
-
-def first_present_list(record: dict[str, Any], *keys: str) -> list[Any]:
-    for key in keys:
-        if key in record:
-            value = record[key]
-            if value is None:
-                return []
-            if not isinstance(value, list):
-                raise ValueError(
-                    f"RunPod field {key!r} must be a list, got {type(value).__name__}."
-                )
-            return value
-    return []
+def require_list_field(record: dict[str, Any], key: str) -> list[Any]:
+    value = record.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(
+            f"RunPod field {key!r} must be a list, got {type(value).__name__}."
+        )
+    return value
 
 
 def id_list(value: Any, field_name: str) -> list[str]:
@@ -171,23 +148,3 @@ def compact_json(value: Any) -> Any:
     if isinstance(value, list):
         return [compact_json(v) for v in value]
     return value
-
-
-def safe_sync(
-    name: str,
-    sync_fn: Callable[..., Any],
-    required: bool,
-    **kwargs: Any,
-) -> Any:
-    try:
-        return sync_fn(**kwargs)
-    except requests.exceptions.RequestException as exc:
-        if required:
-            raise
-        logger.warning(
-            "RunPod %s sync failed - skipping this resource type and its cleanup "
-            "for this run, continuing with the rest of the account sync: %s",
-            name,
-            exc,
-        )
-        return SKIPPED_SYNC

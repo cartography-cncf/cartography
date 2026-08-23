@@ -1,14 +1,10 @@
-import logging
 from unittest.mock import Mock
 
 import pytest
-import requests
 
 from cartography.intel.runpod.util import get_list
 from cartography.intel.runpod.util import get_string_list
 from cartography.intel.runpod.util import require_non_empty
-from cartography.intel.runpod.util import safe_sync
-from cartography.intel.runpod.util import SKIPPED_SYNC
 
 
 def _response(body, json_exception=None):
@@ -95,33 +91,6 @@ def test_require_non_empty_rejects_none_and_empty_string():
         require_non_empty(None, "pod id")
     with pytest.raises(ValueError):
         require_non_empty("", "pod id")
-
-
-def test_safe_sync_swallows_request_exception_and_skips_cleanup(caplog):
-    def sync_fn():
-        raise requests.exceptions.HTTPError("boom")
-
-    with caplog.at_level(logging.WARNING):
-        result = safe_sync("SSH keys", sync_fn, required=False)
-
-    assert result is SKIPPED_SYNC
-    assert "SSH keys" in caplog.text
-
-
-def test_safe_sync_required_reraises_request_exception():
-    def sync_fn():
-        raise requests.exceptions.HTTPError("boom")
-
-    with pytest.raises(requests.exceptions.HTTPError):
-        safe_sync("pods", sync_fn, required=True)
-
-
-def test_safe_sync_still_raises_on_value_error():
-    def sync_fn():
-        raise ValueError("RunPod record is missing required non-empty pod id.")
-
-    with pytest.raises(ValueError):
-        safe_sync("pods", sync_fn, required=False)
 
 
 def test_get_list_does_not_invent_undocumented_pagination():

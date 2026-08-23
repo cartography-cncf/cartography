@@ -5,7 +5,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.runpod.util import first_present
 from cartography.intel.runpod.util import get_list
 from cartography.intel.runpod.util import require_non_empty
 from cartography.models.runpod.cluster import RunPodClusterSchema
@@ -28,7 +27,7 @@ def _cluster_gpu_count(
     cluster: dict[str, Any],
 ) -> Any:
     if "count" in gpu:
-        return first_present(gpu, "count")
+        return gpu["count"]
     if "gpuCount" in cluster:
         return cluster.get("gpuCount")
     if "gpuCountPerPod" in compute and isinstance(pod_count, int | float):
@@ -53,15 +52,16 @@ def transform(clusters: list[dict[str, Any]], account_id: str) -> list[dict[str,
         primary_pod = _dict_or_empty(
             cluster.get("primaryPod") or cluster.get("primary")
         )
-        pod_count = (
-            first_present(pods, "count", "total")
-            if any(key in pods for key in ("count", "total"))
-            else cluster.get("podCount")
-        )
+        if "count" in pods:
+            pod_count = pods["count"]
+        elif "total" in pods:
+            pod_count = pods["total"]
+        else:
+            pod_count = cluster.get("podCount")
         if "running" in pods:
-            running_pod_count = first_present(pods, "running")
+            running_pod_count = pods["running"]
         elif "RUNNING" in by_status:
-            running_pod_count = first_present(by_status, "RUNNING")
+            running_pod_count = by_status["RUNNING"]
         else:
             running_pod_count = cluster.get("runningPodCount")
         transformed.append(

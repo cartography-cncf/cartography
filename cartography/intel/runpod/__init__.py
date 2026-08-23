@@ -1,6 +1,7 @@
 import logging
 
 import neo4j
+import requests
 
 import cartography.intel.runpod.account
 import cartography.intel.runpod.catalog
@@ -14,7 +15,6 @@ import cartography.intel.runpod.templates
 from cartography.config import Config
 from cartography.intel.runpod.util import BASE_URL
 from cartography.intel.runpod.util import build_session
-from cartography.intel.runpod.util import safe_sync
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -55,46 +55,36 @@ def start_runpod_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         "common_job_parameters": common_job_parameters,
     }
 
-    safe_sync(
-        "SSH keys",
-        cartography.intel.runpod.sshkeys.sync,
-        required=False,
-        **sync_kwargs,
-    )
-    safe_sync(
-        "registry credentials",
-        cartography.intel.runpod.registries.sync,
-        required=False,
-        **sync_kwargs,
-    )
-    safe_sync(
-        "data centers",
-        cartography.intel.runpod.catalog.sync,
-        required=False,
-        **sync_kwargs,
-    )
-    safe_sync(
-        "network volumes",
-        cartography.intel.runpod.network_volumes.sync,
-        required=True,
-        **sync_kwargs,
-    )
-    safe_sync(
-        "templates",
-        cartography.intel.runpod.templates.sync,
-        required=True,
-        **sync_kwargs,
-    )
-    safe_sync("pods", cartography.intel.runpod.pods.sync, required=True, **sync_kwargs)
-    safe_sync(
-        "serverless endpoints",
-        cartography.intel.runpod.serverless.sync,
-        required=True,
-        **sync_kwargs,
-    )
-    safe_sync(
-        "clusters",
-        cartography.intel.runpod.clusters.sync,
-        required=True,
-        **sync_kwargs,
-    )
+    try:
+        cartography.intel.runpod.sshkeys.sync(**sync_kwargs)
+    except requests.exceptions.RequestException as exc:
+        logger.warning(
+            "RunPod SSH keys sync failed - skipping this resource type and its "
+            "cleanup for this run, continuing with the rest of the account sync: %s",
+            exc,
+        )
+
+    try:
+        cartography.intel.runpod.registries.sync(**sync_kwargs)
+    except requests.exceptions.RequestException as exc:
+        logger.warning(
+            "RunPod registry credentials sync failed - skipping this resource type "
+            "and its cleanup for this run, continuing with the rest of the account "
+            "sync: %s",
+            exc,
+        )
+
+    try:
+        cartography.intel.runpod.catalog.sync(**sync_kwargs)
+    except requests.exceptions.RequestException as exc:
+        logger.warning(
+            "RunPod data centers sync failed - skipping this resource type and its "
+            "cleanup for this run, continuing with the rest of the account sync: %s",
+            exc,
+        )
+
+    cartography.intel.runpod.network_volumes.sync(**sync_kwargs)
+    cartography.intel.runpod.templates.sync(**sync_kwargs)
+    cartography.intel.runpod.pods.sync(**sync_kwargs)
+    cartography.intel.runpod.serverless.sync(**sync_kwargs)
+    cartography.intel.runpod.clusters.sync(**sync_kwargs)

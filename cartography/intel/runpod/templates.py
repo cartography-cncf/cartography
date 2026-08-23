@@ -6,8 +6,6 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.runpod.pods import _port_summaries
-from cartography.intel.runpod.util import first_not_none
-from cartography.intel.runpod.util import first_present
 from cartography.intel.runpod.util import get_list
 from cartography.intel.runpod.util import require_non_empty
 from cartography.models.runpod.template import RunPodTemplateSchema
@@ -36,24 +34,41 @@ def transform(templates: list[dict[str, Any]], account_id: str) -> list[dict[str
     transformed = []
     for template in templates:
         persistent_mount = _persistent_mount(template)
-        volume_in_gb = first_not_none(template, "volumeInGb", "volume")
+
+        volume_in_gb = template.get("volumeInGb")
+        if volume_in_gb is None:
+            volume_in_gb = template.get("volume")
         if volume_in_gb is None:
             volume_in_gb = persistent_mount.get("size")
+
+        container_disk_in_gb = template.get("containerDiskInGb")
+        if container_disk_in_gb is None:
+            container_disk_in_gb = template.get("containerDisk")
+        if container_disk_in_gb is None:
+            container_disk_in_gb = template.get("disk")
+
+        is_public = (
+            template["isPublic"] if "isPublic" in template else template.get("public")
+        )
+        is_serverless = (
+            template["isServerless"]
+            if "isServerless" in template
+            else template.get("serverless")
+        )
+
         transformed.append(
             {
                 "id": require_non_empty(template.get("id"), "template id"),
                 "account_id": account_id,
                 "name": template.get("name"),
                 "image_name": template.get("imageName") or template.get("image"),
-                "container_disk_in_gb": first_not_none(
-                    template, "containerDiskInGb", "containerDisk", "disk"
-                ),
+                "container_disk_in_gb": container_disk_in_gb,
                 "volume_in_gb": volume_in_gb,
                 "volume_mount_path": template.get("volumeMountPath")
                 or persistent_mount.get("path"),
                 "registry_id": _registry_id(template),
-                "is_public": first_present(template, "isPublic", "public"),
-                "is_serverless": first_present(template, "isServerless", "serverless"),
+                "is_public": is_public,
+                "is_serverless": is_serverless,
                 "category": template.get("category"),
                 "start_ssh": template.get("startSsh"),
                 "start_jupyter": template.get("startJupyter"),

@@ -5,8 +5,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.runpod.util import first_not_none
-from cartography.intel.runpod.util import first_present
 from cartography.intel.runpod.util import get_list
 from cartography.intel.runpod.util import require_non_empty
 from cartography.models.runpod.pod import RunPodPodSchema
@@ -75,13 +73,32 @@ def _template_id(record: dict[str, Any]) -> Any:
     return record.get("templateId") or template
 
 
-def _cpu_value(pod: dict[str, Any], *keys: str) -> Any:
+def _vcpu_count(pod: dict[str, Any]) -> Any:
     cpu = pod.get("cpu")
     if isinstance(cpu, dict):
-        value = first_not_none(cpu, *keys)
+        value = cpu.get("vcpuCount")
+        if value is None:
+            value = cpu.get("vcpu")
         if value is not None:
             return value
-    return first_not_none(pod, *keys)
+    value = pod.get("vcpuCount")
+    if value is None:
+        value = pod.get("vcpu")
+    return value
+
+
+def _memory_in_gb(pod: dict[str, Any]) -> Any:
+    cpu = pod.get("cpu")
+    if isinstance(cpu, dict):
+        value = cpu.get("memoryInGb")
+        if value is None:
+            value = cpu.get("memory")
+        if value is not None:
+            return value
+    value = pod.get("memoryInGb")
+    if value is None:
+        value = pod.get("memory")
+    return value
 
 
 @timeit
@@ -105,9 +122,21 @@ def transform(pods: list[dict[str, Any]], account_id: str) -> list[dict[str, Any
         runtime = pod.get("runtime") or {}
         global_networking = pod.get("globalNetworking") or {}
         persistent_mount = _persistent_mount(pod)
-        volume_in_gb = first_not_none(pod, "volumeInGb", "volume")
+
+        volume_in_gb = pod.get("volumeInGb")
+        if volume_in_gb is None:
+            volume_in_gb = pod.get("volume")
         if volume_in_gb is None:
             volume_in_gb = persistent_mount.get("size")
+
+        container_disk_in_gb = pod.get("containerDiskInGb")
+        if container_disk_in_gb is None:
+            container_disk_in_gb = pod.get("containerDisk")
+        if container_disk_in_gb is None:
+            container_disk_in_gb = pod.get("disk")
+
+        gpu_count = gpu["count"] if "count" in gpu else pod.get("gpuCount")
+
         transformed.append(
             {
                 "id": require_non_empty(pod.get("id"), "pod id"),
@@ -118,16 +147,10 @@ def transform(pods: list[dict[str, Any]], account_id: str) -> list[dict[str, Any
                 "machine_id": pod.get("machineId"),
                 "data_center_id": pod.get("dataCenterId"),
                 "gpu_type_id": gpu.get("id") or pod.get("gpuTypeId"),
-                "gpu_count": (
-                    first_present(gpu, "count")
-                    if "count" in gpu
-                    else pod.get("gpuCount")
-                ),
-                "vcpu_count": _cpu_value(pod, "vcpuCount", "vcpu"),
-                "memory_in_gb": _cpu_value(pod, "memoryInGb", "memory"),
-                "container_disk_in_gb": first_not_none(
-                    pod, "containerDiskInGb", "containerDisk", "disk"
-                ),
+                "gpu_count": gpu_count,
+                "vcpu_count": _vcpu_count(pod),
+                "memory_in_gb": _memory_in_gb(pod),
+                "container_disk_in_gb": container_disk_in_gb,
                 "volume_in_gb": volume_in_gb,
                 "volume_mount_path": pod.get("volumeMountPath")
                 or persistent_mount.get("path"),
