@@ -144,7 +144,7 @@ class TestGetGcpSubnetsHttpErrors:
 
         assert get_gcp_subnets("test-project", "bad-region", mock_compute) is None
 
-    def test_preserves_partial_data_on_timeout(self):
+    def test_returns_none_on_timeout(self):
         mock_compute = MagicMock()
         first_request = _make_request(
             response={"id": "subnet-page", "items": [{"name": "subnet-a"}]},
@@ -156,10 +156,7 @@ class TestGetGcpSubnetsHttpErrors:
             None,
         ]
 
-        assert get_gcp_subnets("test-project", "us-central1", mock_compute) == {
-            "id": "subnet-page",
-            "items": [{"name": "subnet-a"}],
-        }
+        assert get_gcp_subnets("test-project", "us-central1", mock_compute) is None
 
     @pytest.mark.parametrize(
         "error",
