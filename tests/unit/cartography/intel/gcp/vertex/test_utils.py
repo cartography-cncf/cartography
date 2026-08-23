@@ -88,3 +88,39 @@ def test_list_vertex_ai_resources_for_location_reraises_google_api_call_errors()
             location="us-central1",
             project_id="test-project",
         )
+
+
+def test_paginate_vertex_api_uses_timeout(monkeypatch):
+    mock_session = SimpleNamespace()
+    calls = []
+
+    def mock_get(url, headers=None, params=None, timeout=None):
+        calls.append((url, headers, params, timeout))
+        mock_resp = SimpleNamespace()
+        mock_resp.status_code = 200
+        if len(calls) == 1:
+            mock_resp.json = lambda: {"instances": [{"name": "inst-1"}], "nextPageToken": "token2"}
+        else:
+            mock_resp.json = lambda: {"instances": [{"name": "inst-2"}]}
+        return mock_resp
+
+    mock_session.get = mock_get
+
+    from cartography.intel.gcp.vertex.utils import _TIMEOUT
+    from cartography.intel.gcp.vertex.utils import paginate_vertex_api
+
+    res = paginate_vertex_api(
+        url="https://example.com/api",
+        headers={"Auth": "token"},
+        resource_type="instances",
+        response_key="instances",
+        location="us-central1",
+        project_id="test-proj",
+        session=mock_session,
+    )
+
+    assert res == [{"name": "inst-1"}, {"name": "inst-2"}]
+    assert len(calls) == 2
+    assert calls[0][3] == _TIMEOUT
+    assert calls[1][3] == _TIMEOUT
+
