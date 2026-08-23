@@ -90,8 +90,8 @@ def test_list_vertex_ai_resources_for_location_reraises_google_api_call_errors()
         )
 
 
-def test_paginate_vertex_api_uses_timeout(monkeypatch):
-    mock_session = SimpleNamespace()
+@pytest.mark.parametrize("use_session", [True, False])
+def test_paginate_vertex_api_uses_timeout(use_session, monkeypatch):
     calls = []
 
     def mock_get(url, headers=None, params=None, timeout=None):
@@ -104,10 +104,15 @@ def test_paginate_vertex_api_uses_timeout(monkeypatch):
             mock_resp.json = lambda: {"instances": [{"name": "inst-2"}]}
         return mock_resp
 
-    mock_session.get = mock_get
-
+    from cartography.intel.gcp.vertex import utils
     from cartography.intel.gcp.vertex.utils import _TIMEOUT
     from cartography.intel.gcp.vertex.utils import paginate_vertex_api
+
+    if use_session:
+        session = SimpleNamespace(get=mock_get)
+    else:
+        session = None
+        monkeypatch.setattr(utils.requests, "get", mock_get)
 
     res = paginate_vertex_api(
         url="https://example.com/api",
@@ -116,11 +121,12 @@ def test_paginate_vertex_api_uses_timeout(monkeypatch):
         response_key="instances",
         location="us-central1",
         project_id="test-proj",
-        session=mock_session,
+        session=session,
     )
 
     assert res == [{"name": "inst-1"}, {"name": "inst-2"}]
     assert len(calls) == 2
     assert calls[0][3] == _TIMEOUT
     assert calls[1][3] == _TIMEOUT
+
 
