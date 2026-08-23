@@ -341,7 +341,12 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
-# Unikraft instance state
+# Unikraft instance state, per https://unikraft.com/docs/api/platform/v1/~schemas
+# (the full documented 9-value enum, not just the values a fixture happens to show).
+# "checkpoint" maps to "unknown" rather than a specific lifecycle state: per the docs,
+# a checkpoint is a saved point-in-time snapshot artifact created from a running,
+# stopped, or standby instance - not itself a currently running/stopped live instance -
+# the same reasoning already applied to "template".
 _UNIKRAFT_INSTANCE_STATE = {
     "starting": "starting",
     "running": "running",
@@ -351,6 +356,7 @@ _UNIKRAFT_INSTANCE_STATE = {
     "standby": "suspended",
     "template": "unknown",
     "deleted": "terminated",
+    "checkpoint": "unknown",
 }
 
 unikraft_mapping = OntologyMapping(

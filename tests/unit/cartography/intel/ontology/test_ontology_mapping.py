@@ -441,6 +441,61 @@ def test_aws_account_status_ontology_map_covers_all_states():
     }
 
 
+def test_unikraft_instance_state_ontology_map_covers_all_states():
+    """
+    UnikraftInstance._ont_state must normalize every documented Unikraft Cloud
+    instance state (per https://unikraft.com/docs/api/platform/v1/~schemas).
+    Unmapped values become NULL (CASE without ELSE), so an instance in an
+    unmapped state would silently lose its ontology state if omitted.
+    """
+    from cartography.models.ontology.mapping.data.computeinstance import (
+        COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
+    )
+
+    unikraft = COMPUTE_INSTANCE_ONTOLOGY_MAPPING["unikraft"]
+    instance = next(n for n in unikraft.nodes if n.node_label == "UnikraftInstance")
+    state = next(f for f in instance.fields if f.ontology_field == "state")
+
+    assert state.special_handling == "mapping"
+    assert state.extra["map"] == {
+        "starting": "starting",
+        "running": "running",
+        "draining": "stopping",
+        "stopping": "stopping",
+        "stopped": "stopped",
+        "standby": "suspended",
+        "template": "unknown",
+        "deleted": "terminated",
+        "checkpoint": "unknown",
+    }
+
+
+def test_unikraft_volume_state_ontology_map_covers_all_states():
+    """
+    UnikraftVolume._ont_state must normalize every documented Unikraft Cloud
+    volume state (per https://unikraft.com/docs/api/platform/v1/~schemas).
+    """
+    from cartography.models.ontology.mapping.data.blockstorage import (
+        BLOCK_STORAGE_ONTOLOGY_MAPPING,
+    )
+
+    unikraft = BLOCK_STORAGE_ONTOLOGY_MAPPING["unikraft"]
+    volume = next(n for n in unikraft.nodes if n.node_label == "UnikraftVolume")
+    state = next(f for f in volume.fields if f.ontology_field == "state")
+
+    assert state.special_handling == "mapping"
+    assert state.extra["map"] == {
+        "uninitialized": "creating",
+        "initializing": "creating",
+        "available": "available",
+        "idle": "available",
+        "mounted": "in_use",
+        "busy": "in_use",
+        "error": "error",
+        "template": "unknown",
+    }
+
+
 def test_uppercase_provider_cve_severities_are_canonicalized():
     # Arrange
     cvss_map = {
