@@ -173,8 +173,8 @@ def _normalize_repository(value: str) -> str:
 
 def _get_filesystem_scan_targets(
     neo4j_session: Session,
-) -> dict[tuple[str, str], list[str]]:
-    """Return source repository and revision pairs mapped to snapshot IDs."""
+) -> dict[tuple[str, str, str | None], list[str]]:
+    """Return source repository, revision, and root mapped to snapshot IDs."""
     result = neo4j_session.run(
         """
         MATCH (snapshot:FilesystemSnapshot)
@@ -182,14 +182,18 @@ def _get_filesystem_scan_targets(
           AND snapshot.source_revision IS NOT NULL
         RETURN snapshot.id AS id,
                snapshot.source_repo AS repository,
-               snapshot.source_revision AS revision
+               snapshot.source_revision AS revision,
+               snapshot.root_directory AS root_directory
         """,
     )
-    targets: dict[tuple[str, str], list[str]] = {}
+    targets: dict[tuple[str, str, str | None], list[str]] = {}
     for record in result:
         repository = _normalize_repository(record["repository"])
         revision = record["revision"].lower()
-        targets.setdefault((repository, revision), []).append(record["id"])
+        root_directory = (record["root_directory"] or "").strip("/") or None
+        targets.setdefault((repository, revision, root_directory), []).append(
+            record["id"]
+        )
     return targets
 
 
@@ -209,7 +213,7 @@ def _prepare_trivy_data(
     trivy_data: dict[str, Any],
     image_uris: set[str],
     digest_aliases: dict[str, str],
-    filesystem_targets: dict[tuple[str, str], list[str]],
+    filesystem_targets: dict[tuple[str, str, str | None], list[str]],
     source: str,
 ) -> tuple[dict[str, Any], str | None, list[str]] | None:
     """
@@ -249,16 +253,30 @@ def _prepare_trivy_data(
     artifact_type = trivy_data.get("ArtifactType")
     repo_url = metadata.get("RepoURL")
     revision = metadata.get("Commit")
+    root_directory = metadata.get("RootDirectory")
     if (
         artifact_type in {"filesystem", "repository"}
         and isinstance(repo_url, str)
         and isinstance(revision, str)
         and re.fullmatch(r"[0-9a-fA-F]{40}", revision)
     ):
-        snapshot_ids = filesystem_targets.get(
-            (_normalize_repository(repo_url), revision.lower()),
-            [],
-        )
+        repository_key = _normalize_repository(repo_url)
+        revision_key = revision.lower()
+        if isinstance(root_directory, str):
+            root_key = root_directory.strip("/") or None
+            snapshot_ids = filesystem_targets.get(
+                (repository_key, revision_key, root_key),
+                [],
+            )
+        else:
+            # Reports without a root predate this discriminator and represent
+            # the whole repository, so retain the existing broad match.
+            snapshot_ids = [
+                snapshot_id
+                for (repository, commit, _), ids in filesystem_targets.items()
+                if repository == repository_key and commit == revision_key
+                for snapshot_id in ids
+            ]
         if snapshot_ids:
             return trivy_data, None, snapshot_ids
 

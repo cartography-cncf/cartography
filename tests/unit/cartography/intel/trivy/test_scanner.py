@@ -30,12 +30,37 @@ def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
         trivy_data,
         image_uris=set(),
         digest_aliases={},
-        filesystem_targets={("acme/api", revision): ["snapshot-1"]},
+        filesystem_targets={("acme/api", revision, None): ["snapshot-1"]},
         source="repository.json",
     )
 
     # Assert
     assert prepared is None
+
+
+def test_prepare_trivy_data_matches_filesystem_root_directory():
+    revision = "0123456789abcdef0123456789abcdef01234567"
+    trivy_data = {
+        "ArtifactType": "repository",
+        "Metadata": {
+            "RepoURL": "https://github.com/acme/api",
+            "Commit": revision,
+            "RootDirectory": "services/api",
+        },
+    }
+
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris=set(),
+        digest_aliases={},
+        filesystem_targets={
+            ("acme/api", revision, "services/api"): ["snapshot-api"],
+            ("acme/api", revision, "services/web"): ["snapshot-web"],
+        },
+        source="repository.json",
+    )
+
+    assert prepared == (trivy_data, None, ["snapshot-api"])
 
 
 @patch("boto3.Session")
