@@ -14,6 +14,7 @@ from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
+from cartography.models.aws.ecr.scan_finding import AWSECRScanFindingSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 from cartography.util import to_asynchronous
@@ -198,6 +199,44 @@ def get_ecr_repository_images(
 
 
 @timeit
+@aws_handle_regions
+def get_ecr_scan_findings(
+    boto3_session: boto3.session.Session,
+    region: str,
+    repository_name: str,
+    image_id: str,
+) -> List[Dict[str, Any]]:
+    logger.debug(
+        "Getting ECR scan findings for image '%s' in '%s' region.",
+        image_id,
+        region,
+    )
+    client = create_boto3_client(boto3_session, "ecr", region_name=region)
+    paginator = client.get_paginator("describe_image_scan_findings")
+
+    findings: List[Dict[str, Any]] = []
+    try:
+        for page in paginator.paginate(
+            repositoryName=repository_name,
+            imageId={"imageDigest": image_id},
+        ):
+            if page.get("imageScanStatus", {}).get("status") != "COMPLETE":
+                return []
+            findings.extend(page["imageScanFindings"]["findings"])
+    except (
+        client.exceptions.ScanNotFoundException,
+        client.exceptions.ImageNotFoundException,
+    ):
+        logger.warning(
+            "Could not find scan for image '%s' in repository '%s'; skipping.",
+            image_id,
+            repository_name,
+        )
+        return []
+    return findings
+
+
+@timeit
 def load_ecr_repositories(
     neo4j_session: neo4j.Session,
     repos: List[Dict],
@@ -366,6 +405,9 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(AWSECRScanFindingSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def _get_image_data(
@@ -397,6 +439,112 @@ def _get_image_data(
     return image_data
 
 
+def _get_image_scan_results(
+    boto3_session: boto3.session.Session,
+    region: str,
+    image_data: Dict[str, Any],
+) -> List[Dict]:
+    raw_findings: List[Dict] = []
+
+    async def async_get_findings(repo_uri: str, img: Dict[str, Any]) -> None:
+        repo_name = img.get("repositoryName")
+        digest = img.get("imageDigest")
+        if not repo_name or not digest:
+            return
+        findings = await to_asynchronous(
+            get_ecr_scan_findings,
+            boto3_session,
+            region,
+            repo_name,
+            digest,
+        )
+        raw_findings.extend(
+            {**f, "_repo_uri": repo_uri, "_image_digest": digest} for f in findings
+        )
+
+    # Same digest can appear multiple times. Skipping duplicates to avoid redundant scan calls.
+    seen: set[tuple[str, str]] = set()
+    tasks = []
+    for repo_uri, images in image_data.items():
+        for img in images:
+            digest = img.get("imageDigest")
+            repo_name = img.get("repositoryName")
+            if not digest or not repo_name:
+                continue
+            key = (repo_name, digest)
+            if key not in seen:
+                seen.add(key)
+                tasks.append((repo_uri, img))
+    for i in range(0, len(tasks), REPO_BATCH_SIZE):
+        batch = tasks[i : i + REPO_BATCH_SIZE]
+        to_synchronous(*[async_get_findings(repo_uri, img) for repo_uri, img in batch])
+
+    return raw_findings
+
+
+def transform_ecr_scan_findings(raw_findings: List[Dict]) -> List[Dict]:
+    findings = []
+    for find in raw_findings:
+        repo_uri = find.get("_repo_uri")
+        image_digest = find.get("_image_digest")
+        cve_id = find.get("name")
+        if not repo_uri or not image_digest or not cve_id:
+            logger.warning(
+                "Scan finding missing required field(s), skipping. "
+                "repo_uri=%s image_digest=%s name=%s",
+                repo_uri,
+                image_digest,
+                cve_id,
+            )
+            continue
+        attrs = {a["key"]: a["value"] for a in find.get("attributes", [])}
+
+        cvss_score = None
+        for key in ("CVSS4_SCORE", "CVSS3_SCORE", "CVSS2_SCORE"):
+            val = attrs.get(key)
+            if val is not None:
+                try:
+                    cvss_score = float(val)
+                    break
+                except (ValueError, TypeError):
+                    continue
+
+        findings.append(
+            {
+                "id": f"{repo_uri}/{image_digest}/{cve_id}",
+                "cve_id": cve_id,
+                "severity": find.get("severity"),
+                "description": find.get("description"),
+                "uri": find.get("uri"),
+                "package_name": attrs.get("package name"),
+                "package_version": attrs.get("package version"),
+                "cvssscore": cvss_score,
+                "image_digest": image_digest,
+                "repository_uri": repo_uri,
+            }
+        )
+    return findings
+
+
+@timeit
+def load_ecr_scan_findings(
+    neo4j_session: neo4j.Session,
+    findings: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.debug("Loading ECR scan findings for region '%s'.", region)
+    load(
+        neo4j_session,
+        AWSECRScanFindingSchema(),
+        findings,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -412,7 +560,6 @@ def sync(
             region,
             current_aws_account_id,
         )
-        image_data = {}
         repositories = get_ecr_repositories(boto3_session, region)
         image_data = _get_image_data(boto3_session, region, repositories)
         # len here should be 1!
@@ -428,6 +575,15 @@ def sync(
             neo4j_session,
             repo_images_list,
             ecr_images_list,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+        raw_findings = _get_image_scan_results(boto3_session, region, image_data)
+        findings = transform_ecr_scan_findings(raw_findings)
+        load_ecr_scan_findings(
+            neo4j_session,
+            findings,
             region,
             current_aws_account_id,
             update_tag,

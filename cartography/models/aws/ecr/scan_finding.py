@@ -18,7 +18,7 @@ from cartography.models.ontology.labels import CVE
 class AWSECRScanFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Synthetic ID in the format `{repository_arn}/{image_digest}/{cve_id}`.",
+        description="Synthetic ID in the format `{repository_uri}/{image_digest}/{cve_id}`.",
     )
     cve_id: PropertyRef = PropertyRef(
         "cve_id",
@@ -55,9 +55,9 @@ class AWSECRScanFindingNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Digest of the image this finding was detected in.",
     )
-    repository_arn: PropertyRef = PropertyRef(
-        "repository_arn",
-        description="ARN of the ECR repository containing the scanned image.",
+    repository_uri: PropertyRef = PropertyRef(
+        "repository_uri",
+        description="URI of the ECR repository containing the scanned image.",
     )
     region: PropertyRef = PropertyRef(
         "Region",
@@ -94,7 +94,7 @@ class ECRScanFindingToECRImageRelProperties(CartographyRelProperties):
 class ECRScanFindingToECRImageRel(CartographyRelSchema):
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("image_digest")},
+        {"digest": PropertyRef("image_digest")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
