@@ -1665,12 +1665,12 @@ def test_sync_gcp_vpc_peerings_cleanup(neo4j_session):
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_vpn_tunnels",
-    return_value=tests.data.gcp.compute.VPN_TUNNELS_RESPONSE,
+    return_value=(tests.data.gcp.compute.VPN_TUNNELS_RESPONSE["items"], False),
 )
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_vpn_gateways",
-    return_value=tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE,
+    return_value=(tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE["items"], False),
 )
 @patch.object(
     cartography.intel.gcp.compute,
@@ -1703,7 +1703,6 @@ def test_sync_gcp_vpn_gateways_and_tunnels(
         neo4j_session,
         MagicMock(),
         TEST_PROJECT_ID,
-        ["us-central1"],
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -1711,7 +1710,6 @@ def test_sync_gcp_vpn_gateways_and_tunnels(
         neo4j_session,
         MagicMock(),
         TEST_PROJECT_ID,
-        ["us-central1"],
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
@@ -1894,15 +1892,15 @@ def test_sync_gcp_vpn_tunnels_both_sides(neo4j_session):
             return tests.data.gcp.compute.VPC_PEERING_PEER_RESPONSE
         return tests.data.gcp.compute.VPC_PEERING_RESPONSE
 
-    def _gateway_response_for_project(projectid, region, compute):
+    def _gateway_response_for_project(projectid, compute):
         if projectid == "project-def":
-            return tests.data.gcp.compute.VPN_GATEWAYS_PEER_RESPONSE
-        return tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE
+            return (tests.data.gcp.compute.VPN_GATEWAYS_PEER_RESPONSE["items"], False)
+        return (tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE["items"], False)
 
-    def _tunnel_response_for_project(projectid, region, compute):
+    def _tunnel_response_for_project(projectid, compute):
         if projectid == "project-def":
-            return tests.data.gcp.compute.VPN_TUNNELS_PEER_RESPONSE
-        return tests.data.gcp.compute.VPN_TUNNELS_RESPONSE
+            return (tests.data.gcp.compute.VPN_TUNNELS_PEER_RESPONSE["items"], False)
+        return (tests.data.gcp.compute.VPN_TUNNELS_RESPONSE["items"], False)
 
     # Act - sync project-abc first (creates a stub for project-def's gw-b),
     # then project-def (upgrades the stub with real data).
@@ -1936,7 +1934,6 @@ def test_sync_gcp_vpn_tunnels_both_sides(neo4j_session):
                 neo4j_session,
                 MagicMock(),
                 project,
-                ["us-central1"],
                 TEST_UPDATE_TAG,
                 common_job_parameters,
             )
@@ -1944,7 +1941,6 @@ def test_sync_gcp_vpn_tunnels_both_sides(neo4j_session):
                 neo4j_session,
                 MagicMock(),
                 project,
-                ["us-central1"],
                 TEST_UPDATE_TAG,
                 common_job_parameters,
             )
@@ -2000,7 +1996,8 @@ def test_sync_gcp_vpn_tunnels_both_sides(neo4j_session):
 
 def test_sync_gcp_vpn_tunnels_cleanup(neo4j_session):
     """Test that gateways and tunnels removed from the API responses are deleted
-    on the next sync."""
+    on the next sync, and that peer gateway stubs in unsynced projects are
+    removed once no tunnel references them anymore."""
     # Arrange - sync once with gateways and tunnels present
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {
@@ -2012,19 +2009,18 @@ def test_sync_gcp_vpn_tunnels_cleanup(neo4j_session):
         patch.object(
             cartography.intel.gcp.compute,
             "get_gcp_vpn_gateways",
-            return_value=tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE,
+            return_value=(tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE["items"], False),
         ),
         patch.object(
             cartography.intel.gcp.compute,
             "get_gcp_vpn_tunnels",
-            return_value=tests.data.gcp.compute.VPN_TUNNELS_RESPONSE,
+            return_value=(tests.data.gcp.compute.VPN_TUNNELS_RESPONSE["items"], False),
         ),
     ):
         cartography.intel.gcp.compute.sync_gcp_vpn_gateways(
             neo4j_session,
             MagicMock(),
             TEST_PROJECT_ID,
-            ["us-central1"],
             TEST_UPDATE_TAG,
             common_job_parameters,
         )
@@ -2032,7 +2028,6 @@ def test_sync_gcp_vpn_tunnels_cleanup(neo4j_session):
             neo4j_session,
             MagicMock(),
             TEST_PROJECT_ID,
-            ["us-central1"],
             TEST_UPDATE_TAG,
             common_job_parameters,
         )
@@ -2045,19 +2040,24 @@ def test_sync_gcp_vpn_tunnels_cleanup(neo4j_session):
         patch.object(
             cartography.intel.gcp.compute,
             "get_gcp_vpn_gateways",
-            return_value=tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE_EMPTY,
+            return_value=(
+                tests.data.gcp.compute.VPN_GATEWAYS_RESPONSE_EMPTY.get("items", []),
+                False,
+            ),
         ),
         patch.object(
             cartography.intel.gcp.compute,
             "get_gcp_vpn_tunnels",
-            return_value=tests.data.gcp.compute.VPN_TUNNELS_RESPONSE_EMPTY,
+            return_value=(
+                tests.data.gcp.compute.VPN_TUNNELS_RESPONSE_EMPTY.get("items", []),
+                False,
+            ),
         ),
     ):
         cartography.intel.gcp.compute.sync_gcp_vpn_gateways(
             neo4j_session,
             MagicMock(),
             TEST_PROJECT_ID,
-            ["us-central1"],
             new_tag,
             common_job_parameters,
         )
@@ -2065,15 +2065,69 @@ def test_sync_gcp_vpn_tunnels_cleanup(neo4j_session):
             neo4j_session,
             MagicMock(),
             TEST_PROJECT_ID,
-            ["us-central1"],
             new_tag,
             common_job_parameters,
         )
 
-    # Assert - project-abc's gateways and tunnels are deleted; peer gateway
-    # stubs in unsynced projects remain (their owning projects never clean up).
+    # Assert - project-abc's gateways and tunnels are deleted, and the peer
+    # gateway stubs are gone too: with no tunnel referencing them, the orphan
+    # stub cleanup removes them even though their owning projects never sync.
     assert check_nodes(neo4j_session, "GCPVpnTunnel", ["id"]) == set()
-    assert check_nodes(neo4j_session, "GCPVpnGateway", ["id"]) == {
-        ("projects/project-def/regions/us-central1/vpnGateways/gw-b",),
-        ("projects/project-xyz/regions/us-central1/vpnGateways/gw-ext",),
+    assert check_nodes(neo4j_session, "GCPVpnGateway", ["id"]) == set()
+
+
+def test_sync_gcp_vpc_peerings_orphan_stub_cleanup(neo4j_session):
+    """Two-sync test: peer VPC stubs created for unsynced projects must be
+    removed once the peerings referencing them disappear, while the real local
+    VPC is untouched."""
+    # Arrange - sync 1: vpc-a has peerings to vpc-b (project-def) and vpc-c
+    # (project-xyz), both unsynced, so stubs are created for both.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    with patch.object(
+        cartography.intel.gcp.compute,
+        "get_gcp_vpcs",
+        return_value=tests.data.gcp.compute.VPC_PEERING_RESPONSE,
+    ):
+        cartography.intel.gcp.compute.sync_gcp_vpcs(
+            neo4j_session,
+            MagicMock(),
+            TEST_PROJECT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+    assert check_nodes(neo4j_session, "GCPVpc", ["id"]) == {
+        ("projects/project-abc/global/networks/vpc-a",),
+        ("projects/project-def/global/networks/vpc-b",),
+        ("projects/project-xyz/global/networks/vpc-ext",),
+    }
+    assert check_nodes(neo4j_session, "GCPVpcPeering", ["id"]) != set()
+
+    # Act - sync 2: all peerings are gone from the API response.
+    new_tag = TEST_UPDATE_TAG + 1
+    common_job_parameters["UPDATE_TAG"] = new_tag
+    with patch.object(
+        cartography.intel.gcp.compute,
+        "get_gcp_vpcs",
+        return_value=tests.data.gcp.compute.VPC_PEERING_RESPONSE_NO_PEERINGS,
+    ):
+        cartography.intel.gcp.compute.sync_gcp_vpcs(
+            neo4j_session,
+            MagicMock(),
+            TEST_PROJECT_ID,
+            new_tag,
+            common_job_parameters,
+        )
+
+    # Assert - peerings and their orphan stub VPCs are deleted; the real local
+    # VPC (owned by the synced project via RESOURCE) remains.
+    assert check_nodes(neo4j_session, "GCPVpcPeering", ["id"]) == set()
+    assert check_nodes(neo4j_session, "GCPVpc", ["id"]) == {
+        ("projects/project-abc/global/networks/vpc-a",),
     }

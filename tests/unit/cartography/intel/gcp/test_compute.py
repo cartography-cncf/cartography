@@ -167,7 +167,8 @@ def test_transform_gcp_vpn_gateways():
     parses the network reference.
     """
     gateways = cartography.intel.gcp.compute.transform_gcp_vpn_gateways(
-        VPN_GATEWAYS_RESPONSE
+        VPN_GATEWAYS_RESPONSE["items"],
+        "project-abc",
     )
     assert len(gateways) == 1
 
@@ -190,7 +191,8 @@ def test_transform_gcp_vpn_tunnels():
     gateway references, and never copies the shared secret fields.
     """
     tunnels = cartography.intel.gcp.compute.transform_gcp_vpn_tunnels(
-        VPN_TUNNELS_RESPONSE
+        VPN_TUNNELS_RESPONSE["items"],
+        "project-abc",
     )
     assert len(tunnels) == 3
 

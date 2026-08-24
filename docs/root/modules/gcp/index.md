@@ -23,11 +23,16 @@ call) and modeled as `GCPVpcPeering` nodes linked to the local VPC via
 synced, Cartography creates a `GCPVpc` stub node so the `PEER_NETWORK`
 relationship still resolves.
 
-VPN tunnels (`GCPVpnTunnel`) are synced per region along with their VPN
-gateways (`GCPVpnGateway`). Gateways are synced before tunnels so that
-`USES_GATEWAY` relationships resolve in the same sync cycle; peer gateways
-outside the synced project are represented as stub nodes linked via
-`CONNECTS_TO_GATEWAY`.
+VPN tunnels (`GCPVpnTunnel`) and VPN gateways (`GCPVpnGateway`) are fetched
+with the Compute aggregated list endpoints (one request chain per project,
+with partial success enabled; cleanup is skipped whenever any region scope
+returns an error). Gateways are synced before tunnels so that `USES_GATEWAY`
+relationships resolve in the same sync cycle; peer gateways outside the synced
+project are represented as stub nodes linked via `CONNECTS_TO_GATEWAY`.
+
+Stub nodes are reference-counted by their relationships, not by a sync scope:
+once no peering or tunnel references a stub (and no synced project owns it),
+it is removed automatically on the next sync.
 
 ## Cloud Asset Inventory behavior
 
