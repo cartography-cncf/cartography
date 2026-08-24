@@ -57,6 +57,31 @@ def test_load_vercel_projects(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "VercelProject", ["id"]) == expected_nodes
 
+    # Assert the nested deployment-protection objects were flattened to their deploymentType
+    assert check_nodes(
+        neo4j_session,
+        "VercelProject",
+        [
+            "id",
+            "sso_protection_deployment_type",
+            "password_protection_deployment_type",
+        ],
+    ) == {
+        ("prj_abc", "all", None),
+        ("prj_def", "preview", "prod_deployment_urls_and_all_previews"),
+    }
+    # The password itself must never reach the graph.
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (p:VercelProject)
+            WHERE any(k IN keys(p) WHERE toString(p[k]) CONTAINS 'do-not-ingest-me')
+            RETURN count(p) AS leaked
+            """,
+        ).single()["leaked"]
+        == 0
+    )
+
     # Assert Projects are connected with Team via RESOURCE (Team -RESOURCE-> Project)
     expected_rels = {
         ("prj_abc", TEST_TEAM_ID),

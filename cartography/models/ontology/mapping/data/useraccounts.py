@@ -732,6 +732,30 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+miradore_mapping = OntologyMapping(
+    module_name="miradore",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="MiradoreUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="firstname"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="retired",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -747,6 +771,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "oci": oci_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "miradore": miradore_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
     "okta": okta_mapping,
@@ -794,4 +819,44 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeUser",
+                fields=[
+                    # Snowflake does not require a user to have an email, so an
+                    # emailless user is normalized but not promoted to a canonical
+                    # User node.
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="username", node_field="login_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="firstname", node_field="first_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastname", node_field="last_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="disabled",
+                        special_handling="invert_boolean",
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="has_mfa", node_field="has_mfa"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity",
+                        node_field="last_successful_login",
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

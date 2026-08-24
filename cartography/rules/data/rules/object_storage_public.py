@@ -171,6 +171,75 @@ _scaleway_bucket_public = Fact(
 )
 
 
+# Cloudflare Facts
+_cloudflare_r2_bucket_public = Fact(
+    id="cloudflare_r2_bucket_public",
+    name="Internet-Accessible Cloudflare R2 Attack Surface",
+    description=(
+        "Cloudflare R2 buckets readable by anonymous callers, either through a "
+        "custom public domain or through the r2.dev development URL. r2.dev is "
+        "meant for testing and serves the bucket with no access control at all."
+    ),
+    cypher_query="""
+    MATCH (b:CloudflareR2Bucket)
+    WHERE b.public = true OR b.r2_dev_enabled = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.location AS region,
+        coalesce(b.public, false) OR coalesce(b.r2_dev_enabled, false) AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:CloudflareR2Bucket)<-[:RESOURCE]-(acc:CloudflareAccount)
+    WHERE b.public = true OR b.r2_dev_enabled = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:CloudflareR2Bucket)
+    RETURN COUNT(b) AS count
+    """,
+    asset_id_field="id",
+    asset_label="CloudflareR2Bucket",
+    identity_fields=("id",),
+    module=Module.CLOUDFLARE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+# Supabase Facts
+_supabase_storage_bucket_public = Fact(
+    id="supabase_storage_bucket_public",
+    name="Internet-Accessible Supabase Storage Attack Surface",
+    description=(
+        "Supabase Storage buckets marked public. A public bucket serves its "
+        "objects over the project's storage URL without any Authorization "
+        "header, so row level security no longer gates reads."
+    ),
+    cypher_query="""
+    MATCH (b:SupabaseStorageBucket)
+    WHERE b.public = true
+    RETURN
+        b.id AS id,
+        b.name AS name,
+        b.public AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(b:SupabaseStorageBucket)<-[:RESOURCE]-(prj:SupabaseProject)
+    WHERE b.public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (b:SupabaseStorageBucket)
+    RETURN COUNT(b) AS count
+    """,
+    asset_id_field="id",
+    asset_label="SupabaseStorageBucket",
+    identity_fields=("id",),
+    module=Module.SUPABASE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class ObjectStoragePublic(Finding):
     name: str | None = None
@@ -186,8 +255,8 @@ object_storage_public = Rule(
     name="Public Object Storage Attack Surface",
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets, "
-        "Azure Storage Blob Containers, GCS buckets, and Scaleway Object "
-        "Storage buckets"
+        "Azure Storage Blob Containers, GCS buckets, Scaleway Object Storage "
+        "buckets, Cloudflare R2 buckets, and Supabase Storage buckets"
     ),
     output_model=ObjectStoragePublic,
     facts=(
@@ -195,6 +264,8 @@ object_storage_public = Rule(
         _azure_storage_public_blob_access,
         _gcp_bucket_public,
         _scaleway_bucket_public,
+        _cloudflare_r2_bucket_public,
+        _supabase_storage_bucket_public,
     ),
     tags=(
         "infrastructure",

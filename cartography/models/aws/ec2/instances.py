@@ -72,6 +72,11 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
         set_in_kwargs=True,
         description="The AWS region this Instance is running in",
     )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How the instance is exposed: `direct` (public IP plus an open inbound rule), `elb` and/or `elbv2` (behind an exposed load balancer of that kind).",
+    )  # Populated by the AWS_EC2_ASSET_EXPOSURE_INSTANCE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     iaminstanceprofile: PropertyRef = PropertyRef(
         "IamInstanceProfile",

@@ -357,7 +357,11 @@ _gcp_instance_public_ip = Fact(
     """,
     asset_label="GCPInstance",
     asset_id_field="instance_id",
-    identity_fields=("instance_id",),
+    # One row per access config: an instance with an external IP on two NICs, or a
+    # NAT plus an IPv6 access config on one NIC, produces several rows that differ
+    # only by external_ip. Keying on instance_id alone would collapse them into one
+    # identity, and remediating one of the IPs should close one finding.
+    identity_fields=("instance_id", "external_ip"),
     module=Module.GCP,
     maturity=Maturity.STABLE,
 )
@@ -377,7 +381,7 @@ gcp_compute_instance_public_ips = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="1.1.0",
+    version="1.1.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_gcp("4.9"),

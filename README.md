@@ -1,4 +1,8 @@
-![Cartography](docs/root/images/logo-horizontal.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/root/images/logo-horizontal-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/root/images/logo-horizontal.svg">
+  <img alt="Cartography" src="docs/root/images/logo-horizontal.svg">
+</picture>
 
 <div align="center">
 
@@ -29,6 +33,8 @@ Cartography is a Python tool that pulls infrastructure assets and their relation
 ```bash
 pip install cartography
 ```
+
+Install `cartography[neo4j-rust]` instead to swap in Neo4j's Rust Bolt codec, which cuts sync time by roughly 20-30%. See [Faster Neo4j driver](https://docs.cartography.dev/ops.html#faster-neo4j-driver).
 
 ### Start Neo4j database
 
@@ -98,7 +104,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [DigitalOcean](https://docs.cartography.dev/modules/digitalocean/index.html)
 - [Duo](https://docs.cartography.dev/modules/duo/index.html) - Users, Groups, Endpoints
 - [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
-- [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
+- [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute including SSL policies and target proxies, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Jumpcloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
 - [Kandji](https://docs.cartography.dev/modules/kandji/index.html) - Devices
@@ -119,6 +125,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [SentinelOne](https://docs.cartography.dev/modules/sentinelone/index.html) - Accounts, Agents, Applications, Application Versions, CVEs
 - [Slack](https://docs.cartography.dev/modules/slack/index.html) - Teams, Users, UserGroups, Channels
 - [SnipeIT](https://docs.cartography.dev/modules/snipeit/index.html) - Users, Assets
+- [Snowflake](https://docs.cartography.dev/modules/snowflake/index.html) - Accounts, Users, Service Users, Roles, Database Roles, Grants, Role Hierarchy, Ownership, Programmatic Access Tokens, Credentials, Warehouses, Compute Pools, Resource Monitors, Databases, Schemas, Tables, Views, Iceberg Tables, Dynamic Tables, Streams, Tasks, Pipes, Stages, External Volumes, Secrets, Network Policies, Network Rules, Policies, Integrations (Security, Storage, API, Catalog, Notification, External Access), Services, Image Repositories, Notebooks, Streamlits, Shares, Listings, Replication Groups
 - [Socket.dev](https://docs.cartography.dev/modules/socketdev/index.html) - Organizations, Repositories, Dependencies, Security Alerts (CVE, malware, supply chain risks), Fixes
 - [Spacelift](https://docs.cartography.dev/modules/spacelift/index.html) - Accounts, Spaces,Users, Stacks, WorkerPools, Workers, Runs, GitCommits
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
@@ -142,7 +149,9 @@ All contributors and participants must follow the [CNCF Code of Conduct](https:/
 
 Submit a GitHub issue to report a bug or request a new feature. Larger discussions happen in [GitHub Discussions](https://github.com/cartography-cncf/cartography/discussions).
 
-Get started with our [developer documentation](https://docs.cartography.dev/dev/developer-guide.html).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, development
+setup, tests, DCO sign-off requirement, and pull request expectations. You do
+not need an issue assignment or maintainer permission before starting work.
 
 
 ## Who uses Cartography?

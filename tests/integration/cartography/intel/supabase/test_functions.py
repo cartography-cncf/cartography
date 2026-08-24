@@ -69,6 +69,14 @@ def test_load_supabase_edge_functions(mock_get, mock_get_secrets, neo4j_session)
         == expected_nodes
     )
 
+    # verify_jwt False means the function is invokable without a project JWT.
+    assert check_nodes(
+        neo4j_session, "SupabaseEdgeFunction", ["id", "exposed_internet"]
+    ) == {
+        ("fn-meltdown-alert", False),
+        ("fn-public-webhook", True),
+    }
+
     assert check_rels(
         neo4j_session,
         "SupabaseEdgeFunction",

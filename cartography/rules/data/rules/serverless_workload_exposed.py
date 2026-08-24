@@ -237,7 +237,7 @@ _railway_service_instance_public = Fact(
     ),
     cypher_query="""
     MATCH (prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)
-    WHERE si.is_publicly_exposed = true
+    WHERE si.exposed_internet = true
     RETURN
         si.id AS id,
         si.service_name AS name,
@@ -246,8 +246,8 @@ _railway_service_instance_public = Fact(
         'railway_service_instance_public' AS exposure_type
     """,
     cypher_visual_query="""
-    MATCH p=(prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)-[:EXPOSE]->(entrypoint)
-    WHERE si.is_publicly_exposed = true
+    MATCH p=(prj:RailwayProject)-[:RESOURCE]->(si:RailwayServiceInstance)<-[:EXPOSE]-(entrypoint)
+    WHERE si.exposed_internet = true
     RETURN *
     """,
     cypher_count_query="""

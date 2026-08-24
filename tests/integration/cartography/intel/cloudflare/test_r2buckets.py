@@ -155,6 +155,14 @@ def test_load_cloudflare_r2buckets(mock_cloudflare, mock_api, neo4j_session):
         )
         == expected_nodes
     )
+    # exposed_internet is the cross-provider name for the same verdict.
+    assert check_nodes(
+        neo4j_session, "CloudflareR2Bucket", ["id", "exposed_internet"]
+    ) == {
+        (DONUTS_DEFAULT, True),
+        (REPORTS_DEFAULT, False),
+        (DONUTS_EU, False),
+    }
 
     # Assert the public hostnames were resolved, and that the disabled custom
     # domain (old-photos.simpson.corp) was left out
@@ -381,22 +389,43 @@ def test_r2buckets_sync_keeps_custom_domain_rels_on_partial_read(
         rel_direction_right=False,
     ) == {(DONUTS_DEFAULT, ZONE_ID)}
 
-    # Assert the exposure is reported as unknown rather than private: the source
-    # that could not be read is the one holding the custom domains
+    # Assert the exposure is reported as unknown rather than private for the buckets where
+    # nothing was seen, since the source that could not be read is the one holding the custom
+    # domains. donut-photos is the exception: its r2.dev domain was read and is enabled, and a
+    # domain that was actually seen makes the bucket readable whatever the other source did.
     result = neo4j_session.run(
         """
         MATCH (b:CloudflareR2Bucket)
         RETURN b.id AS id,
                b.public AS public,
+               b.exposed_internet AS exposed,
                b.public_domains AS domains,
                b.r2_dev_enabled AS r2_dev
         ORDER BY id
         """
     )
     assert [dict(record) for record in result] == [
-        {"id": DONUTS_DEFAULT, "public": None, "domains": None, "r2_dev": True},
-        {"id": REPORTS_DEFAULT, "public": None, "domains": None, "r2_dev": False},
-        {"id": DONUTS_EU, "public": None, "domains": None, "r2_dev": False},
+        {
+            "id": DONUTS_DEFAULT,
+            "public": True,
+            "exposed": True,
+            "domains": None,
+            "r2_dev": True,
+        },
+        {
+            "id": REPORTS_DEFAULT,
+            "public": None,
+            "exposed": None,
+            "domains": None,
+            "r2_dev": False,
+        },
+        {
+            "id": DONUTS_EU,
+            "public": None,
+            "exposed": None,
+            "domains": None,
+            "r2_dev": False,
+        },
     ]
 
 
@@ -523,18 +552,24 @@ def test_get_exposure_resolves_public_domains():
     assert exposure == {
         DONUTS_DEFAULT: {
             "public": True,
+            "exposed_internet": True,
+            "exposed_internet_type": ["direct"],
             "public_domains": [R2_DEV_DOMAIN, "photos.simpson.corp"],
             "r2_dev_enabled": True,
             "zone_ids": [ZONE_ID],
         },
         REPORTS_DEFAULT: {
             "public": False,
+            "exposed_internet": False,
+            "exposed_internet_type": None,
             "public_domains": [],
             "r2_dev_enabled": False,
             "zone_ids": [],
         },
         DONUTS_EU: {
             "public": False,
+            "exposed_internet": False,
+            "exposed_internet_type": None,
             "public_domains": [],
             "r2_dev_enabled": False,
             "zone_ids": [],
@@ -574,3 +609,38 @@ def test_get_exposure_leaves_public_unknown_when_one_source_fails():
     assert exposure[DONUTS_DEFAULT]["public_domains"] is None
     # The managed domain was read, so its own state is still reported
     assert exposure[DONUTS_DEFAULT]["r2_dev_enabled"] is False
+
+
+def test_get_exposure_reports_public_when_one_source_finds_a_domain():
+    """
+    A domain that was actually seen makes the bucket readable, whatever the other
+    source did: gating that on a complete read hid live exposure
+    """
+
+    # Arrange: r2.dev is enabled, but the custom domains could not be read
+    buckets = [{"name": "donut-photos", "jurisdiction": "default"}]
+
+    # Act
+    with (
+        patch.object(
+            cartography.intel.cloudflare.r2buckets,
+            "get_managed_domain",
+            return_value={"domain": R2_DEV_DOMAIN, "enabled": True},
+        ),
+        patch.object(
+            cartography.intel.cloudflare.r2buckets,
+            "get_custom_domains",
+            return_value=None,
+        ),
+    ):
+        exposure, complete = cartography.intel.cloudflare.r2buckets.get_exposure(
+            None, buckets, ACCOUNT_ID
+        )
+
+    # Assert: the read is still incomplete, but the verdict is definitive
+    assert complete is False
+    assert exposure[DONUTS_DEFAULT]["public"] is True
+    assert exposure[DONUTS_DEFAULT]["exposed_internet"] is True
+    assert exposure[DONUTS_DEFAULT]["exposed_internet_type"] == ["direct"]
+    # The hostname list stays unknown: it is the one field a partial read truncates
+    assert exposure[DONUTS_DEFAULT]["public_domains"] is None

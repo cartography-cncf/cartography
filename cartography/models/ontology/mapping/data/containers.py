@@ -277,6 +277,18 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+# Snowpark Container Services container status.
+_SNOWFLAKE_CONTAINER_STATE = {
+    "RUNNING": "running",
+    "PENDING": "pending",
+    "STARTING": "pending",
+    "TERMINATING": "stopping",
+    "TERMINATED": "terminated",
+    "DONE": "terminated",
+    "FAILED": "error",
+    "UNKNOWN": "unknown",
+}
+
 CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs_container": aws_ecs_container_mapping,
     "kubernetes": kubernetes_mapping,
@@ -285,4 +297,20 @@ CONTAINER_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
     "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeServiceContainer",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="state",
+                        node_field="status",
+                        special_handling="mapping",
+                        extra={"map": _SNOWFLAKE_CONTAINER_STATE},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

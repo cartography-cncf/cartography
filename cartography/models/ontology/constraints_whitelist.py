@@ -198,6 +198,8 @@ from cartography.models.scaleway.serverless.container import (
 )
 from cartography.models.sentry.member import SentryUserToTeamAdminOfRel
 from cartography.models.slack.group import SlackGroupToCreatorRel
+from cartography.models.snowflake.service import SnowflakeServiceContainerToImageRel
+from cartography.models.snowflake.service import SnowflakeServiceToWarehouseRel
 from cartography.models.tailscale.group import (
     TailscaleUserToGroupInheritedMemberMatchLink,
 )
@@ -336,8 +338,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # HAS_IMAGE is the raw ingest-time (:Container|:Function)->(:Image)
         # reference, matched by runtime digest at load time and possibly pointing
         # at a manifest list. The canonical RESOLVED_IMAGE edge is derived from it
-        # by resolved_image_analysis.json (resolving manifest lists to the concrete
-        # single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
+        # by the RESOLVED_IMAGE_JOBS analysis jobs (resolving manifest lists to the
+        # concrete single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
         # distinct semantic rather than a violation of RESOLVED_IMAGE.
         KubernetesContainerToECRImageRel,
         KubernetesContainerToGitLabContainerImageRel,
@@ -360,6 +362,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureContainerInstanceToGCPArtifactRegistryImageRel,
         AzureContainerInstanceToGitHubContainerImageRel,
         ScalewayServerlessContainerToImageRel,
+        SnowflakeServiceContainerToImageRel,
         AWSLambdaToECRImageRel,
         AWSLambdaToGitLabContainerImageRel,
         AWSLambdaToGCPArtifactRegistryImageRel,
@@ -368,5 +371,12 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureFunctionAppToGitLabContainerImageRel,
         AzureFunctionAppToGCPArtifactRegistryImageRel,
         AzureFunctionAppToGitHubContainerImageRel,
+        # USES_WAREHOUSE is a Snowflake service's data-plane dependency on the
+        # warehouse its container code runs SQL against, not the workload's
+        # scheduling parent: that is the compute pool, which the service reaches
+        # through the canonical WORKLOAD_PARENT edge. Both endpoints happen to
+        # carry ComputeCluster (warehouses and compute pools are both elastic
+        # clusters), so the guard would otherwise flag it. Distinct semantic.
+        SnowflakeServiceToWarehouseRel,
     }
 )

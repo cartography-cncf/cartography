@@ -429,7 +429,12 @@ class TestIsPermissionDeniedError:
 
     @pytest.mark.parametrize(
         "reason",
-        ["forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"],
+        [
+            "forbidden",
+            "insufficientPermissions",
+            "IAM_PERMISSION_DENIED",
+            "vpcServiceControls",
+        ],
     )
     def test_true_for_supported_permission_denied_reasons(self, reason):
         assert is_permission_denied_error(self._make_error(reason)) is True

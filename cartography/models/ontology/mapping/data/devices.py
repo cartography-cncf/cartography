@@ -286,6 +286,34 @@ entra_mapping = OntologyMapping(
     ],
 )
 
+miradore_mapping = OntologyMapping(
+    module_name="miradore",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="MiradoreDevice",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(ontology_field="os", node_field="os_platform"),
+                OntologyFieldMapping(
+                    ontology_field="os_version",
+                    node_field="os_version",
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="manufacturer",
+                    node_field="manufacturer",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
@@ -295,6 +323,7 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jumpcloud": jumpcloud_mapping,
     "jamf": jamf_mapping,
     "kandji": kandji_mapping,
+    "miradore": miradore_mapping,
     "sentinelone": sentinelone_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,

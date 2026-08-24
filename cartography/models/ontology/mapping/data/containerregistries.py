@@ -104,4 +104,23 @@ CONTAINERREGISTRIES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "gitlab": gitlab_mapping,
     "scaleway": scaleway_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeImageRepository",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="uri", node_field="repository_url"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="created_at", node_field="created_on"
+                    ),
+                ],
+            ),
+        ],
+    ),
 }
