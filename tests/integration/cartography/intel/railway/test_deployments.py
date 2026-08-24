@@ -15,6 +15,9 @@ from tests.integration.cartography.intel.railway.test_serviceinstances import (
     POSTGRES_INSTANCE_ID,
 )
 from tests.integration.cartography.intel.railway.test_serviceinstances import (
+    POSTGRES_SERVICE_ID,
+)
+from tests.integration.cartography.intel.railway.test_serviceinstances import (
     PRODUCTION_ENV_ID,
 )
 from tests.integration.cartography.intel.railway.test_serviceinstances import (
@@ -92,6 +95,13 @@ def test_load_railway_deployments(neo4j_session):
 
 def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     # Arrange
+    bundles = copy.deepcopy(BUNDLES)
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] == POSTGRES_INSTANCE_ID:
+            instance["source"] = {"image": None, "repo": "acme/other"}
+            instance["rootDirectory"] = "/other"
     neo4j_session.run(
         """
         MERGE (r:GitHubRepository {id: "https://github.com/acme/api"})
@@ -105,7 +115,7 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     cartography.intel.railway.deployments.sync(
         neo4j_session,
         _common_job_parameters(),
-        BUNDLES,
+        bundles,
         TEST_UPDATE_TAG,
     )
 
@@ -154,6 +164,67 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {(TEST_PROJECT_ID, POSTGRES_SNAPSHOT_ID)}
+
+
+def test_failed_latest_deployment_keeps_previous_snapshot_current(neo4j_session):
+    # Arrange
+    failed_deployment_id = "dddd0000-dddd-dddd-dddd-dddddddddddd"
+    bundles = copy.deepcopy(BUNDLES)
+    bundle = bundles[TEST_PROJECT_ID]
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundle
+    ):
+        if instance["id"] == POSTGRES_INSTANCE_ID:
+            instance["latestDeployment"] = {
+                "id": failed_deployment_id,
+                "status": "FAILED",
+            }
+    for env_edge in bundle["environments"]["edges"]:
+        environment = env_edge["node"]
+        if environment["id"] != PRODUCTION_ENV_ID:
+            continue
+        environment["deployments"]["edges"].append(
+            {
+                "node": {
+                    "id": failed_deployment_id,
+                    "status": "FAILED",
+                    "statusUpdatedAt": "2026-07-27T19:00:05.000Z",
+                    "createdAt": "2026-07-27T19:00:00.000Z",
+                    "projectId": TEST_PROJECT_ID,
+                    "environmentId": PRODUCTION_ENV_ID,
+                    "serviceId": POSTGRES_SERVICE_ID,
+                    "url": None,
+                    "staticUrl": None,
+                    "canRedeploy": True,
+                    "meta": {
+                        "commitHash": "fedcba9876543210fedcba9876543210fedcba98",
+                        "repo": "acme/api",
+                        "rootDirectory": "/backend",
+                    },
+                },
+            },
+        )
+    _sync_compute_tier(neo4j_session)
+
+    # Act
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        bundles,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "RailwayDeployment", ["id", "lifecycle"]) == {
+        (WEB_DEPLOYMENT_ID, "current"),
+        (POSTGRES_DEPLOYMENT_ID, "current"),
+        (failed_deployment_id, "historical"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RailwayFilesystemSnapshot",
+        ["deployment_id", "source_revision"],
+    ) == {(POSTGRES_DEPLOYMENT_ID, SOURCE_REVISION)}
 
 
 def test_filesystem_snapshot_is_removed_without_an_exact_revision(neo4j_session):

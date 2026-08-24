@@ -78,6 +78,8 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                                     "meta": {
                                         "commitHash": "0123456789ABCDEF0123456789ABCDEF01234567",
+                                        "repo": "acme/api",
+                                        "rootDirectory": "/backend",
                                     },
                                     "projectId": "33333333-3333-3333-3333-333333333333",
                                     "serviceId": "77777777-7777-7777-7777-777777777777",
