@@ -5,9 +5,10 @@ cartography/intel/railway/queries.py), with identifiers replaced by stable fakes
 Kept in raw GraphQL shape - Relay `edges`/`node` wrappers and nested `source` / `status`
 objects intact - because unwrapping and flattening those is what the transforms do.
 
-Three things are hand-added, since a throwaway Hobby project cannot produce them:
+Four things are hand-added, since a throwaway Hobby project cannot produce them:
   * custom domains, which need a real domain plus DNS verification (one verified, one not);
-  * a git source on one service instance, to exercise the DEPLOYED_FROM edge;
+  * a git source and root directory on one service instance, to exercise source context;
+  * deployment commit metadata, including a malformed value to exercise validation;
   * a deployment trigger, which requires a linked GitHub account.
 Everything else is exactly what the live API returned.
 """
@@ -75,6 +76,9 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "createdAt": "2026-07-27T18:02:21.021Z",
                                     "environmentId": "44444444-4444-4444-4444-444444444444",
                                     "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                                    "meta": {
+                                        "commitHash": "0123456789ABCDEF0123456789ABCDEF01234567",
+                                    },
                                     "projectId": "33333333-3333-3333-3333-333333333333",
                                     "serviceId": "77777777-7777-7777-7777-777777777777",
                                     "staticUrl": None,
@@ -89,6 +93,7 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "createdAt": "2026-07-27T18:01:57.350Z",
                                     "environmentId": "44444444-4444-4444-4444-444444444444",
                                     "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                    "meta": {"commitHash": "main"},
                                     "projectId": "33333333-3333-3333-3333-333333333333",
                                     "serviceId": "66666666-6666-6666-6666-666666666666",
                                     "staticUrl": "web-production-abcde.up.railway.app",
@@ -129,7 +134,7 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "region": None,
                                     "restartPolicyMaxRetries": 10,
                                     "restartPolicyType": "ON_FAILURE",
-                                    "rootDirectory": None,
+                                    "rootDirectory": "/backend",
                                     "serviceId": "77777777-7777-7777-7777-777777777777",
                                     "serviceName": "Postgres",
                                     "sleepApplication": False,

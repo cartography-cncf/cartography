@@ -29,6 +29,7 @@ from tests.integration.util import check_rels
 WEB_DEPLOYMENT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 POSTGRES_DEPLOYMENT_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 TRIGGER_ID = "dt111111-1111-1111-1111-111111111111"
+SOURCE_REVISION = "0123456789abcdef0123456789abcdef01234567"
 
 
 def test_load_railway_deployments(neo4j_session):
@@ -47,10 +48,10 @@ def test_load_railway_deployments(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayDeployment",
-        ["id", "status", "static_url"],
+        ["id", "status", "static_url", "source_revision"],
     ) == {
-        (WEB_DEPLOYMENT_ID, "SUCCESS", "web-production-abcde.up.railway.app"),
-        (POSTGRES_DEPLOYMENT_ID, "SUCCESS", None),
+        (WEB_DEPLOYMENT_ID, "SUCCESS", "web-production-abcde.up.railway.app", None),
+        (POSTGRES_DEPLOYMENT_ID, "SUCCESS", None, SOURCE_REVISION),
     }
 
     # Assert the canonical ontology edge required for Container -> ComputeService
@@ -85,6 +86,45 @@ def test_load_railway_deployments(neo4j_session):
     ) == {
         (TEST_PROJECT_ID, WEB_DEPLOYMENT_ID),
         (TEST_PROJECT_ID, POSTGRES_DEPLOYMENT_ID),
+    }
+
+
+def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (r:GitHubRepository {id: "https://github.com/acme/api"})
+        SET r.fullname = "acme/api", r.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    _sync_compute_tier(neo4j_session)
+
+    # Act
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        BUNDLES,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    result = neo4j_session.run(
+        """
+        MATCH (d:RailwayDeployment {id: $deployment_id})
+              -[:WORKLOAD_PARENT]->(s:RailwayServiceInstance)
+              -[:DEPLOYED_FROM]->(r:GitHubRepository)
+        RETURN d.source_revision AS revision,
+               s.root_directory AS root_directory,
+               r.fullname AS repository
+        """,
+        deployment_id=POSTGRES_DEPLOYMENT_ID,
+    ).single()
+    assert result is not None
+    assert result.data() == {
+        "revision": SOURCE_REVISION,
+        "root_directory": "/backend",
+        "repository": "acme/api",
     }
 
 

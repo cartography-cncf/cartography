@@ -146,6 +146,7 @@ _SERVICE_INSTANCE_FIELDS = """
 
 _DEPLOYMENT_FIELDS = """
     id
+    meta
     status
     statusUpdatedAt
     createdAt

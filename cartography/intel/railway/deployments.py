@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -46,9 +47,18 @@ def transform(
         project_triggers: list[dict[str, Any]] = []
         for environment in unwrap_edges(bundle["environments"]):
             for deployment in unwrap_edges(environment["deployments"]):
+                meta = deployment.get("meta")
+                commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
+                source_revision = (
+                    commit_hash.lower()
+                    if isinstance(commit_hash, str)
+                    and re.fullmatch(r"[0-9a-fA-F]{40}", commit_hash)
+                    else None
+                )
                 project_deployments.append(
                     {
                         **deployment,
+                        "source_revision": source_revision,
                         "lifecycle": (
                             "current"
                             if deployment["id"] in current_ids
