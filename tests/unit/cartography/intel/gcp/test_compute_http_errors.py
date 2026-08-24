@@ -371,6 +371,35 @@ class TestGetGcpVpnGatewaysHttpErrors:
         assert items == [{"name": "gw-a"}]
         assert incomplete is True
 
+    def test_non_benign_scope_warning_marks_incomplete(self):
+        """
+        A scope warning other than NO_RESULTS_ON_PAGE (e.g. UNREACHABLE) means
+        the region's data is missing; the result must be marked incomplete so
+        cleanup does not delete that region's gateways.
+        """
+        mock_compute = MagicMock()
+        mock_compute.vpnGateways.return_value.aggregatedList.return_value = (
+            _make_request(
+                response={
+                    "items": {
+                        "regions/us-central1": {"vpnGateways": [{"name": "gw-a"}]},
+                        "regions/europe-west1": {
+                            "warning": {
+                                "code": "UNREACHABLE",
+                                "message": "The region could not be reached.",
+                            }
+                        },
+                    }
+                }
+            )
+        )
+        mock_compute.vpnGateways.return_value.aggregatedList_next.return_value = None
+
+        items, incomplete = get_gcp_vpn_gateways("test-project", mock_compute)
+
+        assert items == [{"name": "gw-a"}]
+        assert incomplete is True
+
     def test_timeout_mid_pagination_keeps_partial_data_and_marks_incomplete(self):
         mock_compute = MagicMock()
         first_request = _make_request(
@@ -490,6 +519,30 @@ class TestGetGcpVpnTunnelsHttpErrors:
                         "regions/us-central1": {"vpnTunnels": [{"name": "tun-a"}]},
                         "regions/europe-west1": {
                             "error": {"errors": [{"message": "Location unavailable"}]}
+                        },
+                    }
+                }
+            )
+        )
+        mock_compute.vpnTunnels.return_value.aggregatedList_next.return_value = None
+
+        items, incomplete = get_gcp_vpn_tunnels("test-project", mock_compute)
+
+        assert items == [{"name": "tun-a"}]
+        assert incomplete is True
+
+    def test_non_benign_scope_warning_marks_incomplete(self):
+        mock_compute = MagicMock()
+        mock_compute.vpnTunnels.return_value.aggregatedList.return_value = (
+            _make_request(
+                response={
+                    "items": {
+                        "regions/us-central1": {"vpnTunnels": [{"name": "tun-a"}]},
+                        "regions/europe-west1": {
+                            "warning": {
+                                "code": "UNREACHABLE",
+                                "message": "The region could not be reached.",
+                            }
                         },
                     }
                 }

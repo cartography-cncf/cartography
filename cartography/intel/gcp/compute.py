@@ -320,19 +320,23 @@ def _get_gcp_vpn_aggregated(
                 incomplete = True
                 break
             raise
-        # Aggregated responses key items by scope ("regions/{region}"). Scopes
-        # with no resources carry only a NO_RESULTS_ON_PAGE warning (complete);
-        # scopes with an `error` entry failed (incomplete).
+        # Aggregated responses key items by scope ("regions/{region}"). A scope
+        # is incomplete if it carries an `error` entry, or a `warning` with any
+        # code other than the benign NO_RESULTS_ON_PAGE (e.g. UNREACHABLE means
+        # the region could not be queried, so its data is missing).
         for scope, scope_data in res.get("items", {}).items():
-            if scope_data.get("error"):
+            warning_code = (scope_data.get("warning") or {}).get("code")
+            if scope_data.get("error") or (
+                warning_code and warning_code != "NO_RESULTS_ON_PAGE"
+            ):
                 incomplete = True
                 logger.warning(
-                    "GCP: %s.aggregatedList for project %s returned an error for scope %s; suppressing cleanup for the project.",
+                    "GCP: %s.aggregatedList for project %s reported a problem for scope %s (warning: %s); suppressing cleanup for the project.",
                     resource,
                     projectid,
                     scope,
+                    warning_code or scope_data.get("error"),
                 )
-                continue
             items.extend(scope_data.get(resource, []))
         req = api.aggregatedList_next(previous_request=req, previous_response=res)
     return items, incomplete
