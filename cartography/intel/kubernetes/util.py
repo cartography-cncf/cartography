@@ -1,6 +1,8 @@
 import json
 import logging
 from datetime import datetime
+from decimal import Decimal
+from decimal import InvalidOperation
 from typing import Any
 from typing import Callable
 
@@ -34,8 +36,11 @@ def get_gpu_quantity(resources: dict[str, Any] | None) -> int | None:
         if not str(key).endswith("/gpu"):
             continue
         try:
-            quantities.append(int(str(value)))
-        except ValueError:
+            quantity = Decimal(str(value))
+            if quantity != quantity.to_integral_value():
+                raise ValueError
+            quantities.append(int(quantity))
+        except (InvalidOperation, ValueError, OverflowError):
             logger.warning("Ignoring invalid Kubernetes GPU quantity %r", value)
     return sum(quantities) if quantities else None
 

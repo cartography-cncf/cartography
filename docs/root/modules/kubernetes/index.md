@@ -25,8 +25,10 @@ policies use `APPLIES_TO` edges to identify selected pods.
 
 Until v1.0.0, if the identity cannot list persistent volumes, persistent volume
 claims, or storage classes, Cartography skips persistent storage ingestion and
-cleanup and preserves existing storage nodes. Pods continue to load without
-`MOUNTS` relationships until the required permissions are granted.
+cleanup and preserves existing storage nodes. Pods continue to load. On a first
+sync, they have no `MOUNTS` relationships. After an earlier successful storage
+sync, pods can link to the preserved storage snapshot, which may be stale until
+permissions are restored.
 
 If the identity cannot list secrets, Cartography skips secret ingestion and
 cleanup and preserves existing `KubernetesSecret` nodes. Cartography stores

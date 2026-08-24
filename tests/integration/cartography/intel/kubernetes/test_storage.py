@@ -14,6 +14,8 @@ from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.storage import CLAIM_NAME
+from tests.data.kubernetes.storage import CREATION_EPOCH
+from tests.data.kubernetes.storage import DELETION_EPOCH
 from tests.data.kubernetes.storage import NAMESPACE
 from tests.data.kubernetes.storage import RAW_GPU_PODS
 from tests.data.kubernetes.storage import RAW_PERSISTENT_VOLUME_CLAIMS
@@ -80,6 +82,16 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
         "KubernetesPersistentVolumeClaim",
         ["name", "requested_storage", "phase"],
     ) == {(CLAIM_NAME, "2Pi", "Bound")}
+    for label, name in (
+        ("KubernetesStorageClass", STORAGE_CLASS_NAME),
+        ("KubernetesPersistentVolume", VOLUME_NAME),
+        ("KubernetesPersistentVolumeClaim", CLAIM_NAME),
+    ):
+        assert check_nodes(
+            neo4j_session,
+            label,
+            ["name", "creation_timestamp", "deletion_timestamp"],
+        ) == {(name, CREATION_EPOCH, DELETION_EPOCH)}
     assert check_rels(
         neo4j_session,
         "KubernetesPersistentVolumeClaim",
@@ -152,10 +164,23 @@ def test_pod_mounts_persistent_volume_claim(
     }
 
 
-def test_sync_storage_preserves_nodes_when_forbidden(
+@pytest.mark.parametrize(
+    ("getter_name", "status"),
+    (
+        ("get_storage_classes", 401),
+        ("get_storage_classes", 403),
+        ("get_persistent_volumes", 401),
+        ("get_persistent_volumes", 403),
+        ("get_persistent_volume_claims", 401),
+        ("get_persistent_volume_claims", 403),
+    ),
+)
+def test_sync_storage_preserves_nodes_when_unauthorized_or_forbidden(
     neo4j_session,
     monkeypatch,
     _create_test_cluster,
+    getter_name,
+    status,
 ):
     # Arrange
     _mock_storage(monkeypatch)
@@ -164,8 +189,8 @@ def test_sync_storage_preserves_nodes_when_forbidden(
     sync_storage(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
     monkeypatch.setattr(
         storage_module,
-        "get_storage_classes",
-        lambda client: (_ for _ in ()).throw(ApiException(status=403)),
+        getter_name,
+        lambda client: (_ for _ in ()).throw(ApiException(status=status)),
     )
 
     # Act
@@ -177,9 +202,12 @@ def test_sync_storage_preserves_nodes_when_forbidden(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "KubernetesStorageClass", ["name"]) == {
-        (STORAGE_CLASS_NAME,)
-    }
+    for label, name in (
+        ("KubernetesStorageClass", STORAGE_CLASS_NAME),
+        ("KubernetesPersistentVolume", VOLUME_NAME),
+        ("KubernetesPersistentVolumeClaim", CLAIM_NAME),
+    ):
+        assert check_nodes(neo4j_session, label, ["name"]) == {(name,)}
 
 
 def test_sync_storage_cleans_up_stale_nodes(

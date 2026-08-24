@@ -20,6 +20,14 @@ class KubernetesStorageClassNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the StorageClass."
     )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the StorageClass was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the StorageClass was marked for deletion.",
+    )
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME",
         set_in_kwargs=True,
@@ -96,6 +104,14 @@ class KubernetesPersistentVolumeNodeProperties(CartographyNodeProperties):
     )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the PersistentVolume."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the PersistentVolume was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the PersistentVolume was marked for deletion.",
     )
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME",
@@ -214,6 +230,14 @@ class KubernetesPersistentVolumeClaimNodeProperties(CartographyNodeProperties):
     )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the PersistentVolumeClaim."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the PersistentVolumeClaim was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the PersistentVolumeClaim was marked for deletion.",
     )
     namespace: PropertyRef = PropertyRef(
         "namespace",

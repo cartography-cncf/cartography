@@ -10,6 +10,7 @@ from kubernetes.client.models import V1StorageClass
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.storage import KubernetesPersistentVolumeClaimSchema
@@ -45,6 +46,8 @@ def transform_storage_classes(
         {
             "id": f"{cluster_name}/{storage_class.metadata.name}",
             "name": storage_class.metadata.name,
+            "creation_timestamp": get_epoch(storage_class.metadata.creation_timestamp),
+            "deletion_timestamp": get_epoch(storage_class.metadata.deletion_timestamp),
             "provisioner": storage_class.provisioner,
             "reclaim_policy": storage_class.reclaim_policy,
             "volume_binding_mode": storage_class.volume_binding_mode,
@@ -71,6 +74,8 @@ def transform_persistent_volumes(
                 "id": f"{cluster_name}/{volume.metadata.name}",
                 "uid": volume.metadata.uid,
                 "name": volume.metadata.name,
+                "creation_timestamp": get_epoch(volume.metadata.creation_timestamp),
+                "deletion_timestamp": get_epoch(volume.metadata.deletion_timestamp),
                 "capacity_storage": (spec.capacity or {}).get("storage"),
                 "access_modes": sorted(spec.access_modes or []),
                 "reclaim_policy": spec.persistent_volume_reclaim_policy,
@@ -108,6 +113,8 @@ def transform_persistent_volume_claims(
                 "id": f"{cluster_name}/{namespace}/{claim.metadata.name}",
                 "uid": claim.metadata.uid,
                 "name": claim.metadata.name,
+                "creation_timestamp": get_epoch(claim.metadata.creation_timestamp),
+                "deletion_timestamp": get_epoch(claim.metadata.deletion_timestamp),
                 "namespace": namespace,
                 "storage_class_name": storage_class_name,
                 "storage_class_id": (

@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 from kubernetes.client import V1Container
 from kubernetes.client import V1CSIPersistentVolumeSource
 from kubernetes.client import V1ObjectMeta
@@ -16,16 +19,23 @@ from kubernetes.client import V1ResourceRequirements
 from kubernetes.client import V1StorageClass
 from kubernetes.client import V1Volume
 from kubernetes.client import V1VolumeMount
-from kubernetes.client import V1VolumeResourceRequirements
 
 STORAGE_CLASS_NAME = "shared-csi"
 VOLUME_NAME = "pvc-00000000-0000-0000-0000-000000000001"
 CLAIM_NAME = "shared-data"
 NAMESPACE = "my-namespace"
+CREATION_TIMESTAMP = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+CREATION_EPOCH = 1767323045
+DELETION_TIMESTAMP = datetime(2026, 1, 3, 3, 4, 5, tzinfo=timezone.utc)
+DELETION_EPOCH = 1767409445
 
 RAW_STORAGE_CLASSES = [
     V1StorageClass(
-        metadata=V1ObjectMeta(name=STORAGE_CLASS_NAME),
+        metadata=V1ObjectMeta(
+            name=STORAGE_CLASS_NAME,
+            creation_timestamp=CREATION_TIMESTAMP,
+            deletion_timestamp=DELETION_TIMESTAMP,
+        ),
         provisioner="csi.example.com",
         reclaim_policy="Retain",
         volume_binding_mode="Immediate",
@@ -41,6 +51,8 @@ RAW_PERSISTENT_VOLUMES = [
             name=VOLUME_NAME,
             uid="00000000-0000-0000-0000-000000000002",
             labels={"storage.example.com/tier": "performance"},
+            creation_timestamp=CREATION_TIMESTAMP,
+            deletion_timestamp=DELETION_TIMESTAMP,
         ),
         spec=V1PersistentVolumeSpec(
             capacity={"storage": "2Pi"},
@@ -65,10 +77,12 @@ RAW_PERSISTENT_VOLUME_CLAIMS = [
             namespace=NAMESPACE,
             uid="00000000-0000-0000-0000-000000000003",
             labels={"data.example.com/classification": "restricted"},
+            creation_timestamp=CREATION_TIMESTAMP,
+            deletion_timestamp=DELETION_TIMESTAMP,
         ),
         spec=V1PersistentVolumeClaimSpec(
             access_modes=["ReadWriteMany"],
-            resources=V1VolumeResourceRequirements(requests={"storage": "2Pi"}),
+            resources=V1ResourceRequirements(requests={"storage": "2Pi"}),
             storage_class_name=STORAGE_CLASS_NAME,
             volume_mode="Filesystem",
             volume_name=VOLUME_NAME,
