@@ -112,20 +112,74 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     result = neo4j_session.run(
         """
         MATCH (d:RailwayDeployment {id: $deployment_id})
-              -[:WORKLOAD_PARENT]->(s:RailwayServiceInstance)
-              -[:DEPLOYED_FROM]->(r:GitHubRepository)
-        RETURN d.source_revision AS revision,
-               s.root_directory AS root_directory,
+              -[:SCANNED_AS]->(snapshot:RailwayFilesystemSnapshot:FilesystemSnapshot)
+              -[:SNAPSHOT_OF]->(r:GitHubRepository)
+        RETURN snapshot.kind AS kind,
+               snapshot._ont_kind AS ontology_kind,
+               snapshot.source_revision AS revision,
+               snapshot._ont_source_revision AS ontology_revision,
+               snapshot.root_directory AS root_directory,
+               snapshot._ont_root_directory AS ontology_root_directory,
+               snapshot._ont_source AS ontology_source,
                r.fullname AS repository
         """,
         deployment_id=POSTGRES_DEPLOYMENT_ID,
     ).single()
     assert result is not None
     assert result.data() == {
+        "kind": "source",
+        "ontology_kind": "source",
         "revision": SOURCE_REVISION,
+        "ontology_revision": SOURCE_REVISION,
         "root_directory": "/backend",
+        "ontology_root_directory": "/backend",
+        "ontology_source": "railway",
         "repository": "acme/api",
     }
+
+    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
+        (POSTGRES_DEPLOYMENT_ID,),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RailwayProject",
+        "id",
+        "RailwayFilesystemSnapshot",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(TEST_PROJECT_ID, POSTGRES_DEPLOYMENT_ID)}
+
+
+def test_filesystem_snapshot_is_removed_without_an_exact_revision(neo4j_session):
+    # Arrange
+    _sync_compute_tier(neo4j_session)
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        BUNDLES,
+        TEST_UPDATE_TAG,
+    )
+    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
+        (POSTGRES_DEPLOYMENT_ID,),
+    }
+
+    bundles = copy.deepcopy(BUNDLES)
+    for environment in bundles[TEST_PROJECT_ID]["environments"]["edges"]:
+        for deployment in environment["node"]["deployments"]["edges"]:
+            if deployment["node"]["id"] == POSTGRES_DEPLOYMENT_ID:
+                deployment["node"]["meta"] = {"commitHash": "main"}
+
+    # Act
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(TEST_UPDATE_TAG + 1),
+        bundles,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == set()
 
 
 def test_load_railway_deployment_triggers(neo4j_session):

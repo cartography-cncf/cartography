@@ -10,6 +10,9 @@ from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.deployment import RailwayDeploymentSchema
 from cartography.models.railway.deploymenttrigger import RailwayDeploymentTriggerSchema
+from cartography.models.railway.filesystem_snapshot import (
+    RailwayFilesystemSnapshotSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -22,28 +25,36 @@ def sync(
     bundles: dict[str, dict[str, Any]],
     update_tag: int,
 ) -> None:
-    deployments, triggers = transform(bundles)
+    deployments, snapshots, triggers = transform(bundles)
     load_deployments(neo4j_session, deployments, update_tag)
+    load_filesystem_snapshots(neo4j_session, snapshots, update_tag)
     load_deployment_triggers(neo4j_session, triggers, update_tag)
     cleanup(neo4j_session, list(bundles), common_job_parameters)
 
 
 def transform(
     bundles: dict[str, dict[str, Any]],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+]:
     deployments: dict[str, list[dict[str, Any]]] = {}
+    snapshots: dict[str, list[dict[str, Any]]] = {}
     triggers: dict[str, list[dict[str, Any]]] = {}
 
     for project_id, bundle in bundles.items():
         # The deployment each service instance is currently serving. Everything else in the
         # window is a superseded revision.
-        current_ids = {
-            (instance.get("latestDeployment") or {}).get("id")
-            for instance in iter_service_instances(bundle)
-        }
-        current_ids.discard(None)
+        current_instances: dict[str, dict[str, Any]] = {}
+        for instance in iter_service_instances(bundle):
+            latest_deployment = instance.get("latestDeployment") or {}
+            if latest_deployment.get("id"):
+                current_instances[latest_deployment["id"]] = instance
+        current_ids = set(current_instances)
 
         project_deployments: list[dict[str, Any]] = []
+        project_snapshots: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
         for environment in unwrap_edges(bundle["environments"]):
             for deployment in unwrap_edges(environment["deployments"]):
@@ -66,11 +77,26 @@ def transform(
                         ),
                     },
                 )
+                current_instance = current_instances.get(deployment["id"])
+                source = (current_instance or {}).get("source") or {}
+                if source_revision and source.get("repo"):
+                    project_snapshots.append(
+                        {
+                            "id": deployment["id"],
+                            "kind": "source",
+                            "source_revision": source_revision,
+                            "source_repo": source["repo"],
+                            "root_directory": (current_instance or {}).get(
+                                "rootDirectory"
+                            ),
+                        },
+                    )
             project_triggers.extend(unwrap_edges(environment["deploymentTriggers"]))
         deployments[project_id] = project_deployments
+        snapshots[project_id] = project_snapshots
         triggers[project_id] = project_triggers
 
-    return deployments, triggers
+    return deployments, snapshots, triggers
 
 
 @timeit
@@ -84,6 +110,22 @@ def load_deployments(
             neo4j_session,
             RailwayDeploymentSchema(),
             deployments,
+            lastupdated=update_tag,
+            PROJECT_ID=project_id,
+        )
+
+
+@timeit
+def load_filesystem_snapshots(
+    neo4j_session: neo4j.Session,
+    by_project: dict[str, list[dict[str, Any]]],
+    update_tag: int,
+) -> None:
+    for project_id, snapshots in by_project.items():
+        load(
+            neo4j_session,
+            RailwayFilesystemSnapshotSchema(),
+            snapshots,
             lastupdated=update_tag,
             PROJECT_ID=project_id,
         )
@@ -116,6 +158,10 @@ def cleanup(
         scoped_job_parameters["PROJECT_ID"] = project_id
         GraphJob.from_node_schema(
             RailwayDeploymentSchema(),
+            scoped_job_parameters,
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            RailwayFilesystemSnapshotSchema(),
             scoped_job_parameters,
         ).run(neo4j_session)
         GraphJob.from_node_schema(
