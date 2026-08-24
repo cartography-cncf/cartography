@@ -65,11 +65,13 @@ def test_transform_dedupes_a_role_shared_by_two_users() -> None:
         {
             "id": 1,
             "permissions": "Admin",
+            "account": {"id": TEST_ACCOUNT_ID},
             "user": {"id": 1, "email": "lisa@example.com", "name": "Lisa"},
         },
         {
             "id": 2,
             "permissions": "Admin",
+            "account": {"id": TEST_ACCOUNT_ID},
             "user": {"id": 2, "email": "bart@example.com", "name": "Bart"},
         },
     ]
@@ -105,7 +107,12 @@ def test_transform_rejects_an_unusable_user_id(bad_id):
 
 def test_transform_keeps_a_user_whose_membership_has_no_permission_label() -> None:
     memberships = [
-        {"id": 1, "permissions": None, "user": {"id": 1, "email": "maggie@example.com"}}
+        {
+            "id": 1,
+            "permissions": None,
+            "account": {"id": TEST_ACCOUNT_ID},
+            "user": {"id": 1, "email": "maggie@example.com"},
+        }
     ]
 
     users, roles = transform(memberships, TEST_ACCOUNT_ID)
@@ -156,3 +163,66 @@ def test_transform_keeps_colliding_account_and_organization_ids_apart() -> None:
     assert users_by_id[1]["organization_ids"] == []
     assert users_by_id[2]["role_ids"] == [f"org/{colliding_id}/Admin"]
     assert users_by_id[2]["organization_ids"] == [colliding_id]
+
+
+def test_transform_rejects_an_organization_object_without_a_usable_id() -> None:
+    """Regression: this used to silently widen an org grant into an account-wide role.
+
+    Inferring "account-scoped" from a missing organization id made the graph report more
+    access than the user actually holds.
+    """
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "organization": {"name": "Springfield Elementary"},
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(KeyError):
+        transform(memberships, TEST_ACCOUNT_ID)
+
+
+def test_transform_rejects_a_membership_with_no_scope_object() -> None:
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="neither an account nor an organization"):
+        transform(memberships, TEST_ACCOUNT_ID)
+
+
+def test_transform_rejects_a_membership_scoped_to_both() -> None:
+    """The API documents a membership as carrying one scope object or the other."""
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "account": {"id": TEST_ACCOUNT_ID},
+            "organization": {"id": 2001},
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="both an account and an organization"):
+        transform(memberships, TEST_ACCOUNT_ID)
+
+
+def test_transform_rejects_a_membership_from_another_account() -> None:
+    """A membership for a different tenant has no business in this account's graph."""
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "account": {"id": TEST_ACCOUNT_ID + 1},
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="not the account being synced"):
+        transform(memberships, TEST_ACCOUNT_ID)

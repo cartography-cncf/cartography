@@ -44,6 +44,44 @@ def get(
         raise
 
 
+def _membership_scope(
+    membership: dict[str, Any],
+    account_id: int,
+) -> tuple[str, int]:
+    """Resolve which scope a membership grants its permission label over.
+
+    A membership is scoped to the account or to exactly one organization, never both and
+    never neither. Both objects are validated rather than inferring "account" from a
+    missing organization id: a malformed organization object would otherwise widen an
+    organization grant into an account-wide role, which reads in the graph as more access
+    than the user actually has.
+    """
+    account = membership.get("account")
+    organization = membership.get("organization")
+
+    if isinstance(organization, dict):
+        if isinstance(account, dict):
+            raise ValueError(
+                f"Huntress returned membership {membership.get('id')!r} scoped to both "
+                "an account and an organization",
+            )
+        return "org", required_id(organization, "membership organization")
+
+    if not isinstance(account, dict):
+        raise ValueError(
+            f"Huntress returned membership {membership.get('id')!r} scoped to neither "
+            "an account nor an organization",
+        )
+
+    resolved_account_id = required_id(account, "membership account")
+    if resolved_account_id != account_id:
+        raise ValueError(
+            f"Huntress returned membership {membership.get('id')!r} scoped to account "
+            f"{resolved_account_id}, which is not the account being synced ({account_id})",
+        )
+    return "account", resolved_account_id
+
+
 def transform(
     api_result: list[dict[str, Any]],
     account_id: int,
@@ -68,10 +106,8 @@ def transform(
             )
         user_id = required_id(user, "membership user")
 
-        organization = membership.get("organization")
-        organization_id = (
-            organization.get("id") if isinstance(organization, dict) else None
-        )
+        scope, scope_id = _membership_scope(membership, account_id)
+        organization_id = scope_id if scope == "org" else None
 
         entry = users.setdefault(
             user_id,
@@ -93,8 +129,6 @@ def transform(
         # separate Huntress sequences, so the numbers can collide; without the prefix,
         # account 42 and organization 42 would collapse onto one role node and hand
         # every holder of one grant the other one's scope.
-        scope = "org" if organization_id is not None else "account"
-        scope_id = organization_id if organization_id is not None else account_id
         role_id = f"{scope}/{scope_id}/{permissions}"
         roles.setdefault(
             role_id,
