@@ -515,6 +515,33 @@ def cleanup_filesystem_snapshot_relationships(
     )
 
 
+@timeit
+def cleanup_image_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale image edges without touching filesystem-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
+    )
+
+
 # DEPRECATED: legacy Package label migration will be removed in v1.0.0.
 def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
