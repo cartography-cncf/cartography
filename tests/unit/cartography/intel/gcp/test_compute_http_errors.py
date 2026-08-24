@@ -588,3 +588,46 @@ class TestGetGcpVpnTunnelsHttpErrors:
             )
 
         mock_cleanup.assert_not_called()
+
+
+class TestGcpVpnAggregatedListPageLevelSignals:
+    """
+    Both VPN getters share _get_gcp_vpn_aggregated, so one parametrized test
+    covers the page-level (outside `items`) partial-result signals for both.
+    """
+
+    @pytest.mark.parametrize(
+        "getter,api_attr,items_key",
+        [
+            (get_gcp_vpn_gateways, "vpnGateways", "vpnGateways"),
+            (get_gcp_vpn_tunnels, "vpnTunnels", "vpnTunnels"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "page_fields",
+        [
+            # Non-empty unreachables list: regions that could not be queried.
+            {"unreachables": ["regions/europe-west1"]},
+            # Top-level warning indicating partial results.
+            {"warning": {"code": "UNREACHABLE", "message": "Some scopes failed."}},
+        ],
+    )
+    def test_page_level_partial_result_signals_mark_incomplete(
+        self, getter, api_attr, items_key, page_fields
+    ):
+        mock_compute = MagicMock()
+        response = {
+            "items": {
+                "regions/us-central1": {items_key: [{"name": "res-a"}]},
+            },
+            **page_fields,
+        }
+        api = getattr(mock_compute, api_attr)
+        api.return_value.aggregatedList.return_value = _make_request(response=response)
+        api.return_value.aggregatedList_next.return_value = None
+
+        items, incomplete = getter("test-project", mock_compute)
+
+        # Returned scopes are still ingested, but cleanup must be suppressed.
+        assert items == [{"name": "res-a"}]
+        assert incomplete is True

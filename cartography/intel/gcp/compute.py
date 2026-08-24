@@ -338,6 +338,26 @@ def _get_gcp_vpn_aggregated(
                     warning_code or scope_data.get("error"),
                 )
             items.extend(scope_data.get(resource, []))
+        # Missing data can also be reported at the page level, outside items:
+        # a non-empty `unreachables` list, or a top-level `warning` whose code
+        # is not the benign NO_RESULTS_ON_PAGE (e.g. UNREACHABLE).
+        if res.get("unreachables"):
+            incomplete = True
+            logger.warning(
+                "GCP: %s.aggregatedList for project %s reported unreachable scopes %s; suppressing cleanup for the project.",
+                resource,
+                projectid,
+                res["unreachables"],
+            )
+        page_warning_code = (res.get("warning") or {}).get("code")
+        if page_warning_code and page_warning_code != "NO_RESULTS_ON_PAGE":
+            incomplete = True
+            logger.warning(
+                "GCP: %s.aggregatedList for project %s returned warning %s; suppressing cleanup for the project.",
+                resource,
+                projectid,
+                page_warning_code,
+            )
         req = api.aggregatedList_next(previous_request=req, previous_response=res)
     return items, incomplete
 
