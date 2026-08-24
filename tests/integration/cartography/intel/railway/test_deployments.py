@@ -73,6 +73,18 @@ def test_load_railway_deployments(neo4j_session):
         (POSTGRES_DEPLOYMENT_ID,),
     }
 
+    # Assert the current deployment carries the image reference from its service instance so
+    # the image ontology can reach it. The web instance runs a registry image; the Postgres
+    # instance is git-backed and has none.
+    assert check_nodes(
+        neo4j_session,
+        "RailwayDeployment",
+        ["id", "image_uri", "image_digest"],
+    ) == {
+        (WEB_DEPLOYMENT_ID, "nginxdemos/hello", None),
+        (POSTGRES_DEPLOYMENT_ID, None, None),
+    }
+
     # And the project tenant edge
     assert check_rels(
         neo4j_session,

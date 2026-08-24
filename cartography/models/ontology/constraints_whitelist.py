@@ -191,6 +191,16 @@ from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
 from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.railway.deployment import RailwayDeploymentToECRImageRel
+from cartography.models.railway.deployment import (
+    RailwayDeploymentToGCPArtifactRegistryImageRel,
+)
+from cartography.models.railway.deployment import (
+    RailwayDeploymentToGitHubContainerImageRel,
+)
+from cartography.models.railway.deployment import (
+    RailwayDeploymentToGitLabContainerImageRel,
+)
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.scaleway.serverless.container import (
@@ -361,6 +371,10 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureContainerInstanceToGitLabContainerImageRel,
         AzureContainerInstanceToGCPArtifactRegistryImageRel,
         AzureContainerInstanceToGitHubContainerImageRel,
+        RailwayDeploymentToECRImageRel,
+        RailwayDeploymentToGitLabContainerImageRel,
+        RailwayDeploymentToGCPArtifactRegistryImageRel,
+        RailwayDeploymentToGitHubContainerImageRel,
         ScalewayServerlessContainerToImageRel,
         SnowflakeServiceContainerToImageRel,
         AWSLambdaToECRImageRel,
