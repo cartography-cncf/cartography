@@ -63,6 +63,12 @@ class FactResult:
             from rule_id + fact_id + these field values without importing the Python rule
             registry. Defaults to empty only for directly-constructed results; the runner
             always populates it from the Fact, which requires a non-empty value.
+        asset_label (str | None): The Neo4j node label of the asset this Fact is about,
+            mirrored from the executed Fact. With asset_id_field it forms the (label, id)
+            anchor on the affected node. Defaults to None only for directly-constructed
+            results; the runner always populates it from the Fact.
+        asset_id_field (str | None): The output-model field holding that node's .id (the id
+            half of the anchor), mirrored from the executed Fact.
     """
 
     fact_id: str
@@ -74,6 +80,8 @@ class FactResult:
     failing: int | None = None
     passing: int | None = None
     identity_fields: tuple[str, ...] = ()
+    asset_label: str | None = None
+    asset_id_field: str | None = None
 
 
 @dataclass

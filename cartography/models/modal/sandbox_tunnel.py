@@ -1,0 +1,111 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class ModalSandboxTunnelNodeProperties(CartographyNodeProperties):
+    # Modal gives tunnels no id of their own, so it is synthesised as
+    # "<sandbox_id>/<container_port>", which is unique per sandbox.
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Synthesised as `<sandbox_id>/<container_port>`; Modal gives tunnels no id.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    sandbox_id: PropertyRef = PropertyRef(
+        "sandbox_id", description="ID of the exposing sandbox."
+    )
+    # Public TLS hostname the tunnel is reachable at.
+    host: PropertyRef = PropertyRef(
+        "host", extra_index=True, description="Public TLS hostname."
+    )
+    port: PropertyRef = PropertyRef("port", description="Public TLS port.")
+    # Populated only for a tunnel opened on an *unencrypted* port. Traffic to it is
+    # cleartext over the public internet, which is why it is indexed.
+    unencrypted_host: PropertyRef = PropertyRef(
+        "unencrypted_host",
+        extra_index=True,
+        description="Set only for a tunnel opened on an unencrypted port. Traffic to it is cleartext over the public internet.",
+    )
+    unencrypted_port: PropertyRef = PropertyRef(
+        "unencrypted_port", description="The unencrypted port, if any."
+    )
+    has_unencrypted_endpoint: PropertyRef = PropertyRef(
+        "has_unencrypted_endpoint",
+        extra_index=True,
+        description="Precomputed flag so cleartext exposure is directly queryable.",
+    )
+    container_port: PropertyRef = PropertyRef(
+        "container_port", description="Port inside the container."
+    )
+    environment_name: PropertyRef = PropertyRef(
+        "environment_name",
+        extra_index=True,
+        description="Name of the owning environment.",
+    )
+
+
+@dataclass(frozen=True)
+class ModalSandboxTunnelToEnvironmentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ModalEnvironment)-[:RESOURCE]->(:ModalSandboxTunnel)
+class ModalSandboxTunnelToEnvironmentRel(CartographyRelSchema):
+    target_node_label: str = "ModalEnvironment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ENVIRONMENT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ModalSandboxTunnelToEnvironmentRelProperties = (
+        ModalSandboxTunnelToEnvironmentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ModalSandboxTunnelToSandboxRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ModalSandboxTunnel)-[:EXPOSE]->(:ModalSandbox)
+#
+# EXPOSE always points from the internet-facing entrypoint to the asset it puts at risk,
+# matching the LoadBalancer-[:EXPOSE]->workload convention used by AWS, GCP, Azure and
+# Kubernetes. The tunnel is the entrypoint; the sandbox is the asset at risk.
+class ModalSandboxTunnelToSandboxRel(CartographyRelSchema):
+    target_node_label: str = "ModalSandbox"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("sandbox_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "EXPOSE"
+    properties: ModalSandboxTunnelToSandboxRelProperties = (
+        ModalSandboxTunnelToSandboxRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# A forwarded port on a running sandbox, reachable from the public internet. This is the
+# main inbound exposure surface of a Modal sandbox.
+class ModalSandboxTunnelSchema(CartographyNodeSchema):
+    """Represents a forwarded port on a running sandbox, reachable from the public internet. This is the main inbound exposure surface of a Modal sandbox."""
+
+    label: str = "ModalSandboxTunnel"
+    properties: ModalSandboxTunnelNodeProperties = ModalSandboxTunnelNodeProperties()
+    sub_resource_relationship: ModalSandboxTunnelToEnvironmentRel = (
+        ModalSandboxTunnelToEnvironmentRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ModalSandboxTunnelToSandboxRel()],
+    )

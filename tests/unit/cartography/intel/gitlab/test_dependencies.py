@@ -281,7 +281,7 @@ def test_transform_dependencies_emits_canonical_purl_fields():
     """
     transform_dependencies must propagate purl/type from the parser and compute
     normalized_id via make_normalized_package_id so the ontology Package node
-    can match (:Package)-[:DETECTED_AS]->(:GitLabDependency).
+    can match (:PackageVersion)-[:DETECTED_AS]->(:GitLabDependency).
     """
     raw = [
         {

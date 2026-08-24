@@ -34,7 +34,7 @@ machine to pull data from AWS.
 
 1. **Configure and run Cartography.**
 
-    In this example we will run Cartography on [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
+    In this example we will run Cartography on [AWS](https://docs.cartography.dev/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
 
     ```bash
     docker-compose run \
@@ -52,7 +52,7 @@ machine to pull data from AWS.
     **Notes:**
     - You can view a full list of Cartography's CLI arguments by running `docker-compose run cartography --help`.
 
-    - Refer to the configuration sections of the relevant intel modules - such as [AWS](https://cartography-cncf.github.io/cartography/modules/aws/index.html), [GCP](https://cartography-cncf.github.io/cartography/modules/gcp/index.html), [Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html), and others - to properly set up each data source. The instructions for configuring additional modules can be found in the sidebar menu under the "Intel Modules" section. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
+    - Refer to the configuration sections of the relevant intel modules - such as [AWS](https://docs.cartography.dev/modules/aws/index.html), [GCP](https://docs.cartography.dev/modules/gcp/index.html), [Azure](https://docs.cartography.dev/modules/azure/index.html), and others - to properly set up each data source. The instructions for configuring additional modules can be found in the sidebar menu under the "Intel Modules" section. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
 
         - You can pass in environment variables to the cartography container using the docker-compose format like this: `-e VARIABLE1 -e VARIABLE2=value2`.
         - You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.
@@ -63,12 +63,12 @@ machine to pull data from AWS.
 
         - `AWS_DEFAULT_REGION` must be specified.
         - The docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container so that the container has access to AWS profile and credential files.
-        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://cartography-cncf.github.io/cartography/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
+        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://docs.cartography.dev/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
 
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker-compose run --rm cartography cartography-rules run all --uri bolt://cartography-neo4j-1:7687
+    docker-compose run --rm --entrypoint cartography-rules cartography run all --uri bolt://cartography-neo4j-1:7687
     ```
 
     Full docs [here](usage/rules).
@@ -134,7 +134,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
 1. **Configure and run Cartography.**
 
-    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://docs.cartography.dev/modules) to set up each data source. In this example we will use [AWS](https://docs.cartography.dev/modules/aws/config.html).
 
     This command runs cartography on an AWS profile called "1234_testprofile" on region us-east-1. We also expose the host machine's ~/.aws directory to ~/var/cartography/.aws in the container so that AWS configs work.
 
@@ -144,7 +144,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v ~/.aws:/var/cartography/.aws/ \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
+        ghcr.io/cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
      ```
 
    If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:
@@ -159,12 +159,12 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
       - `AWS_DEFAULT_REGION` must be specified.
       - Our docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container, so the container has access to AWS profile and credential files.
-    - You can view a full list of Cartography's CLI arguments by running `docker run cartography-cncf/cartography --help`.
+    - You can view a full list of Cartography's CLI arguments by running `docker run ghcr.io/cartography-cncf/cartography --help`.
 
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker run --rm --network cartography-network cartography-cncf/cartography cartography-rules run all --uri bolt://cartography-neo4j:7687
+    docker run --rm --network cartography-network --entrypoint cartography-rules ghcr.io/cartography-cncf/cartography run all --uri bolt://cartography-neo4j:7687
     ```
 
     Full docs [here](usage/rules).
@@ -191,7 +191,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 1. **Ensure that you have Python 3.13 set up on your machine.**
 
-    Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
+    Python 3.11 and 3.12 may work but are not tested. Python 3.10 and older are not supported.
 
 1. **Run Neo4j graph database version 5.23 or higher.** Cartography emits scoped subqueries (`CALL (var) { ... }`) that earlier 5.x releases do not support.
 
@@ -237,9 +237,13 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     If you prefer pip, `pip install cartography` still works inside a venv. See the [Python packaging guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments) for venv setup with `pyenv` / `pyenv-virtualenv`.
 
+    ```{tip}
+    Install `cartography[neo4j-rust]` instead of `cartography` to get a faster Neo4j driver. See [Faster Neo4j driver](ops.md#faster-neo4j-driver).
+    ```
+
 1. **Configure your data sources.**
 
-    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) for more details. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://docs.cartography.dev/modules) for more details. In this example we will use [AWS](https://docs.cartography.dev/modules/aws/config.html).
 
 1. **Run cartography.**
 

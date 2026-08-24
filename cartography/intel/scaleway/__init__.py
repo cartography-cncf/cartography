@@ -44,7 +44,10 @@ import cartography.intel.scaleway.storage.filesystems
 import cartography.intel.scaleway.storage.objectstorage
 import cartography.intel.scaleway.storage.snapshots
 import cartography.intel.scaleway.storage.volumes
+import cartography.intel.scaleway.webhosting.hostings
+from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
 from cartography.config import Config
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -298,6 +301,17 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
 
+    # Web Hosting (loaded after DNS so the EXPOSE edges to ScalewayRegisteredDomain
+    # and ScalewayDnsZone resolve).
+    cartography.intel.scaleway.webhosting.hostings.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
     # Key Manager (loaded before Secrets so Secret -> Key ENCRYPTED_BY edges resolve).
     cartography.intel.scaleway.kms.keys.sync(
         neo4j_session,
@@ -442,3 +456,10 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
+
+    # Internet exposure. Runs after every resource sync because it reads across
+    # resource types (instances plus their security groups and public gateways).
+    # The jobs are unscoped: this sync covers the whole organization in one pass,
+    # so there is no other project's data for the generated cleanup to remove.
+    for job in SCALEWAY_EXPOSURE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)

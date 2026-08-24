@@ -1,3 +1,5 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -41,6 +43,7 @@ _aws_role_external_account_trust = Fact(
     MATCH (:AWSAccount {inscope: true})-[:RESOURCE]->(role:AWSRole)
     RETURN COUNT(role) AS count
     """,
+    asset_label="AWSRole",
     asset_id_field="role_arn",
     identity_fields=("role_arn", "trusted_principal_arn"),
     module=Module.AWS,
@@ -75,4 +78,10 @@ iam_role_external_account_trust = Rule(
         "stride:spoofing",
     ),
     version="0.1.0",
+    frameworks=(
+        iso27001_annex_a("5.18"),
+        iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
+        soc2_tsc("CC6.6"),
+    ),
 )

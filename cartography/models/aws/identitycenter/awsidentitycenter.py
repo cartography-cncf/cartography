@@ -12,12 +12,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class IdentityCenterInstanceProperties(CartographyNodeProperties):
-    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
-    arn: PropertyRef = PropertyRef("InstanceArn")
-    created_date: PropertyRef = PropertyRef("CreatedDate")
-    id: PropertyRef = PropertyRef("InstanceArn")
-    status: PropertyRef = PropertyRef("Status")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    identity_store_id: PropertyRef = PropertyRef(
+        "IdentityStoreId",
+        description="The identity store ID of the Identity Center instance",
+    )
+    arn: PropertyRef = PropertyRef(
+        "InstanceArn",
+        description="The Amazon Resource Name (ARN) of the Identity Center instance",
+    )
+    created_date: PropertyRef = PropertyRef(
+        "CreatedDate", description="The date the Identity Center instance was created"
+    )
+    id: PropertyRef = PropertyRef(
+        "InstanceArn", description="Unique identifier for the Identity Center instance"
+    )
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the Identity Center instance"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Identity Center instance is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,6 +58,8 @@ class IdentityCenterToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSIdentityCenterInstanceSchema(CartographyNodeSchema):
+    """Representation of an AWS Identity Center."""
+
     label: str = "AWSIdentityCenter"
     properties: IdentityCenterInstanceProperties = IdentityCenterInstanceProperties()
     sub_resource_relationship: IdentityCenterToAWSAccountRel = (

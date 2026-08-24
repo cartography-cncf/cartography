@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -78,6 +79,8 @@ _aws_s3_mfa_delete_disabled = Fact(
     MATCH (bucket:AWSS3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    asset_id_field="bucket_id",
+    asset_label="AWSS3Bucket",
     identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -98,6 +101,7 @@ aws_s3_bucket_mfa_delete = Rule(
     frameworks=(
         cis_aws("3.1.2"),
         iso27001_annex_a("8.10"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -196,6 +200,8 @@ _aws_s3_block_public_access_disabled = Fact(
     MATCH (bucket:AWSS3Bucket)
     RETURN COUNT(bucket) AS count
     """,
+    asset_id_field="bucket_id",
+    asset_label="AWSS3Bucket",
     identity_fields=("bucket_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -216,6 +222,7 @@ aws_s3_block_public_access = Rule(
     frameworks=(
         cis_aws("3.1.4"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -269,6 +276,8 @@ _aws_rds_encryption_disabled = Fact(
     MATCH (rds:AWSRDSInstance)
     RETURN COUNT(rds) AS count
     """,
+    asset_id_field="db_arn",
+    asset_label="AWSRDSInstance",
     identity_fields=("db_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -289,6 +298,7 @@ aws_rds_encryption_at_rest = Rule(
     frameworks=(
         cis_aws("3.2.1"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

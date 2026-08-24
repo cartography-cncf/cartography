@@ -31,9 +31,9 @@ def _build_config() -> MagicMock:
     new_callable=AsyncMock,
 )
 @patch("cartography.intel.microsoft.intune.create_graph_service_client")
-@patch("cartography.intel.microsoft.intune.ClientSecretCredential")
+@patch("cartography.intel.microsoft.credentials.make_credential")
 def test_detected_app_export_failure_does_not_fail_microsoft_sync(
-    mock_credential,
+    mock_make_credential,
     mock_create_client,
     mock_sync_managed_devices,
     mock_sync_detected_apps,
@@ -69,9 +69,9 @@ def test_detected_app_export_failure_does_not_fail_microsoft_sync(
     new_callable=AsyncMock,
 )
 @patch("cartography.intel.microsoft.intune.create_graph_service_client")
-@patch("cartography.intel.microsoft.intune.ClientSecretCredential")
+@patch("cartography.intel.microsoft.credentials.make_credential")
 def test_unrelated_detected_app_error_still_fails_microsoft_sync(
-    mock_credential,
+    mock_make_credential,
     mock_create_client,
     mock_sync_managed_devices,
     mock_sync_detected_apps,

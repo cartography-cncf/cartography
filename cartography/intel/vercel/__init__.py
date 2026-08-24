@@ -25,6 +25,7 @@ import cartography.intel.vercel.teams
 import cartography.intel.vercel.users
 import cartography.intel.vercel.webhooks
 from cartography.config import Config
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,15 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             api_session,
             project_job_parameters,
             project_id=project_id,
+            # Deployment protection is configured on the project but decides whether each
+            # deployment URL is reachable, so it is handed down rather than re-read.
+            protection={
+                key: project.get(key)
+                for key in (
+                    "sso_protection_deployment_type",
+                    "password_protection_deployment_type",
+                )
+            },
         )
         cartography.intel.vercel.environmentvariables.sync(
             neo4j_session,
@@ -195,3 +205,11 @@ def start_vercel_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             ec_job_parameters,
             edge_config_id=ec_id,
         )
+
+    # Phase 8: DEPRECATED: compatibility migration for the vercel-local
+    # :Group label on VercelAccessGroup. Remove in v1.0.0.
+    run_analysis_job(
+        "vercel_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )

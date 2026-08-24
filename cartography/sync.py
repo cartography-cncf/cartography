@@ -16,6 +16,21 @@ from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
 
+try:
+    # Whether the driver actually swapped in the Rust codec from neo4j-rust-ext. This is
+    # the only reliable signal: the extension can be installed and still fail to import
+    # (an ABI mismatch, say), and the driver handles that ImportError by staying on the
+    # pure-Python path, so merely finding the module says nothing about what is in use.
+    #
+    # Private, hence the guard: a driver upgrade that moves the symbol must not take the
+    # sync down over a log line. None then means "not the Rust codec, or we cannot tell",
+    # and all of those cases are reported the same way, which understates rather than
+    # overstates. The integration matrix asserts on this same symbol, so a move breaks CI
+    # loudly instead of silently degrading the log.
+    from neo4j._codec.packstream.v1 import _rust_pack
+except ImportError:  # pragma: no cover
+    _rust_pack = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -110,17 +125,22 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": _LazyStage(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
+        "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
         "docker_scout": _LazyStage(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
         "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
         "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
         "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        # Must run after `github` so that the workflows, actions, and repositories
+        # that findings attach to already exist.
+        "zizmor": _LazyStage("cartography.intel.zizmor", "start_zizmor_ingestion"),
         "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
         "sentinelone": _LazyStage(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
         "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
+        "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
         "cve_metadata": _LazyStage(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
@@ -133,8 +153,23 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.subimage", "start_subimage_ingestion"
         ),
         "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
+        "supabase": _LazyStage(
+            "cartography.intel.supabase", "start_supabase_ingestion"
+        ),
+        "railway": _LazyStage("cartography.intel.railway", "start_railway_ingestion"),
+        "netlify": _LazyStage("cartography.intel.netlify", "start_netlify_ingestion"),
         "circleci": _LazyStage(
             "cartography.intel.circleci", "start_circleci_ingestion"
+        ),
+        "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
+        "miradore": _LazyStage(
+            "cartography.intel.miradore", "start_miradore_ingestion"
+        ),
+        # Runs after the cloud providers so that stages, external volumes and
+        # integrations can attach to the S3 / GCS / Azure resources and IAM roles
+        # they point at on the first sync rather than the next one.
+        "snowflake": _LazyStage(
+            "cartography.intel.snowflake", "start_snowflake_ingestion"
         ),
         "ontology": _LazyStage("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
@@ -380,6 +415,21 @@ class Sync:
         return available_modules
 
 
+def _log_neo4j_bolt_codec() -> None:
+    """Report whether the Rust Bolt codec (`cartography[neo4j-rust]`) is in use.
+
+    neo4j-rust-ext is picked up by the driver without any import or config on our side,
+    so this log line is the only way for an operator to tell which codec they got.
+    """
+    if _rust_pack is not None:
+        logger.info("Using the Rust Bolt codec from neo4j-rust-ext.")
+    else:
+        logger.info(
+            "Using the pure-Python Bolt codec. Installing cartography[neo4j-rust] pulls in "
+            "neo4j-rust-ext, which speeds up talking to Neo4j.",
+        )
+
+
 def run_with_config(sync: Sync, config: Config) -> int:
     """
     Execute a sync task with comprehensive configuration and error handling.
@@ -430,6 +480,8 @@ def run_with_config(sync: Sync, config: Config) -> int:
                 prefix=config.statsd_prefix,
             ),
         )
+
+    _log_neo4j_bolt_codec()
 
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:

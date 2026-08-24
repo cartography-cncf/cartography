@@ -19,7 +19,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Perform an editable install of the cartography source code**
 
-    Run `cd cartography` and then `uv sync` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
+    Run `cd cartography` and then `uv sync` to install Cartography from source into the project virtual environment.
 
 4. **Run from source**
 
@@ -109,6 +109,7 @@ INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/c
 ...
 ```
 
+(dev-dockerfile)=
 ## dev.Dockerfile
 
 We include a dev.Dockerfile that can help streamline common dev tasks. It is different from the main Dockerfile in that

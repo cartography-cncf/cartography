@@ -10,26 +10,72 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import LOAD_BALANCER
 
 
 @dataclass(frozen=True)
 class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("partial_uri")
-    partial_uri: PropertyRef = PropertyRef("partial_uri")
+    id: PropertyRef = PropertyRef(
+        "partial_uri",
+        description="A partial resource URI representing this Forwarding Rule.",
+    )
+    partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the load balancing scheme is external. `False` otherwise.",
+    )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    ip_address: PropertyRef = PropertyRef("ip_address")
-    ip_protocol: PropertyRef = PropertyRef("ip_protocol")
-    load_balancing_scheme: PropertyRef = PropertyRef("load_balancing_scheme")
-    lb_type: PropertyRef = PropertyRef("lb_type")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    network: PropertyRef = PropertyRef("network_partial_uri")
-    port_range: PropertyRef = PropertyRef("port_range")
-    ports: PropertyRef = PropertyRef("ports")
-    project_id: PropertyRef = PropertyRef("project_id")
-    region: PropertyRef = PropertyRef("region")
-    self_link: PropertyRef = PropertyRef("self_link")
-    subnetwork: PropertyRef = PropertyRef("subnetwork_partial_uri")
-    target: PropertyRef = PropertyRef("target")
+    ip_address: PropertyRef = PropertyRef(
+        "ip_address", description="IP address that this Forwarding Rule serves."
+    )
+    ip_protocol: PropertyRef = PropertyRef(
+        "ip_protocol", description="IP protocol to which this rule applies."
+    )
+    load_balancing_scheme: PropertyRef = PropertyRef(
+        "load_balancing_scheme", description="Specifies the Forwarding Rule type."
+    )
+    lb_type: PropertyRef = PropertyRef(
+        "lb_type",
+        description="Normalised load-balancer family derived from the target proxy collection (`http`, `https`, `tcp`, `ssl`, `grpc`, `network`, `vpn`).",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Forwarding Rule."
+    )
+    network: PropertyRef = PropertyRef(
+        "network_partial_uri",
+        description="A partial resource URI of the network this Forwarding Rule belongs to.",
+    )
+    port_range: PropertyRef = PropertyRef(
+        "port_range",
+        description="Port range used in conjunction with a target resource. Only packets addressed to ports in the specified range will be forwarded to target configured.",
+    )
+    ports: PropertyRef = PropertyRef(
+        "ports",
+        description="Ports to forward to a backend service. Only packets addressed to these ports are forwarded to the backend services configured.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The project ID that this Forwarding Rule belongs to."
+    )
+    region: PropertyRef = PropertyRef(
+        "region", description="The region of this Forwarding Rule."
+    )
+    self_link: PropertyRef = PropertyRef(
+        "self_link", description="Server-defined URL for the resource."
+    )
+    subnetwork: PropertyRef = PropertyRef(
+        "subnetwork_partial_uri",
+        description="A partial resource URI of the subnetwork this Forwarding Rule belongs to.",
+    )
+    target: PropertyRef = PropertyRef(
+        "target",
+        description="A partial resource URI of the target resource to receive the traffic.",
+    )
 
 
 @dataclass(frozen=True)
@@ -93,51 +139,109 @@ class GCPForwardingRuleToVpcRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPForwardingRuleToTargetHttpsProxyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetHttpsProxyRel(CartographyRelSchema):
+    """
+    Matches on the existing `target` property, which transform_gcp_forwarding_rules()
+    already parses to a partial URI. A rule whose target isn't a targetHttpsProxies
+    resource simply won't match anything here.
+    """
+
+    target_node_label: str = "GCPTargetHttpsProxy"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("target"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: GCPForwardingRuleToTargetHttpsProxyRelProperties = (
+        GCPForwardingRuleToTargetHttpsProxyRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetSslProxyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetSslProxyRel(CartographyRelSchema):
+    """Same matching approach as GCPForwardingRuleToTargetHttpsProxyRel, for targetSslProxies."""
+
+    target_node_label: str = "GCPTargetSslProxy"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("target"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: GCPForwardingRuleToTargetSslProxyRelProperties = (
+        GCPForwardingRuleToTargetSslProxyRelProperties()
+    )
+
+
+# `target` (already parsed to a partial URI) can point at any load-balancer target
+# collection -- targetHttpsProxies, targetSslProxies, targetPools, etc. Both proxy
+# relationships below are declared on every variant regardless of network/subnetwork
+# wiring; only the one whose collection actually matches `target` produces an edge.
+@dataclass(frozen=True)
 class GCPForwardingRuleSchema(CartographyNodeSchema):
-    """
-    Schema for GCP Forwarding Rules.
-    Note: The relationships to subnet and VPC are handled separately in intel code
-    because only one of them should be created based on whether the rule has a subnetwork or network.
-    """
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
+        ]
     )
 
 
 # TODO: I don't think we need this schema
 @dataclass(frozen=True)
 class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
-    """
-    Schema for GCP Forwarding Rules that have a subnetwork (INTERNAL load balancing).
-    """
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPForwardingRuleToSubnetRel(),
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
         ]
     )
 
 
 @dataclass(frozen=True)
 class GCPForwardingRuleWithVpcSchema(CartographyNodeSchema):
+    """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
+
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPForwardingRuleToVpcRel(),
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
         ]
     )

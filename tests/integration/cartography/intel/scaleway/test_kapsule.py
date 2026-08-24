@@ -57,6 +57,10 @@ def test_load_scaleway_kapsule(_mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "ScalewayKapsuleNode", ["id", "name"]) == {
         (TEST_NODE_ID, "scw-demo-cluster-demo-pool-abc"),
     }
+    # A node holding a public address is reachable; set by transform_clusters.
+    assert check_nodes(
+        neo4j_session, "ScalewayKapsuleNode", ["id", "exposed_internet"]
+    ) == {(TEST_NODE_ID, True)}
 
     # Cross-cloud ontology label on the cluster.
     assert check_nodes(neo4j_session, "ComputeCluster", ["id"]) == {(TEST_CLUSTER_ID,)}
@@ -66,7 +70,7 @@ def test_load_scaleway_kapsule(_mock_get, neo4j_session):
         neo4j_session,
         "ComputeCluster",
         ["_ont_name", "_ont_region", "_ont_version", "_ont_status", "_ont_source"],
-    ) == {("demo-cluster", "fr-par", "1.30.2", "ready", "scaleway")}
+    ) == {("demo-cluster", "fr-par", "1.30.2", "active", "scaleway")}
 
     # Project ownership.
     for label in (

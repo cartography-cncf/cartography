@@ -25,6 +25,12 @@ def test_aws_organization_account_ids_preserves_config_positional_compatibility(
     )
 
 
+def test_bbot_source_preserves_config_positional_compatibility() -> None:
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    assert parameters.index("bbot_source") > parameters.index("netlify_base_url")
+
+
 def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     # Arrange and act
     with caplog.at_level(logging.WARNING):

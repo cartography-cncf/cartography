@@ -203,6 +203,21 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
     )
 
+    # Resolve tags once for the whole container phase. The tag detail endpoint is
+    # the only GitLab API that reports a tag's manifest digest, and it costs one
+    # request per tag, so both the image sync (which needs the digests to decide
+    # what to fetch) and the tag sync (which ingests them) share this one fetch.
+    all_container_tags = cartography.intel.gitlab.container_repository_tags.get_all_container_repository_tags(
+        gitlab_url,
+        token,
+        all_container_repositories,
+    )
+    container_tags_by_repository = (
+        cartography.intel.gitlab.container_repository_tags.group_tags_by_repository(
+            all_container_tags,
+        )
+    )
+
     # Sync container images before tags since tags have REFERENCES relationship to images
     # Returns raw manifests and manifest lists for downstream attestation sync
     all_image_manifests, manifest_lists = (
@@ -214,6 +229,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             all_container_repositories,
             config.update_tag,
             common_job_parameters,
+            tags_by_repository=container_tags_by_repository,
         )
     )
 
@@ -226,6 +242,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_container_repositories,
         config.update_tag,
         common_job_parameters,
+        raw_tags=all_container_tags,
     )
 
     # Sync container image attestations (includes cleanup since it's org-scoped)

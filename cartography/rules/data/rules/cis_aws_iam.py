@@ -15,6 +15,7 @@ from pydantic import BeforeValidator
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -87,6 +88,8 @@ _aws_access_key_not_rotated = Fact(
     MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    asset_label="AWSAccountAccessKey",
+    asset_id_field="access_key_id",
     identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -107,6 +110,7 @@ aws_access_keys_not_rotated = Rule(
     frameworks=(
         cis_aws("2.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -163,6 +167,8 @@ _aws_unused_credentials = Fact(
     MATCH (key:AWSAccountAccessKey)
     RETURN COUNT(key) AS count
     """,
+    asset_label="AWSAccountAccessKey",
+    asset_id_field="access_key_id",
     identity_fields=("access_key_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -236,6 +242,7 @@ _aws_user_direct_policies = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_label="AWSUser",
     asset_id_field="user_arn",
     # CIS 2.14 is a per-user control, so a user with N direct attachments is
     # one finding; the attached policies are surfaced as list fields.
@@ -259,6 +266,7 @@ aws_users_with_direct_policy_attachments = Rule(
     frameworks=(
         cis_aws("2.14"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -310,6 +318,8 @@ _aws_multiple_access_keys = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_label="AWSUser",
+    asset_id_field="user_arn",
     identity_fields=("user_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -330,6 +340,7 @@ aws_users_with_multiple_active_access_keys = Rule(
     frameworks=(
         cis_aws("2.12"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -381,6 +392,8 @@ _aws_expired_certificates = Fact(
     MATCH (cert:AWSACMCertificate)
     RETURN COUNT(cert) AS count
     """,
+    asset_label="AWSACMCertificate",
+    asset_id_field="certificate_arn",
     identity_fields=("certificate_arn",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -401,6 +414,7 @@ aws_expired_ssl_tls_certificates = Rule(
     frameworks=(
         cis_aws("2.18"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.7"),
     ),
 )
 
@@ -444,6 +458,8 @@ _aws_root_access_key_present = Fact(
     WHERE a.account_access_keys_present IS NOT NULL
     RETURN COUNT(a) AS count
     """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -466,6 +482,8 @@ aws_root_user_access_keys = Rule(
         cis_aws("2.3"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -509,6 +527,8 @@ _aws_root_mfa_disabled = Fact(
     WHERE a.account_mfa_enabled IS NOT NULL
     RETURN COUNT(a) AS count
     """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
     identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -531,6 +551,7 @@ aws_root_user_mfa_disabled = Rule(
         cis_aws("2.4"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -631,13 +652,18 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
     )
-    WITH DISTINCT a, policy
+    // Dedupe on policy only: an AWS-managed policy shared across accounts is one
+    // asset, matching the policy_id anchor used for the failing count.
+    WITH DISTINCT policy
     RETURN COUNT(*) AS count
     """,
-    # No asset_id_field: the query already yields one row per (account, policy),
-    # so failing = row count. A single field cannot express that composite unit,
-    # and policy_id alone would under-count global AWS-managed policies shared
-    # across accounts (breaking passing = total - failing).
+    # asset_label/asset_id_field anchor the finding on the offending AWSPolicy node.
+    # NOTE: policy_id also drives the compliance failing-count, so a global AWS-managed
+    # policy shared across N accounts (N (account, policy) rows) now counts as one
+    # failing asset instead of N. The (account, policy) composite identity_fields still
+    # keeps each account's finding distinct.
+    asset_label="AWSPolicy",
+    asset_id_field="policy_id",
     identity_fields=("account_id", "policy_id"),
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -661,6 +687,7 @@ aws_policies_with_full_administrative_privileges = Rule(
         cis_aws("2.15"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

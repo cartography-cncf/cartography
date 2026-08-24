@@ -93,3 +93,38 @@ GET_LOAD_BALANCER_V2_DATA = [
         "TargetGroups": [],
     },
 ]
+
+# AWS preserves the load balancer name's case in DNSName, while Route53 alias targets and
+# Kubernetes load balancer status hostnames are lowercase.
+MIXED_CASE_LB_DNS_NAME = "My-Mixed-ALB-1234567890.us-east-1.elb.amazonaws.com"
+
+MIXED_CASE_LOAD_BALANCER_V2_DATA = [
+    {
+        "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/My-Mixed-ALB/9999999999999999",
+        "DNSName": MIXED_CASE_LB_DNS_NAME,
+        "CanonicalHostedZoneId": "Z35SXDOTRQ7X7K",
+        "CreatedTime": datetime.datetime(2021, 1, 1, 12, 0, 0),
+        "LoadBalancerName": "My-Mixed-ALB",
+        "Scheme": "internet-facing",
+        "VpcId": "vpc-12345678",
+        "State": {"Code": "active"},
+        "Type": "application",
+        "AvailabilityZones": [
+            {
+                "ZoneName": "us-east-1a",
+                "SubnetId": "subnet-11111111",
+            },
+        ],
+        "SecurityGroups": [],
+        "IpAddressType": "ipv4",
+        "Listeners": [
+            {
+                "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/My-Mixed-ALB/9999999999999999/1111111111111111",
+                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/My-Mixed-ALB/9999999999999999",
+                "Port": 443,
+                "Protocol": "HTTPS",
+            },
+        ],
+        "TargetGroups": [],
+    },
+]

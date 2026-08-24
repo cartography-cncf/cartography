@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_PUBLIC_SSM_PARAMETER
+from cartography.models.aws.extra_labels import SSM_PARAMETER
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
@@ -11,27 +12,63 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SECRET
 
 
 @dataclass(frozen=True)
 class SSMParameterNodeProperties(CartographyNodeProperties):
 
-    arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    id: PropertyRef = PropertyRef("ARN")
-    name: PropertyRef = PropertyRef("Name")
-    value: PropertyRef = PropertyRef("Value")
-    description: PropertyRef = PropertyRef("Description")
-    type: PropertyRef = PropertyRef("Type")
-    keyid: PropertyRef = PropertyRef("KeyId")
-    kms_key_id_short: PropertyRef = PropertyRef("KMSKeyIdShort")
-    version: PropertyRef = PropertyRef("Version")
-    lastmodifieddate: PropertyRef = PropertyRef("LastModifiedDate")
-    tier: PropertyRef = PropertyRef("Tier")
-    lastmodifieduser: PropertyRef = PropertyRef("LastModifiedUser")
-    datatype: PropertyRef = PropertyRef("DataType")
-    allowedpattern: PropertyRef = PropertyRef("AllowedPattern")
-    policies_json: PropertyRef = PropertyRef("PoliciesJson")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "ARN",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the parameter.",
+    )
+    id: PropertyRef = PropertyRef("ARN", description="The AWS parameter ARN.")
+    name: PropertyRef = PropertyRef("Name", description="The parameter name.")
+    value: PropertyRef = PropertyRef(
+        "Value",
+        description="The parameter value for AWS-managed public parameters fetched with `GetParametersByPath`. Private parameters discovered with `DescribeParameters` have no value.",
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="Description of the parameter actions."
+    )
+    type: PropertyRef = PropertyRef(
+        "Type",
+        description="The type of parameter. Valid parameter types include String, StringList, and SecureString.",
+    )
+    keyid: PropertyRef = PropertyRef(
+        "KeyId",
+        description="The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only.",
+    )
+    kms_key_id_short: PropertyRef = PropertyRef(
+        "KMSKeyIdShort",
+        description="The shortened KMS Key ID used to encrypt the parameter.",
+    )
+    version: PropertyRef = PropertyRef("Version", description="The parameter version.")
+    lastmodifieddate: PropertyRef = PropertyRef(
+        "LastModifiedDate",
+        description="Date the parameter was last changed or updated (stored as epoch time).",
+    )
+    tier: PropertyRef = PropertyRef("Tier", description="The parameter tier.")
+    lastmodifieduser: PropertyRef = PropertyRef(
+        "LastModifiedUser",
+        description="Amazon Resource Name (ARN) of the AWS user who last changed the parameter.",
+    )
+    datatype: PropertyRef = PropertyRef(
+        "DataType",
+        description="The data type of the parameter, such as text or aws:ec2:image.",
+    )
+    allowedpattern: PropertyRef = PropertyRef(
+        "AllowedPattern",
+        description="A regular expression that defines the constraints on the parameter value.",
+    )
+    policies_json: PropertyRef = PropertyRef(
+        "PoliciesJson",
+        description="A JSON string representation of the list of policies associated with the parameter.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the parameter."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -73,6 +110,7 @@ class SSMParameterToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SSMParameterSchema(CartographyNodeSchema):
+    """Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html)."""
 
     label: str = "AWSSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
@@ -80,11 +118,8 @@ class SSMParameterSchema(CartographyNodeSchema):
     # DEPRECATED: legacy SSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            "SSMParameter",
-            ConditionalNodeLabel(
-                label="Secret",
-                conditions={"type": "SecureString"},
-            ),
+            SSM_PARAMETER,
+            SECRET.when(type="SecureString"),
         ],
     )
     sub_resource_relationship: SSMParameterToAWSAccountRel = (
@@ -100,6 +135,7 @@ class SSMParameterSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class PublicSSMParameterSchema(CartographyNodeSchema):
+    """Representation of an AWS-managed public [Systems Manager Parameter Store parameter](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters.html). These parameters are shared regional catalog data and are not owned by an individual AWS Account."""
 
     label: str = "AWSPublicSSMParameter"
     properties: SSMParameterNodeProperties = SSMParameterNodeProperties()
@@ -108,5 +144,5 @@ class PublicSSMParameterSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     # DEPRECATED: legacy PublicSSMParameter node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["PublicSSMParameter", "SSMParameter"]
+        [LEGACY_PUBLIC_SSM_PARAMETER, SSM_PARAMETER]
     )

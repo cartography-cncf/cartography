@@ -111,6 +111,6 @@ def test_container_ontology_mapping(mock_get, neo4j_session):
         "name": "my-container",
         "image": f"myregistry.azurecr.io/myimage@{TEST_GROUP_CONTAINER_DIGEST}",
         "image_digest": TEST_GROUP_CONTAINER_DIGEST,
-        "state": "Running",
+        "state": "running",
         "source": "azure",
     }

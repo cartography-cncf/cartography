@@ -226,6 +226,7 @@ def test_ingress_nginx_fact_collapses_controller_replicas(neo4j_session) -> None
     # Assert
     assert findings == [
         {
+            "cluster_id": "cluster-1",
             "asset_id": "cluster-1/namespaces/ingress-nginx/ingress-controllers/ingress-nginx/1.12.0",
             "asset_name": "cluster-1/ingress-nginx/ingress-nginx",
             "asset_type": "KubernetesIngressController",

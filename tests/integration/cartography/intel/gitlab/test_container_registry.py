@@ -643,3 +643,142 @@ def test_sync_container_registry(
         )
         >= expected_built_from_rels
     )
+
+
+DEDUP_REPO = {
+    "id": 91,
+    "project_id": 92,
+    "location": "registry.gitlab.example.com/myorg/awesome-project/dedup",
+}
+DEDUP_IMAGE_DIGEST = (
+    "sha256:dedup1111111111111111111111111111111111111111111111111111111111"
+)
+DEDUP_CONFIG_DIGEST = (
+    "sha256:dedupcfg11111111111111111111111111111111111111111111111111111111"
+)
+DEDUP_DIFF_IDS = [
+    "sha256:dedupdiff1111111111111111111111111111111111111111111111111111111",
+    "sha256:dedupdiff2222222222222222222222222222222222222222222222222222222",
+]
+# Two tags pointing at one image: the sync must resolve both to the same digest
+# and fetch that manifest once.
+DEDUP_TAGS_BY_REPOSITORY = {
+    DEDUP_REPO["location"]: [
+        {"name": "latest", "digest": DEDUP_IMAGE_DIGEST},
+        {"name": "v1.0.0", "digest": DEDUP_IMAGE_DIGEST},
+    ],
+}
+DEDUP_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "config": {"digest": DEDUP_CONFIG_DIGEST},
+    "layers": [
+        {
+            "digest": "sha256:deduplayer111111111111111111111111111111111111111111111111111111",
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 100,
+        },
+        {
+            "digest": "sha256:deduplayer222222222222222222222222222222222222222222222222222222",
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 200,
+        },
+    ],
+    "_digest": DEDUP_IMAGE_DIGEST,
+    "_registry_url": "https://registry.gitlab.example.com",
+    "_repository_name": "myorg/awesome-project/dedup",
+    "_reference": "latest",
+}
+DEDUP_CONFIG_BLOB = {
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfs": {"type": "layers", "diff_ids": DEDUP_DIFF_IDS},
+}
+
+
+@patch(
+    "cartography.intel.gitlab.container_images.fetch_registry_blob",
+    return_value=DEDUP_CONFIG_BLOB,
+)
+@patch(
+    "cartography.intel.gitlab.container_images._get_manifest",
+    return_value=DEDUP_MANIFEST,
+)
+def test_sync_container_images_skips_manifest_fetch_on_second_run(
+    mock_get_manifest,
+    mock_fetch_blob,
+    neo4j_session,
+):
+    """
+    A second sync must not re-fetch manifests for digests it already enriched,
+    and must not let cleanup reap the images it skipped.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_org(neo4j_session)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "ORGANIZATION_ID": TEST_ORG_ID,
+        "org_id": TEST_ORG_ID,
+        "gitlab_url": TEST_GITLAB_URL,
+    }
+
+    # Act: first sync populates the image and its layer closure.
+    sync_container_images(
+        neo4j_session,
+        TEST_GITLAB_URL,
+        "fake-token",
+        TEST_ORG_ID,
+        [DEDUP_REPO],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+        tags_by_repository=DEDUP_TAGS_BY_REPOSITORY,
+    )
+
+    # Assert: two tags, one digest, one manifest fetch.
+    assert mock_get_manifest.call_count == 1
+    assert check_nodes(neo4j_session, "GitLabContainerImage", ["digest"]) == {
+        (DEDUP_IMAGE_DIGEST,),
+    }
+    assert check_nodes(neo4j_session, "GitLabContainerImageLayer", ["diff_id"]) == {
+        (DEDUP_DIFF_IDS[0],),
+        (DEDUP_DIFF_IDS[1],),
+    }
+
+    # Act: second sync at a later update tag.
+    mock_get_manifest.reset_mock()
+    mock_fetch_blob.reset_mock()
+    second_update_tag = TEST_UPDATE_TAG + 1
+    common_job_parameters["UPDATE_TAG"] = second_update_tag
+    sync_container_images(
+        neo4j_session,
+        TEST_GITLAB_URL,
+        "fake-token",
+        TEST_ORG_ID,
+        [DEDUP_REPO],
+        second_update_tag,
+        common_job_parameters,
+        tags_by_repository=DEDUP_TAGS_BY_REPOSITORY,
+    )
+
+    # Assert: no registry traffic at all for the already-enriched digest.
+    mock_get_manifest.assert_not_called()
+    mock_fetch_blob.assert_not_called()
+
+    # Assert: the skipped image and its layers survived cleanup at the new tag.
+    assert check_nodes(neo4j_session, "GitLabContainerImage", ["digest"]) == {
+        (DEDUP_IMAGE_DIGEST,),
+    }
+    assert check_nodes(neo4j_session, "GitLabContainerImageLayer", ["diff_id"]) == {
+        (DEDUP_DIFF_IDS[0],),
+        (DEDUP_DIFF_IDS[1],),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitLabOrganization",
+        "id",
+        "GitLabContainerImage",
+        "digest",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(TEST_ORG_ID, DEDUP_IMAGE_DIGEST)}

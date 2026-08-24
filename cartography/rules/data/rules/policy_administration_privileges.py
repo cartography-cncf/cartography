@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -90,6 +91,7 @@ _aws_policy_manipulation_capabilities = Fact(
     AND principal.name <> 'OrganizationAccountAccessRole'
     RETURN COUNT(principal) AS count
     """,
+    asset_label="AWSPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AWS,
@@ -125,7 +127,10 @@ _gcp_policy_manipulation_capabilities = Fact(
          [perm IN coalesce(role.permissions, [])
             WHERE perm IN patterns OR perm = 'iam.*' OR perm = 'resourcemanager.*' OR perm = '*'] AS matched
     WHERE size(matched) > 0
-    RETURN
+    // DISTINCT because a (resource, role) pair can have several GCPPolicyBinding nodes:
+    // conditional bindings append a condition hash to the binding id. They differ in no
+    // returned column, so without this the same identity repeats once per condition.
+    RETURN DISTINCT
         scope.id AS account,
         scope.id AS account_id,
         coalesce(principal.email, principal.id) AS principal_name,
@@ -163,6 +168,7 @@ _gcp_policy_manipulation_capabilities = Fact(
     MATCH (principal:GCPPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="GCPPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_name"),
     module=Module.GCP,
@@ -183,9 +189,10 @@ _azure_policy_manipulation_capabilities = Fact(
     cypher_query="""
     MATCH (sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH (ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH (principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
+    // EntraPrincipal is the umbrella label carried by EntraUser, EntraGroup and
+    // EntraServicePrincipal. Matching it directly keeps the returned rows aligned
+    // with the declared asset_label and lets Neo4j use the label index.
+    MATCH (principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
     // Treat each action / not_action as a case-insensitive glob: `.` is
     // escaped to the regex char class `[.]`, `*` becomes `.*`. A `*`
     // anywhere now correctly matches; built-in Contributor with
@@ -241,12 +248,10 @@ _azure_policy_manipulation_capabilities = Fact(
     cypher_visual_query="""
     MATCH p1=(sub:AzureSubscription)-[:RESOURCE]->(ra:AzureRoleAssignment)
     MATCH p2=(ra)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(perm:AzurePermissions)
-    MATCH p3=(principal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
-    WHERE any(label IN labels(principal)
-              WHERE label IN ['EntraUser', 'EntraGroup', 'EntraServicePrincipal'])
-      // Mirror the finding query: at least one searched pattern is granted
-      // by actions AND not shadowed by not_actions.
-      AND ANY(p IN [
+    MATCH p3=(principal:EntraPrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra)
+    // Mirror the finding query: at least one searched pattern is granted
+    // by actions AND not shadowed by not_actions.
+    WHERE ANY(p IN [
             'Microsoft.Authorization/roleDefinitions/write',
             'Microsoft.Authorization/roleDefinitions/delete',
             'Microsoft.Authorization/policyDefinitions/write',
@@ -263,6 +268,7 @@ _azure_policy_manipulation_capabilities = Fact(
     MATCH (ra:AzureRoleAssignment)
     RETURN COUNT(ra) AS count
     """,
+    asset_label="EntraPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.AZURE,
@@ -285,9 +291,10 @@ _scaleway_policy_manipulation_capabilities = Fact(
     cypher_query="""
     MATCH (org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)
     WHERE ps.name = 'IAMManager'
-    MATCH (principal)-[:HAS_ROLE]->(ps)
-    WHERE any(l IN labels(principal)
-              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
+    // ScalewayPrincipal is the umbrella label carried by ScalewayUser,
+    // ScalewayApplication and ScalewayGroup. Matching it directly keeps the
+    // returned rows aligned with the declared asset_label.
+    MATCH (principal:ScalewayPrincipal)-[:HAS_ROLE]->(ps)
     RETURN
         org.id AS account,
         org.id AS account_id,
@@ -302,18 +309,15 @@ _scaleway_policy_manipulation_capabilities = Fact(
     ORDER BY account, principal_name
     """,
     cypher_visual_query="""
-    MATCH p=(org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)<-[:HAS_ROLE]-(principal)
+    MATCH p=(org:ScalewayOrganization)-[:RESOURCE]->(ps:ScalewayPermissionSet)<-[:HAS_ROLE]-(principal:ScalewayPrincipal)
     WHERE ps.name = 'IAMManager'
-      AND any(l IN labels(principal)
-              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
     RETURN *
     """,
     cypher_count_query="""
-    MATCH (principal)
-    WHERE any(l IN labels(principal)
-              WHERE l IN ['ScalewayUser', 'ScalewayApplication', 'ScalewayGroup'])
+    MATCH (principal:ScalewayPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_label="ScalewayPrincipal",
     asset_id_field="principal_identifier",
     identity_fields=("account_id", "principal_identifier", "policy_id"),
     module=Module.SCALEWAY,
@@ -356,9 +360,10 @@ policy_administration_privileges = Rule(
         "stride:spoofing",
         "stride:tampering",
     ),
-    version="0.2.0",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )

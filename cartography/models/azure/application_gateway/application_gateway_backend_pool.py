@@ -16,10 +16,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    fqdns: PropertyRef = PropertyRef("fqdns")
-    ip_addresses: PropertyRef = PropertyRef("ip_addresses")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID of the application gateway backend pool."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the application gateway backend pool."
+    )
+    fqdns: PropertyRef = PropertyRef(
+        "fqdns", description="Fully qualified domain names of backend targets."
+    )
+    ip_addresses: PropertyRef = PropertyRef(
+        "ip_addresses", description="IP addresses of backend targets."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +40,8 @@ class AzureApplicationGatewayBackendPoolToGatewayRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToGatewayRel(CartographyRelSchema):
+    """An Azure Application Gateway contains the backend pool."""
+
     target_node_label: str = "AzureApplicationGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("APPLICATION_GATEWAY_ID", set_in_kwargs=True)},
@@ -50,6 +60,8 @@ class AzureApplicationGatewayBackendPoolToNICRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToNICRel(CartographyRelSchema):
+    """An application gateway backend pool routes traffic to a network interface."""
+
     target_node_label: str = "AzureNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NIC_IDS", one_to_many=True)},
@@ -70,6 +82,8 @@ class AzureApplicationGatewayBackendPoolToPublicIPRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToPublicIPRel(CartographyRelSchema):
+    """An application gateway backend pool routes traffic to a public IP address."""
+
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ip_address": PropertyRef("ip_addresses", one_to_many=True)},
@@ -90,6 +104,8 @@ class AzureApplicationGatewayBackendPoolToDNSRecordRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToDNSRecordRel(CartographyRelSchema):
+    """An application gateway backend pool routes traffic to a DNS record."""
+
     target_node_label: str = "DNSRecord"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("fqdns", one_to_many=True)},
@@ -110,6 +126,8 @@ class AzureApplicationGatewayBackendPoolToSubscriptionRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the application gateway backend pool as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -123,6 +141,8 @@ class AzureApplicationGatewayBackendPoolToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayBackendPoolSchema(CartographyNodeSchema):
+    """A collection of backend targets for an Azure Application Gateway."""
+
     label: str = "AzureApplicationGatewayBackendPool"
     properties: AzureApplicationGatewayBackendPoolProperties = (
         AzureApplicationGatewayBackendPoolProperties()

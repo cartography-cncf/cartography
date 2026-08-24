@@ -14,7 +14,6 @@ import backoff
 import neo4j
 import neo4j.exceptions
 
-from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
@@ -311,7 +310,8 @@ def execute_write_with_retry(
     for EntityNotFound and other transient errors. Use this when you have complex
     transaction logic that doesn't fit the standard load_graph_data pattern.
 
-    Example usage:
+    Example usage::
+
         def my_custom_tx(tx, data_list, update_tag):
             for item in data_list:
                 tx.run(query, **item).consume()
@@ -837,12 +837,6 @@ def load(
     load_graph_data(
         neo4j_session, ingestion_query, dict_list, batch_size=batch_size, **kwargs
     )
-
-    # Apply conditional labels if any are defined
-    # Pass kwargs to provide sub-resource parameters (e.g., AWS_ID) for scoped queries
-    conditional_label_queries = build_conditional_label_queries(node_schema)
-    for query in conditional_label_queries:
-        run_write_query(neo4j_session, query, **kwargs)
 
     # Emit metrics for loaded nodes
     node_count = len(dict_list)

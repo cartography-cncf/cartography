@@ -1,3 +1,5 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -69,7 +71,12 @@ aws_guardduty_active_threat = Fact(
       AND coalesce(f.sample, false) = false
     RETURN COUNT(f) AS count
     """,
-    identity_fields=("finding_arn",),
+    asset_label="AWSGuardDutyFinding",
+    asset_id_field="finding_id",
+    # Not finding_arn: `Arn` is soft-mapped at ingest, so every finding the API
+    # returns without one would share a null identity. `Id` is required there and is
+    # the node's primary key.
+    identity_fields=("finding_id",),
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -106,5 +113,33 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.1.0",
+    version="0.1.1",
+    frameworks=(
+        iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 CC7.3: Security-event evaluation evidence
+# Missing datamodel or evidence: canonical incident nodes linked to provider
+# findings, classification and triage status, evaluated_at timestamps, impact
+# decisions, and the determination that an event is or is not an incident.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 CC7.4: Incident containment and remediation evidence
+# Missing datamodel or evidence: incident ownership, acknowledgement,
+# containment and remediation timestamps, response status, affected-resource
+# links, response actions, and technical communication records.
+# =============================================================================
+
+# =============================================================================
+# TODO: SOC 2 CC7.5: Recovery and recurrence-prevention evidence
+# Missing datamodel: incident recovery timestamps and the link from an incident to
+# the change that remediated it. Both are available from PagerDuty and equivalent
+# incident APIs once incident nodes exist, see CC7.3 above.
+# Out of reach: root-cause narratives and recovery-test sign-off. Those are
+# process artifacts, not provider state.
+# =============================================================================

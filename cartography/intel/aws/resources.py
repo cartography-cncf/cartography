@@ -64,6 +64,7 @@ from .ec2.security_groups import sync_ec2_security_groupinfo
 from .ec2.snapshots import sync_ebs_snapshots
 from .ec2.subnets import sync_subnets
 from .ec2.tgw import sync_transit_gateways
+from .ec2.tgw_route_tables import sync_transit_gateway_route_tables
 from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
 from .ec2.vpc_endpoint import sync_vpc_endpoints
@@ -105,6 +106,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # AWSEC2PrivateIp nodes exist when IP target MatchLinks are created.
         "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
         "ec2:tgw": sync_transit_gateways,
+        "ec2:tgw_route_table": sync_transit_gateway_route_tables,
         "ec2:vpc": sync_vpc,
         # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
         # ROUTES_TO_VPC_ENDPOINT relationships can be created when routes sync.
@@ -127,6 +129,12 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "lambda_function": lambda_function.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
+        # `route53` matches already-existing nodes to create DNS_POINTS_TO edges, so it must
+        # run after `ec2:load_balancer`, `ec2:load_balancer_v2`, `ec2:instance` and
+        # `elastic_ip_addresses`. It runs before `elasticsearch` on purpose: `elasticsearch`
+        # ingests its endpoint's DNS record with raw Cypher and its cleanup DETACH DELETEs
+        # any stale DNSRecord pointing at an AWSESDomain, which would churn the route53-owned
+        # record node if route53 had already attached one.
         "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
         # `cloudformation` must run before `permission_relationships` so that AWSCloudFormationStack

@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -72,8 +73,43 @@ _aws_cloudtrail_not_multi_region = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+_aws_account_without_cloudtrail = Fact(
+    id="aws_account_without_cloudtrail",
+    name="AWS accounts without CloudTrail",
+    description=(
+        "Detects AWS accounts that have no CloudTrail trail and therefore lack "
+        "account-level API activity logging."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN
+        null AS trail_name,
+        null AS trail_arn,
+        null AS home_region,
+        null AS is_multi_region,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH (a:AWSAccount)
+    WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
+    RETURN a
+    """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    RETURN COUNT(a) AS count
+    """,
+    asset_label="AWSAccount",
+    asset_id_field="account_id",
+    identity_fields=("account_id",),
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -86,7 +122,10 @@ aws_cloudtrail_multi_region = Rule(
         "into API activity across the entire AWS infrastructure."
     ),
     output_model=CloudTrailMultiRegionOutput,
-    facts=(_aws_cloudtrail_not_multi_region,),
+    facts=(
+        _aws_cloudtrail_not_multi_region,
+        _aws_account_without_cloudtrail,
+    ),
     tags=("logging", "cloudtrail", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
@@ -94,6 +133,7 @@ aws_cloudtrail_multi_region = Rule(
         cis_aws("4.1"),
         iso27001_annex_a("8.15"),
         iso27001_annex_a("8.16"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -141,6 +181,7 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
     module=Module.AWS,
@@ -162,6 +203,7 @@ aws_cloudtrail_log_file_validation = Rule(
     frameworks=(
         cis_aws("4.2"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -192,8 +234,14 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
         "captures requests against audit logs themselves."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
+    MATCH (trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
+    // Report the bucket's own account, not the trail's: a bucket can receive logs
+    // from trails in several accounts (an org trail plus a member trail), which would
+    // otherwise return one row per logging account for the same bucket. OPTIONAL so a
+    // bucket in an unsynced account still reports. The predicate stays above this
+    // clause: a WHERE after an OPTIONAL MATCH filters the match, not the rows.
+    OPTIONAL MATCH (a:AWSAccount)-[:RESOURCE]->(bucket)
     RETURN
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
@@ -213,6 +261,7 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
     MATCH (:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     RETURN COUNT(DISTINCT bucket) AS count
     """,
+    asset_label="AWSS3Bucket",
     asset_id_field="bucket_id",
     identity_fields=("bucket_id",),
     module=Module.AWS,
@@ -229,11 +278,12 @@ aws_cloudtrail_s3_bucket_access_logging = Rule(
     output_model=CloudTrailBucketAccessLoggingOutput,
     facts=(_aws_cloudtrail_bucket_access_logging_disabled,),
     tags=("logging", "cloudtrail", "s3", "stride:repudiation"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("4.4"),
         iso27001_annex_a("8.15"),
+        soc2_tsc("CC7.2"),
     ),
 )
 
@@ -281,6 +331,7 @@ _aws_cloudtrail_not_encrypted = Fact(
     MATCH (trail:AWSCloudTrailTrail)
     RETURN COUNT(trail) AS count
     """,
+    asset_label="AWSCloudTrailTrail",
     asset_id_field="trail_arn",
     identity_fields=("trail_arn",),
     module=Module.AWS,
@@ -302,6 +353,7 @@ aws_cloudtrail_kms_encryption = Rule(
     frameworks=(
         cis_aws("4.5"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

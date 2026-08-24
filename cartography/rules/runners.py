@@ -180,6 +180,8 @@ def _run_fact(
         failing=failing,
         passing=passing,
         identity_fields=fact.identity_fields,
+        asset_label=fact.asset_label,
+        asset_id_field=fact.asset_id_field,
     )
 
 

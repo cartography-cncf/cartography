@@ -29,6 +29,10 @@ def test_transform_inspector_findings_network():
             "portrangebegin": 123,
             "type": "NETWORK_REACHABILITY",
             "status": "ACTIVE",
+            "fixavailable": "YES",
+            "exploitavailable": "NO",
+            "lastknownexploitat": datetime(2015, 1, 1, 0, 0),
+            "epss_score_inspector": 123.0,
         },
     ]
 
@@ -56,6 +60,7 @@ def test_transform_inspector_findings_package():
             "cvssscore": 5.5,
             "type": "PACKAGE_VULNERABILITY",
             "vulnerabilityid": "CVE-2017-9059",
+            "cve_id": "CVE-2017-9059",
             "referenceurls": [],
             "relatedvulnerabilities": [],
             "source": "REDHAT_CVE",
@@ -68,6 +73,10 @@ def test_transform_inspector_findings_package():
                 "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
                 "kernel|0:4.9.17-6.29.amzn1.X86_64",
             ],
+            "fixavailable": "PARTIAL",
+            "exploitavailable": "YES",
+            "lastknownexploitat": datetime(2022, 5, 4, 16, 23, 3, 692000),
+            "epss_score_inspector": 0.42,
         },
         {
             "id": "arn:aws:test789",
@@ -84,6 +93,7 @@ def test_transform_inspector_findings_package():
             "SSL/TLS handshake messages.",
             "cvssscore": 7.5,
             "type": "PACKAGE_VULNERABILITY",
+            "cve_id": "CVE-2023-1234",
             "referenceurls": ["https://nvd.nist.gov/vuln/detail/CVE-2023-1234"],
             "relatedvulnerabilities": [],
             "source": "NVD",
@@ -95,6 +105,8 @@ def test_transform_inspector_findings_package():
             "vulnerablepackageids": [
                 "openssl|0:1.0.2k-1.amzn2.X86_64",
             ],
+            "fixavailable": None,
+            "exploitavailable": None,
         },
     ]
     # The order of packages is not guaranteed because it comes from a set.

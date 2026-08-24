@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
@@ -19,13 +20,21 @@ class SnipeitUserNodeProperties(CartographyNodeProperties):
     """
 
     # Common properties
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Snipe-IT user ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # SnipeIT specific properties
-    company: PropertyRef = PropertyRef("company_id.name", extra_index=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    username: PropertyRef = PropertyRef("username")
+    company: PropertyRef = PropertyRef(
+        "company_id.name",
+        extra_index=True,
+        description="Company linked to the user.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="Email address.",
+    )
+    username: PropertyRef = PropertyRef("username", description="Username.")
 
 
 @dataclass(frozen=True)
@@ -36,6 +45,8 @@ class SnipeitTenantToSnipeitUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SnipeitTenant)-[:RESOURCE]->(:SnipeitUser)
 class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
+    """The tenant contains the user."""
+
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -50,6 +61,8 @@ class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:SnipeitTenant)-[:HAS_USER]->(:SnipeitUser) - Backwards compatibility
 class SnipeitTenantToSnipeitUserDeprecatedRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a tenant to its user."""
+
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -63,9 +76,11 @@ class SnipeitTenantToSnipeitUserDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SnipeitUserSchema(CartographyNodeSchema):
+    """A user account managed by Snipe-IT."""
+
     label: str = "SnipeitUser"  # The label of the node
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
+        [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: SnipeitUserNodeProperties = (
         SnipeitUserNodeProperties()

@@ -207,6 +207,12 @@ class Config:
     :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
     :type kandji_token: string
     :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
+    :type miradore_base_uri: string
+    :param miradore_base_uri: Miradore base URI, e.g. https://online.miradore.com. Optional.
+    :type miradore_site_name: string
+    :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
+    :type miradore_api_key: string
+    :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -290,6 +296,28 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type supabase_access_token: str
+    :param supabase_access_token: Supabase personal access token used against the
+        Management API. Optional.
+    :type supabase_organizations: str
+    :param supabase_organizations: Comma-separated list of Supabase organization
+        slugs to restrict the sync to. When unset, every organization the token can
+        see is synced. Optional.
+    :type supabase_base_url: str
+    :param supabase_base_url: Supabase Management API base URL. Optional.
+    :type railway_token: str
+    :param railway_token: Railway account or workspace API token. Optional.
+    :type railway_workspace_id: str
+    :param railway_workspace_id: Railway workspace ID to sync. If unset, every workspace
+        visible to the token is synced. Optional.
+    :type railway_base_url: str
+    :param railway_base_url: Railway GraphQL API base URL. Optional.
+    :type netlify_token: str
+    :param netlify_token: Netlify personal access token. Optional.
+    :type netlify_account_slug: str
+    :param netlify_account_slug: Netlify team slug to sync. Optional.
+    :type netlify_base_url: str
+    :param netlify_base_url: Netlify API base URL. Optional.
     :type circleci_token: str
     :param circleci_token: CircleCI personal API token. Optional.
     :type circleci_base_url: str
@@ -297,6 +325,13 @@ class Config:
     :type circleci_project_slugs: list
     :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
         resources cannot be enumerated via API v2). Optional.
+    :type modal_token_id: str
+    :param modal_token_id: Modal API token id (ak-...). Optional.
+    :type modal_token_secret: str
+    :param modal_token_secret: Modal API token secret (as-...). Optional.
+    :type modal_environments: list
+    :param modal_environments: Modal environment names whose contents should be synced.
+        Defaults to every environment in the workspace. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -329,6 +364,23 @@ class Config:
     :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
     :type databricks_account_client_secret: str
     :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type snowflake_account: str
+    :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
+    :type snowflake_user: str
+    :param snowflake_user: Snowflake user Cartography authenticates as. Optional.
+    :type snowflake_pat: str
+    :param snowflake_pat: Snowflake programmatic access token (PAT). Optional.
+    :type snowflake_private_key: str
+    :param snowflake_private_key: PEM-encoded RSA private key for key-pair (JWT) authentication. Optional.
+    :type snowflake_private_key_passphrase: str
+    :param snowflake_private_key_passphrase: Passphrase protecting the Snowflake private key. Optional.
+    :type snowflake_role: str
+    :param snowflake_role: Snowflake role used for SQL API statements. Optional.
+    :type snowflake_warehouse: str
+    :param snowflake_warehouse: Snowflake warehouse used to run SQL API statements. Optional.
+    :type snowflake_databases: str
+    :param snowflake_databases: Comma-separated list of Snowflake databases to sync. If unset, every
+        readable database is synced. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_source: str
@@ -366,6 +418,20 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type wiz_graphql_url: str
+    :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
+    :type wiz_auth_url: str
+    :param wiz_auth_url: Wiz OAuth token endpoint. Optional.
+    :type wiz_client_id: str
+    :param wiz_client_id: Wiz API client ID. Optional.
+    :type wiz_client_secret: str
+    :param wiz_client_secret: Wiz API client secret. Optional.
+    :type wiz_tenant_id: str
+    :param wiz_tenant_id: Identifier used to scope Wiz nodes. Optional.
+    :type wiz_project_ids: list[str]
+    :param wiz_project_ids: List of Wiz project IDs to import. Optional.
+    :type wiz_lookback_days: int | None
+    :param wiz_lookback_days: Number of days of Wiz updates to fetch without cleanup. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -432,6 +498,13 @@ class Config:
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type bbot_source: str
+    :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
+    :type zizmor_source: str
+    :param zizmor_source: Report source locator for the Zizmor repository mapping file.
+        Accepts a local file, s3://bucket/key, gs://bucket/object, or
+        azblob://account/container/blob. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -486,6 +559,9 @@ class Config:
         kandji_base_uri=None,
         kandji_tenant_id=None,
         kandji_token=None,
+        miradore_base_uri=None,
+        miradore_site_name=None,
+        miradore_api_key=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -535,9 +611,18 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        supabase_access_token=None,
+        supabase_organizations=None,
+        supabase_base_url=None,
+        railway_token=None,
+        railway_workspace_id=None,
+        railway_base_url=None,
         circleci_token=None,
         circleci_base_url=None,
         circleci_project_slugs=None,
+        modal_token_id=None,
+        modal_token_secret=None,
+        modal_environments=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -574,6 +659,13 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
         sentinelone_site_ids=None,
+        wiz_graphql_url=None,
+        wiz_auth_url="https://auth.app.wiz.io/oauth/token",
+        wiz_client_id=None,
+        wiz_client_secret=None,
+        wiz_tenant_id=None,
+        wiz_project_ids=None,
+        wiz_lookback_days=None,
         tenable_url=None,
         tenable_tenant_id=None,
         tenable_access_key=None,
@@ -611,6 +703,7 @@ class Config:
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
+        zizmor_source=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
@@ -626,6 +719,18 @@ class Config:
         microsoft_tenant_id=None,
         microsoft_client_id=None,
         microsoft_client_secret=None,
+        netlify_token=None,
+        netlify_account_slug=None,
+        netlify_base_url=None,
+        bbot_source=None,
+        snowflake_account=None,
+        snowflake_user=None,
+        snowflake_pat=None,
+        snowflake_private_key=None,
+        snowflake_private_key_passphrase=None,
+        snowflake_role=None,
+        snowflake_warehouse=None,
+        snowflake_databases=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -698,6 +803,9 @@ class Config:
         self.kandji_base_uri = kandji_base_uri
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
+        self.miradore_base_uri = miradore_base_uri
+        self.miradore_site_name = miradore_site_name
+        self.miradore_api_key = miradore_api_key
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
@@ -747,9 +855,21 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.supabase_access_token = supabase_access_token
+        self.supabase_organizations = supabase_organizations
+        self.supabase_base_url = supabase_base_url
+        self.railway_token = railway_token
+        self.railway_workspace_id = railway_workspace_id
+        self.railway_base_url = railway_base_url
+        self.netlify_token = netlify_token
+        self.netlify_account_slug = netlify_account_slug
+        self.netlify_base_url = netlify_base_url
         self.circleci_token = circleci_token
         self.circleci_base_url = circleci_base_url
         self.circleci_project_slugs = circleci_project_slugs
+        self.modal_token_id = modal_token_id
+        self.modal_token_secret = modal_token_secret
+        self.modal_environments = modal_environments
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -769,6 +889,14 @@ class Config:
         self.databricks_account_host = databricks_account_host
         self.databricks_account_client_id = databricks_account_client_id
         self.databricks_account_client_secret = databricks_account_client_secret
+        self.bbot_source = _resolve_report_source_config(
+            module="bbot",
+            source=bbot_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
         self.docker_scout_source = _resolve_report_source_config(
             module="docker_scout",
@@ -801,6 +929,13 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.wiz_graphql_url = wiz_graphql_url
+        self.wiz_auth_url = wiz_auth_url
+        self.wiz_client_id = wiz_client_id
+        self.wiz_client_secret = wiz_client_secret
+        self.wiz_tenant_id = wiz_tenant_id
+        self.wiz_project_ids = wiz_project_ids
+        self.wiz_lookback_days = wiz_lookback_days
         self.tenable_url = tenable_url
         self.tenable_tenant_id = tenable_tenant_id
         self.tenable_access_key = tenable_access_key
@@ -852,8 +987,17 @@ class Config:
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
+        self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.snowflake_account = snowflake_account
+        self.snowflake_user = snowflake_user
+        self.snowflake_pat = snowflake_pat
+        self.snowflake_private_key = snowflake_private_key
+        self.snowflake_private_key_passphrase = snowflake_private_key_passphrase
+        self.snowflake_role = snowflake_role
+        self.snowflake_warehouse = snowflake_warehouse
+        self.snowflake_databases = snowflake_databases

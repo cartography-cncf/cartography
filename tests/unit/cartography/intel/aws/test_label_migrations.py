@@ -34,7 +34,7 @@ def test_aws_label_migration_registry_is_complete_and_unique():
         migration.new_label for migration in label_migrations.AWS_LABEL_MIGRATIONS
     ]
 
-    assert len(old_labels) == 103
+    assert len(old_labels) == 104
     assert len(old_labels) == len(set(old_labels))
     assert len(new_labels) == len(set(new_labels))
     assert all(new == f"AWS{old}" for old, new in zip(old_labels, new_labels))

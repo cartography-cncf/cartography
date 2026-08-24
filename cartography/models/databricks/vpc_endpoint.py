@@ -13,13 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksVpcEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    vpc_endpoint_id: PropertyRef = PropertyRef("vpc_endpoint_id", extra_index=True)
-    vpc_endpoint_name: PropertyRef = PropertyRef("vpc_endpoint_name", extra_index=True)
-    aws_endpoint_service_id: PropertyRef = PropertyRef("aws_endpoint_service_id")
-    region: PropertyRef = PropertyRef("region")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks VPC endpoint ID.",
+    )
+    vpc_endpoint_id: PropertyRef = PropertyRef(
+        "vpc_endpoint_id",
+        extra_index=True,
+        description="Databricks VPC endpoint ID.",
+    )
+    vpc_endpoint_name: PropertyRef = PropertyRef(
+        "vpc_endpoint_name",
+        extra_index=True,
+        description="VPC endpoint name.",
+    )
+    aws_endpoint_service_id: PropertyRef = PropertyRef(
+        "aws_endpoint_service_id",
+        description="AWS endpoint service ID used by the VPC endpoint.",
+    )
+    region: PropertyRef = PropertyRef(
+        "region",
+        description="AWS region for the VPC endpoint.",
+    )
     aws_vpc_endpoint_id: PropertyRef = PropertyRef(
-        "aws_vpc_endpoint_id", extra_index=True
+        "aws_vpc_endpoint_id",
+        extra_index=True,
+        description="ID of the corresponding AWS VPC endpoint.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -32,6 +51,8 @@ class DatabricksVpcEndpointToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksVpcEndpoint)
 class DatabricksVpcEndpointToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -51,6 +72,8 @@ class DatabricksVpcEndpointToAWSVpcEndpointRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:DatabricksVpcEndpoint)-[:POINTS_TO]->(:AWSVpcEndpoint)
 class DatabricksVpcEndpointToAWSVpcEndpointRel(CartographyRelSchema):
+    """A registered Databricks VPC endpoint points to an AWS VPC endpoint."""
+
     target_node_label: str = "AWSVpcEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("aws_vpc_endpoint_id")},
@@ -64,6 +87,8 @@ class DatabricksVpcEndpointToAWSVpcEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksVpcEndpointSchema(CartographyNodeSchema):
+    """A VPC endpoint registered with a Databricks account."""
+
     label: str = "DatabricksVpcEndpoint"
     properties: DatabricksVpcEndpointNodeProperties = (
         DatabricksVpcEndpointNodeProperties()

@@ -1,33 +1,14 @@
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
-from cartography.models.ontology.constraints import LEGACY_REL_WHITELIST
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
+from cartography.models.ontology.constraints_whitelist import LEGACY_REL_WHITELIST
+from tests.utils import is_node_schema
+from tests.utils import is_rel_schema
 from tests.utils import load_models
-
-
-def _ontology_labels(node_cls: type[CartographyNodeSchema]) -> set[str]:
-    """Return the set of labels (primary + extra) carried by a node schema.
-
-    Conditional labels are treated as "may carry this label": included so that
-    a node potentially-tagged with an ontology label is still constrained.
-    """
-    labels: set[str] = set()
-    primary = getattr(node_cls, "label", None)
-    if isinstance(primary, str):
-        labels.add(primary)
-    extra = getattr(node_cls, "extra_node_labels", None)
-    if isinstance(extra, ExtraNodeLabels):
-        for entry in extra.labels:
-            if isinstance(entry, str):
-                labels.add(entry)
-            elif isinstance(entry, ConditionalNodeLabel):
-                labels.add(entry.label)
-    return labels
+from tests.utils import node_schema_labels
 
 
 def _violations_for(
@@ -79,14 +60,14 @@ def test_ontology_rel_constraints():
     node_classes: list[type[CartographyNodeSchema]] = []
     rel_classes: list[type[CartographyRelSchema]] = []
     for _module_name, element in load_models(cartography.models):
-        if issubclass(element, CartographyNodeSchema):
+        if is_node_schema(element):
             primary = getattr(element, "label", None)
             if isinstance(primary, str):
-                labels = _ontology_labels(element)
+                labels = node_schema_labels(element)
                 label_index[primary] = labels
                 extra_labels_seen.update(labels - {primary})
                 node_classes.append(element)
-        elif issubclass(element, CartographyRelSchema):
+        elif is_rel_schema(element):
             rel_classes.append(element)
     for extra in extra_labels_seen:
         label_index.setdefault(extra, {extra})

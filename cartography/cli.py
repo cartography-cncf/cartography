@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import typer
 from typing_extensions import Annotated
 
+from cartography import _MIN_PYTHON
+from cartography import _MIN_PYTHON_STR
 from cartography.config import Config
 from cartography.version import get_release_version_and_commit_revision
 
@@ -14,6 +16,25 @@ if TYPE_CHECKING:
     from cartography.sync import Sync
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_timestamp_log_format() -> None:
+    """
+    Install a formatter that prepends an ISO-8601 timestamp, level, and logger name
+    to every log line emitted through the root logger's handlers.
+
+    This is opt-in (via --log-timestamps) rather than the default because log
+    aggregators (e.g. Kibana) attach their own timestamp field to each record, and
+    embedding a second timestamp inside the message would be redundant there. See
+    https://github.com/cartography-cncf/cartography/issues/1213 for discussion.
+    """
+    formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+    for handler in logging.getLogger().handlers:
+        handler.setFormatter(formatter)
+
 
 # Keep these local to avoid importing cartography.util (and its heavy deps) on --help/--version paths.
 STATUS_SUCCESS = 0
@@ -37,6 +58,7 @@ PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
+PANEL_MIRADORE = "Miradore Options"
 PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
@@ -53,15 +75,18 @@ PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DATABRICKS = "Databricks Options"
+PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
+PANEL_WIZ = "Wiz Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -72,7 +97,12 @@ PANEL_WORKOS = "WorkOS Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
+PANEL_SUPABASE = "Supabase Options"
+PANEL_RAILWAY = "Railway Options"
+PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
+PANEL_MODAL = "Modal Options"
+PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -93,6 +123,7 @@ MODULE_PANELS = {
     "crowdstrike": PANEL_CROWDSTRIKE,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
+    "miradore": PANEL_MIRADORE,
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
@@ -111,16 +142,19 @@ MODULE_PANELS = {
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "databricks": PANEL_DATABRICKS,
+    "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
+    "wiz": PANEL_WIZ,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -128,7 +162,12 @@ MODULE_PANELS = {
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "supabase": PANEL_SUPABASE,
+    "railway": PANEL_RAILWAY,
+    "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
+    "modal": PANEL_MODAL,
+    "snowflake": PANEL_SNOWFLAKE,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -404,6 +443,19 @@ class CLI:
                     "--quiet",
                     "-q",
                     help="Restrict cartography logging to warnings and errors only.",
+                    rich_help_panel=PANEL_CORE,
+                ),
+            ] = False,
+            log_timestamps: Annotated[
+                bool,
+                typer.Option(
+                    "--log-timestamps",
+                    help=(
+                        "Prepend an ISO-8601 timestamp and level to each log line. "
+                        "Off by default so log aggregators that attach their own "
+                        "timestamp field do not get a redundant one embedded in the "
+                        "message; enable it for interactive/terminal runs."
+                    ),
                     rich_help_panel=PANEL_CORE,
                 ),
             ] = False,
@@ -1002,6 +1054,36 @@ class CLI:
                     help="Environment variable name containing Kandji API token.",
                     rich_help_panel=PANEL_KANDJI,
                     hidden=PANEL_KANDJI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Miradore Options
+            # =================================================================
+            miradore_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-base-uri",
+                    help="Miradore base URI. Defaults to https://online.miradore.com.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_site_name: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-site-name",
+                    help="Miradore site name, which identifies the tenant.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
+                ),
+            ] = None,
+            miradore_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--miradore-api-key-env-var",
+                    help="Environment variable name containing the Miradore API authentication key.",
+                    rich_help_panel=PANEL_MIRADORE,
+                    hidden=PANEL_MIRADORE not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1623,6 +1705,93 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # BBOT Options
+            # =================================================================
+            bbot_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--bbot-source",
+                    help="BBOT report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
+                    rich_help_panel=PANEL_BBOT,
+                    hidden=PANEL_BBOT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Snowflake Options
+            # =================================================================
+            snowflake_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-account",
+                    help="Snowflake account identifier, e.g. MYORG-MYACCOUNT.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_user: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-user",
+                    help="Snowflake user Cartography authenticates as.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-pat-env-var",
+                    help="Environment variable name containing the Snowflake programmatic access token (PAT).",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-env-var",
+                    help="Environment variable name containing the PEM-encoded RSA private key for key-pair (JWT) authentication.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_private_key_passphrase_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-private-key-passphrase-env-var",
+                    help="Environment variable name containing the passphrase protecting the Snowflake private key.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_role: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-role",
+                    help="Snowflake role used for SQL API statements. Should match the user's default role, which is what the object API uses.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_warehouse: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-warehouse",
+                    help="Snowflake warehouse used to run SQL API statements.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            snowflake_databases: Annotated[
+                str | None,
+                typer.Option(
+                    "--snowflake-databases",
+                    help="Comma-separated list of Snowflake databases to sync. If unset, every readable database is synced.",
+                    rich_help_panel=PANEL_SNOWFLAKE,
+                    hidden=PANEL_SNOWFLAKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Docker Scout Options
             # =================================================================
             docker_scout_source: Annotated[
@@ -1788,6 +1957,18 @@ class CLI:
                     help="DEPRECATED: use --aibom-source with a local path. Will be removed in Cartography v1.0.0.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=True,
+                ),
+            ] = None,
+            # =================================================================
+            # Zizmor Options
+            # =================================================================
+            zizmor_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--zizmor-source",
+                    help="Zizmor repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_ZIZMOR,
+                    hidden=PANEL_ZIZMOR not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1957,6 +2138,80 @@ class CLI:
                     hidden=PANEL_TENABLE not in visible_panels,
                 ),
             ] = 180,
+            # =================================================================
+            # Wiz Options
+            # =================================================================
+            wiz_graphql_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-graphql-url",
+                    help="Wiz GraphQL API endpoint, e.g. https://api.us17.app.wiz.io/graphql.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_auth_url: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-auth-url",
+                    help="Wiz OAuth token endpoint.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "https://auth.app.wiz.io/oauth/token",
+            wiz_client_id_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-id-env-var",
+                    help="Environment variable name containing the Wiz API client ID.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_ID",
+            wiz_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--wiz-client-secret-env-var",
+                    help="Environment variable name containing the Wiz API client secret.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = "WIZ_CLIENT_SECRET",
+            wiz_tenant_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-tenant-id",
+                    help=(
+                        "Identifier used to scope all Wiz nodes in the graph "
+                        "(the WizTenant node id). Defaults to the hostname of --wiz-graphql-url."
+                    ),
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_project_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--wiz-project-ids",
+                    help="Comma-separated list of Wiz project IDs to import when project metadata is present.",
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
+            wiz_lookback_days: Annotated[
+                int | None,
+                typer.Option(
+                    "--wiz-lookback-days",
+                    help=(
+                        "Fetch only Wiz issue and finding updates from the last N days. "
+                        "When set, Wiz cleanup is skipped so older unchanged records are preserved. "
+                        "Omit for a complete sync with cleanup."
+                    ),
+                    min=1,
+                    rich_help_panel=PANEL_WIZ,
+                    hidden=PANEL_WIZ not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Keycloak Options
             # =================================================================
@@ -2192,6 +2447,99 @@ class CLI:
                 ),
             ] = "https://api.vercel.com",
             # =================================================================
+            # Supabase Options
+            # =================================================================
+            supabase_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-access-token-env-var",
+                    help="Environment variable name containing a Supabase personal access token.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_organizations: Annotated[
+                str | None,
+                typer.Option(
+                    "--supabase-organizations",
+                    help=(
+                        "Comma-separated list of Supabase organization slugs to sync. "
+                        "Defaults to every organization the access token can see."
+                    ),
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = None,
+            supabase_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--supabase-base-url",
+                    help="Supabase Management API base URL.",
+                    rich_help_panel=PANEL_SUPABASE,
+                    hidden=PANEL_SUPABASE not in visible_panels,
+                ),
+            ] = "https://api.supabase.com",
+            # =================================================================
+            # Railway Options
+            # =================================================================
+            railway_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-token-env-var",
+                    help="Environment variable name containing a Railway account or workspace API token.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_workspace_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--railway-workspace-id",
+                    help="Railway workspace ID to sync. If unset, every workspace visible to the token is synced.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = None,
+            railway_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--railway-base-url",
+                    help="Railway GraphQL API base URL.",
+                    rich_help_panel=PANEL_RAILWAY,
+                    hidden=PANEL_RAILWAY not in visible_panels,
+                ),
+            ] = "https://backboard.railway.com/graphql/v2",
+            # =================================================================
+            # Netlify Options
+            # =================================================================
+            netlify_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-token-env-var",
+                    help="Environment variable name containing a Netlify personal access token.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_account_slug: Annotated[
+                str | None,
+                typer.Option(
+                    "--netlify-account-slug",
+                    help="Netlify team slug to sync. Required for the Netlify module.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = None,
+            netlify_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--netlify-base-url",
+                    help="Netlify API base URL.",
+                    rich_help_panel=PANEL_NETLIFY,
+                    hidden=PANEL_NETLIFY not in visible_panels,
+                ),
+            ] = "https://api.netlify.com/api/v1",
+            # =================================================================
             # CircleCI Options
             # =================================================================
             circleci_token_env_var: Annotated[
@@ -2224,6 +2572,43 @@ class CLI:
                     ),
                     rich_help_panel=PANEL_CIRCLECI,
                     hidden=PANEL_CIRCLECI not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Modal Options
+            # =================================================================
+            modal_token_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-id",
+                    help=(
+                        "Modal API token id (ak-...). The workspace to sync is derived "
+                        "from the token itself."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_token_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-token-secret-env-var",
+                    help="Environment variable name containing the Modal API token secret (as-...).",
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
+                ),
+            ] = None,
+            modal_environments: Annotated[
+                str | None,
+                typer.Option(
+                    "--modal-environments",
+                    help=(
+                        "Comma-separated Modal environment names to sync. Defaults to every "
+                        "environment in the workspace. Environments outside this list are "
+                        "still inventoried as nodes, but their contents are not refreshed."
+                    ),
+                    rich_help_panel=PANEL_MODAL,
+                    hidden=PANEL_MODAL not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -2286,6 +2671,9 @@ class CLI:
                 logging.getLogger("cartography").setLevel(logging.WARNING)
             else:
                 logging.getLogger("cartography").setLevel(logging.INFO)
+
+            if log_timestamps:
+                _apply_timestamp_log_format()
 
             logger.debug("Launching cartography with CLI configuration")
 
@@ -2443,6 +2831,25 @@ class CLI:
                 else:
                     logger.warning(
                         "A Kandji base URI was provided but a token was not."
+                    )
+
+            # Read Miradore API key
+            miradore_api_key = None
+            if miradore_site_name:
+                if miradore_api_key_env_var:
+                    logger.debug(
+                        "Reading Miradore API key from environment variable %s",
+                        miradore_api_key_env_var,
+                    )
+                    miradore_api_key = os.environ.get(miradore_api_key_env_var)
+                elif os.environ.get("MIRADORE_API_KEY"):
+                    logger.debug(
+                        "Reading Miradore API key from environment variable MIRADORE_API_KEY",
+                    )
+                    miradore_api_key = os.environ.get("MIRADORE_API_KEY")
+                else:
+                    logger.warning(
+                        "A Miradore site name was provided but an API key was not."
                     )
 
             if statsd_enabled:
@@ -2658,6 +3065,32 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read Supabase access token
+            supabase_access_token = None
+            if supabase_access_token_env_var:
+                logger.debug(
+                    "Reading Supabase access token from environment variable %s",
+                    supabase_access_token_env_var,
+                )
+                supabase_access_token = os.environ.get(supabase_access_token_env_var)
+            # Read Railway token
+            railway_token = None
+            if railway_token_env_var:
+                logger.debug(
+                    "Reading Railway API token from environment variable %s",
+                    railway_token_env_var,
+                )
+                railway_token = os.environ.get(railway_token_env_var)
+
+            # Read Netlify token
+            netlify_token = None
+            if netlify_token_env_var:
+                logger.debug(
+                    "Reading Netlify API token from environment variable %s",
+                    netlify_token_env_var,
+                )
+                netlify_token = os.environ.get(netlify_token_env_var)
+
             # Read CircleCI token
             circleci_token = None
             if circleci_token_env_var:
@@ -2669,6 +3102,23 @@ class CLI:
             circleci_project_slug_list = (
                 [s.strip() for s in circleci_project_slugs.split(",") if s.strip()]
                 if circleci_project_slugs
+                else None
+            )
+
+            # Read Modal token secret
+            modal_token_secret = None
+            if modal_token_secret_env_var:
+                # Read the secret whenever the env-var flag is set, even if
+                # --modal-token-id is missing, so the module entry's guard sees the
+                # asymmetric configuration and fails loudly instead of silently skipping.
+                logger.debug(
+                    "Reading Modal token secret from environment variable %s",
+                    modal_token_secret_env_var,
+                )
+                modal_token_secret = os.environ.get(modal_token_secret_env_var)
+            modal_environment_list = (
+                [e.strip() for e in modal_environments.split(",") if e.strip()]
+                if modal_environments
                 else None
             )
 
@@ -2769,6 +3219,41 @@ class CLI:
                     databricks_account_client_secret_env_var,
                 )
 
+            resolved_bbot_source = _resolve_report_source_option(
+                module="bbot",
+                source=bbot_source,
+                local_path=None,
+                s3_bucket=None,
+                s3_prefix=None,
+            )
+            snowflake_pat = None
+            if snowflake_pat_env_var:
+                logger.debug(
+                    "Reading Snowflake programmatic access token from environment variable %s",
+                    snowflake_pat_env_var,
+                )
+                snowflake_pat = os.environ.get(snowflake_pat_env_var)
+            snowflake_private_key = None
+            if snowflake_private_key_env_var:
+                # Read the key whenever the env-var flag is set, even if the
+                # passphrase is missing, so the module entry's credential guard
+                # sees the asymmetric configuration and fails loudly instead of
+                # silently skipping ingestion.
+                logger.debug(
+                    "Reading Snowflake private key from environment variable %s",
+                    snowflake_private_key_env_var,
+                )
+                snowflake_private_key = os.environ.get(snowflake_private_key_env_var)
+            snowflake_private_key_passphrase = None
+            if snowflake_private_key_passphrase_env_var:
+                logger.debug(
+                    "Reading Snowflake private key passphrase from environment variable %s",
+                    snowflake_private_key_passphrase_env_var,
+                )
+                snowflake_private_key_passphrase = os.environ.get(
+                    snowflake_private_key_passphrase_env_var,
+                )
+
             resolved_docker_scout_source = _resolve_report_source_option(
                 module="docker_scout",
                 source=docker_scout_source,
@@ -2798,6 +3283,8 @@ class CLI:
                 s3_prefix=aibom_s3_prefix,
             )
 
+            if resolved_bbot_source:
+                logger.debug("BBOT source: %s", resolved_bbot_source)
             if resolved_docker_scout_source:
                 logger.debug("Docker Scout source: %s", resolved_docker_scout_source)
             if resolved_trivy_source:
@@ -2806,7 +3293,6 @@ class CLI:
                 logger.debug("Syft source: %s", resolved_syft_source)
             if resolved_aibom_source:
                 logger.debug("AIBOM source: %s", resolved_aibom_source)
-
             # Read Scaleway secret key
             scaleway_secret_key = None
             if scaleway_secret_key_env_var:
@@ -2861,6 +3347,34 @@ class CLI:
                     tenable_secret_key_env_var,
                 )
                 tenable_secret_key = os.environ.get(tenable_secret_key_env_var)
+
+            # Read Wiz API credentials
+            wiz_client_id = None
+            if wiz_client_id_env_var:
+                logger.debug(
+                    "Reading Wiz client ID from environment variable %s",
+                    wiz_client_id_env_var,
+                )
+                wiz_client_id = os.environ.get(wiz_client_id_env_var)
+            wiz_client_secret = None
+            if wiz_client_secret_env_var:
+                logger.debug(
+                    "Reading Wiz client secret from environment variable %s",
+                    wiz_client_secret_env_var,
+                )
+                wiz_client_secret = os.environ.get(wiz_client_secret_env_var)
+
+            wiz_project_ids_list = None
+            if wiz_project_ids:
+                wiz_project_ids_list = [
+                    project_id.strip()
+                    for project_id in wiz_project_ids.split(",")
+                    if project_id.strip()
+                ]
+                logger.debug(
+                    "Parsed %d Wiz project IDs to sync",
+                    len(wiz_project_ids_list),
+                )
 
             # Read Keycloak client secret
             keycloak_client_secret = None
@@ -2991,6 +3505,9 @@ class CLI:
                 kandji_base_uri=kandji_base_uri,
                 kandji_tenant_id=kandji_tenant_id,
                 kandji_token=kandji_token,
+                miradore_base_uri=miradore_base_uri,
+                miradore_site_name=miradore_site_name,
+                miradore_api_key=miradore_api_key,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
@@ -3043,9 +3560,21 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                supabase_access_token=supabase_access_token,
+                supabase_organizations=supabase_organizations,
+                supabase_base_url=supabase_base_url,
+                railway_token=railway_token,
+                railway_workspace_id=railway_workspace_id,
+                railway_base_url=railway_base_url,
+                netlify_token=netlify_token,
+                netlify_account_slug=netlify_account_slug,
+                netlify_base_url=netlify_base_url,
                 circleci_token=circleci_token,
                 circleci_base_url=circleci_base_url,
                 circleci_project_slugs=circleci_project_slug_list,
+                modal_token_id=modal_token_id,
+                modal_token_secret=modal_token_secret,
+                modal_environments=modal_environment_list,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
@@ -3068,6 +3597,15 @@ class CLI:
                 databricks_account_host=databricks_account_host,
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
+                bbot_source=bbot_source,
+                snowflake_account=snowflake_account,
+                snowflake_user=snowflake_user,
+                snowflake_pat=snowflake_pat,
+                snowflake_private_key=snowflake_private_key,
+                snowflake_private_key_passphrase=snowflake_private_key_passphrase,
+                snowflake_role=snowflake_role,
+                snowflake_warehouse=snowflake_warehouse,
+                snowflake_databases=snowflake_databases,
                 # Forward the user-provided values (not resolved). Config calls
                 # resolve_report_source_with_legacy_fields() internally; the CLI's
                 # _resolve_report_source_option above runs the same logic for early
@@ -3089,6 +3627,7 @@ class CLI:
                 aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
+                zizmor_source=zizmor_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
@@ -3103,6 +3642,13 @@ class CLI:
                 tenable_access_key=tenable_access_key,
                 tenable_secret_key=tenable_secret_key,
                 tenable_findings_lookback_days=tenable_findings_lookback_days,
+                wiz_graphql_url=wiz_graphql_url,
+                wiz_auth_url=wiz_auth_url,
+                wiz_client_id=wiz_client_id,
+                wiz_client_secret=wiz_client_secret,
+                wiz_tenant_id=wiz_tenant_id,
+                wiz_project_ids=wiz_project_ids_list,
+                wiz_lookback_days=wiz_lookback_days,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
@@ -3164,15 +3710,11 @@ def main(argv=None):
 
     # Show Python version deprecation warning visibly to CLI users.
     # The library-level DeprecationWarning in __init__.py is hidden by default.
-    from cartography import _MIN_PYTHON
-    from cartography import _MIN_PYTHON_STR
-
     if sys.version_info < _MIN_PYTHON:
         logger.warning(
             "Cartography is tested on Python %s+ only. "
-            "Backward compatibility with Python 3.10-3.12 is not guaranteed. "
-            "Python 3.10 support will be removed in October 2026. "
-            "See: https://github.com/cartography-cncf/cartography/issues/2205",
+            "Backward compatibility with Python 3.11 and 3.12 is not guaranteed. "
+            "Python 3.10 and older are not supported.",
             _MIN_PYTHON_STR,
         )
 

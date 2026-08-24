@@ -14,13 +14,57 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+
+from sphinx.util import logging as sphinx_logging
+
+from cartography.models.introspection import inspect_data_model
+from cartography.models.schema_docs import generated_schema_modules
+from cartography.models.schema_docs import write_schema_docs
 
 # Use __file__ for robustness when conf.py is copied to generated/rst/ by build.sh
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Local development loads this config from docs/ while the production build
+# copies it next to the documentation sources in generated/rst/.
+_config_dir = os.path.dirname(os.path.abspath(__file__))
+_source_asset_prefix = (
+    "root" if os.path.isdir(os.path.join(_config_dir, "root")) else "."
+)
+
 
 def setup(app):
     app.add_config_value("release_level", "", "env")
+    logger = sphinx_logging.getLogger(__name__)
+    srcdir = Path(app.srcdir).resolve()
+    # Schema pages are build artifacts. Building straight from docs/root/ would drop
+    # dozens of untracked files into the working tree; see docs/README.md.
+    if srcdir == Path(_config_dir).resolve() / "root":
+        raise RuntimeError(
+            "Refusing to generate schema pages inside docs/root/. "
+            "Build from generated/rst/ instead; see docs/README.md."
+        )
+    model = inspect_data_model()
+    # Anything introspection could not read would silently vanish from the docs, so make
+    # it a build warning rather than a field nobody looks at.
+    for diagnostic in model.diagnostics:
+        logger.warning("data model introspection: %s", diagnostic)
+    modules = generated_schema_modules(model)
+    write_schema_docs(model, srcdir / "modules")
+    logger.info("generated %d module schema pages", len(modules))
+
+    generated_pages = {f"modules/{module}/schema" for module in modules}
+
+    def drop_edit_link_on_generated_pages(
+        app, pagename, templatename, context, doctree
+    ):
+        # These pages are build artifacts with no committed source file, so the theme's
+        # "Edit this page" link would point at a path that does not exist. The theme
+        # only renders the link when page_source_suffix is set.
+        if pagename in generated_pages:
+            context["page_source_suffix"] = ""
+
+    app.connect("html-page-context", drop_edit_link_on_generated_pages)
 
 
 # -- General configuration ------------------------------------------------
@@ -35,6 +79,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
+    "sphinx_sitemap",
     "sphinxcontrib.mermaid",
     "myst_parser",
     "sphinx.ext.napoleon",
@@ -44,7 +89,7 @@ extensions = [
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
+templates_path = [os.path.join(_source_asset_prefix, "_templates")]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -63,7 +108,7 @@ html_sourcelink_suffix = ""
 master_doc = "index"
 
 # General information about the project.
-project = "cartography"
+project = "Cartography"
 copyright = f"2021-{datetime.now().year}, The Linux Foundation"
 author = "cartography Project Authors"
 
@@ -123,6 +168,10 @@ todo_include_todos = False
 
 # -- Options for HTML output ----------------------------------------------
 
+# Canonical public URL used by Sphinx and sphinx-sitemap.
+html_baseurl = "https://docs.cartography.dev/"
+sitemap_url_scheme = "{link}"
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = "shibuya"
@@ -131,14 +180,11 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "globaltoc_depth": 0,
     "globaltoc_collapse": True,
     "github_url": "https://github.com/cartography-cncf/cartography",
-    "repo_name": "cartography",
-    "repo_type": "github",
     "page_layout": "default",
     "accent_color": "cyan",
-    "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
+    "slack_url": "https://slack.cncf.io/",
 }
 
 html_context = {
@@ -151,24 +197,24 @@ html_context = {
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-# html_title = "cartography v1.0.0"
+html_title = "Cartography Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = "Cartography Docs"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "images/logo-vertical.svg"
+html_logo = os.path.join(_source_asset_prefix, "images/logo-vertical.svg")
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = "images/logo-vertical.svg"
+html_favicon = os.path.join(_source_asset_prefix, "images/logo-vertical.svg")
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+html_static_path = [os.path.join(_source_asset_prefix, "_static")]
 html_css_files = ["custom.css"]
 
 # html_style = 'css/cartography.css'
@@ -176,7 +222,10 @@ html_css_files = ["custom.css"]
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
-# html_extra_path = []
+html_extra_path = [
+    os.path.join(_source_asset_prefix, "robots.txt"),
+    os.path.join(_source_asset_prefix, "llms.txt"),
+]
 
 # If not None, a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -250,6 +299,9 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
 myst_fence_as_directive = ["mermaid"]
+# Without this, `[text](#some-heading)` links resolve to nothing. Kept at 3 because
+# generated schema pages repeat `#### Properties` per node, which would collide at 4.
+myst_heading_anchors = 3
 
 # Napoleon settings
 napoleon_google_docstring = True

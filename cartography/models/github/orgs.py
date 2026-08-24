@@ -11,19 +11,24 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
 class GitHubOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("url")
-    username: PropertyRef = PropertyRef("login", extra_index=True)
+    id: PropertyRef = PropertyRef("url", description="GitHub organization URL.")
+    username: PropertyRef = PropertyRef(
+        "login", extra_index=True, description="GitHub organization login."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GitHubOrganizationSchema(CartographyNodeSchema):
+    """An organization in GitHub."""
+
     label: str = "GitHubOrganization"
     properties: GitHubOrganizationNodeProperties = GitHubOrganizationNodeProperties()
     other_relationships = None
     sub_resource_relationship = None
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

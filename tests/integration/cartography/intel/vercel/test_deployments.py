@@ -21,11 +21,17 @@ TEST_UPDATE_TAG = 123456789
 TEST_TEAM_ID = "team_abc123"
 TEST_BASE_URL = "https://api.fake-vercel.com"
 TEST_PROJECT_ID = "prj_abc"
+# prj_abc in the project fixture has Vercel Authentication set to `all`, which covers both
+# production and preview deployments.
+PRJ_ABC_PROTECTION = {
+    "sso_protection_deployment_type": "all",
+    "password_protection_deployment_type": None,
+}
 
 
 def _ensure_local_neo4j_has_test_deployments(neo4j_session):
     deployments = copy.deepcopy(tests.data.vercel.deployments.VERCEL_DEPLOYMENTS)
-    cartography.intel.vercel.deployments.transform(deployments)
+    cartography.intel.vercel.deployments.transform(deployments, PRJ_ABC_PROTECTION)
     cartography.intel.vercel.deployments.load_deployments(
         neo4j_session,
         deployments,
@@ -62,7 +68,16 @@ def test_load_vercel_deployments(mock_api, neo4j_session):
         api_session,
         common_job_parameters,
         project_id=TEST_PROJECT_ID,
+        protection=PRJ_ABC_PROTECTION,
     )
+
+    # Vercel Authentication set to `all` covers both deployments, so neither is reachable.
+    assert check_nodes(
+        neo4j_session, "VercelDeployment", ["id", "target", "state", "exposed_internet"]
+    ) == {
+        ("dpl_123", "production", "READY", False),
+        ("dpl_456", "preview", "BUILDING", False),
+    }
 
     # Assert Deployments exist
     expected_nodes = {
