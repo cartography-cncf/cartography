@@ -128,6 +128,25 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "healthcheckPath": None,
                                     "id": "99999999-9999-9999-9999-999999999999",
                                     "ipv6EgressEnabled": False,
+                                    "activeDeployments": [
+                                        {
+                                            "canRedeploy": True,
+                                            "createdAt": "2026-07-27T18:02:21.021Z",
+                                            "environmentId": "44444444-4444-4444-4444-444444444444",
+                                            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                                            "meta": {
+                                                "commitHash": "0123456789ABCDEF0123456789ABCDEF01234567",
+                                                "repo": "acme/api",
+                                                "rootDirectory": "/backend",
+                                            },
+                                            "projectId": "33333333-3333-3333-3333-333333333333",
+                                            "serviceId": "77777777-7777-7777-7777-777777777777",
+                                            "staticUrl": None,
+                                            "status": "SUCCESS",
+                                            "statusUpdatedAt": "2026-07-27T18:02:26.300Z",
+                                            "url": None,
+                                        }
+                                    ],
                                     "latestDeployment": {
                                         "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                                         "status": "SUCCESS",
@@ -194,6 +213,21 @@ RAILWAY_PROJECT_BUNDLE: dict[str, Any] = {
                                     "healthcheckPath": None,
                                     "id": "88888888-8888-8888-8888-888888888888",
                                     "ipv6EgressEnabled": False,
+                                    "activeDeployments": [
+                                        {
+                                            "canRedeploy": True,
+                                            "createdAt": "2026-07-27T18:01:57.350Z",
+                                            "environmentId": "44444444-4444-4444-4444-444444444444",
+                                            "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                            "meta": {"commitHash": "main"},
+                                            "projectId": "33333333-3333-3333-3333-333333333333",
+                                            "serviceId": "66666666-6666-6666-6666-666666666666",
+                                            "staticUrl": "web-production-abcde.up.railway.app",
+                                            "status": "SUCCESS",
+                                            "statusUpdatedAt": "2026-07-27T18:02:04.313Z",
+                                            "url": None,
+                                        }
+                                    ],
                                     "latestDeployment": {
                                         "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                                         "status": "SUCCESS",

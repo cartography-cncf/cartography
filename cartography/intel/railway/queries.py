@@ -92,58 +92,6 @@ _PAGE_INFO = """
     }
 """
 
-_SERVICE_INSTANCE_FIELDS = """
-    id
-    serviceId
-    serviceName
-    environmentId
-    createdAt
-    updatedAt
-    source {
-      image
-      repo
-    }
-    builder
-    buildCommand
-    startCommand
-    rootDirectory
-    dockerfilePath
-    region
-    numReplicas
-    sleepApplication
-    cronSchedule
-    healthcheckPath
-    restartPolicyType
-    restartPolicyMaxRetries
-    ipv6EgressEnabled
-    latestDeployment {
-      id
-      status
-    }
-    domains {
-      serviceDomains {
-        id
-        domain
-        suffix
-        targetPort
-        syncStatus
-        createdAt
-      }
-      customDomains {
-        id
-        domain
-        targetPort
-        isRailwayDomain
-        syncStatus
-        status {
-          verified
-          certificateStatus
-          verificationDnsHost
-        }
-      }
-    }
-"""
-
 _DEPLOYMENT_FIELDS = """
     id
     meta
@@ -157,6 +105,63 @@ _DEPLOYMENT_FIELDS = """
     staticUrl
     canRedeploy
 """
+
+_SERVICE_INSTANCE_FIELDS = """
+    id
+    serviceId
+    serviceName
+    environmentId
+    createdAt
+    updatedAt
+    source {{
+      image
+      repo
+    }}
+    builder
+    buildCommand
+    startCommand
+    rootDirectory
+    dockerfilePath
+    region
+    numReplicas
+    sleepApplication
+    cronSchedule
+    healthcheckPath
+    restartPolicyType
+    restartPolicyMaxRetries
+    ipv6EgressEnabled
+    activeDeployments {{
+      {}
+    }}
+    latestDeployment {{
+      {}
+    }}
+    domains {{
+      serviceDomains {{
+        id
+        domain
+        suffix
+        targetPort
+        syncStatus
+        createdAt
+      }}
+      customDomains {{
+        id
+        domain
+        targetPort
+        isRailwayDomain
+        syncStatus
+        status {{
+          verified
+          certificateStatus
+          verificationDnsHost
+        }}
+      }}
+    }}
+""".format(
+    _DEPLOYMENT_FIELDS,
+    _DEPLOYMENT_FIELDS,
+)
 
 _VOLUME_INSTANCE_FIELDS = """
     id

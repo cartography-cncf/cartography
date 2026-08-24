@@ -17,8 +17,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-_SERVING_DEPLOYMENT_STATUSES = {"SUCCESS", "SLEEPING"}
-
 
 @timeit
 def sync(
@@ -47,84 +45,69 @@ def transform(
 
     for project_id, bundle in bundles.items():
         environments = unwrap_edges(bundle["environments"])
-        project_deployment_nodes = [
-            deployment
+        project_deployments_by_id = {
+            deployment["id"]: deployment
             for environment in environments
             for deployment in unwrap_edges(environment["deployments"])
-        ]
-        serving_by_instance: dict[tuple[str, str], dict[str, Any]] = {}
-        for deployment in project_deployment_nodes:
-            if deployment.get("status") not in _SERVING_DEPLOYMENT_STATUSES:
-                continue
-            key = (deployment["environmentId"], deployment["serviceId"])
-            previous = serving_by_instance.get(key)
-            if previous is None or deployment["createdAt"] > previous["createdAt"]:
-                serving_by_instance[key] = deployment
+        }
 
-        # latestDeployment is the newest attempt, not necessarily the revision serving
-        # traffic. If it failed, Railway keeps the previous healthy deployment active.
         current_instances: dict[str, dict[str, Any]] = {}
         for instance in iter_service_instances(bundle):
             latest_deployment = instance.get("latestDeployment") or {}
-            serving_deployment = (
-                latest_deployment
-                if latest_deployment.get("status") in _SERVING_DEPLOYMENT_STATUSES
-                else serving_by_instance.get(
-                    (instance["environmentId"], instance["serviceId"]),
-                )
-            )
-            if serving_deployment and serving_deployment.get("id"):
-                current_instances[serving_deployment["id"]] = instance
+            current_deployments = list(instance.get("activeDeployments") or [])
+            if latest_deployment.get("status") == "SLEEPING":
+                current_deployments.append(latest_deployment)
+            for deployment in current_deployments:
+                project_deployments_by_id[deployment["id"]] = deployment
+                current_instances[deployment["id"]] = instance
         current_ids = set(current_instances)
 
         project_deployments: list[dict[str, Any]] = []
         project_snapshots: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
-        for environment in environments:
-            for deployment in unwrap_edges(environment["deployments"]):
-                meta = deployment.get("meta")
-                commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
-                source_revision = (
-                    commit_hash.lower()
-                    if isinstance(commit_hash, str)
-                    and re.fullmatch(r"[0-9a-fA-F]{40}", commit_hash)
-                    else None
-                )
-                project_deployments.append(
+        for deployment in project_deployments_by_id.values():
+            meta = deployment.get("meta")
+            commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
+            source_revision = (
+                commit_hash.lower()
+                if isinstance(commit_hash, str)
+                and re.fullmatch(r"[0-9a-fA-F]{40}", commit_hash)
+                else None
+            )
+            project_deployments.append(
+                {
+                    **deployment,
+                    "source_revision": source_revision,
+                    "lifecycle": (
+                        "current" if deployment["id"] in current_ids else "historical"
+                    ),
+                },
+            )
+            current_instance = current_instances.get(deployment["id"])
+            source_repo = meta.get("repo") if isinstance(meta, dict) else None
+            root_directory = (
+                meta.get("rootDirectory") if isinstance(meta, dict) else None
+            )
+            if (
+                current_instance
+                and source_revision
+                and isinstance(meta, dict)
+                and isinstance(source_repo, str)
+                and source_repo
+                and "rootDirectory" in meta
+                and (root_directory is None or isinstance(root_directory, str))
+            ):
+                project_snapshots.append(
                     {
-                        **deployment,
+                        "id": f"railway:filesystem-snapshot:{deployment['id']}",
+                        "deployment_id": deployment["id"],
+                        "kind": "source",
                         "source_revision": source_revision,
-                        "lifecycle": (
-                            "current"
-                            if deployment["id"] in current_ids
-                            else "historical"
-                        ),
+                        "source_repo": source_repo,
+                        "root_directory": root_directory,
                     },
                 )
-                current_instance = current_instances.get(deployment["id"])
-                source_repo = meta.get("repo") if isinstance(meta, dict) else None
-                root_directory = (
-                    meta.get("rootDirectory") if isinstance(meta, dict) else None
-                )
-                if (
-                    current_instance
-                    and source_revision
-                    and isinstance(meta, dict)
-                    and isinstance(source_repo, str)
-                    and source_repo
-                    and "rootDirectory" in meta
-                    and (root_directory is None or isinstance(root_directory, str))
-                ):
-                    project_snapshots.append(
-                        {
-                            "id": f"railway:filesystem-snapshot:{deployment['id']}",
-                            "deployment_id": deployment["id"],
-                            "kind": "source",
-                            "source_revision": source_revision,
-                            "source_repo": source_repo,
-                            "root_directory": root_directory,
-                        },
-                    )
+        for environment in environments:
             project_triggers.extend(unwrap_edges(environment["deploymentTriggers"]))
         deployments[project_id] = project_deployments
         snapshots[project_id] = project_snapshots

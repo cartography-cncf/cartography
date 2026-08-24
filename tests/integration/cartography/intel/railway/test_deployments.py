@@ -166,7 +166,7 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     ) == {(TEST_PROJECT_ID, POSTGRES_SNAPSHOT_ID)}
 
 
-def test_failed_latest_deployment_keeps_previous_snapshot_current(neo4j_session):
+def test_active_deployment_outside_history_keeps_snapshot_current(neo4j_session):
     # Arrange
     failed_deployment_id = "dddd0000-dddd-dddd-dddd-dddddddddddd"
     bundles = copy.deepcopy(BUNDLES)
@@ -183,6 +183,11 @@ def test_failed_latest_deployment_keeps_previous_snapshot_current(neo4j_session)
         environment = env_edge["node"]
         if environment["id"] != PRODUCTION_ENV_ID:
             continue
+        environment["deployments"]["edges"] = [
+            edge
+            for edge in environment["deployments"]["edges"]
+            if edge["node"]["id"] != POSTGRES_DEPLOYMENT_ID
+        ]
         environment["deployments"]["edges"].append(
             {
                 "node": {
@@ -241,6 +246,11 @@ def test_filesystem_snapshot_is_removed_without_an_exact_revision(neo4j_session)
     }
 
     bundles = copy.deepcopy(BUNDLES)
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] == POSTGRES_INSTANCE_ID:
+            instance["activeDeployments"][0]["meta"] = {"commitHash": "main"}
     for environment in bundles[TEST_PROJECT_ID]["environments"]["edges"]:
         for deployment in environment["node"]["deployments"]["edges"]:
             if deployment["node"]["id"] == POSTGRES_DEPLOYMENT_ID:
