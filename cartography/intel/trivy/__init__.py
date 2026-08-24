@@ -325,6 +325,7 @@ def sync_trivy_from_report_reader(
     logger.info("Processing %d Trivy result files from report source", len(json_files))
     failed_report_count = 0
     processed_reports = 0
+    processed_image_reports = 0
     for ref in json_files:
         logger.debug(
             "Reading scan results from report source: %s",
@@ -355,6 +356,7 @@ def sync_trivy_from_report_reader(
                 display_uri,
                 update_tag,
             )
+            processed_image_reports += 1
         else:
             sync_single_filesystem_snapshot(
                 neo4j_session,
@@ -375,6 +377,13 @@ def sync_trivy_from_report_reader(
     if processed_reports == 0:
         logger.warning(
             "Skipping Trivy cleanup because no reports were ingested.",
+        )
+        return
+
+    if image_uris and processed_image_reports == 0:
+        logger.warning(
+            "Skipping Trivy cleanup because the report source contained only "
+            "filesystem reports while image scan targets exist.",
         )
         return
 

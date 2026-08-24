@@ -363,7 +363,7 @@ def sync_single_filesystem_snapshot(
 
         results = trivy_data.get("Results", [])
         if not results:
-            logger.info("No vulnerabilities found for %s", source)
+            logger.debug("No vulnerabilities found for %s", source)
 
         num_findings = _sync_scan_results(
             neo4j_session,

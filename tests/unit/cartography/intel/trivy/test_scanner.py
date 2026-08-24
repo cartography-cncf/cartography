@@ -674,6 +674,48 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
     mock_cleanup.assert_not_called()
 
 
+@patch("cartography.intel.trivy.sync_single_filesystem_snapshot")
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_filesystem_scan_targets")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_filesystem_only_reports_preserve_existing_image_scan_data(
+    mock_get_targets_and_aliases,
+    mock_get_filesystem_targets,
+    mock_cleanup,
+    mock_sync_filesystem,
+):
+    revision = "a" * 40
+    mock_get_targets_and_aliases.return_value = ({"registry.example/app:latest"}, {})
+    mock_get_filesystem_targets.return_value = {
+        ("owner/repo", revision, None): ["snapshot-1"]
+    }
+    reader = MagicMock()
+    reader.source_uri = "memory://trivy"
+    reader.list_reports.return_value = [
+        ReportRef(uri="memory://filesystem.json", name="filesystem.json")
+    ]
+    reader.read_bytes.return_value = json.dumps(
+        {
+            "ArtifactType": "repository",
+            "Metadata": {
+                "RepoURL": "https://github.com/owner/repo",
+                "Commit": revision,
+            },
+            "Results": [],
+        }
+    ).encode()
+
+    sync_trivy_from_report_reader(
+        neo4j_session=MagicMock(),
+        reader=reader,
+        update_tag=123,
+        common_job_parameters={"UPDATE_TAG": 123},
+    )
+
+    mock_sync_filesystem.assert_called_once()
+    mock_cleanup.assert_not_called()
+
+
 def test_transform_scan_results_only_sets_cve_id_for_cves():
     """Only CVE-prefixed ids populate cve_id; GHSA ids land in ghsa_id."""
     # Arrange
