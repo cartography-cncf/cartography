@@ -81,6 +81,14 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         ("my-node",),
         ("my-arm-node",),
     }
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesNode",
+        ["name", "gpu_capacity", "gpu_allocatable", "gpu_product"],
+    ) == {
+        ("my-node", 8, 8, "NVIDIA-H200"),
+        ("my-arm-node", None, None, None),
+    }
 
     # Assert: pod is linked to its scheduled node
     assert check_rels(

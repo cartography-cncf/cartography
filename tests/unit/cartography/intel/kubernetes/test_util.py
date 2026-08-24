@@ -1,6 +1,7 @@
 import pytest
 from kubernetes.client.exceptions import ApiException
 
+from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 
 
@@ -30,3 +31,11 @@ def test_k8s_paginate_raise_on_forbidden_is_status_scoped():
     with pytest.raises(ApiException):
         k8s_paginate(_raiser(403), raise_on_forbidden=True)
     assert k8s_paginate(_raiser(500), raise_on_forbidden=True) == []
+
+
+def test_get_gpu_quantity_sums_extended_gpu_resources():
+    assert (
+        get_gpu_quantity({"cpu": "32", "nvidia.com/gpu": "8", "example.com/gpu": "2"})
+        == 10
+    )
+    assert get_gpu_quantity({"example.com/gpu": "not-a-number"}) is None

@@ -8,8 +8,10 @@ from kubernetes.client.models import V1Pod
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
@@ -103,6 +105,16 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
 
         # Extract resource requests and limits
         if container.resources:
+            requests = container.resources.requests or {}
+            limits = container.resources.limits or {}
+            containers[container.name]["resource_requests"] = (
+                format_resource_quantities(requests)
+            )
+            containers[container.name]["resource_limits"] = format_resource_quantities(
+                limits
+            )
+            containers[container.name]["gpu_request"] = get_gpu_quantity(requests)
+            containers[container.name]["gpu_limit"] = get_gpu_quantity(limits)
             if container.resources.requests:
                 containers[container.name]["memory_request"] = (
                     container.resources.requests.get("memory")
@@ -125,6 +137,10 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
                 containers[container.name]["memory_limit"] = None
                 containers[container.name]["cpu_limit"] = None
         else:
+            containers[container.name]["resource_requests"] = "{}"
+            containers[container.name]["resource_limits"] = "{}"
+            containers[container.name]["gpu_request"] = None
+            containers[container.name]["gpu_limit"] = None
             containers[container.name]["memory_request"] = None
             containers[container.name]["cpu_request"] = None
             containers[container.name]["memory_limit"] = None
@@ -287,6 +303,14 @@ def transform_pods(
         workload_parent = _resolve_pod_workload_parent(
             pod, rs_owner_map, workloads_available=workloads_available
         )
+        persistent_volume_claim_names = sorted(
+            {
+                volume.persistent_volume_claim.claim_name
+                for volume in (pod.spec.volumes or [])
+                if getattr(volume, "persistent_volume_claim", None)
+                and getattr(volume.persistent_volume_claim, "claim_name", None)
+            }
+        )
         transformed_pods.append(
             {
                 **workload_parent,
@@ -317,6 +341,11 @@ def transform_pods(
                         and getattr(volume.host_path, "path", None)
                     ]
                 ),
+                "persistent_volume_claim_names": persistent_volume_claim_names,
+                "persistent_volume_claim_ids": [
+                    f"{cluster_name}/{pod.metadata.namespace}/{claim_name}"
+                    for claim_name in persistent_volume_claim_names
+                ],
                 "service_account_id": (
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),

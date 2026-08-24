@@ -17,3 +17,22 @@ RETURN k.name, k.api_server_url, k.kubeconfig_tls_configuration_status,
        k.kubeconfig_has_client_key
 ORDER BY k.name;
 ```
+
+## Map GPU workloads to persistent storage
+
+Find GPU-requesting containers, their scheduled nodes, and the persistent storage
+mounted by their pods:
+
+```cypher
+MATCH (container:KubernetesContainer)<-[:CONTAINS]-(pod:KubernetesPod)
+MATCH (pod)-[:RUNS_ON]->(node:KubernetesNode)
+OPTIONAL MATCH (pod)-[:MOUNTS]->(claim:KubernetesPersistentVolumeClaim)
+OPTIONAL MATCH (claim)-[:BOUND_TO]->(volume:KubernetesPersistentVolume)
+OPTIONAL MATCH (claim)-[:USES_STORAGE_CLASS]->(storage_class:KubernetesStorageClass)
+WHERE container.gpu_request > 0 OR container.gpu_limit > 0
+RETURN pod.namespace, pod.name, container.name,
+       container.gpu_request, container.gpu_limit,
+       node.name, node.gpu_product, node.gpu_capacity,
+       claim.name, volume.name, volume.csi_driver, storage_class.name
+ORDER BY pod.namespace, pod.name, container.name;
+```

@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from typing import Any
@@ -12,11 +13,31 @@ from kubernetes.client import CoreV1Api
 from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
+from kubernetes.client import StorageV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
+
+
+def format_resource_quantities(resources: dict[str, Any] | None) -> str:
+    return json.dumps(
+        {str(key): str(value) for key, value in (resources or {}).items()},
+        sort_keys=True,
+    )
+
+
+def get_gpu_quantity(resources: dict[str, Any] | None) -> int | None:
+    quantities = []
+    for key, value in (resources or {}).items():
+        if not str(key).endswith("/gpu"):
+            continue
+        try:
+            quantities.append(int(str(value)))
+        except ValueError:
+            logger.warning("Ignoring invalid Kubernetes GPU quantity %r", value)
+    return sum(quantities) if quantities else None
 
 
 class KubernetesContextNotFound(Exception):
@@ -128,6 +149,21 @@ class K8BatchApiClient(BatchV1Api):
         super().__init__(api_client=api_client)
 
 
+class K8StorageApiClient(StorageV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
 class K8sClient:
     def __init__(
         self,
@@ -145,6 +181,7 @@ class K8sClient:
         self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
         self.apps = K8AppsApiClient(self.name, self.config_file)
         self.batch = K8BatchApiClient(self.name, self.config_file)
+        self.storage = K8StorageApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:

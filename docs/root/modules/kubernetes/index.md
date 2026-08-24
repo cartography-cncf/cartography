@@ -1,9 +1,10 @@
 # Kubernetes
 
-The Kubernetes module ingests cluster inventory, workloads, networking resources,
-secrets metadata, and RBAC identities and permissions. It also connects Kubernetes
-resources to cloud infrastructure, container images, and shared ontology labels so
-that workload and identity paths can be queried across providers.
+The Kubernetes module ingests cluster inventory, GPU capacity and requests,
+persistent storage, workloads, networking resources, secrets metadata, and RBAC
+identities and permissions. It also connects Kubernetes resources to cloud
+infrastructure, container images, and shared ontology labels so that workload and
+identity paths can be queried across providers.
 
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
@@ -21,6 +22,11 @@ the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path.
 If the identity cannot list network policies, Cartography skips both ingestion
 and cleanup and preserves existing `KubernetesNetworkPolicy` nodes. Ingested
 policies use `APPLIES_TO` edges to identify selected pods.
+
+Until v1.0.0, if the identity cannot list persistent volumes, persistent volume
+claims, or storage classes, Cartography skips persistent storage ingestion and
+cleanup and preserves existing storage nodes. Pods continue to load without
+`MOUNTS` relationships until the required permissions are granted.
 
 If the identity cannot list secrets, Cartography skips secret ingestion and
 cleanup and preserves existing `KubernetesSecret` nodes. Cartography stores

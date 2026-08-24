@@ -48,6 +48,8 @@ def test_transform_pods_defaults_service_account_name():
             "host_network": None,
             "seccomp_profile_type": None,
             "host_path_volume_paths": [],
+            "persistent_volume_claim_names": [],
+            "persistent_volume_claim_ids": [],
             "service_account_id": "my-cluster-1/my-namespace/default",
             "node": "node-a",
             "node_id": "my-cluster-1/node-a",

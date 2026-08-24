@@ -83,6 +83,23 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "cpu_limit",
         description='Maximum amount of CPU the container is allowed to use (e.g. "500m", "2").',
     )
+    resource_requests: PropertyRef = PropertyRef(
+        "resource_requests",
+        description="All container resource requests, including extended resources, stored as a JSON-encoded object.",
+    )
+    resource_limits: PropertyRef = PropertyRef(
+        "resource_limits",
+        description="All container resource limits, including extended resources, stored as a JSON-encoded object.",
+    )
+    gpu_request: PropertyRef = PropertyRef(
+        "gpu_request",
+        extra_index=True,
+        description="Total integer request across extended resource keys ending in `/gpu`.",
+    )
+    gpu_limit: PropertyRef = PropertyRef(
+        "gpu_limit",
+        description="Total integer limit across extended resource keys ending in `/gpu`.",
+    )
     allow_privilege_escalation: PropertyRef = PropertyRef(
         "allow_privilege_escalation",
         description="Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`.",
