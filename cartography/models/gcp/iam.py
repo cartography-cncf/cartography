@@ -212,7 +212,7 @@ class GCPStandalonePredefinedRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPPredefinedRoleNodeProperties = GCPPredefinedRoleNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     sub_resource_relationship: None = None
     scoped_cleanup: bool = False
 
