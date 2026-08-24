@@ -552,6 +552,21 @@ def sync_ec2_instance_assumes_role(
     ).run(neo4j_session)
 
 
+# EC2Instance cleanup uses DETACH DELETE, which deletes every relationship attached to
+# each matched node, not just the ones EC2InstanceSchema declares in its own
+# sub_resource_relationship/other_relationships. Instances also carry incoming edges from
+# several other schemas (network interfaces, security groups, subnets, volumes, key pairs,
+# IPv6 addresses, auto scaling groups), so a single instance can easily have dozens of
+# relationships. Measured directly against a large production account: a default-sized
+# iterationsize=10000 batch touched 727,321 relationships across those 10,000 instances,
+# ~73 relationships per instance. At that fan-out, the default (tuned for cleanups that are
+# closer to 1 relationship per node) can push a single cleanup transaction well past Neo4j's
+# per-transaction memory limit on accounts with a large instance count. Use a much smaller
+# iterationsize here so a batch's total relationship-delete volume stays in the same order of
+# magnitude the 10000 default assumes.
+EC2_INSTANCE_CLEANUP_ITERATIONSIZE = 100
+
+
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
@@ -561,7 +576,11 @@ def cleanup(
     GraphJob.from_node_schema(EC2ReservationSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    GraphJob.from_node_schema(EC2InstanceSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(
+        EC2InstanceSchema(),
+        common_job_parameters,
+        iterationsize=EC2_INSTANCE_CLEANUP_ITERATIONSIZE,
+    ).run(
         neo4j_session,
     )
     GraphJob.from_node_schema(
