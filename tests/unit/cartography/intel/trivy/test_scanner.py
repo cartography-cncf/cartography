@@ -6,11 +6,36 @@ import pytest
 
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import ReportRef
+from cartography.intel.trivy import _prepare_trivy_data
 from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
+
+
+def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
+    # Arrange
+    revision = "0123456789abcdef0123456789abcdef01234567"
+    trivy_data = {
+        "ArtifactType": "repository",
+        "Metadata": {
+            "RepoURL": "https://github.com/acme/api",
+            "Commit": "main",
+        },
+    }
+
+    # Act
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris=set(),
+        digest_aliases={},
+        filesystem_targets={("acme/api", revision): ["snapshot-1"]},
+        source="repository.json",
+    )
+
+    # Assert
+    assert prepared is None
 
 
 @patch("boto3.Session")

@@ -345,6 +345,24 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
         ),
     ),
 )
+PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT = AnalysisJob(
+    name="Ontology - Trivy PackageVersion DEPLOYED FilesystemSnapshot linking",
+    short_name="ontology_packages_trivy_deployed_filesystem_snapshot",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(snapshot:FilesystemSnapshot)",
+            effects=(
+                AddRelationship(
+                    "p",
+                    "DEPLOYED",
+                    "snapshot",
+                    source_label="PackageVersion",
+                    target_label="FilesystemSnapshot",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_AFFECTS_LINKING = AnalysisJob(
     name="Ontology - TrivyImageFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_affects",
@@ -419,6 +437,7 @@ PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
 )
 PACKAGE_LINKING_JOBS = (
     *PACKAGE_DEPLOYED_IMAGE_JOBS,
+    PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,

@@ -1,5 +1,7 @@
 import logging
+import re
 from typing import Any
+from urllib.parse import urlparse
 
 import boto3
 from neo4j import Session
@@ -21,6 +23,7 @@ from cartography.intel.common.report_reader_builder import (
 )
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
+from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -155,6 +158,41 @@ def _get_scan_targets_and_aliases(
     return image_uris, digest_aliases
 
 
+def _normalize_repository(value: str) -> str:
+    repository = value.strip().rstrip("/")
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+
+    if "://" in repository:
+        repository = urlparse(repository).path
+    elif repository.startswith("git@") and ":" in repository:
+        repository = repository.split(":", 1)[1]
+
+    return repository.strip("/").lower()
+
+
+def _get_filesystem_scan_targets(
+    neo4j_session: Session,
+) -> dict[tuple[str, str], list[str]]:
+    """Return source repository and revision pairs mapped to snapshot IDs."""
+    result = neo4j_session.run(
+        """
+        MATCH (snapshot:FilesystemSnapshot)
+        WHERE snapshot.source_repo IS NOT NULL
+          AND snapshot.source_revision IS NOT NULL
+        RETURN snapshot.id AS id,
+               snapshot.source_repo AS repository,
+               snapshot.source_revision AS revision
+        """,
+    )
+    targets: dict[tuple[str, str], list[str]] = {}
+    for record in result:
+        repository = _normalize_repository(record["repository"])
+        revision = record["revision"].lower()
+        targets.setdefault((repository, revision), []).append(record["id"])
+    return targets
+
+
 @timeit
 def get_scan_targets(
     neo4j_session: Session,
@@ -171,13 +209,13 @@ def _prepare_trivy_data(
     trivy_data: dict[str, Any],
     image_uris: set[str],
     digest_aliases: dict[str, str],
+    filesystem_targets: dict[tuple[str, str], list[str]],
     source: str,
-) -> tuple[dict[str, Any], str] | None:
+) -> tuple[dict[str, Any], str | None, list[str]] | None:
     """
     Determine the tag URI that corresponds to this Trivy payload.
 
-    Returns (trivy_data, display_uri) if the payload can be linked to an image present
-    in the graph; otherwise returns None so the caller can skip ingestion.
+    Returns the report and its matching image or filesystem snapshot targets.
     """
 
     artifact_name = (trivy_data.get("ArtifactName") or "").strip()
@@ -205,14 +243,30 @@ def _prepare_trivy_data(
             display_uri = alias
             break
 
-    if not display_uri:
-        logger.debug(
-            "Skipping Trivy results for %s because no matching image URI was found in the graph",
-            source,
-        )
-        return None
+    if display_uri:
+        return trivy_data, display_uri, []
 
-    return trivy_data, display_uri
+    artifact_type = trivy_data.get("ArtifactType")
+    repo_url = metadata.get("RepoURL")
+    revision = metadata.get("Commit")
+    if (
+        artifact_type in {"filesystem", "repository"}
+        and isinstance(repo_url, str)
+        and isinstance(revision, str)
+        and re.fullmatch(r"[0-9a-fA-F]{40}", revision)
+    ):
+        snapshot_ids = filesystem_targets.get(
+            (_normalize_repository(repo_url), revision.lower()),
+            [],
+        )
+        if snapshot_ids:
+            return trivy_data, None, snapshot_ids
+
+    logger.debug(
+        "Skipping Trivy results for %s because no matching scan target was found in the graph",
+        source,
+    )
+    return None
 
 
 @timeit
@@ -234,6 +288,7 @@ def sync_trivy_from_report_reader(
     logger.info("Using Trivy scan results from %s", reader.source_uri)
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
+    filesystem_targets = _get_filesystem_scan_targets(neo4j_session)
     json_files = filter_report_refs(
         reader.list_reports(),
         suffix=".json",
@@ -268,18 +323,28 @@ def sync_trivy_from_report_reader(
             trivy_data,
             image_uris=image_uris,
             digest_aliases=digest_aliases,
+            filesystem_targets=filesystem_targets,
             source=ref.uri,
         )
         if prepared is None:
             continue
 
-        prepared_data, display_uri = prepared
-        sync_single_image(
-            neo4j_session,
-            prepared_data,
-            display_uri,
-            update_tag,
-        )
+        prepared_data, display_uri, filesystem_snapshot_ids = prepared
+        if display_uri:
+            sync_single_image(
+                neo4j_session,
+                prepared_data,
+                display_uri,
+                update_tag,
+            )
+        else:
+            sync_single_filesystem_snapshot(
+                neo4j_session,
+                prepared_data,
+                filesystem_snapshot_ids,
+                ref.uri,
+                update_tag,
+            )
         processed_reports += 1
 
     if failed_report_count:
