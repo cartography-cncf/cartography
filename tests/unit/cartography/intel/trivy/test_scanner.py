@@ -10,6 +10,7 @@ from cartography.intel.trivy import _prepare_trivy_data
 from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
+from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
 
@@ -705,15 +706,35 @@ def test_filesystem_only_reports_preserve_existing_image_scan_data(
         }
     ).encode()
 
-    sync_trivy_from_report_reader(
-        neo4j_session=MagicMock(),
-        reader=reader,
-        update_tag=123,
-        common_job_parameters={"UPDATE_TAG": 123},
-    )
+    neo4j_session = MagicMock()
+    with patch(
+        "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+    ) as mock_filesystem_cleanup:
+        sync_trivy_from_report_reader(
+            neo4j_session=neo4j_session,
+            reader=reader,
+            update_tag=123,
+            common_job_parameters={"UPDATE_TAG": 123},
+        )
 
     mock_sync_filesystem.assert_called_once()
     mock_cleanup.assert_not_called()
+    mock_filesystem_cleanup.assert_called_once_with(neo4j_session, 123)
+
+
+@patch("cartography.intel.trivy.scanner._sync_scan_results")
+def test_filesystem_scan_accepts_null_results(mock_sync_scan_results):
+    mock_sync_scan_results.return_value = 0
+
+    sync_single_filesystem_snapshot(
+        MagicMock(),
+        {"ArtifactType": "repository", "Results": None},
+        ["snapshot-1"],
+        "memory://clean.json",
+        123,
+    )
+
+    assert mock_sync_scan_results.call_args.args[1] == []
 
 
 def test_transform_scan_results_only_sets_cve_id_for_cves():

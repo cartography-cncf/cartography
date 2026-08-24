@@ -23,6 +23,7 @@ from cartography.intel.common.report_reader_builder import (
 )
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
+from cartography.intel.trivy.scanner import cleanup_filesystem_snapshot_relationships
 from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
@@ -382,9 +383,10 @@ def sync_trivy_from_report_reader(
 
     if image_uris and processed_image_reports == 0:
         logger.warning(
-            "Skipping Trivy cleanup because the report source contained only "
-            "filesystem reports while image scan targets exist.",
+            "Limiting Trivy cleanup to filesystem relationships because the report "
+            "source contained only filesystem reports while image scan targets exist.",
         )
+        cleanup_filesystem_snapshot_relationships(neo4j_session, update_tag)
         return
 
     cleanup(neo4j_session, common_job_parameters)

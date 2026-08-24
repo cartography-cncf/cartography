@@ -3,6 +3,7 @@ import json
 import cartography.intel.trivy
 from cartography.intel.common.object_store import ListedReportReader
 from cartography.intel.common.object_store import ReportRef
+from cartography.intel.trivy.scanner import cleanup_filesystem_snapshot_relationships
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -89,3 +90,63 @@ def test_sync_trivy_repository_report_to_filesystem_snapshot(neo4j_session):
         ("1.0.0|example-package", SNAPSHOT_IDS[0]),
         ("1.0.0|example-package", SNAPSHOT_IDS[1]),
     }
+
+
+def test_filesystem_cleanup_preserves_image_relationships(neo4j_session):
+    neo4j_session.run(
+        """
+        MERGE (snapshot:FilesystemSnapshot {id: "cleanup-snapshot"})
+        MERGE (image:Image {id: "cleanup-image"})
+        MERGE (finding:TrivyImageFinding {id: "cleanup-finding"})
+        MERGE (package:TrivyPackage {id: "cleanup-package"})
+        MERGE (finding)-[:AFFECTS {lastupdated: 1}]->(snapshot)
+        MERGE (finding)-[:AFFECTS {lastupdated: 1}]->(image)
+        MERGE (package)-[:DEPLOYED {lastupdated: 1}]->(snapshot)
+        MERGE (package)-[:DEPLOYED {lastupdated: 1}]->(image)
+        """
+    )
+
+    cleanup_filesystem_snapshot_relationships(neo4j_session, update_tag=2)
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyImageFinding",
+            "id",
+            "FilesystemSnapshot",
+            "id",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "TrivyImageFinding",
+        "id",
+        "Image",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("cleanup-finding", "cleanup-image")}
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyPackage",
+            "id",
+            "FilesystemSnapshot",
+            "id",
+            "DEPLOYED",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "TrivyPackage",
+        "id",
+        "Image",
+        "id",
+        "DEPLOYED",
+        rel_direction_right=True,
+    ) == {("cleanup-package", "cleanup-image")}

@@ -7,6 +7,7 @@ import boto3
 from neo4j import Session
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import read_text_report
@@ -361,7 +362,7 @@ def sync_single_filesystem_snapshot(
         if not filesystem_snapshot_ids:
             raise ValueError(f"No filesystem snapshot targets for {source}")
 
-        results = trivy_data.get("Results", [])
+        results = trivy_data.get("Results") or []
         if not results:
             logger.debug("No vulnerabilities found for %s", source)
 
@@ -484,6 +485,33 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
+    )
+
+
+@timeit
+def cleanup_filesystem_snapshot_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale filesystem edges without touching image-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
     )
 
 
