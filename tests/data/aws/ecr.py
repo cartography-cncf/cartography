@@ -500,3 +500,45 @@ SINGLE_PLATFORM_IMAGE_DETAILS = {
 
 # Empty response when trying to fetch as manifest list (the bug scenario)
 BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE: dict[str, list] = {"images": []}
+
+# Image digests used in scan finding tests
+SCAN_FINDING_IMAGE_DIGEST = (
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+)
+SCAN_FINDING_REPO_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+)
+
+# Raw findings as returned by describe_image_scan_findings paginator pages
+DESCRIBE_IMAGE_SCAN_FINDINGS = [
+    {
+        "name": "CVE-2021-44228",
+        "description": (
+            "Apache Log4j2 2.0-beta9 through 2.15.0 JNDI features in configurations, "
+            "log messages, and parameters do not protect against attacker controlled "
+            "LDAP and other JNDI related endpoints."
+        ),
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+        "severity": "CRITICAL",
+        "attributes": [
+            {"key": "package name", "value": "log4j"},
+            {"key": "package version", "value": "2.14.1"},
+            {"key": "CVSS3_SCORE", "value": "10.0"},
+        ],
+    },
+    {
+        "name": "CVE-2022-22965",
+        "description": (
+            "A Spring MVC or Spring WebFlux application running on JDK 9+ "
+            "may be vulnerable to remote code execution (RCE) via data binding."
+        ),
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2022-22965",
+        "severity": "HIGH",
+        "attributes": [
+            {"key": "package name", "value": "spring-webmvc"},
+            {"key": "package version", "value": "5.3.17"},
+            {"key": "CVSS2_SCORE", "value": "7.5"},
+            {"key": "CVSS3_SCORE", "value": "9.8"},
+        ],
+    },
+]
