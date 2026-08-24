@@ -28,6 +28,7 @@ from tests.integration.util import check_rels
 
 WEB_DEPLOYMENT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 POSTGRES_DEPLOYMENT_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+POSTGRES_SNAPSHOT_ID = f"railway:filesystem-snapshot:{POSTGRES_DEPLOYMENT_ID}"
 TRIGGER_ID = "dt111111-1111-1111-1111-111111111111"
 SOURCE_REVISION = "0123456789abcdef0123456789abcdef01234567"
 
@@ -115,6 +116,8 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
               -[:SCANNED_AS]->(snapshot:RailwayFilesystemSnapshot:FilesystemSnapshot)
               -[:SNAPSHOT_OF]->(r:GitHubRepository)
         RETURN snapshot.kind AS kind,
+               snapshot.id AS id,
+               snapshot.deployment_id AS deployment_id,
                snapshot._ont_kind AS ontology_kind,
                snapshot.source_revision AS revision,
                snapshot._ont_source_revision AS ontology_revision,
@@ -128,6 +131,8 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     assert result is not None
     assert result.data() == {
         "kind": "source",
+        "id": POSTGRES_SNAPSHOT_ID,
+        "deployment_id": POSTGRES_DEPLOYMENT_ID,
         "ontology_kind": "source",
         "revision": SOURCE_REVISION,
         "ontology_revision": SOURCE_REVISION,
@@ -138,7 +143,7 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
     }
 
     assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
-        (POSTGRES_DEPLOYMENT_ID,),
+        (POSTGRES_SNAPSHOT_ID,),
     }
     assert check_rels(
         neo4j_session,
@@ -148,7 +153,7 @@ def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {(TEST_PROJECT_ID, POSTGRES_DEPLOYMENT_ID)}
+    ) == {(TEST_PROJECT_ID, POSTGRES_SNAPSHOT_ID)}
 
 
 def test_filesystem_snapshot_is_removed_without_an_exact_revision(neo4j_session):
@@ -161,7 +166,7 @@ def test_filesystem_snapshot_is_removed_without_an_exact_revision(neo4j_session)
         TEST_UPDATE_TAG,
     )
     assert check_nodes(neo4j_session, "FilesystemSnapshot", ["id"]) == {
-        (POSTGRES_DEPLOYMENT_ID,),
+        (POSTGRES_SNAPSHOT_ID,),
     }
 
     bundles = copy.deepcopy(BUNDLES)

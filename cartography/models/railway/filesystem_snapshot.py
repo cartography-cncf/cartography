@@ -16,7 +16,11 @@ from cartography.models.ontology.labels import FILESYSTEM_SNAPSHOT
 @dataclass(frozen=True)
 class RailwayFilesystemSnapshotNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="ID of the Railway deployment represented by this snapshot."
+        "id", description="Cartography ID for this Railway filesystem snapshot."
+    )
+    deployment_id: PropertyRef = PropertyRef(
+        "deployment_id",
+        description="ID of the Railway deployment represented by this snapshot.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     kind: PropertyRef = PropertyRef(
@@ -71,7 +75,7 @@ class RailwayFilesystemSnapshotToDeploymentRel(CartographyRelSchema):
 
     target_node_label: str = "RailwayDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"id": PropertyRef("deployment_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "SCANNED_AS"

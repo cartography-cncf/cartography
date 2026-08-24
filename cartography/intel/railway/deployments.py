@@ -82,7 +82,8 @@ def transform(
                 if source_revision and source.get("repo"):
                     project_snapshots.append(
                         {
-                            "id": deployment["id"],
+                            "id": f"railway:filesystem-snapshot:{deployment['id']}",
+                            "deployment_id": deployment["id"],
                             "kind": "source",
                             "source_revision": source_revision,
                             "source_repo": source["repo"],
