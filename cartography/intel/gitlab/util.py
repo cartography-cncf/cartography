@@ -125,11 +125,18 @@ def fetch_registry_manifest(
     reference: str,
     token: str,
     accept_header: str | None = None,
+    method: str = "GET",
 ) -> requests.Response:
     """
     Fetch a manifest from the registry with 401 retry handling.
 
     Returns the full response object so callers can access headers (e.g., Docker-Content-Digest).
+
+    Pass method="HEAD" to learn a reference's digest without transferring or
+    parsing the manifest body. The OCI distribution spec requires HEAD on
+    /v2/<name>/manifests/<reference> to answer with the same
+    Docker-Content-Digest header as GET, so callers can resolve a digest and
+    only spend a full GET when the body is actually needed.
     """
     jwt_token = get_registry_token(gitlab_url, registry_url, repository_name, token)
     url = f"{registry_url}/v2/{repository_name}/manifests/{reference}"
@@ -139,7 +146,7 @@ def fetch_registry_manifest(
         headers["Accept"] = accept_header
 
     response = make_request_with_retry(
-        "GET",
+        method,
         url,
         headers=headers,
         timeout=DEFAULT_TIMEOUT,
@@ -153,7 +160,7 @@ def fetch_registry_manifest(
         )
         headers["Authorization"] = f"Bearer {jwt_token}"
         response = make_request_with_retry(
-            "GET",
+            method,
             url,
             headers=headers,
             timeout=DEFAULT_TIMEOUT,
