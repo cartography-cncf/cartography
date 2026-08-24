@@ -73,6 +73,12 @@ test-specific expectations.
   current-data path, usually with at least two update tags.
 - For scoped cleanup or partial-failure behavior, test that successful scopes are
   cleaned up and incomplete scopes preserve prior data when that is the contract.
+- For concurrent fetches, prove that sequential and concurrent execution return
+  equivalent results and that the worker limit is enforced.
+- Test worker failures through the complete caller path. Verify that cleanup and
+  incremental checkpoints do not advance after incomplete input.
+- Use an integration test for concurrent behavior that can affect graph identity,
+  relationships, cleanup scope, or checkpoints.
 - For generated IDs or canonicalization, include cases that would collide or
   drift without the intended stable identity input.
 - For rule tests, keep `cypher_query`, `cypher_count_query`, and any visual query
