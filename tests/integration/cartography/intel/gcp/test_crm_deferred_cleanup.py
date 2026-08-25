@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
+import cartography.intel.gcp.crm.cleanup
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
@@ -1224,3 +1225,81 @@ def test_cleanup_still_deletes_stale_included_projects_when_exclusions_active(
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("project-in-folder",),
     }, "Stale project in the included scope must still be deleted"
+
+
+def test_stale_project_cascade_preserves_shared_children(neo4j_session):
+    """
+    A child node attached via RESOURCE to two projects must survive the
+    cascade deletion of one of them: the stale project is removed along with
+    its own edge, but the shared child (and its edge to the excluded,
+    preserved project) must remain.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Arrange: org with a folder-attached project (will go stale and be
+    # deleted) and an org-root project (excluded, must be preserved). A shared
+    # child node is attached to both projects via RESOURCE; a private child is
+    # attached only to the stale project.
+    cartography.intel.gcp.crm.orgs.load_gcp_organizations(
+        neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
+    )
+    cartography.intel.gcp.crm.folders.load_gcp_folders(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_FOLDERS,
+        TEST_UPDATE_TAG,
+        "organizations/1337",
+    )
+    cartography.intel.gcp.crm.projects.load_gcp_projects(
+        neo4j_session,
+        [FOLDER_PROJECT, ORG_ROOT_PROJECT],
+        TEST_UPDATE_TAG,
+        "organizations/1337",
+    )
+    neo4j_session.run(
+        """
+        MATCH (stale:GCPProject {id: $stale_project}), (kept:GCPProject {id: $kept_project})
+        MERGE (shared:GCPServiceAccount {id: 'shared-sa'})
+        SET shared.lastupdated = $old_tag
+        MERGE (stale)-[:RESOURCE {lastupdated: $old_tag}]->(shared)
+        MERGE (kept)-[:RESOURCE {lastupdated: $old_tag}]->(shared)
+        MERGE (private:GCPServiceAccount {id: 'private-sa'})
+        SET private.lastupdated = $old_tag
+        MERGE (stale)-[:RESOURCE {lastupdated: $old_tag}]->(private)
+        """,
+        stale_project=FOLDER_PROJECT["projectId"],
+        kept_project=ORG_ROOT_PROJECT["projectId"],
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: run the exclusion-aware cleanup with org-root projects excluded.
+    # Both projects are stale (tag V2 not synced), but the org-root project is
+    # preserved; the folder project is deleted with cascade.
+    cartography.intel.gcp.crm.cleanup.cleanup_gcp_projects_preserving_exclusions(
+        neo4j_session,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG_V2,
+            "ORG_RESOURCE_NAME": "organizations/1337",
+        },
+        set(),
+        True,
+    )
+
+    # Assert: stale project + its private child are gone; excluded project,
+    # the shared child, and its edge to the excluded project survive.
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
+        (ORG_ROOT_PROJECT["projectId"],),
+    }
+    assert check_nodes(neo4j_session, "GCPServiceAccount", ["id"]) == {
+        ("shared-sa",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (ORG_ROOT_PROJECT["projectId"], "shared-sa"),
+    }

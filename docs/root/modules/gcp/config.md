@@ -129,7 +129,7 @@ cartography --selected-modules gcp
 | `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
 | `--gcp-exclude-org-root-projects` / `--gcp-include-org-root-projects` | Include (default) or exclude projects attached directly to the organization root, i.e. not inside any folder |
 
-```{note}
+````{note}
 Exclusions are non-destructive. Cartography only runs cleanup after it has a
 complete inventory of a scope, and an excluded scope is never inventoried —
 so previously-ingested data under an excluded organization, folder subtree, or
@@ -142,7 +142,7 @@ OPTIONAL MATCH (o)-[:RESOURCE*]->(child)
 DETACH DELETE child
 DETACH DELETE o
 ```
-```
+````
 
 ## Troubleshooting
 

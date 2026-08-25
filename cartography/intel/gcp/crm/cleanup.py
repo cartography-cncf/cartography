@@ -4,12 +4,38 @@ from typing import Dict
 
 import neo4j
 
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Same batch size as GraphJob's default, matching Neo4j's recommendation for
+# large deletes.
+_ITERATION_SIZE = 10000
+
+
+def _run_iterative_cleanup(
+    neo4j_session: neo4j.Session,
+    query: str,
+    job_name: str,
+    sequence_num: int,
+    **params: Any,
+) -> None:
+    """
+    Run a cleanup write query in GraphJob-style iterative batches of
+    $LIMIT_SIZE until it makes no more updates, so large estates don't hit
+    Neo4j transaction memory or timeout limits with one unbounded delete.
+    """
+    GraphStatement(
+        query,
+        parameters=params,
+        iterative=True,
+        iterationsize=_ITERATION_SIZE,
+        parent_job_name=job_name,
+        parent_job_sequence_num=sequence_num,
+    ).run(neo4j_session)
 
 
 def _folder_resource_names(excluded_folder_ids: set[str]) -> list[str]:
@@ -67,10 +93,11 @@ def cleanup_gcp_projects_preserving_exclusions(
       this run), and
     - projects anywhere under an excluded folder subtree.
 
-    Mirrors GraphJob.from_node_schema(GCPProjectSchema(), ..., cascade_delete=True):
-    stale child resources attached via RESOURCE relationships are deleted along
-    with each stale project, and stale relationships of non-excluded projects
-    are removed. Excluded data is left completely untouched.
+    Mirrors GraphJob.from_node_schema(GCPProjectSchema(), ..., cascade_delete=True)
+    including its iterative batching: stale child resources attached via
+    RESOURCE are deleted along with each stale project, and stale
+    relationships of non-excluded projects are removed. Excluded data is left
+    completely untouched.
     """
     update_tag = common_job_parameters["UPDATE_TAG"]
     org_resource_name = common_job_parameters["ORG_RESOURCE_NAME"]
@@ -84,39 +111,49 @@ def cleanup_gcp_projects_preserving_exclusions(
     )
 
     # Stale node cleanup with cascade, in the same shape as the
-    # GraphJob-generated query: stale children attached via RESOURCE are
-    # deleted together with each stale project.
-    run_write_query(
+    # GraphJob-generated query. The cascade detaches the project's own
+    # RESOURCE edge first and deletes each stale child only when no other
+    # project still owns it, so a child shared with another project (e.g. an
+    # excluded, preserved one) is never ripped away.
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPProject)<-[:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
         WHERE n.lastupdated <> $UPDATE_TAG
         {preservation}
-        WITH n
+        WITH n LIMIT $LIMIT_SIZE
         CALL (n) {{
-            OPTIONAL MATCH (n)-[:RESOURCE]->(child)
-            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            OPTIONAL MATCH (n)-[r:RESOURCE]->(child)
+            WHERE child.lastupdated <> $UPDATE_TAG
+            DELETE r
+            WITH child
+            WHERE child IS NOT NULL AND NOT (:GCPProject)-[:RESOURCE]->(child)
             DETACH DELETE child
         }}
         DETACH DELETE n
         """,
+        "gcp_project_exclusion_aware_cleanup",
+        1,
         **params,
     )
 
     # Stale relationship cleanup, applying the same preservation predicate so
     # excluded projects keep their relationships while stale rels of projects
     # that were merely processed later (e.g. cross-org migration) are removed.
-    run_write_query(
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPProject)<-[s:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
         WHERE s.lastupdated <> $UPDATE_TAG
         {preservation}
+        WITH s LIMIT $LIMIT_SIZE
         DELETE s
         """,
+        "gcp_project_exclusion_aware_cleanup",
+        2,
         **params,
     )
-    run_write_query(
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPProject)<-[:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
@@ -124,8 +161,11 @@ def cleanup_gcp_projects_preserving_exclusions(
         MATCH (n)-[r:PARENT]->()
         WHERE r.lastupdated <> $UPDATE_TAG
         {preservation}
+        WITH r LIMIT $LIMIT_SIZE
         DELETE r
         """,
+        "gcp_project_exclusion_aware_cleanup",
+        3,
         **params,
     )
 
@@ -165,28 +205,34 @@ def cleanup_gcp_folders_preserving_exclusions(
 
     # Folders own no children via RESOURCE, so no cascade subquery is needed;
     # DETACH DELETE still removes their PARENT/RESOURCE relationships.
-    run_write_query(
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPFolder)<-[:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
         WHERE n.lastupdated <> $UPDATE_TAG
         {preservation}
+        WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n
         """,
+        "gcp_folder_exclusion_aware_cleanup",
+        1,
         **params,
     )
 
-    run_write_query(
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPFolder)<-[s:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
         WHERE s.lastupdated <> $UPDATE_TAG
         {preservation}
+        WITH s LIMIT $LIMIT_SIZE
         DELETE s
         """,
+        "gcp_folder_exclusion_aware_cleanup",
+        2,
         **params,
     )
-    run_write_query(
+    _run_iterative_cleanup(
         neo4j_session,
         f"""
         MATCH (n:GCPFolder)<-[:RESOURCE]-(:GCPOrganization{{id: $ORG_RESOURCE_NAME}})
@@ -194,7 +240,10 @@ def cleanup_gcp_folders_preserving_exclusions(
         MATCH (n)-[r:PARENT]->()
         WHERE r.lastupdated <> $UPDATE_TAG
         {preservation}
+        WITH r LIMIT $LIMIT_SIZE
         DELETE r
         """,
+        "gcp_folder_exclusion_aware_cleanup",
+        3,
         **params,
     )
