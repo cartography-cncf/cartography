@@ -78,6 +78,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "crowdstrike": _LazyStage(
             "cartography.intel.crowdstrike", "start_crowdstrike_ingestion"
         ),
+        "huntress": _LazyStage(
+            "cartography.intel.huntress", "start_huntress_ingestion"
+        ),
         "gcp": _LazyStage("cartography.intel.gcp", "start_gcp_ingestion"),
         "googleworkspace": _LazyStage(
             "cartography.intel.googleworkspace", "start_googleworkspace_ingestion"
