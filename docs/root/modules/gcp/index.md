@@ -3,7 +3,7 @@
 Cartography supports ingesting Google Cloud Platform resources, including:
 
 - **Cloud Resource Manager**: Organizations, Folders, Projects
-- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies
+- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels
 - **Storage**: Buckets
 - **DNS**: Zones, Record Sets
 - **IAM**: Service Accounts, Roles, Policy Bindings
@@ -14,6 +14,25 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 - **BigQuery**: Datasets, Tables, Routines, Connections
 - **Secret Manager**: Secrets, Secret Versions
 - **Cloud Run**: Services, Revisions, Jobs, Executions
+
+## VPC peerings and VPN tunnels
+
+VPC peerings are extracted from each network's `peerings` field (no extra API
+call) and modeled as `GCPVpcPeering` nodes linked to the local VPC via
+`LOCAL_NETWORK`. When the peer network belongs to a project that has not been
+synced, Cartography creates a `GCPVpc` stub node so the `PEER_NETWORK`
+relationship still resolves.
+
+VPN tunnels (`GCPVpnTunnel`) and VPN gateways (`GCPVpnGateway`) are fetched
+with the Compute aggregated list endpoints (one request chain per project,
+with partial success enabled; cleanup is skipped whenever any region scope
+returns an error). Gateways are synced before tunnels so that `USES_GATEWAY`
+relationships resolve in the same sync cycle; peer gateways outside the synced
+project are represented as stub nodes linked via `CONNECTS_TO_GATEWAY`.
+
+Stub nodes are reference-counted by their relationships, not by a sync scope:
+once no peering or tunnel references a stub (and no synced project owns it),
+it is removed automatically on the next sync.
 
 ## Cloud Asset Inventory behavior
 

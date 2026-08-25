@@ -49,6 +49,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Gitlab](../modules/gitlab/schema.md)
 - [Googleworkspace](../modules/googleworkspace/schema.md)
 - [Gsuite](../modules/gsuite/schema.md)
+- [Huntress](../modules/huntress/schema.md)
 - [Jamf](../modules/jamf/schema.md)
 - [Jumpcloud](../modules/jumpcloud/schema.md)
 - [Kandji](../modules/kandji/schema.md)

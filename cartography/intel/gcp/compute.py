@@ -11,6 +11,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
@@ -46,6 +47,11 @@ from cartography.models.gcp.compute.project import GCPProjectComputeMetadataSche
 from cartography.models.gcp.compute.subnet import GCPSubnetSchema
 from cartography.models.gcp.compute.subnet_stub import GCPSubnetStubSchema
 from cartography.models.gcp.compute.vpc import GCPVpcSchema
+from cartography.models.gcp.compute.vpc_peering import GCPVpcPeeringSchema
+from cartography.models.gcp.compute.vpc_stub import GCPVpcStubSchema
+from cartography.models.gcp.compute.vpn_gateway import GCPVpnGatewaySchema
+from cartography.models.gcp.compute.vpn_gateway_stub import GCPVpnGatewayStubSchema
+from cartography.models.gcp.compute.vpn_tunnel import GCPVpnTunnelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -146,13 +152,14 @@ def get_gcp_instance_responses(
 @timeit
 def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | None:
     """
-    Return list of all subnets in the given projectid and region.  If the API
-    call times out mid-pagination, return any subnets gathered so far rather than
-    bubbling the error up to the caller. Returns None if the region is invalid.
+    Return list of all subnets in the given projectid and region. Returns None
+    if the region is invalid or if the API call times out (to prevent partial
+    data from triggering cleanup that would delete valid nodes).
     :param projectid: The project ID
     :param region: The region to pull subnets from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
-    :return: Response object containing data on all GCP subnets for a given project, or None if region is invalid
+    :return: Response object containing data on all GCP subnets for a given project,
+        or None if region is invalid or the request times out
     """
     try:
         req = compute.subnetworks().list(project=projectid, region=region)
@@ -173,11 +180,11 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
             res = gcp_api_execute_with_retry(req)
         except TimeoutError:
             logger.warning(
-                "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
+                "GCP: subnetworks.list for project %s region %s timed out; skipping this region to preserve existing data.",
                 projectid,
                 region,
             )
-            break
+            return None
         except HttpError as e:
             if classify_gcp_http_error(e) == "invalid":
                 logger.warning(
@@ -205,6 +212,154 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
     """
     req = compute.networks().list(project=projectid)
     return gcp_api_execute_with_retry(req)
+
+
+def _is_skippable_vpn_list_error(e: HttpError) -> bool:
+    """
+    Return True if a vpnGateways/vpnTunnels list HttpError is an expected
+    access or configuration failure (invalid region, missing list permission,
+    API not enabled, billing disabled, or project not found) for which the
+    region should be skipped rather than aborting the whole project sync.
+    """
+    return classify_gcp_http_error(e) in (
+        "invalid",
+        "forbidden",
+        "api_disabled",
+        "billing_disabled",
+        "not_found",
+    )
+
+
+@timeit
+def get_gcp_vpn_gateways(projectid: str, compute: Resource) -> tuple[list[dict], bool]:
+    """
+    Return all HA VPN gateways in the given projectid across all regions using
+    the vpnGateways.aggregatedList endpoint (one request chain instead of one
+    per region) with partial success enabled.
+    :param projectid: The project ID
+    :param compute: The compute resource object created by googleapiclient.discovery.build()
+    :return: Tuple of (gateway items, incomplete). incomplete is True if the
+        request chain failed partway or any region scope returned an error, in
+        which case cleanup must be suppressed for the project.
+    """
+    return _get_gcp_vpn_aggregated(projectid, compute, "vpnGateways")
+
+
+@timeit
+def get_gcp_vpn_tunnels(projectid: str, compute: Resource) -> tuple[list[dict], bool]:
+    """
+    Return all VPN tunnels in the given projectid across all regions using the
+    vpnTunnels.aggregatedList endpoint (one request chain instead of one per
+    region) with partial success enabled.
+    :param projectid: The project ID
+    :param compute: The compute resource object created by googleapiclient.discovery.build()
+    :return: Tuple of (tunnel items, incomplete). incomplete is True if the
+        request chain failed partway or any region scope returned an error, in
+        which case cleanup must be suppressed for the project.
+    """
+    return _get_gcp_vpn_aggregated(projectid, compute, "vpnTunnels")
+
+
+def _get_gcp_vpn_aggregated(
+    projectid: str,
+    compute: Resource,
+    resource: str,
+) -> tuple[list[dict], bool]:
+    """
+    Fetch all VPN resources of the given type ("vpnGateways" or "vpnTunnels")
+    for a project via the Compute aggregatedList endpoint with
+    returnPartialSuccess=True: a single paginated request chain covers all
+    regions, and a region that fails (e.g. transient location error) reports a
+    per-scope `error` entry in the response instead of failing the whole call.
+
+    Expected access/configuration failures of the whole call (missing list
+    permission, API not enabled, billing disabled, project not found) return
+    ([], True) so that other Compute resources still sync and cleanup is
+    safely suppressed for the project.
+
+    :param projectid: The project ID
+    :param compute: The compute resource object
+    :param resource: "vpnGateways" or "vpnTunnels"
+    :return: Tuple of (items across all regions, incomplete)
+    """
+    api = getattr(compute, resource)()
+    try:
+        req = api.aggregatedList(project=projectid, returnPartialSuccess=True)
+    except HttpError as e:
+        if _is_skippable_vpn_list_error(e):
+            logger.warning(
+                "GCP: %s.aggregatedList failed for project %s; skipping this resource type for the project. %s",
+                resource,
+                projectid,
+                summarize_gcp_http_error(e),
+            )
+            return [], True
+        raise
+
+    items: list[dict] = []
+    incomplete = False
+    while req is not None:
+        try:
+            res = gcp_api_execute_with_retry(req)
+        except TimeoutError:
+            logger.warning(
+                "GCP: %s.aggregatedList for project %s timed out; keeping partial data and suppressing cleanup.",
+                resource,
+                projectid,
+            )
+            incomplete = True
+            break
+        except HttpError as e:
+            if _is_skippable_vpn_list_error(e):
+                logger.warning(
+                    "GCP: %s.aggregatedList failed for project %s; keeping partial data and suppressing cleanup. %s",
+                    resource,
+                    projectid,
+                    summarize_gcp_http_error(e),
+                )
+                incomplete = True
+                break
+            raise
+        # Aggregated responses key items by scope ("regions/{region}"). A scope
+        # is incomplete if it carries an `error` entry, or a `warning` with any
+        # code other than the benign NO_RESULTS_ON_PAGE (e.g. UNREACHABLE means
+        # the region could not be queried, so its data is missing).
+        for scope, scope_data in res.get("items", {}).items():
+            warning_code = (scope_data.get("warning") or {}).get("code")
+            if scope_data.get("error") or (
+                warning_code and warning_code != "NO_RESULTS_ON_PAGE"
+            ):
+                incomplete = True
+                logger.warning(
+                    "GCP: %s.aggregatedList for project %s reported a problem for scope %s (warning: %s); suppressing cleanup for the project.",
+                    resource,
+                    projectid,
+                    scope,
+                    warning_code or scope_data.get("error"),
+                )
+            items.extend(scope_data.get(resource, []))
+        # Missing data can also be reported at the page level, outside items:
+        # a non-empty `unreachables` list, or a top-level `warning` whose code
+        # is not the benign NO_RESULTS_ON_PAGE (e.g. UNREACHABLE).
+        if res.get("unreachables"):
+            incomplete = True
+            logger.warning(
+                "GCP: %s.aggregatedList for project %s reported unreachable scopes %s; suppressing cleanup for the project.",
+                resource,
+                projectid,
+                res["unreachables"],
+            )
+        page_warning_code = (res.get("warning") or {}).get("code")
+        if page_warning_code and page_warning_code != "NO_RESULTS_ON_PAGE":
+            incomplete = True
+            logger.warning(
+                "GCP: %s.aggregatedList for project %s returned warning %s; suppressing cleanup for the project.",
+                resource,
+                projectid,
+                page_warning_code,
+            )
+        req = api.aggregatedList_next(previous_request=req, previous_response=res)
+    return items, incomplete
 
 
 @timeit
@@ -409,6 +564,132 @@ def transform_gcp_vpcs(vpc_res: dict) -> list[dict]:
 
         vpc_list.append(vpc)
     return vpc_list
+
+
+@timeit
+def transform_gcp_vpc_peerings(vpc_res: dict) -> list[dict]:
+    """
+    Extract VPC Network Peering connections from the networks.list response and
+    transform them for Neo4j ingestion. Peerings are embedded in each network's
+    `peerings` field, so no extra API call is needed. Each side of a peering is
+    reported by its own project's networks.list response, so this yields one
+    peering object per (local network, peering name) pair.
+    :param vpc_res: The return data from get_gcp_vpcs()
+    :return: List of VPC peerings ready for ingestion to Neo4j
+    """
+    # prefix has the form `projects/{project ID}/global/networks`
+    prefix = vpc_res["id"]
+    peering_list = []
+    for v in vpc_res.get("items", []):
+        network_partial_uri = f"{prefix}/{v['name']}"
+        for p in v.get("peerings", []):
+            peering: dict[str, Any] = {
+                # The API exposes no resource URI for peerings, so construct a
+                # stable ID from the local network and the peering name.
+                "id": f"{network_partial_uri}/networkPeerings/{p['name']}",
+                "name": p["name"],
+                "network_partial_uri": network_partial_uri,
+                "state": p.get("state"),
+                "state_details": p.get("stateDetails"),
+                "peer_mtu": p.get("peerMtu"),
+                "stack_type": p.get("stackType"),
+                "update_strategy": p.get("updateStrategy"),
+                "auto_create_routes": p.get("autoCreateRoutes"),
+                "exchange_subnet_routes": p.get("exchangeSubnetRoutes"),
+                "import_custom_routes": p.get("importCustomRoutes"),
+                "export_custom_routes": p.get("exportCustomRoutes"),
+                "import_subnet_routes_with_public_ip": p.get(
+                    "importSubnetRoutesWithPublicIp"
+                ),
+                "export_subnet_routes_with_public_ip": p.get(
+                    "exportSubnetRoutesWithPublicIp"
+                ),
+            }
+            peer_network = p.get("peerNetwork")
+            if peer_network:
+                peer_partial_uri = _parse_compute_full_uri_to_partial_uri(peer_network)
+                peering["peer_network_partial_uri"] = peer_partial_uri
+                # Partial URIs have the form `projects/{project}/global/networks/{name}`
+                peering["peer_project_id"] = peer_partial_uri.split("/")[1]
+            else:
+                peering["peer_network_partial_uri"] = None
+                peering["peer_project_id"] = None
+            peering_list.append(peering)
+    return peering_list
+
+
+@timeit
+def transform_gcp_vpn_gateways(gateways: list[dict], projectid: str) -> list[dict]:
+    """
+    Transform vpnGateways items (from the aggregatedList response) for Neo4j ingestion.
+    :param gateways: Raw vpnGateway items from get_gcp_vpn_gateways()
+    :param projectid: The project ID the gateways belong to
+    :return: List of VPN gateways ready for ingestion to Neo4j
+    """
+    gateway_list = []
+    for g in gateways:
+        gateway: dict[str, Any] = {
+            # selfLink has the form
+            # `https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/vpnGateways/{name}`
+            "partial_uri": _parse_compute_full_uri_to_partial_uri(g["selfLink"]),
+            "self_link": g["selfLink"],
+            "name": g["name"],
+            "project_id": projectid,
+            # Region looks like "https://www.googleapis.com/compute/v1/projects/{project}/regions/{region name}"
+            "region": g.get("region", "").split("/")[-1],
+            "description": g.get("description"),
+            "gateway_ip_version": g.get("gatewayIpVersion"),
+            "stack_type": g.get("stackType"),
+            "creation_timestamp": g.get("creationTimestamp"),
+        }
+        network = g.get("network")
+        gateway["network_partial_uri"] = (
+            _parse_compute_full_uri_to_partial_uri(network) if network else None
+        )
+        gateway_list.append(gateway)
+    return gateway_list
+
+
+@timeit
+def transform_gcp_vpn_tunnels(tunnels: list[dict], projectid: str) -> list[dict]:
+    """
+    Transform vpnTunnels items (from the aggregatedList response) for Neo4j ingestion.
+    NOTE: The API response contains `sharedSecret` and `sharedSecretHash` (the
+    IKE pre-shared key). We deliberately never copy these fields into the
+    transformed output so that VPN secrets are never written to Neo4j.
+    :param tunnels: Raw vpnTunnel items from get_gcp_vpn_tunnels()
+    :param projectid: The project ID the tunnels belong to
+    :return: List of VPN tunnels ready for ingestion to Neo4j
+    """
+    tunnel_list = []
+    for t in tunnels:
+        tunnel: dict[str, Any] = {
+            "partial_uri": _parse_compute_full_uri_to_partial_uri(t["selfLink"]),
+            "self_link": t["selfLink"],
+            "name": t["name"],
+            "project_id": projectid,
+            "region": t.get("region", "").split("/")[-1],
+            "description": t.get("description"),
+            "status": t.get("status"),
+            "detailed_status": t.get("detailedStatus"),
+            "peer_ip": t.get("peerIp"),
+            "ike_version": t.get("ikeVersion"),
+            "local_traffic_selector": t.get("localTrafficSelector"),
+            "remote_traffic_selector": t.get("remoteTrafficSelector"),
+            "creation_timestamp": t.get("creationTimestamp"),
+        }
+        for field, out_field in (
+            ("vpnGateway", "vpn_gateway_partial_uri"),
+            ("peerGcpGateway", "peer_gcp_gateway_partial_uri"),
+            ("targetVpnGateway", "target_vpn_gateway_partial_uri"),
+            ("router", "router_partial_uri"),
+        ):
+            full_uri = t.get(field)
+            tunnel[out_field] = (
+                _parse_compute_full_uri_to_partial_uri(full_uri) if full_uri else None
+            )
+        tunnel_list.append(tunnel)
+    return tunnel_list
 
 
 @timeit
@@ -918,6 +1199,174 @@ def load_gcp_vpcs(
     )
 
 
+def _get_vpc_stubs_from_peerings(peerings: list[dict]) -> list[dict]:
+    """
+    Extract unique peer VPC stubs from peering objects so that PEER_NETWORK
+    relationships can be established even if the peer VPC's project has not been
+    synced. Mirrors the subnet-stub pattern used by the instance sync.
+    :param peerings: List of transformed GCPVpcPeering objects
+    :return: List of VPC stub objects with partial_uri and project_id
+    """
+    seen_vpcs: set[str] = set()
+    vpc_stubs: list[dict] = []
+    for peering in peerings:
+        peer_uri = peering.get("peer_network_partial_uri")
+        if peer_uri and peer_uri not in seen_vpcs:
+            seen_vpcs.add(peer_uri)
+            vpc_stubs.append(
+                {
+                    "partial_uri": peer_uri,
+                    "project_id": peering["peer_project_id"],
+                }
+            )
+    return vpc_stubs
+
+
+def _create_vpc_stubs(
+    neo4j_session: neo4j.Session,
+    vpc_stubs: list[dict],
+    gcp_update_tag: int,
+) -> None:
+    """
+    Create GCPVpc stub nodes if they don't exist. If the peer project is synced
+    in the same run, the full VPC sync MERGEs on the same id and fills in all
+    properties and labels.
+    :param neo4j_session: The Neo4j session
+    :param vpc_stubs: List of VPC stub objects
+    :param gcp_update_tag: The timestamp
+    """
+    if not vpc_stubs:
+        return
+    load(
+        neo4j_session,
+        GCPVpcStubSchema(),
+        vpc_stubs,
+        lastupdated=gcp_update_tag,
+    )
+
+
+@timeit
+def load_gcp_vpc_peerings(
+    neo4j_session: neo4j.Session,
+    peerings: list[dict],
+    gcp_update_tag: int,
+    project_id: str,
+) -> None:
+    """
+    Ingest GCP VPC peering data to Neo4j
+    :param neo4j_session: The Neo4j session
+    :param peerings: List of the VPC peerings
+    :param gcp_update_tag: The timestamp to set these Neo4j nodes with
+    :param project_id: The project ID
+    :return: Nothing
+    """
+    if not peerings:
+        return
+    load(
+        neo4j_session,
+        GCPVpcPeeringSchema(),
+        peerings,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+def _get_vpn_gateway_stubs_from_tunnels(tunnels: list[dict]) -> list[dict]:
+    """
+    Extract unique peer VPN gateway stubs from tunnel objects so that
+    CONNECTS_TO_GATEWAY relationships can be established even if the peer
+    gateway's project has not been synced.
+    :param tunnels: List of transformed GCPVpnTunnel objects
+    :return: List of VPN gateway stub objects with partial_uri and project_id
+    """
+    seen_gateways: set[str] = set()
+    gateway_stubs: list[dict] = []
+    for tunnel in tunnels:
+        peer_uri = tunnel.get("peer_gcp_gateway_partial_uri")
+        if peer_uri and peer_uri not in seen_gateways:
+            seen_gateways.add(peer_uri)
+            gateway_stubs.append(
+                {
+                    "partial_uri": peer_uri,
+                    # Partial URIs have the form
+                    # `projects/{project}/regions/{region}/vpnGateways/{name}`
+                    "project_id": peer_uri.split("/")[1],
+                }
+            )
+    return gateway_stubs
+
+
+def _create_vpn_gateway_stubs(
+    neo4j_session: neo4j.Session,
+    gateway_stubs: list[dict],
+    gcp_update_tag: int,
+) -> None:
+    """
+    Create GCPVpnGateway stub nodes if they don't exist. If the peer project is
+    synced in the same run, the full gateway sync MERGEs on the same id and
+    fills in all properties.
+    :param neo4j_session: The Neo4j session
+    :param gateway_stubs: List of VPN gateway stub objects
+    :param gcp_update_tag: The timestamp
+    """
+    if not gateway_stubs:
+        return
+    load(
+        neo4j_session,
+        GCPVpnGatewayStubSchema(),
+        gateway_stubs,
+        lastupdated=gcp_update_tag,
+    )
+
+
+@timeit
+def load_gcp_vpn_gateways(
+    neo4j_session: neo4j.Session,
+    gateways: list[dict],
+    gcp_update_tag: int,
+    project_id: str,
+) -> None:
+    """
+    Ingest GCP HA VPN gateway data to Neo4j
+    :param neo4j_session: The Neo4j session
+    :param gateways: List of the VPN gateways
+    :param gcp_update_tag: The timestamp to set these Neo4j nodes with
+    :param project_id: The project ID
+    :return: Nothing
+    """
+    load(
+        neo4j_session,
+        GCPVpnGatewaySchema(),
+        gateways,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def load_gcp_vpn_tunnels(
+    neo4j_session: neo4j.Session,
+    tunnels: list[dict],
+    gcp_update_tag: int,
+    project_id: str,
+) -> None:
+    """
+    Ingest GCP VPN tunnel data to Neo4j
+    :param neo4j_session: The Neo4j session
+    :param tunnels: List of the VPN tunnels
+    :param gcp_update_tag: The timestamp to set these Neo4j nodes with
+    :param project_id: The project ID
+    :return: Nothing
+    """
+    load(
+        neo4j_session,
+        GCPVpnTunnelSchema(),
+        tunnels,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
 @timeit
 def load_gcp_subnets(
     neo4j_session: neo4j.Session,
@@ -1212,6 +1661,57 @@ def cleanup_gcp_vpcs(neo4j_session: neo4j.Session, common_job_parameters: dict) 
 
 
 @timeit
+def cleanup_gcp_vpc_peerings(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Delete out-of-date GCP VPC peering nodes and relationships
+    :param neo4j_session: The Neo4j session
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(
+        GCPVpcPeeringSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_gcp_vpn_gateways(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Delete out-of-date GCP VPN gateway nodes and relationships
+    :param neo4j_session: The Neo4j session
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(
+        GCPVpnGatewaySchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_gcp_vpn_tunnels(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Delete out-of-date GCP VPN tunnel nodes and relationships
+    :param neo4j_session: The Neo4j session
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(
+        GCPVpnTunnelSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+
+
+@timeit
 def cleanup_gcp_subnets(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict,
@@ -1224,6 +1724,52 @@ def cleanup_gcp_subnets(
     """
     GraphJob.from_node_schema(GCPSubnetSchema(), common_job_parameters).run(
         neo4j_session
+    )
+
+
+@timeit
+def cleanup_orphan_gcp_vpc_stubs(neo4j_session: neo4j.Session) -> None:
+    """
+    Delete GCPVpc stub nodes that are no longer referenced by anything.
+
+    Stubs are created for peering peer networks whose project is not synced, so
+    they have no owning `(:GCPProject)-[:RESOURCE]->` edge and are invisible to
+    project-scoped cleanup. Once the last peering referencing a stub disappears
+    (or the stub never belonged to a synced project), it would otherwise stay
+    in the graph forever. Real VPCs always carry a RESOURCE edge from their
+    project and are never matched.
+    """
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (v:GCPVpc)
+        WHERE NOT (:GCPProject)-[:RESOURCE]->(v)
+        AND NOT (:GCPVpcPeering)-[:PEER_NETWORK]->(v)
+        DETACH DELETE v
+        """,
+    )
+
+
+@timeit
+def cleanup_orphan_gcp_vpn_gateway_stubs(neo4j_session: neo4j.Session) -> None:
+    """
+    Delete GCPVpnGateway stub nodes that are no longer referenced by anything.
+
+    Stubs are created for tunnel peer gateways whose project is not synced, so
+    they have no owning `(:GCPProject)-[:RESOURCE]->` edge and are invisible to
+    project-scoped cleanup. Once the last tunnel referencing a stub disappears,
+    it would otherwise stay in the graph forever. Real gateways always carry a
+    RESOURCE edge from their project and are never matched.
+    """
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (g:GCPVpnGateway)
+        WHERE NOT (:GCPProject)-[:RESOURCE]->(g)
+        AND NOT (:GCPVpnTunnel)-[:CONNECTS_TO_GATEWAY]->(g)
+        AND NOT (:GCPVpnTunnel)-[:USES_GATEWAY]->(g)
+        DETACH DELETE g
+        """,
     )
 
 
@@ -1351,7 +1897,126 @@ def sync_gcp_vpcs(
     vpc_res = get_gcp_vpcs(project_id, compute)
     vpcs = transform_gcp_vpcs(vpc_res)
     load_gcp_vpcs(neo4j_session, vpcs, gcp_update_tag, project_id)
+    sync_gcp_vpc_peerings(
+        neo4j_session,
+        vpc_res,
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gcp_vpcs(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_gcp_vpc_peerings(
+    neo4j_session: neo4j.Session,
+    vpc_res: dict,
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Extract VPC Network Peerings from the networks.list response, ingest to
+    Neo4j, and clean up old data. Peerings are embedded in the VPC response, so
+    this reuses the data already fetched by get_gcp_vpcs(). Creates stub GCPVpc
+    nodes for peer networks whose projects have not been synced.
+    :param neo4j_session: The Neo4j session
+    :param vpc_res: The return data from get_gcp_vpcs()
+    :param project_id: The project ID to sync
+    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    peerings = transform_gcp_vpc_peerings(vpc_res)
+    # Create peer VPC stubs first so that PEER_NETWORK relationships resolve
+    # even when the peer project is not synced.
+    _create_vpc_stubs(
+        neo4j_session,
+        _get_vpc_stubs_from_peerings(peerings),
+        gcp_update_tag,
+    )
+    load_gcp_vpc_peerings(neo4j_session, peerings, gcp_update_tag, project_id)
+    cleanup_gcp_vpc_peerings(neo4j_session, common_job_parameters)
+    # Remove stub VPCs left behind by peerings that no longer exist. Runs after
+    # peering cleanup so stale peerings release their references first.
+    cleanup_orphan_gcp_vpc_stubs(neo4j_session)
+
+
+@timeit
+def sync_gcp_vpn_gateways(
+    neo4j_session: neo4j.Session,
+    compute: Resource,
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Sync GCP HA VPN gateways across all regions via one aggregatedList call
+    chain, ingest to Neo4j, and clean up old data.
+    Must run after sync_gcp_vpcs so PART_OF_VPC relationships resolve in the same cycle.
+    :param neo4j_session: The Neo4j session
+    :param compute: The GCP Compute resource object
+    :param project_id: The project ID to sync
+    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    gateway_items, incomplete = get_gcp_vpn_gateways(project_id, compute)
+    gateways = transform_gcp_vpn_gateways(gateway_items, project_id)
+    load_gcp_vpn_gateways(neo4j_session, gateways, gcp_update_tag, project_id)
+    if incomplete:
+        logger.warning(
+            "Skipping VPN gateway cleanup for project %s because the aggregated "
+            "list returned incomplete data. Existing gateway data will be preserved.",
+            project_id,
+        )
+    else:
+        cleanup_gcp_vpn_gateways(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_gcp_vpn_tunnels(
+    neo4j_session: neo4j.Session,
+    compute: Resource,
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Sync GCP VPN tunnels across all regions via one aggregatedList call chain,
+    ingest to Neo4j, and clean up old data.
+    Must run after sync_gcp_vpn_gateways so USES_GATEWAY relationships resolve in
+    the same cycle. Creates stub GCPVpnGateway nodes for peer gateways whose
+    projects have not been synced.
+    :param neo4j_session: The Neo4j session
+    :param compute: The GCP Compute resource object
+    :param project_id: The project ID to sync
+    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
+    :param common_job_parameters: dict of other job parameters to pass to Neo4j
+    :return: Nothing
+    """
+    tunnel_items, incomplete = get_gcp_vpn_tunnels(project_id, compute)
+    tunnels = transform_gcp_vpn_tunnels(tunnel_items, project_id)
+    # Create peer gateway stubs first so that CONNECTS_TO_GATEWAY
+    # relationships resolve even when the peer project is not synced.
+    _create_vpn_gateway_stubs(
+        neo4j_session,
+        _get_vpn_gateway_stubs_from_tunnels(tunnels),
+        gcp_update_tag,
+    )
+    load_gcp_vpn_tunnels(neo4j_session, tunnels, gcp_update_tag, project_id)
+    if incomplete:
+        logger.warning(
+            "Skipping VPN tunnel cleanup for project %s because the aggregated "
+            "list returned incomplete data. Existing tunnel data will be preserved.",
+            project_id,
+        )
+    else:
+        cleanup_gcp_vpn_tunnels(neo4j_session, common_job_parameters)
+    # Remove stub gateways left behind by tunnels that no longer exist. Safe
+    # even when cleanup was suppressed: stale tunnels still reference their
+    # stubs, so only truly unreferenced stubs are deleted.
+    cleanup_orphan_gcp_vpn_gateway_stubs(neo4j_session)
 
 
 @timeit
@@ -1363,14 +2028,23 @@ def sync_gcp_subnets(
     gcp_update_tag: int,
     common_job_parameters: dict,
 ) -> None:
+    incomplete = False
     for r in regions:
         subnet_res = get_gcp_subnets(project_id, r, compute)
         if subnet_res is None:
-            # Invalid region, skip this one
+            # Invalid region or timeout, skip this one
+            incomplete = True
             continue
         subnets = transform_gcp_subnets(subnet_res)
         load_gcp_subnets(neo4j_session, subnets, gcp_update_tag, project_id)
-    cleanup_gcp_subnets(neo4j_session, common_job_parameters)
+    if incomplete:
+        logger.warning(
+            "Skipping subnet cleanup for project %s because one or more regions "
+            "returned incomplete data. Existing subnet data will be preserved.",
+            project_id,
+        )
+    else:
+        cleanup_gcp_subnets(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1517,6 +2191,22 @@ def sync(
             compute,
             project_id,
             regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        # VPN gateways must exist before tunnels so USES_GATEWAY rels resolve
+        # in the same sync cycle; both need VPCs already loaded (PART_OF_VPC).
+        sync_gcp_vpn_gateways(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_vpn_tunnels(
+            neo4j_session,
+            compute,
+            project_id,
             gcp_update_tag,
             common_job_parameters,
         )
