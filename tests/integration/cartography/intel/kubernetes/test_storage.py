@@ -1,3 +1,4 @@
+from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
@@ -124,6 +125,15 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
         "name",
         "CONTAINS",
     ) == {(NAMESPACE, CLAIM_NAME)}
+
+
+def test_transform_persistent_volume_claim_without_requests():
+    claim = deepcopy(RAW_PERSISTENT_VOLUME_CLAIMS[0])
+    claim.spec.resources.requests = None
+
+    result = storage_module.transform_persistent_volume_claims([claim], CLUSTER_NAME)
+
+    assert result[0]["requested_storage"] is None
 
 
 def test_pod_mounts_persistent_volume_claim(

@@ -107,7 +107,7 @@ def transform_persistent_volume_claims(
         namespace = claim.metadata.namespace
         storage_class_name = spec.storage_class_name
         volume_name = spec.volume_name
-        requests = spec.resources.requests if spec.resources else {}
+        requests = (spec.resources.requests if spec.resources else None) or {}
         transformed.append(
             {
                 "id": f"{cluster_name}/{namespace}/{claim.metadata.name}",
