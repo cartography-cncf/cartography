@@ -506,18 +506,9 @@ def _get_image_scan_results(
 def transform_ecr_scan_findings(raw_findings: List[Dict]) -> List[Dict]:
     findings = []
     for find in raw_findings:
-        repo_uri = find.get("_repo_uri")
-        image_digest = find.get("_image_digest")
-        cve_id = find.get("name")
-        if not repo_uri or not image_digest or not cve_id:
-            logger.warning(
-                "Scan finding missing required field(s), skipping. "
-                "repo_uri=%s image_digest=%s name=%s",
-                repo_uri,
-                image_digest,
-                cve_id,
-            )
-            continue
+        repo_uri = find["_repo_uri"]
+        image_digest = find["_image_digest"]
+        cve_id = find["name"]
         attrs = {a["key"]: a["value"] for a in find.get("attributes", [])}
 
         cvss_score = None
