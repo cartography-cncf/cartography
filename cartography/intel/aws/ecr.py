@@ -528,6 +528,12 @@ def transform_ecr_scan_findings(raw_findings: List[Dict]) -> List[Dict]:
                     cvss_score = float(val)
                     break
                 except (ValueError, TypeError):
+                    logger.warning(
+                        "Malformed %s value '%s' for finding %s; trying next score.",
+                        key,
+                        val,
+                        cve_id,
+                    )
                     continue
 
         findings.append(
