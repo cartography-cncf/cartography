@@ -39,6 +39,7 @@ Grant these roles to the Cartography identity at the organization level:
 | Role | Purpose |
 |------|---------|
 | `roles/iam.securityReviewer` | List and get IAM roles, service accounts, and Workload Identity Federation pools and providers |
+| `roles/compute.viewer` | List and get Compute Engine inventory, including instances, networking, SSL policies, and target proxies |
 | `roles/resourcemanager.organizationViewer` | List and get Google Cloud organizations |
 | `roles/resourcemanager.folderViewer` | List and get Google Cloud folders |
 

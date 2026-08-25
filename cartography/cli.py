@@ -81,6 +81,7 @@ PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
@@ -148,6 +149,7 @@ MODULE_PANELS = {
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
@@ -1976,6 +1978,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Zizmor Options
+            # =================================================================
+            zizmor_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--zizmor-source",
+                    help="Zizmor repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_ZIZMOR,
+                    hidden=PANEL_ZIZMOR not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ubuntu Security Options
             # =================================================================
             ubuntu_security_enabled: Annotated[
@@ -3667,6 +3681,7 @@ class CLI:
                 aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
+                zizmor_source=zizmor_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,
