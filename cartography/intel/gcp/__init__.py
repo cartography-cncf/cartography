@@ -55,8 +55,9 @@ from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.crm.cleanup import cleanup_gcp_folders_preserving_exclusions
+from cartography.intel.gcp.crm.cleanup import cleanup_gcp_projects_preserving_exclusions
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
-from cartography.intel.gcp.crm.orgs import cleanup_excluded_gcp_organizations
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
 from cartography.intel.gcp.util import classify_gcp_http_error
@@ -1013,12 +1014,28 @@ def start_gcp_ingestion(
         # between syncs - its resources would otherwise remain as orphans since resource
         # cleanup is scoped to PROJECT_ID and we only sync existing projects.
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
-        GraphJob.from_node_schema(
-            GCPProjectSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            GCPFolderSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
+        if config.gcp_excluded_folder_ids or config.gcp_exclude_org_root_projects:
+            # Exclusions mean some in-scope nodes were intentionally not synced
+            # this run; use exclusion-aware cleanup so they are preserved rather
+            # than deleted as stale.
+            cleanup_gcp_projects_preserving_exclusions(
+                neo4j_session,
+                common_job_parameters,
+                config.gcp_excluded_folder_ids,
+                config.gcp_exclude_org_root_projects,
+            )
+            cleanup_gcp_folders_preserving_exclusions(
+                neo4j_session,
+                common_job_parameters,
+                config.gcp_excluded_folder_ids,
+            )
+        else:
+            GraphJob.from_node_schema(
+                GCPProjectSchema(), common_job_parameters, cascade_delete=True
+            ).run(neo4j_session)
+            GraphJob.from_node_schema(
+                GCPFolderSchema(), common_job_parameters, cascade_delete=True
+            ).run(neo4j_session)
 
         # Save org cleanup job for later (with cascade_delete for defense in depth)
         org_cleanup_jobs.append(
@@ -1036,11 +1053,9 @@ def start_gcp_ingestion(
             neo4j_session
         )
 
-    # Excluded orgs never enter the org loop, so no cleanup job covers them.
-    # Prune them (and everything under them) explicitly: exclusion means the
-    # org should not be in the graph.
-    if config.gcp_excluded_org_ids:
-        cleanup_excluded_gcp_organizations(neo4j_session, config.gcp_excluded_org_ids)
+    # Note: excluded organizations are deliberately NOT pruned here. An
+    # exclusion means the org was never inventoried this run, so its existing
+    # data is preserved; callers that want deletion can remove it explicitly.
 
     if requested_syncs is None or "compute" in requested_syncs:
         run_analysis_job(

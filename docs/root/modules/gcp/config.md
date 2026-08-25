@@ -129,22 +129,19 @@ cartography --selected-modules gcp
 | `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
 | `--gcp-exclude-org-root-projects` / `--gcp-include-org-root-projects` | Include (default) or exclude projects attached directly to the organization root, i.e. not inside any folder |
 
-```{warning}
-Exclusions are destructive to already-ingested data. If you add an exclusion
-flag *after* resources were synced without it, the next sync removes the newly
-excluded data from Neo4j:
+```{note}
+Exclusions are non-destructive. Cartography only runs cleanup after it has a
+complete inventory of a scope, and an excluded scope is never inventoried —
+so previously-ingested data under an excluded organization, folder subtree, or
+the organization root is **preserved** (left stale in Neo4j), not deleted. If
+you want that data removed from the graph, delete it explicitly, e.g.:
 
-- `--gcp-excluded-org-ids`: the organization and all of its synced folders,
-  projects, and resources are deleted immediately during that sync.
-- `--gcp-excluded-folder-ids` and `--gcp-exclude-org-root-projects`: the
-  excluded folder subtrees and org-root projects are no longer listed, go
-  stale, and are deleted (with all of their synced resources) by the
-  org-scoped cleanup.
-
-This pruning only applies to explicitly excluded scopes. An organization that
-disappears for other reasons — for example temporary permission or access
-loss — is *not* deleted; its data is preserved so it can recover on a later
-sync.
+```cypher
+MATCH (o:GCPOrganization {id: 'organizations/123456789012'})
+OPTIONAL MATCH (o)-[:RESOURCE*]->(child)
+DETACH DELETE child
+DETACH DELETE o
+```
 ```
 
 ## Troubleshooting
