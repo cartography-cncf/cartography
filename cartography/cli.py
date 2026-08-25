@@ -858,7 +858,7 @@ class CLI:
             gcp_exclude_org_root_projects: Annotated[
                 bool,
                 typer.Option(
-                    "--gcp-exclude-org-root-projects/--gcp-include-org-root-projects",
+                    "--gcp-exclude-org-root-projects",
                     help=(
                         "If set, projects attached directly to the organization root "
                         "(not inside any folder) are excluded from ingestion. "

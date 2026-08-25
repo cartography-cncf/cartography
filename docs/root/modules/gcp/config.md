@@ -127,7 +127,7 @@ cartography --selected-modules gcp
 | `--gcp-permission-relationships-file` | Path to the GCP permission relationship mapping file |
 | `--gcp-excluded-org-ids` | Comma-separated GCP organization IDs to exclude from ingestion, e.g. `"123456789012,987654321098"` |
 | `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
-| `--gcp-exclude-org-root-projects` / `--gcp-include-org-root-projects` | Include (default) or exclude projects attached directly to the organization root, i.e. not inside any folder |
+| `--gcp-exclude-org-root-projects` | Exclude projects attached directly to the organization root, i.e. not inside any folder (default: included) |
 
 ````{note}
 Exclusions are non-destructive. Cartography only runs cleanup after it has a
