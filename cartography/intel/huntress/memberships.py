@@ -44,6 +44,22 @@ def get(
         raise
 
 
+def _scope_object(membership: dict[str, Any], key: str) -> dict[str, Any] | None:
+    """Return a membership's `account` or `organization` object, or None when unset.
+
+    A field that is present but not an object is rejected rather than read as "unset":
+    treating a malformed `organization` as absent would fall through to the account
+    branch and widen an organization grant into an account-wide role.
+    """
+    value = membership.get(key)
+    if value is None or isinstance(value, dict):
+        return value
+    raise ValueError(
+        f"Huntress returned membership {membership.get('id')!r} whose {key} scope is "
+        f"not an object: {value!r}",
+    )
+
+
 def _membership_scope(
     membership: dict[str, Any],
     account_id: int,
@@ -56,18 +72,19 @@ def _membership_scope(
     organization grant into an account-wide role, which reads in the graph as more access
     than the user actually has.
     """
-    account = membership.get("account")
-    organization = membership.get("organization")
+    account = _scope_object(membership, "account")
+    organization = _scope_object(membership, "organization")
 
-    if isinstance(organization, dict):
-        if isinstance(account, dict):
-            raise ValueError(
-                f"Huntress returned membership {membership.get('id')!r} scoped to both "
-                "an account and an organization",
-            )
+    if account is not None and organization is not None:
+        raise ValueError(
+            f"Huntress returned membership {membership.get('id')!r} scoped to both "
+            "an account and an organization",
+        )
+
+    if organization is not None:
         return "org", required_id(organization, "membership organization")
 
-    if not isinstance(account, dict):
+    if account is None:
         raise ValueError(
             f"Huntress returned membership {membership.get('id')!r} scoped to neither "
             "an account nor an organization",

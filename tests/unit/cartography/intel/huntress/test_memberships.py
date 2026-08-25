@@ -226,3 +226,41 @@ def test_transform_rejects_a_membership_from_another_account() -> None:
 
     with pytest.raises(ValueError, match="not the account being synced"):
         transform(memberships, TEST_ACCOUNT_ID)
+
+
+@pytest.mark.parametrize("malformed", [2001, "Springfield Elementary", [], 0, False])
+def test_transform_rejects_a_malformed_organization_alongside_an_account(malformed):
+    """Regression: a non-object `organization` used to fall through to the account branch.
+
+    That silently widened an organization grant into an account-wide role, which is the
+    same over-reporting of access the scope validation exists to prevent.
+    """
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "account": {"id": TEST_ACCOUNT_ID},
+            "organization": malformed,
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="organization scope is not an object"):
+        transform(memberships, TEST_ACCOUNT_ID)
+
+
+@pytest.mark.parametrize("malformed", [1000, "Springfield Nuclear", []])
+def test_transform_rejects_a_malformed_account_alongside_an_organization(malformed):
+    """The mirror case: a garbage `account` field is not silently tolerated either."""
+    memberships = [
+        {
+            "id": 1,
+            "permissions": "Admin",
+            "account": malformed,
+            "organization": {"id": 2001},
+            "user": {"id": 6001, "email": "homer@springfield.example.com"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="account scope is not an object"):
+        transform(memberships, TEST_ACCOUNT_ID)
