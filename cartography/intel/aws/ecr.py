@@ -3,6 +3,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import boto3
 import neo4j
@@ -199,13 +200,12 @@ def get_ecr_repository_images(
 
 
 @timeit
-@aws_handle_regions
 def get_ecr_scan_findings(
     boto3_session: boto3.session.Session,
     region: str,
     repository_name: str,
     image_id: str,
-) -> List[Dict[str, Any]]:
+) -> Optional[List[Dict[str, Any]]]:
     logger.debug(
         "Getting ECR scan findings for image '%s' in '%s' region.",
         image_id,
@@ -220,8 +220,15 @@ def get_ecr_scan_findings(
             repositoryName=repository_name,
             imageId={"imageDigest": image_id},
         ):
-            if page.get("imageScanStatus", {}).get("status") != "COMPLETE":
-                return []
+            scan_status = page.get("imageScanStatus", {}).get("status")
+            if scan_status != "COMPLETE":
+                logger.debug(
+                    "Scan for image '%s' in '%s' has status '%s'; skipping.",
+                    image_id,
+                    repository_name,
+                    scan_status,
+                )
+                return None
             findings.extend(page["imageScanFindings"]["findings"])
     except (
         client.exceptions.ScanNotFoundException,
@@ -394,7 +401,12 @@ def load_ecr_repository_images(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    *,
+    scan_complete: bool = True,
+) -> None:
     logger.debug("Running ECR cleanup job.")
     GraphJob.from_node_schema(ECRRepositorySchema(), common_job_parameters).run(
         neo4j_session
@@ -405,6 +417,11 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
         neo4j_session
     )
+    if not scan_complete:
+        logger.warning(
+            "Skipping AWSECRScanFinding cleanup because some image scans are incomplete."
+        )
+        return
     GraphJob.from_node_schema(AWSECRScanFindingSchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -443,8 +460,9 @@ def _get_image_scan_results(
     boto3_session: boto3.session.Session,
     region: str,
     image_data: Dict[str, Any],
-) -> List[Dict]:
+) -> tuple[List[Dict], bool]:
     raw_findings: List[Dict] = []
+    incomplete_digests: set[str] = set()
 
     async def async_get_findings(repo_uri: str, img: Dict[str, Any]) -> None:
         repo_name = img.get("repositoryName")
@@ -458,6 +476,9 @@ def _get_image_scan_results(
             repo_name,
             digest,
         )
+        if findings is None:
+            incomplete_digests.add(digest)
+            return
         raw_findings.extend(
             {**f, "_repo_uri": repo_uri, "_image_digest": digest} for f in findings
         )
@@ -479,7 +500,7 @@ def _get_image_scan_results(
         batch = tasks[i : i + REPO_BATCH_SIZE]
         to_synchronous(*[async_get_findings(repo_uri, img) for repo_uri, img in batch])
 
-    return raw_findings
+    return raw_findings, len(incomplete_digests) == 0
 
 
 def transform_ecr_scan_findings(raw_findings: List[Dict]) -> List[Dict]:
@@ -554,6 +575,7 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    scan_complete = True
     for region in regions:
         logger.info(
             "Syncing ECR for region '%s' in account '%s'.",
@@ -579,7 +601,10 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-        raw_findings = _get_image_scan_results(boto3_session, region, image_data)
+        raw_findings, region_scan_complete = _get_image_scan_results(
+            boto3_session, region, image_data
+        )
+        scan_complete = scan_complete and region_scan_complete
         findings = transform_ecr_scan_findings(raw_findings)
         load_ecr_scan_findings(
             neo4j_session,
@@ -588,4 +613,4 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters, scan_complete=scan_complete)
