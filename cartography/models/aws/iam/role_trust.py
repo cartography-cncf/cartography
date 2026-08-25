@@ -49,16 +49,19 @@ class AWSRoleTrustsPrincipalRelProperties(CartographyRelProperties):
     )
 
 
+# Modelled per (role, principal) pair rather than as a relationship on AWSRoleSchema: a
+# single role can trust several principals under different conditions, and only a per-pair
+# row can carry its own property values. A node-schema relationship matching many targets
+# at once compiles to a single `principal.arn IN $list` clause, so every edge drawn from a
+# given role would end up sharing one set of properties.
 @dataclass(frozen=True)
 class AWSRoleTrustsPrincipalMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal).
+    Represents the principals that an AWS role's trust policy permits to assume it, along
+    with any conditions attached to that permission.
 
-    This is a MatchLink rather than a relationship on AWSRoleSchema because a single role
-    can trust several principals under different conditions, and only a per-(role,
-    principal) row can carry per-edge properties. A node-schema relationship using a
-    one_to_many target matcher compiles to a single `principal.arn IN $list` clause, so
-    every edge from a given role would share one set of property values.
+    There is one relationship per role and principal, so a role that trusts the same
+    principal across several statements is represented once with the conditions combined.
     """
 
     # Source node (the role whose trust policy declares the trust)
