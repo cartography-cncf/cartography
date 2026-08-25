@@ -57,6 +57,7 @@ class AWSECRScanFindingNodeProperties(CartographyNodeProperties):
     )
     repository_uri: PropertyRef = PropertyRef(
         "repository_uri",
+        extra_index=True,
         description="URI of the ECR repository containing the scanned image.",
     )
     region: PropertyRef = PropertyRef(
