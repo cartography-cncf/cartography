@@ -66,9 +66,9 @@ def transform_persistent_volumes(
     for volume in volumes:
         spec = volume.spec
         status = volume.status
-        claim_ref = getattr(spec, "claim_ref", None)
-        csi = getattr(spec, "csi", None)
-        storage_class_name = getattr(spec, "storage_class_name", None)
+        claim_ref = spec.claim_ref
+        csi = spec.csi
+        storage_class_name = spec.storage_class_name
         transformed.append(
             {
                 "id": f"{cluster_name}/{volume.metadata.name}",
@@ -86,11 +86,11 @@ def transform_persistent_volumes(
                     else None
                 ),
                 "volume_mode": spec.volume_mode,
-                "phase": getattr(status, "phase", None),
-                "claim_namespace": getattr(claim_ref, "namespace", None),
-                "claim_name": getattr(claim_ref, "name", None),
-                "csi_driver": getattr(csi, "driver", None),
-                "csi_volume_handle": getattr(csi, "volume_handle", None),
+                "phase": status.phase if status else None,
+                "claim_namespace": claim_ref.namespace if claim_ref else None,
+                "claim_name": claim_ref.name if claim_ref else None,
+                "csi_driver": csi.driver if csi else None,
+                "csi_volume_handle": csi.volume_handle if csi else None,
                 "labels": json.dumps(volume.metadata.labels or {}, sort_keys=True),
             }
         )
@@ -107,7 +107,7 @@ def transform_persistent_volume_claims(
         namespace = claim.metadata.namespace
         storage_class_name = spec.storage_class_name
         volume_name = spec.volume_name
-        requests = getattr(spec.resources, "requests", None) or {}
+        requests = spec.resources.requests if spec.resources else {}
         transformed.append(
             {
                 "id": f"{cluster_name}/{namespace}/{claim.metadata.name}",
@@ -127,7 +127,7 @@ def transform_persistent_volume_claims(
                 "access_modes": sorted(spec.access_modes or []),
                 "requested_storage": requests.get("storage"),
                 "volume_mode": spec.volume_mode,
-                "phase": getattr(status, "phase", None),
+                "phase": status.phase if status else None,
                 "labels": json.dumps(claim.metadata.labels or {}, sort_keys=True),
             }
         )

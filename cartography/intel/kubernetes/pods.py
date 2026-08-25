@@ -307,8 +307,8 @@ def transform_pods(
             {
                 volume.persistent_volume_claim.claim_name
                 for volume in (pod.spec.volumes or [])
-                if getattr(volume, "persistent_volume_claim", None)
-                and getattr(volume.persistent_volume_claim, "claim_name", None)
+                if volume.persistent_volume_claim
+                and volume.persistent_volume_claim.claim_name
             }
         )
         transformed_pods.append(

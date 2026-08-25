@@ -40,9 +40,9 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
     for node in nodes:
         ni = node.status.node_info if node.status else None
         provider_id = getattr(getattr(node, "spec", None), "provider_id", None)
-        labels = getattr(node.metadata, "labels", None) or {}
-        capacity = getattr(node.status, "capacity", None) if node.status else None
-        allocatable = getattr(node.status, "allocatable", None) if node.status else None
+        labels = node.metadata.labels or {}
+        capacity = node.status.capacity if node.status else None
+        allocatable = node.status.allocatable if node.status else None
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
