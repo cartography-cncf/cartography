@@ -472,6 +472,21 @@ jumpcloud_mapping = OntologyMapping(
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
+
+# Tenable
+tenable_mapping = OntologyMapping(
+    module_name="tenable",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TenableTenant",
+            # The configured ID may be an arbitrary scope identifier, so it is not
+            # normalized as a tenant name or domain.
+            fields=[],
+        ),
+    ],
+)
+
+
 # WorkOS Tenant mapping
 workos_tenants_mapping = OntologyMapping(
     module_name="workos",
@@ -803,6 +818,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,
+    "tenable": tenable_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,

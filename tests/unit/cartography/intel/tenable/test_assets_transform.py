@@ -1,3 +1,5 @@
+import pytest
+
 from cartography.intel.tenable.assets import transform
 from cartography.intel.tenable.assets import transform_aws
 from cartography.intel.tenable.assets import transform_azure
@@ -19,8 +21,10 @@ from tests.data.tenable.assets import TAG_ID_1
 
 
 def test_transform_maps_all_fields():
+    # Act
     result = transform(ASSETS_DATA)
 
+    # Assert
     assert len(result) == 2
 
     asset1 = result[0]
@@ -59,25 +63,40 @@ def test_transform_maps_all_fields():
 
 
 def test_transform_fqdn_is_first_of_fqdns():
+    # Arrange
     raw = [
         {
             "id": "asset-x",
             "network": {"fqdns": ["first.example.com", "second.example.com"]},
         }
     ]
+
+    # Act
     result = transform(raw)
+
+    # Assert
     assert result[0]["fqdn"] == "first.example.com"
 
 
 def test_transform_fqdn_none_when_fqdns_empty():
+    # Arrange
     raw = [{"id": "asset-x", "network": {"fqdns": []}}]
+
+    # Act
     result = transform(raw)
+
+    # Assert
     assert result[0]["fqdn"] is None
 
 
 def test_transform_list_fields_default_to_empty_list():
+    # Arrange
     raw = [{"id": "asset-x"}]
+
+    # Act
     result = transform(raw)
+
+    # Assert
     asset = result[0]
     assert asset["types"] == []
     assert asset["system_types"] == []
@@ -90,8 +109,13 @@ def test_transform_list_fields_default_to_empty_list():
 
 
 def test_transform_optional_scalars_default_to_none():
+    # Arrange
     raw = [{"id": "asset-x"}]
+
+    # Act
     result = transform(raw)
+
+    # Assert
     asset = result[0]
     assert asset["has_agent"] is None
     assert asset["serial_number"] is None
@@ -104,6 +128,7 @@ def test_transform_optional_scalars_default_to_none():
 
 
 def test_transform_empty_input():
+    # Act and assert
     assert transform([]) == []
 
 
@@ -113,35 +138,49 @@ def test_transform_empty_input():
 
 
 def test_transform_networks_basic():
+    # Act
     result = transform_networks(ASSETS_DATA)
-    # Both assets share NETWORK_ID — only one network node produced
+
+    # Assert
+    # Both assets share NETWORK_ID, so only one network node is produced.
     assert len(result) == 1
     assert result[0] == {"id": NETWORK_ID, "name": "Default"}
 
 
 def test_transform_networks_deduplicates():
+    # Arrange
     raw = [
         {"id": "a1", "network": {"network_id": "net-1", "network_name": "Net1"}},
         {"id": "a2", "network": {"network_id": "net-1", "network_name": "Net1"}},
         {"id": "a3", "network": {"network_id": "net-2", "network_name": "Net2"}},
     ]
+
+    # Act
     result = transform_networks(raw)
+
+    # Assert
     ids = [r["id"] for r in result]
     assert ids == ["net-1", "net-2"]
 
 
 def test_transform_networks_skips_missing_network_id():
+    # Arrange
     raw = [
         {"id": "a1", "network": {}},
         {"id": "a2"},
         {"id": "a3", "network": {"network_id": "net-1", "network_name": "N"}},
     ]
+
+    # Act
     result = transform_networks(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == "net-1"
 
 
 def test_transform_networks_empty_input():
+    # Act and assert
     assert transform_networks([]) == []
 
 
@@ -151,7 +190,10 @@ def test_transform_networks_empty_input():
 
 
 def test_transform_sources_basic():
+    # Act
     result = transform_sources(ASSETS_DATA)
+
+    # Assert
     # ASSET_ID_1 has one source, ASSET_ID_2 has one source
     assert len(result) == 2
 
@@ -167,11 +209,28 @@ def test_transform_sources_basic():
 
 
 def test_transform_sources_no_sources():
+    # Arrange
     raw = [{"id": "asset-x"}]
+
+    # Act and assert
     assert transform_sources(raw) == []
 
 
+def test_transform_sources_rejects_missing_name():
+    # Act and assert
+    with pytest.raises(KeyError):
+        transform_sources([{"id": "asset-x", "sources": [{}]}])
+
+
+@pytest.mark.parametrize("name", [None, ""])
+def test_transform_sources_rejects_null_or_empty_name(name):
+    # Act and assert
+    with pytest.raises(ValueError, match="requires a non-empty name"):
+        transform_sources([{"id": "asset-x", "sources": [{"name": name}]}])
+
+
 def test_transform_sources_multiple_per_asset():
+    # Arrange
     raw = [
         {
             "id": "asset-x",
@@ -189,7 +248,11 @@ def test_transform_sources_multiple_per_asset():
             ],
         }
     ]
+
+    # Act
     result = transform_sources(raw)
+
+    # Assert
     assert len(result) == 2
     ids = {r["id"] for r in result}
     assert ids == {"asset-x::SRC_A", "asset-x::SRC_B"}
@@ -201,7 +264,10 @@ def test_transform_sources_multiple_per_asset():
 
 
 def test_transform_tags_basic():
+    # Act
     result = transform_tags(ASSETS_DATA)
+
+    # Assert
     # Only ASSET_ID_1 has a tag
     assert len(result) == 1
     tag = result[0]
@@ -214,11 +280,15 @@ def test_transform_tags_basic():
 
 
 def test_transform_tags_no_tags():
+    # Arrange
     raw = [{"id": "asset-x", "tags": []}]
+
+    # Act and assert
     assert transform_tags(raw) == []
 
 
 def test_transform_tags_multiple_per_asset():
+    # Arrange
     raw = [
         {
             "id": "asset-x",
@@ -240,7 +310,11 @@ def test_transform_tags_multiple_per_asset():
             ],
         }
     ]
+
+    # Act
     result = transform_tags(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {"t1", "t2"}
     assert all(r["asset_id"] == "asset-x" for r in result)
@@ -252,7 +326,10 @@ def test_transform_tags_multiple_per_asset():
 
 
 def test_transform_aws_basic():
+    # Act
     result = transform_aws(ASSETS_DATA)
+
+    # Assert
     assert len(result) == 1
     aws = result[0]
     assert aws["id"] == AWS_EC2_INSTANCE_ID_1
@@ -269,6 +346,7 @@ def test_transform_aws_basic():
 
 
 def test_transform_aws_deduplicates():
+    # Arrange
     raw = [
         {
             "id": "a1",
@@ -283,23 +361,33 @@ def test_transform_aws_deduplicates():
             "cloud": {"aws": {"ec2_instance_id": "i-222", "region": "us-west-2"}},
         },
     ]
+
+    # Act
     result = transform_aws(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {"i-111", "i-222"}
 
 
 def test_transform_aws_skips_missing_instance_id():
+    # Arrange
     raw = [
         {"id": "a1", "cloud": {"aws": {}}},
         {"id": "a2"},
         {"id": "a3", "cloud": {"aws": {"ec2_instance_id": "i-999"}}},
     ]
+
+    # Act
     result = transform_aws(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == "i-999"
 
 
 def test_transform_aws_empty_input():
+    # Act and assert
     assert transform_aws([]) == []
 
 
@@ -309,7 +397,10 @@ def test_transform_aws_empty_input():
 
 
 def test_transform_azure_basic():
+    # Act
     result = transform_azure(ASSETS_DATA)
+
+    # Assert
     assert len(result) == 1
     az = result[0]
     assert az["id"] == AZURE_VM_ID_2
@@ -320,27 +411,38 @@ def test_transform_azure_basic():
 
 
 def test_transform_azure_deduplicates():
+    # Arrange
     raw = [
         {"id": "a1", "cloud": {"azure": {"vm_id": "vm-aaa", "resource_id": "/res/1"}}},
         {"id": "a2", "cloud": {"azure": {"vm_id": "vm-aaa", "resource_id": "/res/1"}}},
         {"id": "a3", "cloud": {"azure": {"vm_id": "vm-bbb", "resource_id": "/res/2"}}},
     ]
+
+    # Act
     result = transform_azure(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {"vm-aaa", "vm-bbb"}
 
 
 def test_transform_azure_skips_missing_vm_id():
+    # Arrange
     raw = [
         {"id": "a1", "cloud": {"azure": {}}},
         {"id": "a2", "cloud": {"azure": {"vm_id": "vm-xyz"}}},
     ]
+
+    # Act
     result = transform_azure(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == "vm-xyz"
 
 
 def test_transform_azure_empty_input():
+    # Act and assert
     assert transform_azure([]) == []
 
 
@@ -350,6 +452,7 @@ def test_transform_azure_empty_input():
 
 
 def test_transform_gcp_basic():
+    # Arrange
     raw = [
         {
             "id": "asset-g",
@@ -362,7 +465,11 @@ def test_transform_gcp_basic():
             },
         }
     ]
+
+    # Act
     result = transform_gcp(raw)
+
+    # Assert
     assert len(result) == 1
     gcp = result[0]
     assert gcp["id"] == "gcp-inst-1"
@@ -371,6 +478,7 @@ def test_transform_gcp_basic():
 
 
 def test_transform_gcp_deduplicates():
+    # Arrange
     raw = [
         {
             "id": "a1",
@@ -391,21 +499,31 @@ def test_transform_gcp_deduplicates():
             },
         },
     ]
+
+    # Act
     result = transform_gcp(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {"inst-1", "inst-2"}
 
 
 def test_transform_gcp_skips_missing_instance_id():
+    # Arrange
     raw = [
         {"id": "a1", "cloud": {"gcp": {}}},
         {"id": "a2", "cloud": {"gcp": {"instance_id": "inst-ok"}}},
     ]
+
+    # Act
     result = transform_gcp(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == "inst-ok"
 
 
 def test_transform_gcp_not_present_in_assets_data():
+    # Act and assert
     # ASSETS_DATA has no GCP assets
     assert transform_gcp(ASSETS_DATA) == []
