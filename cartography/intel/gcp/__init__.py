@@ -58,6 +58,7 @@ from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.crm.projects import sync_gcp_projects_by_ids
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import parse_and_validate_gcp_requested_syncs
 from cartography.intel.gcp.util import summarize_gcp_http_error
@@ -806,6 +807,90 @@ def _sync_project_resources(
     )
 
 
+def _run_gcp_global_analysis_jobs(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    requested_syncs: Set[str] | None,
+    *,
+    run_bucket_public_projection: bool,
+) -> None:
+    """
+    Run the post-sync GCP analysis and compatibility-migration jobs.
+
+    Shared by the organization-based ingestion path and the standalone
+    single-project path so both produce the same derived graph state. Each job is
+    gated by the same `requested_syncs` rules used elsewhere in the GCP sync.
+
+    :param run_bucket_public_projection: Whether the GCPBucket `_ont_public`
+        projection may run. Callers must only pass True when policy bindings actually
+        synced successfully; otherwise APPLIES_TO edges may be stale and would yield
+        false `_ont_public` values.
+    """
+    if requested_syncs is None or "compute" in requested_syncs:
+        run_analysis_job(
+            "gcp_ip_node_label_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        run_typed_analysis_job(
+            GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    # DEPRECATED: compatibility migration for legacy role edges. Remove in v1.0.0.
+    if requested_syncs is None or "iam" in requested_syncs:
+        run_analysis_job(
+            "gcp_role_resource_edge_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    # DEPRECATED: compatibility migration for Cloud Run :Container labels. Remove in v1.0.0.
+    if requested_syncs is None or "cloud_run" in requested_syncs:
+        run_analysis_job(
+            "gcp_cloudrun_label_migration.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    if requested_syncs is None or "gke" in requested_syncs:
+        run_typed_analysis_job(
+            GCP_GKE_ASSET_EXPOSURE,
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        run_typed_analysis_job(
+            GCP_GKE_BASIC_AUTH,
+            neo4j_session,
+            common_job_parameters,
+        )
+
+    # Derive `_ont_public` on GCPBucket from ACLs (collected at sync time) and
+    # public IAM bindings (collected by the policy_bindings sync). Require storage
+    # to have been requested AND policy_bindings to have actually succeeded -
+    # otherwise APPLIES_TO edges may be stale (cleanup is skipped on failed binding
+    # syncs) and would yield false `_ont_public` values.
+    storage_requested = requested_syncs is None or "storage" in requested_syncs
+    policy_bindings_requested = (
+        requested_syncs is None or "policy_bindings" in requested_syncs
+    )
+    if storage_requested and policy_bindings_requested and run_bucket_public_projection:
+        run_typed_analysis_job(
+            GCP_BUCKET_PUBLIC_PROJECTION,
+            neo4j_session,
+            common_job_parameters,
+        )
+    elif storage_requested and policy_bindings_requested:
+        logger.warning(
+            "Skipping GCP bucket _ont_public projection because policy bindings "
+            "sync did not succeed. Existing _ont_public values remain in place to "
+            "avoid acting on stale APPLIES_TO edges."
+        )
+
+
 @timeit
 def start_gcp_ingestion(
     neo4j_session: neo4j.Session,
@@ -862,6 +947,76 @@ def start_gcp_ingestion(
                         module,
                         missing_deps,
                     )
+
+    # Standalone single-project sync path. When the operator specifies explicit
+    # project IDs, sync exactly those projects directly and skip organization,
+    # folder, and org-level IAM discovery entirely. This supports projects that do
+    # not belong to a GCP Organization and project-scoped credentials. See issue
+    # #2804.
+    if config.gcp_project_ids:
+        project_ids = [
+            project_id.strip()
+            for project_id in config.gcp_project_ids.split(",")
+            if project_id.strip()
+        ]
+        logger.info(
+            "GCP standalone project sync enabled for: %s", ", ".join(project_ids)
+        )
+
+        projects = sync_gcp_projects_by_ids(
+            neo4j_session,
+            project_ids,
+            config.update_tag,
+            credentials=credentials,
+        )
+        if not projects:
+            logger.warning(
+                "No GCP projects were resolved for the requested IDs; nothing to sync."
+            )
+            return
+
+        # Sync Google predefined roles (roles/*) even without organization access.
+        # These are global, so unlike org custom roles they can be fetched in the
+        # standalone path. This loads them as GCPRole nodes (so GRANTS_ROLE matchlinks
+        # from policy bindings resolve) and returns their permission map, letting policy
+        # bindings that reference predefined roles (roles/owner, roles/editor, ...) expand
+        # into permission relationships. Org-level *custom* roles remain unresolved here
+        # (they require org access); this limitation is documented in
+        # docs/root/modules/gcp/config.md.
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            iam_client = build_client("iam", "v1", credentials=credentials)
+            standalone_role_permissions_by_name = iam.sync_standalone_predefined_roles(
+                neo4j_session,
+                iam_client,
+                config.update_tag,
+            )
+        else:
+            standalone_role_permissions_by_name = {}
+
+        project_resources_result = _sync_project_resources(
+            neo4j_session,
+            projects,
+            config.update_tag,
+            common_job_parameters,
+            credentials=credentials,
+            requested_syncs=requested_syncs,
+            org_role_permissions_by_name=standalone_role_permissions_by_name,
+        )
+
+        # Reuse the same post-sync analysis jobs as the org-based path. The bucket
+        # `_ont_public` projection only runs when policy bindings synced cleanly for
+        # the requested projects (mirrors the org-path gate).
+        _run_gcp_global_analysis_jobs(
+            neo4j_session,
+            common_job_parameters,
+            requested_syncs,
+            run_bucket_public_projection=project_resources_result.policy_bindings_cleanup_safe,
+        )
+        return
 
     # IMPORTANT: We defer cleanup for hierarchical resources (orgs, folders, projects) and run them
     # in reverse order. This prevents orphaned nodes when a parent is deleted.
@@ -1032,70 +1187,12 @@ def start_gcp_ingestion(
             neo4j_session
         )
 
-    if requested_syncs is None or "compute" in requested_syncs:
-        run_analysis_job(
-            "gcp_ip_node_label_migration.json",
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_typed_analysis_job(
-            GCP_COMPUTE_INSTANCE_VPC_ANALYSIS,
-            neo4j_session,
-            common_job_parameters,
-        )
-
-    # DEPRECATED: compatibility migration for legacy role edges. Remove in v1.0.0.
-    if requested_syncs is None or "iam" in requested_syncs:
-        run_analysis_job(
-            "gcp_role_resource_edge_migration.json",
-            neo4j_session,
-            common_job_parameters,
-        )
-
-    # DEPRECATED: compatibility migration for Cloud Run :Container labels. Remove in v1.0.0.
-    if requested_syncs is None or "cloud_run" in requested_syncs:
-        run_analysis_job(
-            "gcp_cloudrun_label_migration.json",
-            neo4j_session,
-            common_job_parameters,
-        )
-
-    if requested_syncs is None or "gke" in requested_syncs:
-        run_typed_analysis_job(
-            GCP_GKE_ASSET_EXPOSURE,
-            neo4j_session,
-            common_job_parameters,
-        )
-
-        run_typed_analysis_job(
-            GCP_GKE_BASIC_AUTH,
-            neo4j_session,
-            common_job_parameters,
-        )
-
-    # Derive `_ont_public` on GCPBucket from ACLs (collected at sync time) and
-    # public IAM bindings (collected by the policy_bindings sync). Require storage
-    # to have been requested AND policy_bindings to have actually succeeded for
-    # every org — otherwise APPLIES_TO edges may be stale (cleanup is skipped on
-    # failed binding syncs) and would yield false `_ont_public` values.
-    storage_requested = requested_syncs is None or "storage" in requested_syncs
-    policy_bindings_requested = (
-        requested_syncs is None or "policy_bindings" in requested_syncs
-    )
     policy_bindings_fully_synced = (
         any_policy_bindings_synced and not policy_bindings_sync_failed
     )
-    if storage_requested and policy_bindings_requested and policy_bindings_fully_synced:
-        run_typed_analysis_job(
-            GCP_BUCKET_PUBLIC_PROJECTION,
-            neo4j_session,
-            common_job_parameters,
-        )
-    elif storage_requested and policy_bindings_requested:
-        logger.warning(
-            "Skipping GCP bucket _ont_public projection because policy bindings "
-            "sync did not succeed for every org (or no orgs were discovered). "
-            "Existing _ont_public values remain in place to avoid acting on "
-            "stale APPLIES_TO edges."
-        )
+    _run_gcp_global_analysis_jobs(
+        neo4j_session,
+        common_job_parameters,
+        requested_syncs,
+        run_bucket_public_projection=policy_bindings_fully_synced,
+    )

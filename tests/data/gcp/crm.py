@@ -71,3 +71,27 @@ GCP_PROJECTS_WITH_ORG_PARENT = [
         "projectNumber": "123456789012",
     },
 ]
+
+# A project synced directly by ID that does not belong to any organization or
+# folder (parent is None). Matches the shape returned by get_gcp_projects_by_ids().
+GCP_STANDALONE_PROJECTS = [
+    {
+        "projectId": "standalone-project",
+        "projectNumber": "999888777666",
+        "name": "Standalone Project",
+        "lifecycleState": "ACTIVE",
+        "parent": None,
+    },
+]
+
+# A project synced directly by ID that does belong to an organization. Used to
+# verify the optional PARENT edge is still created when the org node exists.
+GCP_STANDALONE_PROJECTS_WITH_ORG_PARENT = [
+    {
+        "projectId": "standalone-project",
+        "projectNumber": "999888777666",
+        "name": "Standalone Project",
+        "lifecycleState": "ACTIVE",
+        "parent": "organizations/1337",
+    },
+]
