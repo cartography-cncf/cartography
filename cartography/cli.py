@@ -91,6 +91,7 @@ PANEL_WIZ = "Wiz Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
+PANEL_NOTION = "Notion Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
@@ -160,6 +161,7 @@ MODULE_PANELS = {
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
+    "notion": PANEL_NOTION,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
@@ -903,6 +905,18 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            # =================================================================
+            # Notion Options
+            # =================================================================
+            notion_config_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--notion-config-env-var",
+                    help="Environment variable name containing Base64 encoded Notion config.",
+                    rich_help_panel=PANEL_NOTION,
+                    hidden=PANEL_NOTION not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -2809,6 +2823,15 @@ class CLI:
                 )
                 github_config = os.environ.get(github_config_env_var)
 
+            # Read Notion config
+            notion_config = None
+            if notion_config_env_var:
+                logger.debug(
+                    "Reading config for Notion from environment variable %s",
+                    notion_config_env_var,
+                )
+                notion_config = os.environ.get(notion_config_env_var)
+
             # Read DigitalOcean token
             digitalocean_token = None
             if digitalocean_token_env_var:
@@ -3545,6 +3568,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                notion_config=notion_config,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,

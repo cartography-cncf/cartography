@@ -178,6 +178,8 @@ class Config:
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
     :param github_config: Base64 encoded config object for GitHub ingestion. Optional.
+    :type notion_config: str
+    :param notion_config: Base64 encoded config object for Notion ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
     :type digitalocean_token: str
@@ -548,6 +550,7 @@ class Config:
         okta_saml_role_regex=None,
         github_config=None,
         github_commit_lookback_days=30,
+        notion_config=None,
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
@@ -794,6 +797,7 @@ class Config:
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
+        self.notion_config = notion_config
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
