@@ -95,7 +95,7 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
 Two things to watch:
 
 - **Annotations are evaluated at `def` time**, so an annotation naming a lazily bound
-  module must be a string (`-> "sdk.Client":`). For mypy to still resolve it, pair the
+  module must be a string (`-> "your_service_sdk.Client":`). For mypy to still resolve it, pair the
   binding with a type-checking-only import:
   ```python
   if TYPE_CHECKING:

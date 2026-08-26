@@ -18,8 +18,10 @@ from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 
-# Bound lazily so that the provider SDK only loads once the config gate below
-# has decided that this module has something to sync.
+# Bound lazily. Unlike the provider modules there is no config gate here: ontology
+# always runs. What this defers is importing deprecated_indexes when the ontology
+# package itself is imported, for instance by Sync.list_intel_modules(), rather than
+# when run() is called.
 drop_deprecated_ontology_indexes = lazy_callable(
     "cartography.intel.ontology.deprecated_indexes", "drop_deprecated_ontology_indexes"
 )
