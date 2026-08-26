@@ -31,6 +31,23 @@ def test_transform_gcp_log_sinks_for_org_scope():
     ]
 
 
+def test_transform_gcp_log_sinks_qualifies_short_sink_names():
+    sinks = cartography.intel.gcp.log_sink.transform_gcp_log_sinks(
+        [
+            {
+                "name": "audit-sink",
+                "destination": "bigquery.googleapis.com/projects/log-project/datasets/audit_logs",
+            },
+        ],
+        "project",
+        "projects/test-project",
+    )
+
+    assert sinks[0]["id"] == "projects/test-project/sinks/audit-sink"
+    assert sinks[0]["name"] == "projects/test-project/sinks/audit-sink"
+    assert sinks[0]["sink_name"] == "audit-sink"
+
+
 def test_transform_gcp_log_sinks_defaults_missing_include_children_to_false():
     sinks = cartography.intel.gcp.log_sink.transform_gcp_log_sinks(
         FOLDER_LOG_SINKS,

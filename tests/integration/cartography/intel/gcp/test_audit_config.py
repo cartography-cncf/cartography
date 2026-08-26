@@ -141,6 +141,19 @@ def test_sync_gcp_audit_configs(
         ),
     }
 
+    exempted_config = neo4j_session.run(
+        """
+        MATCH (a:GCPAuditConfig {id: $id})
+        RETURN a.audit_log_configs_json AS audit_log_configs_json
+        """,
+        id=f"{TEST_ORG_ID}/auditConfigs/exempted.googleapis.com",
+    ).single()
+    assert exempted_config is not None
+    assert (
+        "serviceAccount:test@example.iam.gserviceaccount.com"
+        in exempted_config["audit_log_configs_json"]
+    )
+
     assert check_rels(
         neo4j_session,
         "GCPOrganization",

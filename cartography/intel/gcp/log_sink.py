@@ -86,6 +86,12 @@ def _sink_short_name(sink_name: str | None) -> str | None:
     return sink_name.split("/sinks/")[-1]
 
 
+def _sink_resource_name(sink_name: str, parent_id: str) -> str:
+    if "/sinks/" in sink_name:
+        return sink_name
+    return f"{parent_id}/sinks/{sink_name}"
+
+
 def _parse_bigquery_dataset_id(destination: str | None) -> str | None:
     if not destination:
         return None
@@ -107,13 +113,12 @@ def transform_gcp_log_sinks(
 ) -> list[dict]:
     transformed: list[dict] = []
     for sink in sinks:
-        name = sink.get("name")
-        if not name:
-            continue
+        name = sink["name"]
+        full_name = _sink_resource_name(name, parent_id)
         transformed.append(
             {
-                "id": name,
-                "name": name,
+                "id": full_name,
+                "name": full_name,
                 "sink_name": _sink_short_name(name),
                 "destination": sink.get("destination"),
                 "bigquery_dataset_id": _parse_bigquery_dataset_id(

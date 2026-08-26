@@ -84,15 +84,9 @@ def transform_gcp_audit_configs(
 ) -> list[dict]:
     transformed: list[dict] = []
     for audit_config in audit_configs:
-        service = audit_config.get("service")
-        if not service:
-            continue
+        service = audit_config["service"]
         audit_log_configs = audit_config.get("auditLogConfigs", []) or []
-        log_types = {
-            config.get("logType")
-            for config in audit_log_configs
-            if config.get("logType")
-        }
+        log_types = {config["logType"] for config in audit_log_configs}
         transformed.append(
             {
                 "id": f"{parent_id}/auditConfigs/{service}",
