@@ -34,6 +34,9 @@ def get(
         "channels",
         team_id=team_id,
         exclude_archived=True,
+        # Slack defaults `types` to `public_channel` only. Private channels the bot
+        # was invited to require `private_channel` to be requested explicitly.
+        types="public_channel,private_channel",
     ):
         if get_memberships:
             for member in slack_paginate(

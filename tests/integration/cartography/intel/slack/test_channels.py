@@ -42,17 +42,27 @@ def test_load_slack_channels(neo4j_session):
         COMMON_JOB_PARAMETERS,
     )
 
-    # Assert Channels exists
+    # Assert private channels were requested; Slack otherwise returns public only
+    assert slack_client.conversations_list.call_args.kwargs["types"] == (
+        "public_channel,private_channel"
+    )
+
+    # Assert Channels exists, public and private alike
     expected_nodes = {
-        ("SLACKCHANNEL2", "random"),
-        ("SLACKCHANNEL1", "concern-marketing-comm"),
+        ("SLACKCHANNEL2", "random", False),
+        ("SLACKCHANNEL1", "concern-marketing-comm", False),
+        ("SLACKCHANNEL3", "secret-project", True),
     }
-    assert check_nodes(neo4j_session, "SlackChannel", ["id", "name"]) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "SlackChannel", ["id", "name", "is_private"])
+        == expected_nodes
+    )
 
     # Assert Channels are connected to team
     expected_rels = {
         ("SLACKCHANNEL2", SLACK_TEAM_ID),
         ("SLACKCHANNEL1", SLACK_TEAM_ID),
+        ("SLACKCHANNEL3", SLACK_TEAM_ID),
     }
     assert (
         check_rels(
@@ -71,6 +81,7 @@ def test_load_slack_channels(neo4j_session):
     expected_rels = {
         ("SLACKCHANNEL2", "SLACKUSER1"),
         ("SLACKCHANNEL1", "SLACKUSER1"),
+        ("SLACKCHANNEL3", "SLACKUSER1"),
     }
     assert (
         check_rels(
@@ -89,8 +100,10 @@ def test_load_slack_channels(neo4j_session):
     expected_rels = {
         ("SLACKCHANNEL2", "SLACKUSER1"),
         ("SLACKCHANNEL1", "SLACKUSER1"),
+        ("SLACKCHANNEL3", "SLACKUSER1"),
         ("SLACKCHANNEL2", "SLACKUSER2"),
         ("SLACKCHANNEL1", "SLACKUSER2"),
+        ("SLACKCHANNEL3", "SLACKUSER2"),
     }
     assert (
         check_rels(
