@@ -248,6 +248,14 @@ def test_ambient_credential_stage_list_is_exact():
     would drop that module's coverage without failing anything. Comparing against
     literals makes growth a deliberate edit here.
     """
+    assert _STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME == {"aws", "gcp"}
+    assert _UNGATED_STAGES == {
+        "analysis",
+        "create-indexes",
+        "cve_metadata",
+        "ontology",
+    }
+    # And both lists name real stages.
     assert _STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME <= set(TOP_LEVEL_MODULES)
     assert _UNGATED_STAGES <= set(TOP_LEVEL_MODULES)
 
