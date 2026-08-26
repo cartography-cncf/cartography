@@ -119,9 +119,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:snapshots": sync_ebs_snapshots,
         "ecr": ecr.sync,
         "ecr:image_layers": ecr_image_layers.sync,
-        # `ec2:instance` must be synced before `ecs` so that AWSEC2Instance nodes exist
-        # when AWSECSContainerInstance creates IS_INSTANCE relationships.
-        "ecs": ecs.sync,
         "eks": eks.sync,
         "elasticache": elasticache.sync,
         "elastic_ip_addresses": sync_elastic_ip_addresses,
@@ -168,5 +165,10 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
+        # Keep ECS last among regular resources. Its tasks and containers are
+        # short-lived, so syncing them close to AWS analysis minimizes the period
+        # in which replacements lack analysis-derived relationships. EC2 instances
+        # and load balancers must already exist for ECS relationships.
+        "ecs": ecs.sync,
     }
 )
