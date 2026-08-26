@@ -210,9 +210,16 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
         "BACKED_BY",
     ) == {("azure-volume", azure_volume.spec.csi.volume_handle)}
     neo4j_session.run(
-        "MATCH (v:KubernetesPersistentVolume) "
-        "WHERE v.name IN ['aws-volume', 'azure-volume'] DETACH DELETE v"
+        "MATCH (v) "
+        "WHERE (v:KubernetesPersistentVolume AND "
+        "v.name IN ['aws-volume', 'azure-volume']) "
+        "OR (v:AWSEBSVolume AND v.id = 'vol-0123456789abcdef0') "
+        "OR (v:AzureDisk AND v.id = $azure_disk_id) "
+        "DETACH DELETE v",
+        azure_disk_id=azure_volume.spec.csi.volume_handle,
     )
+    assert check_nodes(neo4j_session, "AWSEBSVolume", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AzureDisk", ["id"]) == set()
 
 
 def test_pod_mounts_persistent_volume_claim(
