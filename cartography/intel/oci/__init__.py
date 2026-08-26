@@ -31,9 +31,29 @@ utils = lazy_import("cartography.intel.oci.utils")
 
 logger = logging.getLogger(__name__)
 
-# Where the OCI SDK looks for credentials, and what the config gate checks for.
+# Where the OCI SDK looks for credentials. Passing DEFAULT_LOCATION to
+# oci.config.from_file() does not pin it to that one path: the SDK falls back to the
+# OCI_CONFIG_FILE environment variable and then to the legacy location, so the config
+# gate has to consider all three or it would skip a configured install.
 OCI_CONFIG_PATH = "~/.oci/config"
+OCI_LEGACY_CONFIG_PATH = "~/.oraclebmc/config"
+OCI_CONFIG_PATH_ENV_VAR = "OCI_CONFIG_FILE"
 Resources = namedtuple("Resources", "compute iam network")
+
+
+def _has_oci_config_file() -> bool:
+    """Whether any of the config file locations the OCI SDK would try is usable.
+
+    Mirrors oci.config._get_config_path_with_fallback: the default path, then the
+    OCI_CONFIG_FILE environment variable, then the legacy location. An environment
+    variable that is set but points nowhere still answers True, so the SDK reports the
+    real error rather than the module skipping itself.
+    """
+    if os.path.isfile(os.path.expanduser(OCI_CONFIG_PATH)):
+        return True
+    if os.environ.get(OCI_CONFIG_PATH_ENV_VAR):
+        return True
+    return os.path.isfile(os.path.expanduser(OCI_LEGACY_CONFIG_PATH))
 
 
 def _sync_one_account(
@@ -176,14 +196,17 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    # The SDK call below reads exactly this file, so checking it first lets an
-    # unconfigured sync skip OCI without importing the OCI SDK at all. Absence of the
-    # file is the same answer oci.config.from_file() would give, just cheaper.
-    if not os.path.isfile(os.path.expanduser(OCI_CONFIG_PATH)):
+    # Checking for credentials first lets an unconfigured sync skip OCI without
+    # importing the OCI SDK at all. Finding none is the same answer
+    # oci.config.from_file() would give, just cheaper.
+    if not _has_oci_config_file():
         logger.info(
-            "OCI import is not configured - skipping this module. "
-            "Expected credentials at %s. See docs to configure.",
+            "OCI import is not configured - skipping this module. Expected credentials "
+            "at %s or %s, or the %s environment variable to be set. "
+            "See docs to configure.",
             OCI_CONFIG_PATH,
+            OCI_LEGACY_CONFIG_PATH,
+            OCI_CONFIG_PATH_ENV_VAR,
         )
         return
 
