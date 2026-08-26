@@ -440,6 +440,7 @@ notion_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="email"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(ontology_field="active", node_field="active"),
             ],
         ),
     ],

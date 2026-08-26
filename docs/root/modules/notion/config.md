@@ -33,6 +33,7 @@ config = {
             "workspace_id": "stable-workspace-id",
             "workspace_name": "Engineering",
             "api_token": "ntn_your_token_here",
+            "scim_token": "optional_enterprise_scim_token",
         },
     ],
 }
@@ -50,6 +51,12 @@ Workspace IDs must be unique within the configuration. User and bot node IDs
 are scoped by this value so the same Notion identity can safely appear in more
 than one workspace.
 
+`scim_token` is optional and requires a Notion Enterprise workspace. Organization
+owners generate one token per workspace under **Manage organization** →
+**General** → **SCIM provisioning**. When omitted, Cartography does not modify or
+clean previously ingested SCIM properties, groups, memberships, or reporting
+relationships.
+
 ## Run Cartography
 
 ```bash
@@ -63,6 +70,7 @@ cartography \
 | Issue | Resolution |
 |-------|------------|
 | `403 Forbidden` from `/v1/users` | Enable the connection's read-user capability, including email access if ontology mapping is required. |
+| `401 Unauthorized` from `/scim/v2` | Replace the revoked or invalid workspace-specific Enterprise SCIM token. |
 | Missing email properties | Notion omits email unless the connection has the appropriate user capability. |
 | Invalid configuration error | Confirm the environment variable contains base64-encoded JSON with a non-empty `workspaces` list. |
 
@@ -70,4 +78,5 @@ cartography \
 
 - [Notion list users API](https://developers.notion.com/reference/get-users)
 - [Notion user object](https://developers.notion.com/reference/user)
+- [Notion SCIM provisioning](https://www.notion.com/help/provision-users-and-groups-with-scim)
 - [Notion token security](https://developers.notion.com/guides/get-started/handling-api-keys)

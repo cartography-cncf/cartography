@@ -130,10 +130,11 @@ def sync(
     workspace_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     logger.info("Starting Notion identity sync for workspace %s", workspace_id)
     raw_users = get(api_session)
     people, bots = transform(raw_users, workspace_id)
     load_users(neo4j_session, people, bots, workspace_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Notion identity sync for workspace %s", workspace_id)
+    return people

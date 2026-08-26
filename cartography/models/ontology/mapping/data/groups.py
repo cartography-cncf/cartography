@@ -390,6 +390,22 @@ salesforce_mapping = OntologyMapping(
     ],
 )
 
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "circleci": circleci_mapping,
@@ -409,6 +425,7 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
     "kubernetes": kubernetes_mapping,
+    "notion": notion_mapping,
     "vercel": vercel_mapping,
     "databricks": OntologyMapping(
         module_name="databricks",
