@@ -242,7 +242,12 @@ def _scrubbed_environment(home: str) -> dict[str, str]:
 
 
 def test_ambient_credential_stage_list_is_exact():
-    """Guard the exception list itself, so a new module cannot quietly join it."""
+    """Pin both exclusion lists, so a new module cannot quietly join either.
+
+    Adding a name to one of these sets removes it from the parametrize below, which
+    would drop that module's coverage without failing anything. Comparing against
+    literals makes growth a deliberate edit here.
+    """
     assert _STAGES_THAT_RESOLVE_THEIR_SDK_AT_GATE_TIME <= set(TOP_LEVEL_MODULES)
     assert _UNGATED_STAGES <= set(TOP_LEVEL_MODULES)
 
@@ -281,4 +286,87 @@ def test_unconfigured_stage_does_not_load_its_sdk(stage_name, tmp_path):
     assert not provider_sdks, (
         f"running the unconfigured {stage_name} stage loaded {sorted(provider_sdks)}; "
         "the config gate must return before any lazy binding is touched"
+    )
+
+
+def _lazy_import_attribute_uses() -> dict[str, set[str]]:
+    """Every third-party `lazy_import` target, mapped to the attributes read off it."""
+    uses: dict[str, set[str]] = {}
+    for path in sorted((REPOSITORY_ROOT / "cartography").rglob("*.py"), key=str):
+        source = path.read_text()
+        if "lazy_import(" not in source:
+            continue
+        tree = ast.parse(source)
+        statements: list[ast.stmt] = list(tree.body)
+        for statement in tree.body:
+            if isinstance(statement, ast.If):
+                statements.extend(statement.orelse)
+
+        bound: dict[str, str] = {}
+        for node in statements:
+            if (
+                isinstance(node, ast.Assign)
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == "lazy_import"
+                and node.value.args
+                and isinstance(node.value.args[0], ast.Constant)
+            ):
+                target = node.value.args[0].value
+                for name in node.targets:
+                    if isinstance(name, ast.Name):
+                        bound[name.id] = target
+        if not bound:
+            continue
+
+        for element in ast.walk(tree):
+            if not isinstance(element, ast.Attribute) or not isinstance(
+                element.value, ast.Name
+            ):
+                continue
+            target = bound.get(element.value.id)
+            # Our own packages are covered by the rest of the suite.
+            if target is None or target.startswith("cartography."):
+                continue
+            uses.setdefault(target, set()).add(element.attr)
+    return uses
+
+
+_ATTRIBUTE_PROBE = """
+import importlib, json
+module = importlib.import_module({target!r})
+print('@@' + json.dumps([a for a in {attrs!r} if not hasattr(module, a)]))
+"""
+
+
+@pytest.mark.parametrize(
+    "target, attrs",
+    sorted((t, sorted(a)) for t, a in _lazy_import_attribute_uses().items()),
+)
+def test_lazy_import_target_exposes_the_attributes_it_is_used_for(target, attrs):
+    """A `lazy_import` binding must name the module that actually holds the attribute.
+
+    `import googleapiclient` does not bind its `discovery` submodule, so
+    `lazy_import("googleapiclient").discovery` raises AttributeError at run time while
+    passing every import-level check. Bind the submodule itself instead:
+    `lazy_import("googleapiclient.discovery")`.
+
+    This has to run in a subprocess importing nothing but the target: once anything
+    else in the process has imported `pkg.sub`, Python sets `sub` on `pkg`, and an
+    in-process check would pass for the wrong reason.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _ATTRIBUTE_PROBE.format(target=target, attrs=attrs)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"importing {target} failed:\n{result.stderr}"
+    absent = next(
+        json.loads(line[2:])
+        for line in result.stdout.splitlines()
+        if line.startswith("@@")
+    )
+    assert not absent, (
+        f"`import {target}` does not expose {absent}; bind the submodule directly, "
+        f'e.g. lazy_import("{target}.{absent[0]}")'
     )

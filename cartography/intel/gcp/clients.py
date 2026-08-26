@@ -11,7 +11,7 @@ from cartography.util.lazy import lazy_import
 # needs google.auth. Every client builder in this module is bound lazily so that the
 # decision does not drag googleapiclient, aiplatform and the rest of the GCP SDK into a
 # sync that has no GCP credentials to begin with.
-googleapiclient = lazy_import("googleapiclient")
+discovery = lazy_import("googleapiclient.discovery")
 httplib2 = lazy_import("httplib2")
 
 if TYPE_CHECKING:
@@ -106,7 +106,7 @@ def build_client(
         credentials=credentials,
         quota_project_id=quota_project_id,
     )
-    client = googleapiclient.discovery.build(
+    client = discovery.build(
         service,
         version,
         http=_authorized_http_with_timeout(resolved_credentials),

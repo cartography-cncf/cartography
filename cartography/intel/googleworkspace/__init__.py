@@ -12,15 +12,15 @@ from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
 
-# Submodules are bound lazily so that the provider SDK only loads once the config
 if TYPE_CHECKING:
     from google.oauth2.credentials import Credentials as OAuth2Credentials
     from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-# gate below has decided that this module has something to sync.
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
 default = lazy_callable("google.auth", "default")
 google_auth_exceptions = lazy_import("google.auth.exceptions")
-googleapiclient = lazy_import("googleapiclient")
+discovery = lazy_import("googleapiclient.discovery")
 credentials = lazy_import("google.oauth2.credentials")
 service_account = lazy_import("google.oauth2.service_account")
 Request = lazy_callable("google.auth.transport.requests", "Request")
@@ -53,13 +53,13 @@ def _initialize_resources(
     """
 
     return Resources(
-        googleapiclient.discovery.build(
+        discovery.build(
             "admin",
             "directory_v1",
             credentials=creds,
             cache_discovery=False,
         ),
-        googleapiclient.discovery.build(
+        discovery.build(
             "cloudidentity",
             "v1",
             credentials=creds,
