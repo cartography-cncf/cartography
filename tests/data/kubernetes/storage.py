@@ -33,6 +33,7 @@ RAW_STORAGE_CLASSES = [
     V1StorageClass(
         metadata=V1ObjectMeta(
             name=STORAGE_CLASS_NAME,
+            uid="00000000-0000-0000-0000-000000000000",
             creation_timestamp=CREATION_TIMESTAMP,
             deletion_timestamp=DELETION_TIMESTAMP,
         ),

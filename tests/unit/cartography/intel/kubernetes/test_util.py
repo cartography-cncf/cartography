@@ -35,7 +35,16 @@ def test_k8s_paginate_raise_on_forbidden_is_status_scoped():
 
 def test_get_gpu_quantity_sums_extended_gpu_resources():
     assert (
-        get_gpu_quantity({"cpu": "32", "nvidia.com/gpu": "8", "example.com/gpu": "2e0"})
-        == 10
+        get_gpu_quantity(
+            {
+                "cpu": "32",
+                "nvidia.com/gpu": "8",
+                "nvidia.com/mig-1g.10gb": "7",
+                "gpu.intel.com/i915": "2",
+                "example.com/gpu": "2e0",
+                "gpu.intel.com/monitoring": "1",
+            }
+        )
+        == 19
     )
     assert get_gpu_quantity({"example.com/gpu": "not-a-number"}) is None

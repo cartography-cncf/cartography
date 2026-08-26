@@ -83,6 +83,11 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
         "KubernetesPersistentVolumeClaim",
         ["name", "requested_storage", "phase"],
     ) == {(CLAIM_NAME, "2Pi", "Bound")}
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesStorageClass",
+        ["name", "uid"],
+    ) == {(STORAGE_CLASS_NAME, "00000000-0000-0000-0000-000000000000")}
     for label, name in (
         ("KubernetesStorageClass", STORAGE_CLASS_NAME),
         ("KubernetesPersistentVolume", VOLUME_NAME),
@@ -136,6 +141,80 @@ def test_transform_persistent_volume_claim_without_requests():
     assert result[0]["requested_storage"] is None
 
 
+def test_persistent_volumes_link_to_backing_cloud_disks(
+    neo4j_session,
+    monkeypatch,
+    _create_test_cluster,
+):
+    # Arrange
+    aws_volume = deepcopy(RAW_PERSISTENT_VOLUMES[0])
+    aws_volume.metadata.name = "aws-volume"
+    aws_volume.metadata.uid = "aws-volume-uid"
+    aws_volume.spec.csi.driver = "ebs.csi.aws.com"
+    aws_volume.spec.csi.volume_handle = "vol-0123456789abcdef0"
+
+    azure_volume = deepcopy(RAW_PERSISTENT_VOLUMES[0])
+    azure_volume.metadata.name = "azure-volume"
+    azure_volume.metadata.uid = "azure-volume-uid"
+    azure_volume.spec.csi.driver = "disk.csi.azure.com"
+    azure_volume.spec.csi.volume_handle = (
+        "/subscriptions/00000000-0000-0000-0000-000000000000/"
+        "resourceGroups/example/providers/Microsoft.Compute/disks/data"
+    )
+
+    monkeypatch.setattr(
+        storage_module,
+        "get_storage_classes",
+        lambda client: RAW_STORAGE_CLASSES,
+    )
+    monkeypatch.setattr(
+        storage_module,
+        "get_persistent_volumes",
+        lambda client: [aws_volume, azure_volume],
+    )
+    monkeypatch.setattr(
+        storage_module,
+        "get_persistent_volume_claims",
+        lambda client: [],
+    )
+    neo4j_session.run("MERGE (:AWSEBSVolume {id: 'vol-0123456789abcdef0'})")
+    neo4j_session.run(
+        "MERGE (:AzureDisk {id: $id})",
+        id=azure_volume.spec.csi.volume_handle,
+    )
+    client = SimpleNamespace(name=CLUSTER_NAME)
+
+    # Act
+    sync_storage(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesPersistentVolume",
+        "name",
+        "AWSEBSVolume",
+        "id",
+        "BACKED_BY",
+    ) == {("aws-volume", "vol-0123456789abcdef0")}
+    assert check_rels(
+        neo4j_session,
+        "KubernetesPersistentVolume",
+        "name",
+        "AzureDisk",
+        "id",
+        "BACKED_BY",
+    ) == {("azure-volume", azure_volume.spec.csi.volume_handle)}
+    neo4j_session.run(
+        "MATCH (v:KubernetesPersistentVolume) "
+        "WHERE v.name IN ['aws-volume', 'azure-volume'] DETACH DELETE v"
+    )
+
+
 def test_pod_mounts_persistent_volume_claim(
     neo4j_session,
     monkeypatch,
@@ -179,13 +258,16 @@ def test_pod_mounts_persistent_volume_claim(
     (
         ("get_storage_classes", 401),
         ("get_storage_classes", 403),
+        ("get_storage_classes", 500),
         ("get_persistent_volumes", 401),
         ("get_persistent_volumes", 403),
+        ("get_persistent_volumes", 500),
         ("get_persistent_volume_claims", 401),
         ("get_persistent_volume_claims", 403),
+        ("get_persistent_volume_claims", 500),
     ),
 )
-def test_sync_storage_preserves_nodes_when_unauthorized_or_forbidden(
+def test_sync_storage_preserves_nodes_on_api_error(
     neo4j_session,
     monkeypatch,
     _create_test_cluster,

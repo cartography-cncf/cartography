@@ -77,12 +77,11 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
     )
     gpu_capacity: PropertyRef = PropertyRef(
         "gpu_capacity",
-        extra_index=True,
-        description="Total integer capacity across extended resource keys ending in `/gpu`.",
+        description="Total GPU scheduling-unit capacity across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
     )
     gpu_allocatable: PropertyRef = PropertyRef(
         "gpu_allocatable",
-        description="Total allocatable integer quantity across extended resource keys ending in `/gpu`.",
+        description="Total allocatable GPU scheduling units across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
     )
     gpu_product: PropertyRef = PropertyRef(
         "gpu_product",

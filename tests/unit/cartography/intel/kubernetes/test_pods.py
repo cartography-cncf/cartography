@@ -1,7 +1,14 @@
 import json
+from copy import deepcopy
 from types import SimpleNamespace
 
+from kubernetes.client import V1EphemeralVolumeSource
+from kubernetes.client import V1PersistentVolumeClaimSpec
+from kubernetes.client import V1PersistentVolumeClaimTemplate
+from kubernetes.client import V1Volume
+
 from cartography.intel.kubernetes.pods import transform_pods
+from tests.data.kubernetes.storage import RAW_GPU_PODS
 
 
 def test_transform_pods_defaults_service_account_name():
@@ -59,6 +66,28 @@ def test_transform_pods_defaults_service_account_name():
             "secret_volume_ids": [],
             "secret_env_ids": [],
         },
+    ]
+
+
+def test_transform_pods_maps_generic_ephemeral_volume_to_generated_claim():
+    pod = deepcopy(RAW_GPU_PODS[0])
+    pod.metadata.name = "ephemeral-pod"
+    pod.spec.volumes = [
+        V1Volume(
+            name="scratch",
+            ephemeral=V1EphemeralVolumeSource(
+                volume_claim_template=V1PersistentVolumeClaimTemplate(
+                    spec=V1PersistentVolumeClaimSpec()
+                )
+            ),
+        )
+    ]
+
+    transformed = transform_pods([pod], "my-cluster-1")
+
+    assert transformed[0]["persistent_volume_claim_names"] == ["ephemeral-pod-scratch"]
+    assert transformed[0]["persistent_volume_claim_ids"] == [
+        "my-cluster-1/my-namespace/ephemeral-pod-scratch"
     ]
 
 

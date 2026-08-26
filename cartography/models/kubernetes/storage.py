@@ -17,6 +17,9 @@ class KubernetesStorageClassNodeProperties(CartographyNodeProperties):
         "id",
         description="Identifier derived from cluster name and StorageClass name.",
     )
+    uid: PropertyRef = PropertyRef(
+        "uid", description="Kubernetes UID of the StorageClass."
+    )
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the StorageClass."
     )
@@ -160,6 +163,14 @@ class KubernetesPersistentVolumeNodeProperties(CartographyNodeProperties):
         "csi_volume_handle",
         description="CSI driver volume handle for the backing storage resource.",
     )
+    aws_ebs_volume_id: PropertyRef = PropertyRef(
+        "aws_ebs_volume_id",
+        description="AWS EBS volume ID when managed by the AWS EBS CSI driver.",
+    )
+    azure_disk_id: PropertyRef = PropertyRef(
+        "azure_disk_id",
+        description="Azure managed disk resource ID when managed by the Azure Disk CSI driver.",
+    )
     labels: PropertyRef = PropertyRef(
         "labels",
         description="PersistentVolume metadata labels stored as a JSON-encoded object.",
@@ -204,6 +215,41 @@ class KubernetesPersistentVolumeToStorageClassRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPersistentVolumeToCloudDiskRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesPersistentVolumeToAWSEBSVolumeRel(CartographyRelSchema):
+    """Links a PersistentVolume to its backing AWS EBS volume."""
+
+    target_node_label: str = "AWSEBSVolume"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("aws_ebs_volume_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BACKED_BY"
+    properties: KubernetesPersistentVolumeToCloudDiskRelProperties = (
+        KubernetesPersistentVolumeToCloudDiskRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesPersistentVolumeToAzureDiskRel(CartographyRelSchema):
+    """Links a PersistentVolume to its backing Azure managed disk."""
+
+    target_node_label: str = "AzureDisk"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("azure_disk_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BACKED_BY"
+    properties: KubernetesPersistentVolumeToCloudDiskRelProperties = (
+        KubernetesPersistentVolumeToCloudDiskRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPersistentVolumeSchema(CartographyNodeSchema):
     "Cluster-scoped persistent storage available to Kubernetes workloads."
 
@@ -215,7 +261,11 @@ class KubernetesPersistentVolumeSchema(CartographyNodeSchema):
         KubernetesPersistentVolumeToClusterRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [KubernetesPersistentVolumeToStorageClassRel()]
+        [
+            KubernetesPersistentVolumeToStorageClassRel(),
+            KubernetesPersistentVolumeToAWSEBSVolumeRel(),
+            KubernetesPersistentVolumeToAzureDiskRel(),
+        ]
     )
 
 

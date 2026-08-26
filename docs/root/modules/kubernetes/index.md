@@ -6,6 +6,9 @@ identities and permissions. It also connects Kubernetes resources to cloud
 infrastructure, container images, and shared ontology labels so that workload and
 identity paths can be queried across providers.
 
+PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
+already-ingested cloud disks with `BACKED_BY` relationships.
+
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
 included automatically in the built documentation. The query guide contains

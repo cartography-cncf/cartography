@@ -45,6 +45,7 @@ def transform_storage_classes(
     return [
         {
             "id": f"{cluster_name}/{storage_class.metadata.name}",
+            "uid": storage_class.metadata.uid,
             "name": storage_class.metadata.name,
             "creation_timestamp": get_epoch(storage_class.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(storage_class.metadata.deletion_timestamp),
@@ -68,6 +69,8 @@ def transform_persistent_volumes(
         status = volume.status
         claim_ref = spec.claim_ref
         csi = spec.csi
+        csi_driver = csi.driver if csi else None
+        csi_volume_handle = csi.volume_handle if csi else None
         storage_class_name = spec.storage_class_name
         transformed.append(
             {
@@ -89,8 +92,22 @@ def transform_persistent_volumes(
                 "phase": status.phase if status else None,
                 "claim_namespace": claim_ref.namespace if claim_ref else None,
                 "claim_name": claim_ref.name if claim_ref else None,
-                "csi_driver": csi.driver if csi else None,
-                "csi_volume_handle": csi.volume_handle if csi else None,
+                "csi_driver": csi_driver,
+                "csi_volume_handle": csi_volume_handle,
+                "aws_ebs_volume_id": (
+                    csi_volume_handle
+                    if csi_driver == "ebs.csi.aws.com"
+                    and csi_volume_handle
+                    and csi_volume_handle.startswith("vol-")
+                    else None
+                ),
+                "azure_disk_id": (
+                    csi_volume_handle
+                    if csi_driver == "disk.csi.azure.com"
+                    and csi_volume_handle
+                    and csi_volume_handle.lower().startswith("/subscriptions/")
+                    else None
+                ),
                 "labels": json.dumps(volume.metadata.labels or {}, sort_keys=True),
             }
         )
@@ -213,7 +230,14 @@ def sync_storage(
                 error.status,
             )
             return
-        raise
+        logger.error(
+            "Kubernetes API error listing persistent storage on cluster %s "
+            "(status %s). Skipping storage sync for this run and preserving "
+            "previously synced nodes.",
+            client.name,
+            error.status,
+        )
+        return
 
     load_storage(
         session,

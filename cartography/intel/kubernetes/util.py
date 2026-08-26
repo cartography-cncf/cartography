@@ -33,7 +33,16 @@ def format_resource_quantities(resources: dict[str, Any] | None) -> str:
 def get_gpu_quantity(resources: dict[str, Any] | None) -> int | None:
     quantities = []
     for key, value in (resources or {}).items():
-        if not str(key).endswith("/gpu"):
+        resource_name = str(key)
+        is_intel_gpu = resource_name in (
+            "gpu.intel.com/i915",
+            "gpu.intel.com/xe",
+        )
+        if not (
+            resource_name.endswith("/gpu")
+            or resource_name.startswith("nvidia.com/mig-")
+            or is_intel_gpu
+        ):
             continue
         try:
             quantity = Decimal(str(value))

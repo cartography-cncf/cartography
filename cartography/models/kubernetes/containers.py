@@ -94,11 +94,12 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     gpu_request: PropertyRef = PropertyRef(
         "gpu_request",
         extra_index=True,
-        description="Total integer request across extended resource keys ending in `/gpu`.",
+        description="Total requested GPU scheduling units across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
     )
     gpu_limit: PropertyRef = PropertyRef(
         "gpu_limit",
-        description="Total integer limit across extended resource keys ending in `/gpu`.",
+        extra_index=True,
+        description="Total GPU scheduling-unit limit across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
     )
     allow_privilege_escalation: PropertyRef = PropertyRef(
         "allow_privilege_escalation",

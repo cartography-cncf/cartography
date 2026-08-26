@@ -303,14 +303,20 @@ def transform_pods(
         workload_parent = _resolve_pod_workload_parent(
             pod, rs_owner_map, workloads_available=workloads_available
         )
-        persistent_volume_claim_names = sorted(
-            {
-                volume.persistent_volume_claim.claim_name
-                for volume in (pod.spec.volumes or [])
-                if volume.persistent_volume_claim
+        persistent_volume_claim_name_set = set()
+        for volume in pod.spec.volumes or []:
+            if (
+                volume.persistent_volume_claim
                 and volume.persistent_volume_claim.claim_name
-            }
-        )
+            ):
+                persistent_volume_claim_name_set.add(
+                    volume.persistent_volume_claim.claim_name
+                )
+            elif volume.ephemeral:
+                persistent_volume_claim_name_set.add(
+                    f"{pod.metadata.name}-{volume.name}"
+                )
+        persistent_volume_claim_names = sorted(persistent_volume_claim_name_set)
         transformed_pods.append(
             {
                 **workload_parent,
