@@ -133,15 +133,11 @@ cartography --selected-modules gcp
 Exclusions are non-destructive. Cartography only runs cleanup after it has a
 complete inventory of a scope, and an excluded scope is never inventoried —
 so previously-ingested data under an excluded organization, folder subtree, or
-the organization root is **preserved** (left stale in Neo4j), not deleted. If
-you want that data removed from the graph, delete it explicitly, e.g.:
-
-```cypher
-MATCH (o:GCPOrganization {id: 'organizations/123456789012'})
-OPTIONAL MATCH (o)-[:RESOURCE*]->(child)
-DETACH DELETE child
-DETACH DELETE o
-```
+the organization root is **preserved** (left stale in Neo4j), not deleted.
+Because Cartography cannot distinguish a deleted resource from one moved into
+an excluded scope, project cleanup is skipped across all synced organizations
+when folder or root-project exclusions are configured. Folder cleanup is also
+skipped across all synced organizations when folder exclusions are configured.
 ````
 
 ## Troubleshooting

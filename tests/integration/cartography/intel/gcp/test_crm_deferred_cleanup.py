@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
-import cartography.intel.gcp.crm.cleanup
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
@@ -929,15 +928,6 @@ FOLDER_PROJECT = {
     "projectNumber": "222222222222",
 }
 
-SECOND_FOLDER_PROJECT = {
-    "createTime": "2021-01-01T00:00:00Z",
-    "lifecycleState": "ACTIVE",
-    "name": "second-folder-project",
-    "parent": "folders/1414",
-    "projectId": "project-in-folder-2",
-    "projectNumber": "333333333333",
-}
-
 NESTED_FOLDER_PROJECT = {
     "createTime": "2021-01-01T00:00:00Z",
     "lifecycleState": "ACTIVE",
@@ -1179,7 +1169,7 @@ def test_excluded_folder_subtree_is_preserved(
     "get_gcp_org_roles",
     return_value=[],
 )
-def test_cleanup_still_deletes_stale_included_projects_when_exclusions_active(
+def test_resources_moved_into_excluded_folder_are_preserved(
     mock_get_org_roles,
     mock_get_predefined_roles,
     mock_get_orgs,
@@ -1189,117 +1179,37 @@ def test_cleanup_still_deletes_stale_included_projects_when_exclusions_active(
     mock_get_creds,
     neo4j_session,
 ):
-    """
-    With exclusions active, projects in the *included* scope that disappear
-    from the API must still be cleaned up as before.
-    """
+    """Cleanup must not delete resources that moved into an excluded subtree."""
+    # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    # First sync: two projects under the included folder.
-    mock_get_projects.return_value = [FOLDER_PROJECT, SECOND_FOLDER_PROJECT]
-
+    mock_get_projects.return_value = [FOLDER_PROJECT]
     config = Config(
         neo4j_uri=settings.get("NEO4J_URL"),
         update_tag=TEST_UPDATE_TAG,
-        # An exclusion that matches nothing real, just to activate the
-        # exclusion-aware cleanup path.
-        gcp_excluded_folder_ids=["9999"],
     )
+
+    # Act: first sync with the folder and project in the included inventory.
     cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("project-in-folder",),
-        ("project-in-folder-2",),
-    }
-
-    # Second sync: project-in-folder-2 no longer exists in GCP.
-    mock_get_projects.return_value = [FOLDER_PROJECT]
+    # Arrange: both resources moved under excluded folder 9999, so neither
+    # appears in the partial inventory. Their stored parents still show the old
+    # included scope and cannot be used to decide whether they were deleted.
+    mock_get_folders.return_value = []
+    mock_get_projects.return_value = []
 
     config = Config(
         neo4j_uri=settings.get("NEO4J_URL"),
         update_tag=TEST_UPDATE_TAG_V2,
         gcp_excluded_folder_ids=["9999"],
     )
+
+    # Act
     cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
 
+    # Assert
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("project-in-folder",),
-    }, "Stale project in the included scope must still be deleted"
-
-
-def test_stale_project_cascade_preserves_shared_children(neo4j_session):
-    """
-    A child node attached via RESOURCE to two projects must survive the
-    cascade deletion of one of them: the stale project is removed along with
-    its own edge, but the shared child (and its edge to the excluded,
-    preserved project) must remain.
-    """
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    # Arrange: org with a folder-attached project (will go stale and be
-    # deleted) and an org-root project (excluded, must be preserved). A shared
-    # child node is attached to both projects via RESOURCE; a private child is
-    # attached only to the stale project.
-    cartography.intel.gcp.crm.orgs.load_gcp_organizations(
-        neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
-    )
-    cartography.intel.gcp.crm.folders.load_gcp_folders(
-        neo4j_session,
-        tests.data.gcp.crm.GCP_FOLDERS,
-        TEST_UPDATE_TAG,
-        "organizations/1337",
-    )
-    cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session,
-        [FOLDER_PROJECT, ORG_ROOT_PROJECT],
-        TEST_UPDATE_TAG,
-        "organizations/1337",
-    )
-    neo4j_session.run(
-        """
-        MATCH (stale:GCPProject {id: $stale_project}), (kept:GCPProject {id: $kept_project})
-        MERGE (shared:GCPServiceAccount {id: 'shared-sa'})
-        SET shared.lastupdated = $old_tag
-        MERGE (stale)-[:RESOURCE {lastupdated: $old_tag}]->(shared)
-        MERGE (kept)-[:RESOURCE {lastupdated: $old_tag}]->(shared)
-        MERGE (private:GCPServiceAccount {id: 'private-sa'})
-        SET private.lastupdated = $old_tag
-        MERGE (stale)-[:RESOURCE {lastupdated: $old_tag}]->(private)
-        """,
-        stale_project=FOLDER_PROJECT["projectId"],
-        kept_project=ORG_ROOT_PROJECT["projectId"],
-        old_tag=TEST_UPDATE_TAG,
-    )
-
-    # Act: run the exclusion-aware cleanup with org-root projects excluded.
-    # Both projects are stale (tag V2 not synced), but the org-root project is
-    # preserved; the folder project is deleted with cascade.
-    cartography.intel.gcp.crm.cleanup.cleanup_gcp_projects_preserving_exclusions(
-        neo4j_session,
-        {
-            "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-            "ORG_RESOURCE_NAME": "organizations/1337",
-        },
-        set(),
-        True,
-    )
-
-    # Assert: stale project + its private child are gone; excluded project,
-    # the shared child, and its edge to the excluded project survive.
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        (ORG_ROOT_PROJECT["projectId"],),
     }
-    assert check_nodes(neo4j_session, "GCPServiceAccount", ["id"]) == {
-        ("shared-sa",),
-    }
-    assert check_rels(
-        neo4j_session,
-        "GCPProject",
-        "id",
-        "GCPServiceAccount",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        (ORG_ROOT_PROJECT["projectId"], "shared-sa"),
+    assert check_nodes(neo4j_session, "GCPFolder", ["id"]) == {
+        (folder["name"],) for folder in tests.data.gcp.crm.GCP_FOLDERS
     }

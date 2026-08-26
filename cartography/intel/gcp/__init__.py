@@ -55,8 +55,6 @@ from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
 from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
-from cartography.intel.gcp.crm.cleanup import cleanup_gcp_folders_preserving_exclusions
-from cartography.intel.gcp.crm.cleanup import cleanup_gcp_projects_preserving_exclusions
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -1015,24 +1013,23 @@ def start_gcp_ingestion(
         # cleanup is scoped to PROJECT_ID and we only sync existing projects.
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
         if config.gcp_excluded_folder_ids or config.gcp_exclude_org_root_projects:
-            # Exclusions mean some in-scope nodes were intentionally not synced
-            # this run; use exclusion-aware cleanup so they are preserved rather
-            # than deleted as stale.
-            cleanup_gcp_projects_preserving_exclusions(
-                neo4j_session,
-                common_job_parameters,
-                config.gcp_excluded_folder_ids,
-                config.gcp_exclude_org_root_projects,
-            )
-            cleanup_gcp_folders_preserving_exclusions(
-                neo4j_session,
-                common_job_parameters,
-                config.gcp_excluded_folder_ids,
+            logger.info(
+                "Skipping GCP project cleanup for %s because exclusions make "
+                "the project inventory incomplete. Preserving existing projects.",
+                org_resource_name,
             )
         else:
             GraphJob.from_node_schema(
                 GCPProjectSchema(), common_job_parameters, cascade_delete=True
             ).run(neo4j_session)
+
+        if config.gcp_excluded_folder_ids:
+            logger.info(
+                "Skipping GCP folder cleanup for %s because exclusions make "
+                "the folder inventory incomplete. Preserving existing folders.",
+                org_resource_name,
+            )
+        else:
             GraphJob.from_node_schema(
                 GCPFolderSchema(), common_job_parameters, cascade_delete=True
             ).run(neo4j_session)
