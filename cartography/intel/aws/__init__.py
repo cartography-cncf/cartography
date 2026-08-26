@@ -813,12 +813,6 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    aws_ssm_public_parameter_prefix_allowlist = (
-        _resolve_aws_ssm_public_parameter_prefix_allowlist(
-            config.aws_ssm_public_parameter_prefix_allowlist,
-            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
-        )
-    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -826,7 +820,6 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
-        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
     }
     try:
         boto3_session = boto3.Session()
@@ -862,6 +855,16 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 f"sync. Doing otherwise will result in undefined and untested behavior. Account list: {aws_accounts}"
             ),
         )
+
+    # Resolved here rather than at the top of the function because falling back to the
+    # default reaches into cartography.intel.aws.ssm, and a run with no AWS credentials
+    # should not import it.
+    common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] = (
+        _resolve_aws_ssm_public_parameter_prefix_allowlist(
+            config.aws_ssm_public_parameter_prefix_allowlist,
+            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
+        )
+    )
 
     requested_syncs: List[str] = list(aws_resources.RESOURCE_FUNCTIONS.keys())
     if config.aws_requested_syncs:
