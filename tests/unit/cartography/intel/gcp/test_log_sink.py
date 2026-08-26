@@ -31,6 +31,20 @@ def test_transform_gcp_log_sinks_for_org_scope():
     ]
 
 
+def test_transform_gcp_log_sinks_skips_missing_names():
+    sinks = cartography.intel.gcp.log_sink.transform_gcp_log_sinks(
+        [
+            {
+                "destination": "bigquery.googleapis.com/projects/log-project/datasets/audit_logs"
+            }
+        ],
+        "project",
+        "projects/test-project",
+    )
+
+    assert sinks == []
+
+
 def test_transform_gcp_log_sinks_qualifies_short_sink_names():
     sinks = cartography.intel.gcp.log_sink.transform_gcp_log_sinks(
         [

@@ -113,7 +113,9 @@ def transform_gcp_log_sinks(
 ) -> list[dict]:
     transformed: list[dict] = []
     for sink in sinks:
-        name = sink["name"]
+        name = sink.get("name")
+        if not name:
+            continue
         full_name = _sink_resource_name(name, parent_id)
         transformed.append(
             {
