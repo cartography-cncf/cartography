@@ -118,6 +118,33 @@ def test_export_and_download_rejects_malformed_status_payloads(
         )
 
 
+@pytest.mark.parametrize("chunks_available", [{}, "", None])
+def test_export_and_download_rejects_non_list_chunks_available(
+    mocker,
+    chunks_available,
+):
+    # Arrange
+    mocker.patch.object(api, "_initiate_export", return_value="export-uuid")
+    mocker.patch.object(
+        api,
+        "_get_export_status",
+        return_value={
+            "status": "FINISHED",
+            "chunks_available": chunks_available,
+        },
+    )
+
+    # Act and assert
+    with pytest.raises(TypeError, match="chunks_available returned"):
+        api.export_and_download(
+            MagicMock(),
+            TEST_BASE_URL,
+            TEST_EXPORT_PATH,
+            TEST_RESULT_BASE,
+            TEST_EXPORT_PARAMS,
+        )
+
+
 def test_export_and_download_times_out_without_sleeping_after_final_poll(mocker):
     # Arrange
     mocker.patch.object(api, "_MAX_POLL_ATTEMPTS", 2)

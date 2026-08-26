@@ -121,6 +121,11 @@ def export_and_download(
             raise RuntimeError(f"Tenable export {export_uuid} was cancelled")
         if status == "FINISHED":
             chunks = status_data["chunks_available"]
+            if not isinstance(chunks, list):
+                raise TypeError(
+                    f"Tenable export {export_uuid} chunks_available returned "
+                    f"{type(chunks).__name__}; expected a list"
+                )
             logger.debug(
                 "Tenable export %s finished; downloading %d chunk(s)",
                 export_uuid,
