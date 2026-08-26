@@ -9,6 +9,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 NOTION_API_BASE_URL = "https://api.notion.com/v1"
+NOTION_SCIM_BASE_URL = "https://api.notion.com/scim/v2"
 NOTION_API_VERSION = "2026-03-11"
 REQUEST_TIMEOUT = (60, 60)
 
@@ -18,6 +19,7 @@ class NotionWorkspaceConfig:
     workspace_id: str
     workspace_name: str
     api_token: str
+    scim_token: str | None = None
 
 
 def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
@@ -38,7 +40,7 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
     for workspace in workspaces:
         if not isinstance(workspace, dict):
             raise ValueError("Each Notion workspace config must be a JSON object")
-        values: dict[str, str] = {}
+        values: dict[str, Any] = {}
         for field in ("workspace_id", "workspace_name", "api_token"):
             value = workspace.get(field)
             if not isinstance(value, str) or not value.strip():
@@ -46,6 +48,15 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
                     f"Notion workspace config field {field!r} must be a non-empty string"
                 )
             values[field] = value.strip()
+
+        scim_token = workspace.get("scim_token")
+        if scim_token is not None and (
+            not isinstance(scim_token, str) or not scim_token.strip()
+        ):
+            raise ValueError(
+                "Notion workspace config field 'scim_token' must be a non-empty string"
+            )
+        values["scim_token"] = scim_token.strip() if scim_token else None
 
         if values["workspace_id"] in seen_ids:
             raise ValueError(
@@ -58,6 +69,20 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
 
 
 def create_api_session(api_token: str) -> requests.Session:
+    return _create_session(
+        api_token,
+        {
+            "Notion-Version": NOTION_API_VERSION,
+            "Accept": "application/json",
+        },
+    )
+
+
+def create_scim_session(scim_token: str) -> requests.Session:
+    return _create_session(scim_token, {"Accept": "application/scim+json"})
+
+
+def _create_session(api_token: str, headers: dict[str, str]) -> requests.Session:
     retry_policy = Retry(
         total=5,
         backoff_factor=1,
@@ -67,13 +92,7 @@ def create_api_session(api_token: str) -> requests.Session:
     )
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    session.headers.update(
-        {
-            "Authorization": f"Bearer {api_token}",
-            "Notion-Version": NOTION_API_VERSION,
-            "Accept": "application/json",
-        },
-    )
+    session.headers.update({"Authorization": f"Bearer {api_token}", **headers})
     return session
 
 
@@ -123,3 +142,57 @@ def get_paginated(
 
 def scoped_id(workspace_id: str, notion_id: str) -> str:
     return f"{workspace_id}/{notion_id}"
+
+
+def get_scim_paginated(
+    scim_session: requests.Session,
+    resource: str,
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    start_index = 1
+    expected_total: int | None = None
+
+    while True:
+        response = scim_session.get(
+            f"{NOTION_SCIM_BASE_URL}/{resource}",
+            params={"startIndex": start_index, "count": 100},
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Notion SCIM response must be a JSON object")
+
+        resources = payload.get("Resources")
+        total = payload.get("totalResults")
+        response_start = payload.get("startIndex")
+        page_size = payload.get("itemsPerPage")
+        if not isinstance(resources, list) or not all(
+            isinstance(item, dict) for item in resources
+        ):
+            raise ValueError("Notion SCIM response must contain object Resources")
+        if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+            raise ValueError("Notion SCIM response has an invalid totalResults")
+        if (
+            not isinstance(response_start, int)
+            or isinstance(response_start, bool)
+            or response_start != start_index
+        ):
+            raise ValueError("Notion SCIM response has an unexpected startIndex")
+        if (
+            not isinstance(page_size, int)
+            or isinstance(page_size, bool)
+            or page_size != len(resources)
+        ):
+            raise ValueError("Notion SCIM response has an invalid itemsPerPage")
+        if expected_total is None:
+            expected_total = total
+        elif total != expected_total:
+            raise ValueError("Notion SCIM totalResults changed during pagination")
+
+        results.extend(resources)
+        if len(results) == expected_total:
+            return results
+        if not resources or len(results) > expected_total:
+            raise ValueError("Notion SCIM pagination did not make valid progress")
+        start_index += len(resources)
