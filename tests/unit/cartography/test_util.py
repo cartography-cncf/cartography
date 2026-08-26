@@ -110,7 +110,7 @@ def test_run_typed_analysis_job(mocker):
 
 
 @patch(
-    "cartography.util.backoff",
+    "cartography.util.aws.backoff",
     Mock(
         on_exception=lambda *args, **kwargs: lambda func: func,
     ),
