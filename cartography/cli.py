@@ -830,6 +830,44 @@ class CLI:
                     hidden=PANEL_GCP not in visible_panels,
                 ),
             ] = "cartography/data/gcp_permission_relationships.yaml",
+            gcp_excluded_org_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-org-ids",
+                    help=(
+                        "Comma-separated list of GCP organization IDs to exclude from ingestion. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_excluded_folder_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-folder-ids",
+                    help=(
+                        "Comma-separated list of GCP folder IDs to exclude from ingestion. "
+                        "The entire subtree under each excluded folder is skipped. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_exclude_org_root_projects: Annotated[
+                bool,
+                typer.Option(
+                    "--gcp-exclude-org-root-projects",
+                    help=(
+                        "If set, projects attached directly to the organization root "
+                        "(not inside any folder) are excluded from ingestion. "
+                        "Included by default."
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # OCI Options
             # =================================================================
@@ -3550,6 +3588,17 @@ class CLI:
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
+                gcp_excluded_org_ids=(
+                    [x.strip() for x in gcp_excluded_org_ids.split(",") if x.strip()]
+                    if gcp_excluded_org_ids
+                    else None
+                ),
+                gcp_excluded_folder_ids=(
+                    [x.strip() for x in gcp_excluded_folder_ids.split(",") if x.strip()]
+                    if gcp_excluded_folder_ids
+                    else None
+                ),
+                gcp_exclude_org_root_projects=gcp_exclude_org_root_projects,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
                 jamf_password=jamf_password,

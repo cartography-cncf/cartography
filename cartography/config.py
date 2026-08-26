@@ -190,6 +190,12 @@ class Config:
     :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
+    :type gcp_excluded_org_ids: list[str]
+    :param gcp_excluded_org_ids: List of GCP organization IDs to exclude from ingestion. Optional.
+    :type gcp_excluded_folder_ids: list[str]
+    :param gcp_excluded_folder_ids: List of GCP folder IDs to exclude from ingestion (entire subtree is skipped). Optional.
+    :type gcp_exclude_org_root_projects: bool
+    :param gcp_exclude_org_root_projects: If True, projects attached directly to the organization root are excluded. Defaults to False. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
@@ -734,6 +740,9 @@ class Config:
         snowflake_role=None,
         snowflake_warehouse=None,
         snowflake_databases=None,
+        gcp_excluded_org_ids=None,
+        gcp_excluded_folder_ids=None,
+        gcp_exclude_org_root_projects=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -799,6 +808,13 @@ class Config:
         self.azure_permission_relationships_file = azure_permission_relationships_file
         self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
+        self.gcp_excluded_org_ids = (
+            set(gcp_excluded_org_ids) if gcp_excluded_org_ids else set()
+        )
+        self.gcp_excluded_folder_ids = (
+            set(gcp_excluded_folder_ids) if gcp_excluded_folder_ids else set()
+        )
+        self.gcp_exclude_org_root_projects = gcp_exclude_org_root_projects
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
