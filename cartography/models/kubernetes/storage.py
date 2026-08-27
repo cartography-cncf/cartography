@@ -126,6 +126,10 @@ class KubernetesPersistentVolumeNodeProperties(CartographyNodeProperties):
         "capacity_storage",
         description="Storage capacity reported by `spec.capacity.storage`.",
     )
+    capacity_storage_bytes: PropertyRef = PropertyRef(
+        "capacity_storage_bytes",
+        description="Storage capacity in bytes.",
+    )
     access_modes: PropertyRef = PropertyRef(
         "access_modes",
         description="Ways the volume can be mounted, such as ReadWriteOnce or ReadWriteMany.",
@@ -240,7 +244,7 @@ class KubernetesPersistentVolumeToAzureDiskRel(CartographyRelSchema):
 
     target_node_label: str = "AzureDisk"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("azure_disk_id")}
+        {"id": PropertyRef("azure_disk_id", ignore_case=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BACKED_BY"
@@ -316,6 +320,10 @@ class KubernetesPersistentVolumeClaimNodeProperties(CartographyNodeProperties):
     requested_storage: PropertyRef = PropertyRef(
         "requested_storage",
         description="Storage quantity requested by the claim.",
+    )
+    requested_storage_bytes: PropertyRef = PropertyRef(
+        "requested_storage_bytes",
+        description="Storage requested by the claim in bytes.",
     )
     volume_mode: PropertyRef = PropertyRef(
         "volume_mode",

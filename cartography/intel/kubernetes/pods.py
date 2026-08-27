@@ -115,27 +115,10 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             )
             containers[container.name]["gpu_request"] = get_gpu_quantity(requests)
             containers[container.name]["gpu_limit"] = get_gpu_quantity(limits)
-            if container.resources.requests:
-                containers[container.name]["memory_request"] = (
-                    container.resources.requests.get("memory")
-                )
-                containers[container.name]["cpu_request"] = (
-                    container.resources.requests.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_request"] = None
-                containers[container.name]["cpu_request"] = None
-
-            if container.resources.limits:
-                containers[container.name]["memory_limit"] = (
-                    container.resources.limits.get("memory")
-                )
-                containers[container.name]["cpu_limit"] = (
-                    container.resources.limits.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_limit"] = None
-                containers[container.name]["cpu_limit"] = None
+            containers[container.name]["memory_request"] = requests.get("memory")
+            containers[container.name]["cpu_request"] = requests.get("cpu")
+            containers[container.name]["memory_limit"] = limits.get("memory")
+            containers[container.name]["cpu_limit"] = limits.get("cpu")
         else:
             containers[container.name]["resource_requests"] = "{}"
             containers[container.name]["resource_limits"] = "{}"

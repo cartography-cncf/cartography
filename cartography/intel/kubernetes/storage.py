@@ -7,10 +7,11 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1PersistentVolume
 from kubernetes.client.models import V1PersistentVolumeClaim
 from kubernetes.client.models import V1StorageClass
+from kubernetes.utils.quantity import parse_quantity
+from urllib3.exceptions import HTTPError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.storage import KubernetesPersistentVolumeClaimSchema
@@ -19,6 +20,10 @@ from cartography.models.kubernetes.storage import KubernetesStorageClassSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _storage_bytes(quantity: str | None) -> int | None:
+    return int(parse_quantity(quantity)) if quantity is not None else None
 
 
 @timeit
@@ -47,8 +52,8 @@ def transform_storage_classes(
             "id": f"{cluster_name}/{storage_class.metadata.name}",
             "uid": storage_class.metadata.uid,
             "name": storage_class.metadata.name,
-            "creation_timestamp": get_epoch(storage_class.metadata.creation_timestamp),
-            "deletion_timestamp": get_epoch(storage_class.metadata.deletion_timestamp),
+            "creation_timestamp": storage_class.metadata.creation_timestamp,
+            "deletion_timestamp": storage_class.metadata.deletion_timestamp,
             "provisioner": storage_class.provisioner,
             "reclaim_policy": storage_class.reclaim_policy,
             "volume_binding_mode": storage_class.volume_binding_mode,
@@ -77,9 +82,12 @@ def transform_persistent_volumes(
                 "id": f"{cluster_name}/{volume.metadata.name}",
                 "uid": volume.metadata.uid,
                 "name": volume.metadata.name,
-                "creation_timestamp": get_epoch(volume.metadata.creation_timestamp),
-                "deletion_timestamp": get_epoch(volume.metadata.deletion_timestamp),
+                "creation_timestamp": volume.metadata.creation_timestamp,
+                "deletion_timestamp": volume.metadata.deletion_timestamp,
                 "capacity_storage": (spec.capacity or {}).get("storage"),
+                "capacity_storage_bytes": _storage_bytes(
+                    (spec.capacity or {}).get("storage")
+                ),
                 "access_modes": sorted(spec.access_modes or []),
                 "reclaim_policy": spec.persistent_volume_reclaim_policy,
                 "storage_class_name": storage_class_name,
@@ -130,8 +138,8 @@ def transform_persistent_volume_claims(
                 "id": f"{cluster_name}/{namespace}/{claim.metadata.name}",
                 "uid": claim.metadata.uid,
                 "name": claim.metadata.name,
-                "creation_timestamp": get_epoch(claim.metadata.creation_timestamp),
-                "deletion_timestamp": get_epoch(claim.metadata.deletion_timestamp),
+                "creation_timestamp": claim.metadata.creation_timestamp,
+                "deletion_timestamp": claim.metadata.deletion_timestamp,
                 "namespace": namespace,
                 "storage_class_name": storage_class_name,
                 "storage_class_id": (
@@ -143,6 +151,7 @@ def transform_persistent_volume_claims(
                 "volume_id": (f"{cluster_name}/{volume_name}" if volume_name else None),
                 "access_modes": sorted(spec.access_modes or []),
                 "requested_storage": requests.get("storage"),
+                "requested_storage_bytes": _storage_bytes(requests.get("storage")),
                 "volume_mode": spec.volume_mode,
                 "phase": status.phase if status else None,
                 "labels": json.dumps(claim.metadata.labels or {}, sort_keys=True),
@@ -230,12 +239,23 @@ def sync_storage(
                 error.status,
             )
             return
-        logger.error(
-            "Kubernetes API error listing persistent storage on cluster %s "
-            "(status %s). Skipping storage sync for this run and preserving "
-            "previously synced nodes.",
+        status = error.status or 0
+        if status in (0, 429) or 500 <= status < 600:
+            logger.error(
+                "Transient Kubernetes API error listing persistent storage on "
+                "cluster %s (status %s). Skipping storage sync for this run and "
+                "preserving previously synced nodes.",
+                client.name,
+                error.status,
+            )
+            return
+        raise
+    except HTTPError:
+        logger.exception(
+            "Kubernetes transport error listing persistent storage on cluster %s. "
+            "Skipping storage sync for this run and preserving previously synced "
+            "nodes.",
             client.name,
-            error.status,
         )
         return
 

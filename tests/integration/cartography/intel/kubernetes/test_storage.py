@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 from kubernetes.client.exceptions import ApiException
+from urllib3.exceptions import MaxRetryError
 
 import cartography.intel.kubernetes.pods as pods_module
 import cartography.intel.kubernetes.storage as storage_module
@@ -15,8 +16,8 @@ from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.storage import CLAIM_NAME
-from tests.data.kubernetes.storage import CREATION_EPOCH
-from tests.data.kubernetes.storage import DELETION_EPOCH
+from tests.data.kubernetes.storage import CREATION_TIMESTAMP
+from tests.data.kubernetes.storage import DELETION_TIMESTAMP
 from tests.data.kubernetes.storage import NAMESPACE
 from tests.data.kubernetes.storage import RAW_GPU_PODS
 from tests.data.kubernetes.storage import RAW_PERSISTENT_VOLUME_CLAIMS
@@ -76,13 +77,19 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
     assert check_nodes(
         neo4j_session,
         "KubernetesPersistentVolume",
-        ["name", "capacity_storage", "csi_driver", "phase"],
-    ) == {(VOLUME_NAME, "2Pi", "csi.example.com", "Bound")}
+        [
+            "name",
+            "capacity_storage",
+            "capacity_storage_bytes",
+            "csi_driver",
+            "phase",
+        ],
+    ) == {(VOLUME_NAME, "2Pi", 2251799813685248, "csi.example.com", "Bound")}
     assert check_nodes(
         neo4j_session,
         "KubernetesPersistentVolumeClaim",
-        ["name", "requested_storage", "phase"],
-    ) == {(CLAIM_NAME, "2Pi", "Bound")}
+        ["name", "requested_storage", "requested_storage_bytes", "phase"],
+    ) == {(CLAIM_NAME, "2Pi", 2251799813685248, "Bound")}
     assert check_nodes(
         neo4j_session,
         "KubernetesStorageClass",
@@ -97,7 +104,7 @@ def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
             neo4j_session,
             label,
             ["name", "creation_timestamp", "deletion_timestamp"],
-        ) == {(name, CREATION_EPOCH, DELETION_EPOCH)}
+        ) == {(name, CREATION_TIMESTAMP, DELETION_TIMESTAMP)}
     assert check_rels(
         neo4j_session,
         "KubernetesPersistentVolumeClaim",
@@ -157,9 +164,13 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
     azure_volume.metadata.name = "azure-volume"
     azure_volume.metadata.uid = "azure-volume-uid"
     azure_volume.spec.csi.driver = "disk.csi.azure.com"
-    azure_volume.spec.csi.volume_handle = (
+    azure_disk_id = (
         "/subscriptions/00000000-0000-0000-0000-000000000000/"
         "resourceGroups/example/providers/Microsoft.Compute/disks/data"
+    )
+    azure_volume.spec.csi.volume_handle = (
+        "/subscriptions/00000000-0000-0000-0000-000000000000/"
+        "resourcegroups/example/providers/microsoft.compute/disks/data"
     )
 
     monkeypatch.setattr(
@@ -180,7 +191,7 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
     neo4j_session.run("MERGE (:AWSEBSVolume {id: 'vol-0123456789abcdef0'})")
     neo4j_session.run(
         "MERGE (:AzureDisk {id: $id})",
-        id=azure_volume.spec.csi.volume_handle,
+        id=azure_disk_id,
     )
     client = SimpleNamespace(name=CLUSTER_NAME)
 
@@ -208,7 +219,7 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
         "AzureDisk",
         "id",
         "BACKED_BY",
-    ) == {("azure-volume", azure_volume.spec.csi.volume_handle)}
+    ) == {("azure-volume", azure_disk_id)}
     neo4j_session.run(
         "MATCH (v) "
         "WHERE (v:KubernetesPersistentVolume AND "
@@ -216,7 +227,7 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
         "OR (v:AWSEBSVolume AND v.id = 'vol-0123456789abcdef0') "
         "OR (v:AzureDisk AND v.id = $azure_disk_id) "
         "DETACH DELETE v",
-        azure_disk_id=azure_volume.spec.csi.volume_handle,
+        azure_disk_id=azure_disk_id,
     )
     assert check_nodes(neo4j_session, "AWSEBSVolume", ["id"]) == set()
     assert check_nodes(neo4j_session, "AzureDisk", ["id"]) == set()
@@ -307,6 +318,57 @@ def test_sync_storage_preserves_nodes_on_api_error(
         ("KubernetesPersistentVolumeClaim", CLAIM_NAME),
     ):
         assert check_nodes(neo4j_session, label, ["name"]) == {(name,)}
+
+
+def test_sync_storage_raises_unexpected_api_error(
+    neo4j_session,
+    monkeypatch,
+    _create_test_cluster,
+):
+    monkeypatch.setattr(
+        storage_module,
+        "get_storage_classes",
+        lambda client: (_ for _ in ()).throw(ApiException(status=400)),
+    )
+
+    with pytest.raises(ApiException):
+        sync_storage(
+            neo4j_session,
+            SimpleNamespace(name=CLUSTER_NAME),
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID},
+        )
+
+
+def test_sync_storage_preserves_nodes_on_transport_error(
+    neo4j_session,
+    monkeypatch,
+    _create_test_cluster,
+):
+    _mock_storage(monkeypatch)
+    client = SimpleNamespace(name=CLUSTER_NAME)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
+    sync_storage(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+    monkeypatch.setattr(
+        storage_module,
+        "get_storage_classes",
+        lambda client: (_ for _ in ()).throw(
+            MaxRetryError(None, "/api/v1/persistentvolumes", "connection refused")
+        ),
+    )
+
+    sync_storage(
+        neo4j_session,
+        client,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesPersistentVolume",
+        ["name"],
+    ) == {(VOLUME_NAME,)}
 
 
 def test_sync_storage_cleans_up_stale_nodes(

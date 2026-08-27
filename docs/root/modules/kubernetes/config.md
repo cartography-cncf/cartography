@@ -64,12 +64,15 @@ rules:
     - pods
     - services
     - serviceaccounts
+  verbs: ["list"]
+# Persistent storage (required). Until v1.0.0 Cartography tolerates these verbs
+# being withheld and preserves existing storage nodes; from v1.0.0 a missing
+# verb is a hard failure.
+- apiGroups: [""]
+  resources:
     - persistentvolumes
     - persistentvolumeclaims
   verbs: ["list"]
-# Persistent storage classes (required). Until v1.0.0 Cartography tolerates this
-# verb being withheld and preserves existing storage nodes; from v1.0.0 a missing
-# verb is a hard failure.
 - apiGroups: ["storage.k8s.io"]
   resources:
     - storageclasses
