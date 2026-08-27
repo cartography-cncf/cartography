@@ -16,7 +16,8 @@ from urllib.parse import quote
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_list_of_values_tx
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
 from cartography.intel.github.util import fetch_all_rest_api_pages
@@ -718,20 +719,30 @@ def cleanup_org_level(
 # =============================================================================
 
 
-def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> list[str]:
+def _get_repos_from_graph(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    skip_archived_repos: bool = False,
+) -> list[dict[str, Any]]:
     """
-    Get repository names for an organization from the graph.
+    Get repository name/url/pushedat/synced_pushedat metadata for an
+    organization from the graph.
+
+    :param skip_archived_repos: If True, exclude archived/disabled repos.
     """
     org_url = f"https://github.com/{organization}"
     query = """
     MATCH (org:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
-    RETURN repo.name
+    WHERE NOT $skip_archived_repos OR (repo.archived = false AND repo.disabled = false)
+    RETURN repo.name AS name, repo.id AS url, repo.pushedat AS pushedat,
+           repo.synced_pushedat AS synced_pushedat
     ORDER BY repo.name
     """
-    result: list[str] = neo4j_session.execute_read(
-        read_list_of_values_tx,
+    result: list[dict[str, Any]] = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         org_url=org_url,
+        skip_archived_repos=skip_archived_repos,
     )
     return result
 
@@ -749,6 +760,9 @@ class _RepoActionsData:
     place and every graph write in another."""
 
     repo_name: str
+    repo_url: str = ""
+    pushedat: str | None = None
+    workflows_skipped: bool = False
     enriched_workflows: list[dict[str, Any]] = field(default_factory=list)
     repo_actions: list[dict[str, Any]] = field(default_factory=list)
     transformed_environments: list[dict[str, Any]] = field(default_factory=list)
@@ -763,40 +777,63 @@ def _fetch_actions_for_repo(
     organization: str,
     github_api_key: str,
     github_url: str,
+    repo_url: str = "",
+    pushedat: str | None = None,
+    synced_pushedat: str | None = None,
+    skip_unchanged_repos: bool = False,
 ) -> _RepoActionsData:
     """
     Fetch and transform all Actions data for a single repo.
     Returns a _RepoActionsData bundle; no Neo4j writes are performed here.
+
+    :param skip_unchanged_repos: If True, skip re-fetching/re-parsing workflow
+        YAML content when `pushedat` matches `synced_pushedat` (written after
+        the last successful repos sync). Secrets, variables, and environments
+        are always fetched regardless.
     """
-    data = _RepoActionsData(repo_name=repo_name)
+    data = _RepoActionsData(repo_name=repo_name, repo_url=repo_url, pushedat=pushedat)
+
+    skip_workflows = (
+        skip_unchanged_repos
+        and pushedat is not None
+        and synced_pushedat is not None
+        and pushedat == synced_pushedat
+    )
 
     # Workflows
-    workflows = get_repo_workflows(github_api_key, github_url, organization, repo_name)
-    if workflows:
-        transformed_workflows = transform_workflows(workflows, organization, repo_name)
-        for wf in transformed_workflows:
-            content = None
-            workflow_path = wf.get("path")
-            if workflow_path:
-                content = get_workflow_content(
-                    github_api_key,
-                    github_url,
+    if skip_workflows:
+        data.workflows_skipped = True
+    else:
+        workflows = get_repo_workflows(
+            github_api_key, github_url, organization, repo_name
+        )
+        if workflows:
+            transformed_workflows = transform_workflows(
+                workflows, organization, repo_name
+            )
+            for wf in transformed_workflows:
+                content = None
+                workflow_path = wf.get("path")
+                if workflow_path:
+                    content = get_workflow_content(
+                        github_api_key,
+                        github_url,
+                        organization,
+                        repo_name,
+                        workflow_path,
+                    )
+                parsed = parse_workflow_yaml(content) if content else None
+                enriched_wf = enrich_workflow_with_parsed_content(
+                    wf,
+                    parsed,
                     organization,
                     repo_name,
-                    workflow_path,
                 )
-            parsed = parse_workflow_yaml(content) if content else None
-            enriched_wf = enrich_workflow_with_parsed_content(
-                wf,
-                parsed,
-                organization,
-                repo_name,
-            )
-            data.enriched_workflows.append(enriched_wf)
-            if parsed and wf.get("id") is not None:
-                data.repo_actions.extend(
-                    transform_actions(parsed, wf["id"], organization, repo_name)
-                )
+                data.enriched_workflows.append(enriched_wf)
+                if parsed and wf.get("id") is not None:
+                    data.repo_actions.extend(
+                        transform_actions(parsed, wf["id"], organization, repo_name)
+                    )
 
     # Environments
     environments = get_repo_environments(
@@ -868,6 +905,84 @@ def _fetch_actions_for_repo(
     return data
 
 
+def _touch_skipped_actions_workflows(
+    neo4j_session: neo4j.Session,
+    skipped_repo_urls: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the existing GitHubWorkflow/GitHubAction subgraph
+    for repos whose workflow-content fetch was skipped this run (pushedat
+    unchanged), so the stale-tag cleanups don't delete it. Cleanup also deletes
+    stale relationships by their own `lastupdated`, so every relationship reaped
+    by the workflow and action cleanups is touched too.
+    """
+    if not skipped_repo_urls:
+        return
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[hw:HAS_WORKFLOW]->(wf:GitHubWorkflow)
+        SET wf.lastupdated = $update_tag, hw.lastupdated = $update_tag
+        WITH DISTINCT wf
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(wf)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(:GitHubWorkflow)
+              -[rs:REFERENCES_SECRET]->(:GitHubActionsSecret)
+        SET rs.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(:GitHubWorkflow)
+              -[ua:USES_ACTION]->(a:GitHubAction)
+        SET a.lastupdated = $update_tag, ua.lastupdated = $update_tag
+        WITH DISTINCT a
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(a)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=skipped_repo_urls,
+        update_tag=update_tag,
+    )
+
+
+def _get_skipped_repo_workflows(
+    neo4j_session: neo4j.Session,
+    skipped_repo_urls: list[str],
+) -> list[dict[str, Any]]:
+    """
+    Return {repo_url, path} rows for the existing workflows of skipped repos so
+    supply_chain.sync refreshes their PACKAGED_BY matchlinks instead of its
+    cleanup deleting them as stale.
+    """
+    if not skipped_repo_urls:
+        return []
+    rows: list[dict[str, Any]] = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_WORKFLOW]->(wf:GitHubWorkflow)
+        WHERE wf.repo_url IS NOT NULL AND wf.path IS NOT NULL
+        RETURN wf.repo_url AS repo_url, wf.path AS path
+        """,
+        repo_urls=skipped_repo_urls,
+    )
+    return rows
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -875,16 +990,23 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    skip_archived_repos: bool = False,
+    skip_unchanged_repos: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Sync GitHub Actions data (workflows, secrets, variables, environments) for an organization.
 
     Sync order:
     1. Organization-level secrets and variables
-    2. For each repo: workflows, environments, repo secrets/variables
-    3. For each environment: env secrets/variables
-    4. Cleanup stale nodes
+    2. For each repo: workflows, environments, repo secrets/variables,
+       env secrets/variables
+    3. Cleanup stale nodes
 
+    :param skip_archived_repos: If True, skip archived/disabled repos entirely.
+    :param skip_unchanged_repos: If True, skip re-fetching/re-parsing workflow
+        YAML content for repos whose `pushedat` is unchanged since the last
+        successful Actions sync. Secrets/variables/environments are always
+        still fetched for every repo.
     :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
     org_url = f"https://github.com/{organization}"
@@ -907,17 +1029,27 @@ def sync(
         )
 
     # 2. Get repos from graph and sync repo-level resources
-    repo_names = _get_repos_from_graph(neo4j_session, organization)
-    logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
+    repos = _get_repos_from_graph(
+        neo4j_session,
+        organization,
+        skip_archived_repos=skip_archived_repos,
+    )
+    logger.info(f"Syncing GitHub Actions for {len(repos)} repositories")
 
-    for repo_name in repo_names:
+    skipped_repo_urls: list[str] = []
+
+    for repo in repos:
         # Fetch and transform all Actions data for this repo (no writes), then
         # load sequentially on this thread.
         d = _fetch_actions_for_repo(
-            repo_name,
+            repo["name"],
             organization,
             github_api_key,
             github_url,
+            repo_url=repo["url"],
+            pushedat=repo.get("pushedat"),
+            synced_pushedat=repo.get("synced_pushedat"),
+            skip_unchanged_repos=skip_unchanged_repos,
         )
 
         if d.enriched_workflows:
@@ -942,7 +1074,23 @@ def sync(
         if d.env_variables:
             load_env_variables(neo4j_session, d.env_variables, update_tag, org_url)
 
-    # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
+        if skip_unchanged_repos and d.workflows_skipped:
+            skipped_repo_urls.append(d.repo_url)
+
+    if skip_unchanged_repos:
+        _touch_skipped_actions_workflows(neo4j_session, skipped_repo_urls, update_tag)
+        all_workflows.extend(
+            _get_skipped_repo_workflows(neo4j_session, skipped_repo_urls)
+        )
+        logger.info(
+            "GitHub Actions incremental sync for org %s: skipped workflow refetch "
+            "for %d/%d unchanged repos.",
+            organization,
+            len(skipped_repo_urls),
+            len(repos),
+        )
+
+    # 3. Cleanup all stale nodes scoped to the organization. Repo-level secrets
     # and variables are now scoped to the org as well, so cleanup_org_level
     # picks them up here.
     org_cleanup_params = {**common_job_parameters, "org_url": org_url}

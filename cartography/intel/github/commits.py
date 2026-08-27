@@ -7,6 +7,8 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_page
 from cartography.models.github.commits import GitHubUserCommittedToRepoRel
@@ -136,6 +138,38 @@ def get_repo_commits(
     return all_commits
 
 
+def _get_repo_pushedat_map(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    repo_names: list[str],
+) -> dict[str, str | None]:
+    """
+    Fetch the current `pushedat` value for the given repos from the graph.
+
+    :param neo4j_session: Neo4j session for database interface.
+    :param organization: The Github organization name.
+    :param repo_names: List of repository names to look up.
+    :return: A dict mapping repo_name to its `pushedat` value (or None if
+        missing/never fetched).
+    """
+    repo_urls = {
+        repo_name: f"https://github.com/{organization}/{repo_name}"
+        for repo_name in repo_names
+    }
+    query = """
+    UNWIND $repo_urls AS url
+    MATCH (r:GitHubRepository {id: url})
+    RETURN r.id AS url, r.pushedat AS pushedat
+    """
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        repo_urls=list(repo_urls.values()),
+    )
+    pushedat_by_url = {row["url"]: row["pushedat"] for row in rows}
+    return {repo_name: pushedat_by_url.get(url) for repo_name, url in repo_urls.items()}
+
+
 def process_repo_commits_batch(
     neo4j_session: neo4j.Session,
     token: str,
@@ -145,7 +179,8 @@ def process_repo_commits_batch(
     update_tag: int,
     lookback_days: int = 30,
     batch_size: int = 10,
-) -> None:
+    skip_stale_repos: bool = False,
+) -> list[str]:
     """
     Process repository commits in batches to save memory and API quota.
 
@@ -157,9 +192,49 @@ def process_repo_commits_batch(
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
     :param batch_size: Number of repositories to process in each batch.
+    :param skip_stale_repos: If True, skip repos whose `pushedat` (last known
+        push, from a prior GitHub repos sync) is older than the lookback
+        window; such repos cannot have any commits within that window. Repos
+        with no `pushedat` on record (e.g. never seen by a repos sync yet)
+        are never skipped.
+    :return: List of repo names skipped this run (empty unless
+        skip_stale_repos is True). The caller touches their existing
+        COMMITTED_TO edges so the stale-tag cleanup doesn't delete them.
     """
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+    skipped_repo_names: list[str] = []
+    if skip_stale_repos:
+        pushedat_by_repo = _get_repo_pushedat_map(
+            neo4j_session, organization, repo_names
+        )
+        eligible_repo_names = []
+        skipped_count = 0
+        for repo_name in repo_names:
+            pushedat = pushedat_by_repo.get(repo_name)
+            if pushedat is None:
+                eligible_repo_names.append(repo_name)
+                continue
+            try:
+                pushed_dt = datetime.fromisoformat(pushedat.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                eligible_repo_names.append(repo_name)
+                continue
+            if pushed_dt < lookback_date:
+                skipped_count += 1
+                skipped_repo_names.append(repo_name)
+            else:
+                eligible_repo_names.append(repo_name)
+        logger.info(
+            "Skipping commits fetch for %d/%d repos in org %s with no push in the "
+            "last %d days.",
+            skipped_count,
+            len(repo_names),
+            organization,
+            lookback_days,
+        )
+        repo_names = eligible_repo_names
 
     logger.info(f"Processing {len(repo_names)} repositories in batches of {batch_size}")
 
@@ -212,6 +287,8 @@ def process_repo_commits_batch(
 
         # Clear memory for next batch
         batch_relationships.clear()
+
+    return skipped_repo_names
 
 
 def transform_single_repo_commits_to_relationships(
@@ -359,6 +436,45 @@ def load_github_commit_relationships(
     )
 
 
+def _touch_skipped_commit_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    skipped_repo_names: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the existing COMMITTED_TO edges for repos whose
+    commit fetch was skipped this run (no push within the lookback window), so
+    the org-scoped matchlink cleanup doesn't delete them as stale.
+
+    A skipped repo had no push in the lookback window, so a full sync would
+    normally produce no new in-window commit edges for it. But GitHub's
+    `pushedat` is imprecise (it doesn't always bump on every ref update, and
+    can lag a real push), so a repo with genuine in-window commits can be
+    skipped. Touching keeps those live edges instead of silently deleting
+    them; symmetric with the actions/manifests incremental-skip paths.
+    """
+    if not skipped_repo_names:
+        return
+    org_url = f"https://github.com/{organization}"
+    repo_urls = [
+        f"https://github.com/{organization}/{repo_name}"
+        for repo_name in skipped_repo_names
+    ]
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubUser)-[c:COMMITTED_TO]->(:GitHubRepository {id: repo_url})
+        WHERE c._sub_resource_id = $org_url
+        SET c.lastupdated = $update_tag
+        """,
+        repo_urls=repo_urls,
+        org_url=org_url,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def cleanup_github_commit_relationships(
     neo4j_session: neo4j.Session,
@@ -393,6 +509,7 @@ def sync_github_commits(
     repo_names: list[str],
     update_tag: int,
     lookback_days: int = 30,
+    skip_stale_repos: bool = False,
 ) -> None:
     """
     Sync GitHub commit relationships for the specified lookback period.
@@ -405,12 +522,14 @@ def sync_github_commits(
     :param repo_names: List of repository names to sync commits for.
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
+    :param skip_stale_repos: If True, skip repos with no push in the lookback
+        window (see process_repo_commits_batch).
     """
     logger.info(f"Starting GitHub commits sync for organization: {organization}")
 
     # Process repositories in batches to save memory and API quota
     # This approach processes repos in batches, transforms immediately, and loads in batches
-    process_repo_commits_batch(
+    skipped_repo_names = process_repo_commits_batch(
         neo4j_session,
         token,
         api_url,
@@ -418,7 +537,15 @@ def sync_github_commits(
         repo_names,
         update_tag,
         lookback_days=lookback_days,
+        skip_stale_repos=skip_stale_repos,
         batch_size=10,  # Process 10 repos at a time
+    )
+
+    # Touch COMMITTED_TO edges of skipped repos before cleanup so the
+    # org-scoped matchlink cleanup doesn't delete live edges on repos whose
+    # commit fetch was skipped this run (symmetric with actions/manifests).
+    _touch_skipped_commit_relationships(
+        neo4j_session, organization, skipped_repo_names, update_tag
     )
 
     # Cleanup stale relationships after all batches are processed
