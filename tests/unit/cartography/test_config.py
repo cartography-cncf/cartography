@@ -37,7 +37,7 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
 
     # Assert
     assert parameters.index("orca_api_endpoint") > parameters.index(
-        "snowflake_databases",
+        "gcp_exclude_org_root_projects",
     )
     assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
 

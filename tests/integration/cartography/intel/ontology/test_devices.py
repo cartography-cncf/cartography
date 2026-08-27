@@ -733,6 +733,49 @@ def test_link_ontology_device_affected_by_sentinelone_finding(neo4j_session):
     ) == {("CVE-2024-0001", "SN-S1-AFFECTS")}
 
 
+def test_link_ontology_device_affected_by_huntress_incident_report(neo4j_session):
+    """Huntress incident reports should AFFECTS the canonical Device via their agent."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (a:HuntressAgent {
+            id: 3001,
+            hostname: 'homer-desktop',
+            os: 'Windows 11 Pro',
+            os_build_version: '22631',
+            platform: 'windows',
+            serial_number: 'SN-HUNTRESS-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (f:HuntressIncidentReport:SecurityIssue {
+            id: 4001,
+            subject: 'Malicious foothold on homer-desktop',
+            lastupdated: $update_tag
+        })
+        MERGE (f)-[r:AFFECTS]->(a)
+        SET r.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "HuntressIncidentReport",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {(4001, "SN-HUNTRESS-AFFECTS")}
+
+
 def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
     """CrowdStrike findings should AFFECTS the canonical Device via host and Spotlight vuln."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -952,6 +995,105 @@ def test_link_ontology_devices_from_jamf_email_skips_empty_and_non_matching(
         ).single()["count"]
         == 0
     )
+
+
+def test_load_ontology_devices_from_huntress_agents(neo4j_session):
+    """Huntress agents should populate the canonical Device and match on serial number."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:HuntressAgent {
+            id: 3001,
+            hostname: 'homer-desktop',
+            os: 'Windows 11 Pro',
+            os_build_version: '22631',
+            platform: 'windows',
+            serial_number: 'SN-HOMER-0001',
+            lastupdated: $update_tag
+        })
+        CREATE (:HuntressAgent {
+            id: 3002,
+            hostname: 'marge-macbook',
+            os: 'macOS Sequoia',
+            os_build_version: '24C101',
+            platform: 'darwin',
+            serial_number: 'SN-MARGE-0002',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "platform", "serial_number"],
+    ) == {
+        ("homer-desktop", "Windows 11 Pro", "22631", "windows", "SN-HOMER-0001"),
+        ("marge-macbook", "macOS Sequoia", "24C101", "darwin", "SN-MARGE-0002"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "HuntressAgent",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {
+        ("SN-HOMER-0001", "SN-HOMER-0001"),
+        ("SN-MARGE-0002", "SN-MARGE-0002"),
+    }
+
+
+def test_load_ontology_devices_matches_huntress_agent_by_hostname(neo4j_session):
+    """A Huntress agent with no serial number should still match on hostname."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:HuntressAgent {
+            id: 3003,
+            hostname: 'bart-server',
+            os: 'Ubuntu 24.04.1 LTS',
+            platform: 'linux',
+            lastupdated: $update_tag
+        })
+        CREATE (:KandjiDevice {
+            id: 'kandji-bart-server',
+            device_name: 'bart-server',
+            platform: 'Mac',
+            os_version: '15.5',
+            serial_number: 'SN-BART-SHARED',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["kandji", "huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "HuntressAgent",
+        "hostname",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("bart-server", "bart-server")}
 
 
 def test_load_ontology_devices_from_miradore_devices(neo4j_session):

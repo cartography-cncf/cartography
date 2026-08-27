@@ -39,6 +39,7 @@ Grant these roles to the Cartography identity at the organization level:
 | Role | Purpose |
 |------|---------|
 | `roles/iam.securityReviewer` | List and get IAM roles, service accounts, and Workload Identity Federation pools and providers |
+| `roles/compute.viewer` | List and get Compute Engine inventory, including instances, networking, SSL policies, and target proxies |
 | `roles/resourcemanager.organizationViewer` | List and get Google Cloud organizations |
 | `roles/resourcemanager.folderViewer` | List and get Google Cloud folders |
 
@@ -124,6 +125,20 @@ cartography --selected-modules gcp
 |----------|-------------|
 | `--gcp-requested-syncs` | Comma-separated GCP resources to sync, such as `compute,iam,storage` |
 | `--gcp-permission-relationships-file` | Path to the GCP permission relationship mapping file |
+| `--gcp-excluded-org-ids` | Comma-separated GCP organization IDs to exclude from ingestion, e.g. `"123456789012,987654321098"` |
+| `--gcp-excluded-folder-ids` | Comma-separated GCP folder IDs to exclude from ingestion. The entire subtree under each excluded folder is skipped |
+| `--gcp-exclude-org-root-projects` | Exclude projects attached directly to the organization root, i.e. not inside any folder (default: included) |
+
+````{note}
+Exclusions are non-destructive. Cartography only runs cleanup after it has a
+complete inventory of a scope, and an excluded scope is never inventoried —
+so previously-ingested data under an excluded organization, folder subtree, or
+the organization root is **preserved** (left stale in Neo4j), not deleted.
+Because Cartography cannot distinguish a deleted resource from one moved into
+an excluded scope, project cleanup is skipped across all synced organizations
+when folder or root-project exclusions are configured. Folder cleanup is also
+skipped across all synced organizations when folder exclusions are configured.
+````
 
 ## Troubleshooting
 

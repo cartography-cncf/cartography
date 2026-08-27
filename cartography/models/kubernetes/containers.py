@@ -83,6 +83,36 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "cpu_limit",
         description='Maximum amount of CPU the container is allowed to use (e.g. "500m", "2").',
     )
+    resource_requests: PropertyRef = PropertyRef(
+        "resource_requests",
+        description="All container resource requests, including extended resources, stored as a JSON-encoded object.",
+    )
+    resource_limits: PropertyRef = PropertyRef(
+        "resource_limits",
+        description="All container resource limits, including extended resources, stored as a JSON-encoded object.",
+    )
+    gpu_request: PropertyRef = PropertyRef(
+        "gpu_request",
+        extra_index=True,
+        description="Total requested GPU scheduling units across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    gpu_limit: PropertyRef = PropertyRef(
+        "gpu_limit",
+        extra_index=True,
+        description="Total GPU scheduling-unit limit across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    persistent_volume_claim_read_write_ids: PropertyRef = PropertyRef(
+        "persistent_volume_claim_read_write_ids",
+        description="Identifiers of PersistentVolumeClaims with at least one read-write entry in `container.volumeMounts[]`.",
+    )
+    persistent_volume_claim_mounts: PropertyRef = PropertyRef(
+        "persistent_volume_claim_mounts",
+        description="PersistentVolumeClaim mount settings from `container.volumeMounts[]`, stored as a JSON-encoded list.",
+    )
+    persistent_volume_claim_devices: PropertyRef = PropertyRef(
+        "persistent_volume_claim_devices",
+        description="PersistentVolumeClaim raw block device settings from `container.volumeDevices[]`, stored as a JSON-encoded list.",
+    )
     allow_privilege_escalation: PropertyRef = PropertyRef(
         "allow_privilege_escalation",
         description="Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`.",
@@ -318,6 +348,48 @@ class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRel(CartographyRelSchema):
+    """Links a container to a PersistentVolumeClaim mounted as a filesystem."""
+
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MOUNTS"
+    properties: KubernetesContainerToPersistentVolumeClaimRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimDeviceRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimDeviceRel(CartographyRelSchema):
+    """Links a container to a PersistentVolumeClaim exposed as a block device."""
+
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_device_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_BLOCK_DEVICE"
+    properties: KubernetesContainerToPersistentVolumeClaimDeviceRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimDeviceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     "A container declared by a Kubernetes pod."
 
@@ -336,5 +408,7 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToGitLabContainerImageRel(),
             KubernetesContainerToGCPArtifactRegistryImageRel(),
             KubernetesContainerToGitHubContainerImageRel(),
+            KubernetesContainerToPersistentVolumeClaimRel(),
+            KubernetesContainerToPersistentVolumeClaimDeviceRel(),
         ]
     )

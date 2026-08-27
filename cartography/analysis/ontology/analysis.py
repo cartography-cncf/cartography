@@ -175,10 +175,30 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
         ),
     ),
 )
+DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
+    name="Ontology - HuntressIncidentReport AFFECTS Device linking",
+    short_name="ontology_devices_huntress_incident_report_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:HuntressAgent)<-[:AFFECTS]-(f:HuntressIncidentReport)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="HuntressIncidentReport",
+                    target_label="Device",
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+    ),
+)
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
+    DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
@@ -345,6 +365,24 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
         ),
     ),
 )
+PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT = AnalysisJob(
+    name="Ontology - Trivy PackageVersion DEPLOYED FilesystemSnapshot linking",
+    short_name="ontology_packages_trivy_deployed_filesystem_snapshot",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(snapshot:FilesystemSnapshot)",
+            effects=(
+                AddRelationship(
+                    "p",
+                    "DEPLOYED",
+                    "snapshot",
+                    source_label="PackageVersion",
+                    target_label="FilesystemSnapshot",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_AFFECTS_LINKING = AnalysisJob(
     name="Ontology - TrivyImageFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_affects",
@@ -419,6 +457,7 @@ PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
 )
 PACKAGE_LINKING_JOBS = (
     *PACKAGE_DEPLOYED_IMAGE_JOBS,
+    PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,

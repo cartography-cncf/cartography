@@ -1,13 +1,17 @@
 # Trivy
 
 The Trivy module ingests vulnerability, package, and fix data from Trivy JSON
-container image scan reports. Findings and packages attach to canonical
-ontology `Image` nodes by image digest, independent of the source registry.
+container image and source filesystem scan reports. Findings and packages attach
+to canonical ontology `Image` or `FilesystemSnapshot` nodes.
 
 Cartography currently supports matching Trivy reports to images ingested from
 AWS ECR, Google Artifact Registry, and GitLab Container Registry. Load the
 registry's Cartography module before Trivy so the corresponding canonical image
 nodes exist.
+
+Git repository scans match `FilesystemSnapshot` nodes by the repository URL and
+exact commit recorded in Trivy metadata. The corresponding provider module must
+create the snapshot before Trivy ingestion runs.
 
 ## Finding Identifiers
 

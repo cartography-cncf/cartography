@@ -56,6 +56,7 @@ PANEL_GSUITE = "GSuite Options"
 PANEL_GOOGLE_WORKSPACE = "Google Workspace Options"
 PANEL_DIGITALOCEAN = "DigitalOcean Options"
 PANEL_CROWDSTRIKE = "CrowdStrike Options"
+PANEL_HUNTRESS = "Huntress Options"
 PANEL_JAMF = "Jamf Options"
 PANEL_KANDJI = "Kandji Options"
 PANEL_MIRADORE = "Miradore Options"
@@ -80,6 +81,7 @@ PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_ZIZMOR = "Zizmor Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
@@ -121,6 +123,7 @@ MODULE_PANELS = {
     "googleworkspace": PANEL_GOOGLE_WORKSPACE,
     "digitalocean": PANEL_DIGITALOCEAN,
     "crowdstrike": PANEL_CROWDSTRIKE,
+    "huntress": PANEL_HUNTRESS,
     "jamf": PANEL_JAMF,
     "kandji": PANEL_KANDJI,
     "miradore": PANEL_MIRADORE,
@@ -147,6 +150,7 @@ MODULE_PANELS = {
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "zizmor": PANEL_ZIZMOR,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
@@ -828,6 +832,44 @@ class CLI:
                     hidden=PANEL_GCP not in visible_panels,
                 ),
             ] = "cartography/data/gcp_permission_relationships.yaml",
+            gcp_excluded_org_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-org-ids",
+                    help=(
+                        "Comma-separated list of GCP organization IDs to exclude from ingestion. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_excluded_folder_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-folder-ids",
+                    help=(
+                        "Comma-separated list of GCP folder IDs to exclude from ingestion. "
+                        "The entire subtree under each excluded folder is skipped. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_exclude_org_root_projects: Annotated[
+                bool,
+                typer.Option(
+                    "--gcp-exclude-org-root-projects",
+                    help=(
+                        "If set, projects attached directly to the organization root "
+                        "(not inside any folder) are excluded from ingestion. "
+                        "Included by default."
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # OCI Options
             # =================================================================
@@ -980,6 +1022,36 @@ class CLI:
                     help="CrowdStrike API URL for self-hosted instances.",
                     rich_help_panel=PANEL_CROWDSTRIKE,
                     hidden=PANEL_CROWDSTRIKE not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Huntress Options
+            # =================================================================
+            huntress_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-api-key-env-var",
+                    help="Environment variable name containing the Huntress account API key.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
+                ),
+            ] = None,
+            huntress_api_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-api-secret-env-var",
+                    help="Environment variable name containing the Huntress API secret key.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
+                ),
+            ] = None,
+            huntress_base_uri: Annotated[
+                str | None,
+                typer.Option(
+                    "--huntress-base-uri",
+                    help="Huntress API base URI, e.g. https://api.huntress.io.",
+                    rich_help_panel=PANEL_HUNTRESS,
+                    hidden=PANEL_HUNTRESS not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1946,6 +2018,18 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Zizmor Options
+            # =================================================================
+            zizmor_source: Annotated[
+                str | None,
+                typer.Option(
+                    "--zizmor-source",
+                    help="Zizmor repository mapping file source. Accepts a local file, s3://bucket/key, gs://bucket/object, or azblob://account/container/blob.",
+                    rich_help_panel=PANEL_ZIZMOR,
+                    hidden=PANEL_ZIZMOR not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ubuntu Security Options
             # =================================================================
             ubuntu_security_enabled: Annotated[
@@ -2074,8 +2158,8 @@ class CLI:
                     "--tenable-tenant-id",
                     help=(
                         "Identifier used to scope all Tenable nodes in the graph "
-                        "(the TenableTenant node id). Defaults to the hostname of "
-                        "--tenable-url when not set."
+                        "(the TenableTenant node id). When not set, defaults to "
+                        "--tenable-url with a leading http:// or https:// removed."
                     ),
                     rich_help_panel=PANEL_TENABLE,
                     hidden=PANEL_TENABLE not in visible_panels,
@@ -2853,6 +2937,40 @@ class CLI:
                         "A Miradore site name was provided but an API key was not."
                     )
 
+            huntress_api_key = None
+            if huntress_api_key_env_var:
+                logger.debug(
+                    "Reading Huntress API key from environment variable %s",
+                    huntress_api_key_env_var,
+                )
+                huntress_api_key = os.environ.get(huntress_api_key_env_var)
+            elif os.environ.get("HUNTRESS_API_KEY"):
+                logger.debug(
+                    "Reading Huntress API key from environment variable HUNTRESS_API_KEY",
+                )
+                huntress_api_key = os.environ.get("HUNTRESS_API_KEY")
+
+            huntress_api_secret = None
+            if huntress_api_secret_env_var:
+                logger.debug(
+                    "Reading Huntress API secret from environment variable %s",
+                    huntress_api_secret_env_var,
+                )
+                huntress_api_secret = os.environ.get(huntress_api_secret_env_var)
+            elif os.environ.get("HUNTRESS_API_SECRET"):
+                logger.debug(
+                    "Reading Huntress API secret from environment variable HUNTRESS_API_SECRET",
+                )
+                huntress_api_secret = os.environ.get("HUNTRESS_API_SECRET")
+
+            # Both halves of the basic auth pair are needed. Warn when only one turned up,
+            # otherwise the module would silently skip itself and look like a no-op.
+            if bool(huntress_api_key) != bool(huntress_api_secret):
+                logger.warning(
+                    "A Huntress API key or secret was provided but not both; "
+                    "the Huntress module will be skipped.",
+                )
+
             if statsd_enabled:
                 logger.debug(
                     "statsd enabled. Sending metrics to server %s:%d. Metrics have prefix '%s'.",
@@ -3508,6 +3626,17 @@ class CLI:
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
+                gcp_excluded_org_ids=(
+                    [x.strip() for x in gcp_excluded_org_ids.split(",") if x.strip()]
+                    if gcp_excluded_org_ids
+                    else None
+                ),
+                gcp_excluded_folder_ids=(
+                    [x.strip() for x in gcp_excluded_folder_ids.split(",") if x.strip()]
+                    if gcp_excluded_folder_ids
+                    else None
+                ),
+                gcp_exclude_org_root_projects=gcp_exclude_org_root_projects,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
                 jamf_password=jamf_password,
@@ -3517,6 +3646,9 @@ class CLI:
                 miradore_base_uri=miradore_base_uri,
                 miradore_site_name=miradore_site_name,
                 miradore_api_key=miradore_api_key,
+                huntress_base_uri=huntress_base_uri,
+                huntress_api_key=huntress_api_key,
+                huntress_api_secret=huntress_api_secret,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
                 statsd_enabled=statsd_enabled,
@@ -3636,6 +3768,7 @@ class CLI:
                 aibom_results_dir=aibom_results_dir,
                 aibom_s3_bucket=aibom_s3_bucket,
                 aibom_s3_prefix=aibom_s3_prefix,
+                zizmor_source=zizmor_source,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 scaleway_access_key=scaleway_access_key,

@@ -726,6 +726,14 @@ def test_sync_built_from_relationship(
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     ][:1],
 )
+# The test repo data carries no privileged fields, so the GitHub sync reaches out for
+# them. Stub the fetch: unpatched it calls the real api.github.com and burns ~30s in
+# retry backoff before the sync swallows the error.
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    return_value={},
+)
 @patch.object(cartography.intel.github.repos, "_get_dep_manifests_for_repos")
 @patch.object(
     cartography.intel.github.repos, "_get_repo_collaborators_for_multiple_repos"
@@ -739,6 +747,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
     mock_get_github_repos,
     mock_get_repo_collaborators,
     mock_get_dep_manifests,
+    mock_get_privileged_details,
     mock_get_ecr_repo_images,
     mock_get_ecr_repos,
     neo4j_session,

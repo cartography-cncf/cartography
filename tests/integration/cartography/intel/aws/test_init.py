@@ -1140,9 +1140,11 @@ def test_start_aws_ingestion_does_cleanup(
     cartography.intel.aws, "_autodiscover_account_regions", return_value=TEST_REGIONS
 )
 @mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+@mock.patch.object(cartography.util, "run_typed_analysis_job", return_value=None)
 @mock.patch.object(cartography.intel.aws, "run_typed_analysis_job", return_value=None)
 def test_sync_one_account_all_sync_functions(
     mock_analysis,
+    mock_guarded_analysis,
     mock_cleanup,
     mock_autodiscover,
     mock_perm_rels,
@@ -1182,9 +1184,10 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
-    # Per-account typed analysis jobs: AWS_EC2_IAM_INSTANCE_PROFILE, AWS_LAMBDA_ECR, AWS_LB_NACL_DIRECT.
-    # (AWS_LB_CONTAINER_EXPOSURE runs in the cross-account _perform_aws_analysis phase instead.)
-    assert mock_analysis.call_count == 3
+    # All dependencies are present, so both guarded analyses reach the executor.
+    assert mock_guarded_analysis.call_count == 2
+    # LB/NACL runs directly after its explicit dependency check.
+    assert mock_analysis.call_count == 1
 
 
 def test_sync_one_account_uses_owned_ecr_session_factory(
@@ -1279,7 +1282,8 @@ def test_sync_one_account_just_iam_rels_and_tags(
     # _sync_one_account() above did not specify regions, so we expect 1 call to _autodiscover_account_regions().
     assert mock_autodiscover.call_count == 1
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 2
+    # The selected modules do not satisfy any per-account analysis dependencies.
+    assert mock_analysis.call_count == 0
 
 
 def test_standardize_aws_sync_kwargs():
