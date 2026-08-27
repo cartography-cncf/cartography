@@ -34,6 +34,7 @@ def get(
         "channels",
         team_id=team_id,
         exclude_archived=True,
+        types="public_channel,private_channel",
     ):
         if get_memberships:
             for member in slack_paginate(
