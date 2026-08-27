@@ -234,10 +234,12 @@ def test_sync_github_commits_skip_stale_repos_touches_existing_rels(
         "https://github.com/testorg/repo1",
     ) in actual_rels
 
-    touched = neo4j_session.run("""
+    touched = neo4j_session.run(
+        """
         MATCH (:GitHubUser {id: "https://github.com/alice"})
               -[c:COMMITTED_TO]->
               (:GitHubRepository {id: "https://github.com/testorg/repo1"})
         RETURN c.lastupdated AS lastupdated
-        """).single()
+        """
+    ).single()
     assert touched["lastupdated"] == TEST_UPDATE_TAG
