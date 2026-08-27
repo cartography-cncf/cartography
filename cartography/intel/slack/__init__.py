@@ -1,10 +1,12 @@
 import logging
+from typing import Any
 
 import neo4j
 
 from cartography.config import Config
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_submodule
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +84,11 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.slack.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)

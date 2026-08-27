@@ -6,6 +6,7 @@ import happens after the module's config gate has decided to run.
 """
 
 import importlib
+import pkgutil
 from types import ModuleType
 from typing import Any
 
@@ -173,3 +174,45 @@ def lazy_callable(module: str, attr: str) -> Any:
         >>> # first sync_gcp_instances(...) call
     """
     return _LazyCallable(module, attr)
+
+
+def lazy_submodule(package: str, name: str) -> ModuleType:
+    """Resolve `package.name` on demand, for a module-level ``__getattr__``.
+
+    Before an entry point's imports became lazy, importing it populated its own package
+    namespace with every submodule it pulled, and callers could reach a stage through
+    `cartography.intel.<provider>.<domain>`. Deferring those imports emptied that
+    namespace. A package that used to expose submodules this way keeps doing so with::
+
+        def __getattr__(name: str) -> Any:
+            return lazy_submodule(__name__, name)
+
+    Nothing is imported until an attribute is actually asked for, so the entry point
+    stays as cheap to import as it was without this.
+
+    Args:
+        package: The package doing the exposing, i.e. its ``__name__``.
+        name: The attribute being looked up on it.
+
+    Returns:
+        The submodule. A subpackage also gets its own children imported, since
+        importing a package does not bind them and callers reached them as
+        `package.subpackage.leaf`.
+
+    Raises:
+        AttributeError: If no such submodule exists, so that the lookup behaves like
+            any other missing attribute rather than surfacing an ImportError.
+    """
+    target = f"{package}.{name}"
+    try:
+        module = importlib.import_module(target)
+    except ModuleNotFoundError as exc:
+        if exc.name != target:
+            raise
+        raise AttributeError(
+            f"module {package!r} has no attribute {name!r}",
+        ) from exc
+    if hasattr(module, "__path__"):
+        for submodule in pkgutil.iter_modules(module.__path__):
+            importlib.import_module(f"{target}.{submodule.name}")
+    return module

@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import neo4j
 
@@ -6,6 +7,7 @@ from cartography.config import Config
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
+from cartography.util.lazy import lazy_submodule
 
 # Bound lazily so that the provider SDK only loads once the config gate below
 # has decided that this module has something to sync.
@@ -121,3 +123,11 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             account_id=account["id"],
             zones=zones,
         )
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.cloudflare.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)
