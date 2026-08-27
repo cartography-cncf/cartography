@@ -59,6 +59,8 @@ def _extract_pod_containers(
             "container_port_numbers": [],
             "persistent_volume_claim_ids": [],
             "persistent_volume_claim_mounts": "[]",
+            "persistent_volume_claim_device_ids": [],
+            "persistent_volume_claim_devices": "[]",
         }
 
         claim_ids = set()
@@ -94,6 +96,37 @@ def _extract_pod_containers(
         containers[container.name]["persistent_volume_claim_ids"] = sorted(claim_ids)
         containers[container.name]["persistent_volume_claim_mounts"] = json.dumps(
             mount_details,
+            sort_keys=True,
+        )
+
+        device_claim_ids = set()
+        device_details = []
+        for device in getattr(container, "volume_devices", None) or []:
+            claim_name = claim_by_volume_name.get(device.name)
+            if not claim_name:
+                continue
+            claim_id = f"{cluster_name}/{pod.metadata.namespace}/{claim_name}"
+            device_claim_ids.add(claim_id)
+            device_details.append(
+                {
+                    "claim_id": claim_id,
+                    "claim_name": claim_name,
+                    "volume_name": device.name,
+                    "device_path": device.device_path,
+                }
+            )
+        device_details.sort(
+            key=lambda detail: (
+                detail["claim_id"],
+                detail["device_path"],
+                detail["volume_name"],
+            )
+        )
+        containers[container.name]["persistent_volume_claim_device_ids"] = sorted(
+            device_claim_ids
+        )
+        containers[container.name]["persistent_volume_claim_devices"] = json.dumps(
+            device_details,
             sort_keys=True,
         )
 

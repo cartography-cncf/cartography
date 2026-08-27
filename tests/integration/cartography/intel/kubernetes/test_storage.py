@@ -3,6 +3,7 @@ from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
+from kubernetes.client import V1VolumeDevice
 from kubernetes.client.exceptions import ApiException
 from urllib3.exceptions import MaxRetryError
 
@@ -243,7 +244,7 @@ def test_persistent_volumes_link_to_backing_cloud_disks(
     assert check_nodes(neo4j_session, "AzureDisk", ["id"]) == set()
 
 
-def test_pod_mounts_persistent_volume_claim(
+def test_pod_references_and_container_mounts_persistent_volume_claim(
     neo4j_session,
     monkeypatch,
     _create_test_cluster,
@@ -265,7 +266,7 @@ def test_pod_mounts_persistent_volume_claim(
         "name",
         "KubernetesPersistentVolumeClaim",
         "name",
-        "MOUNTS",
+        "REFERENCES",
     ) == {("training-job-head", CLAIM_NAME)}
     assert check_rels(
         neo4j_session,
@@ -313,6 +314,139 @@ def test_pod_mounts_persistent_volume_claim(
             '{"cpu": "32", "memory": "600Gi", "nvidia.com/gpu": "8"}',
         )
     }
+
+
+def test_container_uses_persistent_volume_claim_as_raw_block_device(
+    neo4j_session,
+    monkeypatch,
+    _create_test_cluster,
+):
+    # Arrange
+    block_volume = deepcopy(RAW_PERSISTENT_VOLUMES[0])
+    block_volume.metadata.name = "pvc-block-volume"
+    block_volume.metadata.uid = "00000000-0000-0000-0000-000000000005"
+    block_volume.spec.volume_mode = "Block"
+    block_volume.spec.claim_ref.name = "block-data"
+    block_claim = deepcopy(RAW_PERSISTENT_VOLUME_CLAIMS[0])
+    block_claim.metadata.name = "block-data"
+    block_claim.metadata.uid = "00000000-0000-0000-0000-000000000006"
+    block_claim.spec.volume_mode = "Block"
+    block_claim.spec.volume_name = block_volume.metadata.name
+    block_pod = deepcopy(RAW_GPU_PODS[0])
+    block_pod.metadata.name = "block-training-job"
+    block_pod.metadata.uid = "00000000-0000-0000-0000-000000000007"
+    block_pod.spec.volumes[0].persistent_volume_claim.claim_name = "block-data"
+    block_pod.spec.containers[0].name = "block-worker"
+    block_pod.spec.containers[0].volume_mounts = []
+    block_pod.spec.containers[0].volume_devices = [
+        V1VolumeDevice(name="shared-data", device_path="/dev/training-data")
+    ]
+    monkeypatch.setattr(
+        storage_module,
+        "get_storage_classes",
+        lambda client: RAW_STORAGE_CLASSES,
+    )
+    monkeypatch.setattr(
+        storage_module,
+        "get_persistent_volumes",
+        lambda client: [block_volume],
+    )
+    monkeypatch.setattr(
+        storage_module,
+        "get_persistent_volume_claims",
+        lambda client: [block_claim],
+    )
+    monkeypatch.setattr(pods_module, "get_pods", lambda client: [block_pod])
+    client = SimpleNamespace(name=CLUSTER_NAME)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
+    sync_storage(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+
+    # Act
+    sync_pods(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+
+    # Assert
+    assert ("block-training-job", "block-data") in check_rels(
+        neo4j_session,
+        "KubernetesPod",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "REFERENCES",
+    )
+    assert ("block-worker", "block-data") in check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "USES_BLOCK_DEVICE",
+    )
+    assert ("block-worker", "block-data") not in check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "MOUNTS",
+    )
+    container = neo4j_session.run(
+        """
+        MATCH (container:KubernetesContainer {name: $container_name})
+              -[:USES_BLOCK_DEVICE]->
+              (:KubernetesPersistentVolumeClaim {name: $claim_name})
+        RETURN container.persistent_volume_claim_device_ids AS claim_ids,
+               container.persistent_volume_claim_devices AS device_details
+        """,
+        container_name="block-worker",
+        claim_name="block-data",
+    ).single()
+    assert container is not None
+    assert container["claim_ids"] == [f"{CLUSTER_NAME}/{NAMESPACE}/block-data"]
+    assert json.loads(container["device_details"]) == [
+        {
+            "claim_id": f"{CLUSTER_NAME}/{NAMESPACE}/block-data",
+            "claim_name": "block-data",
+            "device_path": "/dev/training-data",
+            "volume_name": "shared-data",
+        }
+    ]
+
+    # Arrange
+    pod_without_device = deepcopy(block_pod)
+    pod_without_device.spec.containers[0].volume_devices = []
+    monkeypatch.setattr(pods_module, "get_pods", lambda client: [pod_without_device])
+    next_update_tag = TEST_UPDATE_TAG + 1
+
+    # Act
+    sync_pods(
+        neo4j_session,
+        client,
+        next_update_tag,
+        {"UPDATE_TAG": next_update_tag, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    # Assert
+    assert ("block-worker", "block-data") not in check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "USES_BLOCK_DEVICE",
+    )
+    neo4j_session.run(
+        """
+        MATCH (node)
+        WHERE node.uid IN $uids
+        DETACH DELETE node
+        """,
+        uids=[
+            block_volume.metadata.uid,
+            block_claim.metadata.uid,
+            block_pod.metadata.uid,
+            f"{block_pod.metadata.uid}-block-worker",
+        ],
+    )
 
 
 def test_sync_pods_cleans_up_removed_container_mount(
@@ -376,7 +510,7 @@ def test_sync_pods_cleans_up_removed_container_mount(
         "name",
         "KubernetesPersistentVolumeClaim",
         "name",
-        "MOUNTS",
+        "REFERENCES",
     ) == {("training-job-head", CLAIM_NAME)}
 
 

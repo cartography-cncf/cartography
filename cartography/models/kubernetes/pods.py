@@ -489,7 +489,7 @@ class KubernetesPodToPersistentVolumeClaimRel(CartographyRelSchema):
         {"id": PropertyRef("persistent_volume_claim_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "MOUNTS"
+    rel_label: str = "REFERENCES"
     properties: KubernetesPodToPersistentVolumeClaimRelProperties = (
         KubernetesPodToPersistentVolumeClaimRelProperties()
     )

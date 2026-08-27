@@ -6,6 +6,7 @@ from kubernetes.client import V1EphemeralVolumeSource
 from kubernetes.client import V1PersistentVolumeClaimSpec
 from kubernetes.client import V1PersistentVolumeClaimTemplate
 from kubernetes.client import V1Volume
+from kubernetes.client import V1VolumeDevice
 from kubernetes.client import V1VolumeMount
 
 from cartography.intel.kubernetes.pods import transform_pods
@@ -345,4 +346,32 @@ def test_transform_pods_serializes_container_persistent_volume_claim_mounts():
             "sub_path": None,
             "sub_path_expr": None,
         },
+    ]
+
+
+def test_transform_pods_serializes_container_persistent_volume_claim_devices():
+    # Arrange
+    pod = deepcopy(RAW_GPU_PODS[0])
+    pod.spec.containers[0].volume_mounts = []
+    pod.spec.containers[0].volume_devices = [
+        V1VolumeDevice(name="shared-data", device_path="/dev/training-data"),
+        V1VolumeDevice(name="unmatched-volume", device_path="/dev/ignored"),
+    ]
+
+    # Act
+    transformed = transform_pods([pod], "my-cluster-1")
+
+    # Assert
+    container = transformed[0]["containers"][0]
+    assert container["persistent_volume_claim_ids"] == []
+    assert container["persistent_volume_claim_device_ids"] == [
+        "my-cluster-1/my-namespace/shared-data"
+    ]
+    assert json.loads(container["persistent_volume_claim_devices"]) == [
+        {
+            "claim_id": "my-cluster-1/my-namespace/shared-data",
+            "claim_name": "shared-data",
+            "device_path": "/dev/training-data",
+            "volume_name": "shared-data",
+        }
     ]

@@ -109,6 +109,14 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "persistent_volume_claim_mounts",
         description="Kubernetes PersistentVolumeClaim mount settings stored as a JSON-encoded list.",
     )
+    persistent_volume_claim_device_ids: PropertyRef = PropertyRef(
+        "persistent_volume_claim_device_ids",
+        description="Identifiers of PersistentVolumeClaims exposed to the container as raw block devices.",
+    )
+    persistent_volume_claim_devices: PropertyRef = PropertyRef(
+        "persistent_volume_claim_devices",
+        description="Kubernetes PersistentVolumeClaim raw block device settings stored as a JSON-encoded list.",
+    )
     allow_privilege_escalation: PropertyRef = PropertyRef(
         "allow_privilege_escalation",
         description="Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`.",
@@ -362,6 +370,26 @@ class KubernetesContainerToPersistentVolumeClaimRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimDeviceRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimDeviceRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_device_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_BLOCK_DEVICE"
+    properties: KubernetesContainerToPersistentVolumeClaimDeviceRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimDeviceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     "A container declared by a Kubernetes pod."
 
@@ -381,5 +409,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToGCPArtifactRegistryImageRel(),
             KubernetesContainerToGitHubContainerImageRel(),
             KubernetesContainerToPersistentVolumeClaimRel(),
+            KubernetesContainerToPersistentVolumeClaimDeviceRel(),
         ]
     )

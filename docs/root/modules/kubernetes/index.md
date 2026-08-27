@@ -14,6 +14,11 @@ individual containers. Each container's `persistent_volume_claim_mounts`
 property preserves the claim identifier, mount path, read-only setting, and
 other per-mount Kubernetes configuration as a JSON-encoded list.
 
+For raw block volumes, container `USES_BLOCK_DEVICE` relationships and the
+`persistent_volume_claim_devices` property preserve the claim identifier and
+device path. Pod `REFERENCES` relationships identify claims declared by pod
+volumes, including claims that no container mounts.
+
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
 included automatically in the built documentation. The query guide contains
@@ -34,9 +39,9 @@ policies use `APPLIES_TO` edges to identify selected pods.
 Until v1.0.0, if the identity cannot list persistent volumes, persistent volume
 claims, or storage classes, Cartography skips persistent storage ingestion and
 cleanup and preserves existing storage nodes. Pods continue to load. On a first
-sync, they have no `MOUNTS` relationships. After an earlier successful storage
-sync, pods can link to the preserved storage snapshot, which may be stale until
-permissions are restored.
+sync, they have no `REFERENCES` relationships. After an earlier successful
+storage sync, pods can link to the preserved storage snapshot, which may be stale
+until permissions are restored.
 
 If the identity cannot list secrets, Cartography skips secret ingestion and
 cleanup and preserves existing `KubernetesSecret` nodes. Cartography stores
