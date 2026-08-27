@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -266,6 +267,40 @@ def test_pod_mounts_persistent_volume_claim(
         "name",
         "MOUNTS",
     ) == {("training-job-head", CLAIM_NAME)}
+    assert check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "MOUNTS",
+    ) == {("worker", CLAIM_NAME)}
+    container = neo4j_session.run(
+        """
+        MATCH (container:KubernetesContainer {name: $container_name})
+              -[:MOUNTS]->
+              (:KubernetesPersistentVolumeClaim {name: $claim_name})
+        RETURN container.persistent_volume_claim_ids AS claim_ids,
+               container.persistent_volume_claim_mounts AS mount_details
+        """,
+        container_name="worker",
+        claim_name=CLAIM_NAME,
+    ).single()
+    assert container is not None
+    assert container["claim_ids"] == [f"{CLUSTER_NAME}/my-namespace/{CLAIM_NAME}"]
+    assert json.loads(container["mount_details"]) == [
+        {
+            "claim_id": f"{CLUSTER_NAME}/my-namespace/{CLAIM_NAME}",
+            "claim_name": CLAIM_NAME,
+            "volume_name": "shared-data",
+            "mount_path": "/data",
+            "mount_propagation": "None",
+            "read_only": False,
+            "recursive_read_only": None,
+            "sub_path": "checkpoints",
+            "sub_path_expr": None,
+        }
+    ]
     assert check_nodes(
         neo4j_session,
         "KubernetesContainer",
@@ -278,6 +313,71 @@ def test_pod_mounts_persistent_volume_claim(
             '{"cpu": "32", "memory": "600Gi", "nvidia.com/gpu": "8"}',
         )
     }
+
+
+def test_sync_pods_cleans_up_removed_container_mount(
+    neo4j_session,
+    monkeypatch,
+    _create_test_cluster,
+):
+    # Arrange
+    _mock_storage(monkeypatch)
+    monkeypatch.setattr(pods_module, "get_pods", lambda client: RAW_GPU_PODS)
+    client = SimpleNamespace(name=CLUSTER_NAME)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "CLUSTER_ID": CLUSTER_ID}
+    sync_storage(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+
+    # Act
+    sync_pods(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "MOUNTS",
+    ) == {("worker", CLAIM_NAME)}
+
+    # Arrange
+    pods_without_container_mounts = deepcopy(RAW_GPU_PODS)
+    pods_without_container_mounts[0].spec.containers[0].volume_mounts = []
+    monkeypatch.setattr(
+        pods_module,
+        "get_pods",
+        lambda client: pods_without_container_mounts,
+    )
+    next_update_tag = TEST_UPDATE_TAG + 1
+
+    # Act
+    sync_pods(
+        neo4j_session,
+        client,
+        next_update_tag,
+        {"UPDATE_TAG": next_update_tag, "CLUSTER_ID": CLUSTER_ID},
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesContainer",
+            "name",
+            "KubernetesPersistentVolumeClaim",
+            "name",
+            "MOUNTS",
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "KubernetesPod",
+        "name",
+        "KubernetesPersistentVolumeClaim",
+        "name",
+        "MOUNTS",
+    ) == {("training-job-head", CLAIM_NAME)}
 
 
 @pytest.mark.parametrize(

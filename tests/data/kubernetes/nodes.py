@@ -71,6 +71,7 @@ RAW_PODS = [
                     resources=None,
                     env=None,
                     env_from=None,
+                    volume_mounts=None,
                 ),
             ],
             volumes=[],

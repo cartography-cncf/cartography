@@ -130,7 +130,13 @@ RAW_GPU_PODS = [
                         },
                     ),
                     volume_mounts=[
-                        V1VolumeMount(name="shared-data", mount_path="/data")
+                        V1VolumeMount(
+                            name="shared-data",
+                            mount_path="/data",
+                            mount_propagation="None",
+                            read_only=False,
+                            sub_path="checkpoints",
+                        )
                     ],
                 )
             ],

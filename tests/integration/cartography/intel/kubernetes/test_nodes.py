@@ -43,6 +43,7 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
                             resources=None,
                             env=None,
                             env_from=None,
+                            volume_mounts=None,
                         ),
                     ],
                     volumes=[],

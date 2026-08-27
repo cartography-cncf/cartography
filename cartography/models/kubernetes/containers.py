@@ -101,6 +101,14 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Total GPU scheduling-unit limit across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
     )
+    persistent_volume_claim_ids: PropertyRef = PropertyRef(
+        "persistent_volume_claim_ids",
+        description="Identifiers of PersistentVolumeClaims mounted by the container.",
+    )
+    persistent_volume_claim_mounts: PropertyRef = PropertyRef(
+        "persistent_volume_claim_mounts",
+        description="Kubernetes PersistentVolumeClaim mount settings stored as a JSON-encoded list.",
+    )
     allow_privilege_escalation: PropertyRef = PropertyRef(
         "allow_privilege_escalation",
         description="Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`.",
@@ -336,6 +344,24 @@ class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MOUNTS"
+    properties: KubernetesContainerToPersistentVolumeClaimRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     "A container declared by a Kubernetes pod."
 
@@ -354,5 +380,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToGitLabContainerImageRel(),
             KubernetesContainerToGCPArtifactRegistryImageRel(),
             KubernetesContainerToGitHubContainerImageRel(),
+            KubernetesContainerToPersistentVolumeClaimRel(),
         ]
     )
