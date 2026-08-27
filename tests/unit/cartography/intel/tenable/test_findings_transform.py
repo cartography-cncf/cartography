@@ -1,3 +1,6 @@
+import pytest
+
+from cartography.intel.tenable.findings import get
 from cartography.intel.tenable.findings import transform
 from cartography.intel.tenable.findings import transform_plugins
 from cartography.intel.tenable.findings import transform_scans
@@ -12,14 +15,38 @@ from tests.data.tenable.findings import PLUGIN_ID_3
 from tests.data.tenable.findings import SCAN_UUID_1
 from tests.data.tenable.findings import SCAN_UUID_2
 
+
+def test_get_builds_findings_export_filter(mocker):
+    # Arrange
+    mock_export = mocker.patch(
+        "cartography.intel.tenable.findings.export_and_download",
+        return_value=FINDINGS_DATA,
+    )
+
+    # Act
+    result = get(mocker.MagicMock(), "https://cloud.tenable.com", 123456789)
+
+    # Assert
+    assert result == FINDINGS_DATA
+    assert mock_export.call_args.args[4] == {
+        "num_assets": 500,
+        "filters": {
+            "last_found": 123456789,
+            "state": ["OPEN", "REOPENED", "FIXED"],
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # transform()
 # ---------------------------------------------------------------------------
 
 
 def test_transform_maps_all_fields():
+    # Act
     result = transform(FINDINGS_DATA)
 
+    # Assert
     assert len(result) == 3
 
     f1 = next(r for r in result if r["id"] == FINDING_ID_1)
@@ -45,7 +72,7 @@ def test_transform_maps_all_fields():
     assert f1["port"] == 445
     assert f1["protocol"] == "TCP"
     assert f1["service"] == "cifs"
-    # CVE fields — finding has CVEs
+    # CVE fields: finding has CVEs
     assert f1["cve_id"] == "CVE-2022-21837"
     assert set(f1["cve_list"]) == {
         "CVE-2022-21837",
@@ -56,7 +83,10 @@ def test_transform_maps_all_fields():
 
 
 def test_transform_cve_fields_no_cves():
+    # Act
     result = transform(FINDINGS_DATA)
+
+    # Assert
     f2 = next(r for r in result if r["id"] == FINDING_ID_2)
     assert f2["cve_id"] is None
     assert f2["cve_list"] == []
@@ -64,52 +94,59 @@ def test_transform_cve_fields_no_cves():
 
 
 def test_transform_port_zero_and_null_service():
+    # Act
     result = transform(FINDINGS_DATA)
+
+    # Assert
     f3 = next(r for r in result if r["id"] == FINDING_ID_3)
     assert f3["port"] == 0
     assert f3["protocol"] == "TCP"
     assert f3["service"] is None
 
 
-def test_transform_skips_missing_asset_uuid():
-    raw = [
+@pytest.mark.parametrize(
+    "raw_finding",
+    [
         {"finding_id": "f1", "asset": {}, "plugin": {"id": 1}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
-
-
-def test_transform_skips_missing_finding_id():
-    raw = [
         {"asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 2}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
-
-
-def test_transform_skips_missing_plugin_id():
-    raw = [
         {"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {}},
-        {"finding_id": "f2", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 99}},
-    ]
-    result = transform(raw)
-    assert len(result) == 1
-    assert result[0]["id"] == "f2"
+    ],
+)
+def test_transform_rejects_missing_required_identifiers(raw_finding):
+    # Act and assert
+    with pytest.raises(KeyError):
+        transform([raw_finding])
+
+
+@pytest.mark.parametrize(
+    "raw_finding",
+    [
+        {"finding_id": "f1", "asset": {"uuid": None}, "plugin": {"id": 1}},
+        {"finding_id": "", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}},
+        {"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {"id": None}},
+    ],
+)
+def test_transform_rejects_null_or_empty_required_identifiers(raw_finding):
+    # Act and assert
+    with pytest.raises(ValueError, match="Tenable finding requires"):
+        transform([raw_finding])
 
 
 def test_transform_null_scan_uuid_allowed():
     """A finding with no scan block should still be included; scan_uuid will be None."""
+    # Arrange
     raw = [{"finding_id": "f1", "asset": {"uuid": "a-uuid"}, "plugin": {"id": 1}}]
+
+    # Act
     result = transform(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["scan_uuid"] is None
 
 
 def test_transform_empty_input():
+    # Act and assert
     assert transform([]) == []
 
 
@@ -119,7 +156,10 @@ def test_transform_empty_input():
 
 
 def test_transform_plugins_basic():
+    # Act
     result = transform_plugins(FINDINGS_DATA)
+
+    # Assert
     assert len(result) == 3
 
     p1 = next(r for r in result if r["id"] == PLUGIN_ID_1)
@@ -136,18 +176,25 @@ def test_transform_plugins_basic():
 
 
 def test_transform_plugins_vpr_none_when_missing():
+    # Act
     result = transform_plugins(FINDINGS_DATA)
+
+    # Assert
     p2 = next(r for r in result if r["id"] == PLUGIN_ID_2)
     assert p2["vpr_score"] is None
 
 
 def test_transform_plugins_empty_cve_list():
+    # Act
     result = transform_plugins(FINDINGS_DATA)
+
+    # Assert
     p3 = next(r for r in result if r["id"] == PLUGIN_ID_3)
     assert p3["cve_list"] == []
 
 
 def test_transform_plugins_deduplicates():
+    # Arrange
     raw = [
         {
             "finding_id": "f1",
@@ -165,22 +212,32 @@ def test_transform_plugins_deduplicates():
             "plugin": {"id": 99, "name": "Plugin B"},
         },
     ]
+
+    # Act
     result = transform_plugins(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {42, 99}
 
 
 def test_transform_plugins_skips_missing_id():
+    # Arrange
     raw = [
         {"finding_id": "f1", "asset": {"uuid": "a"}, "plugin": {}},
         {"finding_id": "f2", "asset": {"uuid": "b"}, "plugin": {"id": 7}},
     ]
+
+    # Act
     result = transform_plugins(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == 7
 
 
 def test_transform_plugins_empty_input():
+    # Act and assert
     assert transform_plugins([]) == []
 
 
@@ -190,8 +247,11 @@ def test_transform_plugins_empty_input():
 
 
 def test_transform_scans_basic():
+    # Act
     result = transform_scans(FINDINGS_DATA)
-    # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1 — only two scan nodes
+
+    # Assert
+    # FINDING_ID_1 and FINDING_ID_3 share SCAN_UUID_1, so only two scan nodes exist
     assert len(result) == 2
 
     s1 = next(r for r in result if r["id"] == SCAN_UUID_1)
@@ -204,6 +264,7 @@ def test_transform_scans_basic():
 
 
 def test_transform_scans_deduplicates():
+    # Arrange
     raw = [
         {
             "finding_id": "f1",
@@ -218,21 +279,31 @@ def test_transform_scans_deduplicates():
             "scan": {"uuid": "scan-bbb", "last_scan_target": "10.0.0.2"},
         },
     ]
+
+    # Act
     result = transform_scans(raw)
+
+    # Assert
     assert len(result) == 2
     assert {r["id"] for r in result} == {"scan-aaa", "scan-bbb"}
 
 
 def test_transform_scans_skips_missing_uuid():
+    # Arrange
     raw = [
         {"finding_id": "f1", "scan": {}},
         {"finding_id": "f2"},
         {"finding_id": "f3", "scan": {"uuid": "scan-xyz"}},
     ]
+
+    # Act
     result = transform_scans(raw)
+
+    # Assert
     assert len(result) == 1
     assert result[0]["id"] == "scan-xyz"
 
 
 def test_transform_scans_empty_input():
+    # Act and assert
     assert transform_scans([]) == []

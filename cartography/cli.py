@@ -2156,8 +2156,8 @@ class CLI:
                     "--tenable-tenant-id",
                     help=(
                         "Identifier used to scope all Tenable nodes in the graph "
-                        "(the TenableTenant node id). Defaults to the hostname of "
-                        "--tenable-url when not set."
+                        "(the TenableTenant node id). When not set, defaults to "
+                        "--tenable-url with a leading http:// or https:// removed."
                     ),
                     rich_help_panel=PANEL_TENABLE,
                     hidden=PANEL_TENABLE not in visible_panels,

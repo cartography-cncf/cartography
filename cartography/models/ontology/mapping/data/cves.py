@@ -52,6 +52,13 @@ _S1_SEVERITY = {
     "Critical": "critical",
 }
 
+# Tenable finding state
+_TENABLE_VULN_STATUS = {
+    "OPEN": "open",
+    "REOPENED": "open",
+    "FIXED": "fixed",
+}
+
 # NVD vulnStatus -> resolution state. NVD's values are analysis-workflow states; all
 # non-rejected ones mean the record is live, so they collapse to "open".
 _NVD_VULN_STATUS = {
@@ -381,6 +388,33 @@ sentinelone_mapping = OntologyMapping(
     ],
 )
 
+tenable_mapping = OntologyMapping(
+    module_name="tenable",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TenableFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="cve_id",
+                    node_field="cve_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="vuln_status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _TENABLE_VULN_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
+
 # SemgrepSCAFinding is a hybrid finding: it carries :CVE when CVE-backed and
 # :SecurityIssue when advisory-only (see cartography/models/semgrep/findings.py).
 # The semantic-label resolver returns a single mapping per primary label regardless
@@ -510,6 +544,7 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "crowdstrike": crowdstrike_mapping,
     "github": github_mapping,
     "sentinelone": sentinelone_mapping,
+    "tenable": tenable_mapping,
     "semgrep": semgrep_mapping,
     "aws": aws_inspector_mapping,
     "wiz": wiz_mapping,
