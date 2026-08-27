@@ -26,9 +26,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST = (
-    "/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/"
-)
+DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST = ""
 
 
 def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:

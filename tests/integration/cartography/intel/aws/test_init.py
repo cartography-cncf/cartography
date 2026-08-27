@@ -863,7 +863,7 @@ def test_start_aws_ingestion(
     return_value=None,
 )
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
-def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
+def test_start_aws_ingestion_disables_public_ssm_allowlist_when_unset(
     mock_perform_analysis,
     mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
@@ -882,10 +882,7 @@ def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
     cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
 
     common_job_parameters = mock_perform_analysis.call_args.args[2]
-    assert (
-        common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"]
-        == cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
-    )
+    assert common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] == ""
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
