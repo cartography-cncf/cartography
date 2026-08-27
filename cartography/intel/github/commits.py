@@ -475,6 +475,34 @@ def _touch_skipped_commit_relationships(
     )
 
 
+def _touch_archived_commit_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the existing COMMITTED_TO edges of archived/disabled
+    repos. Under incremental sync these repos are excluded from `repo_names`
+    entirely (filtered in start_github_ingestion), so they never reach the
+    stale-skip touch above. Their existing commit edges are still valid, so the
+    org-scoped matchlink cleanup would otherwise delete them. Touched by matching
+    archived/disabled repos directly in the graph rather than by name list.
+    """
+    org_url = f"https://github.com/{organization}"
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (org:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
+        WHERE repo.archived = true OR repo.disabled = true
+        MATCH (:GitHubUser)-[c:COMMITTED_TO]->(repo)
+        WHERE c._sub_resource_id = $org_url
+        SET c.lastupdated = $update_tag
+        """,
+        org_url=org_url,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def cleanup_github_commit_relationships(
     neo4j_session: neo4j.Session,
@@ -547,6 +575,12 @@ def sync_github_commits(
     _touch_skipped_commit_relationships(
         neo4j_session, organization, skipped_repo_names, update_tag
     )
+
+    # Archived/disabled repos are excluded from `repo_names` before this sync, so
+    # they never reach the stale-skip touch above. Preserve their existing commit
+    # edges too, or the org-scoped cleanup would delete valid historical data.
+    if skip_stale_repos:
+        _touch_archived_commit_relationships(neo4j_session, organization, update_tag)
 
     # Cleanup stale relationships after all batches are processed
     cleanup_github_commit_relationships(neo4j_session, organization, update_tag)

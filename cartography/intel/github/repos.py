@@ -764,6 +764,7 @@ def _get_dep_manifests_for_repos(
     not_attempted_count = 0
     cleanup_safe = True
     skipped_unchanged_repo_urls: list[str] = []
+    skipped_archived_repo_urls: list[str] = []
     synced_bookmarks: list[dict[str, str]] = []
 
     for index, repo in enumerate(repo_raw_data):
@@ -781,6 +782,12 @@ def _get_dep_manifests_for_repos(
                 "Skipping dependency manifest fetch for archived/disabled repo %s.",
                 repo_name,
             )
+            # We chose not to re-fetch this repo, but its existing manifest
+            # subgraph is still valid; touch it so stale-tag cleanup keeps it.
+            # Kept separate from the unchanged list so the archived repo does not
+            # get a synced_pushedat bookmark advance (it was skipped by policy,
+            # not because pushedAt was unchanged).
+            skipped_archived_repo_urls.append(repo_url)
             continue
 
         pushedat = repo.get("pushedAt")
@@ -875,6 +882,28 @@ def _get_dep_manifests_for_repos(
             "for %d/%d unchanged repos.",
             org,
             len(skipped_unchanged_repo_urls),
+            len(non_null_repos),
+        )
+
+    if (
+        skip_archived_repos
+        and neo4j_session is not None
+        and update_tag is not None
+        and skipped_archived_repo_urls
+    ):
+        # Archived/disabled repos are skipped by policy, not because their data
+        # changed. Their existing manifest subgraph is still valid, so touch it
+        # to keep the stale-tag cleanup from deleting it. No bookmark advance.
+        _touch_skipped_dependency_manifests(
+            neo4j_session,
+            skipped_archived_repo_urls,
+            update_tag,
+        )
+        logger.info(
+            "Dependency manifest incremental sync for org %s: preserved existing "
+            "manifests for %d/%d skipped archived/disabled repos.",
+            org,
+            len(skipped_archived_repo_urls),
             len(non_null_repos),
         )
 

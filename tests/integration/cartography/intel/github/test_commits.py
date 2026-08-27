@@ -243,3 +243,86 @@ def test_sync_github_commits_skip_stale_repos_touches_existing_rels(
         """
     ).single()
     assert touched["lastupdated"] == TEST_UPDATE_TAG
+
+
+@patch.object(
+    cartography.intel.github.commits,
+    "get_repo_commits",
+)
+def test_sync_github_commits_archived_repo_touches_existing_rels(
+    mock_get_commits, neo4j_session
+):
+    """
+    Regression (cubic PR #3200): an archived/disabled repo is excluded from
+    `repo_names` before commits sync (filtered in start_github_ingestion), so it
+    never reaches the stale-skip touch. Its existing COMMITTED_TO edge must still
+    be touched forward, not deleted by the org-scoped matchlink cleanup.
+    """
+    # Arrange - repo1 is archived and NOT in the repo_names passed to sync, yet
+    # it holds a pre-existing COMMITTED_TO edge carrying an OLD update tag.
+    old_update_tag = TEST_UPDATE_TAG - 1
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_test_users_exist(neo4j_session)
+    _ensure_test_repos_exist(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (r1:GitHubRepository {id: "https://github.com/testorg/repo1"})
+        SET r1.archived = true, r1.disabled = false
+        WITH r1
+        MATCH (org:GitHubOrganization {id: "https://github.com/testorg"})
+        MERGE (r1)-[:OWNER]->(org)
+        WITH r1
+        MATCH (u:GitHubUser {id: "https://github.com/alice"})
+        MERGE (u)-[c:COMMITTED_TO]->(r1)
+        SET c.lastupdated = $old_update_tag,
+            c._sub_resource_label = "GitHubOrganization",
+            c._sub_resource_id = "https://github.com/testorg"
+        """,
+        old_update_tag=old_update_tag,
+    )
+
+    def side_effect(token, api_url, organization, repo_name, since_date):
+        return MOCK_COMMITS_BY_REPO.get(repo_name, [])
+
+    mock_get_commits.side_effect = side_effect
+
+    # Act - incremental sync; repo1 is archived so it is not in repo_names.
+    cartography.intel.github.commits.sync_github_commits(
+        neo4j_session,
+        "fake-token",
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+        ["repo2"],
+        TEST_UPDATE_TAG,
+        skip_stale_repos=True,
+    )
+
+    # Assert - repo1's commits were never fetched (excluded entirely)...
+    fetched_repos = {call.args[3] for call in mock_get_commits.call_args_list}
+    assert fetched_repos == {"repo2"}
+
+    # ...yet repo1's pre-existing edge survived AND was touched to the new tag,
+    # instead of being deleted as stale by the org-scoped cleanup.
+    actual_rels = check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubRepository",
+        "id",
+        "COMMITTED_TO",
+        rel_direction_right=True,
+    )
+    assert (
+        "https://github.com/alice",
+        "https://github.com/testorg/repo1",
+    ) in actual_rels
+
+    touched = neo4j_session.run(
+        """
+        MATCH (:GitHubUser {id: "https://github.com/alice"})
+              -[c:COMMITTED_TO]->
+              (:GitHubRepository {id: "https://github.com/testorg/repo1"})
+        RETURN c.lastupdated AS lastupdated
+        """
+    ).single()
+    assert touched["lastupdated"] == TEST_UPDATE_TAG

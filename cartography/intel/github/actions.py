@@ -17,6 +17,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
@@ -983,6 +984,100 @@ def _get_skipped_repo_workflows(
     return rows
 
 
+def _get_archived_repo_urls(
+    neo4j_session: neo4j.Session,
+    organization: str,
+) -> list[str]:
+    """
+    Return the URLs of archived/disabled repos for the org. These are excluded
+    from the Actions fetch loop under incremental sync, so their existing
+    Actions subgraph must be touched separately to survive stale-tag cleanup.
+    """
+    org_url = f"https://github.com/{organization}"
+    result: list[str] = neo4j_session.execute_read(
+        read_list_of_values_tx,
+        """
+        MATCH (:GitHubOrganization {id: $org_url})<-[:OWNER]-(repo:GitHubRepository)
+        WHERE repo.archived = true OR repo.disabled = true
+        RETURN repo.id
+        """,
+        org_url=org_url,
+    )
+    return result
+
+
+def _touch_archived_repo_actions(
+    neo4j_session: neo4j.Session,
+    archived_repo_urls: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Refresh `lastupdated` on the full existing Actions subgraph of archived/
+    disabled repos that incremental sync skipped entirely. Unlike the
+    pushedat-unchanged path (where secrets/variables/environments are still
+    re-fetched every run and only workflow content is skipped), archived repos
+    are not fetched at all, so every org-scoped Actions resource they own must be
+    touched here or `cleanup_org_level` will delete it as stale: workflows,
+    actions, environments, and repo-level & env-level secrets/variables.
+    """
+    if not archived_repo_urls:
+        return
+    # Workflows + their org RESOURCE edge, plus REFERENCES_SECRET and USES_ACTION.
+    _touch_skipped_actions_workflows(neo4j_session, archived_repo_urls, update_tag)
+    # Environments + org RESOURCE edge.
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[he:HAS_ENVIRONMENT]->(e:GitHubEnvironment)
+        SET e.lastupdated = $update_tag, he.lastupdated = $update_tag
+        WITH DISTINCT e
+        MATCH (:GitHubOrganization)-[res:RESOURCE]->(e)
+        SET res.lastupdated = $update_tag
+        """,
+        repo_urls=archived_repo_urls,
+        update_tag=update_tag,
+    )
+    # Repo-level secrets and variables (org-scoped RESOURCE).
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (r:GitHubRepository {id: repo_url})
+        OPTIONAL MATCH (r)-[hrs:HAS_SECRET]->(rs:GitHubActionsSecret)
+        SET rs.lastupdated = $update_tag, hrs.lastupdated = $update_tag
+        WITH r
+        OPTIONAL MATCH (r)-[hrv:HAS_VARIABLE]->(rv:GitHubActionsVariable)
+        SET rv.lastupdated = $update_tag, hrv.lastupdated = $update_tag
+        """,
+        repo_urls=archived_repo_urls,
+        update_tag=update_tag,
+    )
+    # Environment-level secrets and variables.
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_ENVIRONMENT]->(:GitHubEnvironment)
+              -[hes:HAS_SECRET]->(es:GitHubActionsSecret)
+        SET es.lastupdated = $update_tag, hes.lastupdated = $update_tag
+        """,
+        repo_urls=archived_repo_urls,
+        update_tag=update_tag,
+    )
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $repo_urls AS repo_url
+        MATCH (:GitHubRepository {id: repo_url})-[:HAS_ENVIRONMENT]->(:GitHubEnvironment)
+              -[hev:HAS_VARIABLE]->(ev:GitHubActionsVariable)
+        SET ev.lastupdated = $update_tag, hev.lastupdated = $update_tag
+        """,
+        repo_urls=archived_repo_urls,
+        update_tag=update_tag,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -1088,6 +1183,23 @@ def sync(
             organization,
             len(skipped_repo_urls),
             len(repos),
+        )
+
+    if skip_archived_repos:
+        # Archived/disabled repos were excluded from the fetch loop entirely, so
+        # their existing Actions subgraph is never re-tagged this run. Touch it
+        # (and re-feed their workflows into all_workflows for supply_chain) so
+        # cleanup_org_level does not delete valid historical data.
+        archived_repo_urls = _get_archived_repo_urls(neo4j_session, organization)
+        _touch_archived_repo_actions(neo4j_session, archived_repo_urls, update_tag)
+        all_workflows.extend(
+            _get_skipped_repo_workflows(neo4j_session, archived_repo_urls)
+        )
+        logger.info(
+            "GitHub Actions incremental sync for org %s: preserved existing "
+            "Actions subgraph for %d skipped archived/disabled repos.",
+            organization,
+            len(archived_repo_urls),
         )
 
     # 3. Cleanup all stale nodes scoped to the organization. Repo-level secrets

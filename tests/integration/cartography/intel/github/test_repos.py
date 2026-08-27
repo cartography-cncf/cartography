@@ -1334,3 +1334,83 @@ def test_get_dep_manifests_for_repos_incremental_skip_preserves_manifests(
         id=repo_url,
     ).single()
     assert bookmark_row["bookmark"] == "2024-01-01T00:00:00Z"
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_dep_manifests",
+)
+def test_get_dep_manifests_for_repos_archived_skip_preserves_manifests(
+    mock_get_repo_dep_manifests, neo4j_session
+):
+    """
+    When skip_archived_repos is enabled and a repo is archived/disabled, its
+    per-repo manifest fetch is skipped. The existing manifest/dependency
+    subgraph must still be preserved (touched, not stale-cleaned) across a new
+    update tag, because a full sync would have re-fetched and re-tagged it.
+    Regression for cubic PR #3200 finding on repos.py.
+    """
+    # Arrange - seed an archived repo with an existing manifest + dependency
+    repo_url = "https://github.com/simpsoncorp/archived_repo"
+    manifest_id = f"{repo_url}#/requirements.txt"
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
+        MERGE (repo:GitHubRepository{id: $repo_url})
+        SET repo.name = "archived_repo", repo.lastupdated = $update_tag,
+            repo.archived = true, repo.disabled = false
+        MERGE (repo)-[:OWNER]->(org)
+        MERGE (repo)-[:HAS_MANIFEST]->(m:DependencyGraphManifest{id: $manifest_id})
+        SET m.lastupdated = $update_tag
+        MERGE (m)-[:HAS_DEP]->(d:Dependency{id: "django"})
+        SET d.lastupdated = $update_tag
+        """,
+        repo_url=repo_url,
+        manifest_id=manifest_id,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    repo_raw_data = [
+        {
+            "name": "archived_repo",
+            "url": repo_url,
+            "pushedAt": "2024-06-01T00:00:00Z",
+            "isArchived": True,
+            "isDisabled": False,
+        }
+    ]
+
+    # Act - run with a new update tag; repo is archived so the fetch is skipped
+    new_update_tag = TEST_UPDATE_TAG + 1
+    result, cleanup_safe = cartography.intel.github.repos._get_dep_manifests_for_repos(
+        repo_raw_data,
+        TEST_GITHUB_ORG,
+        TEST_GITHUB_URL,
+        FAKE_API_KEY,
+        skip_archived_repos=True,
+        neo4j_session=neo4j_session,
+        update_tag=new_update_tag,
+    )
+
+    # Assert - the per-repo fetch was never called (skipped as archived)
+    mock_get_repo_dep_manifests.assert_not_called()
+    assert result == {}
+
+    # Assert - existing manifest/dependency nodes were touched to the new tag,
+    # not deleted by stale-tag cleanup, despite the repo being skipped.
+    manifest_row = neo4j_session.run(
+        "MATCH (m:DependencyGraphManifest {id: $id}) RETURN m.lastupdated AS lastupdated",
+        id=manifest_id,
+    ).single()
+    assert manifest_row is not None
+    assert manifest_row["lastupdated"] == new_update_tag
+
+    dep_row = neo4j_session.run(
+        """
+        MATCH (:DependencyGraphManifest {id: $manifest_id})-[:HAS_DEP]->(d:Dependency {id: "django"})
+        RETURN d.lastupdated AS lastupdated
+        """,
+        manifest_id=manifest_id,
+    ).single()
+    assert dep_row is not None
+    assert dep_row["lastupdated"] == new_update_tag

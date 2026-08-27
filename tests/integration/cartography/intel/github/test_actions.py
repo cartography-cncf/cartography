@@ -1237,3 +1237,135 @@ def test_sync_github_actions_incremental_skip_preserves_workflows(
     ).data()
     assert len(uses_action_rows) >= 2
     assert all(row["lastupdated"] == second_update_tag for row in uses_action_rows)
+
+
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_secrets",
+    return_value=GET_ORG_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_variables",
+    return_value=GET_ORG_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_workflows",
+    return_value=GET_REPO_WORKFLOWS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_environments",
+    return_value=GET_REPO_ENVIRONMENTS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_secrets",
+    return_value=GET_REPO_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_variables",
+    return_value=GET_REPO_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_secrets",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_SECRETS_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_SECRETS_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_variables",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_VARIABLES_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_VARIABLES_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=WORKFLOW_CI_CONTENT,
+)
+def test_sync_github_actions_archived_skip_preserves_workflows(
+    mock_workflow_content,
+    mock_env_variables,
+    mock_env_secrets,
+    mock_repo_variables,
+    mock_repo_secrets,
+    mock_repo_environments,
+    mock_repo_workflows,
+    mock_org_variables,
+    mock_org_secrets,
+    neo4j_session,
+):
+    """
+    Regression (cubic PR #3200): when skip_archived_repos is enabled and a repo
+    is archived, it is excluded from the Actions fetch loop entirely. Its
+    existing GitHubWorkflow/GitHubAction subgraph must still be preserved
+    (touched, not stale-cleaned) across a new update tag, since a full sync
+    would have re-fetched and re-tagged it.
+    """
+    # Arrange - first sync (repo not archived) populates the workflow subgraph.
+    _ensure_repo_exists(neo4j_session)
+    neo4j_session.run(
+        'MATCH (r:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"}) '
+        "SET r.archived = false, r.disabled = false",
+    )
+
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+    assert mock_repo_workflows.call_count == 1
+    first_workflow_ids = {
+        row[0] for row in check_nodes(neo4j_session, "GitHubWorkflow", ["id"])
+    }
+    assert first_workflow_ids
+    first_action_ids = {
+        row[0] for row in check_nodes(neo4j_session, "GitHubAction", ["id"])
+    }
+    assert first_action_ids
+
+    # Now mark the repo archived so the next incremental sync excludes it.
+    neo4j_session.run(
+        'MATCH (r:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"}) '
+        "SET r.archived = true",
+    )
+
+    # Act - second sync with skip_archived_repos; the archived repo is excluded
+    # from the fetch loop, so its workflow fetch must NOT be called again.
+    second_update_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        {"UPDATE_TAG": second_update_tag},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        skip_archived_repos=True,
+    )
+
+    # Assert - archived repo's workflows were NOT re-fetched...
+    assert mock_repo_workflows.call_count == 1
+
+    # ...yet its existing GitHubWorkflow subgraph survived AND was touched to the
+    # new update tag, instead of being deleted as stale by cleanup_org_level.
+    workflow_rows = neo4j_session.run(
+        "MATCH (w:GitHubWorkflow) RETURN w.id AS id, w.lastupdated AS lastupdated",
+    ).data()
+    assert {row["id"] for row in workflow_rows} == first_workflow_ids
+    assert all(row["lastupdated"] == second_update_tag for row in workflow_rows)
+
+    action_rows = neo4j_session.run(
+        "MATCH (a:GitHubAction) RETURN a.id AS id, a.lastupdated AS lastupdated",
+    ).data()
+    assert {row["id"] for row in action_rows} == first_action_ids
+    assert all(row["lastupdated"] == second_update_tag for row in action_rows)
