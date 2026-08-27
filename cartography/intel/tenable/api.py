@@ -126,6 +126,22 @@ def export_and_download(
                     f"Tenable export {export_uuid} chunks_available returned "
                     f"{type(chunks).__name__}; expected a list"
                 )
+            chunks_failed = status_data.get("chunks_failed", [])
+            chunks_cancelled = status_data.get("chunks_cancelled", [])
+            for field_name, incomplete_chunks in (
+                ("chunks_failed", chunks_failed),
+                ("chunks_cancelled", chunks_cancelled),
+            ):
+                if not isinstance(incomplete_chunks, list):
+                    raise TypeError(
+                        f"Tenable export {export_uuid} {field_name} returned "
+                        f"{type(incomplete_chunks).__name__}; expected a list"
+                    )
+            if chunks_failed or chunks_cancelled:
+                raise RuntimeError(
+                    f"Tenable export {export_uuid} finished with incomplete chunks: "
+                    f"failed={chunks_failed}, cancelled={chunks_cancelled}"
+                )
             logger.debug(
                 "Tenable export %s finished; downloading %d chunk(s)",
                 export_uuid,
