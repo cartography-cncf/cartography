@@ -1,6 +1,8 @@
+import importlib
 import json
 import logging
 import os
+from typing import Any
 from typing import TYPE_CHECKING
 
 import neo4j
@@ -559,3 +561,14 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 )
         finally:
             common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)
+
+
+# DEPRECATED: Credentials was re-exported from this package before its imports became
+# lazy. Served on demand rather than bound eagerly, so that reaching for it does not
+# drag the Azure SDK into a sync that has no Azure credentials. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    if name == "Credentials":
+        return importlib.import_module(
+            "cartography.intel.azure.util.credentials",
+        ).Credentials
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
