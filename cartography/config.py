@@ -190,6 +190,12 @@ class Config:
     :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
+    :type gcp_excluded_org_ids: list[str]
+    :param gcp_excluded_org_ids: List of GCP organization IDs to exclude from ingestion. Optional.
+    :type gcp_excluded_folder_ids: list[str]
+    :param gcp_excluded_folder_ids: List of GCP folder IDs to exclude from ingestion (entire subtree is skipped). Optional.
+    :type gcp_exclude_org_root_projects: bool
+    :param gcp_exclude_org_root_projects: If True, projects attached directly to the organization root are excluded. Defaults to False. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
@@ -208,6 +214,12 @@ class Config:
     :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
     :type miradore_api_key: string
     :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
+    :type huntress_base_uri: string
+    :param huntress_base_uri: Huntress API base URI, e.g. https://api.huntress.io. Optional.
+    :type huntress_api_key: string
+    :param huntress_api_key: Huntress account API key, used as the basic auth user. Optional.
+    :type huntress_api_secret: string
+    :param huntress_api_secret: Huntress API secret key, used as the basic auth password. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -496,6 +508,10 @@ class Config:
     :type bbot_source: str
     :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
         s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
+    :type zizmor_source: str
+    :param zizmor_source: Report source locator for the Zizmor repository mapping file.
+        Accepts a local file, s3://bucket/key, gs://bucket/object, or
+        azblob://account/container/blob. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -552,6 +568,9 @@ class Config:
         miradore_base_uri=None,
         miradore_site_name=None,
         miradore_api_key=None,
+        huntress_base_uri=None,
+        huntress_api_key=None,
+        huntress_api_secret=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -693,6 +712,7 @@ class Config:
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
+        zizmor_source=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
@@ -720,6 +740,9 @@ class Config:
         snowflake_role=None,
         snowflake_warehouse=None,
         snowflake_databases=None,
+        gcp_excluded_org_ids=None,
+        gcp_excluded_folder_ids=None,
+        gcp_exclude_org_root_projects=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -785,6 +808,13 @@ class Config:
         self.azure_permission_relationships_file = azure_permission_relationships_file
         self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
+        self.gcp_excluded_org_ids = (
+            set(gcp_excluded_org_ids) if gcp_excluded_org_ids else set()
+        )
+        self.gcp_excluded_folder_ids = (
+            set(gcp_excluded_folder_ids) if gcp_excluded_folder_ids else set()
+        )
+        self.gcp_exclude_org_root_projects = gcp_exclude_org_root_projects
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
@@ -794,6 +824,9 @@ class Config:
         self.miradore_base_uri = miradore_base_uri
         self.miradore_site_name = miradore_site_name
         self.miradore_api_key = miradore_api_key
+        self.huntress_base_uri = huntress_base_uri
+        self.huntress_api_key = huntress_api_key
+        self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
@@ -975,6 +1008,7 @@ class Config:
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
+        self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key

@@ -51,6 +51,10 @@ def test_load_scaleway_loadbalancers(_mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "ScalewayLoadBalancer", ["id", "name"]) == {
         (TEST_LB_ID, "demo-lb"),
     }
+    # transform_loadbalancers marks it exposed: it holds a public IP and has a frontend.
+    assert check_nodes(
+        neo4j_session, "ScalewayLoadBalancer", ["id", "exposed_internet"]
+    ) == {(TEST_LB_ID, True)}
     assert check_nodes(neo4j_session, "ScalewayLBFrontend", ["id", "name"]) == {
         (TEST_FRONTEND_ID, "demo-frontend"),
     }

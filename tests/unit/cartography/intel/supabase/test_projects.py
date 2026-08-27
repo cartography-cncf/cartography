@@ -91,3 +91,40 @@ def test_get_org_projects_handles_empty_organization():
             projects.get_org_projects(MagicMock(), "https://api.fake", "empty-org")
             == []
         )
+
+
+def test_database_exposure_empty_allowlist_is_unrestricted():
+    # The Management API treats an empty or absent list as no restriction at all.
+    assert projects._database_exposure({}) == {
+        "exposed_internet": True,
+        "exposed_internet_type": ["direct"],
+    }
+    assert (
+        projects._database_exposure({"dbAllowedCidrs": []})["exposed_internet"] is True
+    )
+
+
+def test_database_exposure_scoped_allowlist_is_not_exposed():
+    config = {
+        "dbAllowedCidrs": ["10.0.0.0/8"],
+        "dbAllowedCidrsV6": ["2600:1f18::/48"],
+    }
+    assert projects._database_exposure(config) == {
+        "exposed_internet": False,
+        "exposed_internet_type": None,
+    }
+
+
+def test_database_exposure_explicit_open_cidr_is_exposed():
+    assert (
+        projects._database_exposure({"dbAllowedCidrs": ["10.0.0.0/8", "0.0.0.0/0"]})[
+            "exposed_internet"
+        ]
+        is True
+    )
+    assert (
+        projects._database_exposure(
+            {"dbAllowedCidrs": ["10.0.0.0/8"], "dbAllowedCidrsV6": ["::/0"]}
+        )["exposed_internet"]
+        is True
+    )

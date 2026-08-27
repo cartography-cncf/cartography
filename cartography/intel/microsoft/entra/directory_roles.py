@@ -2,13 +2,13 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.unified_role_assignment import UnifiedRoleAssignment
 from msgraph.generated.models.unified_role_definition import UnifiedRoleDefinition
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import (
     get_paginated_values_with_expired_page_retry,
 )
@@ -159,11 +159,7 @@ async def sync_entra_directory_roles(
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
     """
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
     client = GraphServiceClient(
         credential,
         scopes=["https://graph.microsoft.com/.default"],

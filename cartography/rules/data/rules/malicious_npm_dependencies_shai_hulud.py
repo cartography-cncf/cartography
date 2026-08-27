@@ -58,7 +58,12 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -1155,7 +1160,12 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -2623,7 +2633,12 @@ _malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3121,7 +3136,12 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
     WHERE REPLACE(d.requirements, "= ", "") = v.version
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3242,7 +3262,14 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
       AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
       AND coalesce(r.archived, false) = false
       AND coalesce(r.disabled, false) = false
-    RETURN r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
+    // One finding per declared range, so current_version is part of the identity here.
+    // Unlike the exact-version facts above, two ranges on one major are not two
+    // spellings of one pin: they cover different version windows and are remediated
+    // separately, and collapsing them would have to pick one range to display while
+    // claiming it resolves to vulnerable_version, which for the other range is false.
+    // DISTINCT still folds away the manifest fan-out, HAS_DEP being one edge per
+    // manifest.
+    RETURN DISTINCT r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -3315,7 +3342,10 @@ _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
     """,
     asset_label="GitHubRepository",
     asset_id_field="repo_id",
-    identity_fields=("repo", "name", "vulnerable_version"),
+    # current_version is part of the identity here, unlike the exact-version facts: a
+    # declared range is what gets remediated, and two ranges on one major cover
+    # different version windows, so each is its own finding.
+    identity_fields=("repo", "name", "vulnerable_version", "current_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -3343,7 +3373,7 @@ malicious_npm_dependencies_shai_hulud = Rule(
         _malicious_npm_dependencies_shai_hulud_aug_2026_github,
         _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github,
     ),
-    version="0.3.0",
+    version="0.3.1",
     references=[
         RuleReference(
             text="StepSecurity - ChainDrop npm Worm: Bun-loaded CI/CD credential harvester with Ethereum dead-drop C2",

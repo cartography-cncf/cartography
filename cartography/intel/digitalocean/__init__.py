@@ -9,7 +9,7 @@ from cartography.util.lazy import lazy_import
 
 # Bound lazily so that the provider SDK only loads once the config gate below
 # has decided that this module has something to sync.
-Manager = lazy_callable("digitalocean", "Manager")
+Client = lazy_callable("pydo", "Client")
 compute = lazy_import("cartography.intel.digitalocean.compute")
 management = lazy_import("cartography.intel.digitalocean.management")
 platform = lazy_import("cartography.intel.digitalocean.platform")
@@ -35,22 +35,26 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    manager = Manager(token=config.digitalocean_token)
+    client = Client(token=config.digitalocean_token)
 
     account_id = platform.sync(
-        neo4j_session, manager, config.update_tag, common_job_parameters
+        neo4j_session, client, config.update_tag, common_job_parameters
     )
+    if not account_id:
+        logger.warning("No account ID found, skipping further DigitalOcean ingestion.")
+        return
+
     common_job_parameters["ACCOUNT_ID"] = str(account_id)
     projects_resources = management.sync(
         neo4j_session,
-        manager,
+        client,
         account_id,
         config.update_tag,
         common_job_parameters,
     )
     compute.sync(
         neo4j_session,
-        manager,
+        client,
         account_id,
         projects_resources,
         config.update_tag,

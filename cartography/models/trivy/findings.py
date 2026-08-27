@@ -156,8 +156,21 @@ class TrivyFindingToOntologyImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyFindingToFilesystemSnapshotRel(CartographyRelSchema):
+    """Links a Trivy finding to the filesystem snapshots it affects."""
+
+    target_node_label: str = "FilesystemSnapshot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FilesystemSnapshotIds", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: TrivyFindingToImageRelProperties = TrivyFindingToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyImageFindingSchema(CartographyNodeSchema):
-    """A vulnerability finding detected by Trivy in a container image."""
+    """A vulnerability finding detected by Trivy in a scan target."""
 
     label: str = "TrivyImageFinding"
     scoped_cleanup: bool = False
@@ -173,5 +186,6 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TrivyFindingToOntologyImageRel(),
+            TrivyFindingToFilesystemSnapshotRel(),
         ],
     )

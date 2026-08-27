@@ -79,6 +79,13 @@ def test_sync_netlify_sites(neo4j_session: neo4j.Session) -> None:
         (TEST_GIT_SITE_ID, "example-git-site", "current"),
     }
 
+    # Both fixture sites carry an unconditional access gate, so neither is exposed: the first
+    # requires team SSO, the second is password protected in every context.
+    assert check_nodes(neo4j_session, "NetlifySite", ["id", "exposed_internet"]) == {
+        (TEST_SITE_ID, False),
+        (TEST_GIT_SITE_ID, False),
+    }
+
     # Assert build_settings was flattened onto the git-connected site
     assert check_nodes(
         neo4j_session,

@@ -2,7 +2,9 @@ import logging
 
 import neo4j
 
+from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
 from cartography.config import Config
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
@@ -41,6 +43,7 @@ sync_functions = lazy_callable(
     "cartography.intel.scaleway.serverless.functions", "sync"
 )
 sync_groups = lazy_callable("cartography.intel.scaleway.iam.groups", "sync")
+sync_hostings = lazy_callable("cartography.intel.scaleway.webhosting.hostings", "sync")
 sync_instances = lazy_callable("cartography.intel.scaleway.instances.instances", "sync")
 sync_ips = lazy_callable("cartography.intel.scaleway.network.ips", "sync")
 sync_jobs = lazy_callable("cartography.intel.scaleway.serverless.jobs", "sync")
@@ -337,6 +340,17 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
 
+    # Web Hosting (loaded after DNS so the EXPOSE edges to ScalewayRegisteredDomain
+    # and ScalewayDnsZone resolve).
+    sync_hostings(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
     # Key Manager (loaded before Secrets so Secret -> Key ENCRYPTED_BY edges resolve).
     sync_keys(
         neo4j_session,
@@ -479,3 +493,10 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
+
+    # Internet exposure. Runs after every resource sync because it reads across
+    # resource types (instances plus their security groups and public gateways).
+    # The jobs are unscoped: this sync covers the whole organization in one pass,
+    # so there is no other project's data for the generated cleanup to remove.
+    for job in SCALEWAY_EXPOSURE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, common_job_parameters)

@@ -249,7 +249,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         max_time=600,
         on_backoff=backoff_handler,
     )
-    def inner_function(*args, **kwargs):
+    def inner_function(*args, **kwargs):  # type: ignore
         try:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as e:

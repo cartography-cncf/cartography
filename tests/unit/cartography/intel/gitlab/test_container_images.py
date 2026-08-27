@@ -320,3 +320,291 @@ def test_get_container_images_skips_config_for_complete_digest(monkeypatch):
         },
     ]
     fetch_blob.assert_not_called()
+
+
+def _repo():
+    return {
+        "id": 1,
+        "project_id": 2,
+        "location": "registry.gitlab.example.com/group/project",
+    }
+
+
+def test_get_container_images_skips_manifest_fetch_for_known_complete_digest(
+    monkeypatch,
+):
+    # Arrange: the tag record already carries the digest, and that digest is
+    # already enriched in the graph, so no registry request should be issued.
+    digest = "sha256:complete"
+    get_manifest = Mock()
+    get_paginated = Mock()
+    head_digest = Mock()
+    observed_and_skipped: set[str] = set()
+    skipped_attestation_manifests: list[dict] = []
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.get_paginated",
+        get_paginated,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        get_manifest,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest_digest",
+        head_digest,
+    )
+
+    # Act
+    manifests, manifest_lists = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [_repo()],
+        skip_digests={digest},
+        observed_and_skipped=observed_and_skipped,
+        skipped_attestation_manifests=skipped_attestation_manifests,
+        tags_by_repository={
+            "registry.gitlab.example.com/group/project": [
+                {"name": "latest", "digest": digest},
+            ],
+        },
+    )
+
+    # Assert
+    assert manifests == []
+    assert manifest_lists == []
+    assert observed_and_skipped == {digest}
+    assert skipped_attestation_manifests == [
+        {
+            "_digest": digest,
+            "_registry_url": "https://registry.gitlab.example.com",
+            "_repository_name": "group/project",
+        },
+    ]
+    get_manifest.assert_not_called()
+    head_digest.assert_not_called()
+    # The tag records were supplied, so the tag list endpoint is not re-paginated.
+    get_paginated.assert_not_called()
+
+
+def test_get_container_images_fetches_shared_digest_once(monkeypatch):
+    # Arrange: two tags point at the same digest and none is already enriched.
+    digest = "sha256:shared"
+    manifest = {
+        "_digest": digest,
+        "_registry_url": "https://registry.gitlab.example.com",
+        "_repository_name": "group/project",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+    get_manifest = Mock(return_value=manifest)
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        get_manifest,
+    )
+
+    # Act
+    manifests, _ = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [_repo()],
+        tags_by_repository={
+            "registry.gitlab.example.com/group/project": [
+                {"name": "latest", "digest": digest},
+                {"name": "v1.0.0", "digest": digest},
+            ],
+        },
+    )
+
+    # Assert: one manifest fetch, not one per tag.
+    assert get_manifest.call_count == 1
+    assert manifests == [manifest]
+
+
+def test_get_container_images_head_probes_when_tag_digest_unknown(monkeypatch):
+    # Arrange: the tag record has no digest (tag detail fetch fell back to basic
+    # info), so the digest is resolved with a HEAD before any body is fetched.
+    digest = "sha256:complete"
+    get_manifest = Mock()
+    head_digest = Mock(return_value=digest)
+    observed_and_skipped: set[str] = set()
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        get_manifest,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest_digest",
+        head_digest,
+    )
+
+    # Act
+    manifests, _ = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [_repo()],
+        skip_digests={digest},
+        observed_and_skipped=observed_and_skipped,
+        tags_by_repository={
+            "registry.gitlab.example.com/group/project": [{"name": "latest"}],
+        },
+    )
+
+    # Assert
+    assert manifests == []
+    assert observed_and_skipped == {digest}
+    head_digest.assert_called_once_with(
+        "https://gitlab.example.com",
+        "https://registry.gitlab.example.com",
+        "group/project",
+        "latest",
+        "token",
+    )
+    get_manifest.assert_not_called()
+
+
+def test_get_container_images_skips_head_probe_on_first_run(monkeypatch):
+    # Arrange: nothing is enriched yet, so a HEAD would only add a round trip on
+    # top of the GET that has to happen anyway.
+    manifest = {
+        "_digest": "sha256:new",
+        "_registry_url": "https://registry.gitlab.example.com",
+        "_repository_name": "group/project",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+    get_manifest = Mock(return_value=manifest)
+    head_digest = Mock()
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        get_manifest,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest_digest",
+        head_digest,
+    )
+
+    # Act
+    manifests, _ = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [_repo()],
+        skip_digests=set(),
+        tags_by_repository={
+            "registry.gitlab.example.com/group/project": [{"name": "latest"}],
+        },
+    )
+
+    # Assert
+    head_digest.assert_not_called()
+    assert manifests == [manifest]
+
+
+def test_get_container_images_walks_manifest_list_when_child_is_skipped(monkeypatch):
+    # Arrange: a manifest list with two children, one of which is already
+    # enriched. The already-enriched child must be skipped without a fetch while
+    # the parent and the new child are still ingested.
+    parent_digest = "sha256:parent"
+    known_child = "sha256:knownchild"
+    new_child = "sha256:newchild"
+    parent = {
+        "_digest": parent_digest,
+        "_registry_url": "https://registry.gitlab.example.com",
+        "_repository_name": "group/project",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [{"digest": known_child}, {"digest": new_child}],
+    }
+    child = {
+        "_digest": new_child,
+        "_registry_url": "https://registry.gitlab.example.com",
+        "_repository_name": "group/project",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    }
+    get_manifest = Mock(side_effect=[parent, child])
+    observed_and_skipped: set[str] = set()
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest",
+        get_manifest,
+    )
+
+    # Act
+    manifests, manifest_lists = get_container_images(
+        "https://gitlab.example.com",
+        "token",
+        [_repo()],
+        skip_digests={known_child},
+        observed_and_skipped=observed_and_skipped,
+        tags_by_repository={
+            "registry.gitlab.example.com/group/project": [
+                {"name": "latest", "digest": parent_digest},
+            ],
+        },
+    )
+
+    # Assert
+    assert manifest_lists == [parent]
+    assert manifests == [parent, child]
+    assert observed_and_skipped == {known_child}
+    assert get_manifest.call_count == 2
+
+
+def test_sync_container_images_excludes_manifest_lists_from_skip_set(monkeypatch):
+    # Arrange: the layer-closure query reports a manifest list digest alongside a
+    # regular image. Skipping the manifest list would drop the child walk that
+    # discovers its platform images, so it must not reach get_container_images.
+    parent_digest = "sha256:parent"
+    image_digest = "sha256:image"
+    get_images = Mock(return_value=([], []))
+    mocks = _patch_sync_container_images_dependencies(
+        monkeypatch,
+        get_images_mock=get_images,
+        complete_digests_mock=Mock(return_value={parent_digest, image_digest}),
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest_list_digests",
+        Mock(return_value={parent_digest}),
+    )
+
+    # Act
+    sync_container_images(
+        neo4j_session=Mock(),
+        gitlab_url="https://gitlab.example.com",
+        token="token",
+        org_id=123,
+        repositories=[_repo()],
+        update_tag=1,
+        common_job_parameters={},
+    )
+
+    # Assert
+    assert get_images.call_args.kwargs["skip_digests"] == {image_digest}
+    assert mocks["cleanup_images"].called
+
+
+def test_sync_container_images_forwards_tags_by_repository(monkeypatch):
+    # Arrange
+    tags_by_repository = {
+        "registry.gitlab.example.com/group/project": [
+            {"name": "latest", "digest": "sha256:image"},
+        ],
+    }
+    get_images = Mock(return_value=([], []))
+    _patch_sync_container_images_dependencies(
+        monkeypatch,
+        get_images_mock=get_images,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images._get_manifest_list_digests",
+        Mock(return_value=set()),
+    )
+
+    # Act
+    sync_container_images(
+        neo4j_session=Mock(),
+        gitlab_url="https://gitlab.example.com",
+        token="token",
+        org_id=123,
+        repositories=[_repo()],
+        update_tag=1,
+        common_job_parameters={},
+        tags_by_repository=tags_by_repository,
+    )
+
+    # Assert
+    assert get_images.call_args.kwargs["tags_by_repository"] is tags_by_repository

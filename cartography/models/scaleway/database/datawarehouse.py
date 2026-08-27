@@ -34,6 +34,16 @@ class ScalewayDataWarehouseDeploymentProperties(CartographyNodeProperties):
     is_public: PropertyRef = PropertyRef(
         "is_public", description="True if any endpoint is public-facing."
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `is_public` is true, meaning a publicly reachable endpoint is provisioned.",
+    )  # Set in transform(), see cartography/intel/scaleway/databases/datawarehouse.py
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Set in transform(), see cartography/intel/scaleway/databases/datawarehouse.py
     region: PropertyRef = PropertyRef(
         "region", description="Region the deployment lives in."
     )

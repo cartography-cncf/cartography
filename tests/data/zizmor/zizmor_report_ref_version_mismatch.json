@@ -1,0 +1,176 @@
+[
+  {
+    "ident": "ref-version-mismatch",
+    "desc": "action's hash pin has mismatched or missing version comment",
+    "url": "https://docs.zizmor.sh/audits/#ref-version-mismatch",
+    "determinations": {
+      "confidence": "High",
+      "severity": "Medium",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "this step",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "a"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Hidden"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 8
+            },
+            "end_point": {
+              "row": 8,
+              "column": 0
+            },
+            "offset_span": {
+              "start": 91,
+              "end": 160
+            }
+          },
+          "feature": "uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v3\n",
+          "comments": [
+            "# v3"
+          ]
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "is pointed to by tag v4.2.2",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "a"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              },
+              {
+                "Key": "uses"
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Related"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 8
+            },
+            "end_point": {
+              "row": 7,
+              "column": 71
+            },
+            "offset_span": {
+              "start": 91,
+              "end": 154
+            }
+          },
+          "feature": "uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "comments": [
+            "# v3"
+          ]
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "./.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "points to commit a37ce9120846",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "a"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              },
+              {
+                "Key": "uses"
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 74
+            },
+            "end_point": {
+              "row": 7,
+              "column": 76
+            },
+            "offset_span": {
+              "start": 157,
+              "end": 159
+            }
+          },
+          "feature": "v3",
+          "comments": [
+            "      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v3"
+          ]
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": [
+      {
+        "title": "update version comment to match pinned hash: v4.2.2",
+        "key": {
+          "Local": {
+            "verbatim_path": "./.github/workflows/ci.yml"
+          }
+        },
+        "disposition": "unsafe"
+      }
+    ]
+  }
+]

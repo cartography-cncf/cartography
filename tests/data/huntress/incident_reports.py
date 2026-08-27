@@ -1,0 +1,102 @@
+"""Huntress API v1 `IncidentReport` responses."""
+
+from typing import Any
+
+INCIDENT_REPORTS: list[dict[str, Any]] = [
+    {
+        "id": 4001,
+        "account_id": 1000,
+        "agent_id": 3001,
+        "organization_id": 2001,
+        "body": "A scheduled task was created to run an obfuscated PowerShell payload.",
+        "closed_at": None,
+        "indicator_counts": {
+            "footholds": 1,
+            "monitored_files": 0,
+            "process_detections": 2,
+        },
+        "indicator_types": ["footholds", "process_detections"],
+        "platform": "windows",
+        "remediations": {
+            "total_count": 2,
+            "has_more": False,
+            "items": [
+                {
+                    "id": 7001,
+                    "type": "manual",
+                    "action": "Delete File",
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "description": "c:\\windows\\system32\\tasks\\donut_task",
+                        }
+                    ],
+                    "status": "completed",
+                    "approved_at": "2026-02-10T18:57:03Z",
+                    "approved_by": {
+                        "id": 6001,
+                        "email": "homer@springfield.example.com",
+                        "name": "Homer Simpson",
+                    },
+                    "completed_at": "2026-02-10T19:02:11Z",
+                },
+                {
+                    "id": 7002,
+                    "type": "containment",
+                    "action": "Isolate Host",
+                    "parameters": [],
+                    "status": "approved",
+                    "approved_at": "2026-02-10T18:58:00Z",
+                    "approved_by": None,
+                    "completed_at": None,
+                },
+            ],
+        },
+        "sent_at": "2026-02-10T18:40:00Z",
+        "severity": "critical",
+        "status": "sent",
+        "status_updated_at": "2026-02-10T18:40:00Z",
+        "subject": "Malicious foothold on homer-desktop",
+        "summary": "The SOC confirmed a persistent scheduled task dropped by a macro.",
+        "updated_at": "2026-02-10T19:02:11Z",
+    },
+    {
+        "id": 4002,
+        "account_id": 1000,
+        "agent_id": 3002,
+        "organization_id": 2001,
+        "body": "An unwanted browser extension was detected and removed.",
+        "closed_at": "2026-02-08T12:00:00Z",
+        "indicator_counts": {"antivirus_detections": 1},
+        "indicator_types": ["antivirus_detections"],
+        "platform": "darwin",
+        "remediations": {"total_count": 0, "has_more": False, "items": []},
+        "sent_at": "2026-02-07T09:12:00Z",
+        "severity": "low",
+        "status": "closed",
+        "status_updated_at": "2026-02-08T12:00:00Z",
+        "subject": "Adware removed from marge-macbook",
+        "summary": "No further action required.",
+        "updated_at": "2026-02-08T12:00:00Z",
+    },
+    # Identity incident: raised against a Microsoft 365 tenant, so it has no agent.
+    {
+        "id": 4003,
+        "account_id": 1000,
+        "agent_id": None,
+        "organization_id": 2002,
+        "body": "A sign-in succeeded from an unfamiliar location shortly after a failed burst.",
+        "closed_at": None,
+        "indicator_counts": {"managed_identity": 1},
+        "indicator_types": ["managed_identity"],
+        "platform": "microsoft_365",
+        "remediations": None,
+        "sent_at": "2026-02-11T04:22:00Z",
+        "severity": "high",
+        "status": "dismissed",
+        "status_updated_at": "2026-02-11T08:00:00Z",
+        "subject": "Suspicious sign-in for nelson@shelbyville.example.com",
+        "summary": "The customer confirmed the travel was expected.",
+        "updated_at": "2026-02-11T08:00:00Z",
+    },
+]

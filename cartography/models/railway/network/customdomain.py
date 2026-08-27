@@ -76,7 +76,10 @@ class RailwayCustomDomainToServiceInstanceRelProperties(CartographyRelProperties
 
 
 @dataclass(frozen=True)
-# (:RailwayServiceInstance)-[:EXPOSE]->(:RailwayCustomDomain)
+# (:RailwayCustomDomain)-[:EXPOSE]->(:RailwayServiceInstance)
+#
+# EXPOSE always points from the internet-facing entrypoint to the asset it puts at risk, matching
+# the LoadBalancer-[:EXPOSE]->workload convention used by AWS, GCP, Azure and Kubernetes.
 #
 # Only for domains that have passed DNS verification. An unverified domain does not resolve,
 # so treating it as a public entry point would make exposure traversals disagree with
@@ -94,7 +97,7 @@ class RailwayCustomDomainToServiceInstanceRel(CartographyRelSchema):
             "environment_id": PropertyRef("exposed_environment_id"),
         },
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "EXPOSE"
     properties: RailwayCustomDomainToServiceInstanceRelProperties = (
         RailwayCustomDomainToServiceInstanceRelProperties()

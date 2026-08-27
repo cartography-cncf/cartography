@@ -31,6 +31,9 @@ class _LazyModule:
 
     __slots__ = ("_name", "_module")
 
+    _name: str
+    _module: ModuleType | None
+
     def __init__(self, name: str) -> None:
         object.__setattr__(self, "_name", name)
         object.__setattr__(self, "_module", None)
@@ -105,6 +108,10 @@ class _LazyCallable:
     """Callable that defers `from <module> import <attr>` until first invocation."""
 
     __slots__ = ("_name", "_attr", "_module")
+
+    _name: str
+    _attr: str
+    _module: ModuleType | None
 
     def __init__(self, module: str, attr: str) -> None:
         object.__setattr__(self, "_name", module)

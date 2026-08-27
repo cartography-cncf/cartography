@@ -31,6 +31,8 @@ CORE_DISTRIBUTIONS = {
     "certifi",
     "charset_normalizer",
     "click",
+    # Not a distribution: Cython injects this pseudo-module, here via pydantic-core.
+    "cython_runtime",
     "colorsys",
     "dateutil",
     "idna",

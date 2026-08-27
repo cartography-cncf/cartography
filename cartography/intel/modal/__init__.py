@@ -7,6 +7,7 @@ from typing import Callable
 import neo4j
 
 from cartography.config import Config
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
@@ -283,3 +284,14 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
             environment_job_parameters,
             apps,
         )
+
+    # DEPRECATED: compatibility migration that drops the legacy
+    # (:ModalSandbox)-[:EXPOSES]->(:ModalSandboxTunnel) edges left by the rename and
+    # direction flip. Generated cleanup only matches the new label and orientation, so
+    # without this a graph upgraded in place would hold both. Scoped to sandboxes this run
+    # refreshed, so an environment _run skipped keeps its edges. Remove in v1.0.0.
+    run_analysis_job(
+        "modal_expose_edge_rename_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )

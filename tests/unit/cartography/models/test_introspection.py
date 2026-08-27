@@ -403,10 +403,15 @@ def test_build_data_model_exposes_ontology_catalog_metadata():
         )
         for constraint in model.ontology_relationship_constraints
     }
-    assert len(constraints) == 37
+    assert len(constraints) == 46
     assert ("ComputePod", "USES_SECRET", "Secret") in constraints
     assert ("Container", "RESOLVED_IMAGE", "Image") in constraints
+    assert ("Container", "SCANNED_AS", "FilesystemSnapshot") in constraints
+    assert ("CVE", "AFFECTS", "FilesystemSnapshot") in constraints
+    assert ("FilesystemSnapshot", "SNAPSHOT_OF", "CodeRepository") in constraints
+    assert ("PackageVersion", "DEPLOYED", "FilesystemSnapshot") in constraints
     assert ("CVE", "AFFECTS", "PackageVersion") in constraints
+    assert ("LoadBalancer", "EXPOSE", "ComputeInstance") in constraints
 
 
 def test_build_data_model_distinguishes_canonical_ontology_projections():
