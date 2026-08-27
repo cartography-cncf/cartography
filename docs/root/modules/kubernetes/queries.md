@@ -37,8 +37,11 @@ RETURN pod.namespace, pod.name, container.name,
        container.gpu_request, container.gpu_limit,
        node.name, node.gpu_product, node.gpu_capacity,
        type(storage_access), claim.name,
-       container.persistent_volume_claim_mounts,
-       container.persistent_volume_claim_devices,
+       CASE type(storage_access)
+         WHEN 'MOUNTS' THEN
+           claim.id IN coalesce(container.persistent_volume_claim_read_write_ids, [])
+         ELSE null
+       END AS read_write,
        volume.name, volume.csi_driver,
        labels(cloud_disk), cloud_disk.id, storage_class.name
 ORDER BY pod.namespace, pod.name, container.name;

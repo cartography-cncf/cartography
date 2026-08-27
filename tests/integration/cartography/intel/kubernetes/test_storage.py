@@ -66,6 +66,23 @@ def _mock_storage(monkeypatch):
     )
 
 
+@pytest.fixture
+def _cleanup_block_storage_nodes(neo4j_session):
+    yield
+    neo4j_session.run(
+        """
+        MATCH (node)
+        WHERE node.cluster_name = $cluster_name
+          AND ((node:KubernetesPersistentVolume AND node.name = 'pvc-block-volume')
+            OR (node:KubernetesPersistentVolumeClaim AND node.name = 'block-data')
+            OR (node:KubernetesPod AND node.name = 'block-training-job')
+            OR (node:KubernetesContainer AND node.name = 'block-worker'))
+        DETACH DELETE node
+        """,
+        cluster_name=CLUSTER_NAME,
+    )
+
+
 def test_sync_storage(neo4j_session, monkeypatch, _create_test_cluster):
     # Arrange
     _mock_storage(monkeypatch)
@@ -281,14 +298,18 @@ def test_pod_references_and_container_mounts_persistent_volume_claim(
         MATCH (container:KubernetesContainer {name: $container_name})
               -[:MOUNTS]->
               (:KubernetesPersistentVolumeClaim {name: $claim_name})
-        RETURN container.persistent_volume_claim_ids AS claim_ids,
+        RETURN container.persistent_volume_claim_ids AS internal_claim_ids,
+               container.persistent_volume_claim_read_write_ids AS read_write_claim_ids,
                container.persistent_volume_claim_mounts AS mount_details
         """,
         container_name="worker",
         claim_name=CLAIM_NAME,
     ).single()
     assert container is not None
-    assert container["claim_ids"] == [f"{CLUSTER_NAME}/my-namespace/{CLAIM_NAME}"]
+    assert container["internal_claim_ids"] is None
+    assert container["read_write_claim_ids"] == [
+        f"{CLUSTER_NAME}/my-namespace/{CLAIM_NAME}"
+    ]
     assert json.loads(container["mount_details"]) == [
         {
             "claim_id": f"{CLUSTER_NAME}/my-namespace/{CLAIM_NAME}",
@@ -320,6 +341,7 @@ def test_container_uses_persistent_volume_claim_as_raw_block_device(
     neo4j_session,
     monkeypatch,
     _create_test_cluster,
+    _cleanup_block_storage_nodes,
 ):
     # Arrange
     block_volume = deepcopy(RAW_PERSISTENT_VOLUMES[0])
@@ -365,43 +387,55 @@ def test_container_uses_persistent_volume_claim_as_raw_block_device(
     sync_pods(neo4j_session, client, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
-    assert ("block-training-job", "block-data") in check_rels(
-        neo4j_session,
-        "KubernetesPod",
-        "name",
-        "KubernetesPersistentVolumeClaim",
-        "name",
-        "REFERENCES",
-    )
-    assert ("block-worker", "block-data") in check_rels(
-        neo4j_session,
-        "KubernetesContainer",
-        "name",
-        "KubernetesPersistentVolumeClaim",
-        "name",
-        "USES_BLOCK_DEVICE",
-    )
-    assert ("block-worker", "block-data") not in check_rels(
-        neo4j_session,
-        "KubernetesContainer",
-        "name",
-        "KubernetesPersistentVolumeClaim",
-        "name",
-        "MOUNTS",
-    )
+    assert {
+        rel
+        for rel in check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesPersistentVolumeClaim",
+            "name",
+            "REFERENCES",
+        )
+        if rel[0] == "block-training-job"
+    } == {("block-training-job", "block-data")}
+    assert {
+        rel
+        for rel in check_rels(
+            neo4j_session,
+            "KubernetesContainer",
+            "name",
+            "KubernetesPersistentVolumeClaim",
+            "name",
+            "USES_BLOCK_DEVICE",
+        )
+        if rel[0] == "block-worker"
+    } == {("block-worker", "block-data")}
+    assert {
+        rel
+        for rel in check_rels(
+            neo4j_session,
+            "KubernetesContainer",
+            "name",
+            "KubernetesPersistentVolumeClaim",
+            "name",
+            "MOUNTS",
+        )
+        if rel[0] == "block-worker"
+    } == set()
     container = neo4j_session.run(
         """
         MATCH (container:KubernetesContainer {name: $container_name})
               -[:USES_BLOCK_DEVICE]->
               (:KubernetesPersistentVolumeClaim {name: $claim_name})
-        RETURN container.persistent_volume_claim_device_ids AS claim_ids,
+        RETURN container.persistent_volume_claim_device_ids AS internal_claim_ids,
                container.persistent_volume_claim_devices AS device_details
         """,
         container_name="block-worker",
         claim_name="block-data",
     ).single()
     assert container is not None
-    assert container["claim_ids"] == [f"{CLUSTER_NAME}/{NAMESPACE}/block-data"]
+    assert container["internal_claim_ids"] is None
     assert json.loads(container["device_details"]) == [
         {
             "claim_id": f"{CLUSTER_NAME}/{NAMESPACE}/block-data",
@@ -426,27 +460,18 @@ def test_container_uses_persistent_volume_claim_as_raw_block_device(
     )
 
     # Assert
-    assert ("block-worker", "block-data") not in check_rels(
-        neo4j_session,
-        "KubernetesContainer",
-        "name",
-        "KubernetesPersistentVolumeClaim",
-        "name",
-        "USES_BLOCK_DEVICE",
-    )
-    neo4j_session.run(
-        """
-        MATCH (node)
-        WHERE node.uid IN $uids
-        DETACH DELETE node
-        """,
-        uids=[
-            block_volume.metadata.uid,
-            block_claim.metadata.uid,
-            block_pod.metadata.uid,
-            f"{block_pod.metadata.uid}-block-worker",
-        ],
-    )
+    assert {
+        rel
+        for rel in check_rels(
+            neo4j_session,
+            "KubernetesContainer",
+            "name",
+            "KubernetesPersistentVolumeClaim",
+            "name",
+            "USES_BLOCK_DEVICE",
+        )
+        if rel[0] == "block-worker"
+    } == set()
 
 
 def test_sync_pods_cleans_up_removed_container_mount(

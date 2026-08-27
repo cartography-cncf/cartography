@@ -21,6 +21,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _claim_id(cluster_name: str, namespace: str, claim_name: str) -> str:
+    return f"{cluster_name}/{namespace}/{claim_name}"
+
+
 def _get_claim_name_by_volume_name(pod: V1Pod) -> dict[str, str]:
     claims = {}
     for volume in pod.spec.volumes or []:
@@ -58,19 +62,23 @@ def _extract_pod_containers(
             "container_ports": json.dumps([]),
             "container_port_numbers": [],
             "persistent_volume_claim_ids": [],
+            "persistent_volume_claim_read_write_ids": [],
             "persistent_volume_claim_mounts": "[]",
             "persistent_volume_claim_device_ids": [],
             "persistent_volume_claim_devices": "[]",
         }
 
         claim_ids = set()
+        read_write_claim_ids = set()
         mount_details = []
         for mount in container.volume_mounts or []:
             claim_name = claim_by_volume_name.get(mount.name)
             if not claim_name:
                 continue
-            claim_id = f"{cluster_name}/{pod.metadata.namespace}/{claim_name}"
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
             claim_ids.add(claim_id)
+            if not mount.read_only:
+                read_write_claim_ids.add(claim_id)
             mount_details.append(
                 {
                     "claim_id": claim_id,
@@ -94,6 +102,9 @@ def _extract_pod_containers(
             )
         )
         containers[container.name]["persistent_volume_claim_ids"] = sorted(claim_ids)
+        containers[container.name]["persistent_volume_claim_read_write_ids"] = sorted(
+            read_write_claim_ids
+        )
         containers[container.name]["persistent_volume_claim_mounts"] = json.dumps(
             mount_details,
             sort_keys=True,
@@ -105,7 +116,7 @@ def _extract_pod_containers(
             claim_name = claim_by_volume_name.get(device.name)
             if not claim_name:
                 continue
-            claim_id = f"{cluster_name}/{pod.metadata.namespace}/{claim_name}"
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
             device_claim_ids.add(claim_id)
             device_details.append(
                 {
@@ -411,7 +422,7 @@ def transform_pods(
                 ),
                 "persistent_volume_claim_names": persistent_volume_claim_names,
                 "persistent_volume_claim_ids": [
-                    f"{cluster_name}/{pod.metadata.namespace}/{claim_name}"
+                    _claim_id(cluster_name, pod.metadata.namespace, claim_name)
                     for claim_name in persistent_volume_claim_names
                 ],
                 "service_account_id": (

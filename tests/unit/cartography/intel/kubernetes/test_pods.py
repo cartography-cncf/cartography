@@ -98,6 +98,9 @@ def test_transform_pods_maps_generic_ephemeral_volume_to_generated_claim():
     assert container["persistent_volume_claim_ids"] == [
         "my-cluster-1/my-namespace/ephemeral-pod-scratch"
     ]
+    assert container["persistent_volume_claim_read_write_ids"] == [
+        "my-cluster-1/my-namespace/ephemeral-pod-scratch"
+    ]
     assert json.loads(container["persistent_volume_claim_mounts"])[0]["mount_path"] == (
         "/scratch"
     )
@@ -323,6 +326,9 @@ def test_transform_pods_serializes_container_persistent_volume_claim_mounts():
     assert container["persistent_volume_claim_ids"] == [
         "my-cluster-1/my-namespace/shared-data"
     ]
+    assert container["persistent_volume_claim_read_write_ids"] == [
+        "my-cluster-1/my-namespace/shared-data"
+    ]
     assert json.loads(container["persistent_volume_claim_mounts"]) == [
         {
             "claim_id": "my-cluster-1/my-namespace/shared-data",
@@ -364,6 +370,7 @@ def test_transform_pods_serializes_container_persistent_volume_claim_devices():
     # Assert
     container = transformed[0]["containers"][0]
     assert container["persistent_volume_claim_ids"] == []
+    assert container["persistent_volume_claim_read_write_ids"] == []
     assert container["persistent_volume_claim_device_ids"] == [
         "my-cluster-1/my-namespace/shared-data"
     ]
@@ -375,3 +382,14 @@ def test_transform_pods_serializes_container_persistent_volume_claim_devices():
             "volume_name": "shared-data",
         }
     ]
+
+
+def test_transform_pods_excludes_read_only_claim_from_read_write_ids():
+    pod = deepcopy(RAW_GPU_PODS[0])
+    pod.spec.containers[0].volume_mounts = [
+        V1VolumeMount(name="shared-data", mount_path="/data", read_only=True)
+    ]
+
+    container = transform_pods([pod], "my-cluster-1")[0]["containers"][0]
+
+    assert container["persistent_volume_claim_read_write_ids"] == []
