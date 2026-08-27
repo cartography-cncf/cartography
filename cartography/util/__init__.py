@@ -763,3 +763,14 @@ def make_neo4j_datetime_validator() -> Callable[[Any], Union[datetime, None]]:
     Returns a lambda that can be used with BeforeValidator.
     """
     return lambda v: to_datetime(v)
+
+
+# DEPRECATED: `from cartography.util import *` exported the AWS helpers before they
+# moved, and a star-import ignores the module __getattr__ above unless __all__ names
+# them. Built from the module rather than written out, so the rest of the public
+# surface stays exactly what a star-import gave before. Remove with _MOVED_TO_AWS in
+# v1.0.0.
+__all__ = sorted(
+    [name for name in list(globals()) if not name.startswith("_")]
+    + list(_MOVED_TO_AWS),
+)
