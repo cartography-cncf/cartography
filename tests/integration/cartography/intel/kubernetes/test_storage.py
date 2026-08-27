@@ -148,6 +148,15 @@ def test_transform_persistent_volume_claim_without_requests():
     assert result[0]["requested_storage"] is None
 
 
+def test_transform_persistent_volume_claim_rounds_fractional_bytes_up():
+    claim = deepcopy(RAW_PERSISTENT_VOLUME_CLAIMS[0])
+    claim.spec.resources.requests = {"storage": "400m"}
+
+    result = storage_module.transform_persistent_volume_claims([claim], CLUSTER_NAME)
+
+    assert result[0]["requested_storage_bytes"] == 1
+
+
 def test_persistent_volumes_link_to_backing_cloud_disks(
     neo4j_session,
     monkeypatch,

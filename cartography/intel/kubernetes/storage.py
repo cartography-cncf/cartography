@@ -1,5 +1,6 @@
 import json
 import logging
+from decimal import ROUND_CEILING
 from typing import Any
 
 import neo4j
@@ -23,7 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 def _storage_bytes(quantity: str | None) -> int | None:
-    return int(parse_quantity(quantity)) if quantity is not None else None
+    return (
+        int(parse_quantity(quantity).to_integral_value(rounding=ROUND_CEILING))
+        if quantity is not None
+        else None
+    )
 
 
 @timeit
