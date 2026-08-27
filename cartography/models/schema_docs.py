@@ -10,6 +10,7 @@ from cartography.models.core.nodes import LabelKind
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.introspection import DataModel
 from cartography.models.introspection import Node
+from cartography.models.introspection import NodeRelationship
 from cartography.models.introspection import Property
 from cartography.models.introspection import Relationship
 from cartography.models.introspection import relationship_touches_node
@@ -51,7 +52,6 @@ def render_module_schema(model: DataModel, module: str) -> str:
         raise ValueError(f'No nodes found for module "{module}".')
 
     module_relationships = module_model.relationships
-    assigned_relationships = _assign_relationships(module_relationships, module_nodes)
     module_node_labels = {node.label for node in module_nodes}
     diagram_relationships = tuple(
         relationship
@@ -74,7 +74,9 @@ def render_module_schema(model: DataModel, module: str) -> str:
     lines.extend(["```", ""])
 
     for node in module_nodes:
-        lines.extend(_render_node(node, assigned_relationships.get(node.label, ())))
+        lines.extend(
+            _render_node(node, module_model.relationships_for_node(node.label))
+        )
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -124,7 +126,14 @@ def _render_ontology_schema(model: DataModel) -> str:
         "applied directly to provider-specific nodes.",
         "",
         "Canonical relationship constraints validate the names and directions "
-        "of existing relationships. They do not create relationships.",
+        "of existing relationships. They do not create relationships and are "
+        "not inherited onto concrete node schemas.",
+        "",
+        "Expected (materialized) ontology edges are relationships actually "
+        "produced under ontology labels by models, matchlinks, analysis jobs, "
+        "or catalogs. Concrete nodes that carry a semantic endpoint inherit "
+        "those edges in their schema view, with the far endpoint kept "
+        "semantic.",
         "",
         "```mermaid",
         "graph LR",
@@ -140,7 +149,10 @@ def _render_ontology_schema(model: DataModel) -> str:
         lines.extend(
             _render_node(
                 node,
-                assigned_relationships.get(node.label, ()),
+                _node_relationships_for_assigned(
+                    node,
+                    assigned_relationships.get(node.label, ()),
+                ),
                 ontology_kind=ontology_kind,
                 concrete_node_labels=implementations_by_label.get(node.label, ()),
             )
@@ -368,7 +380,7 @@ def generated_schema_modules(model: DataModel) -> list[str]:
 
 def _render_node(
     node: Node,
-    relationships: tuple[Relationship, ...],
+    relationships: tuple[NodeRelationship, ...],
     ontology_kind: str | None = None,
     concrete_node_labels: tuple[str, ...] = (),
 ) -> list[str]:
@@ -569,20 +581,20 @@ def _render_properties(node: Node) -> list[str]:
     return lines
 
 
-def _render_relationships(relationships: tuple[Relationship, ...]) -> list[str]:
+def _render_relationships(relationships: tuple[NodeRelationship, ...]) -> list[str]:
     lines = ["", "#### Relationships", ""]
     if not relationships:
         lines.extend(["No relationships.", ""])
         return lines
-    for relationship in relationships:
-        lines.append(f"- {_relationship_summary(relationship)}")
-        permissions = _relationship_permissions(relationship)
+    for view in relationships:
+        lines.append(f"- {_relationship_summary(view)}")
+        permissions = _relationship_permissions(view.relationship)
         if permissions:
             lines.append(f"  - Evaluated permissions: {permissions}")
-        target_preconditions = _relationship_target_preconditions(relationship)
+        target_preconditions = _relationship_target_preconditions(view.relationship)
         if target_preconditions:
             lines.append(f"  - Target precondition: {target_preconditions}")
-        lines.extend(_render_relationship_properties(relationship))
+        lines.extend(_render_relationship_properties(view.relationship))
         lines.append("")
     return lines
 
@@ -608,11 +620,11 @@ def _render_relationship_properties(relationship: Relationship) -> list[str]:
     ]
 
 
-def _relationship_summary(relationship: Relationship) -> str:
+def _relationship_summary(view: NodeRelationship) -> str:
     """Lead with the Cypher pattern and only add prose that says something more."""
-    pattern = f"`{_relationship_pattern(relationship)}`"
-    description = " ".join(relationship.descriptions) or _analysis_job_origin(
-        relationship
+    pattern = f"`{_node_relationship_pattern(view)}`"
+    description = " ".join(view.relationship.descriptions) or _analysis_job_origin(
+        view.relationship
     )
     return f"{pattern}: {description}" if description else pattern
 
@@ -686,6 +698,61 @@ def _assign_relationships(
         )
         for label, values in assigned.items()
     }
+
+
+def _node_relationships_for_assigned(
+    node: Node,
+    relationships: tuple[Relationship, ...],
+) -> tuple[NodeRelationship, ...]:
+    """Adapt assigned Relationship rows into node-relative views for rendering."""
+    carried = {
+        node.label,
+        *node.extra_labels,
+        *node.ontology_labels,
+        *(label.label for label in node.conditional_labels),
+    }
+    views: list[NodeRelationship] = []
+    for relationship in relationships:
+        matches_source = relationship.source_label in carried
+        matches_target = relationship.target_label in carried
+        if matches_source and (
+            relationship.source_label == node.label or not matches_target
+        ):
+            other_label = relationship.target_label
+            direction = relationship.direction
+            inherited = relationship.source_label != node.label
+        elif matches_target:
+            other_label = relationship.source_label
+            direction = (
+                None
+                if relationship.direction is None
+                else (
+                    LinkDirection.INWARD
+                    if relationship.direction is LinkDirection.OUTWARD
+                    else LinkDirection.OUTWARD
+                )
+            )
+            inherited = relationship.target_label != node.label
+        else:
+            # Catalog row whose endpoints are the section label itself.
+            other_label = (
+                relationship.target_label
+                if relationship.source_label == node.label
+                else relationship.source_label
+            )
+            direction = relationship.direction
+            inherited = False
+        views.append(
+            NodeRelationship(
+                node_label=node.label,
+                label=relationship.label,
+                other_label=other_label,
+                direction=direction,
+                inherited=inherited,
+                relationship=relationship,
+            )
+        )
+    return tuple(views)
 
 
 def _render_descriptions(descriptions: tuple[str, ...]) -> list[str]:
@@ -790,6 +857,15 @@ def _relationship_pattern(relationship: Relationship) -> str:
         else f"-[:{relationship.label}]->"
     )
     return f"(:{relationship.source_label}){connector}(:{relationship.target_label})"
+
+
+def _node_relationship_pattern(view: NodeRelationship) -> str:
+    """Cypher pattern for a node-relative relationship view."""
+    if view.direction is None:
+        return f"(:{view.node_label})-[:{view.label}]-(:{view.other_label})"
+    if view.direction is LinkDirection.OUTWARD:
+        return f"(:{view.node_label})-[:{view.label}]->(:{view.other_label})"
+    return f"(:{view.other_label})-[:{view.label}]->(:{view.node_label})"
 
 
 def _mermaid_relationship(relationship: Relationship) -> str:
