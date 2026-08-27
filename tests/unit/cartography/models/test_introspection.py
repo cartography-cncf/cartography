@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+import pytest
+
 import cartography.analysis.gsuite as gsuite_analysis
 import cartography.analysis.ontology as ontology_analysis
 import cartography.models.gcp as gcp_models
@@ -467,6 +469,37 @@ def test_relationships_for_node_inherits_materialized_ontology_edges():
     assert not any(
         other_label.startswith("AWS") for other_label, _, _ in resolved_from_image
     )
+
+
+@pytest.mark.parametrize(
+    "module,label",
+    [
+        ("aws", "AWSECSContainer"),
+        ("kubernetes", "KubernetesContainer"),
+        ("railway", "RailwayDeployment"),
+    ],
+)
+def test_for_module_keeps_inherited_ontology_edges_with_one_semantic_endpoint(
+    module,
+    label,
+):
+    """Modules that carry Container but not Image still see RESOLVED_IMAGE."""
+    model = inspect_data_model()
+    scoped = model.for_module(module)
+
+    assert ("Container", "RESOLVED_IMAGE", "Image") in {
+        (
+            relationship.source_label,
+            relationship.label,
+            relationship.target_label,
+        )
+        for relationship in scoped.relationships
+    }
+    assert [
+        (view.other_label, view.direction, view.inherited)
+        for view in scoped.relationships_for_node(label)
+        if view.label == "RESOLVED_IMAGE"
+    ] == [("Image", LinkDirection.OUTWARD, True)]
 
 
 def test_relationships_for_node_excludes_validation_only_constraints():

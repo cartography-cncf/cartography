@@ -549,14 +549,19 @@ def relationships_for_module(
     other providers: several modules carry `DNSRecord`, so a one-sided match would
     document `(:DNSRecord)-[:DNS_POINTS_TO]->(:AWSEC2Instance)` on the GCP page.
 
-    Canonical ontology nodes are the documented exception. `User`, `Package` and friends
-    are defined once and link to every provider, so an edge between one of them and a
-    label the module carries belongs on the module's page even though the module never
-    declares the canonical side.
+    Ontology endpoints are the documented exception. Canonical nodes (`User`, `Package`)
+    and semantic labels (`Container`, `Image`) are defined once and link across
+    providers, so an edge between one of them and a label the module carries belongs
+    on the module's page even when the module never declares the ontology side. That
+    is what lets Kubernetes and Railway inherit ``RESOLVED_IMAGE → Image`` without
+    owning an Image concrete.
     """
     own_labels = {node.label for node in nodes}
     carried_labels = labels_carried_by(nodes)
-    canonical_labels = {node.label for node in all_nodes if "ontology" in node.modules}
+    ontology_endpoint_labels = {
+        *(node.label for node in all_nodes if "ontology" in node.modules),
+        *(label for node in all_nodes for label in node.ontology_labels),
+    }
 
     def qualifies(relationship: Relationship) -> bool:
         if module in relationship.modules:
@@ -567,7 +572,7 @@ def relationships_for_module(
         if all(endpoint in carried_labels for endpoint in endpoints):
             return True
         return any(
-            endpoint in carried_labels and other in canonical_labels
+            endpoint in carried_labels and other in ontology_endpoint_labels
             for endpoint, other in (endpoints, endpoints[::-1])
         )
 

@@ -442,12 +442,19 @@ def test_each_relationship_is_documented_once_per_node_section():
 def test_concrete_nodes_render_inherited_ontology_relationships():
     model = inspect_data_model()
 
-    generated = render_module_schema(model, "aws")
-    section = generated.split("### AWSECSContainer", 1)[1].split("\n### ", 1)[0]
+    for module, label in (
+        ("aws", "AWSECSContainer"),
+        ("kubernetes", "KubernetesContainer"),
+        ("railway", "RailwayDeployment"),
+    ):
+        generated = render_module_schema(model, module)
+        section = generated.split(f"### {label}", 1)[1].split("\n### ", 1)[0]
 
-    assert "`(:AWSECSContainer)-[:RESOLVED_IMAGE]->(:Image)`" in section
-    assert "`(:Container)-[:RESOLVED_IMAGE]->(:Image)`" not in section
-    assert "SCANNED_AS" not in section
+        assert f"`(:{label})-[:RESOLVED_IMAGE]->(:Image)`" in section
+        assert "`(:Container)-[:RESOLVED_IMAGE]->(:Image)`" not in section
+        # Validation-only Container→FilesystemSnapshot must not appear; a
+        # provider-native SCANNED_AS to a concrete snapshot label is fine.
+        assert f"`(:{label})-[:SCANNED_AS]->(:FilesystemSnapshot)`" not in section
 
 
 def test_ontology_schema_documents_constraint_vs_expected_edges():
