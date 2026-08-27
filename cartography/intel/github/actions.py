@@ -8,6 +8,9 @@ Supports three levels:
 """
 
 import logging
+import threading
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
@@ -763,10 +766,14 @@ def _fetch_actions_for_repo(
     organization: str,
     github_api_key: str,
     github_url: str,
+    progress_counter: "list[int]",
+    progress_lock: threading.Lock,
+    total: int,
 ) -> _RepoActionsData:
     """
     Fetch and transform all Actions data for a single repo.
     Returns a _RepoActionsData bundle; no Neo4j writes are performed here.
+    Designed to be called from worker threads via ThreadPoolExecutor.
     """
     data = _RepoActionsData(repo_name=repo_name)
 
@@ -865,6 +872,17 @@ def _fetch_actions_for_repo(
                 )
             )
 
+    with progress_lock:
+        progress_counter[0] += 1
+        done = progress_counter[0]
+    if done == 1 or done % 50 == 0 or done == total:
+        logger.info(
+            "Actions fetch progress for org %s: %d/%d repos completed.",
+            organization,
+            done,
+            total,
+        )
+
     return data
 
 
@@ -875,16 +893,18 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    parallel_workers: int = 1,
 ) -> list[dict[str, Any]]:
     """
     Sync GitHub Actions data (workflows, secrets, variables, environments) for an organization.
 
     Sync order:
     1. Organization-level secrets and variables
-    2. For each repo: workflows, environments, repo secrets/variables
-    3. For each environment: env secrets/variables
-    4. Cleanup stale nodes
+    2. For each repo (parallel fetch, sequential load): workflows, environments,
+       repo secrets/variables, env secrets/variables
+    3. Cleanup stale nodes
 
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
     org_url = f"https://github.com/{organization}"
@@ -908,39 +928,60 @@ def sync(
 
     # 2. Get repos from graph and sync repo-level resources
     repo_names = _get_repos_from_graph(neo4j_session, organization)
-    logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
+    total = len(repo_names)
+    logger.info(
+        "Syncing GitHub Actions for %d repositories in org %s (parallel_workers=%d).",
+        total,
+        organization,
+        parallel_workers,
+    )
 
-    for repo_name in repo_names:
-        # Fetch and transform all Actions data for this repo (no writes), then
-        # load sequentially on this thread.
-        d = _fetch_actions_for_repo(
-            repo_name,
-            organization,
-            github_api_key,
-            github_url,
-        )
+    progress_counter: list[int] = [0]
+    progress_lock = threading.Lock()
 
-        if d.enriched_workflows:
-            load_workflows(neo4j_session, d.enriched_workflows, update_tag, org_url)
-            all_workflows.extend(d.enriched_workflows)
-        if d.repo_actions:
-            load_actions(neo4j_session, d.repo_actions, update_tag, org_url)
-        if d.transformed_environments:
-            load_environments(
-                neo4j_session, d.transformed_environments, update_tag, org_url
-            )
-        if d.transformed_repo_secrets:
-            load_repo_secrets(
-                neo4j_session, d.transformed_repo_secrets, update_tag, org_url
-            )
-        if d.transformed_repo_variables:
-            load_repo_variables(
-                neo4j_session, d.transformed_repo_variables, update_tag, org_url
-            )
-        if d.env_secrets:
-            load_env_secrets(neo4j_session, d.env_secrets, update_tag, org_url)
-        if d.env_variables:
-            load_env_variables(neo4j_session, d.env_variables, update_tag, org_url)
+    # Submit all repos to a single bounded thread pool up front so idle workers
+    # immediately pick up the next repo instead of waiting for a batch's
+    # slowest straggler (e.g. a repo with many workflows/environments).
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_actions_for_repo,
+                repo_name,
+                organization,
+                github_api_key,
+                github_url,
+                progress_counter,
+                progress_lock,
+                total,
+            ): repo_name
+            for repo_name in repo_names
+        }
+
+        # Sequential load — all Neo4j writes on the main thread, applied as
+        # each repo's fetch completes rather than waiting for a fixed batch.
+        for f in as_completed(futures):
+            d = f.result()
+            if d.enriched_workflows:
+                load_workflows(neo4j_session, d.enriched_workflows, update_tag, org_url)
+                all_workflows.extend(d.enriched_workflows)
+            if d.repo_actions:
+                load_actions(neo4j_session, d.repo_actions, update_tag, org_url)
+            if d.transformed_environments:
+                load_environments(
+                    neo4j_session, d.transformed_environments, update_tag, org_url
+                )
+            if d.transformed_repo_secrets:
+                load_repo_secrets(
+                    neo4j_session, d.transformed_repo_secrets, update_tag, org_url
+                )
+            if d.transformed_repo_variables:
+                load_repo_variables(
+                    neo4j_session, d.transformed_repo_variables, update_tag, org_url
+                )
+            if d.env_secrets:
+                load_env_secrets(neo4j_session, d.env_secrets, update_tag, org_url)
+            if d.env_variables:
+                load_env_variables(neo4j_session, d.env_variables, update_tag, org_url)
 
     # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
     # and variables are now scoped to the org as well, so cleanup_org_level
