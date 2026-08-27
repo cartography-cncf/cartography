@@ -852,7 +852,7 @@ def test_start_aws_ingestion(
     assert shared_call_args[6] == test_config.aws_best_effort_mode
 
 
-@mock.patch.dict(os.environ, {}, clear=False)
+@mock.patch.dict(os.environ, {}, clear=True)
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
