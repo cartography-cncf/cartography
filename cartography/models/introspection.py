@@ -600,7 +600,10 @@ def relationships_for_node(
     if node is None:
         return ()
 
-    carried = labels_carried_by((node,))
+    # Inherit only through the primary label and ontology labels. Ordinary or
+    # compatibility extra labels must not pull in relationships declared against
+    # those aliases.
+    carried = {node.label, *node.ontology_labels}
     views: dict[tuple[str, str, LinkDirection | None], NodeRelationship] = {}
     for relationship in model.relationships:
         matches_source = relationship.source_label in carried
@@ -1126,7 +1129,12 @@ def _build_ontology_expected_edges(
                 target_label=relationship.target_label,
                 direction=relationship.direction,
                 origins=relationship.origins,
-                constrained=key in constrained_keys,
+                # RelConstraints describe outward edges only; an undirected
+                # materialized relationship does not satisfy them.
+                constrained=(
+                    key in constrained_keys
+                    and relationship.direction is LinkDirection.OUTWARD
+                ),
                 analysis_jobs=relationship.analysis_jobs,
             )
         )

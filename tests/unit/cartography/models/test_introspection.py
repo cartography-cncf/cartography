@@ -479,6 +479,126 @@ def test_relationships_for_node_excludes_validation_only_constraints():
     assert not any(view.label == "SCANNED_AS" for view in container_views)
 
 
+def test_relationships_for_node_ignores_compatibility_extra_labels():
+    node = Node(
+        label="AWSECSContainer",
+        descriptions=(),
+        extra_labels=("ECSContainer", "CompatAlias"),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+        ontology_labels=("Container",),
+    )
+    relationships = (
+        Relationship(
+            source_label="CompatAlias",
+            label="ALIAS_ONLY",
+            target_label="Something",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("aws",),
+            origins=("node_schema",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+        Relationship(
+            source_label="Container",
+            label="RESOLVED_IMAGE",
+            target_label="Image",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("analysis",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+    )
+    model = DataModel(nodes=(node,), relationships=relationships)
+
+    views = model.relationships_for_node("AWSECSContainer")
+    assert [("RESOLVED_IMAGE", "Image", True)] == [
+        (view.label, view.other_label, view.inherited) for view in views
+    ]
+
+
+def test_undirected_ontology_edges_are_not_marked_constrained():
+    from cartography.models.introspection import OntologyRelationshipConstraint
+    from cartography.models.introspection import OntologySemanticLabel
+    from cartography.models.introspection import _build_ontology_expected_edges
+
+    relationships = (
+        Relationship(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+            direction=None,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("analysis",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+        Relationship(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("node_schema",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+    )
+    semantic_labels = (
+        OntologySemanticLabel(
+            label="UserAccount",
+            mapping_group=None,
+            descriptions=(),
+            properties=(),
+            concrete_node_labels=("LastpassUser",),
+        ),
+    )
+    nodes = (
+        Node(
+            label="User",
+            descriptions=(),
+            extra_labels=(),
+            conditional_labels=(),
+            properties=(),
+            modules=("ontology",),
+            schemas=(),
+        ),
+    )
+    constraints = (
+        OntologyRelationshipConstraint(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+        ),
+    )
+
+    expected = {
+        (edge.direction is LinkDirection.OUTWARD): edge.constrained
+        for edge in _build_ontology_expected_edges(
+            relationships,
+            semantic_labels,
+            nodes,
+            constraints,
+        )
+        if edge.source_label == "User"
+        and edge.label == "HAS_ACCOUNT"
+        and edge.target_label == "UserAccount"
+    }
+    assert expected[True] is True
+    assert expected[False] is False
+
+
 def test_build_data_model_distinguishes_canonical_ontology_projections():
     # Act
     model = build_data_model([JamfComputerSchema])
