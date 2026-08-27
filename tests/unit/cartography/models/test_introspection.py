@@ -37,6 +37,7 @@ from cartography.models.gcp.artifact_registry.image_layer import (
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
 )
+from cartography.models.introspection import _build_ontology_expected_edges
 from cartography.models.introspection import AnalysisJobDefinition
 from cartography.models.introspection import build_data_model
 from cartography.models.introspection import DataModel
@@ -46,6 +47,8 @@ from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
 from cartography.models.introspection import iter_relationship_catalog
 from cartography.models.introspection import Node
+from cartography.models.introspection import OntologyRelationshipConstraint
+from cartography.models.introspection import OntologySemanticLabel
 from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.introspection import Relationship
 from cartography.models.introspection import TargetPreconditionDefinition
@@ -525,10 +528,6 @@ def test_relationships_for_node_ignores_compatibility_extra_labels():
 
 
 def test_undirected_ontology_edges_are_not_marked_constrained():
-    from cartography.models.introspection import OntologyRelationshipConstraint
-    from cartography.models.introspection import OntologySemanticLabel
-    from cartography.models.introspection import _build_ontology_expected_edges
-
     relationships = (
         Relationship(
             source_label="User",
