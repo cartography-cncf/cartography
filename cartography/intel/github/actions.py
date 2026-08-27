@@ -8,6 +8,8 @@ Supports three levels:
 """
 
 import logging
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 from urllib.parse import quote
 
@@ -739,6 +741,133 @@ def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> li
 # =============================================================================
 
 
+@dataclass
+class _RepoActionsData:
+    """All fetched-and-transformed data for a single repo's Actions resources.
+    Populated by _fetch_actions_for_repo(); consumed by sync() for Neo4j
+    writes. Separating fetch/transform from load keeps every API call in one
+    place and every graph write in another."""
+
+    repo_name: str
+    enriched_workflows: list[dict[str, Any]] = field(default_factory=list)
+    repo_actions: list[dict[str, Any]] = field(default_factory=list)
+    transformed_environments: list[dict[str, Any]] = field(default_factory=list)
+    transformed_repo_secrets: list[dict[str, Any]] = field(default_factory=list)
+    transformed_repo_variables: list[dict[str, Any]] = field(default_factory=list)
+    env_secrets: list[dict[str, Any]] = field(default_factory=list)
+    env_variables: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _fetch_actions_for_repo(
+    repo_name: str,
+    organization: str,
+    github_api_key: str,
+    github_url: str,
+) -> _RepoActionsData:
+    """
+    Fetch and transform all Actions data for a single repo.
+    Returns a _RepoActionsData bundle; no Neo4j writes are performed here.
+    """
+    data = _RepoActionsData(repo_name=repo_name)
+
+    # Workflows
+    workflows = get_repo_workflows(github_api_key, github_url, organization, repo_name)
+    if workflows:
+        transformed_workflows = transform_workflows(workflows, organization, repo_name)
+        for wf in transformed_workflows:
+            content = None
+            workflow_path = wf.get("path")
+            if workflow_path:
+                content = get_workflow_content(
+                    github_api_key,
+                    github_url,
+                    organization,
+                    repo_name,
+                    workflow_path,
+                )
+            parsed = parse_workflow_yaml(content) if content else None
+            enriched_wf = enrich_workflow_with_parsed_content(
+                wf,
+                parsed,
+                organization,
+                repo_name,
+            )
+            data.enriched_workflows.append(enriched_wf)
+            if parsed and wf.get("id") is not None:
+                data.repo_actions.extend(
+                    transform_actions(parsed, wf["id"], organization, repo_name)
+                )
+
+    # Environments
+    environments = get_repo_environments(
+        github_api_key,
+        github_url,
+        organization,
+        repo_name,
+    )
+    if environments:
+        data.transformed_environments = transform_environments(
+            environments,
+            organization,
+            repo_name,
+        )
+
+    # Repo secrets and variables
+    repo_secrets = get_repo_secrets(github_api_key, github_url, organization, repo_name)
+    if repo_secrets:
+        data.transformed_repo_secrets = transform_repo_secrets(
+            repo_secrets,
+            organization,
+            repo_name,
+        )
+
+    repo_variables = get_repo_variables(
+        github_api_key,
+        github_url,
+        organization,
+        repo_name,
+    )
+    if repo_variables:
+        data.transformed_repo_variables = transform_repo_variables(
+            repo_variables,
+            organization,
+            repo_name,
+        )
+
+    # Environment-level secrets and variables
+    for env in environments or []:
+        env_name = env["name"]
+        env_id = env["id"]
+
+        env_s = get_env_secrets(
+            github_api_key,
+            github_url,
+            organization,
+            repo_name,
+            env_name,
+        )
+        if env_s:
+            data.env_secrets.extend(
+                transform_env_secrets(env_s, organization, repo_name, env_name, env_id)
+            )
+
+        env_v = get_env_variables(
+            github_api_key,
+            github_url,
+            organization,
+            repo_name,
+            env_name,
+        )
+        if env_v:
+            data.env_variables.extend(
+                transform_env_variables(
+                    env_v, organization, repo_name, env_name, env_id
+                )
+            )
+
+    return data
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -782,130 +911,36 @@ def sync(
     logger.info(f"Syncing GitHub Actions for {len(repo_names)} repositories")
 
     for repo_name in repo_names:
-        # Sync workflows
-        workflows = get_repo_workflows(
-            github_api_key, github_url, organization, repo_name
+        # Fetch and transform all Actions data for this repo (no writes), then
+        # load sequentially on this thread.
+        d = _fetch_actions_for_repo(
+            repo_name,
+            organization,
+            github_api_key,
+            github_url,
         )
-        if workflows:
-            transformed_workflows = transform_workflows(
-                workflows, organization, repo_name
-            )
 
-            # Fetch and parse workflow content for each workflow
-            repo_actions: list[dict[str, Any]] = []
-            enriched_workflows = []
-
-            for wf in transformed_workflows:
-                workflow_path = wf.get("path")
-                workflow_id = wf.get("id")
-
-                # Fetch workflow YAML content
-                content = None
-                if workflow_path:
-                    content = get_workflow_content(
-                        github_api_key,
-                        github_url,
-                        organization,
-                        repo_name,
-                        workflow_path,
-                    )
-
-                # Parse the workflow content
-                parsed = None
-                if content:
-                    parsed = parse_workflow_yaml(content)
-
-                # Enrich workflow with parsed data
-                enriched_wf = enrich_workflow_with_parsed_content(
-                    wf, parsed, organization, repo_name
-                )
-                enriched_workflows.append(enriched_wf)
-
-                # Extract actions for loading
-                if parsed and workflow_id is not None:
-                    actions = transform_actions(
-                        parsed, workflow_id, organization, repo_name
-                    )
-                    repo_actions.extend(actions)
-
-            # Load enriched workflows
-            load_workflows(neo4j_session, enriched_workflows, update_tag, org_url)
-            all_workflows.extend(enriched_workflows)
-
-            # Load actions
-            if repo_actions:
-                load_actions(neo4j_session, repo_actions, update_tag, org_url)
-
-        # Sync environments (must come before env secrets/variables)
-        environments = get_repo_environments(
-            github_api_key, github_url, organization, repo_name
-        )
-        if environments:
-            transformed_environments = transform_environments(
-                environments, organization, repo_name
-            )
+        if d.enriched_workflows:
+            load_workflows(neo4j_session, d.enriched_workflows, update_tag, org_url)
+            all_workflows.extend(d.enriched_workflows)
+        if d.repo_actions:
+            load_actions(neo4j_session, d.repo_actions, update_tag, org_url)
+        if d.transformed_environments:
             load_environments(
-                neo4j_session, transformed_environments, update_tag, org_url
+                neo4j_session, d.transformed_environments, update_tag, org_url
             )
-
-        # Sync repo-level secrets
-        repo_secrets = get_repo_secrets(
-            github_api_key, github_url, organization, repo_name
-        )
-        if repo_secrets:
-            transformed_repo_secrets = transform_repo_secrets(
-                repo_secrets, organization, repo_name
-            )
+        if d.transformed_repo_secrets:
             load_repo_secrets(
-                neo4j_session, transformed_repo_secrets, update_tag, org_url
+                neo4j_session, d.transformed_repo_secrets, update_tag, org_url
             )
-
-        # Sync repo-level variables
-        repo_variables = get_repo_variables(
-            github_api_key, github_url, organization, repo_name
-        )
-        if repo_variables:
-            transformed_repo_variables = transform_repo_variables(
-                repo_variables, organization, repo_name
-            )
+        if d.transformed_repo_variables:
             load_repo_variables(
-                neo4j_session, transformed_repo_variables, update_tag, org_url
+                neo4j_session, d.transformed_repo_variables, update_tag, org_url
             )
-
-        # 3. Sync environment-level secrets and variables
-        for env in environments or []:
-            env_name = env["name"]
-            env_id = env["id"]
-
-            env_secrets = get_env_secrets(
-                github_api_key, github_url, organization, repo_name, env_name
-            )
-            if env_secrets:
-                transformed_env_secrets = transform_env_secrets(
-                    env_secrets,
-                    organization,
-                    repo_name,
-                    env_name,
-                    env_id,
-                )
-                load_env_secrets(
-                    neo4j_session, transformed_env_secrets, update_tag, org_url
-                )
-
-            env_variables = get_env_variables(
-                github_api_key, github_url, organization, repo_name, env_name
-            )
-            if env_variables:
-                transformed_env_variables = transform_env_variables(
-                    env_variables,
-                    organization,
-                    repo_name,
-                    env_name,
-                    env_id,
-                )
-                load_env_variables(
-                    neo4j_session, transformed_env_variables, update_tag, org_url
-                )
+        if d.env_secrets:
+            load_env_secrets(neo4j_session, d.env_secrets, update_tag, org_url)
+        if d.env_variables:
+            load_env_variables(neo4j_session, d.env_variables, update_tag, org_url)
 
     # 4. Cleanup all stale nodes scoped to the organization. Repo-level secrets
     # and variables are now scoped to the org as well, so cleanup_org_level
