@@ -62,7 +62,7 @@ port for an internet-exposed Service:
 MATCH (service:KubernetesService {exposed_internet: true})
   <-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
   -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(container:KubernetesContainer)
-WHERE slice.lastupdated = service.lastupdated
+WHERE slice.lastupdated = $UPDATE_TAG
   AND any(port_key IN slice.port_keys
           WHERE port_key IN container.container_port_keys)
 RETURN service.namespace, service.name, pod.name, container.name,
