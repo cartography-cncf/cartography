@@ -15,12 +15,12 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 @dataclass(frozen=True)
 class HuntressRoleNodeProperties(CartographyNodeProperties):
     # Huntress exposes no role object: a membership carries a bare `permissions` string.
-    # The id is synthesised so that the same permission label granted on the account and
+    # The id is synthesized so that the same permission label granted on the account and
     # on an organization stays two distinct grants.
     id: PropertyRef = PropertyRef(
         "id",
         description=(
-            "Synthesised as `<scope>/<account or organization ID>/<permission label>`."
+            "Synthesized as `<scope>/<account or organization ID>/<permission label>`."
         ),
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -66,10 +66,10 @@ class HuntressRoleToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class HuntressRoleSchema(CartographyNodeSchema):
-    """A console permission set granted to Huntress users, synthesised from memberships.
+    """A console permission set granted to Huntress users, synthesized from memberships.
 
     Huntress ships a fixed set of permission labels and returns them as a bare string on
-    each membership. Materialising them as nodes rather than a property puts Huntress
+    each membership. Materializing them as nodes rather than a property puts Huntress
     console access into the cross-provider rules that walk
     `(:UserAccount)-[:HAS_ROLE]->(:PermissionRole)`.
     """
