@@ -414,15 +414,15 @@ def cleanup(
     GraphJob.from_node_schema(ECRRepositoryImageSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
-        neo4j_session
-    )
     if not scan_complete:
         logger.warning(
             "Skipping AWSECRScanFinding cleanup because some image scans are incomplete."
         )
-        return
-    GraphJob.from_node_schema(AWSECRScanFindingSchema(), common_job_parameters).run(
+    else:
+        GraphJob.from_node_schema(AWSECRScanFindingSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+    GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
         neo4j_session
     )
 
