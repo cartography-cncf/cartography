@@ -900,7 +900,7 @@ def test_start_aws_ingestion(
     return_value=None,
 )
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
-def test_start_aws_ingestion_disables_public_ssm_allowlist_when_unset(
+def test_start_aws_ingestion_uses_public_ssm_allowlist_from_environment(
     mock_perform_analysis,
     mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
@@ -910,7 +910,10 @@ def test_start_aws_ingestion_disables_public_ssm_allowlist_when_unset(
     neo4j_session,
     monkeypatch,
 ):
-    monkeypatch.delenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST", raising=False)
+    monkeypatch.setenv(
+        "AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST",
+        "/aws/service/bottlerocket/",
+    )
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -921,7 +924,10 @@ def test_start_aws_ingestion_disables_public_ssm_allowlist_when_unset(
     cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
 
     common_job_parameters = mock_perform_analysis.call_args.args[2]
-    assert common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] == ""
+    assert (
+        common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"]
+        == "/aws/service/bottlerocket/"
+    )
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
