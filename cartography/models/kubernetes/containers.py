@@ -153,7 +153,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     container_port_keys: PropertyRef = PropertyRef(
         "container_port_keys",
         extra_index=True,
-        description="Queryable `<protocol>/<port>` values for declared container ports, such as `TCP/8080`.",
+        description="Queryable `<protocol>/<port>` values for all declared TCP, UDP, and SCTP container ports, such as `TCP/8080`.",
     )
     architecture_normalized: PropertyRef = PropertyRef(
         "architecture_normalized",

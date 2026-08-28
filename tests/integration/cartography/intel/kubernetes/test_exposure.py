@@ -242,10 +242,6 @@ def test_k8s_asset_exposure_properties(neo4j_session):
 def test_stale_endpoint_slices_do_not_attribute_container_exposure(neo4j_session):
     case = build_exposure_test_data()
     _seed_exposure_graph(neo4j_session, case=case)
-    neo4j_session.run(
-        "MATCH (slice:KubernetesEndpointSlice) SET slice.lastupdated = $stale_tag",
-        stale_tag=case["update_tag"] - 1,
-    )
     common_job_parameters = {
         "UPDATE_TAG": case["update_tag"],
         "CLUSTER_ID": case["cluster_id"],
@@ -253,6 +249,21 @@ def test_stale_endpoint_slices_do_not_attribute_container_exposure(neo4j_session
 
     _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
     _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+    assert (
+        neo4j_session.run(
+            "MATCH (container:KubernetesContainer {id: $container_id}) "
+            "RETURN container.exposed_internet AS exposed",
+            container_id=case["cont_lb_id"],
+        ).single()["exposed"]
+        is True
+    )
+
+    next_job_parameters = {
+        "UPDATE_TAG": case["update_tag"] + 1,
+        "CLUSTER_ID": case["cluster_id"],
+    }
+    _run_k8s_compute_analysis(neo4j_session, next_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, next_job_parameters)
 
     result = neo4j_session.run(
         """

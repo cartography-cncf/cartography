@@ -28,6 +28,9 @@ Cartography requires a current EndpointSlice port to match a container's declare
 `containerPort` by protocol and number. Pods share a network namespace, and
 `containerPort` declarations are optional, so a pod can be exposed while no
 individual container has enough Kubernetes metadata for attribution.
+Because sibling containers share the same Pod IP, identical declared protocol
+and port values can't identify which process actually accepts the traffic; all
+matching siblings are attributed.
 
 PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
 already-ingested cloud disks with `BACKED_BY` relationships.

@@ -38,6 +38,15 @@ def test_transform_endpoint_slice_without_service_label():
     assert endpoint_slice["service_qualified_name"] is None
 
 
+def test_transform_endpoint_slice_defaults_protocol_to_tcp():
+    raw = deepcopy(KUBERNETES_ENDPOINT_SLICES_RAW)
+    raw[0].ports[0].protocol = None
+
+    [endpoint_slice] = transform_endpoint_slices(raw)
+
+    assert endpoint_slice["port_keys"] == ["TCP/8080"]
+
+
 @pytest.mark.parametrize("status", [401, 403, 404, 500])
 @patch.object(endpoint_slices_module, "get_endpoint_slices")
 def test_get_endpoint_slice_data_falls_back_on_permission_and_transient_errors(
