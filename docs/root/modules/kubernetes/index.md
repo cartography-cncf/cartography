@@ -6,6 +6,14 @@ identities and permissions. It also connects Kubernetes resources to cloud
 infrastructure, container images, and shared ontology labels so that workload and
 identity paths can be queried across providers.
 
+Services, Ingresses, and Gateway API Gateways correlate their controller-reported
+status hostnames and IP addresses with Cartography's cross-provider `LoadBalancer`
+ontology. Internet exposure propagates only from correlated cloud load balancers
+that their provider module identifies as internet exposed. Gateway API propagation
+also requires a current `Programmed=True` Gateway condition and a current
+`Accepted=True` HTTPRoute parent condition; spec references alone don't establish
+reachability.
+
 PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
 already-ingested cloud disks with `BACKED_BY` relationships.
 

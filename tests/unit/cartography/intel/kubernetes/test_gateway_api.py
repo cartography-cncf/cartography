@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -118,6 +119,9 @@ def test_transform_http_routes_uses_qualified_names_and_normalizes_timestamps():
             "parent_gateway_qualified_names": [
                 f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
             ],
+            "accepted_parent_gateway_qualified_names": [
+                f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
+            ],
         },
     ]
 
@@ -142,3 +146,84 @@ def test_transform_gateways_normalizes_rfc3339_timestamps_to_epoch():
 
     assert transformed["creation_timestamp"] == 1633587666
     assert transformed["deletion_timestamp"] == 1633587700
+    assert transformed["programmed"] is False
+
+
+def test_transform_gateways_uses_current_programmed_status_and_bound_addresses():
+    raw = [
+        {
+            "metadata": {
+                "name": "gw",
+                "namespace": "ns",
+                "uid": "uid-1",
+                "generation": 7,
+            },
+            "spec": {"gatewayClassName": "nginx"},
+            "status": {
+                "addresses": [
+                    {"type": "Hostname", "value": "LB.Example.COM"},
+                    {"value": "8.8.4.4"},
+                    {"value": "10.0.0.1"},
+                    {"type": "example.com/NamedAddress", "value": "edge-a"},
+                ],
+                "conditions": [
+                    {
+                        "type": "Programmed",
+                        "status": "True",
+                        "observedGeneration": 7,
+                    }
+                ],
+            },
+        }
+    ]
+
+    [transformed] = transform_gateways(raw)
+
+    assert transformed["programmed"] is True
+    assert transformed["load_balancer_dns_names"] == ["lb.example.com"]
+    assert transformed["load_balancer_ip_addresses"] == ["8.8.4.4"]
+
+
+def test_transform_gateways_rejects_stale_programmed_status():
+    raw = [
+        {
+            "metadata": {
+                "name": "gw",
+                "namespace": "ns",
+                "uid": "uid-1",
+                "generation": 8,
+            },
+            "spec": {"gatewayClassName": "nginx"},
+            "status": {
+                "conditions": [
+                    {
+                        "type": "Programmed",
+                        "status": "True",
+                        "observedGeneration": 7,
+                    }
+                ]
+            },
+        }
+    ]
+
+    [transformed] = transform_gateways(raw)
+
+    assert transformed["programmed"] is False
+
+
+def test_transform_http_routes_rejects_stale_accepted_status():
+    raw = deepcopy(KUBERNETES_HTTP_ROUTES_RAW)
+    raw[0]["metadata"]["generation"] += 1
+
+    [transformed] = transform_http_routes(raw)
+
+    assert transformed["accepted_parent_gateway_qualified_names"] == []
+
+
+def test_transform_http_routes_rejects_status_for_undeclared_parent():
+    raw = deepcopy(KUBERNETES_HTTP_ROUTES_RAW)
+    raw[0]["spec"]["parentRefs"] = [{"name": "another-gateway"}]
+
+    [transformed] = transform_http_routes(raw)
+
+    assert transformed["accepted_parent_gateway_qualified_names"] == []

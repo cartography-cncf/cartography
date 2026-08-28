@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
+from ipaddress import ip_address
 from typing import Any
 from typing import Callable
 
@@ -21,6 +22,18 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_global_ip_addresses(values: list[str]) -> list[str]:
+    normalized: set[str] = set()
+    for value in values:
+        try:
+            address = ip_address(value)
+        except ValueError:
+            continue
+        if address.is_global:
+            normalized.add(address.compressed)
+    return sorted(normalized)
 
 
 def format_resource_quantities(resources: dict[str, Any] | None) -> str:
