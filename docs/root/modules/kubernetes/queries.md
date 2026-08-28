@@ -74,6 +74,59 @@ ORDER BY service.namespace, service.name, pod.name, container.name;
 An absent result doesn't prove that a process is unreachable. Kubernetes doesn't
 require containers to declare the ports on which their processes listen.
 
+## Find node-address exposure surfaces
+
+List Service and Pod settings that can publish traffic on globally routable
+addresses reported by Kubernetes:
+
+```cypher
+MATCH (service:KubernetesService)
+WHERE size(service.global_external_ip_addresses) > 0
+RETURN 'external_ip' AS surface, service.namespace, service.name,
+       service.global_external_ip_addresses AS addresses,
+       service.port_keys AS ports
+UNION
+MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(service:KubernetesService),
+      (cluster)-[:RESOURCE]->(node:KubernetesNode)
+WHERE size(service.node_port_keys) > 0
+  AND size(node.global_external_ip_addresses) > 0
+  AND (
+    coalesce(service.external_traffic_policy, 'Cluster') <> 'Local'
+    OR EXISTS {
+      MATCH (service)-[:TARGETS]->(:KubernetesPod)-[:RUNS_ON]->(node)
+    }
+  )
+RETURN 'node_port' AS surface, service.namespace, service.name,
+       node.global_external_ip_addresses AS addresses,
+       service.node_port_keys AS ports
+UNION
+MATCH (pod:KubernetesPod)-[:RUNS_ON]->(node:KubernetesNode),
+      (pod)-[:CONTAINS]->(container:KubernetesContainer)
+WHERE size(node.global_external_ip_addresses) > 0
+  AND (
+    (pod.host_network = true AND size(container.container_port_keys) > 0)
+    OR size(container.node_address_host_port_keys) > 0
+  )
+RETURN CASE
+         WHEN size(container.node_address_host_port_keys) > 0 THEN 'host_port'
+         ELSE 'host_network'
+       END AS surface,
+       pod.namespace AS namespace, pod.name AS name,
+       node.global_external_ip_addresses AS addresses,
+       CASE
+         WHEN size(container.node_address_host_port_keys) > 0
+           THEN container.node_address_host_port_keys
+         ELSE container.container_port_keys
+       END AS ports;
+```
+
+These are investigation candidates, not confirmed findings. In particular,
+Kubernetes doesn't report kube-proxy `nodePortAddresses`, network firewalls, or
+whether the declared process is listening on the published port.
+The host-port branch covers bindings that use the node's addresses. Explicit
+`hostIP` bindings, including globally routable addresses, remain available in
+`container.host_port_bindings` and must be evaluated against that exact address.
+
 ## Inspect kubeconfig TLS posture
 
 Use the TLS posture fields on each cluster to find kubeconfig contexts that skip

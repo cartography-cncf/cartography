@@ -64,6 +64,30 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
         "load_balancer_ip_addresses",
         description="Globally routable IP addresses reported in `status.loadBalancer.ingress` and used to correlate this service with cloud load balancers.",
     )
+    ports: PropertyRef = PropertyRef(
+        "ports",
+        description="Service port, targetPort, nodePort, protocol, and appProtocol settings as a JSON-encoded list.",
+    )
+    port_keys: PropertyRef = PropertyRef(
+        "port_keys",
+        description="Distinct `<protocol>/<service-port>` values published by this Service.",
+    )
+    node_port_keys: PropertyRef = PropertyRef(
+        "node_port_keys",
+        description="Distinct `<protocol>/<nodePort>` values allocated to this Service.",
+    )
+    external_ip_addresses: PropertyRef = PropertyRef(
+        "external_ip_addresses",
+        description="Canonical IP addresses configured in `spec.externalIPs`.",
+    )
+    global_external_ip_addresses: PropertyRef = PropertyRef(
+        "global_external_ip_addresses",
+        description="Globally routable IP addresses configured in `spec.externalIPs`; routing and firewall reachability require independent validation.",
+    )
+    external_traffic_policy: PropertyRef = PropertyRef(
+        "external_traffic_policy",
+        description="How external traffic is distributed: `Cluster` or `Local`.",
+    )
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME",
         set_in_kwargs=True,
