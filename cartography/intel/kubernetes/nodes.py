@@ -12,6 +12,8 @@ from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import normalize_global_ip_addresses
+from cartography.intel.kubernetes.util import normalize_ip_addresses
 from cartography.models.kubernetes.nodes import KubernetesNodeSchema
 from cartography.util import timeit
 
@@ -43,6 +45,17 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
         labels = node.metadata.labels or {}
         capacity = node.status.capacity if node.status else None
         allocatable = node.status.allocatable if node.status else None
+        addresses = [
+            {"type": address.type, "address": address.address}
+            for address in (node.status.addresses if node.status else None) or []
+        ]
+        external_ip_addresses = normalize_ip_addresses(
+            [
+                address["address"]
+                for address in addresses
+                if address["type"] == "ExternalIP"
+            ]
+        )
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
@@ -52,6 +65,11 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
                 "labels": json.dumps(labels, sort_keys=True),
                 "capacity": format_resource_quantities(capacity),
                 "allocatable": format_resource_quantities(allocatable),
+                "addresses": json.dumps(addresses, sort_keys=True),
+                "external_ip_addresses": external_ip_addresses,
+                "global_external_ip_addresses": normalize_global_ip_addresses(
+                    external_ip_addresses
+                ),
                 "gpu_capacity": get_gpu_quantity(capacity),
                 "gpu_allocatable": get_gpu_quantity(allocatable),
                 "gpu_product": labels.get("nvidia.com/gpu.product")

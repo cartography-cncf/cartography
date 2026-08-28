@@ -4,6 +4,7 @@ from kubernetes.client.exceptions import ApiException
 from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import normalize_global_ip_addresses
+from cartography.intel.kubernetes.util import normalize_ip_addresses
 
 
 def _raiser(status: int):
@@ -63,3 +64,4 @@ def test_normalize_global_ip_addresses_filters_non_global_values():
             "not-an-ip",
         ]
     ) == ["2001:4860:4860::8888", "8.8.8.8"]
+    assert normalize_ip_addresses(["10.0.0.1", "invalid", "10.0.0.1"]) == ["10.0.0.1"]

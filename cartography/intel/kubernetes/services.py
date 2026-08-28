@@ -14,6 +14,7 @@ from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.util import normalize_global_ip_addresses
+from cartography.intel.kubernetes.util import normalize_ip_addresses
 from cartography.models.kubernetes.services import KubernetesServiceSchema
 from cartography.util import timeit
 
@@ -28,6 +29,20 @@ def get_services(client: K8sClient) -> list[V1Service]:
 
 def _format_service_selector(selector: dict[str, str]) -> str:
     return json.dumps(selector)
+
+
+def _service_ports(service: V1Service) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": port.name,
+            "protocol": port.protocol or "TCP",
+            "port": port.port,
+            "target_port": port.target_port,
+            "node_port": port.node_port,
+            "app_protocol": port.app_protocol,
+        }
+        for port in service.spec.ports or []
+    ]
 
 
 def _extract_load_balancer_dns_names(
@@ -114,7 +129,26 @@ def transform_services(
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
+            "external_traffic_policy": service.spec.external_traffic_policy,
         }
+        service_ports = _service_ports(service)
+        item["ports"] = json.dumps(service_ports, sort_keys=True)
+        item["port_keys"] = sorted(
+            {f"{port['protocol']}/{port['port']}" for port in service_ports}
+        )
+        item["node_port_keys"] = sorted(
+            {
+                f"{port['protocol']}/{port['node_port']}"
+                for port in service_ports
+                if port["node_port"] is not None
+            }
+        )
+        item["external_ip_addresses"] = normalize_ip_addresses(
+            service.spec.external_ips or []
+        )
+        item["global_external_ip_addresses"] = normalize_global_ip_addresses(
+            service.spec.external_ips or []
+        )
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
         if service.spec.type == "LoadBalancer":
