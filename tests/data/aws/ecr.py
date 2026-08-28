@@ -521,8 +521,8 @@ DESCRIBE_IMAGE_SCAN_FINDINGS = [
         "uri": "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
         "severity": "CRITICAL",
         "attributes": [
-            {"key": "package name", "value": "log4j"},
-            {"key": "package version", "value": "2.14.1"},
+            {"key": "package_name", "value": "log4j"},
+            {"key": "package_version", "value": "2.14.1"},
             {"key": "CVSS3_SCORE", "value": "10.0"},
         ],
     },
@@ -535,8 +535,8 @@ DESCRIBE_IMAGE_SCAN_FINDINGS = [
         "uri": "https://nvd.nist.gov/vuln/detail/CVE-2022-22965",
         "severity": "HIGH",
         "attributes": [
-            {"key": "package name", "value": "spring-webmvc"},
-            {"key": "package version", "value": "5.3.17"},
+            {"key": "package_name", "value": "spring-webmvc"},
+            {"key": "package_version", "value": "5.3.17"},
             {"key": "CVSS2_SCORE", "value": "7.5"},
             {"key": "CVSS3_SCORE", "value": "9.8"},
         ],
