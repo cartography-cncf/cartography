@@ -304,6 +304,17 @@ def _sync_shared_public_ssm_parameters(
     if "ssm" not in requested_syncs:
         return
 
+    if not ssm_intel._normalize_allowlisted_prefixes(
+        common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+    ):
+        ssm_intel.sync_public_parameters(
+            neo4j_session,
+            {},
+            common_job_parameters["UPDATE_TAG"],
+            common_job_parameters,
+        )
+        return
+
     region_session_candidates: dict[str, list[boto3.Session]] = {}
     all_profiles_prepared = True
     for profile_name, account_id in aws_accounts.items():
