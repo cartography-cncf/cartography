@@ -251,7 +251,7 @@ def iter_serving_layer_pages(
         start_index = next_index
 
         if page_count % _PROGRESS_PAGE_INTERVAL == 0:
-            logger.info(
+            logger.debug(
                 "Fetched %d of %d Orca %s across %d pages.",
                 start_index,
                 total_items,

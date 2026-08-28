@@ -2,6 +2,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+from dateutil.parser import isoparse
+
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
 
 
@@ -127,9 +129,7 @@ def parse_datetime(value: Any, field: str) -> datetime | None:
         return None
     normalized = require_nonempty_string(value, field)
     try:
-        timestamp = datetime.fromisoformat(
-            f"{normalized[:-1]}+00:00" if normalized.endswith("Z") else normalized,
-        )
+        timestamp = isoparse(normalized)
     except ValueError as exc:
         raise ValueError(f"{field} must be an RFC 3339 timestamp") from exc
     if timestamp.tzinfo is None:
