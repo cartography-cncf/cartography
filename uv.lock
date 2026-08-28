@@ -4333,16 +4333,16 @@ wheels = [
 
 [[package]]
 name = "workos"
-version = "9.1.0"
+version = "10.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
     { name = "pyjwt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/54/4e/e29e08078af9e55789c50100e43ab3b70abf0309af243c2946053c6d7a24/workos-9.1.0.tar.gz", hash = "sha256:28f72a90062bd0c34f6867fe757fc45273a5c18bf7d015141556f19bed8f067c", size = 215722, upload-time = "2026-07-06T15:52:07.853Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/cf/f8fcaad0f2a0e21750f01279f2261a97489f2819abac8a4148ce8e6606f6/workos-10.0.1.tar.gz", hash = "sha256:e4f0beed6e4c321fa05ff4cd0b0b527a188d19f5e8847e18e9bf9d7de930416a", size = 229822, upload-time = "2026-07-27T20:39:01.405Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/64/89aa6d682156c005b8903e8d8664e4983e7876e599bfba4c6aa99d1b1810/workos-9.1.0-py3-none-any.whl", hash = "sha256:b28e071faa5aaea9d0b83f71099e10539ba386901bf45379f1f59f29817ecf5e", size = 626837, upload-time = "2026-07-06T15:52:05.892Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/e0/230adb498f2ef4d94930e8494bf66a54f27426a75f088f5a833e85b4503a/workos-10.0.1-py3-none-any.whl", hash = "sha256:b149e5cfe36484dc87c9ec140840669ad8a202b0ad35dbe6551fcd4f26840e7d", size = 671643, upload-time = "2026-07-27T20:39:00.172Z" },
 ]
 
 [[package]]
