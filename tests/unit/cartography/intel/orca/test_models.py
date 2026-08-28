@@ -1,6 +1,5 @@
 from dataclasses import fields
 
-from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
@@ -120,11 +119,7 @@ def test_orca_node_properties_are_documented() -> None:
         undocumented = [
             model_field.name
             for model_field in fields(schema.properties)
-            if isinstance(
-                property_ref := getattr(schema.properties, model_field.name),
-                PropertyRef,
-            )
-            and not property_ref.description
+            if not getattr(schema.properties, model_field.name).description
         ]
 
         assert undocumented == []

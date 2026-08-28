@@ -1,19 +1,12 @@
 # Orca Security Configuration
 
-Configure an organization-wide, read-only Orca Security API token and the API
-origin for your Orca region.
+Configure a read-only Orca API token and the API origin for your Orca region.
 
 ## Authentication
 
-Create an API token by following the API-token instructions available in your
-Orca tenant. Store the token in a secret manager or environment variable; do
-not put it on the command line or commit it to a configuration file.
-
-Role names and the token-configuration interface can differ between Orca
-tenants. Verify the exact role configuration against the API-token
-documentation available from your tenant. Cartography needs only the
-organization-wide read capabilities listed below and does not need permissions
-to create, update, or delete Orca resources.
+Create an API token by following the instructions for your Orca tenant. Orca
+role names can vary by tenant, so grant the organization-wide read access
+listed below.
 
 ## Required Permissions
 
@@ -22,41 +15,22 @@ organization:
 
 | Operation | Required access |
 |-----------|-----------------|
-| `GET /api/user/action` | Read the current organization's ID and name. |
-| `POST /api/serving-layer/query` | Query the organization-wide `Alert` and `VulnerabilityV2` datasets. `VulnerabilityV2` responses must include the related Inventory context described below. |
+| `GET /api/user/action` | Read the organization's ID and name. |
+| `POST /api/serving-layer/query` | Query `Alert` and `VulnerabilityV2`, including related Inventory context. |
 
-The Serving Layer query uses HTTP `POST`, but it is a read-only query. Do not
-grant create, update, or delete permissions for this integration.
-
-Cartography does not enumerate the standalone `Inventory` dataset.
-`VulnerabilityV2` queries require related Inventory context so
-`Inventory.AssetUniqueId` can distinguish CVE occurrences on different
-targets. Alert queries request related Inventory only as optional context;
-alerts still ingest when Orca omits it. Before the first production sync, use
-the authenticated Serving Layer Request Builder to confirm the
-`VulnerabilityV2` field and whether Alert results include related Inventory.
-Related provider identifiers, account and region fields are retained when
-available, but are not used to guess asset relationships.
-
-Do not restrict the token to only a subset of the organization's accounts,
-business units, or assets. The module performs a complete organization sync;
-partial visibility would produce an incomplete graph and make snapshot-based
-cleanup unsafe.
+The token must cover the entire organization. Partial account, business-unit,
+or asset access isn't supported because cleanup requires a complete snapshot.
+`VulnerabilityV2` results must include `Inventory.AssetUniqueId`.
 
 ## Configure Cartography
 
-Set `--orca-api-endpoint` to the HTTPS regional API origin shown for your Orca
-tenant, for example `https://api.orcasecurity.io`. Supply only the origin: do
-not include `/api` or an individual route because Cartography appends the API
-paths it uses.
-
-By default, Cartography reads the token from `ORCASECURITY_API_TOKEN`. Use
-`--orca-api-token-env-var` to choose a different environment variable name.
+Set `--orca-api-endpoint` to your regional HTTPS API origin without `/api` or a
+route. Cartography reads the token from `ORCASECURITY_API_TOKEN` by default.
 
 | Option | Default | Required | Description |
 |--------|---------|----------|-------------|
-| `--orca-api-endpoint` |  | Yes | Regional Orca Security API origin, without `/api` or a route. |
-| `--orca-api-token-env-var` | `ORCASECURITY_API_TOKEN` | Yes | Environment variable holding the Orca Security API token. |
+| `--orca-api-endpoint` |  | Yes | Regional Orca API origin. |
+| `--orca-api-token-env-var` | `ORCASECURITY_API_TOKEN` | Yes | Environment variable that contains the Orca API token. |
 
 ## Run Cartography
 
@@ -70,12 +44,10 @@ cartography \
 
 ## Troubleshooting
 
-An HTTP `401` usually indicates an invalid or expired token. An HTTP `403` or
-missing alert or vulnerability results usually indicates that the token lacks
-one of the required organization-wide read capabilities or is scoped too
-narrowly. Missing related Inventory fields can also indicate that the tenant's
-Serving Layer contract differs; verify the query and response in Orca's
-authenticated Request Builder.
+- HTTP `401`: Check whether the token is valid and unexpired.
+- HTTP `403` or missing findings: Check the token's organization-wide read access.
+- Missing `Inventory.AssetUniqueId`: Check the response in Orca's authenticated
+  Serving Layer Request Builder.
 
 ## References
 

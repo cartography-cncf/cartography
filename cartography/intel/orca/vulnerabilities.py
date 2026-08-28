@@ -75,28 +75,6 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     )
 
 
-def _references(vulnerability: dict[str, Any]) -> list[str]:
-    value = vulnerability.get("References")
-    if value is None:
-        references: list[str] = []
-    elif isinstance(value, str):
-        references = [require_nonempty_string(value, "Orca vulnerability.References")]
-    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
-        references = [
-            require_nonempty_string(item, "Orca vulnerability.References")
-            for item in value
-        ]
-    else:
-        raise ValueError("Orca vulnerability.References must be a list or string")
-    source_link = optional_nonempty_string(
-        vulnerability.get("SourceLink"),
-        "Orca vulnerability.SourceLink",
-    )
-    if source_link is not None:
-        references = [*references, source_link]
-    return sorted(set(references))
-
-
 def _package_key(package: dict[str, Any]) -> tuple[str, ...]:
     for key in ("id", "PURL", "CPE"):
         value = optional_nonempty_string(
@@ -161,10 +139,14 @@ def transform(
         cve_ids = canonical_cve_ids(vulnerability.get("CveId"))
         if not cve_ids:
             raise ValueError("Orca vulnerability row omitted a canonical CveId")
+        source_link = optional_nonempty_string(
+            vulnerability.get("SourceLink"),
+            "Orca vulnerability.SourceLink",
+        )
         common_fields = {
             "orca_id": orca_id,
             "description": vulnerability.get("Description"),
-            "references": _references(vulnerability),
+            "references": [source_link] if source_link else [],
             "cvss_source": vulnerability.get("CvssSource"),
             "base_score": vulnerability.get("CvssScore"),
             "base_severity": vulnerability.get("CvssSeverity"),
