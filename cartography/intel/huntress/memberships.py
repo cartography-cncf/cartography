@@ -106,7 +106,7 @@ def transform(
     """Derive the console users and the roles granted to them from flat membership records.
 
     Huntress has no role object: each membership carries a bare permission label scoped to
-    either the account or one organization. Roles are therefore synthesised and deduped
+    either the account or one organization. Roles are therefore synthesized and deduped
     here, and a user's memberships are folded into one node per user.
     """
     users: dict[int, dict[str, Any]] = {}
