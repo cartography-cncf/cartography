@@ -61,6 +61,7 @@ def _extract_pod_containers(
             "host_ports": [],
             "container_ports": json.dumps([]),
             "container_port_numbers": [],
+            "container_port_keys": [],
             "persistent_volume_claim_ids": [],
             "persistent_volume_claim_read_write_ids": [],
             "persistent_volume_claim_mounts": "[]",
@@ -197,6 +198,13 @@ def _extract_pod_containers(
                     for port in ports
                     if port.container_port is not None
                     and (port.protocol or "TCP") in ("TCP", "UDP")
+                }
+            )
+            containers[container.name]["container_port_keys"] = sorted(
+                {
+                    f"{port.protocol or 'TCP'}/{port.container_port}"
+                    for port in ports
+                    if port.container_port is not None
                 }
             )
 

@@ -103,6 +103,13 @@ def transform_endpoint_slices(
                 "port_numbers": sorted(
                     {port["port"] for port in ports if port["port"] is not None}
                 ),
+                "port_keys": sorted(
+                    {
+                        f"{port['protocol']}/{port['port']}"
+                        for port in ports
+                        if port["port"] is not None
+                    }
+                ),
                 "ready_pod_ids": sorted(ready_pod_ids),
                 "creation_timestamp": get_epoch(metadata.creation_timestamp),
                 "deletion_timestamp": get_epoch(metadata.deletion_timestamp),
