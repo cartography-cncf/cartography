@@ -16,6 +16,13 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 - `list nodes` for reading node architecture (used to resolve container images)
 - `list pods`
 - `list services`
+- `list endpointslices` in the `discovery.k8s.io` group: required to map
+  Services to the ready backend Pods that Kubernetes actually publishes. Until
+  v1.0.0, if this verb is missing Cartography logs a warning, preserves existing
+  `KubernetesEndpointSlice` nodes, and falls back to selector-based Service-to-Pod
+  relationships; from v1.0.0 a missing verb will be a hard failure. If the stable
+  `discovery.k8s.io/v1` API is unavailable, Cartography also uses the selector
+  fallback and preserves existing EndpointSlice nodes.
 - `list serviceaccounts`
 - `list persistentvolumes`
 - `list persistentvolumeclaims`
@@ -115,6 +122,13 @@ rules:
   resources:
     - ingresses
     - networkpolicies
+  verbs: ["list"]
+# Service backends (required). Until v1.0.0 Cartography tolerates this verb
+# being withheld and falls back to selector-based Service-to-Pod relationships;
+# from v1.0.0 it is a hard failure.
+- apiGroups: ["discovery.k8s.io"]
+  resources:
+    - endpointslices
   verbs: ["list"]
 # Gateway API resources (required). Only apply when the Gateway API CRDs are
 # installed in the cluster (a genuinely absent CRD stays a supported no-op).

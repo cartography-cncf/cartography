@@ -14,6 +14,15 @@ also requires a current `Programmed=True` Gateway condition and a current
 `Accepted=True` HTTPRoute parent condition; spec references alone don't establish
 reachability.
 
+Cartography ingests `discovery.k8s.io/v1` EndpointSlices as the source of truth
+for Service backends. Each `KubernetesEndpointSlice` links to the Service named by
+its `kubernetes.io/service-name` label and to ready Pod `targetRef` objects. This
+also supports selectorless Services. Until v1.0.0, missing EndpointSlice RBAC
+causes a warning and a selector-based fallback for that sync.
+When EndpointSlices are available, their published backend set is authoritative;
+a newly changed Service can therefore have no `TARGETS` relationships until its
+EndpointSlice controller reconciles the change.
+
 PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
 already-ingested cloud disks with `BACKED_BY` relationships.
 
