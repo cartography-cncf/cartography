@@ -13,6 +13,7 @@ from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import normalize_global_ip_addresses
 from cartography.models.kubernetes.services import KubernetesServiceSchema
 from cartography.util import timeit
 
@@ -47,6 +48,15 @@ def _extract_load_balancer_dns_names(
         if item.hostname:
             dns_names.append(item.hostname.lower())
     return dns_names
+
+
+def _extract_load_balancer_ip_addresses(
+    ingress: list[V1LoadBalancerIngress] | None,
+) -> list[str]:
+    if ingress is None:
+        return []
+
+    return normalize_global_ip_addresses([item.ip for item in ingress if item.ip])
 
 
 def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -> str:
@@ -113,6 +123,11 @@ def transform_services(
                 # Extract DNS names for relationship matching with AWS LoadBalancerV2
                 item["load_balancer_dns_names"] = _extract_load_balancer_dns_names(
                     service.status.load_balancer.ingress
+                )
+                item["load_balancer_ip_addresses"] = (
+                    _extract_load_balancer_ip_addresses(
+                        service.status.load_balancer.ingress
+                    )
                 )
 
         # check if pod labels match service selector and add pod_ids to item

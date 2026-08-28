@@ -14,6 +14,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import normalize_global_ip_addresses
 from cartography.models.kubernetes.ingress import KubernetesIngressSchema
 from cartography.util import timeit
 
@@ -102,6 +103,17 @@ def _extract_load_balancer_dns_names(
     return dns_names
 
 
+def _extract_load_balancer_ip_addresses(
+    ingress_status: list[V1IngressLoadBalancerIngress] | None,
+) -> list[str]:
+    if ingress_status is None:
+        return []
+
+    return normalize_global_ip_addresses(
+        [item.ip for item in ingress_status if item.ip]
+    )
+
+
 def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
     transformed_ingresses: list[dict[str, Any]] = []
 
@@ -125,8 +137,12 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
 
         # extract load balancer DNS names from status for cloud LB matching
         load_balancer_dns_names: list[str] = []
+        load_balancer_ip_addresses: list[str] = []
         if item.status and item.status.load_balancer:
             load_balancer_dns_names = _extract_load_balancer_dns_names(
+                item.status.load_balancer.ingress
+            )
+            load_balancer_ip_addresses = _extract_load_balancer_ip_addresses(
                 item.status.load_balancer.ingress
             )
 
@@ -151,6 +167,7 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
+                "load_balancer_ip_addresses": load_balancer_ip_addresses,
             }
         )
     return transformed_ingresses

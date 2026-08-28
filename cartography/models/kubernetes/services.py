@@ -56,6 +56,14 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
         "load_balancer_ingress",
         description="The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string.",
     )
+    load_balancer_dns_names: PropertyRef = PropertyRef(
+        "load_balancer_dns_names",
+        description="Lowercased DNS hostnames reported in `status.loadBalancer.ingress` and used to correlate this service with cloud load balancers.",
+    )
+    load_balancer_ip_addresses: PropertyRef = PropertyRef(
+        "load_balancer_ip_addresses",
+        description="Globally routable IP addresses reported in `status.loadBalancer.ingress` and used to correlate this service with cloud load balancers.",
+    )
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME",
         set_in_kwargs=True,
@@ -65,7 +73,7 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="`True` when the service, or an ingress targeting it, uses an internet-facing load balancer. `False` otherwise.",
+        description="`True` when the service is reached directly, through an Ingress, or through a controller-reported Gateway API route from a correlated internet-facing cloud load balancer.",
     )  # Populated by the K8S_SERVICE_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
@@ -76,14 +84,44 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
+class KubernetesServiceToLoadBalancerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
-class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
-    """Links a service of type `LoadBalancer` to the AWS load balancer that exposes it, matching the service's `status.loadBalancer.ingress[].hostname` against `AWSLoadBalancerV2.dnsname`. Both sides are lowercased at ingestion, since AWS preserves the load balancer name's case in the DNS name it hands to the in-cluster controller."""
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancer)
+class KubernetesServiceToLoadBalancerByDNSRel(CartographyRelSchema):
+    """Links a service to a cloud load balancer by its status hostname."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_dns_name": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToLoadBalancerRelProperties = (
+        KubernetesServiceToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToLoadBalancerByIPRel(CartographyRelSchema):
+    """Links a service to a cloud load balancer by its status IP address."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_ip_address": PropertyRef("load_balancer_ip_addresses", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToLoadBalancerRelProperties = (
+        KubernetesServiceToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesServiceToAWSLoadBalancerRel(CartographyRelSchema):
+    """Links directly to AWS load balancers when ontology isn't selected."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -91,8 +129,8 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_LOAD_BALANCER"
-    properties: KubernetesServiceToLoadBalancerV2RelProperties = (
-        KubernetesServiceToLoadBalancerV2RelProperties()
+    properties: KubernetesServiceToLoadBalancerRelProperties = (
+        KubernetesServiceToLoadBalancerRelProperties()
     )
 
 
@@ -179,6 +217,8 @@ class KubernetesServiceSchema(CartographyNodeSchema):
         [
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
-            KubernetesServiceToLoadBalancerV2Rel(),
+            KubernetesServiceToLoadBalancerByDNSRel(),
+            KubernetesServiceToLoadBalancerByIPRel(),
+            KubernetesServiceToAWSLoadBalancerRel(),
         ]
     )

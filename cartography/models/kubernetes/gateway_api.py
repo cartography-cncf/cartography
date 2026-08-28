@@ -31,6 +31,18 @@ class KubernetesGatewayNodeProperties(CartographyNodeProperties):
         "gateway_class_name",
         description="Name of the `GatewayClass` referenced by `spec.gatewayClassName`.",
     )
+    programmed: PropertyRef = PropertyRef(
+        "programmed",
+        description="`True` when the current Gateway `status.conditions` contains `Programmed=True`.",
+    )
+    load_balancer_dns_names: PropertyRef = PropertyRef(
+        "load_balancer_dns_names",
+        description="Lowercased hostnames bound to the Gateway in `status.addresses` and used to correlate it with cloud load balancers.",
+    )
+    load_balancer_ip_addresses: PropertyRef = PropertyRef(
+        "load_balancer_ip_addresses",
+        description="Globally routable IP addresses bound to the Gateway in `status.addresses` and used to correlate it with cloud load balancers.",
+    )
     creation_timestamp: PropertyRef = PropertyRef(
         "creation_timestamp",
         description="Epoch seconds of `metadata.creationTimestamp`.",
@@ -117,6 +129,41 @@ class KubernetesGatewayToHTTPRouteRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesGatewayToLoadBalancerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesGatewayToLoadBalancerByDNSRel(CartographyRelSchema):
+    """Links a Gateway to a cloud load balancer by its bound status hostname."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_dns_name": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesGatewayToLoadBalancerRelProperties = (
+        KubernetesGatewayToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesGatewayToLoadBalancerByIPRel(CartographyRelSchema):
+    """Links a Gateway to a cloud load balancer by its bound status IP address."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_ip_address": PropertyRef("load_balancer_ip_addresses", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesGatewayToLoadBalancerRelProperties = (
+        KubernetesGatewayToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesGatewaySchema(CartographyNodeSchema):
     "A Gateway API gateway that accepts traffic for attached routes."
 
@@ -129,6 +176,8 @@ class KubernetesGatewaySchema(CartographyNodeSchema):
         [
             KubernetesGatewayToKubernetesNamespaceRel(),
             KubernetesGatewayToHTTPRouteRel(),
+            KubernetesGatewayToLoadBalancerByDNSRel(),
+            KubernetesGatewayToLoadBalancerByIPRel(),
         ]
     )
 
@@ -151,6 +200,10 @@ class KubernetesHTTPRouteNodeProperties(CartographyNodeProperties):
     )
     hostnames: PropertyRef = PropertyRef(
         "hostnames", description="List of hostnames from `spec.hostnames`."
+    )
+    accepted_parent_gateway_qualified_names: PropertyRef = PropertyRef(
+        "accepted_parent_gateway_qualified_names",
+        description="Qualified names of Gateway parents whose current Route status contains `Accepted=True`.",
     )
     creation_timestamp: PropertyRef = PropertyRef(
         "creation_timestamp",
