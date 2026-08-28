@@ -150,6 +150,11 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Flat, queryable list of the declared TCP/UDP `containerPort` numbers. Derived from `container.ports[].container_port`. An empty list means the container *declares* no ports; it is not proof that the container listens on nothing, since a process can bind ports it never declared.",
     )
+    container_port_keys: PropertyRef = PropertyRef(
+        "container_port_keys",
+        extra_index=True,
+        description="Queryable `<protocol>/<port>` values for declared container ports, such as `TCP/8080`.",
+    )
     architecture_normalized: PropertyRef = PropertyRef(
         "architecture_normalized",
         description="Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`).",
@@ -157,7 +162,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="`True` when the container's pod is targeted by a service reached from a correlated internet-facing cloud load balancer.",
+        description="`True` when the container declares a protocol and port published for its pod by a current EndpointSlice whose Service is reached from a correlated internet-facing cloud load balancer.",
     )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",

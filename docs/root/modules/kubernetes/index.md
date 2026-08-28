@@ -23,6 +23,12 @@ When EndpointSlices are available, their published backend set is authoritative;
 a newly changed Service can therefore have no `TARGETS` relationships until its
 EndpointSlice controller reconciles the change.
 
+Pod exposure follows ready EndpointSlice targets. Container exposure is narrower:
+Cartography requires a current EndpointSlice port to match a container's declared
+`containerPort` by protocol and number. Pods share a network namespace, and
+`containerPort` declarations are optional, so a pod can be exposed while no
+individual container has enough Kubernetes metadata for attribution.
+
 PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
 already-ingested cloud disks with `BACKED_BY` relationships.
 

@@ -292,6 +292,7 @@ def test_transform_pods_extracts_container_ports():
     container = transformed[0]["containers"][0]
 
     assert container["container_port_numbers"] == [53, 8080]
+    assert container["container_port_keys"] == ["SCTP/9000", "TCP/8080", "UDP/53"]
     assert container["host_ports"] == [30053]
     assert json.loads(container["container_ports"]) == [
         {"container_port": 8080, "protocol": "TCP", "name": "http"},

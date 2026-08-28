@@ -7,6 +7,7 @@ from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
+from cartography.intel.kubernetes.endpoint_slices import load_endpoint_slices
 from cartography.intel.kubernetes.gateway_api import load_gateways
 from cartography.intel.kubernetes.gateway_api import load_http_routes
 from cartography.intel.kubernetes.ingress import load_ingresses
@@ -78,6 +79,30 @@ def _seed_exposure_graph(
     load_services(
         neo4j_session,
         case["services"],
+        update_tag=case["update_tag"],
+        cluster_id=case["cluster_id"],
+        cluster_name=case["cluster_name"],
+    )
+    load_endpoint_slices(
+        neo4j_session,
+        [
+            {
+                "uid": f"slice-{service['uid']}",
+                "name": f"slice-{service['uid']}",
+                "namespace": service["namespace"],
+                "address_type": "IPv4",
+                "managed_by": "endpointslice-controller.k8s.io",
+                "service_qualified_name": service["qualified_name"],
+                "endpoints": "[]",
+                "ports": "[]",
+                "port_numbers": [8080],
+                "port_keys": ["TCP/8080"],
+                "ready_pod_ids": service["pod_ids"],
+                "creation_timestamp": None,
+                "deletion_timestamp": None,
+            }
+            for service in case["services"]
+        ],
         update_tag=case["update_tag"],
         cluster_id=case["cluster_id"],
         cluster_name=case["cluster_name"],
@@ -202,6 +227,50 @@ def test_k8s_asset_exposure_properties(neo4j_session):
     assert [r["id"] for r in result] == sorted(
         [case["cont_ing_id"], case["cont_lb_id"]]
     )
+
+    result = neo4j_session.run(
+        """
+        MATCH (c:KubernetesContainer {id: $container_id})
+        OPTIONAL MATCH (:LoadBalancer)-[exposure:EXPOSE]->(c)
+        RETURN c.exposed_internet AS exposed, count(exposure) AS relationship_count
+        """,
+        container_id=case["cont_lb_mismatch_id"],
+    )
+    assert result.single() == {"exposed": None, "relationship_count": 0}
+
+
+def test_stale_endpoint_slices_do_not_attribute_container_exposure(neo4j_session):
+    case = build_exposure_test_data()
+    _seed_exposure_graph(neo4j_session, case=case)
+    neo4j_session.run(
+        "MATCH (slice:KubernetesEndpointSlice) SET slice.lastupdated = $stale_tag",
+        stale_tag=case["update_tag"] - 1,
+    )
+    common_job_parameters = {
+        "UPDATE_TAG": case["update_tag"],
+        "CLUSTER_ID": case["cluster_id"],
+    }
+
+    _run_k8s_compute_analysis(neo4j_session, common_job_parameters)
+    _run_k8s_lb_analysis(neo4j_session, common_job_parameters)
+
+    result = neo4j_session.run(
+        """
+        MATCH (pod:KubernetesPod {id: $pod_id})
+        MATCH (container:KubernetesContainer {id: $container_id})
+        OPTIONAL MATCH (:LoadBalancer)-[exposure:EXPOSE]->(container)
+        RETURN pod.exposed_internet AS pod_exposed,
+               container.exposed_internet AS container_exposed,
+               count(exposure) AS relationship_count
+        """,
+        pod_id=case["pod_lb_id"],
+        container_id=case["cont_lb_id"],
+    ).single()
+    assert result == {
+        "pod_exposed": True,
+        "container_exposed": None,
+        "relationship_count": 0,
+    }
 
 
 def test_k8s_asset_exposure_type_deduplicates_on_multiple_paths(neo4j_session):

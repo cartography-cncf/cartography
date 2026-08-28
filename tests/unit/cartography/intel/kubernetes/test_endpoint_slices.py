@@ -23,6 +23,7 @@ def test_transform_endpoint_slices_uses_ready_pod_targets():
     assert endpoint_slice["service_qualified_name"] == f"{NAMESPACE}/{SERVICE_NAME}"
     assert endpoint_slice["ready_pod_ids"] == [KUBERNETES_PODS_DATA[0]["uid"]]
     assert endpoint_slice["port_numbers"] == [8080]
+    assert endpoint_slice["port_keys"] == ["TCP/8080"]
     assert service_pod_ids_by_qualified_name([endpoint_slice]) == {
         f"{NAMESPACE}/{SERVICE_NAME}": [KUBERNETES_PODS_DATA[0]["uid"]]
     }
