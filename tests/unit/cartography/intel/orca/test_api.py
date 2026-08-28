@@ -45,7 +45,6 @@ def test_create_session_uses_token_auth_and_bounded_read_retries() -> None:
     assert retry.status_forcelist == api._RETRY_STATUS_CODES
     assert retry.allowed_methods == frozenset({"GET", "POST"})
     assert retry.respect_retry_after_header is True
-    assert retry.retry_after_max == 120
     http_adapter = cast(HTTPAdapter, session.get_adapter("http://"))
     assert http_adapter.max_retries.total == 0
     session.close()

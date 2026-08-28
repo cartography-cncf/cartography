@@ -9,7 +9,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
 from cartography.intel.orca.response import canonical_cve_ids
-from cartography.intel.orca.response import field_value
 from cartography.intel.orca.response import inventory_target_context
 from cartography.intel.orca.response import optional_nonempty_string
 from cartography.intel.orca.response import parse_datetime
@@ -58,10 +57,6 @@ def _optional_bool(value: Any) -> bool | None:
     raise ValueError("Unexpected Orca boolean value")
 
 
-def _related_object(row: dict[str, Any], field: str) -> dict[str, Any]:
-    return require_object(row.get(field), f"Orca vulnerability.{field}")
-
-
 def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     value = row.get("InstalledPackage")
     if value is None:
@@ -78,17 +73,17 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
 def _package_key(package: dict[str, Any]) -> tuple[str, ...]:
     for key in ("id", "PURL", "CPE"):
         value = optional_nonempty_string(
-            field_value(package, key),
+            package.get(key),
             f"Orca vulnerability.InstalledPackage.{key}",
         )
         if value is not None:
             return (key.casefold(), value)
     name = optional_nonempty_string(
-        field_value(package, "Name"),
+        package.get("Name"),
         "Orca vulnerability.InstalledPackage.Name",
     )
     version = optional_nonempty_string(
-        field_value(package, "Version"),
+        package.get("Version"),
         "Orca vulnerability.InstalledPackage.Version",
     )
     if name or version:
@@ -116,9 +111,12 @@ def transform(
     raw_vulnerabilities: list[dict[str, Any]],
     organization_id: str,
 ) -> list[dict[str, Any]]:
-    transformed: list[dict[str, Any]] = []
+    transformed: dict[str, dict[str, Any]] = {}
     for vulnerability in raw_vulnerabilities:
-        inventory = _related_object(vulnerability, "Inventory")
+        inventory = require_object(
+            vulnerability.get("Inventory"),
+            "Orca vulnerability.Inventory",
+        )
         target_context = inventory_target_context(
             inventory,
             "Orca vulnerability.Inventory",
@@ -170,29 +168,31 @@ def transform(
         for package in _related_packages(vulnerability):
             package_key = _package_key(package)
             for cve_id in cve_ids:
-                transformed.append(
-                    {
-                        "id": _vulnerability_id(
-                            organization_id,
-                            target_orca_asset_unique_id,
-                            cve_id,
-                            package_key,
-                        ),
-                        "cve_id": cve_id,
-                        **common_fields,
-                        "package_id": field_value(package, "id"),
-                        "package_base_id_uuid": field_value(
-                            package,
-                            "base_id_uuid",
-                        ),
-                        "package_name": field_value(package, "Name"),
-                        "package_version": field_value(package, "Version"),
-                        "purl": field_value(package, "PURL"),
-                        "cpe": field_value(package, "CPE"),
-                        "source_package": field_value(package, "SourcePackage"),
-                    },
+                finding_id = _vulnerability_id(
+                    organization_id,
+                    target_orca_asset_unique_id,
+                    cve_id,
+                    package_key,
                 )
-    return transformed
+                finding = {
+                    "id": finding_id,
+                    "cve_id": cve_id,
+                    **common_fields,
+                    "package_id": package.get("id"),
+                    "package_base_id_uuid": package.get("base_id_uuid"),
+                    "package_name": package.get("Name"),
+                    "package_version": package.get("Version"),
+                    "purl": package.get("PURL"),
+                    "cpe": package.get("CPE"),
+                    "source_package": package.get("SourcePackage"),
+                }
+                existing = transformed.get(finding_id)
+                if existing is not None and existing != finding:
+                    raise ValueError(
+                        "Orca vulnerability rows contained conflicting identities",
+                    )
+                transformed[finding_id] = finding
+    return list(transformed.values())
 
 
 def load_vulnerabilities(

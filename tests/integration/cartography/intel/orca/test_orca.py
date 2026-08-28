@@ -300,7 +300,7 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
     ) == {
         (
             CVE_ID_1,
-            "related-inventory-base-uuid-not-top-level-id",
+            None,
             ASSET_UNIQUE_ID_1,
             PROVIDER_ID_1,
             TARGET_ARN_1,

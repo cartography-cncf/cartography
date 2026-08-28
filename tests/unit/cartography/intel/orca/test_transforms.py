@@ -95,18 +95,18 @@ def test_alert_transform_unwraps_inventory_and_strips_cve_ids() -> None:
     assert result["cve_ids"] == [CVE_ID_1]
 
 
-def test_alert_transform_reads_wrapper_fields_before_nested_data() -> None:
+def test_alert_transform_does_not_promote_inventory_base_id() -> None:
     # Arrange
     raw = deepcopy(ALERTS[0])
     raw["Inventory"].pop("id")
-    raw["Inventory"]["base_id_uuid"] = "wrapper-inventory-id"
+    raw["Inventory"]["base_id_uuid"] = "shared-graph-object-id"
     raw["Inventory"]["UiUniqueField"] = "wrapper-provider-id"
 
     # Act
     result = alerts.transform([raw], ORGANIZATION_ID)[0]
 
     # Assert
-    assert result["target_orca_inventory_id"] == "wrapper-inventory-id"
+    assert result["target_orca_inventory_id"] is None
     assert result["target_provider_id"] == "wrapper-provider-id"
 
 
@@ -191,9 +191,7 @@ def test_vulnerability_transform_is_stable_and_splits_explicit_cves() -> None:
     assert {item["target_orca_asset_unique_id"] for item in first} == {
         ASSET_UNIQUE_ID_1
     }
-    assert {item["target_orca_inventory_id"] for item in first} == {
-        "related-inventory-base-uuid-not-top-level-id",
-    }
+    assert {item["target_orca_inventory_id"] for item in first} == {None}
     assert {item["target_provider_id"] for item in first} == {PROVIDER_ID_1}
     assert {item["target_arn"] for item in first} == {TARGET_ARN_1}
     assert {item["target_name"] for item in first} == {"synthetic-app-server"}
@@ -265,6 +263,31 @@ def test_vulnerability_identity_separates_package_identifier_namespaces() -> Non
 
     # Assert
     assert len({result["id"] for result in results}) == 2
+
+
+def test_vulnerability_transform_deduplicates_identical_package_rows() -> None:
+    # Arrange
+    raw = deepcopy(VULNERABILITIES[0])
+    package = raw["InstalledPackage"]
+    raw["InstalledPackage"] = [package, deepcopy(package)]
+
+    # Act
+    results = vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert len(results) == 1
+
+
+def test_vulnerability_transform_rejects_conflicting_duplicate_identity() -> None:
+    # Arrange
+    raw = deepcopy(VULNERABILITIES[0])
+    package = raw["InstalledPackage"]
+    conflicting_package = {**package, "Name": "different-name"}
+    raw["InstalledPackage"] = [package, conflicting_package]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="conflicting identities"):
+        vulnerabilities.transform([raw], ORGANIZATION_ID)
 
 
 @pytest.mark.parametrize(

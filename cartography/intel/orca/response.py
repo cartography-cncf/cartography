@@ -12,12 +12,9 @@ def unwrap_value(value: Any) -> Any:
     return value
 
 
-def field_value(data: dict[str, Any], *keys: str) -> Any:
-    """Return the first present Orca field, unwrapping its value envelope."""
-    for key in keys:
-        if key in data:
-            return unwrap_value(data[key])
-    return None
+def field_value(data: dict[str, Any], key: str) -> Any:
+    """Return an Orca field, unwrapping its value envelope."""
+    return unwrap_value(data[key]) if key in data else None
 
 
 def require_nonempty_string(value: Any, field: str) -> str:
@@ -78,7 +75,6 @@ def inventory_target_context(
     raw_context = {
         "target_orca_inventory_id": first_value(
             "id",
-            "base_id_uuid",
         ),
         "target_orca_asset_unique_id": first_value(
             "AssetUniqueId",
@@ -86,16 +82,11 @@ def inventory_target_context(
         ),
         "target_provider_id": first_value(
             "UiUniqueField",
-            "ProviderId",
-            "ResourceId",
         ),
         "target_arn": first_value("Arn"),
-        "target_cloud_provider": first_value("CloudProvider", "CloudPlatform"),
+        "target_cloud_provider": first_value("CloudProvider"),
         "target_cloud_account_id": first_value(
             "CloudAccountId",
-            "AccountId",
-            "SubscriptionId",
-            "ProjectId",
         ),
         "target_region": first_value("Region"),
         "target_name": first_value("name", "Name"),

@@ -56,7 +56,6 @@ def create_session(api_token: str) -> requests.Session:
         backoff_factor=0.25,
         backoff_max=16,
         respect_retry_after_header=True,
-        retry_after_max=120,
         raise_on_status=False,
     )
     adapter = HTTPAdapter(max_retries=retry)

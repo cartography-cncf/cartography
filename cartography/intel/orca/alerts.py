@@ -42,12 +42,8 @@ def build_query() -> dict[str, Any]:
 
 def _target_context_from_alert(
     raw_alert: dict[str, Any],
-    data: dict[str, Any],
 ) -> dict[str, str | None]:
-    inventory = raw_alert.get("Inventory")
-    if inventory is None:
-        inventory = field_value(data, "Inventory")
-    inventory = unwrap_value(inventory)
+    inventory = unwrap_value(raw_alert.get("Inventory"))
     if inventory is None:
         return empty_target_context()
     if isinstance(inventory, list):
@@ -75,7 +71,7 @@ def transform(
     unresolved_targets = 0
     for raw_alert in raw_alerts:
         data = require_object(
-            raw_alert["data"] if "data" in raw_alert else raw_alert,
+            raw_alert.get("data"),
             "Orca Alert.data",
         )
         alert_id = require_nonempty_string(
@@ -83,7 +79,7 @@ def transform(
             "Orca AlertId",
         )
 
-        target_context = _target_context_from_alert(raw_alert, data)
+        target_context = _target_context_from_alert(raw_alert)
         if not any(
             target_context[key]
             for key in (
@@ -129,9 +125,7 @@ def transform(
                 ),
                 "console_url": field_value(data, "ConsoleUrlLink"),
                 "cve_ids": canonical_cve_ids(
-                    field_value(data, "CveId"),
                     field_value(data, "CveIds"),
-                    field_value(data, "CVEs"),
                 ),
                 **target_context,
             },
