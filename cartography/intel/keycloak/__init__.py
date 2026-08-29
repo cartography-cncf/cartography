@@ -8,13 +8,13 @@ import cartography.intel.keycloak.authenticationflows
 import cartography.intel.keycloak.clients
 import cartography.intel.keycloak.groups
 import cartography.intel.keycloak.identityproviders
+import cartography.intel.keycloak.inheritance
 import cartography.intel.keycloak.organizations
 import cartography.intel.keycloak.realms
 import cartography.intel.keycloak.roles
 import cartography.intel.keycloak.scopes
 import cartography.intel.keycloak.users
 from cartography.config import Config
-from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -62,9 +62,13 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             "UPDATE_TAG": config.update_tag,
         }
 
-        for realm in cartography.intel.keycloak.realms.sync(
-            neo4j_session, api_session, config.keycloak_url, common_job_parameters
-        ):
+        realms = cartography.intel.keycloak.realms.sync(
+            neo4j_session,
+            api_session,
+            config.keycloak_url,
+            common_job_parameters,
+        )
+        for realm in realms:
             realm_scopped_job_parameters = {
                 "UPDATE_TAG": config.update_tag,
                 "REALM": realm["realm"],
@@ -153,10 +157,8 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     realm_scopped_job_parameters,
                 )
 
-        # Run inheritance analysis after all realms are synced
-        # This computes transitive group memberships, role assignments, and scope permissions
-        run_analysis_job(
-            "keycloak_inheritance.json",
+        cartography.intel.keycloak.inheritance.sync(
             neo4j_session,
+            realms,
             common_job_parameters,
         )

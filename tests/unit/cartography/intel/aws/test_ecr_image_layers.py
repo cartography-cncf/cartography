@@ -18,6 +18,279 @@ from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 
 
+def test_load_ecr_image_layers_flattens_relationships(monkeypatch):
+    load_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+
+    layers = [
+        {
+            "diff_id": "sha256:layer-1",
+            "is_empty": False,
+            "next_diff_ids": ["sha256:layer-2", "sha256:layer-3"],
+            "head_image_ids": ["sha256:image-1"],
+            "tail_image_ids": ["sha256:image-2"],
+        },
+        {
+            "diff_id": "sha256:layer-2",
+            "is_empty": False,
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layers(
+        MagicMock(),
+        layers,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    node_call, next_call, head_call, tail_call = load_mock.call_args_list
+    assert node_call.args[1].__class__.__name__ == "ECRImageLayerNodeSchema"
+    assert node_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+    assert next_call.args[1].__class__.__name__ == "ECRImageLayerNextRelSchema"
+    assert next_call.args[2] == [
+        {"diff_id": "sha256:layer-1", "next_diff_ids": ["sha256:layer-2"]},
+        {"diff_id": "sha256:layer-1", "next_diff_ids": ["sha256:layer-3"]},
+    ]
+    assert head_call.args[1].__class__.__name__ == "ECRImageLayerHeadRelSchema"
+    assert head_call.args[2] == [
+        {"head_image_ids": ["sha256:image-1"], "diff_id": "sha256:layer-1"},
+    ]
+    assert tail_call.args[1].__class__.__name__ == "ECRImageLayerTailRelSchema"
+    assert tail_call.args[2] == [
+        {"tail_image_ids": ["sha256:image-2"], "diff_id": "sha256:layer-1"},
+    ]
+    assert all(
+        call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+        for call in load_mock.call_args_list[1:]
+    )
+
+
+def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
+    load_mock = MagicMock()
+    monkeypatch.setattr(ecr_layers, "load", load_mock)
+
+    memberships = [
+        {
+            "imageDigest": "sha256:image-1",
+            "layer_diff_ids": ["sha256:layer-1", "sha256:layer-2"],
+        },
+        {
+            "imageDigest": "sha256:image-2",
+            "layer_diff_ids": ["sha256:layer-3"],
+        },
+    ]
+
+    ecr_layers.load_ecr_image_layer_memberships(
+        MagicMock(),
+        memberships,
+        "us-east-1",
+        "123456789012",
+        123,
+    )
+
+    enrichment_call = load_mock.call_args_list[0]
+    has_layer_call = load_mock.call_args_list[1]
+    assert enrichment_call.args[1].__class__.__name__ == "ECRImageLayerEnrichmentSchema"
+    assert enrichment_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_BATCH_SIZE
+    assert has_layer_call.args[1].__class__.__name__ == "ECRImageHasLayerRelSchema"
+    assert has_layer_call.args[2] == [
+        {"imageDigest": "sha256:image-1", "layer_diff_ids": ["sha256:layer-1"]},
+        {"imageDigest": "sha256:image-1", "layer_diff_ids": ["sha256:layer-2"]},
+        {"imageDigest": "sha256:image-2", "layer_diff_ids": ["sha256:layer-3"]},
+    ]
+    assert has_layer_call.kwargs["batch_size"] == ecr_layers.ECR_LAYER_REL_BATCH_SIZE
+
+
+def test_cleanup_runs_layer_cleanup_job(monkeypatch):
+    from_node_schema_mock = MagicMock(return_value=MagicMock())
+    run_write_query_mock = MagicMock()
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
+
+    neo4j_session = MagicMock()
+    ecr_layers.cleanup(
+        neo4j_session,
+        {
+            "UPDATE_TAG": 123,
+            "AWS_ID": "123456789012",
+        },
+    )
+
+    assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
+        "ECRImageLayerSchema"
+    )
+    assert from_node_schema_mock.return_value.run.call_count == 1
+    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
+    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
+    assert "DELETE relationship" in relationship_cleanup_query
+    assert "DETACH DELETE" not in relationship_cleanup_query
+
+
+def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
+    from_node_schema_mock = MagicMock()
+    run_write_query_mock = MagicMock()
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
+
+    ecr_layers.cleanup(
+        MagicMock(),
+        {"UPDATE_TAG": 123, "AWS_ID": "123456789012"},
+        fetch_complete=False,
+    )
+
+    run_write_query_mock.assert_not_called()
+    from_node_schema_mock.assert_not_called()
+
+
+def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+                "com.example.DOCKERFILE": "deploy/Dockerfile",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+        "source_uri": "https://github.com/ExampleOrg/service",
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+        "source_file": "deploy/Dockerfile",
+    }
+
+
+def test_extract_circleci_label_provenance_ignores_empty_or_missing_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "",
+                "com.example.CIRCLE_SHA1": "   ",
+                "com.example.UNRELATED": "value",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {}
+
+
+def test_extract_circleci_label_provenance_skips_ambiguous_suffix_labels(caplog):
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/service.git",
+                "io.example.CIRCLE_REPOSITORY_URL": "git@github.com:ExampleOrg/other.git",
+                "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+        }
+
+    assert "multiple label keys matched by suffix" in caplog.text
+
+
+def test_extract_circleci_label_provenance_ignores_empty_duplicate_suffix_labels():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.CIRCLE_SHA1": "",
+                "io.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {
+        "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+    }
+
+
+def test_extract_circleci_label_provenance_ignores_dockerfile_without_circleci_signal():
+    config_json = {
+        "config": {
+            "Labels": {
+                "com.example.DOCKERFILE": "deploy/Dockerfile",
+            }
+        }
+    }
+
+    assert ecr_layers._extract_circleci_label_provenance(config_json) == {}
+
+
+def test_normalize_git_repository_url_strips_https_git_suffix():
+    assert (
+        ecr_layers._normalize_git_repository_url(
+            "https://github.com/ExampleOrg/service.git"
+        )
+        == "https://github.com/ExampleOrg/service"
+    )
+
+
+def test_label_provenance_does_not_override_attestation_provenance():
+    provenance_by_key = {
+        "sha256:image": {
+            "source_uri": "https://github.com/ExampleOrg/attested",
+            "source_revision": "attested-revision",
+        }
+    }
+
+    ecr_layers._merge_provenance(
+        provenance_by_key,
+        "sha256:image",
+        {
+            "source_uri": "https://github.com/ExampleOrg/label",
+            "source_revision": "label-revision",
+            "source_file": "Dockerfile",
+        },
+        fallback=True,
+    )
+
+    assert provenance_by_key["sha256:image"] == {
+        "source_uri": "https://github.com/ExampleOrg/attested",
+        "source_revision": "attested-revision",
+        "source_file": "Dockerfile",
+    }
+
+
+def test_attestation_provenance_survives_later_label_merge():
+    provenance_by_key = {
+        "image-uri": {
+            ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+            "parent_image_digest": "sha256:attested-parent",
+            "source_uri": "https://github.com/exampleorg/attested",
+        }
+    }
+
+    ecr_layers._merge_provenance(
+        provenance_by_key,
+        "image-uri",
+        {
+            "source_uri": "https://github.com/exampleorg/label",
+            "source_revision": "label-revision",
+        },
+        fallback=True,
+    )
+
+    assert provenance_by_key["image-uri"] == {
+        ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+        "parent_image_digest": "sha256:attested-parent",
+        "source_uri": "https://github.com/exampleorg/attested",
+        "source_revision": "label-revision",
+    }
+
+
 @pytest.mark.parametrize(
     "input_uri,expected_repo_uri",
     [
@@ -273,13 +546,17 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=2,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
         )
     )
 
@@ -288,12 +565,65 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
     assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
-def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
+@pytest.mark.asyncio
+async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(mocker):
+    repo_uri = "111122223333.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}:slow",
+            "imageDigest": "sha256:slow",
+            "repo_uri": repo_uri,
+        },
+        {
+            "uri": f"{repo_uri}:invalid",
+            "imageDigest": "sha256:invalid",
+            "repo_uri": repo_uri,
+        },
+    ]
+    slow_started = asyncio.Event()
+    slow_cancelled = asyncio.Event()
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:slow":
+            slow_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                slow_cancelled.set()
+                raise
+        await slow_started.wait()
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "InvalidClientTokenId",
+                    "Message": "Synthetic AWS client error",
+                },
+            },
+            "AssumeRole",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+
+    with pytest.raises(ClientError):
+        await fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
+        )
+
+    assert slow_cancelled.is_set()
+
+
+def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_transiently(
     mocker,
 ):
-    """A transient child failure should not poison the whole manifest list."""
+    """A transient child failure must discard all partial manifest-list data."""
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -328,20 +658,25 @@ def test_fetch_image_layers_async_still_processes_successful_children_when_one_c
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=4,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=4,
         )
     )
 
-    assert f"{repo_uri}:manifest-list" in image_layers_data
-    assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
-    assert isinstance(history_by_diff_id, dict)
+    assert image_layers_data == {}
+    assert image_digest_map == {}
+    assert history_by_diff_id == {}
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
 @pytest.mark.asyncio
@@ -560,6 +895,7 @@ def test_transform_ecr_image_layers_with_attestation_data():
 
     image_attestation_map = {
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
+            ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
             "parent_image_uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123",
             "parent_image_digest": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
         }
@@ -592,6 +928,95 @@ def test_transform_ecr_image_layers_with_attestation_data():
         membership["parent_image_digest"]
         == "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
     )
+    assert membership["from_attestation"] is True
+    assert membership["confidence"] == "explicit"
+
+
+def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest"
+    image_digest = (
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    )
+    layers, memberships = transform_ecr_image_layers(
+        {
+            image_uri: {
+                "linux/amd64": [
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ]
+            }
+        },
+        {image_uri: image_digest},
+        image_attestation_map={
+            image_uri: {
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+                "source_uri": "https://github.com/exampleorg/service",
+                "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            }
+        },
+    )
+
+    assert len(layers) == 1
+    assert memberships == [
+        {
+            "imageDigest": image_digest,
+            "layer_diff_ids": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            ],
+            "source_uri": "https://github.com/exampleorg/service",
+            "source_revision": "abcdef0123456789abcdef0123456789abcdef01",
+            "from_attestation": True,
+            "confidence": "explicit",
+        }
+    ]
+
+
+def test_transform_ecr_image_layers_applies_new_provenance_to_skipped_image():
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend@sha256:image"
+
+    layers, memberships = transform_ecr_image_layers(
+        {},
+        {image_uri: "sha256:image"},
+        image_attestation_map={
+            image_uri: {
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+                "source_uri": "https://github.com/example/service",
+            },
+        },
+        existing_properties_map={
+            "sha256:image": {
+                "type": "image",
+                "layer_diff_ids": ["sha256:layer"],
+                "source_revision": "existing-revision",
+                "source_file": "Dockerfile",
+                "invocation_uri": "https://github.com/example/actions/runs/1",
+                "invocation_workflow": ".github/workflows/build.yml",
+                "invocation_run_number": "1",
+                "parent_image_digest": "sha256:parent",
+                "parent_image_uri": "docker.io/library/alpine:3",
+                "from_attestation": True,
+                "confidence": "explicit",
+            },
+        },
+    )
+
+    assert layers == []
+    assert memberships == [
+        {
+            "imageDigest": "sha256:image",
+            "type": "image",
+            "layer_diff_ids": ["sha256:layer"],
+            "source_uri": "https://github.com/example/service",
+            "source_revision": "existing-revision",
+            "source_file": "Dockerfile",
+            "invocation_uri": "https://github.com/example/actions/runs/1",
+            "invocation_workflow": ".github/workflows/build.yml",
+            "invocation_run_number": "1",
+            "parent_image_digest": "sha256:parent",
+            "parent_image_uri": "docker.io/library/alpine:3",
+            "from_attestation": True,
+            "confidence": "explicit",
+        },
+    ]
 
 
 def test_transform_ecr_image_layers_without_attestation_data():

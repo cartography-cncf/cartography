@@ -11,10 +11,8 @@ from googleapiclient.discovery import Resource
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
-from cartography.intel.gcp.util import is_api_disabled_error
-from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
@@ -48,8 +46,8 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
             )
         return secrets
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        category = classify_gcp_http_error(e)
+        if category == "invalid":
             logger.warning(
                 "The project %s is invalid - returned a 400 invalid error. %s",
                 project_id,
@@ -63,7 +61,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 summarize_gcp_http_error(e),
             )
             return []
-        elif is_billing_disabled_error(e):
+        elif category == "billing_disabled":
             logger.warning(
                 "Billing is disabled for project %s. "
                 "Skipping Secret Manager sync for this project. %s",
@@ -71,7 +69,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 summarize_gcp_http_error(e),
             )
             return []
-        elif is_api_disabled_error(e):
+        elif category == "api_disabled":
             logger.info(
                 "Secret Manager API appears disabled for project %s. "
                 "Skipping Secret Manager sync for this project. %s",
@@ -108,8 +106,8 @@ def get_secret_versions(
             )
         return versions
     except HttpError as e:
-        reason = get_error_reason(e)
-        if reason == "invalid":
+        category = classify_gcp_http_error(e)
+        if category == "invalid":
             logger.warning(
                 "The secret %s is invalid - returned a 400 invalid error. %s",
                 secret_name,
@@ -123,7 +121,7 @@ def get_secret_versions(
                 summarize_gcp_http_error(e),
             )
             return []
-        elif is_billing_disabled_error(e):
+        elif category == "billing_disabled":
             logger.warning(
                 "Billing is disabled while listing versions for secret %s. "
                 "Skipping versions sync for this secret. %s",
@@ -131,7 +129,7 @@ def get_secret_versions(
                 summarize_gcp_http_error(e),
             )
             return []
-        elif is_api_disabled_error(e):
+        elif category == "api_disabled":
             logger.info(
                 "Secret Manager API appears disabled while listing versions for secret %s. "
                 "Skipping versions sync for this secret. %s",

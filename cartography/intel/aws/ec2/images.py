@@ -27,15 +27,15 @@ def get_images_in_use(
 ) -> List[str]:
     get_images_query = """
     CALL {
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:EC2Instance)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:AWSEC2Instance)
     WHERE i.region = $Region AND i.imageid IS NOT NULL
     RETURN i.imageid AS image
     UNION ALL
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(lc:LaunchConfiguration)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(lc:AWSLaunchConfiguration)
     WHERE lc.region = $Region AND lc.image_id IS NOT NULL
     RETURN lc.image_id AS image
     UNION ALL
-    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(ltv:LaunchTemplateVersion)
+    MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(ltv:AWSLaunchTemplateVersion)
     WHERE ltv.region = $Region AND ltv.image_id IS NOT NULL
     RETURN ltv.image_id AS image
     }

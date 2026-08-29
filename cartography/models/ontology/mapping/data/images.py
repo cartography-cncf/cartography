@@ -8,12 +8,13 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # - uri: Full URI to pull the image
 # - architecture: CPU architecture (amd64, arm64, etc.)
 # - os: Operating system (linux, windows)
+# - variant: Architecture variant (v8, etc.)
 
 aws_ecr_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="ECRImage",
+            node_label="AWSECRImage",
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(
@@ -29,20 +30,14 @@ gcp_mapping = OntologyMapping(
     module_name="gcp",
     nodes=[
         OntologyNodeMapping(
-            node_label="GCPArtifactRegistryContainerImage",
-            fields=[
-                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
-                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="GCPArtifactRegistryPlatformImage",
+            node_label="GCPArtifactRegistryImage",
             fields=[
                 OntologyFieldMapping(ontology_field="digest", node_field="digest"),
                 OntologyFieldMapping(
                     ontology_field="architecture", node_field="architecture"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
             ],
         ),
     ],
@@ -65,8 +60,58 @@ gitlab_mapping = OntologyMapping(
     ],
 )
 
+github_mapping = OntologyMapping(
+    module_name="github",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GitHubContainerImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture"
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
+            ],
+        ),
+    ],
+)
+
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayContainerRegistryImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                # Scaleway's registry API exposes no per-digest architecture/os
+                # or manifest-list metadata, so only the digest is mapped.
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
     "gcp": gcp_mapping,
+    "github": github_mapping,
     "gitlab": gitlab_mapping,
+    "scaleway": scaleway_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeImage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="digest", node_field="digest", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="uri", node_field="image_path"),
+                    # architecture / os / variant: the image-repository listing
+                    # reports no platform metadata.
+                ],
+            ),
+        ],
+    ),
 }

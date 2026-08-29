@@ -28,7 +28,9 @@ aws_mapping = OntologyMapping(
                     ontology_field="name", node_field="display_name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -46,7 +48,9 @@ duo_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
-                OntologyFieldMapping(ontology_field="description", node_field="desc"),
+                OntologyFieldMapping(
+                    ontology_field="description", node_field="desc", indexed=False
+                ),
                 # email: Not available
             ],
         ),
@@ -64,7 +68,9 @@ entra_mapping = OntologyMapping(
                     ontology_field="name", node_field="display_name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(ontology_field="email", node_field="mail"),
             ],
@@ -83,7 +89,9 @@ github_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -102,7 +110,9 @@ gitlab_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -121,7 +131,9 @@ googleworkspace_mapping = OntologyMapping(
                     ontology_field="name", node_field="display_name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(ontology_field="email", node_field="email"),
             ],
@@ -140,7 +152,9 @@ gsuite_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 OntologyFieldMapping(ontology_field="email", node_field="email"),
             ],
@@ -159,7 +173,9 @@ keycloak_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -178,7 +194,9 @@ oci_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -197,7 +215,9 @@ okta_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -216,7 +236,9 @@ pagerduty_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -252,7 +274,9 @@ scaleway_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -271,7 +295,9 @@ slack_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="description", node_field="description"
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
                 ),
                 # email: Not available
             ],
@@ -329,8 +355,45 @@ vercel_mapping = OntologyMapping(
     ],
 )
 
+circleci_mapping = OntologyMapping(
+    module_name="circleci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CircleCIGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+            ],
+        ),
+    ],
+)
+
+salesforce_mapping = OntologyMapping(
+    module_name="salesforce",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SalesforceGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
+    "circleci": circleci_mapping,
+    "salesforce": salesforce_mapping,
     "duo": duo_mapping,
     "microsoft": entra_mapping,
     "github": github_mapping,
@@ -347,4 +410,33 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "tailscale": tailscale_mapping,
     "kubernetes": kubernetes_mapping,
     "vercel": vercel_mapping,
+    "databricks": OntologyMapping(
+        module_name="databricks",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="DatabricksGroup",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="display_name",
+                        required=True,
+                    ),
+                    # description: Not available
+                    # email: Not available
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="DatabricksAccountGroup",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name",
+                        node_field="display_name",
+                        required=True,
+                    ),
+                    # description: Not available
+                    # email: Not available
+                ],
+            ),
+        ],
+    ),
 }

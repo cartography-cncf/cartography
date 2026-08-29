@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_RDS_EVENT_SUBSCRIPTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -13,17 +15,51 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("CustSubscriptionId")
-    arn: PropertyRef = PropertyRef("EventSubscriptionArn", extra_index=True)
-    customer_aws_id: PropertyRef = PropertyRef("CustomerAwsId")
-    sns_topic_arn: PropertyRef = PropertyRef("SnsTopicArn")
-    source_type: PropertyRef = PropertyRef("SourceType")
-    status: PropertyRef = PropertyRef("Status")
-    enabled: PropertyRef = PropertyRef("Enabled")
-    subscription_creation_time: PropertyRef = PropertyRef("SubscriptionCreationTime")
-    event_categories: PropertyRef = PropertyRef("event_categories", one_to_many=True)
-    source_ids: PropertyRef = PropertyRef("source_ids", one_to_many=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "CustSubscriptionId", description="The customer subscription identifier"
+    )
+    arn: PropertyRef = PropertyRef(
+        "EventSubscriptionArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) for the event subscription",
+    )
+    customer_aws_id: PropertyRef = PropertyRef(
+        "CustomerAwsId",
+        description="The AWS customer account associated with the event subscription",
+    )
+    sns_topic_arn: PropertyRef = PropertyRef(
+        "SnsTopicArn",
+        description="The ARN of the SNS topic to which notifications are sent",
+    )
+    source_type: PropertyRef = PropertyRef(
+        "SourceType",
+        description="The type of source that is generating the events (db-instance, db-cluster, db-snapshot)",
+    )
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the event subscription (active, inactive)"
+    )
+    enabled: PropertyRef = PropertyRef(
+        "Enabled", description="Whether the event subscription is enabled"
+    )
+    subscription_creation_time: PropertyRef = PropertyRef(
+        "SubscriptionCreationTime",
+        description="The time the event subscription was created",
+    )
+    event_categories: PropertyRef = PropertyRef(
+        "event_categories",
+        one_to_many=True,
+        description="List of event categories for which to receive notifications",
+    )
+    source_ids: PropertyRef = PropertyRef(
+        "source_ids",
+        one_to_many=True,
+        description="List of source identifiers for which to receive notifications",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the event subscription is located",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -54,7 +90,7 @@ class RDSEventSubscriptionToSNSTopicRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToSNSTopicRel(CartographyRelSchema):
-    target_node_label: str = "SNSTopic"
+    target_node_label: str = "AWSSNSTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "arn": PropertyRef("SnsTopicArn"),
@@ -74,7 +110,7 @@ class RDSEventSubscriptionToRDSInstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSInstanceRel(CartographyRelSchema):
-    target_node_label: str = "RDSInstance"
+    target_node_label: str = "AWSRDSInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_instance_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -94,7 +130,7 @@ class RDSEventSubscriptionToRDSClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSClusterRel(CartographyRelSchema):
-    target_node_label: str = "RDSCluster"
+    target_node_label: str = "AWSRDSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_cluster_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -114,7 +150,7 @@ class RDSEventSubscriptionToRDSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
-    target_node_label: str = "RDSSnapshot"
+    target_node_label: str = "AWSRDSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "db_snapshot_identifier": PropertyRef("source_ids", one_to_many=True),
@@ -129,7 +165,13 @@ class RDSEventSubscriptionToRDSSnapshotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RDSEventSubscriptionSchema(CartographyNodeSchema):
-    label: str = "RDSEventSubscription"
+    """Representation of an AWS Relational Database Service [EventSubscription](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_EventSubscription.html)."""
+
+    label: str = "AWSRDSEventSubscription"
+    # DEPRECATED: legacy RDSEventSubscription node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_RDS_EVENT_SUBSCRIPTION]
+    )
     properties: RDSEventSubscriptionNodeProperties = (
         RDSEventSubscriptionNodeProperties()
     )

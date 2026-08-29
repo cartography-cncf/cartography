@@ -10,22 +10,25 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 
 @dataclass(frozen=True)
 class GCPCloudRunJobProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    container_image: PropertyRef = PropertyRef("container_image")
-    container_images: PropertyRef = PropertyRef("container_images")
-    image_digest: PropertyRef = PropertyRef("image_digest")
-    image_digests: PropertyRef = PropertyRef("image_digests")
-    architecture: PropertyRef = PropertyRef("architecture")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    architecture_source: PropertyRef = PropertyRef("architecture_source")
-    service_account_email: PropertyRef = PropertyRef("service_account_email")
-    project_id: PropertyRef = PropertyRef("project_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef("name", description="Short name of the job.")
+    location: PropertyRef = PropertyRef(
+        "location", description="The GCP location where the job is deployed."
+    )
+    service_account_email: PropertyRef = PropertyRef(
+        "service_account_email",
+        description="The email of the service account used by this job.",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The GCP project ID this job belongs to."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -51,6 +54,9 @@ class CloudRunJobToServiceAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+# edge (CloudRunJobToServiceAccountRunsAsRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 class CloudRunJobToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,72 +70,35 @@ class CloudRunJobToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunJobToECRImageRelProperties(CartographyRelProperties):
+class CloudRunJobToServiceAccountRunsAsRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudRunJobToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+# Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+class CloudRunJobToServiceAccountRunsAsRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
+        {"email": PropertyRef("service_account_email")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobToECRImageRelProperties = (
-        CloudRunJobToECRImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunJobToGitLabContainerImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunJobToGitLabContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobToGitLabContainerImageRelProperties = (
-        CloudRunJobToGitLabContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunJobToArtifactRegistryContainerImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunJobToArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunJobToArtifactRegistryContainerImageRelProperties = (
-        CloudRunJobToArtifactRegistryContainerImageRelProperties()
+    rel_label: str = "RUNS_AS"
+    properties: CloudRunJobToServiceAccountRunsAsRelProperties = (
+        CloudRunJobToServiceAccountRunsAsRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class GCPCloudRunJobSchema(CartographyNodeSchema):
+    """A Google Cloud Cloud Run Job resource."""
+
     label: str = "GCPCloudRunJob"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])
     properties: GCPCloudRunJobProperties = GCPCloudRunJobProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
     sub_resource_relationship: ProjectToCloudRunJobRel = ProjectToCloudRunJobRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunJobToServiceAccountRel(),
-            CloudRunJobToECRImageRel(),
-            CloudRunJobToGitLabContainerImageRel(),
-            CloudRunJobToArtifactRegistryContainerImageRel(),
+            CloudRunJobToServiceAccountRunsAsRel(),
         ],
     )

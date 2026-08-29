@@ -10,19 +10,49 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 
 @dataclass(frozen=True)
 class GCPCloudRunServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    location: PropertyRef = PropertyRef("location")
-    uri: PropertyRef = PropertyRef("uri")
-    latest_ready_revision: PropertyRef = PropertyRef("latest_ready_revision")
-    service_account_email: PropertyRef = PropertyRef("service_account_email")
-    project_id: PropertyRef = PropertyRef("project_id")
-    ingress: PropertyRef = PropertyRef("ingress")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef("name", description="Short name of the service.")
+    description: PropertyRef = PropertyRef(
+        "description", description="User-provided description of the service."
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="The GCP location where the service is deployed."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", description="Default URL serving the service."
+    )
+    latest_ready_revision: PropertyRef = PropertyRef(
+        "latest_ready_revision",
+        description="Full resource name of the latest ready revision for this service.",
+    )
+    service_account_email: PropertyRef = PropertyRef(
+        "service_account_email",
+        description="The email of the service account configured on the service template (used by new revisions created from this service).",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="Google Cloud project that owns this resource."
+    )
+    ingress: PropertyRef = PropertyRef(
+        "ingress",
+        description="The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`.",
+    )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `ingress` is `INGRESS_TRAFFIC_ALL`. `False` when ingress is internal-only or none.",
+    )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -50,6 +80,9 @@ class CloudRunServiceToServiceAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+# edge (CloudRunServiceToServiceAccountRunsAsRel). Kept for backward
+# compatibility, will be removed in v1.0.0.
 class CloudRunServiceToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -63,15 +96,37 @@ class CloudRunServiceToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudRunServiceToServiceAccountRunsAsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:ComputeService)-[:RUNS_AS]->(:ServiceAccount)
+class CloudRunServiceToServiceAccountRunsAsRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("service_account_email")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RUNS_AS"
+    properties: CloudRunServiceToServiceAccountRunsAsRelProperties = (
+        CloudRunServiceToServiceAccountRunsAsRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPCloudRunServiceSchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services)."""
+
     label: str = "GCPCloudRunService"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])
     properties: GCPCloudRunServiceProperties = GCPCloudRunServiceProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Function"])
     sub_resource_relationship: ProjectToCloudRunServiceRel = (
         ProjectToCloudRunServiceRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunServiceToServiceAccountRel(),
+            CloudRunServiceToServiceAccountRunsAsRel(),
         ],
     )

@@ -23,7 +23,7 @@ def _create_test_security_groups(neo4j_session):
     for sg_id in security_group_ids:
         neo4j_session.run(
             """
-            MERGE (sg:EC2SecurityGroup{id: $sg_id})
+            MERGE (sg:AWSEC2SecurityGroup{id: $sg_id})
             ON CREATE SET sg.firstseen = timestamp()
             SET sg.lastupdated = $update_tag
             """,
@@ -40,7 +40,7 @@ def _create_test_subnets(neo4j_session):
     for subnet_id in subnet_ids:
         neo4j_session.run(
             """
-            MERGE (subnet:EC2Subnet{subnetid: $subnet_id})
+            MERGE (subnet:AWSEC2Subnet{subnetid: $subnet_id})
             ON CREATE SET subnet.firstseen = timestamp()
             SET subnet.lastupdated = $update_tag
             """,
@@ -62,7 +62,7 @@ def test_load_rds_clusters_basic(neo4j_session):
         "1234",
         TEST_UPDATE_TAG,
     )
-    query = """MATCH(rds:RDSCluster) RETURN rds.id, rds.arn, rds.storage_encrypted"""
+    query = """MATCH(rds:AWSRDSCluster) RETURN rds.id, rds.arn, rds.storage_encrypted"""
     nodes = neo4j_session.run(query)
 
     actual_nodes = {
@@ -92,7 +92,7 @@ def test_load_rds_clusters_basic(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (r:RDSInstance)-[:IS_CLUSTER_MEMBER_OF]->(c:RDSCluster)
+        MATCH (r:AWSRDSInstance)-[:IS_CLUSTER_MEMBER_OF]->(c:AWSRDSCluster)
         RETURN r.db_cluster_identifier, c.db_cluster_identifier;
         """,
     )
@@ -112,9 +112,50 @@ def test_load_rds_clusters_basic(neo4j_session):
     # Cleanup to not interfere with other rds tests
     result = neo4j_session.run(
         """
-        MATCH (r:RDSInstance)
+        MATCH (r:AWSRDSInstance)
         DETACH DELETE r
         """,
+    )
+
+
+@patch.object(cartography.intel.aws.rds, "aws_paginate")
+@patch.object(cartography.intel.aws.rds, "create_boto3_client")
+def test_get_rds_snapshot_data_only_checks_manual_snapshots(
+    mock_create_client,
+    mock_aws_paginate,
+):
+    client = MagicMock()
+    mock_create_client.return_value = client
+    mock_aws_paginate.return_value = [
+        {
+            "DBSnapshotIdentifier": "manual-snapshot",
+            "SnapshotType": "manual",
+        },
+        {
+            "DBSnapshotIdentifier": "automated-snapshot",
+            "SnapshotType": "automated",
+        },
+    ]
+    client.describe_db_snapshot_attributes.return_value = {
+        "DBSnapshotAttributesResult": {
+            "DBSnapshotAttributes": [
+                {
+                    "AttributeName": "restore",
+                    "AttributeValues": ["all"],
+                },
+            ],
+        },
+    }
+
+    snapshots = cartography.intel.aws.rds.get_rds_snapshot_data(
+        MagicMock(),
+        TEST_REGION,
+    )
+
+    assert snapshots[0]["Public"] is True
+    assert snapshots[1]["Public"] is False
+    client.describe_db_snapshot_attributes.assert_called_once_with(
+        DBSnapshotIdentifier="manual-snapshot",
     )
 
 
@@ -131,7 +172,9 @@ def test_load_rds_instances_basic(neo4j_session):
         "1234",
         TEST_UPDATE_TAG,
     )
-    query = """MATCH(rds:RDSInstance) RETURN rds.id, rds.arn, rds.storage_encrypted"""
+    query = (
+        """MATCH(rds:AWSRDSInstance) RETURN rds.id, rds.arn, rds.storage_encrypted"""
+    )
     nodes = neo4j_session.run(query)
 
     actual_nodes = {
@@ -172,7 +215,7 @@ def test_load_rds_snapshots_basic(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    query = """MATCH(rds:RDSSnapshot) RETURN rds.id, rds.arn, rds.db_snapshot_identifier, rds.db_instance_identifier"""
+    query = """MATCH(rds:AWSRDSSnapshot) RETURN rds.id, rds.arn, rds.db_snapshot_identifier, rds.db_instance_identifier, rds.ispublic"""
     snapshots = neo4j_session.run(query)
 
     actual_snapshots = {
@@ -181,6 +224,7 @@ def test_load_rds_snapshots_basic(neo4j_session):
             n["rds.arn"],
             n["rds.db_snapshot_identifier"],
             n["rds.db_instance_identifier"],
+            n["rds.ispublic"],
         )
         for n in snapshots
     }
@@ -190,11 +234,36 @@ def test_load_rds_snapshots_basic(neo4j_session):
             "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
             "some-db-snapshot-identifier",
             "some-prod-db-iad-0",
+            True,
         ),
     }
     assert actual_snapshots == expected_snapshots
 
-    query = """MATCH(rdsInstance:RDSInstance)-[:IS_SNAPSHOT_SOURCE]-(rdsSnapshot:RDSSnapshot)
+    # Assert - Snapshot semantic label + normalized _ont_* fields for RDS
+    # snapshots (full set: name, encrypted, public, source_id, region).
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_encrypted",
+            "_ont_public",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        (
+            "some-db-snapshot-identifier",
+            True,
+            True,
+            "some-prod-db-iad-0",
+            "us-east1",
+            "aws",
+        ),
+    }
+
+    query = """MATCH(rdsInstance:AWSRDSInstance)-[:IS_SNAPSHOT_SOURCE]-(rdsSnapshot:AWSRDSSnapshot)
                RETURN rdsInstance.id, rdsSnapshot.id"""
     results = neo4j_session.run(query)
 
@@ -234,6 +303,17 @@ def test_sync_rds_comprehensive(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _create_test_security_groups(neo4j_session)
     _create_test_subnets(neo4j_session)
+    # Seed the KMS key referenced by the instance so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:AWSKMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="some-guid",
+        key_arn="arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -247,7 +327,7 @@ def test_sync_rds_comprehensive(
 
     # Assert
     assert check_nodes(
-        neo4j_session, "RDSCluster", ["id", "db_cluster_identifier"]
+        neo4j_session, "AWSRDSCluster", ["id", "db_cluster_identifier"]
     ) == {
         (
             "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
@@ -256,27 +336,28 @@ def test_sync_rds_comprehensive(
     }, "RDS clusters don't exist"
 
     assert check_nodes(
-        neo4j_session, "RDSInstance", ["id", "db_instance_identifier"]
+        neo4j_session, "AWSRDSInstance", ["id", "db_instance_identifier"]
     ) == {
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "some-prod-db-iad-0"),
     }, "RDS instances don't exist"
 
     assert check_nodes(
-        neo4j_session, "RDSSnapshot", ["id", "db_snapshot_identifier"]
+        neo4j_session, "AWSRDSSnapshot", ["id", "db_snapshot_identifier", "ispublic"]
     ) == {
         (
             "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
             "some-db-snapshot-identifier",
+            True,
         ),
     }, "RDS snapshots don't exist"
 
-    assert check_nodes(neo4j_session, "DBSubnetGroup", ["id", "name"]) == {
+    assert check_nodes(neo4j_session, "AWSDBSubnetGroup", ["id", "name"]) == {
         ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-group-1"),
     }, "DB subnet groups don't exist"
 
     assert check_rels(
         neo4j_session,
-        "RDSCluster",
+        "AWSRDSCluster",
         "id",
         "AWSAccount",
         "id",
@@ -288,7 +369,7 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "RDSInstance",
+        "AWSRDSInstance",
         "id",
         "AWSAccount",
         "id",
@@ -298,9 +379,25 @@ def test_sync_rds_comprehensive(
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "000000000000"),
     }, "RDS instances are not connected to AWS account"
 
+    # Canonical ontology edge: (:Database)-[:ENCRYPTED_BY]->(:EncryptionKey)
     assert check_rels(
         neo4j_session,
-        "RDSSnapshot",
+        "AWSRDSInstance",
+        "id",
+        "AWSKMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:kms:us-east-1:some-arn:key/some-guid",
+        ),
+    }, "RDS instance is not connected to its KMS key"
+
+    assert check_rels(
+        neo4j_session,
+        "AWSRDSSnapshot",
         "id",
         "AWSAccount",
         "id",
@@ -312,7 +409,7 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "DBSubnetGroup",
+        "AWSDBSubnetGroup",
         "id",
         "AWSAccount",
         "id",
@@ -324,9 +421,9 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "RDSInstance",
+        "AWSRDSInstance",
         "id",
-        "DBSubnetGroup",
+        "AWSDBSubnetGroup",
         "id",
         "MEMBER_OF_DB_SUBNET_GROUP",
         rel_direction_right=True,
@@ -339,9 +436,9 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "RDSInstance",
+        "AWSRDSInstance",
         "id",
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
@@ -353,9 +450,9 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "RDSInstance",
+        "AWSRDSInstance",
         "id",
-        "RDSCluster",
+        "AWSRDSCluster",
         "id",
         "IS_CLUSTER_MEMBER_OF",
         rel_direction_right=True,
@@ -368,9 +465,9 @@ def test_sync_rds_comprehensive(
 
     assert check_rels(
         neo4j_session,
-        "DBSubnetGroup",
+        "AWSDBSubnetGroup",
         "id",
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "RESOURCE",
         rel_direction_right=True,

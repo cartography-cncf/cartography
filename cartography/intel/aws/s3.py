@@ -14,11 +14,13 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import ClientError
-from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ConnectionError as BotoCoreConnectionError
+from botocore.exceptions import HTTPClientError
 from policyuniverse.policy import Policy
 
+from cartography.analysis.aws.s3.analysis import AWS_S3ACL_ANALYSIS
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -30,12 +32,13 @@ from cartography.models.aws.s3.bucket import S3BucketPolicySchema
 from cartography.models.aws.s3.bucket import S3BucketPublicAccessBlockSchema
 from cartography.models.aws.s3.bucket import S3BucketSchema
 from cartography.models.aws.s3.bucket import S3BucketVersioningSchema
+from cartography.models.aws.s3.notification import S3BucketToSNSTopicRel
 from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -45,11 +48,27 @@ stat_handler = get_stats_client(__name__)
 
 BUCKET_BATCH_SIZE = 50
 
+# Transport-level failures where the endpoint could not be reached at all, as
+# opposed to AWS answering with an error. These are caught rather than raised so
+# that one unreachable bucket cannot abort an entire account's sync.
+#
+# The two botocore base classes are used deliberately in place of an enumeration
+# of leaf classes. Enumerating leaves silently misses siblings: ProxyConnectionError
+# (raised when an egress proxy cannot reach a bucket's regional endpoint) is a
+# sibling of EndpointConnectionError, not a subclass of it, so listing the latter
+# does not cover the former.
+S3_TRANSPORT_ERRORS = (
+    # ConnectTimeoutError, EndpointConnectionError, ProxyConnectionError, SSLError
+    BotoCoreConnectionError,
+    # ReadTimeoutError, ConnectionClosedError, ResponseStreamingError
+    HTTPClientError,
+)
 
-# Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
-# When a fetch returns FETCH_FAILED, we skip loading that property group to preserve existing data.
+
+# Sentinel value to indicate a fetch operation failed (vs None for "no configuration").
+# When a fetch returns FETCH_FAILED, we skip loading that property group for this sync.
 class _FetchFailed:
-    """Sentinel indicating fetch failure - preserves existing data in Neo4j."""
+    """Sentinel indicating that a detail fetch failed and should be skipped."""
 
     _instance = None
 
@@ -66,6 +85,21 @@ FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
 MaybeFailed = Union[Optional[Dict], _FetchFailed]
+
+
+def _handle_s3_detail_transport_error(
+    bucket_name: str,
+    detail_name: str,
+    error: Exception,
+) -> _FetchFailed:
+    logger.warning(
+        "Failed to retrieve S3 bucket %s for %s due to transient %s: %s. Skipping this detail group.",
+        detail_name,
+        bucket_name,
+        error.__class__.__name__,
+        error,
+    )
+    return FETCH_FAILED
 
 
 @timeit
@@ -101,6 +135,21 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 continue
             else:
                 raise
+        except S3_TRANSPORT_ERRORS as error:
+            bucket["Region"] = None
+            # Suffixed with the exception class so a proxy or DNS failure is
+            # distinguishable from a plain timeout. Cardinality is bounded by the
+            # leaf classes under S3_TRANSPORT_ERRORS.
+            stat_handler.incr(
+                f"bucket_region_discovery_transport_error.{error.__class__.__name__}",
+            )
+            logger.warning(
+                "Failed to discover the region for bucket %s due to transient %s: %s. "
+                "Leaving its region unset.",
+                bucket["Name"],
+                error.__class__.__name__,
+                error,
+            )
     return buckets
 
 
@@ -130,7 +179,7 @@ def get_s3_bucket_details(
     Each value can be:
     - A dict with the configuration data
     - None indicating no configuration exists (valid state)
-    - FETCH_FAILED indicating the fetch failed and existing data should be preserved
+    - FETCH_FAILED indicating the fetch failed and the detail group should not be loaded
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
@@ -206,11 +255,8 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "policy", error)
 
 
 @timeit
@@ -226,11 +272,8 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "ACL", error)
 
 
 @timeit
@@ -246,11 +289,8 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "encryption", error)
 
 
 @timeit
@@ -266,11 +306,8 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
-        )
-        return FETCH_FAILED
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(bucket["Name"], "versioning", error)
 
 
 @timeit
@@ -289,12 +326,12 @@ def get_public_access_block(
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "public access block",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -312,12 +349,12 @@ def get_bucket_ownership_controls(
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
-            " - Could not connect to the endpoint URL",
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "ownership controls",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -333,11 +370,12 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
             return FETCH_FAILED if is_failure else None
         else:
             raise
-    except EndpointConnectionError:
-        logger.warning(
-            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
+    except S3_TRANSPORT_ERRORS as error:
+        return _handle_s3_detail_transport_error(
+            bucket["Name"],
+            "logging status",
+            error,
         )
-        return FETCH_FAILED
 
 
 @timeit
@@ -356,25 +394,23 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
     # "No configuration" errors - valid states where no config exists
     # These return (True, False) - handle but not a failure
     if "NoSuchBucketPolicy" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
+        logger.debug(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
         return (True, False)
     elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
-        logger.warning(
+        logger.debug(
             f"{error_msg} for {bucket_name} - ServerSideEncryptionConfigurationNotFoundError",
         )
         return (True, False)
     elif "NoSuchPublicAccessBlockConfiguration" in error_str:
-        logger.warning(
+        logger.debug(
             f"{error_msg} for {bucket_name} - NoSuchPublicAccessBlockConfiguration",
         )
         return (True, False)
     elif "OwnershipControlsNotFoundError" in error_str:
-        logger.warning(
-            f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError"
-        )
+        logger.debug(f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError")
         return (True, False)
 
-    # Fetch failures - should preserve existing data
+    # Fetch failures - skip loading the affected detail group for this sync.
     # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
         logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
@@ -420,11 +456,13 @@ def _load_s3_acls(
 
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
-    run_analysis_job(
-        "aws_s3acl_analysis.json",
+    run_typed_analysis_job(
+        AWS_S3ACL_ANALYSIS,
         neo4j_session,
-        {"AWS_ID": aws_account_id},
-        package="cartography.data.jobs.scoped_analysis",
+        {
+            "AWS_ID": aws_account_id,
+            "UPDATE_TAG": update_tag,
+        },
     )
 
 
@@ -454,7 +492,7 @@ def _merge_bucket_details(
     into separate data structures for each composite schema.
 
     Uses the Composite Node Pattern: returns separate lists for each property group,
-    allowing us to skip loading a group when its fetch failed (preserving existing data).
+    allowing us to skip loading a group when its fetch failed.
 
     Returns a dict with:
         - base_buckets: List of bucket dicts with base properties (always populated)
@@ -648,8 +686,7 @@ def load_s3_details(
     Merge bucket details with basic bucket data and load using composite schemas.
 
     Uses the Composite Node Pattern: each property group is loaded separately,
-    so if a fetch fails for one group, we skip loading that group and preserve
-    existing data in Neo4j.
+    so if a fetch fails for one group, we skip loading that group for this sync.
     """
     # Merge all bucket data into separate lists per property group
     merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
@@ -1095,20 +1132,34 @@ def _load_s3_notifications(
     """
     Ingest S3 bucket to SNS topic notification relationships into neo4j.
     """
-    ingest_notifications = """
-    UNWIND $notifications AS notification
-    MATCH (bucket:S3Bucket{name: notification.bucket})
-    MATCH (topic:SNSTopic{arn: notification.TopicArn})
-    MERGE (bucket)-[r:NOTIFIES]->(topic)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-    run_write_query(
-        neo4j_session,
-        ingest_notifications,
-        notifications=notifications,
-        UpdateTag=update_tag,
-    )
+    notifications_by_bucket: dict[str, list[Dict]] = {}
+    for notification in notifications:
+        notifications_by_bucket.setdefault(notification["bucket"], []).append(
+            notification,
+        )
+
+    for bucket_name, bucket_notifications in notifications_by_bucket.items():
+        load_matchlinks(
+            neo4j_session,
+            S3BucketToSNSTopicRel(),
+            bucket_notifications,
+            lastupdated=update_tag,
+            _sub_resource_label="AWSS3Bucket",
+            _sub_resource_id=bucket_name,
+        )
+
+
+def _cleanup_s3_notifications(
+    neo4j_session: neo4j.Session,
+    bucket_name: str,
+    update_tag: int,
+) -> None:
+    GraphJob.from_matchlink(
+        S3BucketToSNSTopicRel(),
+        "AWSS3Bucket",
+        bucket_name,
+        update_tag,
+    ).run(neo4j_session)
 
 
 def _transform_bucket_data(data: Dict) -> List[Dict]:
@@ -1245,6 +1296,12 @@ def cleanup_s3_buckets(
     GraphJob.from_node_schema(S3BucketSchema(), common_job_parameters).run(
         neo4j_session
     )
+    # S3BucketEncryptionSchema has no sub_resource_relationship, so this cleans up
+    # only stale (:AWSS3Bucket)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges (no node deletion),
+    # e.g. when a bucket rotates its key or disables default KMS encryption.
+    GraphJob.from_node_schema(S3BucketEncryptionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -1252,7 +1309,7 @@ def cleanup_s3_bucket_acl_and_policy(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """Clean up stale S3Acl and S3PolicyStatement nodes."""
+    """Clean up stale AWSS3Acl and AWSS3PolicyStatement nodes."""
     GraphJob.from_node_schema(S3AclSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(S3PolicyStatementSchema(), common_job_parameters).run(
         neo4j_session
@@ -1276,7 +1333,6 @@ def _sync_s3_notifications(
         "s3",
         config=get_botocore_config(max_pool_connections=BUCKET_BATCH_SIZE),
     )
-    notifications = []
 
     for bucket in bucket_data["Buckets"]:
         try:
@@ -1286,7 +1342,16 @@ def _sync_s3_notifications(
             parsed_notifications = parse_notification_configuration(
                 bucket["Name"], notification_config
             )
-            notifications.extend(parsed_notifications)
+            _load_s3_notifications(
+                neo4j_session,
+                parsed_notifications,
+                update_tag,
+            )
+            _cleanup_s3_notifications(
+                neo4j_session,
+                bucket["Name"],
+                update_tag,
+            )
             logger.debug(
                 f"Found {len(parsed_notifications)} notifications for bucket {bucket['Name']}"
             )
@@ -1295,8 +1360,21 @@ def _sync_s3_notifications(
                 f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
             )
             continue
-
-    _load_s3_notifications(neo4j_session, notifications, update_tag)
+        except S3_TRANSPORT_ERRORS as error:
+            # Reached for a bucket whose region is unreachable from this network:
+            # the request is redirected to the bucket's regional endpoint, which
+            # never answers. Without this the whole account's sync would abort.
+            stat_handler.incr(
+                f"bucket_notification_transport_error.{error.__class__.__name__}",
+            )
+            logger.warning(
+                "Failed to retrieve the notification configuration for bucket %s due to "
+                "transient %s: %s. Skipping it.",
+                bucket["Name"],
+                error.__class__.__name__,
+                error,
+            )
+            continue
 
 
 @timeit
@@ -1337,7 +1415,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="S3Bucket",
+        synced_type="AWSS3Bucket",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

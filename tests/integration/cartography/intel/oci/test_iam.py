@@ -185,15 +185,7 @@ def test_sync_group_memberships(
     )
 
     # Assert - Relationships (OCIUser)-[MEMBER_OCID_GROUP]->(OCIGroup)
-    assert check_rels(
-        neo4j_session,
-        "OCIUser",
-        "ocid",
-        "OCIGroup",
-        "ocid",
-        "MEMBER_OCID_GROUP",
-        rel_direction_right=True,
-    ) == {
+    expected_oci_group_membership = {
         (
             "ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0",
             "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
@@ -203,6 +195,31 @@ def test_sync_group_memberships(
             "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
         ),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "OCIUser",
+            "ocid",
+            "OCIGroup",
+            "ocid",
+            "MEMBER_OCID_GROUP",
+            rel_direction_right=True,
+        )
+        == expected_oci_group_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "OCIUser",
+            "ocid",
+            "OCIGroup",
+            "ocid",
+            "MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == expected_oci_group_membership
+    )
 
 
 @patch.object(iam, "get_compartment_list_data", return_value=LIST_COMPARTMENTS)
@@ -419,15 +436,7 @@ def test_sync(
     }
 
     # Assert - User-Group memberships
-    assert check_rels(
-        neo4j_session,
-        "OCIUser",
-        "ocid",
-        "OCIGroup",
-        "ocid",
-        "MEMBER_OCID_GROUP",
-        rel_direction_right=True,
-    ) == {
+    expected_oci_group_membership = {
         (
             "ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0",
             "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
@@ -437,6 +446,31 @@ def test_sync(
             "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
         ),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "OCIUser",
+            "ocid",
+            "OCIGroup",
+            "ocid",
+            "MEMBER_OCID_GROUP",
+            rel_direction_right=True,
+        )
+        == expected_oci_group_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "OCIUser",
+            "ocid",
+            "OCIGroup",
+            "ocid",
+            "MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == expected_oci_group_membership
+    )
 
     # Assert - Tenancy-Region subscriptions
     assert check_rels(

@@ -4,6 +4,7 @@ from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
 from tests.data.github.branch_protection_rules import PROTECTED_BRANCH_STRONG
+from tests.data.github.rulesets import RULESET_PRODUCTION
 
 # Dependency graph test data for unit tests
 DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
@@ -83,6 +84,8 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": True,
+        "isFork": False,
+        "parent": None,
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -131,6 +134,9 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        # Forked from a repo that is also synced.
+        "isFork": True,
+        "parent": {"url": "https://github.com/cartography-cncf/cartography"},
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -163,6 +169,9 @@ GET_REPOS: List[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        # Forked from a repo that is not synced, which is the common case for forks.
+        "isFork": True,
+        "parent": {"url": "https://github.com/some-upstream-org/cartography"},
         "owner": {
             "url": "https://github.com/simpsoncorp",
             "login": "SimpsonCorp",
@@ -187,6 +196,41 @@ GET_REPOS: List[dict[str, Any]] = [
         "branchProtectionRules": {
             "nodes": [PROTECTED_BRANCH_STRONG],
         },
+        "rulesets": {
+            "nodes": [RULESET_PRODUCTION],
+        },
+    },
+]
+
+GET_REPOS_CIRCLECI_PROVENANCE: list[dict[str, Any]] = [
+    {
+        "name": "service",
+        "nameWithOwner": "exampleorg/service",
+        "primaryLanguage": {"name": "Python"},
+        "url": "https://github.com/exampleorg/service",
+        "sshUrl": "git@github.com:exampleorg/service.git",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "description": "Example service",
+        "updatedAt": "2025-01-02T00:00:00Z",
+        "homepageUrl": "",
+        "languages": {"totalCount": 1, "nodes": [{"name": "Python"}]},
+        "defaultBranchRef": {"name": "main", "id": "branch_ref_id=="},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "isFork": False,
+        "parent": None,
+        "owner": {
+            "url": "https://github.com/exampleorg",
+            "login": "exampleorg",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "branchProtectionRules": {"nodes": []},
+        "requirements": None,
+        "setupCfg": None,
     },
 ]
 

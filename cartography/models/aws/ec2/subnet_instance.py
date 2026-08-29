@@ -1,24 +1,35 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EC2_SUBNET
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import SUBNET
 
 
 @dataclass(frozen=True)
 class EC2SubnetInstanceNodeProperties(CartographyNodeProperties):
     # arn: PropertyRef = PropertyRef('Arn', extra_index=True) TODO use arn; issue #1024
-    id: PropertyRef = PropertyRef("SubnetId")
+    id: PropertyRef = PropertyRef("SubnetId", description="same as subnetid")
     # TODO: remove subnetid once we have migrated to subnet_id
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region the subnet is installed on",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,7 +58,7 @@ class EC2SubnetToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
@@ -60,12 +71,15 @@ class EC2SubnetToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetInstanceSchema(CartographyNodeSchema):
-    """
-    EC2 Subnet as known by describe-ec2-instances
-    """
+    """Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html)."""
 
-    label: str = "EC2Subnet"
+    # Implementation note:
+    # EC2 Subnet as known by describe-ec2-instances
+
+    label: str = "AWSEC2Subnet"
     properties: EC2SubnetInstanceNodeProperties = EC2SubnetInstanceNodeProperties()
+    # DEPRECATED: legacy EC2Subnet node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_SUBNET, SUBNET])
     sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

@@ -3,15 +3,24 @@ from typing import Any
 
 import neo4j
 
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.crowdstrike.endpoints import sync_hosts
+from cartography.intel.crowdstrike.label_migrations import (
+    migrate_spotlight_vulnerability_label,
+)
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
+from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
+from cartography.models.crowdstrike.spotlight import (
+    LegacyUnscopedSpotlightVulnerabilityCleanupSchema,
+)
+from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -41,6 +50,7 @@ def start_crowdstrike_ingestion(
         config.crowdstrike_client_secret,
         config.crowdstrike_api_url,
     )
+    migrate_spotlight_vulnerability_label(neo4j_session)
     sync_hosts(
         neo4j_session,
         config.update_tag,
@@ -66,18 +76,50 @@ def start_crowdstrike_ingestion(
     )
 
 
+def _list_tenant_cids(neo4j_session: neo4j.Session) -> list[str]:
+    return [
+        str(cid)
+        for cid in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            "MATCH (t:CrowdstrikeTenant) RETURN t.id",
+        )
+    ]
+
+
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.info("Running Crowdstrike cleanup")
-    GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-
-    # Cleanup other crowdstrike assets not handled by the data model
-    run_cleanup_job(
-        "crowdstrike_import_cleanup.json",
+    # DEPRECATED: compatibility migration to backfill CrowdstrikeTenant nodes
+    # and the RESOURCE edges scoping CrowdstrikeHost / CrowdstrikeSpotlightVulnerability
+    # to them. Remove in v1.0.0.
+    run_analysis_job(
+        "crowdstrike_tenant_resource_edge_migration.json",
         neo4j_session,
         common_job_parameters,
     )
+
+    # Hosts and vulnerabilities are now scoped to a CrowdstrikeTenant; run the
+    # cleanup once per known tenant CID so stale rows are picked up regardless
+    # of which tenants the current sync touched.
+    for cid in _list_tenant_cids(neo4j_session):
+        scoped_params = {**common_job_parameters, "CID": cid}
+        GraphJob.from_node_schema(CrowdstrikeHostSchema(), scoped_params).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(SpotlightVulnerabilitySchema(), scoped_params).run(
+            neo4j_session
+        )
+
+    # CrowdstrikeFinding (CVE) is global — scoped_cleanup=False on the schema.
+    GraphJob.from_node_schema(CrowdstrikeCVESchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+    # DEPRECATED: compatibility cleanup for unscoped Spotlight data will be removed in v1.0.0.
+    GraphJob.from_node_schema(
+        LegacyUnscopedSpotlightVulnerabilityCleanupSchema(),
+        common_job_parameters,
+        iterationsize=100,
+    ).run(neo4j_session)

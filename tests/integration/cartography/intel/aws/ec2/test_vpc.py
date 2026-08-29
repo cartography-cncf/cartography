@@ -131,7 +131,7 @@ def test_sync_vpc(
 
     # Pre-create nodes that Redshift will connect to via other_relationships (OPTIONAL MATCH)
     neo4j_session.run(
-        "MERGE (:EC2SecurityGroup {id: 'my-vpc-sg'}) "
+        "MERGE (:AWSEC2SecurityGroup {id: 'my-vpc-sg'}) "
         "MERGE (:AWSPrincipal {arn: 'arn:aws:iam::1111:role/my-redshift-iam-role'}) "
         "MERGE (:AWSVpc {id: 'my_vpc'})",
     )
@@ -325,7 +325,7 @@ def test_sync_vpc(
     # Assert subnets are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2Subnet",
+        "AWSEC2Subnet",
         "subnetid",
         "AWSVpc",
         "id",
@@ -340,7 +340,7 @@ def test_sync_vpc(
     # Assert network ACLs are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2NetworkAcl",
+        "AWSEC2NetworkAcl",
         "network_acl_id",
         "AWSVpc",
         "id",
@@ -353,7 +353,7 @@ def test_sync_vpc(
     # Assert security groups are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2SecurityGroup",
+        "AWSEC2SecurityGroup",
         "id",
         "AWSVpc",
         "id",
@@ -376,7 +376,7 @@ def test_sync_vpc(
     # Assert route tables are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "EC2RouteTable",
+        "AWSEC2RouteTable",
         "route_table_id",
         "AWSVpc",
         "id",
@@ -424,7 +424,7 @@ def test_sync_vpc(
     # Assert Redshift clusters are connected to their VPCs
     assert check_rels(
         neo4j_session,
-        "RedshiftCluster",
+        "AWSRedshiftCluster",
         "id",
         "AWSVpc",
         "id",
@@ -434,7 +434,7 @@ def test_sync_vpc(
         (
             "arn:aws:redshift:us-east-1:12345:cluster:my-cluster",
             "my_vpc",
-        ),  # AWSVpc created by RedshiftCluster sync,  Redshift cluster has a special way of assigning arn
+        ),  # AWSVpc created by AWSRedshiftCluster sync,  Redshift cluster has a special way of assigning arn
     }  # it takes the region, account id, and cluster name and creates an arn -> thats why it maches this test
 
     # Assert VPC peering connections are connected to their requester CIDR blocks
@@ -467,4 +467,39 @@ def test_sync_vpc(
             "pcx-09969456d9ec69ab6",
             "vpc-0015dc961e537676a|10.0.0.0/16",
         ),  # Accepter CIDR block for VPC peering
+    }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.vpc,
+    "get_ec2_vpcs",
+    return_value=TEST_VPCS,
+)
+def test_vpc_ontology_labels(mock_get_vpcs, neo4j_session):
+    # Arrange / Act
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    sync_vpc(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: every AWSVpc carries the VirtualNetwork semantic label with
+    # normalized _ont_* properties populated.
+    assert check_nodes(
+        neo4j_session,
+        "VirtualNetwork",
+        ["_ont_name", "_ont_cidr", "_ont_region", "_ont_source"],
+    ) == {
+        ("vpc-038cf", "172.31.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0f510", "10.1.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0a1b2", "2001:db8::/32", TEST_REGION, "aws"),
+        ("vpc-05326141848d1c681", "10.0.0.0/16", TEST_REGION, "aws"),
+        ("vpc-0767", "192.168.0.0/16", TEST_REGION, "aws"),
+        ("vpc-025873e026b9e8ee6", "172.16.0.0/16", TEST_REGION, "aws"),
     }

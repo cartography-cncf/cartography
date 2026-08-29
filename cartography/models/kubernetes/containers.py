@@ -10,29 +10,160 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CONTAINER
 
 
 @dataclass(frozen=True)
 class KubernetesContainerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    image: PropertyRef = PropertyRef("image", extra_index=True)
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    id: PropertyRef = PropertyRef(
+        "uid",
+        description="Identifier for the container which is derived from the UID of pod and the name of container.",
     )
-    region: PropertyRef = PropertyRef("REGION", set_in_kwargs=True)
-    image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
-    status_image_id: PropertyRef = PropertyRef("status_image_id")
-    status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
-    status_ready: PropertyRef = PropertyRef("status_ready")
-    status_started: PropertyRef = PropertyRef("status_started")
-    status_state: PropertyRef = PropertyRef("status_state", extra_index=True)
-    memory_request: PropertyRef = PropertyRef("memory_request")
-    cpu_request: PropertyRef = PropertyRef("cpu_request")
-    memory_limit: PropertyRef = PropertyRef("memory_limit")
-    cpu_limit: PropertyRef = PropertyRef("cpu_limit")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the container in kubernetes pod."
+    )
+    image: PropertyRef = PropertyRef(
+        "image", extra_index=True, description="Docker image used in the container."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="The Kubernetes namespace where this container is deployed.",
+    )
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster where this container is deployed.",
+    )
+    region: PropertyRef = PropertyRef(
+        "REGION",
+        set_in_kwargs=True,
+        description="Cloud region associated with the Kubernetes cluster.",
+    )
+    image_pull_policy: PropertyRef = PropertyRef(
+        "image_pull_policy",
+        description="The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent).",
+    )
+    status_image_id: PropertyRef = PropertyRef(
+        "status_image_id",
+        description="Runtime-reported image identifier for the container. This may differ from the declared `image` field because the container runtime can rewrite tags or parent image indexes to digest-qualified references.",
+    )
+    status_image_sha: PropertyRef = PropertyRef(
+        "status_image_sha",
+        extra_index=True,
+        description="The SHA portion of the runtime-reported `status_image_id` when Cartography can extract it.",
+    )
+    status_ready: PropertyRef = PropertyRef(
+        "status_ready",
+        description="Specifies whether the container has passed its readiness probe.",
+    )
+    status_started: PropertyRef = PropertyRef(
+        "status_started",
+        description="Specifies whether the container has passed its startup probe.",
+    )
+    status_state: PropertyRef = PropertyRef(
+        "status_state",
+        extra_index=True,
+        description="State of the container (running, terminated, waiting).",
+    )
+    memory_request: PropertyRef = PropertyRef(
+        "memory_request",
+        description='Minimum amount of memory guaranteed to be available to the container (e.g. "128Mi", "1Gi").',
+    )
+    cpu_request: PropertyRef = PropertyRef(
+        "cpu_request",
+        description='Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1").',
+    )
+    memory_limit: PropertyRef = PropertyRef(
+        "memory_limit",
+        description='Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi").',
+    )
+    cpu_limit: PropertyRef = PropertyRef(
+        "cpu_limit",
+        description='Maximum amount of CPU the container is allowed to use (e.g. "500m", "2").',
+    )
+    resource_requests: PropertyRef = PropertyRef(
+        "resource_requests",
+        description="All container resource requests, including extended resources, stored as a JSON-encoded object.",
+    )
+    resource_limits: PropertyRef = PropertyRef(
+        "resource_limits",
+        description="All container resource limits, including extended resources, stored as a JSON-encoded object.",
+    )
+    gpu_request: PropertyRef = PropertyRef(
+        "gpu_request",
+        extra_index=True,
+        description="Total requested GPU scheduling units across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    gpu_limit: PropertyRef = PropertyRef(
+        "gpu_limit",
+        extra_index=True,
+        description="Total GPU scheduling-unit limit across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    persistent_volume_claim_read_write_ids: PropertyRef = PropertyRef(
+        "persistent_volume_claim_read_write_ids",
+        description="Identifiers of PersistentVolumeClaims with at least one read-write entry in `container.volumeMounts[]`.",
+    )
+    persistent_volume_claim_mounts: PropertyRef = PropertyRef(
+        "persistent_volume_claim_mounts",
+        description="PersistentVolumeClaim mount settings from `container.volumeMounts[]`, stored as a JSON-encoded list.",
+    )
+    persistent_volume_claim_devices: PropertyRef = PropertyRef(
+        "persistent_volume_claim_devices",
+        description="PersistentVolumeClaim raw block device settings from `container.volumeDevices[]`, stored as a JSON-encoded list.",
+    )
+    allow_privilege_escalation: PropertyRef = PropertyRef(
+        "allow_privilege_escalation",
+        description="Whether the container explicitly allows privilege escalation. Derived from `container.security_context.allow_privilege_escalation`.",
+    )
+    run_as_non_root: PropertyRef = PropertyRef(
+        "run_as_non_root",
+        description="Whether the container is configured to run as non-root. Derived from `container.security_context.run_as_non_root`.",
+    )
+    run_as_user: PropertyRef = PropertyRef(
+        "run_as_user",
+        description="Explicit UID configured for the container. Derived from `container.security_context.run_as_user`.",
+    )
+    seccomp_profile_type: PropertyRef = PropertyRef(
+        "seccomp_profile_type",
+        description="Container-level seccomp profile type when set, such as `RuntimeDefault`. Derived from `container.security_context.seccomp_profile.type`.",
+    )
+    added_capabilities: PropertyRef = PropertyRef(
+        "added_capabilities",
+        description="Linux capabilities explicitly added to the container. Derived from `container.security_context.capabilities.add`.",
+    )
+    dropped_capabilities: PropertyRef = PropertyRef(
+        "dropped_capabilities",
+        description="Linux capabilities explicitly dropped by the container. Derived from `container.security_context.capabilities.drop`.",
+    )
+    host_ports: PropertyRef = PropertyRef(
+        "host_ports",
+        description="List of host ports exposed by the container. Derived from `container.ports[].host_port`.",
+    )
+    container_ports: PropertyRef = PropertyRef(
+        "container_ports",
+        description="The ports the container *declares* in its pod spec. Derived from `container.ports[]`, stored as a JSON-encoded list of `{container_port, protocol, name}`. `containerPort` is optional in Kubernetes, so this reflects declared ports only, not necessarily every port the process listens on.",
+    )
+    container_port_numbers: PropertyRef = PropertyRef(
+        "container_port_numbers",
+        extra_index=True,
+        description="Flat, queryable list of the declared TCP/UDP `containerPort` numbers. Derived from `container.ports[].container_port`. An empty list means the container *declares* no ports; it is not proof that the container listens on nothing, since a process can bind ports it never declared.",
+    )
+    architecture_normalized: PropertyRef = PropertyRef(
+        "architecture_normalized",
+        description="Canonical CPU architecture derived from the scheduled node when available (e.g. `amd64`, `arm64`).",
+    )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the container's pod is targeted by an internet-exposed service. `False` otherwise.",
+    )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `lb`.",
+    )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -49,6 +180,8 @@ class KubernetesContainerToKubernetesPodRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
+    """Links a namespace to a container it contains."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -64,8 +197,11 @@ class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by WORKLOAD_PARENT, will be removed in v1.0.0
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesPod)
 class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
+    """Links a pod to a container it runs."""
+
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -82,6 +218,33 @@ class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToKubernetesPodWorkloadParentRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesContainer)-[:WORKLOAD_PARENT]->(:KubernetesPod)
+class KubernetesContainerToKubernetesPodWorkloadParentRel(CartographyRelSchema):
+    """Links a container to the pod it runs in."""
+
+    target_node_label: str = "KubernetesPod"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("namespace"),
+            "id": PropertyRef("pod_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "WORKLOAD_PARENT"
+    properties: KubernetesContainerToKubernetesPodWorkloadParentRelProperties = (
+        KubernetesContainerToKubernetesPodWorkloadParentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -89,6 +252,8 @@ class KubernetesContainerToKubernetesClusterRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its containers."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -107,7 +272,9 @@ class KubernetesContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesContainerToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+    """Links a container to the image it runs, hosted in Amazon ECR."""
+
+    target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("status_image_sha")}
     )
@@ -125,10 +292,7 @@ class KubernetesContainerToGitLabContainerImageRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
-    """
-    Relationship from KubernetesContainer to GitLabContainerImage.
-    Matches containers to GitLab registry images by digest (status_image_sha).
-    """
+    """Links a container to the image it runs, hosted in the GitLab registry."""
 
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -142,57 +306,95 @@ class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties(
+class KubernetesContainerToGCPArtifactRegistryImageRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
-    """
-    Matches containers to GAR image artifacts by runtime digest (status_image_sha).
-    """
+class KubernetesContainerToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """Links a container to the image it runs, hosted in Artifact Registry."""
 
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("status_image_sha")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"
-    properties: KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties = (
-        KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties()
+    properties: KubernetesContainerToGCPArtifactRegistryImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryImageRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties(
+class KubernetesContainerToGitHubContainerImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGitHubContainerImageRel(CartographyRelSchema):
+    """Links a container to the image it runs, hosted in GitHub Container Registry."""
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGitHubContainerImageRelProperties = (
+        KubernetesContainerToGitHubContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimRel(CartographyRelSchema):
+    """Links a container to a PersistentVolumeClaim mounted as a filesystem."""
+
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MOUNTS"
+    properties: KubernetesContainerToPersistentVolumeClaimRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToPersistentVolumeClaimDeviceRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
-    """
-    Matches containers to GAR platform manifests by runtime digest (status_image_sha).
-    """
+class KubernetesContainerToPersistentVolumeClaimDeviceRel(CartographyRelSchema):
+    """Links a container to a PersistentVolumeClaim exposed as a block device."""
 
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("status_image_sha")}
+        {"id": PropertyRef("persistent_volume_claim_device_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties = (
-        KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties()
+    rel_label: str = "USES_BLOCK_DEVICE"
+    properties: KubernetesContainerToPersistentVolumeClaimDeviceRelProperties = (
+        KubernetesContainerToPersistentVolumeClaimDeviceRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
+    "A container declared by a Kubernetes pod."
+
     label: str = "KubernetesContainer"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CONTAINER])
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
     sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
         KubernetesContainerToKubernetesClusterRel()
@@ -201,9 +403,12 @@ class KubernetesContainerSchema(CartographyNodeSchema):
         [
             KubernetesContainerToKubernetesNamespaceRel(),
             KubernetesContainerToKubernetesPodRel(),
+            KubernetesContainerToKubernetesPodWorkloadParentRel(),
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
-            KubernetesContainerToGCPArtifactRegistryContainerImageRel(),
-            KubernetesContainerToGCPArtifactRegistryPlatformImageRel(),
+            KubernetesContainerToGCPArtifactRegistryImageRel(),
+            KubernetesContainerToGitHubContainerImageRel(),
+            KubernetesContainerToPersistentVolumeClaimRel(),
+            KubernetesContainerToPersistentVolumeClaimDeviceRel(),
         ]
     )

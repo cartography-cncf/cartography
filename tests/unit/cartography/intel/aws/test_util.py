@@ -1,5 +1,6 @@
 import pytest
 
+from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 
@@ -67,3 +68,21 @@ def test_parse_and_validate_aws_regions():
         ValueError, match="`aws-regions` was set but no regions were specified"
     ):
         parse_and_validate_aws_regions(only_empty)
+
+
+def test_parse_and_validate_aws_account_ids():
+    assert parse_and_validate_aws_account_ids(
+        "000000000000, 111111111111",
+    ) == ["000000000000", "111111111111"]
+
+    with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
+        parse_and_validate_aws_account_ids("000000000000,not-an-account")
+
+    with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
+        parse_and_validate_aws_account_ids("12345678901")
+
+    with pytest.raises(ValueError, match="AWS account IDs must be 12-digit numbers"):
+        parse_and_validate_aws_account_ids("1234567890123")
+
+    with pytest.raises(ValueError, match="no account IDs were specified"):
+        parse_and_validate_aws_account_ids(",,")

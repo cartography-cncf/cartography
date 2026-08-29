@@ -1,0 +1,119 @@
+"""
+GitHub Container Image Tag Schema.
+
+Represents tags within a GitHub container package. Tags are pointers to
+specific container images identified by digest. Multiple tags can point to
+the same image digest (e.g., "latest" and "v1.0.0").
+"""
+
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import IMAGE_TAG
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "uri", description="Fully qualified container image tag URI."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Container image tag name."
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", extra_index=True, description="Fully qualified pullable tag URI."
+    )
+    digest: PropertyRef = PropertyRef(
+        "digest",
+        extra_index=True,
+        description="Image digest currently referenced by the tag.",
+    )
+    image_pushed_at: PropertyRef = PropertyRef(
+        "image_pushed_at",
+        description="Timestamp when GitHub reports the image was pushed.",
+    )
+    package_id: PropertyRef = PropertyRef(
+        "package_id", description="Identifier of the containing GitHub package."
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagToOrgRel(CartographyRelSchema):
+    """Scopes a GitHub resource to its organization."""
+
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org_url", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubContainerImageTagRelProperties = (
+        GitHubContainerImageTagRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagToImageRel(CartographyRelSchema):
+    """Links a GitHub container image tag to the image it identifies."""
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IMAGE"
+    properties: GitHubContainerImageTagRelProperties = (
+        GitHubContainerImageTagRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagToPackageRel(CartographyRelSchema):
+    """
+    Generic cross-registry edge from ContainerRegistry to ImageTag.
+    """
+
+    target_node_label: str = "GitHubPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("package_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "REPO_IMAGE"
+    properties: GitHubContainerImageTagRelProperties = (
+        GitHubContainerImageTagRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubContainerImageTagSchema(CartographyNodeSchema):
+    """A mutable GitHub Container Registry tag that resolves to an image digest."""
+
+    label: str = "GitHubContainerImageTag"
+    properties: GitHubContainerImageTagNodeProperties = (
+        GitHubContainerImageTagNodeProperties()
+    )
+    sub_resource_relationship: GitHubContainerImageTagToOrgRel = (
+        GitHubContainerImageTagToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitHubContainerImageTagToPackageRel(),
+            GitHubContainerImageTagToImageRel(),
+        ],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([IMAGE_TAG])

@@ -10,13 +10,16 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
 class KubernetesUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    cluster_name: PropertyRef = PropertyRef("cluster_name")
+    id: PropertyRef = PropertyRef("id", description="Identifier for the user.")
+    name: PropertyRef = PropertyRef("name", description="Name of the Kubernetes user.")
+    cluster_name: PropertyRef = PropertyRef(
+        "cluster_name", description="Name of the cluster this user belongs to."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -27,6 +30,8 @@ class KubernetesUserToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesUserToClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its users."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -54,7 +59,14 @@ class KubernetesUserToAWSUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToAWSRootPrincipalRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class KubernetesUserToOktaUserRel(CartographyRelSchema):
+    """Links an Okta user to the Kubernetes user it maps to."""
+
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("name")}
@@ -68,6 +80,8 @@ class KubernetesUserToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSRoleRel(CartographyRelSchema):
+    """Links an AWS IAM role to the Kubernetes user it maps to."""
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_role_arn")}
@@ -81,6 +95,8 @@ class KubernetesUserToAWSRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesUserToAWSUserRel(CartographyRelSchema):
+    """Links an AWS IAM user to the Kubernetes user it maps to."""
+
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_user_arn")}
@@ -93,9 +109,26 @@ class KubernetesUserToAWSUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToAWSRootPrincipalRel(CartographyRelSchema):
+    """Links an AWS account root principal to the Kubernetes user it maps to."""
+
+    target_node_label: str = "AWSRootPrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("aws_root_principal_arn")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesUserToAWSRootPrincipalRelProperties = (
+        KubernetesUserToAWSRootPrincipalRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
+    "A user identity referenced by Kubernetes RBAC."
+
     label: str = "KubernetesUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_ACCOUNT])
     properties: KubernetesUserNodeProperties = KubernetesUserNodeProperties()
     sub_resource_relationship: KubernetesUserToClusterRel = KubernetesUserToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -103,5 +136,6 @@ class KubernetesUserSchema(CartographyNodeSchema):
             KubernetesUserToOktaUserRel(),
             KubernetesUserToAWSRoleRel(),
             KubernetesUserToAWSUserRel(),
+            KubernetesUserToAWSRootPrincipalRel(),
         ]
     )

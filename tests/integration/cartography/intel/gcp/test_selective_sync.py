@@ -52,6 +52,7 @@ def test_permission_relationships_fresh_graph_no_relationships(
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        {},
     )
 
     # ASSERT - No CAN_READ relationships were created (from the YAML config's GCPBucket entry)

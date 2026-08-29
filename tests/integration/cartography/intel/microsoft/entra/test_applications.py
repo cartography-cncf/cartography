@@ -7,7 +7,9 @@ import cartography.intel.aws.identitycenter
 import cartography.intel.microsoft.entra.app_role_assignments
 import cartography.intel.microsoft.entra.applications
 import cartography.intel.microsoft.entra.service_principals
+import cartography.util
 import tests.data.aws.identitycenter
+from cartography.analysis.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
@@ -35,7 +37,7 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     """
     neo4j_session.run(
         """
-        MATCH (t:EntraTenant {id: $tenant_id})
+        MATCH (t:AzureTenant {id: $tenant_id})
         CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1', user_principal_name: 'test.user1@example.com'})
         CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
         CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
@@ -230,7 +232,7 @@ async def test_sync_entra_applications(
             neo4j_session,
             "EntraApplication",
             "id",
-            "EntraTenant",
+            "AzureTenant",
             "id",
             "RESOURCE",
             rel_direction_right=False,
@@ -388,3 +390,91 @@ async def test_sync_entra_applications(
         )
         == expected_entra_aws_sso_rels
     )
+
+    # Assert `_ont_enabled` is projected onto EntraApplication from the
+    # linked service principal (both mock SPs have account_enabled=True).
+    # The projection runs inside `sync_service_principals` so it executes
+    # even on a Microsoft-only sync, without the top-level ontology stage.
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", True),
+    }
+
+    # Simulate one app losing its service principal (e.g. the SP was deleted
+    # upstream and removed by cleanup on the next sync): drop the SP and its
+    # relationship, re-run only the projection, and confirm `_ont_enabled`
+    # is reset to NULL on the orphan app instead of keeping the stale `True`.
+    neo4j_session.run(
+        """
+        MATCH (sp:EntraServicePrincipal {display_name: 'HR Portal Service Principal'})
+        DETACH DELETE sp
+        """,
+    )
+    cartography.util.run_typed_analysis_job(
+        ENTRA_APPLICATION_PROJECTION,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+    )
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", None),
+    }
+
+    # Simulate a multi-tenant Entra graph. Two invariants must hold when
+    # running the projection scoped to TEST_TENANT_ID:
+    #
+    #   (a) Foreign-tenant SPs that link to a home-tenant app via the
+    #       `app_id`-only relationship matcher must not feed _ont_enabled
+    #       on the home-tenant app (Finance Tracker keeps True, not False).
+    #   (b) Apps owned by another tenant must not be touched at all - the
+    #       projection only operates on apps in the syncing tenant, so a
+    #       pre-existing `_ont_enabled` on a foreign-tenant app is preserved.
+    neo4j_session.run(
+        """
+        MATCH (app:EntraApplication {display_name: 'Finance Tracker'})
+        WITH app
+        CREATE (t2:AzureTenant:EntraTenant {id: 'other-tenant-id'})
+        CREATE (sp2:EntraServicePrincipal {
+            id: 'sp-foreign-finance',
+            app_id: app.app_id,
+            display_name: 'Foreign Finance SP',
+            account_enabled: false
+        })
+        CREATE (foreign_app:EntraApplication {
+            id: 'foreign-app-id',
+            app_id: 'foreign-app-app-id',
+            display_name: 'Foreign Tenant App',
+            _ont_enabled: true
+        })
+        CREATE (foreign_sp:EntraServicePrincipal {
+            id: 'sp-foreign-app',
+            app_id: 'foreign-app-app-id',
+            display_name: 'Foreign Tenant App SP',
+            account_enabled: false
+        })
+        CREATE (t2)-[:RESOURCE]->(sp2)
+        CREATE (t2)-[:RESOURCE]->(foreign_app)
+        CREATE (t2)-[:RESOURCE]->(foreign_sp)
+        CREATE (app)-[:SERVICE_PRINCIPAL]->(sp2)
+        CREATE (foreign_app)-[:SERVICE_PRINCIPAL]->(foreign_sp)
+        """,
+    )
+    cartography.util.run_typed_analysis_job(
+        ENTRA_APPLICATION_PROJECTION,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+    )
+    assert check_nodes(
+        neo4j_session, "EntraApplication", ["display_name", "_ont_enabled"]
+    ) == {
+        ("Finance Tracker", True),
+        ("HR Portal", None),
+        # Foreign-tenant app keeps its pre-existing value: the projection
+        # scoped to TEST_TENANT_ID does not touch apps owned by other
+        # tenants (would otherwise be False from foreign_sp.account_enabled).
+        ("Foreign Tenant App", True),
+    }

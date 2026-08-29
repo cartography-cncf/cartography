@@ -56,54 +56,15 @@ gcp_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
                 OntologyFieldMapping(
+                    ontology_field="memory", node_field="available_memory_mb"
+                ),
+                OntologyFieldMapping(ontology_field="timeout", node_field="timeout"),
+                OntologyFieldMapping(
                     ontology_field="deployment_type",
                     node_field="",
                     special_handling="static_value",
                     extra={"value": "code"},
                 ),
-                # memory: not available in GCPCloudFunction
-                # timeout: not available in GCPCloudFunction
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="GCPCloudRunService",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "container"},
-                ),
-                # runtime: not applicable for container-based functions
-                # memory: not available in GCPCloudRunService
-                # timeout: not available in GCPCloudRunService
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="GCPCloudRunJob",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="deployment_type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "container"},
-                ),
-                # Cloud Run Jobs always run a container image; expose it for cross-cloud queries.
-                OntologyFieldMapping(
-                    ontology_field="image", node_field="container_image"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="image_digest"
-                ),
-                # runtime: not applicable for container-based functions
-                # memory: not available in GCPCloudRunJob
-                # timeout: not available in GCPCloudRunJob
             ],
         ),
     ],
@@ -136,8 +97,179 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayServerlessFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
+                OntologyFieldMapping(
+                    ontology_field="memory", node_field="memory_limit"
+                ),
+                OntologyFieldMapping(ontology_field="timeout", node_field="timeout"),
+                # Scaleway Serverless Functions are source-code deployments.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+            ],
+        ),
+    ],
+)
+
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseEdgeFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Edge functions are Deno source deployments, never containers.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+                # runtime / memory / timeout: Not available. Supabase does not
+                # expose per-function resource limits through the Management API.
+            ],
+        ),
+    ],
+)
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Every Modal function runs from a Modal image, never from a zip of source.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "container"},
+                ),
+                # runtime: Modal does not report the interpreter version of a deployed function.
+                # memory / timeout: write-only in Modal's API (see the ModalFunction model).
+                # image / image_digest: Modal image ids are neither digests nor pull URIs.
+            ],
+        ),
+    ],
+)
+
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyFunction",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
+                OntologyFieldMapping(ontology_field="memory", node_field="memory_mb"),
+                # timeout: not on the function payload. It is a site-wide setting, carried on
+                # NetlifySite.functions_timeout.
+                # Netlify functions are always built from source; there is no container form.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+            ],
+        ),
+    ],
+)
+
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareWorkerScript",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Workers are JavaScript, TypeScript or WASM source deployments,
+                # never containers.
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
+                # runtime: every Worker runs on workerd, which says nothing about
+                # the language and does not compare to the per-provider language
+                # runtimes the other modules report. `compatibility_date` carries
+                # the runtime version instead.
+                # memory / timeout: not exposed by the Workers API.
+            ],
+        ),
+    ],
+)
+
 FUNCTIONS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
+    "supabase": supabase_mapping,
+    "modal": modal_mapping,
+    "netlify": netlify_mapping,
+    "cloudflare": cloudflare_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeFunction",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="runtime", node_field="runtime_version"
+                    ),
+                    # A Snowflake UDF is always source code; there is no
+                    # container-based deployment form.
+                    OntologyFieldMapping(
+                        ontology_field="deployment_type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "code"},
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeProcedure",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="runtime", node_field="runtime_version"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="deployment_type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "code"},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

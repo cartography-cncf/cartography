@@ -8,7 +8,10 @@ from kubernetes.client.models import V1Pod
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import format_resource_quantities
+from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
@@ -18,7 +21,26 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[str, Any]:
+def _claim_id(cluster_name: str, namespace: str, claim_name: str) -> str:
+    return f"{cluster_name}/{namespace}/{claim_name}"
+
+
+def _get_claim_name_by_volume_name(pod: V1Pod) -> dict[str, str]:
+    claims = {}
+    for volume in pod.spec.volumes or []:
+        if volume.persistent_volume_claim and volume.persistent_volume_claim.claim_name:
+            claims[volume.name] = volume.persistent_volume_claim.claim_name
+        elif volume.ephemeral:
+            claims[volume.name] = f"{pod.metadata.name}-{volume.name}"
+    return claims
+
+
+def _extract_pod_containers(
+    pod: V1Pod,
+    cluster_name: str,
+    claim_by_volume_name: dict[str, str],
+    node_arch: str | None = None,
+) -> dict[str, Any]:
     pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
@@ -30,32 +52,175 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "pod_id": pod.metadata.uid,
             "image_pull_policy": container.image_pull_policy,
             "architecture_normalized": node_arch,
+            "allow_privilege_escalation": None,
+            "run_as_non_root": None,
+            "run_as_user": None,
+            "seccomp_profile_type": None,
+            "added_capabilities": [],
+            "dropped_capabilities": [],
+            "host_ports": [],
+            "container_ports": json.dumps([]),
+            "container_port_numbers": [],
+            "persistent_volume_claim_ids": [],
+            "persistent_volume_claim_read_write_ids": [],
+            "persistent_volume_claim_mounts": "[]",
+            "persistent_volume_claim_device_ids": [],
+            "persistent_volume_claim_devices": "[]",
         }
+
+        claim_ids = set()
+        read_write_claim_ids = set()
+        mount_details = []
+        for mount in container.volume_mounts or []:
+            claim_name = claim_by_volume_name.get(mount.name)
+            if not claim_name:
+                continue
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+            claim_ids.add(claim_id)
+            if not mount.read_only:
+                read_write_claim_ids.add(claim_id)
+            mount_details.append(
+                {
+                    "claim_id": claim_id,
+                    "claim_name": claim_name,
+                    "volume_name": mount.name,
+                    "mount_path": mount.mount_path,
+                    "read_only": bool(mount.read_only),
+                    "sub_path": mount.sub_path,
+                    "sub_path_expr": mount.sub_path_expr,
+                    "mount_propagation": mount.mount_propagation,
+                    "recursive_read_only": getattr(mount, "recursive_read_only", None),
+                }
+            )
+        mount_details.sort(
+            key=lambda detail: (
+                detail["claim_id"],
+                detail["mount_path"],
+                detail["volume_name"],
+                detail["sub_path"] or "",
+                detail["sub_path_expr"] or "",
+            )
+        )
+        containers[container.name]["persistent_volume_claim_ids"] = sorted(claim_ids)
+        containers[container.name]["persistent_volume_claim_read_write_ids"] = sorted(
+            read_write_claim_ids
+        )
+        containers[container.name]["persistent_volume_claim_mounts"] = json.dumps(
+            mount_details,
+            sort_keys=True,
+        )
+
+        device_claim_ids = set()
+        device_details = []
+        for device in getattr(container, "volume_devices", None) or []:
+            claim_name = claim_by_volume_name.get(device.name)
+            if not claim_name:
+                continue
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+            device_claim_ids.add(claim_id)
+            device_details.append(
+                {
+                    "claim_id": claim_id,
+                    "claim_name": claim_name,
+                    "volume_name": device.name,
+                    "device_path": device.device_path,
+                }
+            )
+        device_details.sort(
+            key=lambda detail: (
+                detail["claim_id"],
+                detail["device_path"],
+                detail["volume_name"],
+            )
+        )
+        containers[container.name]["persistent_volume_claim_device_ids"] = sorted(
+            device_claim_ids
+        )
+        containers[container.name]["persistent_volume_claim_devices"] = json.dumps(
+            device_details,
+            sort_keys=True,
+        )
+
+        security_context = getattr(container, "security_context", None)
+        if security_context:
+            containers[container.name]["allow_privilege_escalation"] = getattr(
+                security_context, "allow_privilege_escalation", None
+            )
+            containers[container.name]["run_as_non_root"] = getattr(
+                security_context, "run_as_non_root", None
+            )
+            containers[container.name]["run_as_user"] = getattr(
+                security_context, "run_as_user", None
+            )
+
+            if getattr(security_context, "seccomp_profile", None):
+                containers[container.name]["seccomp_profile_type"] = getattr(
+                    security_context.seccomp_profile, "type", None
+                )
+
+            if getattr(security_context, "capabilities", None):
+                containers[container.name]["added_capabilities"] = sorted(
+                    security_context.capabilities.add or []
+                )
+                containers[container.name]["dropped_capabilities"] = sorted(
+                    security_context.capabilities.drop or []
+                )
+
+        ports = getattr(container, "ports", None)
+        if ports:
+            containers[container.name]["host_ports"] = sorted(
+                [port.host_port for port in ports if port.host_port is not None]
+            )
+
+            # The containerPorts a container *declares* (as opposed to the
+            # rarely-used host_ports). containerPort is optional in the pod spec,
+            # so an empty list means "declares no ports", NOT a guarantee that the
+            # container listens on nothing; a process can bind ports it never
+            # declared. Consumers should treat these as declared ports, not proof
+            # of the full listening set. Retain the full structured spec as JSON,
+            # plus a flat list of TCP/UDP port numbers for querying without parsing
+            # JSON. A protocol of None defaults to TCP per the Kubernetes API.
+            containers[container.name]["container_ports"] = json.dumps(
+                [
+                    {
+                        "container_port": port.container_port,
+                        "protocol": port.protocol,
+                        "name": port.name,
+                    }
+                    for port in ports
+                    if port.container_port is not None
+                ]
+            )
+            containers[container.name]["container_port_numbers"] = sorted(
+                {
+                    port.container_port
+                    for port in ports
+                    if port.container_port is not None
+                    and (port.protocol or "TCP") in ("TCP", "UDP")
+                }
+            )
 
         # Extract resource requests and limits
         if container.resources:
-            if container.resources.requests:
-                containers[container.name]["memory_request"] = (
-                    container.resources.requests.get("memory")
-                )
-                containers[container.name]["cpu_request"] = (
-                    container.resources.requests.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_request"] = None
-                containers[container.name]["cpu_request"] = None
-
-            if container.resources.limits:
-                containers[container.name]["memory_limit"] = (
-                    container.resources.limits.get("memory")
-                )
-                containers[container.name]["cpu_limit"] = (
-                    container.resources.limits.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_limit"] = None
-                containers[container.name]["cpu_limit"] = None
+            requests = container.resources.requests or {}
+            limits = container.resources.limits or {}
+            containers[container.name]["resource_requests"] = (
+                format_resource_quantities(requests)
+            )
+            containers[container.name]["resource_limits"] = format_resource_quantities(
+                limits
+            )
+            containers[container.name]["gpu_request"] = get_gpu_quantity(requests)
+            containers[container.name]["gpu_limit"] = get_gpu_quantity(limits)
+            containers[container.name]["memory_request"] = requests.get("memory")
+            containers[container.name]["cpu_request"] = requests.get("cpu")
+            containers[container.name]["memory_limit"] = limits.get("memory")
+            containers[container.name]["cpu_limit"] = limits.get("cpu")
         else:
+            containers[container.name]["resource_requests"] = "{}"
+            containers[container.name]["resource_limits"] = "{}"
+            containers[container.name]["gpu_request"] = None
+            containers[container.name]["gpu_limit"] = None
             containers[container.name]["memory_request"] = None
             containers[container.name]["cpu_request"] = None
             containers[container.name]["memory_limit"] = None
@@ -144,21 +309,90 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
+def _resolve_pod_workload_parent(
+    pod: V1Pod,
+    replicaset_owner_map: dict[str, str],
+    workloads_available: bool = True,
+) -> dict[str, str | None]:
+    """Resolve a pod's single surfaced WORKLOAD_PARENT and its raw ReplicaSet owner.
+
+    Exactly one of the ``_workload_parent_*`` fields is set so the pod gets one
+    WORKLOAD_PARENT edge (mirrors the ECS task -> service/cluster gating). A pod
+    owned by a ReplicaSet collapses straight to the ReplicaSet's Deployment; the
+    raw ``_owner_replicaset_id`` is kept for the OWNED_BY edge. Pods with no
+    controller (or an unrecognised / bare-ReplicaSet controller) fall back to the
+    namespace.
+
+    When ``workloads_available`` is False the workload sync was skipped (e.g. the
+    apps/batch list verbs are not granted), so no controller node exists to point
+    at. Every controller-owned pod then falls back to a namespace WORKLOAD_PARENT
+    instead of pointing at a controller id that cannot match.
+    """
+    parent: dict[str, str | None] = {
+        "_workload_parent_deployment_id": None,
+        "_workload_parent_statefulset_id": None,
+        "_workload_parent_daemonset_id": None,
+        "_workload_parent_job_id": None,
+        "_owner_replicaset_id": None,
+        "_workload_parent_namespace_name": None,
+    }
+    owner = get_controller_owner_reference(pod.metadata)
+    if owner is None or not workloads_available:
+        parent["_workload_parent_namespace_name"] = pod.metadata.namespace
+        return parent
+
+    kind, uid = owner
+    if kind == "ReplicaSet":
+        parent["_owner_replicaset_id"] = uid
+        deployment_id = replicaset_owner_map.get(uid)
+        if deployment_id:
+            parent["_workload_parent_deployment_id"] = deployment_id
+        else:
+            # Bare ReplicaSet (no Deployment owner): the ReplicaSet is not
+            # surfaced, so anchor the pod to its namespace.
+            parent["_workload_parent_namespace_name"] = pod.metadata.namespace
+    elif kind == "StatefulSet":
+        parent["_workload_parent_statefulset_id"] = uid
+    elif kind == "DaemonSet":
+        parent["_workload_parent_daemonset_id"] = uid
+    elif kind == "Job":
+        parent["_workload_parent_job_id"] = uid
+    else:
+        # Unrecognised controller kind (e.g. a CRD-managed pod): anchor to the
+        # namespace so the pod still reaches the chain.
+        parent["_workload_parent_namespace_name"] = pod.metadata.namespace
+    return parent
+
+
 def transform_pods(
     pods: list[V1Pod],
     cluster_name: str,
     node_arch_map: dict[str, str] | None = None,
+    replicaset_owner_map: dict[str, str] | None = None,
+    workloads_available: bool = True,
 ) -> list[dict[str, Any]]:
     transformed_pods = []
     arch_map = node_arch_map or {}
+    rs_owner_map = replicaset_owner_map or {}
 
     for pod in pods:
         node_arch = arch_map.get(pod.spec.node_name or "")
-        containers = _extract_pod_containers(pod, node_arch=node_arch)
+        claim_by_volume_name = _get_claim_name_by_volume_name(pod)
+        containers = _extract_pod_containers(
+            pod,
+            cluster_name,
+            claim_by_volume_name,
+            node_arch=node_arch,
+        )
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
+        workload_parent = _resolve_pod_workload_parent(
+            pod, rs_owner_map, workloads_available=workloads_available
+        )
+        persistent_volume_claim_names = sorted(set(claim_by_volume_name.values()))
         transformed_pods.append(
             {
+                **workload_parent,
                 "uid": pod.metadata.uid,
                 "name": pod.metadata.name,
                 "status_phase": pod.status.phase,
@@ -166,6 +400,31 @@ def transform_pods(
                 "deletion_timestamp": get_epoch(pod.metadata.deletion_timestamp),
                 "namespace": pod.metadata.namespace,
                 "service_account_name": service_account_name,
+                "automount_service_account_token": getattr(
+                    pod.spec, "automount_service_account_token", None
+                ),
+                "host_pid": getattr(pod.spec, "host_pid", None),
+                "host_ipc": getattr(pod.spec, "host_ipc", None),
+                "host_network": getattr(pod.spec, "host_network", None),
+                "seccomp_profile_type": (
+                    getattr(pod.spec.security_context.seccomp_profile, "type", None)
+                    if getattr(pod.spec, "security_context", None)
+                    and getattr(pod.spec.security_context, "seccomp_profile", None)
+                    else None
+                ),
+                "host_path_volume_paths": sorted(
+                    [
+                        volume.host_path.path
+                        for volume in (pod.spec.volumes or [])
+                        if getattr(volume, "host_path", None)
+                        and getattr(volume.host_path, "path", None)
+                    ]
+                ),
+                "persistent_volume_claim_names": persistent_volume_claim_names,
+                "persistent_volume_claim_ids": [
+                    _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+                    for claim_name in persistent_volume_claim_names
+                ],
                 "service_account_id": (
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),
@@ -196,12 +455,22 @@ def load_pods(
     normalized_pods = []
     for pod in pods:
         service_account_name = pod.get("service_account_name") or "default"
+        # Partition the secret ids into disjoint sets so the canonical USES_SECRET
+        # edge carries the correct mount_method even when the same secret is used
+        # both as a volume and via env (otherwise one method would overwrite the
+        # other on the single MERGEd edge). Derived here so the data is correct
+        # regardless of how the pod dict was produced.
+        volume_set = set(pod.get("secret_volume_ids") or [])
+        env_set = set(pod.get("secret_env_ids") or [])
         normalized_pods.append(
             {
                 **pod,
                 "service_account_name": service_account_name,
                 "service_account_id": pod.get("service_account_id")
                 or f"{cluster_name}/{pod['namespace']}/{service_account_name}",
+                "secret_uses_volume_only_ids": sorted(volume_set - env_set),
+                "secret_uses_env_only_ids": sorted(env_set - volume_set),
+                "secret_uses_both_ids": sorted(volume_set & env_set),
             },
         )
 
@@ -212,6 +481,12 @@ def load_pods(
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
+        # Mount method carried by the canonical USES_SECRET edges. The three
+        # source id lists are disjoint, so each (pod, secret) edge is written by
+        # exactly one loader and mount_method is never overwritten.
+        secret_mount_volume="volume",
+        secret_mount_env="env",
+        secret_mount_both="volume,env",
     )
 
 
@@ -265,10 +540,23 @@ def sync_pods(
     common_job_parameters: dict[str, Any],
     region: str | None = None,
     node_arch_map: dict[str, str] | None = None,
+    replicaset_owner_map: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
-    transformed_pods = transform_pods(pods, client.name, node_arch_map=node_arch_map)
+    # replicaset_owner_map is None when the workload sync was skipped (e.g. the
+    # apps/batch list verbs are not granted): no controller nodes were ingested,
+    # so controller-owned pods must fall back to a namespace WORKLOAD_PARENT
+    # rather than pointing at a controller id that cannot match.
+    workloads_available = replicaset_owner_map is not None
+
+    transformed_pods = transform_pods(
+        pods,
+        client.name,
+        node_arch_map=node_arch_map,
+        replicaset_owner_map=replicaset_owner_map,
+        workloads_available=workloads_available,
+    )
     load_pods(
         session=session,
         pods=transformed_pods,

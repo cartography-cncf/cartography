@@ -1,35 +1,69 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_EBS_VOLUME
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import BLOCK_STORAGE
 
 
 @dataclass(frozen=True)
 class EBSVolumeNodeProperties(CartographyNodeProperties):
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    id: PropertyRef = PropertyRef("VolumeId")
-    volumeid: PropertyRef = PropertyRef("VolumeId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the volume",
+    )
+    id: PropertyRef = PropertyRef(
+        "VolumeId", description="The ID of the EBS Volume (same as volumeid)"
+    )
+    volumeid: PropertyRef = PropertyRef(
+        "VolumeId", extra_index=True, description="The ID of the EBS Volume"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the volume."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    availabilityzone: PropertyRef = PropertyRef("AvailabilityZone")
-    createtime: PropertyRef = PropertyRef("CreateTime")
-    encrypted: PropertyRef = PropertyRef("Encrypted")
-    size: PropertyRef = PropertyRef("Size")
-    state: PropertyRef = PropertyRef("State")
-    outpostarn: PropertyRef = PropertyRef("OutpostArn")
-    snapshotid: PropertyRef = PropertyRef("SnapshotId")
-    iops: PropertyRef = PropertyRef("Iops")
-    fastrestored: PropertyRef = PropertyRef("FastRestored")
-    multiattachenabled: PropertyRef = PropertyRef("MultiAttachEnabled")
-    type: PropertyRef = PropertyRef("VolumeType")
-    kmskeyid: PropertyRef = PropertyRef("KmsKeyId")
+    availabilityzone: PropertyRef = PropertyRef(
+        "AvailabilityZone", description="The Availability Zone for the volume."
+    )
+    createtime: PropertyRef = PropertyRef(
+        "CreateTime", description="The time stamp when volume creation was initiated."
+    )
+    encrypted: PropertyRef = PropertyRef(
+        "Encrypted", description="Indicates whether the volume is encrypted."
+    )
+    size: PropertyRef = PropertyRef(
+        "Size", description="The size of the volume, in GiBs."
+    )
+    state: PropertyRef = PropertyRef("State", description="The volume state.")
+    outpostarn: PropertyRef = PropertyRef(
+        "OutpostArn", description="The Amazon Resource Name (ARN) of the Outpost."
+    )
+    snapshotid: PropertyRef = PropertyRef("SnapshotId", description="The snapshot ID.")
+    iops: PropertyRef = PropertyRef(
+        "Iops", description="The number of I/O operations per second (IOPS)."
+    )
+    fastrestored: PropertyRef = PropertyRef(
+        "FastRestored",
+        description="Indicates whether the volume was created using fast snapshot restore.",
+    )
+    multiattachenabled: PropertyRef = PropertyRef(
+        "MultiAttachEnabled",
+        description="Indicates whether Amazon EBS Multi-Attach is enabled.",
+    )
+    type: PropertyRef = PropertyRef("VolumeType", description="The volume type.")
+    kmskeyid: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="The Amazon Resource Name (ARN) of the AWS Key Management Service (AWS KMS) customer master key (CMK) that was used to protect the volume encryption key for the volume.",
+    )
 
 
 @dataclass(frozen=True)
@@ -57,7 +91,7 @@ class EBSVolumeToEC2InstanceRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
@@ -75,7 +109,7 @@ class EBSVolumeToEBSSnapshotRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EBSVolumeToEBSSnapshotRel(CartographyRelSchema):
-    target_node_label: str = "EBSSnapshot"
+    target_node_label: str = "AWSEBSSnapshot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SnapshotId")},
     )
@@ -88,12 +122,17 @@ class EBSVolumeToEBSSnapshotRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EBSVolumeSchema(CartographyNodeSchema):
-    """
-    EBS Volume properties as returned from the EBS Volume API response
-    """
+    """Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html)."""
 
-    label: str = "EBSVolume"
+    # Implementation note:
+    # EBS Volume properties as returned from the EBS Volume API response
+
+    label: str = "AWSEBSVolume"
     properties: EBSVolumeNodeProperties = EBSVolumeNodeProperties()
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_EBS_VOLUME, BLOCK_STORAGE]
+    )
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -110,21 +149,38 @@ class EBSVolumeInstanceProperties(CartographyNodeProperties):
     The EC2 instance API response includes a `deleteontermination` field and the volume id.
     """
 
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    id: PropertyRef = PropertyRef("VolumeId")
-    volumeid: PropertyRef = PropertyRef("VolumeId", extra_index=True)
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the volume",
+    )
+    id: PropertyRef = PropertyRef(
+        "VolumeId", description="The ID of the EBS Volume (same as volumeid)"
+    )
+    volumeid: PropertyRef = PropertyRef(
+        "VolumeId", extra_index=True, description="The ID of the EBS Volume"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    deleteontermination: PropertyRef = PropertyRef("DeleteOnTermination")
+    deleteontermination: PropertyRef = PropertyRef(
+        "DeleteOnTermination",
+        description="Indicates whether the volume is deleted on instance termination.",
+    )
 
 
 @dataclass(frozen=True)
 class EBSVolumeInstanceSchema(CartographyNodeSchema):
-    """
-    EBS Volume from EC2 Instance API response. This is separate from `EBSVolumeSchema` to prevent issue #1210.
-    """
+    """Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volumes.html)."""
 
-    label: str = "EBSVolume"
+    # Implementation note:
+    # EBS Volume from EC2 Instance API response. This is separate from `EBSVolumeSchema`
+    # to prevent issue #1210.
+
+    label: str = "AWSEBSVolume"
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
+    # DEPRECATED: legacy EBSVolume node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_EBS_VOLUME, BLOCK_STORAGE]
+    )
     sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

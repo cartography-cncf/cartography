@@ -24,24 +24,37 @@ class GitHubRepoPackagedFromMatchLinkProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # Match method: "provenance" (from SLSA attestation) or "dockerfile_analysis" (from command matching)
-    match_method: PropertyRef = PropertyRef("match_method")
+    match_method: PropertyRef = PropertyRef(
+        "match_method",
+        description="Method used to link the image to the repository.",
+    )
 
     # Dockerfile matching properties (only populated for dockerfile_analysis method)
-    dockerfile_path: PropertyRef = PropertyRef("dockerfile_path")
-    confidence: PropertyRef = PropertyRef("confidence")
-    matched_commands: PropertyRef = PropertyRef("matched_commands")
-    total_commands: PropertyRef = PropertyRef("total_commands")
-    command_similarity: PropertyRef = PropertyRef("command_similarity")
+    dockerfile_path: PropertyRef = PropertyRef(
+        "dockerfile_path",
+        description="Path of the Dockerfile associated with the image.",
+    )
+    confidence: PropertyRef = PropertyRef(
+        "confidence",
+        description="Confidence score for the image-to-repository match.",
+    )
+    matched_commands: PropertyRef = PropertyRef(
+        "matched_commands",
+        description="Number of image build commands matched to Dockerfile commands.",
+    )
+    total_commands: PropertyRef = PropertyRef(
+        "total_commands",
+        description="Command count used to normalize the Dockerfile comparison.",
+    )
+    command_similarity: PropertyRef = PropertyRef(
+        "command_similarity",
+        description="Similarity score between image build commands and Dockerfile commands.",
+    )
 
 
 @dataclass(frozen=True)
 class GitHubRepoProvenancePackagedFromMatchLink(CartographyRelSchema):
-    """
-    MatchLink for SLSA provenance: (Image)-[:PACKAGED_FROM]->(GitHubRepository).
-
-    Matches Image.source_uri to GitHubRepository.id using the same repo URL value.
-    No pre-query needed: just pass the repo URLs from the repos list.
-    """
+    """Links an image to the GitHub repository that produced it."""
 
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,11 +77,7 @@ class GitHubRepoProvenancePackagedFromMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRepoDockerfilePackagedFromMatchLink(CartographyRelSchema):
-    """
-    MatchLink for Dockerfile analysis: (Image)-[:PACKAGED_FROM]->(GitHubRepository).
-
-    Matches Image.digest to the specific image analyzed by the matching algorithm.
-    """
+    """Links an image to the GitHub repository that produced it."""
 
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,6 +90,29 @@ class GitHubRepoDockerfilePackagedFromMatchLink(CartographyRelSchema):
         {
             "digest": PropertyRef("image_digest"),
         }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PACKAGED_FROM"
+    properties: GitHubRepoPackagedFromMatchLinkProperties = (
+        GitHubRepoPackagedFromMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubRepoPackageOwnerPackagedFromMatchLink(CartographyRelSchema):
+    """Links an image to the GitHub repository that produced it."""
+
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("repo_url"),
+        },
+    )
+    source_node_label: str = "Image"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "digest": PropertyRef("image_digest"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PACKAGED_FROM"
@@ -105,12 +137,7 @@ class ImagePackagedByWorkflowMatchLinkProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ImagePackagedByWorkflowMatchLink(CartographyRelSchema):
-    """
-    MatchLink: (Image)-[:PACKAGED_BY]->(GitHubWorkflow).
-
-    Matches Image.invocation_uri + Image.invocation_workflow to
-    GitHubWorkflow.repo_url + GitHubWorkflow.path.
-    """
+    """Links an image to the GitHub workflow that packaged it."""
 
     target_node_label: str = "GitHubWorkflow"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

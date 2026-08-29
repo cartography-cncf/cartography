@@ -43,7 +43,7 @@ def test_load_clusters(neo4j_session):
     expected_cluster_arns = {cluster["ARN"] for cluster in clusters}
     nodes = neo4j_session.run(
         """
-        MATCH (r:ElasticacheCluster) RETURN r.arn
+        MATCH (r:AWSElasticacheCluster) RETURN r.arn
         """,
     )
     actual_cluster_arns = {n["r.arn"] for n in nodes}
@@ -53,7 +53,7 @@ def test_load_clusters(neo4j_session):
     expected_cluster_arns = {(cluster["ARN"], TEST_ACCOUNT_ID) for cluster in clusters}
     nodes = neo4j_session.run(
         """
-        MATCH (r:ElasticacheCluster)<-[:RESOURCE]-(a:AWSAccount) RETURN r.arn, a.id
+        MATCH (r:AWSElasticacheCluster)<-[:RESOURCE]-(a:AWSAccount) RETURN r.arn, a.id
         """,
     )
     actual_cluster_arns = {(n["r.arn"], n["a.id"]) for n in nodes}
@@ -69,7 +69,7 @@ def test_load_clusters(neo4j_session):
     }  # Filter out Nones.
     nodes = neo4j_session.run(
         """
-        MATCH (r:ElasticacheTopic) RETURN r.arn
+        MATCH (r:AWSElasticacheTopic) RETURN r.arn
         """,
     )
     actual_topic_arns = {n["r.arn"] for n in nodes}
@@ -102,7 +102,7 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     # Assert Elasticache clusters exist with correct properties
     # Note: id field is the ARN, cache_cluster_id is the cluster ID
     assert check_nodes(
-        neo4j_session, "ElasticacheCluster", ["id", "cache_cluster_id"]
+        neo4j_session, "AWSElasticacheCluster", ["id", "cache_cluster_id"]
     ) == {
         (
             "arn:aws:elasticache:us-east-1:123456789000:cluster:test-group-0001-001",
@@ -131,7 +131,7 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     }
 
     # Assert Elasticache topics exist
-    assert check_nodes(neo4j_session, "ElasticacheTopic", ["id", "arn"]) == {
+    assert check_nodes(neo4j_session, "AWSElasticacheTopic", ["id", "arn"]) == {
         (
             "arn:aws:sns:us-east-1:123456789000:elasticache-events",
             "arn:aws:sns:us-east-1:123456789000:elasticache-events",
@@ -141,7 +141,7 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     # Assert Elasticache clusters are connected to AWS account
     assert check_rels(
         neo4j_session,
-        "ElasticacheCluster",
+        "AWSElasticacheCluster",
         "id",
         "AWSAccount",
         "id",
@@ -177,7 +177,7 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     # Assert Elasticache topics are connected to AWS account
     assert check_rels(
         neo4j_session,
-        "ElasticacheTopic",
+        "AWSElasticacheTopic",
         "id",
         "AWSAccount",
         "id",
@@ -190,9 +190,9 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     # Assert Elasticache topics are connected to clusters (CACHE_CLUSTER relationship)
     assert check_rels(
         neo4j_session,
-        "ElasticacheTopic",
+        "AWSElasticacheTopic",
         "id",
-        "ElasticacheCluster",
+        "AWSElasticacheCluster",
         "id",
         "CACHE_CLUSTER",
         rel_direction_right=True,
@@ -222,7 +222,7 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     # Verify that clusters have the expected properties
     assert check_nodes(
         neo4j_session,
-        "ElasticacheCluster",
+        "AWSElasticacheCluster",
         ["cache_cluster_id", "engine", "cache_node_type", "cache_cluster_status"],
     ) == {
         ("test-group-0001-001", "redis", "cache.t3.medium", "available"),
@@ -234,6 +234,6 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     }
 
     # Verify that topics have the expected properties
-    assert check_nodes(neo4j_session, "ElasticacheTopic", ["id", "status"]) == {
+    assert check_nodes(neo4j_session, "AWSElasticacheTopic", ["id", "status"]) == {
         ("arn:aws:sns:us-east-1:123456789000:elasticache-events", "active"),
     }

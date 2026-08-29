@@ -12,10 +12,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import get_error_reason
-from cartography.intel.gcp.util import is_api_disabled_error
-from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.compute.instance_group import GCPInstanceGroupSchema
@@ -64,26 +62,22 @@ def _get_instance_group_members(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            reason = get_error_reason(e)
-            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+            category = classify_gcp_http_error(e)
+            if category == "transient":
                 logger.warning(
                     "Transient error listing members for instance group %s: %s; skipping.",
                     instance_group_name,
                     summarize_gcp_http_error(e),
                 )
                 return []
-            if reason in {
-                "forbidden",
-                "insufficientPermissions",
-                "IAM_PERMISSION_DENIED",
-            }:
+            if category == "forbidden":
                 logger.warning(
                     "Missing permissions listing members for instance group %s: %s; skipping members.",
                     instance_group_name,
                     summarize_gcp_http_error(e),
                 )
                 return []
-            if is_api_disabled_error(e) or is_billing_disabled_error(e):
+            if category in ("api_disabled", "billing_disabled"):
                 logger.info(
                     "Compute API unavailable for listing members of instance group %s: %s; skipping members.",
                     instance_group_name,
@@ -119,8 +113,7 @@ def get_gcp_zonal_instance_groups(
             try:
                 res = gcp_api_execute_with_retry(req)
             except HttpError as e:
-                reason = get_error_reason(e)
-                if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                if classify_gcp_http_error(e) == "transient":
                     logger.warning(
                         "Transient error listing instance groups for project %s zone %s: %s; skipping.",
                         project_id,
@@ -176,8 +169,7 @@ def get_gcp_regional_instance_groups(
             try:
                 res = gcp_api_execute_with_retry(req)
             except HttpError as e:
-                reason = get_error_reason(e)
-                if reason == "invalid":
+                if classify_gcp_http_error(e) == "invalid":
                     logger.warning(
                         "GCP: Invalid region %s for project %s; skipping instance groups sync for this region.",
                         region,

@@ -10,14 +10,34 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import DNS_RECORD
 
 
 @dataclass(frozen=True)
 class AWSDNSRecordNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    value: PropertyRef = PropertyRef("value")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="The zone id, the record `name` and the record `type` concatenated together. Not affected by the `value` normalization described below.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of this `AWSDNSRecord` node."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSDNSRecord` node."
+    )
+    value: PropertyRef = PropertyRef(
+        "value",
+        description=(
+            "If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. "
+            "For CNAME or ALIAS records, this is the target hostname or AWS resource name, "
+            "lowercased and with the trailing root dot removed. Alias targets pointing at a "
+            "load balancer additionally have Route53's `dualstack.` prefix removed, since the "
+            "ELB APIs report the same load balancer without it. Everywhere else a leading "
+            "`dualstack.` is kept, because on an ordinary CNAME or an alias to another record "
+            "in the same hosted zone it is part of a genuinely different hostname. If it is an "
+            "NS record, the `name` is used here."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,7 +82,7 @@ class AWSDNSRecordToNameServerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToNameServerRel(CartographyRelSchema):
-    target_node_label: str = "NameServer"
+    target_node_label: str = "AWSNameServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("servers", one_to_many=True),
@@ -82,7 +102,7 @@ class AWSDNSRecordToEC2InstanceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToEC2InstanceRel(CartographyRelSchema):
-    target_node_label: str = "EC2Instance"
+    target_node_label: str = "AWSEC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "publicdnsname": PropertyRef("value"),
@@ -142,7 +162,7 @@ class AWSDNSRecordToESDomainRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToESDomainRel(CartographyRelSchema):
-    target_node_label: str = "ESDomain"
+    target_node_label: str = "AWSESDomain"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "endpoint": PropertyRef("value"),
@@ -200,7 +220,7 @@ class AWSDNSRecordToElasticIPAddressRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
-    target_node_label: str = "ElasticIPAddress"
+    target_node_label: str = "AWSElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "public_ip": PropertyRef("value"),
@@ -214,9 +234,11 @@ class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
 
 
 class AWSDNSRecordSchema(CartographyNodeSchema):
+    """Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Route53/latest/APIReference/API_ResourceRecordSet.html)."""
+
     label: str = "AWSDNSRecord"
     properties: AWSDNSRecordNodeProperties = AWSDNSRecordNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
     sub_resource_relationship: AWSDNSRecordToAWSAccountRel = (
         AWSDNSRecordToAWSAccountRel()
     )

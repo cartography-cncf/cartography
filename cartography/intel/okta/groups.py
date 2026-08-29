@@ -16,6 +16,7 @@ from okta.models.user import User as OktaUser
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import is_resource_not_found_error
 from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.group import OktaGroupRoleSchema
@@ -59,9 +60,18 @@ def sync_okta_groups(
     logger.info("Syncing Okta group roles")
     try:
         for okta_group in groups:
-            group_roles += asyncio.run(
-                _get_okta_group_roles(okta_client, okta_group.id)
-            )
+            try:
+                group_roles += asyncio.run(
+                    _get_okta_group_roles(okta_client, okta_group.id)
+                )
+            except OktaApiError as exc:
+                if is_resource_not_found_error(exc):
+                    logger.warning(
+                        "Okta group %s was deleted during sync; skipping its roles",
+                        okta_group.id,
+                    )
+                    continue
+                raise
         transformed_group_roles = _transform_okta_group_roles(group_roles)
         _load_okta_group_roles(
             neo4j_session, transformed_group_roles, common_job_parameters
@@ -153,9 +163,18 @@ def _transform_okta_groups(
         )
         group_props["external_id"] = getattr(profile, "external_id", None)
         # For each group, grab what users might assigned
-        group_members: list[OktaUser] = asyncio.run(
-            _get_okta_group_members(okta_client, okta_group.id),
-        )
+        try:
+            group_members: list[OktaUser] = asyncio.run(
+                _get_okta_group_members(okta_client, okta_group.id),
+            )
+        except OktaApiError as exc:
+            if is_resource_not_found_error(exc):
+                logger.warning(
+                    "Okta group %s was deleted during sync; skipping it",
+                    okta_group.id,
+                )
+                continue
+            raise
         for group_member in group_members:
             match_user = {**group_props, "user_id": group_member.id}
             transformed_groups.append(match_user)

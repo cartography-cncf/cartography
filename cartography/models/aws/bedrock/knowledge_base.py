@@ -27,20 +27,52 @@ class AWSBedrockKnowledgeBaseNodeProperties(CartographyNodeProperties):
     Based on AWS Bedrock list_knowledge_bases and get_knowledge_base API responses.
     """
 
-    id: PropertyRef = PropertyRef("knowledgeBaseArn")
-    arn: PropertyRef = PropertyRef("knowledgeBaseArn", extra_index=True)
-    knowledge_base_id: PropertyRef = PropertyRef("knowledgeBaseId", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    role_arn: PropertyRef = PropertyRef("roleArn")
-    knowledge_base_configuration_type: PropertyRef = PropertyRef(
-        "knowledgeBaseConfiguration.type"
+    id: PropertyRef = PropertyRef(
+        "knowledgeBaseArn", description="The ARN of the knowledge base"
     )
-    storage_configuration_type: PropertyRef = PropertyRef("storageConfiguration.type")
-    status: PropertyRef = PropertyRef("status")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "knowledgeBaseArn",
+        extra_index=True,
+        description="The ARN of the knowledge base",
+    )
+    knowledge_base_id: PropertyRef = PropertyRef(
+        "knowledgeBaseId",
+        extra_index=True,
+        description="The unique identifier of the knowledge base",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The name of the knowledge base"
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the knowledge base"
+    )
+    role_arn: PropertyRef = PropertyRef(
+        "roleArn", description="The ARN of the IAM role that the knowledge base uses"
+    )
+    knowledge_base_configuration_type: PropertyRef = PropertyRef(
+        "knowledgeBaseConfiguration.type",
+        description="Type of retrieval configuration used by the knowledge base.",
+    )
+    storage_configuration_type: PropertyRef = PropertyRef(
+        "storageConfiguration.type",
+        description="Type of vector storage used by the knowledge base.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description='The status of the knowledge base (e.g., "CREATING", "ACTIVE", "DELETING")',
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="The timestamp when the knowledge base was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt",
+        description="The timestamp when the knowledge base was last updated",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the knowledge base exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -54,7 +86,7 @@ class AWSBedrockKnowledgeBaseToAWSAccountRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToAWSAccount(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockKnowledgeBase to AWSAccount.
     """
@@ -73,19 +105,19 @@ class AWSBedrockKnowledgeBaseToAWSAccount(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSBedrockKnowledgeBaseToS3BucketRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between AWSBedrockKnowledgeBase and S3Bucket.
+    Properties for the relationship between AWSBedrockKnowledgeBase and AWSS3Bucket.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToS3Bucket(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToS3BucketRel(CartographyRelSchema):
     """
-    Defines the relationship from AWSBedrockKnowledgeBase to S3Bucket.
+    Defines the relationship from AWSBedrockKnowledgeBase to AWSS3Bucket.
     """
 
-    target_node_label: str = "S3Bucket"
+    target_node_label: str = "AWSS3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("data_source_bucket_names", one_to_many=True)},
     )
@@ -106,7 +138,7 @@ class AWSBedrockKnowledgeBaseToFoundationModelRelProperties(CartographyRelProper
 
 
 @dataclass(frozen=True)
-class AWSBedrockKnowledgeBaseToFoundationModel(CartographyRelSchema):
+class AWSBedrockKnowledgeBaseToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockKnowledgeBase to AWSBedrockFoundationModel.
     """
@@ -128,21 +160,19 @@ class AWSBedrockKnowledgeBaseToFoundationModel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockKnowledgeBaseSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Knowledge Base nodes.
-    """
+    """Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html). Knowledge bases enable RAG (Retrieval Augmented Generation) by converting documents from S3 into vector embeddings for semantic search."""
 
     label: str = "AWSBedrockKnowledgeBase"
     properties: AWSBedrockKnowledgeBaseNodeProperties = (
         AWSBedrockKnowledgeBaseNodeProperties()
     )
-    sub_resource_relationship: AWSBedrockKnowledgeBaseToAWSAccount = (
-        AWSBedrockKnowledgeBaseToAWSAccount()
+    sub_resource_relationship: AWSBedrockKnowledgeBaseToAWSAccountRel = (
+        AWSBedrockKnowledgeBaseToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockKnowledgeBaseToS3Bucket(),
-            AWSBedrockKnowledgeBaseToFoundationModel(),
+            AWSBedrockKnowledgeBaseToS3BucketRel(),
+            AWSBedrockKnowledgeBaseToFoundationModelRel(),
             # TODO: Add AWSBedrockKnowledgeBaseToOpenSearchServerless() when OpenSearch nodes are available
         ],
     )

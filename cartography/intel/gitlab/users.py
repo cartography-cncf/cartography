@@ -405,7 +405,9 @@ def sync_gitlab_users(
     # Fetch organization members
     try:
         org_members = get_group_members(gitlab_url, token, organization_id)
-        logger.info(f"Fetched {len(org_members)} members from organization {org_name}")
+        logger.debug(
+            "Fetched %s members from organization %s", len(org_members), org_name
+        )
     except Exception:
         logger.warning(
             f"Failed to fetch members for organization {org_name}", exc_info=True
@@ -495,7 +497,7 @@ def sync_gitlab_users(
             )
             continue
 
-    logger.info(f"Fetched commits from {len(commits_by_project)} projects")
+    logger.debug("Fetched commits from %s projects", len(commits_by_project))
 
     # Transform and load commit activity
     if commits_by_project:

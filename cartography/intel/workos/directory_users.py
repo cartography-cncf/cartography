@@ -59,7 +59,7 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[dict[str, Any]]:
         all_users.extend(
             paginated_list(
                 client.directory_sync.list_users,
-                directory_id=directory_id,
+                directory=directory_id,
             )
         )
 

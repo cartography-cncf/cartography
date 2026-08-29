@@ -39,6 +39,17 @@ def test_sync_efs(
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # Seed the KMS key referenced by fs-abc12345 so the ENCRYPTED_BY edge can
+    # match it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:AWSKMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="abcde123-4567-8901-2345-abcdef123456",
+        key_arn="arn:aws:kms:us-west-2:123456789012:key/abcde123-4567-8901-2345-abcdef123456",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     sync(
@@ -51,17 +62,17 @@ def test_sync_efs(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "EfsMountTarget", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEfsMountTarget", ["arn"]) == {
         ("fsmt-9f8e7d6c5b4a3z2x",),
         ("fsmt-abcdef1234567890",),
     }
 
-    assert check_nodes(neo4j_session, "EfsFileSystem", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEfsFileSystem", ["arn"]) == {
         ("arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-abc12345",),
         ("arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-def67890",),
     }
 
-    assert check_nodes(neo4j_session, "EfsAccessPoint", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEfsAccessPoint", ["arn"]) == {
         (
             "arn:aws:elasticfilesystem:us-west-2:123456789012:access-point/fsap-111aaa222bbb333cc",
         ),
@@ -70,12 +81,28 @@ def test_sync_efs(
         ),
     }
 
+    # Canonical ontology edge: (:FileStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "AWSEfsFileSystem",
+        "arn",
+        "AWSKMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-abc12345",
+            "arn:aws:kms:us-west-2:123456789012:key/abcde123-4567-8901-2345-abcdef123456",
+        ),
+    }
+
     # Assert
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EfsMountTarget",
+        "AWSEfsMountTarget",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -94,7 +121,7 @@ def test_sync_efs(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EfsFileSystem",
+        "AWSEfsFileSystem",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -111,9 +138,9 @@ def test_sync_efs(
 
     assert check_rels(
         neo4j_session,
-        "EfsMountTarget",
+        "AWSEfsMountTarget",
         "arn",
-        "EfsFileSystem",
+        "AWSEfsFileSystem",
         "arn",
         "ATTACHED_TO",
         rel_direction_right=True,
@@ -132,7 +159,7 @@ def test_sync_efs(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EfsAccessPoint",
+        "AWSEfsAccessPoint",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -149,9 +176,9 @@ def test_sync_efs(
 
     assert check_rels(
         neo4j_session,
-        "EfsAccessPoint",
+        "AWSEfsAccessPoint",
         "arn",
-        "EfsFileSystem",
+        "AWSEfsFileSystem",
         "id",
         "ACCESS_POINT_OF",
         rel_direction_right=True,

@@ -4,6 +4,7 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 
 import tests.data.aws.apigateway as test_data
+from cartography.intel.aws.apigateway import get_rest_api_client_certificate
 from cartography.intel.aws.apigateway import get_rest_api_resources_methods_integrations
 from cartography.intel.aws.apigateway import parse_policy
 
@@ -65,3 +66,37 @@ def test_get_rest_api_resources_retries_on_too_many_requests(
     assert mock_paginator.paginate.call_count == 3
     mock_paginator.paginate.assert_called_with(restApiId="test-api")
     client.get_paginator.assert_called_with("get_resources")
+
+
+def test_get_rest_api_client_certificate_mixed_stages():
+    stages = [
+        {"stageName": "dev"},
+        {"stageName": "prod", "clientCertificateId": "cert-prod"},
+    ]
+    mock_client = MagicMock()
+    mock_client.get_client_certificate.return_value = {
+        "clientCertificateId": "cert-prod",
+        "description": "prod cert",
+    }
+
+    response = get_rest_api_client_certificate(stages, mock_client)
+
+    assert response is not None
+    assert response["stageName"] == "prod"
+    assert response["clientCertificateId"] == "cert-prod"
+    mock_client.get_client_certificate.assert_called_once_with(
+        clientCertificateId="cert-prod"
+    )
+
+
+def test_get_rest_api_client_certificate_no_cert_stages():
+    stages = [
+        {"stageName": "dev"},
+        {"stageName": "staging"},
+    ]
+    mock_client = MagicMock()
+
+    response = get_rest_api_client_certificate(stages, mock_client)
+
+    assert response is None
+    mock_client.get_client_certificate.assert_not_called()

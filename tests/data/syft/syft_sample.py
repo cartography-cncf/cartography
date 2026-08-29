@@ -106,8 +106,11 @@ SYFT_SAMPLE = {
         # express and lodash are roots (nothing depends on them)
     ],
     "source": {
+        "id": "sha256:source",
+        "name": "myapp",
+        "version": "latest",
         "type": "image",
-        "target": {
+        "metadata": {
             "userInput": "myapp:latest",
             "imageID": "sha256:abc123def456",
             "manifestDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",

@@ -1,18 +1,57 @@
+import json
 import logging
 from datetime import datetime
+from decimal import Decimal
+from decimal import InvalidOperation
 from typing import Any
 from typing import Callable
 
+from dateutil.parser import isoparse
 from kubernetes import config
 from kubernetes.client import ApiClient
+from kubernetes.client import AppsV1Api
+from kubernetes.client import BatchV1Api
 from kubernetes.client import CoreV1Api
+from kubernetes.client import CustomObjectsApi
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
+from kubernetes.client import StorageV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
 from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
+
+
+def format_resource_quantities(resources: dict[str, Any] | None) -> str:
+    return json.dumps(
+        {str(key): str(value) for key, value in (resources or {}).items()},
+        sort_keys=True,
+    )
+
+
+def get_gpu_quantity(resources: dict[str, Any] | None) -> int | None:
+    quantities = []
+    for key, value in (resources or {}).items():
+        resource_name = str(key)
+        is_intel_gpu = resource_name in (
+            "gpu.intel.com/i915",
+            "gpu.intel.com/xe",
+        )
+        if not (
+            resource_name.endswith("/gpu")
+            or resource_name.startswith("nvidia.com/mig-")
+            or is_intel_gpu
+        ):
+            continue
+        try:
+            quantity = Decimal(str(value))
+            if quantity != quantity.to_integral_value():
+                raise ValueError
+            quantities.append(int(quantity))
+        except (InvalidOperation, ValueError, OverflowError):
+            logger.warning("Ignoring invalid Kubernetes GPU quantity %r", value)
+    return sum(quantities) if quantities else None
 
 
 class KubernetesContextNotFound(Exception):
@@ -35,6 +74,21 @@ class K8CoreApiClient(CoreV1Api):
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8CustomObjectsApiClient(CustomObjectsApi):
     def __init__(
         self,
         name: str,
@@ -79,6 +133,51 @@ class K8RbacApiClient(RbacAuthorizationV1Api):
         super().__init__(api_client=api_client)
 
 
+class K8AppsApiClient(AppsV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8BatchApiClient(BatchV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8StorageApiClient(StorageV1Api):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
 class K8sClient:
     def __init__(
         self,
@@ -93,6 +192,10 @@ class K8sClient:
         self.networking = K8NetworkingApiClient(self.name, self.config_file)
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
+        self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
+        self.apps = K8AppsApiClient(self.name, self.config_file)
+        self.batch = K8BatchApiClient(self.name, self.config_file)
+        self.storage = K8StorageApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
@@ -111,6 +214,24 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
             ),
         )
     return clients
+
+
+def get_qualified_resource_name(namespace: str, name: str) -> str:
+    return f"{namespace}/{name}"
+
+
+def get_controller_owner_reference(metadata: Any) -> tuple[str, str] | None:
+    """Return the ``(kind, uid)`` of the controlling ownerReference, if any.
+
+    Kubernetes marks exactly one ownerReference with ``controller=true`` (the
+    object that actually manages this resource, e.g. a ReplicaSet's Deployment,
+    a Job's CronJob, or a pod's ReplicaSet/StatefulSet/DaemonSet/Job).
+    Non-controller owners are ignored.
+    """
+    for owner in getattr(metadata, "owner_references", None) or []:
+        if getattr(owner, "controller", False):
+            return owner.kind, owner.uid
+    return None
 
 
 def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
@@ -199,14 +320,35 @@ def get_epoch(date: datetime | None) -> int | None:
     return None
 
 
+def parse_rfc3339(value: str | None) -> datetime | None:
+    """
+    Parse an RFC3339 timestamp string (e.g. ``2024-01-02T03:04:05Z``) into a
+    datetime. The Kubernetes ``CustomObjectsApi`` returns metadata timestamps
+    as raw strings rather than as datetimes (unlike the typed apis), so callers
+    that need an epoch int should do ``get_epoch(parse_rfc3339(value))``.
+    """
+    if not value:
+        return None
+    return isoparse(value)
+
+
 def k8s_paginate(
     list_func: Callable,
+    raise_on_forbidden: bool = False,
+    raise_on_error: bool = False,
     **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
     Handles pagination for a Kubernetes API call.
 
     :param list_func: The list function to call (e.g. client.core.list_pod_for_all_namespaces)
+    :param raise_on_forbidden: When True, re-raise ApiException with status 401/403 so the caller
+        can handle missing permissions (used for optional RBAC verbs). Other ApiExceptions are still
+        logged and swallowed.
+    :param raise_on_error: When True, re-raise *any* ApiException (after logging) instead of
+        swallowing it and returning a partial result. Use when a partial result must not be
+        mistaken for a complete one (e.g. the workload sync, where missing controller nodes would
+        leave pods with unmatched WORKLOAD_PARENT edges and trigger a destructive cleanup).
     :param kwargs: Keyword arguments to pass to the list function (e.g. limit=100)
     :return: A list of all resources returned by the list function
     """
@@ -249,9 +391,17 @@ def k8s_paginate(
                 break
 
         except ApiException as e:
+            is_forbidden = e.status in (401, 403)
+            # 401/403 re-raise quietly so the caller can log a permission-specific
+            # message; other errors are logged here before propagating (or being
+            # swallowed when neither raise flag is set).
+            if is_forbidden and (raise_on_forbidden or raise_on_error):
+                raise
             logger.error(
                 f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
             )
+            if raise_on_error:
+                raise
             break
 
     logger.debug(

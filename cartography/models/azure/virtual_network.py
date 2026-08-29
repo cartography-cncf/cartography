@@ -4,21 +4,30 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import VIRTUAL_NETWORK
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class AzureVirtualNetworkProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the virtual network."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the virtual network.")
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the virtual network is deployed."
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the virtual network.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -29,6 +38,8 @@ class AzureVirtualNetworkToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureVirtualNetworkToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the virtual network as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -42,8 +53,11 @@ class AzureVirtualNetworkToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureVirtualNetworkSchema(CartographyNodeSchema):
+    """An isolated virtual network in Azure."""
+
     label: str = "AzureVirtualNetwork"
     properties: AzureVirtualNetworkProperties = AzureVirtualNetworkProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([VIRTUAL_NETWORK])
     sub_resource_relationship: AzureVirtualNetworkToSubscriptionRel = (
         AzureVirtualNetworkToSubscriptionRel()
     )

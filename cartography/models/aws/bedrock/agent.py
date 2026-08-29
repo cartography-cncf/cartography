@@ -20,20 +20,52 @@ class AWSBedrockAgentNodeProperties(CartographyNodeProperties):
     Based on AWS Bedrock list_agents and get_agent API responses.
     """
 
-    id: PropertyRef = PropertyRef("agentArn")
-    arn: PropertyRef = PropertyRef("agentArn", extra_index=True)
-    agent_id: PropertyRef = PropertyRef("agentId", extra_index=True)
-    agent_name: PropertyRef = PropertyRef("agentName")
-    agent_status: PropertyRef = PropertyRef("agentStatus")
-    description: PropertyRef = PropertyRef("description")
-    instruction: PropertyRef = PropertyRef("instruction")
-    foundation_model: PropertyRef = PropertyRef("foundationModel")
-    agent_resource_role_arn: PropertyRef = PropertyRef("agentResourceRoleArn")
-    idle_session_ttl_in_seconds: PropertyRef = PropertyRef("idleSessionTTLInSeconds")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    updated_at: PropertyRef = PropertyRef("updatedAt")
-    prepared_at: PropertyRef = PropertyRef("preparedAt")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("agentArn", description="The ARN of the agent")
+    arn: PropertyRef = PropertyRef(
+        "agentArn", extra_index=True, description="The ARN of the agent"
+    )
+    agent_id: PropertyRef = PropertyRef(
+        "agentId", extra_index=True, description="The unique identifier of the agent"
+    )
+    agent_name: PropertyRef = PropertyRef(
+        "agentName", description="The name of the agent"
+    )
+    agent_status: PropertyRef = PropertyRef(
+        "agentStatus",
+        description='The status of the agent (e.g., "CREATING", "PREPARED", "FAILED")',
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the agent"
+    )
+    instruction: PropertyRef = PropertyRef(
+        "instruction", description="The instructions that guide the agent's behavior"
+    )
+    foundation_model: PropertyRef = PropertyRef(
+        "foundationModel",
+        description="The ARN of the foundation or custom model the agent uses",
+    )
+    agent_resource_role_arn: PropertyRef = PropertyRef(
+        "agentResourceRoleArn",
+        description="The ARN of the IAM role that the agent assumes",
+    )
+    idle_session_ttl_in_seconds: PropertyRef = PropertyRef(
+        "idleSessionTTLInSeconds",
+        description="The time in seconds before idle sessions expire",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt", description="The timestamp when the agent was created"
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updatedAt", description="The timestamp when the agent was last updated"
+    )
+    prepared_at: PropertyRef = PropertyRef(
+        "preparedAt", description="The timestamp when the agent was last prepared"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the agent exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,7 +79,7 @@ class AWSBedrockAgentToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToAWSAccount(CartographyRelSchema):
+class AWSBedrockAgentToAWSAccountRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSAccount.)
     """
@@ -73,7 +105,7 @@ class AWSBedrockAgentToFoundationModelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToFoundationModel(CartographyRelSchema):
+class AWSBedrockAgentToFoundationModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockFoundationModel.
     Only created when the agent uses a foundation model directly (not via provisioned throughput).
@@ -100,7 +132,7 @@ class AWSBedrockAgentToCustomModelRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToCustomModel(CartographyRelSchema):
+class AWSBedrockAgentToCustomModelRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockCustomModel.
     Only created when the agent uses a custom model directly.
@@ -127,7 +159,7 @@ class AWSBedrockAgentToProvisionedThroughputRelProperties(CartographyRelProperti
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToProvisionedThroughput(CartographyRelSchema):
+class AWSBedrockAgentToProvisionedThroughputRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockProvisionedModelThroughput.
     Created when the agent uses a provisioned throughput for model inference.
@@ -154,7 +186,7 @@ class AWSBedrockAgentToKnowledgeBaseRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToKnowledgeBase(CartographyRelSchema):
+class AWSBedrockAgentToKnowledgeBaseRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockKnowledgeBase.
     """
@@ -180,7 +212,7 @@ class AWSBedrockAgentToLambdaRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToLambda(CartographyRelSchema):
+class AWSBedrockAgentToLambdaRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSLambda (existing Lambda function nodes).
     """
@@ -206,7 +238,7 @@ class AWSBedrockAgentToRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockAgentToRole(CartographyRelSchema):
+class AWSBedrockAgentToRoleRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSRole (existing IAM role nodes).
     """
@@ -232,7 +264,7 @@ class AWSBedrockGuardrailToAgentRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AWSBedrockGuardrailToAgent(CartographyRelSchema):
+class AWSBedrockGuardrailToAgentRel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockGuardrail to AWSBedrockAgent.
     """
@@ -250,23 +282,21 @@ class AWSBedrockGuardrailToAgent(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSBedrockAgentSchema(CartographyNodeSchema):
-    """
-    Schema for AWS Bedrock Agent nodes.
-    """
+    """Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html). Agents are autonomous AI assistants that can break down tasks, use tools (Lambda functions), and search knowledge bases to accomplish complex goals."""
 
     label: str = "AWSBedrockAgent"
     properties: AWSBedrockAgentNodeProperties = AWSBedrockAgentNodeProperties()
-    sub_resource_relationship: AWSBedrockAgentToAWSAccount = (
-        AWSBedrockAgentToAWSAccount()
+    sub_resource_relationship: AWSBedrockAgentToAWSAccountRel = (
+        AWSBedrockAgentToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSBedrockAgentToFoundationModel(),
-            AWSBedrockAgentToCustomModel(),
-            AWSBedrockAgentToProvisionedThroughput(),
-            AWSBedrockAgentToKnowledgeBase(),
-            AWSBedrockAgentToLambda(),
-            AWSBedrockAgentToRole(),
-            AWSBedrockGuardrailToAgent(),
+            AWSBedrockAgentToFoundationModelRel(),
+            AWSBedrockAgentToCustomModelRel(),
+            AWSBedrockAgentToProvisionedThroughputRel(),
+            AWSBedrockAgentToKnowledgeBaseRel(),
+            AWSBedrockAgentToLambdaRel(),
+            AWSBedrockAgentToRoleRel(),
+            AWSBedrockGuardrailToAgentRel(),
         ],
     )

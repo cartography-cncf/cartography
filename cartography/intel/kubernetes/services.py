@@ -10,6 +10,7 @@ from kubernetes.client.models import V1Service
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.services import KubernetesServiceSchema
@@ -34,6 +35,9 @@ def _extract_load_balancer_dns_names(
     """
     Extract DNS hostnames from load balancer ingress entries.
     These can be used to match Kubernetes Services to AWS LoadBalancerV2 nodes.
+
+    Lowercased to match AWSLoadBalancerV2.dnsname, which is also lowercased at ingestion:
+    the in-cluster controller copies the ELB DNSName verbatim, so it can be mixed case.
     """
     if ingress is None:
         return []
@@ -41,7 +45,7 @@ def _extract_load_balancer_dns_names(
     dns_names = []
     for item in ingress:
         if item.hostname:
-            dns_names.append(item.hostname)
+            dns_names.append(item.hostname.lower())
     return dns_names
 
 
@@ -57,9 +61,9 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
         for port in ports:
             ingress_ports.append(
                 {
-                    "error": port.port,
-                    "port": port.protocol,
-                    "protocol": port.ip,
+                    "error": port.error,
+                    "port": port.port,
+                    "protocol": port.protocol,
                 }
             )
         return ingress_ports
@@ -91,6 +95,9 @@ def transform_services(
             "creation_timestamp": get_epoch(service.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(service.metadata.deletion_timestamp),
             "namespace": service.metadata.namespace,
+            "qualified_name": get_qualified_resource_name(
+                service.metadata.namespace, service.metadata.name
+            ),
             "type": service.spec.type,
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,

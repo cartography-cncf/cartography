@@ -24,6 +24,13 @@ KUBERNETES_CONTAINER_DATA = [
         "cpu_request": "100m",
         "memory_limit": "256Mi",
         "cpu_limit": "500m",
+        "host_ports": [],
+        "container_ports": json.dumps(
+            [
+                {"container_port": 8080, "protocol": "TCP", "name": "http"},
+            ]
+        ),
+        "container_port_numbers": [8080],
     },
     {
         "name": "my-service-pod-container",
@@ -41,6 +48,9 @@ KUBERNETES_CONTAINER_DATA = [
         "cpu_request": "50m",
         "memory_limit": "128Mi",
         "cpu_limit": "200m",
+        "host_ports": [],
+        "container_ports": json.dumps([]),
+        "container_port_numbers": [],
     },
 ]
 
@@ -53,6 +63,10 @@ KUBERNETES_PODS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        # Bare pod (no controller): its surfaced workload parent is the namespace.
+        "_workload_parent_namespace_name": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1][
+            "name"
+        ],
         "service_account_name": "default",
         "service_account_id": (
             f"{KUBERNETES_CLUSTER_NAMES[0]}/"
@@ -81,6 +95,10 @@ KUBERNETES_PODS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        # Bare pod (no controller): its surfaced workload parent is the namespace.
+        "_workload_parent_namespace_name": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1][
+            "name"
+        ],
         "service_account_name": "workload-sa",
         "service_account_id": (
             f"{KUBERNETES_CLUSTER_NAMES[0]}/"

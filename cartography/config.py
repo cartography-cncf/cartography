@@ -1,3 +1,71 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_microsoft_credentials_config(
+    *,
+    microsoft_tenant_id: str | None,
+    microsoft_client_id: str | None,
+    microsoft_client_secret: str | None,
+    entra_tenant_id: str | None,
+    entra_client_id: str | None,
+    entra_client_secret: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    microsoft_values = (
+        microsoft_tenant_id,
+        microsoft_client_id,
+        microsoft_client_secret,
+    )
+    entra_values = (entra_tenant_id, entra_client_id, entra_client_secret)
+
+    has_microsoft_values = any(value is not None for value in microsoft_values)
+    has_entra_values = any(value is not None for value in entra_values)
+    if has_microsoft_values and has_entra_values:
+        raise ValueError(
+            "Cannot mix Microsoft credential config fields "
+            "(`microsoft_tenant_id`, `microsoft_client_id`, "
+            "`microsoft_client_secret`) with deprecated Entra credential "
+            "config fields (`entra_tenant_id`, `entra_client_id`, "
+            "`entra_client_secret`). Use the Microsoft fields instead.",
+        )
+
+    if has_entra_values:
+        logger.warning(
+            "DEPRECATED: `entra_tenant_id`/`entra_client_id`/"
+            "`entra_client_secret` will be removed in Cartography v1.0.0; "
+            "use `microsoft_tenant_id`/`microsoft_client_id`/"
+            "`microsoft_client_secret` instead.",
+        )
+        return entra_values
+
+    return microsoft_values
+
+
+def _resolve_report_source_config(
+    *,
+    module: str,
+    source: str | None,
+    local_path: str | None,
+    s3_bucket: str | None,
+    s3_prefix: str | None,
+    warn_on_legacy: bool = True,
+) -> str | None:
+    from cartography.intel.common.report_source import LegacyReportSourceNames
+    from cartography.intel.common.report_source import (
+        resolve_report_source_with_legacy_fields,
+    )
+
+    return resolve_report_source_with_legacy_fields(
+        source=source,
+        local_path=local_path,
+        s3_bucket=s3_bucket,
+        s3_prefix=s3_prefix,
+        names=LegacyReportSourceNames.for_config(module),
+        warn_on_legacy=warn_on_legacy,
+    )
+
+
 class Config:
     """
     A common interface for cartography configuration.
@@ -46,6 +114,9 @@ class Config:
         False (default), AWS sync will run using the default credentials only. Optional.
     :type aws_regions: str
     :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
+    :type aws_organization_account_ids: str
+    :param aws_organization_account_ids: Comma-separated list of AWS account IDs to use for AWS Organizations
+        hierarchy sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -65,12 +136,21 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type azure_subscription_id: str | None
     :param azure_subscription_id: The Azure Subscription ID to sync.
+    :type microsoft_tenant_id: str
+    :param microsoft_tenant_id: Tenant Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_id: str
+    :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_secret: str
+    :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type entra_tenant_id: str
-    :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
-    :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_id: DEPRECATED compatibility alias for microsoft_client_id. Optional.
     :type entra_client_secret: str
-    :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :param entra_client_secret: DEPRECATED compatibility alias for microsoft_client_secret. Optional.
+        Entra compatibility fields are resolved only when ``Config`` is constructed;
+        assigning to an ``entra_*`` attribute later does not update the canonical
+        ``microsoft_*`` attribute used by ingestion.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -82,6 +162,10 @@ class Config:
     :type aws_tagging_api_cleanup_batch: int
     :param aws_tagging_api_cleanup_batch: Batch size for Resource Groups Tagging API cleanup. Controls how many
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
+    :type aws_ssm_public_parameter_prefix_allowlist: str
+    :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
+        prefixes to ingest (for example /aws/service/bottlerocket/). Defaults to the Bottlerocket and EKS optimized
+        AMI public namespaces when unset. Set to an empty string to disable public SSM parameter ingestion. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -106,6 +190,12 @@ class Config:
     :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
+    :type gcp_excluded_org_ids: list[str]
+    :param gcp_excluded_org_ids: List of GCP organization IDs to exclude from ingestion. Optional.
+    :type gcp_excluded_folder_ids: list[str]
+    :param gcp_excluded_folder_ids: List of GCP folder IDs to exclude from ingestion (entire subtree is skipped). Optional.
+    :type gcp_exclude_org_root_projects: bool
+    :param gcp_exclude_org_root_projects: If True, projects attached directly to the organization root are excluded. Defaults to False. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.jamfcloud.com. Optional.
     :type jamf_user: string
@@ -118,6 +208,18 @@ class Config:
     :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
     :type kandji_token: string
     :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
+    :type miradore_base_uri: string
+    :param miradore_base_uri: Miradore base URI, e.g. https://online.miradore.com. Optional.
+    :type miradore_site_name: string
+    :param miradore_site_name: Miradore site name, which identifies the tenant. Optional.
+    :type miradore_api_key: string
+    :param miradore_api_key: Authentication key used to authenticate to the Miradore API. Optional.
+    :type huntress_base_uri: string
+    :param huntress_base_uri: Huntress API base URI, e.g. https://api.huntress.io. Optional.
+    :type huntress_api_key: string
+    :param huntress_api_key: Huntress account API key, used as the basic auth user. Optional.
+    :type huntress_api_secret: string
+    :param huntress_api_secret: Huntress API secret key, used as the basic auth password. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -188,12 +290,55 @@ class Config:
     :param tailscale_org: Tailscale organization name. Optional.
     :type tailscale_base_url: str
     :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type tailscale_oauth_client_id: str
+    :param tailscale_oauth_client_id: Tailscale OAuth client ID. When set with
+        ``tailscale_oauth_client_secret``, exchanged for a short-lived bearer
+        token at sync time. Optional.
+    :type tailscale_oauth_client_secret: str
+    :param tailscale_oauth_client_secret: Tailscale OAuth client secret.
+        Optional.
     :type vercel_token: str
     :param vercel_token: Vercel API token. Optional.
     :type vercel_team_id: str
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type supabase_access_token: str
+    :param supabase_access_token: Supabase personal access token used against the
+        Management API. Optional.
+    :type supabase_organizations: str
+    :param supabase_organizations: Comma-separated list of Supabase organization
+        slugs to restrict the sync to. When unset, every organization the token can
+        see is synced. Optional.
+    :type supabase_base_url: str
+    :param supabase_base_url: Supabase Management API base URL. Optional.
+    :type railway_token: str
+    :param railway_token: Railway account or workspace API token. Optional.
+    :type railway_workspace_id: str
+    :param railway_workspace_id: Railway workspace ID to sync. If unset, every workspace
+        visible to the token is synced. Optional.
+    :type railway_base_url: str
+    :param railway_base_url: Railway GraphQL API base URL. Optional.
+    :type netlify_token: str
+    :param netlify_token: Netlify personal access token. Optional.
+    :type netlify_account_slug: str
+    :param netlify_account_slug: Netlify team slug to sync. Optional.
+    :type netlify_base_url: str
+    :param netlify_base_url: Netlify API base URL. Optional.
+    :type circleci_token: str
+    :param circleci_token: CircleCI personal API token. Optional.
+    :type circleci_base_url: str
+    :param circleci_base_url: CircleCI API v2 base URL. Optional.
+    :type circleci_project_slugs: list
+    :param circleci_project_slugs: CircleCI project slugs to sync (project-scoped
+        resources cannot be enumerated via API v2). Optional.
+    :type modal_token_id: str
+    :param modal_token_id: Modal API token id (ak-...). Optional.
+    :type modal_token_secret: str
+    :param modal_token_secret: Modal API token secret (as-...). Optional.
+    :type modal_environments: list
+    :param modal_environments: Modal environment names whose contents should be synced.
+        Defaults to every environment in the workspace. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -210,14 +355,53 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type databricks_workspace_url: str
+    :param databricks_workspace_url: Databricks workspace URL, e.g. https://dbc-xxxx.cloud.databricks.com. Optional.
+    :type databricks_token: str
+    :param databricks_token: Databricks personal access token (PAT). Optional.
+    :type databricks_client_id: str
+    :param databricks_client_id: Databricks OAuth M2M client ID. Optional.
+    :type databricks_client_secret: str
+    :param databricks_client_secret: Databricks OAuth M2M client secret. Optional.
+    :type databricks_account_id: str
+    :param databricks_account_id: Databricks account ID (AWS / GCP account console). Optional.
+    :type databricks_account_host: str
+    :param databricks_account_host: Databricks account API host, e.g. https://accounts.cloud.databricks.com. Optional.
+    :type databricks_account_client_id: str
+    :param databricks_account_client_id: Databricks account-level OAuth M2M client ID. Optional.
+    :type databricks_account_client_secret: str
+    :param databricks_account_client_secret: Databricks account-level OAuth M2M client secret. Optional.
+    :type snowflake_account: str
+    :param snowflake_account: Snowflake account identifier, e.g. MYORG-MYACCOUNT or MYORG.MYACCOUNT. Optional.
+    :type snowflake_user: str
+    :param snowflake_user: Snowflake user Cartography authenticates as. Optional.
+    :type snowflake_pat: str
+    :param snowflake_pat: Snowflake programmatic access token (PAT). Optional.
+    :type snowflake_private_key: str
+    :param snowflake_private_key: PEM-encoded RSA private key for key-pair (JWT) authentication. Optional.
+    :type snowflake_private_key_passphrase: str
+    :param snowflake_private_key_passphrase: Passphrase protecting the Snowflake private key. Optional.
+    :type snowflake_role: str
+    :param snowflake_role: Snowflake role used for SQL API statements. Optional.
+    :type snowflake_warehouse: str
+    :param snowflake_warehouse: Snowflake warehouse used to run SQL API statements. Optional.
+    :type snowflake_databases: str
+    :param snowflake_databases: Comma-separated list of Snowflake databases to sync. If unset, every
+        readable database is synced. Optional.
     :type docker_scout_results_dir: str
     :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
+    :type docker_scout_source: str
+    :param docker_scout_source: Report source locator for Docker Scout reports. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type docker_scout_s3_bucket: str
     :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_s3_prefix: str
     :param docker_scout_s3_prefix: S3 prefix path for Docker Scout recommendation text reports. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_source: str
+    :param trivy_source: Report source locator for Trivy results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     :type ontology_users_source: str
@@ -241,6 +425,20 @@ class Config:
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type sentinelone_site_ids: list[str]
     :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
+    :type wiz_graphql_url: str
+    :param wiz_graphql_url: Wiz GraphQL API endpoint. Optional.
+    :type wiz_auth_url: str
+    :param wiz_auth_url: Wiz OAuth token endpoint. Optional.
+    :type wiz_client_id: str
+    :param wiz_client_id: Wiz API client ID. Optional.
+    :type wiz_client_secret: str
+    :param wiz_client_secret: Wiz API client secret. Optional.
+    :type wiz_tenant_id: str
+    :param wiz_tenant_id: Identifier used to scope Wiz nodes. Optional.
+    :type wiz_project_ids: list[str]
+    :param wiz_project_ids: List of Wiz project IDs to import. Optional.
+    :type wiz_lookback_days: int | None
+    :param wiz_lookback_days: Number of days of Wiz updates to fetch without cleanup. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -263,6 +461,16 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type salesforce_login_url: str
+    :param salesforce_login_url: Salesforce OAuth login URL (e.g. https://login.salesforce.com or a My Domain URL). Optional.
+    :type salesforce_client_id: str
+    :param salesforce_client_id: Salesforce connected app consumer key. Optional.
+    :type salesforce_client_secret: str
+    :param salesforce_client_secret: Salesforce connected app consumer secret, for the client credentials flow. Optional.
+    :type salesforce_username: str
+    :param salesforce_username: Salesforce username to impersonate, for the JWT bearer flow. Optional.
+    :type salesforce_private_key: str
+    :param salesforce_private_key: PEM-encoded private key, for the JWT bearer flow. Optional.
     :type slack_token: str
     :param slack_token: Slack API token. Optional.
     :type slack_teams: list[str]
@@ -271,6 +479,9 @@ class Config:
     :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
     :type syft_results_dir: str
     :param syft_results_dir: Local directory containing Syft JSON results. Optional.
+    :type syft_source: str
+    :param syft_source: Report source locator for Syft results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type syft_s3_bucket: str
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
@@ -287,10 +498,20 @@ class Config:
     :param sentry_host: Sentry host URL, defaults to https://sentry.io. Optional.
     :type aibom_results_dir: str
     :param aibom_results_dir: Local directory containing AIBOM JSON results. Optional.
+    :type aibom_source: str
+    :param aibom_source: Report source locator for AIBOM results. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
     :type aibom_s3_bucket: str
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type bbot_source: str
+    :param bbot_source: Report source locator for BBOT JSON event streams. Accepts local paths,
+        s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix. Optional.
+    :type zizmor_source: str
+    :param zizmor_source: Report source locator for the Zizmor repository mapping file.
+        Accepts a local file, s3://bucket/key, gs://bucket/object, or
+        azblob://account/container/blob. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -313,6 +534,7 @@ class Config:
         aws_cloudtrail_management_events_lookback_hours=None,
         experimental_aws_inspector_batch=1000,
         aws_tagging_api_cleanup_batch=1000,
+        aws_ssm_public_parameter_prefix_allowlist=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -343,6 +565,12 @@ class Config:
         kandji_base_uri=None,
         kandji_tenant_id=None,
         kandji_token=None,
+        miradore_base_uri=None,
+        miradore_site_name=None,
+        miradore_api_key=None,
+        huntress_base_uri=None,
+        huntress_api_key=None,
+        huntress_api_secret=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
         statsd_enabled=False,
@@ -354,6 +582,8 @@ class Config:
         nist_cve_url=None,
         cve_enabled=False,
         cve_api_key: str | None = None,
+        cve_metadata_src: list[str] | None = None,
+        cve_metadata_nist_api_key: str | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -378,15 +608,30 @@ class Config:
         gitlab_commits_since_days=90,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
+        semgrep_oss_source=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
         tailscale_token=None,
         tailscale_org=None,
         tailscale_base_url=None,
+        tailscale_oauth_client_id=None,
+        tailscale_oauth_client_secret=None,
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        supabase_access_token=None,
+        supabase_organizations=None,
+        supabase_base_url=None,
+        railway_token=None,
+        railway_workspace_id=None,
+        railway_base_url=None,
+        circleci_token=None,
+        circleci_base_url=None,
+        circleci_project_slugs=None,
+        modal_token_id=None,
+        modal_token_secret=None,
+        modal_environments=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -398,9 +643,19 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        databricks_workspace_url=None,
+        databricks_token=None,
+        databricks_client_id=None,
+        databricks_client_secret=None,
+        databricks_account_id=None,
+        databricks_account_host=None,
+        databricks_account_client_id=None,
+        databricks_account_client_secret=None,
+        docker_scout_source=None,
         docker_scout_results_dir=None,
         docker_scout_s3_bucket=None,
         docker_scout_s3_prefix=None,
+        trivy_source=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
@@ -413,6 +668,18 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
         sentinelone_site_ids=None,
+        wiz_graphql_url=None,
+        wiz_auth_url="https://auth.app.wiz.io/oauth/token",
+        wiz_client_id=None,
+        wiz_client_secret=None,
+        wiz_tenant_id=None,
+        wiz_project_ids=None,
+        wiz_lookback_days=None,
+        tenable_url=None,
+        tenable_tenant_id=None,
+        tenable_access_key=None,
+        tenable_secret_key=None,
+        tenable_findings_lookback_days=180,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -424,9 +691,15 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        salesforce_login_url="https://login.salesforce.com",
+        salesforce_client_id=None,
+        salesforce_client_secret=None,
+        salesforce_username=None,
+        salesforce_private_key=None,
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
+        syft_source=None,
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
@@ -435,9 +708,11 @@ class Config:
         sentry_token=None,
         sentry_org=None,
         sentry_host="https://sentry.io",
+        aibom_source=None,
         aibom_results_dir=None,
         aibom_s3_bucket=None,
         aibom_s3_prefix=None,
+        zizmor_source=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
@@ -448,6 +723,26 @@ class Config:
         neo4j_max_transaction_retry_time=None,
         neo4j_max_connection_pool_size=None,
         neo4j_connection_acquisition_timeout=None,
+        _warn_on_legacy_report_source=True,
+        aws_organization_account_ids=None,
+        microsoft_tenant_id=None,
+        microsoft_client_id=None,
+        microsoft_client_secret=None,
+        netlify_token=None,
+        netlify_account_slug=None,
+        netlify_base_url=None,
+        bbot_source=None,
+        snowflake_account=None,
+        snowflake_user=None,
+        snowflake_pat=None,
+        snowflake_private_key=None,
+        snowflake_private_key_passphrase=None,
+        snowflake_role=None,
+        snowflake_warehouse=None,
+        snowflake_databases=None,
+        gcp_excluded_org_ids=None,
+        gcp_excluded_folder_ids=None,
+        gcp_exclude_org_root_projects=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -464,21 +759,40 @@ class Config:
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
         self.aws_regions = aws_regions
+        self.aws_organization_account_ids = aws_organization_account_ids
         self.aws_best_effort_mode = aws_best_effort_mode
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
         self.experimental_aws_inspector_batch = experimental_aws_inspector_batch
         self.aws_tagging_api_cleanup_batch = aws_tagging_api_cleanup_batch
+        self.aws_ssm_public_parameter_prefix_allowlist = (
+            aws_ssm_public_parameter_prefix_allowlist
+        )
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
-        self.entra_tenant_id = entra_tenant_id
-        self.entra_client_id = entra_client_id
-        self.entra_client_secret = entra_client_secret
+        (
+            self.microsoft_tenant_id,
+            self.microsoft_client_id,
+            self.microsoft_client_secret,
+        ) = _resolve_microsoft_credentials_config(
+            microsoft_tenant_id=microsoft_tenant_id,
+            microsoft_client_id=microsoft_client_id,
+            microsoft_client_secret=microsoft_client_secret,
+            entra_tenant_id=entra_tenant_id,
+            entra_client_id=entra_client_id,
+            entra_client_secret=entra_client_secret,
+        )
+        # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
+        # config names. Later assignments do not propagate to microsoft_*.
+        # Remove in v1.0.0.
+        self.entra_tenant_id = self.microsoft_tenant_id
+        self.entra_client_id = self.microsoft_client_id
+        self.entra_client_secret = self.microsoft_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
@@ -494,12 +808,25 @@ class Config:
         self.azure_permission_relationships_file = azure_permission_relationships_file
         self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
+        self.gcp_excluded_org_ids = (
+            set(gcp_excluded_org_ids) if gcp_excluded_org_ids else set()
+        )
+        self.gcp_excluded_folder_ids = (
+            set(gcp_excluded_folder_ids) if gcp_excluded_folder_ids else set()
+        )
+        self.gcp_exclude_org_root_projects = gcp_exclude_org_root_projects
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
         self.kandji_base_uri = kandji_base_uri
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
+        self.miradore_base_uri = miradore_base_uri
+        self.miradore_site_name = miradore_site_name
+        self.miradore_api_key = miradore_api_key
+        self.huntress_base_uri = huntress_base_uri
+        self.huntress_api_key = huntress_api_key
+        self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
@@ -511,6 +838,8 @@ class Config:
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
         self.cve_api_key: str | None = cve_api_key
+        self.cve_metadata_src: list[str] | None = cve_metadata_src
+        self.cve_metadata_nist_api_key: str | None = cve_metadata_nist_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
@@ -535,15 +864,33 @@ class Config:
         self.gitlab_commits_since_days = gitlab_commits_since_days
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
+        self.semgrep_oss_source = semgrep_oss_source
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
         self.tailscale_token = tailscale_token
         self.tailscale_org = tailscale_org
         self.tailscale_base_url = tailscale_base_url
+        self.tailscale_oauth_client_id = tailscale_oauth_client_id
+        self.tailscale_oauth_client_secret = tailscale_oauth_client_secret
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.supabase_access_token = supabase_access_token
+        self.supabase_organizations = supabase_organizations
+        self.supabase_base_url = supabase_base_url
+        self.railway_token = railway_token
+        self.railway_workspace_id = railway_workspace_id
+        self.railway_base_url = railway_base_url
+        self.netlify_token = netlify_token
+        self.netlify_account_slug = netlify_account_slug
+        self.netlify_base_url = netlify_base_url
+        self.circleci_token = circleci_token
+        self.circleci_base_url = circleci_base_url
+        self.circleci_project_slugs = circleci_project_slugs
+        self.modal_token_id = modal_token_id
+        self.modal_token_secret = modal_token_secret
+        self.modal_environments = modal_environments
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
@@ -555,9 +902,42 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.databricks_workspace_url = databricks_workspace_url
+        self.databricks_token = databricks_token
+        self.databricks_client_id = databricks_client_id
+        self.databricks_client_secret = databricks_client_secret
+        self.databricks_account_id = databricks_account_id
+        self.databricks_account_host = databricks_account_host
+        self.databricks_account_client_id = databricks_account_client_id
+        self.databricks_account_client_secret = databricks_account_client_secret
+        self.bbot_source = _resolve_report_source_config(
+            module="bbot",
+            source=bbot_source,
+            local_path=None,
+            s3_bucket=None,
+            s3_prefix=None,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
+        # DEPRECATED: `*_results_dir` and `*_s3_*` compat shims; removed in Cartography v1.0.0.
+        self.docker_scout_source = _resolve_report_source_config(
+            module="docker_scout",
+            source=docker_scout_source,
+            local_path=docker_scout_results_dir,
+            s3_bucket=docker_scout_s3_bucket,
+            s3_prefix=docker_scout_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.docker_scout_results_dir = docker_scout_results_dir
         self.docker_scout_s3_bucket = docker_scout_s3_bucket
         self.docker_scout_s3_prefix = docker_scout_s3_prefix
+        self.trivy_source = _resolve_report_source_config(
+            module="trivy",
+            source=trivy_source,
+            local_path=trivy_results_dir,
+            s3_bucket=trivy_s3_bucket,
+            s3_prefix=trivy_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
@@ -570,6 +950,18 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
         self.sentinelone_site_ids = sentinelone_site_ids
+        self.wiz_graphql_url = wiz_graphql_url
+        self.wiz_auth_url = wiz_auth_url
+        self.wiz_client_id = wiz_client_id
+        self.wiz_client_secret = wiz_client_secret
+        self.wiz_tenant_id = wiz_tenant_id
+        self.wiz_project_ids = wiz_project_ids
+        self.wiz_lookback_days = wiz_lookback_days
+        self.tenable_url = tenable_url
+        self.tenable_tenant_id = tenable_tenant_id
+        self.tenable_access_key = tenable_access_key
+        self.tenable_secret_key = tenable_secret_key
+        self.tenable_findings_lookback_days = tenable_findings_lookback_days
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id
@@ -581,9 +973,22 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.salesforce_login_url = salesforce_login_url
+        self.salesforce_client_id = salesforce_client_id
+        self.salesforce_client_secret = salesforce_client_secret
+        self.salesforce_username = salesforce_username
+        self.salesforce_private_key = salesforce_private_key
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
+        self.syft_source = _resolve_report_source_config(
+            module="syft",
+            source=syft_source,
+            local_path=syft_results_dir,
+            s3_bucket=syft_s3_bucket,
+            s3_prefix=syft_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
@@ -592,11 +997,28 @@ class Config:
         self.sentry_token = sentry_token
         self.sentry_org = sentry_org
         self.sentry_host = sentry_host
+        self.aibom_source = _resolve_report_source_config(
+            module="aibom",
+            source=aibom_source,
+            local_path=aibom_results_dir,
+            s3_bucket=aibom_s3_bucket,
+            s3_prefix=aibom_s3_prefix,
+            warn_on_legacy=_warn_on_legacy_report_source,
+        )
         self.aibom_results_dir = aibom_results_dir
         self.aibom_s3_bucket = aibom_s3_bucket
         self.aibom_s3_prefix = aibom_s3_prefix
+        self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
+        self.snowflake_account = snowflake_account
+        self.snowflake_user = snowflake_user
+        self.snowflake_pat = snowflake_pat
+        self.snowflake_private_key = snowflake_private_key
+        self.snowflake_private_key_passphrase = snowflake_private_key_passphrase
+        self.snowflake_role = snowflake_role
+        self.snowflake_warehouse = snowflake_warehouse
+        self.snowflake_databases = snowflake_databases

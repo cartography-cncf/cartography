@@ -6,7 +6,7 @@ Some Cartography sync jobs write nodes to convey information about the job itsel
 
 This is a node to represent metadata about the sync job of a particular module. Its existence indicates that a particular sync job did happen.
 The 'types' used here should be actual node labels. For example, if we did sync a particular AWSAccount's S3Buckets,
-the `grouptype` is 'AWSAccount', the `groupid` is the particular account's `id`, and the `syncedtype` is 'S3Bucket'.
+the `grouptype` is 'AWSAccount', the `groupid` is the particular account's `id`, and the `syncedtype` is 'AWSS3Bucket'.
 
 | Field | Description | Source|
 |-------|-------------|------|

@@ -1,0 +1,6 @@
+repositories:
+  - owner: "simpsoncorp"
+    repo: "sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/zizmor/zizmor_report.json"

@@ -46,7 +46,7 @@ def get_cloudfront_distributions(
 
     CloudFront is a global service, so we query from us-east-1.
     """
-    logger.info("Fetching CloudFront distributions")
+    logger.debug("Fetching CloudFront distributions")
     client = create_boto3_client(
         boto3_session,
         "cloudfront",
@@ -278,7 +278,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="CloudFrontDistribution",
+        synced_type="AWSCloudFrontDistribution",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

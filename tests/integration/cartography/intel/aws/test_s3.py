@@ -53,19 +53,19 @@ def test_sync_s3(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - S3Bucket nodes exist
-    assert check_nodes(neo4j_session, "S3Bucket", ["id", "name", "region"]) == {
+    # Assert - AWSS3Bucket nodes exist
+    assert check_nodes(neo4j_session, "AWSS3Bucket", ["id", "name", "region"]) == {
         ("bucket-1", "bucket-1", "eu-west-1"),
         ("bucket-2", "bucket-2", "me-south-1"),
         ("bucket-3", "bucket-3", None),
     }
 
-    # Assert - Relationships (AWSAccount)-[RESOURCE]->(S3Bucket)
+    # Assert - Relationships (AWSAccount)-[RESOURCE]->(AWSS3Bucket)
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -75,32 +75,32 @@ def test_sync_s3(
         (TEST_ACCOUNT_ID, "bucket-3"),
     }
 
-    # Assert - S3Acl nodes exist
+    # Assert - AWSS3Acl nodes exist
     assert (
-        len(check_nodes(neo4j_session, "S3Acl", ["id"])) == 5
+        len(check_nodes(neo4j_session, "AWSS3Acl", ["id"])) == 5
     )  # 1 for bucket-1, 2 for bucket-2, 2 for bucket-3
 
-    # Assert - Relationships (S3Acl)-[APPLIES_TO]->(S3Bucket)
+    # Assert - Relationships (AWSS3Acl)-[APPLIES_TO]->(AWSS3Bucket)
     acl_rels = check_rels(
         neo4j_session,
-        "S3Acl",
+        "AWSS3Acl",
         "id",
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
         "APPLIES_TO",
         rel_direction_right=True,
     )
     assert len(acl_rels) == 5
 
-    # Assert - S3PolicyStatement nodes exist (only for bucket-1)
-    assert len(check_nodes(neo4j_session, "S3PolicyStatement", ["id"])) == 3
+    # Assert - AWSS3PolicyStatement nodes exist (only for bucket-1)
+    assert len(check_nodes(neo4j_session, "AWSS3PolicyStatement", ["id"])) == 3
 
-    # Assert - Relationships (S3Bucket)-[POLICY_STATEMENT]->(S3PolicyStatement)
+    # Assert - Relationships (AWSS3Bucket)-[POLICY_STATEMENT]->(AWSS3PolicyStatement)
     assert check_rels(
         neo4j_session,
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
-        "S3PolicyStatement",
+        "AWSS3PolicyStatement",
         "id",
         "POLICY_STATEMENT",
         rel_direction_right=True,
@@ -143,7 +143,7 @@ def test_load_s3_buckets(neo4j_session, *args):
 
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3Bucket) return s.id, s.name, s.region
+        MATCH (s:AWSS3Bucket) return s.id, s.name, s.region
         """,
     )
     actual_nodes = {
@@ -161,6 +161,17 @@ def test_load_s3_encryption(neo4j_session, *args):
     """
     Ensure that expected bucket gets loaded with their encryption fields.
     """
+    # Seed the KMS key referenced by bucket-1 so the ENCRYPTED_BY edge can match
+    # it at load time.
+    neo4j_session.run(
+        """
+        MERGE (k:AWSKMSKey{id: $key_id})
+        SET k.arn = $key_arn, k.lastupdated = $update_tag
+        """,
+        key_id="9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        key_arn="arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        update_tag=TEST_UPDATE_TAG,
+    )
     data = tests.data.aws.s3.GET_ENCRYPTION
     cartography.intel.aws.s3._load_s3_encryption(neo4j_session, data, TEST_UPDATE_TAG)
 
@@ -176,7 +187,7 @@ def test_load_s3_encryption(neo4j_session, *args):
 
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3Bucket)
+        MATCH (s:AWSS3Bucket)
         WHERE s.id = 'bucket-1'
         RETURN s.id, s.default_encryption, s.encryption_algorithm, s.encryption_key_id, s.bucket_key_enabled
         """,
@@ -192,6 +203,91 @@ def test_load_s3_encryption(neo4j_session, *args):
         for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+    # Canonical ontology edge: (:ObjectStorage)-[:ENCRYPTED_BY]->(:EncryptionKey)
+    assert check_rels(
+        neo4j_session,
+        "AWSS3Bucket",
+        "id",
+        "AWSKMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "bucket-1",
+            "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        ),
+    }
+
+
+def test_s3_encryption_relationship_cleanup(neo4j_session):
+    """A stale (:AWSS3Bucket)-[:ENCRYPTED_BY]->(:AWSKMSKey) edge is removed when the
+    bucket stops using that KMS key (key rotation or KMS encryption disabled).
+    The edge lives on the S3BucketEncryptionSchema composite (no sub_resource),
+    so it must be cleaned via its own rel-only cleanup."""
+    key_arn = "arn:aws:kms:us-east-1:000000000000:key/cleanup-test-key"
+    neo4j_session.run(
+        "MERGE (k:AWSKMSKey{id: $id}) SET k.arn = $arn, k.lastupdated = $tag",
+        id="cleanup-test-key",
+        arn=key_arn,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    # First sync: the bucket is encrypted with the customer-managed KMS key.
+    cartography.intel.aws.s3._load_s3_encryption(
+        neo4j_session,
+        {
+            "bucket": "bucket-cleanup",
+            "default_encryption": True,
+            "encryption_algorithm": "aws:kms",
+            "encryption_key_id": key_arn,
+            "bucket_key_enabled": False,
+        },
+        TEST_UPDATE_TAG,
+    )
+    assert ("bucket-cleanup", key_arn) in check_rels(
+        neo4j_session,
+        "AWSS3Bucket",
+        "id",
+        "AWSKMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    )
+
+    # Second sync at a new update tag: default encryption falls back to SSE-S3
+    # (no KMS key), so no ENCRYPTED_BY edge is re-created.
+    new_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.aws.s3._load_s3_encryption(
+        neo4j_session,
+        {
+            "bucket": "bucket-cleanup",
+            "default_encryption": True,
+            "encryption_algorithm": "AES256",
+            "encryption_key_id": None,
+            "bucket_key_enabled": False,
+        },
+        new_tag,
+    )
+    # Use an account id that matches no other bucket so the scoped AWSS3Bucket node
+    # cleanup leaves this file's shared buckets untouched; the encryption rel
+    # cleanup (no sub_resource) runs globally and removes the stale edge.
+    cartography.intel.aws.s3.cleanup_s3_buckets(
+        neo4j_session,
+        {"UPDATE_TAG": new_tag, "AWS_ID": "999999999999"},
+    )
+
+    # The stale edge to the old key must be gone.
+    assert ("bucket-cleanup", key_arn) not in check_rels(
+        neo4j_session,
+        "AWSS3Bucket",
+        "id",
+        "AWSKMSKey",
+        "arn",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    )
 
 
 def test_load_s3_policies(neo4j_session, *args):
@@ -249,7 +345,7 @@ def test_load_s3_policies(neo4j_session, *args):
 
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3PolicyStatement)
+        MATCH (s:AWSS3PolicyStatement)
         WHERE s.bucket = 'bucket-1'
         RETURN
         s.policy_id, s.policy_version, s.id, s.sid, s.effect, s.principal, s.action, s.resource, s.condition
@@ -275,7 +371,7 @@ def test_load_s3_policies(neo4j_session, *args):
 
     actual_relationships = neo4j_session.run(
         """
-        MATCH (:S3Bucket{id:"bucket-1"})-[r:POLICY_STATEMENT]->(:S3PolicyStatement) RETURN count(r)
+        MATCH (:AWSS3Bucket{id:"bucket-1"})-[r:POLICY_STATEMENT]->(:AWSS3PolicyStatement) RETURN count(r)
         """,
     )
 
@@ -300,7 +396,7 @@ def test_load_s3_bucket_ownership(neo4j_session, *args):
 
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3Bucket)
+        MATCH (s:AWSS3Bucket)
         WHERE s.id = 'bucket-1'
         RETURN s.id, s.object_ownership
         """,
@@ -348,15 +444,34 @@ def test_s3_sns_relationship(neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "S3Bucket",
+        "AWSS3Bucket",
         "id",
-        "SNSTopic",
+        "AWSSNSTopic",
         "arn",
         "NOTIFIES",
         rel_direction_right=True,
     ) == {
         ("bucket-1", "arn:aws:sns:us-east-1:123456789012:test-topic"),
     }
+
+    cartography.intel.aws.s3._cleanup_s3_notifications(
+        neo4j_session,
+        "bucket-1",
+        TEST_UPDATE_TAG + 1,
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSS3Bucket",
+            "id",
+            "AWSSNSTopic",
+            "arn",
+            "NOTIFIES",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 def test_load_s3_bucket_logging(neo4j_session):
@@ -384,7 +499,7 @@ def test_load_s3_bucket_logging(neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3Bucket)
+        MATCH (s:AWSS3Bucket)
         WHERE s.name = 'bucket-1'
         RETURN s.name, s.logging_enabled, s.logging_target_bucket
         """,
@@ -420,7 +535,7 @@ def test_load_s3_bucket_logging(neo4j_session):
     # Assert
     nodes = neo4j_session.run(
         """
-        MATCH (s:S3Bucket)
+        MATCH (s:AWSS3Bucket)
         WHERE s.name = 'bucket-2'
         RETURN s.name, s.logging_enabled, s.logging_target_bucket
         """,

@@ -88,6 +88,19 @@ def test_load_openai_adminapikeys(mock_api, neo4j_session):
         )
         == expected_rels
     )
+    # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+    assert (
+        check_rels(
+            neo4j_session,
+            "OpenAIAdminApiKey",
+            "id",
+            "OpenAIUser",
+            "id",
+            "OWNED_BY",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
 
 @patch.object(

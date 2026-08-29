@@ -14,19 +14,15 @@ ops
 ```{toctree}
 :caption: Intel Modules
 :hidden: true
-:glob: true
 
-modules/*/index
+module-list
 ```
 
 ```{toctree}
 :caption: Development Docs
 :hidden: true
 
-dev/developer-guide
-dev/writing-intel-modules
-dev/writing-analysis-jobs
-agents/index
+dev/index
 ```
 
 ```{toctree}

@@ -5,10 +5,10 @@ from string import Template
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import MatchLinkSubResource
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
@@ -268,6 +268,56 @@ def _build_ontology_field_statement_mapping(
     return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
 
 
+def _build_ontology_field_statement_coalesce(
+    mapping_field: OntologyFieldMapping,
+    node_property_map: dict[str, PropertyRef],
+) -> str | None:
+    """Maps the first non-null source field to an ontology field."""
+    extra_fields = mapping_field.extra.get("fields")
+    if extra_fields is None:
+        logger.warning(
+            "coalesce special handling requires 'fields' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(extra_fields, list):
+        logger.warning(
+            "coalesce special handling 'fields' in extra for field %s must be a list",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    primary_property_ref = node_property_map.get(mapping_field.node_field)
+    if not primary_property_ref:
+        logger.debug(
+            "Field '%s' not found in node properties for coalesce special handling of field %s",
+            mapping_field.node_field,
+            mapping_field.ontology_field,
+        )
+        return None
+
+    property_refs = [primary_property_ref]
+    for extra_field in extra_fields:
+        extra_property_ref = node_property_map.get(extra_field)
+        if not extra_property_ref:
+            # Expected for Composite Node Pattern schemas (see comment in
+            # _build_ontology_node_properties_statement).
+            logger.debug(
+                "Extra field '%s' not found in node properties for coalesce special handling of field %s",
+                extra_field,
+                mapping_field.ontology_field,
+            )
+            continue
+        property_refs.append(extra_property_ref)
+
+    property_ref_expression = ", ".join(
+        str(property_ref) for property_ref in property_refs
+    )
+    return (
+        f"i._ont_{mapping_field.ontology_field} = coalesce({property_ref_expression})"
+    )
+
+
 def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
@@ -345,6 +395,12 @@ def _build_ontology_node_properties_statement(
             )
             if mapping_statement:
                 set_clauses.append(mapping_statement)
+        elif mapping_field.special_handling == "coalesce":
+            coalesce_statement = _build_ontology_field_statement_coalesce(
+                mapping_field, node_property_map
+            )
+            if coalesce_statement:
+                set_clauses.append(coalesce_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -372,7 +428,7 @@ def _build_node_properties_statement(
 
     Args:
         node_property_map (Dict[str, PropertyRef]): Mapping of node attribute names as str to PropertyRef objects.
-        extra_node_labels (Optional[ExtraNodeLabels], optional): ExtraNodeLabels object to set on the node as string.
+        extra_node_labels (ExtraNodeLabels | None): Extra labels to add to the node.
             Defaults to None.
 
     Returns:
@@ -385,16 +441,17 @@ def _build_node_properties_statement(
         ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
         ... }
         >>> set_clause = _build_node_properties_statement(node_property_map)
-        >>> # Returns:
-        >>> # i.node_prop_1 = item.Prop1,
-        >>> # i.node_prop_2 = $Prop2
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2'
         >>> # (note: 'id' is excluded as it's handled by MERGE)
 
-        >>> # With extra labels
-        >>> extra_labels = ExtraNodeLabels(['Resource', 'CloudAsset'])
-        >>> set_clause = _build_node_properties_statement(node_property_map, extra_labels)
-        >>> # Returns the property assignments plus:
-        >>> # i:Resource:CloudAsset
+        >>> extra_node_labels = ExtraNodeLabels([RESOURCE, CLOUD_ASSET])
+        >>> set_clause = _build_node_properties_statement(
+        ...     node_property_map,
+        ...     extra_node_labels,
+        ... )
+        >>> set_clause
+        'i.node_prop_1 = item.Prop1,\\ni.node_prop_2 = $Prop2,\\n                i:Resource:CloudAsset'
 
     Note:
         The 'id' field is intentionally excluded from the SET clause as it's already
@@ -415,16 +472,107 @@ def _build_node_properties_statement(
         ],
     )
 
-    # Set extra labels on the node if specified (excluding conditional labels)
+    # Set extra labels without conditions on the node.
     if extra_node_labels:
-        # Filter out ConditionalNodeLabel objects - only include string labels
-        string_labels = [
-            label for label in extra_node_labels.labels if isinstance(label, str)
+        labels_without_conditions = [
+            label.label for label in extra_node_labels.labels if not label.conditions
         ]
-        if string_labels:
-            extra_labels = ":".join(string_labels)
+        if labels_without_conditions:
+            extra_labels = ":".join(labels_without_conditions)
             set_clause += f",\n                i:{extra_labels}"
     return set_clause
+
+
+def _build_conditional_labels_statement(
+    extra_node_labels: ExtraNodeLabels | None = None,
+) -> str:
+    r"""
+    Generate Neo4j clauses that apply conditional extra labels to the node of the current row.
+
+    Conditional labels are declared with ``ExtraNodeLabel.when(...)``. For each such label we emit a
+    pair of ``FOREACH`` clauses: one that adds the label when the conditions hold, and one that
+    removes it when they do not. ``FOREACH`` over a one-or-zero element list is the standard
+    pure-Cypher conditional-write idiom, so no APOC dependency is needed.
+
+    Applying the label row by row means a sync never has to scan a whole label to keep conditional
+    labels in sync: a node is either re-loaded (and corrected here) or no longer reported (and
+    deleted by cleanup).
+
+    Args:
+        extra_node_labels (ExtraNodeLabels | None): Extra labels declared on the node schema.
+            Defaults to None.
+
+    Returns:
+        str: Neo4j ``FOREACH`` clauses, or an empty string if there are no conditional labels.
+
+    Examples:
+        >>> extra_node_labels = ExtraNodeLabels([IMAGE.when(type="image")])
+        >>> print(_build_conditional_labels_statement(extra_node_labels))
+        FOREACH (_ IN CASE WHEN i.type = "image" THEN [1] ELSE [] END | SET i:Image)
+        FOREACH (_ IN CASE WHEN i.type = "image" THEN [] ELSE [1] END | REMOVE i:Image)
+
+    Note:
+        - The conditions name *node properties*, not source dict keys, so the predicate reads
+          ``i.<property>``. The preceding SET clause has already run for the current row, so the
+          value is up to date. This also keeps the semantics identical for schemas that share a
+          primary label but populate it from different source keys.
+        - Conditions within one label declaration are ANDed; several declarations of the same label
+          are ORed together.
+        - The negative clause inverts the branches of the same positive predicate rather than
+          negating it, so a node whose condition property is missing (``null`` predicate) still has
+          the stale label removed.
+        - A label declared both unconditionally and conditionally is left to the unconditional SET
+          clause; otherwise the negative clause would strip a label that was just applied.
+    """
+    if not extra_node_labels:
+        return ""
+
+    unconditional_labels = {
+        label.label for label in extra_node_labels.labels if not label.conditions
+    }
+
+    # Group condition sets by label name, preserving declaration order.
+    conditions_by_label: dict[str, list[tuple[tuple[str, str], ...]]] = {}
+    for label in extra_node_labels.labels:
+        if not label.conditions or label.label in unconditional_labels:
+            continue
+        conditions_by_label.setdefault(label.label, []).append(label.conditions)
+
+    if not conditions_by_label:
+        return ""
+
+    set_template = Template(
+        "FOREACH (_ IN CASE WHEN $predicate THEN [1] ELSE [] END | SET i:$label)",
+    )
+    remove_template = Template(
+        "FOREACH (_ IN CASE WHEN $predicate THEN [] ELSE [1] END | REMOVE i:$label)",
+    )
+
+    clauses = []
+    for label_name, condition_sets in conditions_by_label.items():
+        predicates = []
+        for conditions in condition_sets:
+            comparisons = [
+                f'i.{field_name} = "{_escape_cypher_string(str(field_value))}"'
+                for field_name, field_value in conditions
+            ]
+            predicates.append(" AND ".join(comparisons))
+
+        if len(predicates) == 1:
+            predicate = predicates[0]
+        else:
+            # Several declarations of the same label: the label applies if any of them matches.
+            predicate = " OR ".join(f"({p})" for p in predicates)
+
+        clauses.append(
+            set_template.safe_substitute(predicate=predicate, label=label_name),
+        )
+        clauses.append(
+            remove_template.safe_substitute(predicate=predicate, label=label_name),
+        )
+
+    # The first clause is indented by the ingestion query template; indent the rest to match.
+    return "\n            ".join(clauses)
 
 
 def _build_rel_properties_statement(
@@ -907,8 +1055,8 @@ def _build_attach_relationships_statement(
 
     Note:
         Subqueries allow the ingestion query to continue even if we only have data
-        for some relationships. For example, if an EC2Instance has attachments to
-        NetworkInterfaces and AWSAccounts, but data only includes EC2Instance to
+        for some relationships. For example, if an AWSEC2Instance has attachments to
+        NetworkInterfaces and AWSAccounts, but data only includes AWSEC2Instance to
         AWSAccount information, the query will ignore null relationships and continue
         to MERGE the existing ones.
     """
@@ -1014,7 +1162,7 @@ def filter_selected_relationships(
 
     Examples:
         >>> node_schema = CartographyNodeSchema(
-        ...     label='EC2Instance',
+        ...     label='AWSEC2Instance',
         ...     sub_resource_relationship=account_rel,
         ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])
         ... )
@@ -1092,7 +1240,7 @@ def build_ingestion_query(
     Examples:
         >>> # Basic node schema with relationships
         >>> node_schema = CartographyNodeSchema(
-        ...     label='EC2Instance',
+        ...     label='AWSEC2Instance',
         ...     properties=EC2InstanceProperties(),
         ...     sub_resource_relationship=account_rel,
         ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])
@@ -1125,6 +1273,7 @@ def build_ingestion_query(
                 i._module_version = "$module_version",
                 $set_node_properties_statement
                 $set_ontology_node_properties_statement
+            $conditional_labels_statement
             $attach_relationships_statement
         """,
     )
@@ -1156,167 +1305,15 @@ def build_ingestion_query(
             node_schema,
             node_props_as_dict,
         ),
+        conditional_labels_statement=_build_conditional_labels_statement(
+            node_schema.extra_node_labels,
+        ),
         attach_relationships_statement=_build_attach_relationships_statement(
             sub_resource_rel,
             other_rels,
         ),
     )
     return ingest_query
-
-
-def build_conditional_label_queries(
-    node_schema: CartographyNodeSchema,
-) -> list[str]:
-    """
-    Generate Neo4j queries to apply conditional labels to nodes.
-
-    Conditional labels are labels that are only applied to nodes matching specific conditions.
-    This function generates one query per ConditionalNodeLabel defined in the node schema's
-    extra_node_labels.
-
-    Args:
-        node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
-            conditional labels in its extra_node_labels property.
-
-    Returns:
-        list[str]: A list of Neo4j queries, one per conditional label. Each query matches
-            nodes of the schema's primary label that satisfy the conditions, and applies
-            the conditional label.
-
-    Examples:
-        >>> # Given a schema with a conditional label
-        >>> node_schema = CartographyNodeSchema(
-        ...     label='AWSResource',
-        ...     extra_node_labels=ExtraNodeLabels([
-        ...         'Resource',
-        ...         ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
-        ...     ])
-        ... )
-        >>> queries = build_conditional_label_queries(node_schema)
-        >>> # Returns:
-        >>> # ['MATCH (n:AWSResource) WHERE n.severity = "high" SET n:Critical']
-
-    Note:
-        - Only ConditionalNodeLabel objects are processed; string labels are ignored
-        - Returns an empty list if no conditional labels are defined
-        - Values are escaped for Cypher string literals
-    """
-    if not node_schema.extra_node_labels:
-        return []
-
-    # Extract only ConditionalNodeLabel objects
-    conditional_labels = [
-        label
-        for label in node_schema.extra_node_labels.labels
-        if isinstance(label, ConditionalNodeLabel)
-    ]
-
-    if not conditional_labels:
-        return []
-
-    queries = []
-    sub_rel = node_schema.sub_resource_relationship
-
-    # Build the sub-resource matching clause if a sub_resource_relationship exists
-    # This scopes the queries to the current tenant to avoid affecting other tenants' nodes
-    if sub_rel:
-        # Build the relationship pattern based on direction
-        if sub_rel.direction == LinkDirection.INWARD:
-            # (node)<-[:REL]-(sub_resource)
-            rel_pattern = f"<-[:{sub_rel.rel_label}]-"
-        else:
-            # (node)-[:REL]->(sub_resource)
-            rel_pattern = f"-[:{sub_rel.rel_label}]->"
-
-        # Build the match clause for the sub-resource node
-        sub_match_clause = _build_match_clause(sub_rel.target_node_matcher)
-
-        # Scoped templates that filter by sub-resource
-        remove_template = Template(
-            """
-            MATCH (n:$node_label:$conditional_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
-            REMOVE n:$conditional_label
-            """,
-        )
-
-        set_template = Template(
-            """
-            MATCH (n:$node_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
-            WHERE $where_clause
-            SET n:$conditional_label
-            """,
-        )
-    else:
-        # Unscoped templates for global resources without a tenant relationship
-        remove_template = Template(
-            """
-            MATCH (n:$node_label:$conditional_label)
-            REMOVE n:$conditional_label
-            """,
-        )
-
-        set_template = Template(
-            """
-            MATCH (n:$node_label)
-            WHERE $where_clause
-            SET n:$conditional_label
-            """,
-        )
-
-    for cond_label in conditional_labels:
-        # Skip conditional labels with empty conditions - they would apply to all nodes,
-        # which should be done with a regular string label instead
-        if not cond_label.conditions:
-            logger.warning(
-                "ConditionalNodeLabel '%s' on node schema '%s' has empty conditions. "
-                "Skipping. Use a string label instead to apply a label to all nodes.",
-                cond_label.label,
-                node_schema.label,
-            )
-            continue
-
-        # Build WHERE clause from conditions
-        where_parts = []
-        for field_name, field_value in cond_label.conditions.items():
-            # Escape the value for Cypher string literal
-            escaped_value = _escape_cypher_string(str(field_value))
-            where_parts.append(f'n.{field_name} = "{escaped_value}"')
-
-        where_clause = " AND ".join(where_parts)
-
-        if sub_rel:
-            # Scoped queries
-            remove_query = remove_template.safe_substitute(
-                node_label=node_schema.label,
-                conditional_label=cond_label.label,
-                rel_pattern=rel_pattern,
-                sub_label=sub_rel.target_node_label,
-                sub_match_clause=sub_match_clause,
-            )
-            set_query = set_template.safe_substitute(
-                node_label=node_schema.label,
-                where_clause=where_clause,
-                conditional_label=cond_label.label,
-                rel_pattern=rel_pattern,
-                sub_label=sub_rel.target_node_label,
-                sub_match_clause=sub_match_clause,
-            )
-        else:
-            # Unscoped queries
-            remove_query = remove_template.safe_substitute(
-                node_label=node_schema.label,
-                conditional_label=cond_label.label,
-            )
-            set_query = set_template.safe_substitute(
-                node_label=node_schema.label,
-                where_clause=where_clause,
-                conditional_label=cond_label.label,
-            )
-
-        queries.append(remove_query)
-        queries.append(set_query)
-
-    return queries
 
 
 def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
@@ -1375,43 +1372,21 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     ]
     if node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
-            if isinstance(label, str):
-                # Simple string label - create index on id and lastupdated
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label,
-                        TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
-                    ),
-                )
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label,
-                        TargetAttribute="lastupdated",
-                    ),
-                )
-            elif isinstance(label, ConditionalNodeLabel):
-                # Conditional label - create index on the conditional label's id and lastupdated
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label.label,
-                        TargetAttribute="id",
-                    ),
-                )
-                result.append(
-                    index_template.safe_substitute(
-                        TargetNodeLabel=label.label,
-                        TargetAttribute="lastupdated",
-                    ),
-                )
-                # Also create indexes on the condition fields for the primary node label
-                # to speed up the WHERE clause in the conditional label query
-                for condition_field in label.conditions.keys():
-                    result.append(
-                        index_template.safe_substitute(
-                            TargetNodeLabel=node_schema.label,
-                            TargetAttribute=condition_field,
-                        ),
-                    )
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label.label,
+                    TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+                ),
+            )
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label.label,
+                    TargetAttribute="lastupdated",
+                ),
+            )
+            # No index is created for a label's condition fields: the conditions are evaluated
+            # against the already-bound node of the current row in the ingestion query, so there is
+            # no lookup for an index to serve.
 
     # Next, for all relationships possible out of this node, ensure that indexes exist for all target nodes' properties
     # as specified in their TargetNodeMatchers.
@@ -1448,17 +1423,18 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
     if ontology_mapping and node_schema.extra_node_labels:
         for label in node_schema.extra_node_labels.labels:
-            label_name = label if isinstance(label, str) else label.label
             result.append(
                 index_template.safe_substitute(
-                    TargetNodeLabel=label_name,
+                    TargetNodeLabel=label.label,
                     TargetAttribute="_ont_source",
                 ),
             )
             for mapping_field in ontology_mapping.fields:
+                if not mapping_field.indexed:
+                    continue
                 result.append(
                     index_template.safe_substitute(
-                        TargetNodeLabel=label_name,
+                        TargetNodeLabel=label.label,
                         TargetAttribute=f"_ont_{mapping_field.ontology_field}",
                     ),
                 )
@@ -1496,7 +1472,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1508,9 +1484,9 @@ def build_create_index_queries_for_matchlink(
         existing nodes in the graph. It requires source_node_matcher to be defined
         and creates composite indexes for relationship performance.
     """
-    if not rel_schema.source_node_matcher:
+    if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
         logger.warning(
-            "No source node matcher found for %s; returning empty list. "
+            "No source node matcher or source node label found for %s; returning empty list. "
             "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
             "and connect existing nodes in the graph.",
             rel_schema.rel_label,
@@ -1522,27 +1498,44 @@ def build_create_index_queries_for_matchlink(
     )
 
     result = []
-    for source_key in asdict(rel_schema.source_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.source_node_label,
-                NodeAttribute=source_key,
-            ),
-        )
-    for target_key in asdict(rel_schema.target_node_matcher).keys():
-        result.append(
-            index_template.safe_substitute(
-                NodeLabel=rel_schema.target_node_label,
-                NodeAttribute=target_key,
-            ),
-        )
 
-    # Create a composite relationship index that matches the cleanup predicate shape.
-    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
-    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
+    def append_index_query(node_label: str, node_attribute: str) -> None:
+        query = index_template.safe_substitute(
+            NodeLabel=node_label,
+            NodeAttribute=node_attribute,
+        )
+        if query not in result:
+            result.append(query)
+
+    for source_key in asdict(rel_schema.source_node_matcher).keys():
+        append_index_query(rel_schema.source_node_label, source_key)
+    for target_key in asdict(rel_schema.target_node_matcher).keys():
+        append_index_query(rel_schema.target_node_label, target_key)
+    if rel_schema.source_node_sub_resource:
+        for source_sub_resource_key in asdict(
+            rel_schema.source_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.source_node_sub_resource.target_node_label,
+                source_sub_resource_key,
+            )
+    if rel_schema.target_node_sub_resource:
+        for target_sub_resource_key in asdict(
+            rel_schema.target_node_sub_resource.target_node_matcher
+        ).keys():
+            append_index_query(
+                rel_schema.target_node_sub_resource.target_node_label,
+                target_sub_resource_key,
+            )
+
+    # Create a composite relationship index on the two stable keys of the cleanup predicate.
+    # `lastupdated` is deliberately excluded: it is rewritten on every sync, so including it in
+    # the composite key made Neo4j delete and reinsert every index entry on every run (37.2s vs
+    # 17.8s on a 2.79M-relationship warm load). It could not help the cleanup anyway, since `<>`
+    # is not a seekable predicate.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
+        "ON (r._sub_resource_label, r._sub_resource_id);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(
@@ -1561,6 +1554,202 @@ def build_create_index_queries_for_matchlink(
             )
         )
     return result
+
+
+def _build_matchlink_sub_resource_match(
+    sub_resource_var: str,
+    sub_resource: MatchLinkSubResource,
+) -> str:
+    return Template(
+        "MATCH ($sub_resource_var:$sub_resource_label{$match_clause})"
+    ).safe_substitute(
+        sub_resource_var=sub_resource_var,
+        sub_resource_label=sub_resource.target_node_label,
+        match_clause=_build_match_clause(sub_resource.target_node_matcher),
+    )
+
+
+def _matcher_signature(
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+) -> dict[str, dict]:
+    # PropertyRef has no __eq__, so compare via its __dict__. asdict() can't help
+    # because PropertyRef is not a dataclass and is passed through by reference.
+    return {key: vars(prop_ref) for key, prop_ref in vars(matcher).items()}
+
+
+def _matchlink_sub_resources_equal(
+    a: MatchLinkSubResource,
+    b: MatchLinkSubResource,
+) -> bool:
+    return (
+        a.target_node_label == b.target_node_label
+        and a.direction == b.direction
+        and a.rel_label == b.rel_label
+        and _matcher_signature(a.target_node_matcher)
+        == _matcher_signature(b.target_node_matcher)
+    )
+
+
+def _build_matchlink_endpoint_match(
+    endpoint_var: str,
+    endpoint_label: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher,
+    sub_resource_var: str | None,
+    sub_resource: MatchLinkSubResource | None,
+) -> str:
+    rel_pattern = ""
+    if sub_resource and sub_resource_var:
+        if sub_resource.direction == LinkDirection.INWARD:
+            rel_pattern = f"<-[:{sub_resource.rel_label}]-({sub_resource_var})"
+        else:
+            rel_pattern = f"-[:{sub_resource.rel_label}]->({sub_resource_var})"
+    return Template(
+        "MATCH ($endpoint_var:$endpoint_label{$match_clause})$rel_pattern"
+    ).safe_substitute(
+        endpoint_var=endpoint_var,
+        endpoint_label=endpoint_label,
+        match_clause=_build_match_clause(matcher),
+        rel_pattern=rel_pattern,
+    )
+
+
+def _validate_matchlink_cartesian_product_matcher(
+    matcher_name: str,
+    matcher: TargetNodeMatcher | SourceNodeMatcher | None,
+) -> tuple[str, PropertyRef]:
+    if matcher is None:
+        raise ValueError(
+            f"build_matchlink_cartesian_product_query() requires a {matcher_name} matcher."
+        )
+
+    matcher_fields = asdict(matcher)
+    if len(matcher_fields) != 1:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() supports exactly one source matcher key "
+            "and one target matcher key."
+        )
+
+    node_property, property_ref = next(iter(matcher_fields.items()))
+    if property_ref.ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support ignore_case matchers."
+        )
+    if property_ref.fuzzy_and_ignore_case:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support fuzzy_and_ignore_case matchers."
+        )
+    if property_ref.one_to_many:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support one_to_many matchers."
+        )
+    return node_property, property_ref
+
+
+def build_matchlink_cartesian_product_query(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generate a query that links every matched source node to every matched target.
+
+    This is the querybuilder companion to ``load_matchlinks_cartesian_product()``.
+    It intentionally supports only the simple MatchLink shape where each
+    endpoint is matched by one exact property and relationship properties are
+    supplied from query kwargs. Row-specific relationship properties belong on
+    the regular ``build_matchlink_query()`` path instead.
+
+    Args:
+        rel_schema: A MatchLink relationship schema.
+
+    Returns:
+        A Cypher query that accepts ``SourceValues`` and ``TargetValues`` lists
+        and returns ``rel_count``.
+
+    Raises:
+        ValueError: If the schema uses unsupported matcher, sub-resource, or
+            relationship property shapes.
+    """
+    if not rel_schema.source_node_label:
+        raise ValueError(
+            f"No source node label found for {rel_schema.rel_label}. "
+            "MatchLink Cartesian product relationships require a source_node_label."
+        )
+
+    if rel_schema.source_node_sub_resource or rel_schema.target_node_sub_resource:
+        raise ValueError(
+            "build_matchlink_cartesian_product_query() does not support endpoint sub-resource matchers."
+        )
+
+    source_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "source node",
+        rel_schema.source_node_matcher,
+    )
+    target_node_property, _ = _validate_matchlink_cartesian_product_matcher(
+        "target node",
+        rel_schema.target_node_matcher,
+    )
+
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}. "
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+    for rel_property, property_ref in rel_props_as_dict.items():
+        if not property_ref.set_in_kwargs:
+            raise ValueError(
+                "build_matchlink_cartesian_product_query() only supports relationship properties "
+                f"set from kwargs. Unsupported property: {rel_property}."
+            )
+
+    # The generated query has no row object, so every relationship property must
+    # be set from kwargs and shared by the full source x target expansion.
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
+    else:
+        rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
+
+    # `_module_name` identifies the module that owns this relationship's schema, so it is set once on
+    # create rather than rewritten on every sync. Everything else stays in the unconditional SET:
+    # `lastupdated` is the cleanup's liveness marker, `_module_version` tracks the cartography version
+    # that last wrote the relationship (as build_ingestion_query() does for nodes), and
+    # `_sub_resource_label`/`_sub_resource_id` must keep following the last writer, since a MatchLink
+    # is keyed only on its endpoints and label and so can be shared by several sub-resources.
+    matchlink_cartesian_product_query_template = Template(
+        """
+        UNWIND $SourceValues AS source_value
+            MATCH (from:$source_node_label{$source_node_property: source_value})
+        WITH collect(from) AS sources
+        UNWIND $TargetValues AS target_value
+            MATCH (to:$target_node_label{$target_node_property: target_value})
+        WITH sources, to
+        UNWIND sources AS from
+            MERGE $rel
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
+            SET
+                r._module_version = "$module_version",
+                $set_rel_properties_statement
+        RETURN count(r) AS rel_count;
+        """,
+    )
+
+    return matchlink_cartesian_product_query_template.safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        source_node_property=source_node_property,
+        target_node_label=rel_schema.target_node_label,
+        target_node_property=target_node_property,
+        rel=rel,
+        module_name=_get_module_from_schema(rel_schema),
+        module_version=get_cartography_version(),
+        set_rel_properties_statement=_build_rel_properties_statement(
+            "r",
+            rel_props_as_dict,
+        ),
+    )
 
 
 def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
@@ -1602,7 +1791,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         >>> #     MATCH (from:User{id: item.user_id})
         >>> #     MATCH (to:Role{name: item.role_name})
         >>> #     MERGE (from)-[r:HAS_ROLE]->(to)
-        >>> #     ON CREATE SET r.firstseen = timestamp()
+        >>> #     ON CREATE SET r.firstseen = timestamp(), r._module_name = "cartography:..."
         >>> #     SET r._sub_resource_label = $_sub_resource_label, ...
 
     Note:
@@ -1630,32 +1819,90 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
         )
 
-    matchlink_query_template = Template(
-        """
+    source_sub_resource = rel_schema.source_node_sub_resource
+    target_sub_resource = rel_schema.target_node_sub_resource
+
+    source_sub_resource_var: str | None = None
+    target_sub_resource_var: str | None = None
+    sub_resource_match_statements: list[str] = []
+
+    # See build_matchlink_cartesian_product_query() for why only `_module_name` is set on create.
+    if source_sub_resource or target_sub_resource:
+        matchlink_query_template = Template(
+            """
+        $sub_resource_match
         UNWIND $DictList as item
             $source_match
             $target_match
             MERGE $rel
-            ON CREATE SET r.firstseen = timestamp()
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
             SET
-                r._module_name = "$module_name",
                 r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """
+        )
+        if (
+            source_sub_resource
+            and target_sub_resource
+            and _matchlink_sub_resources_equal(source_sub_resource, target_sub_resource)
+        ):
+            # Same sub-resource on both sides — match it once and reuse the
+            # variable to avoid a redundant index lookup per query.
+            source_sub_resource_var = "sub_resource"
+            target_sub_resource_var = "sub_resource"
+            sub_resource_match_statements.append(
+                _build_matchlink_sub_resource_match(
+                    source_sub_resource_var, source_sub_resource
+                ),
+            )
+        else:
+            if source_sub_resource:
+                source_sub_resource_var = "source_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        source_sub_resource_var, source_sub_resource
+                    ),
+                )
+            if target_sub_resource:
+                target_sub_resource_var = "target_sub_resource"
+                sub_resource_match_statements.append(
+                    _build_matchlink_sub_resource_match(
+                        target_sub_resource_var, target_sub_resource
+                    ),
+                )
+    else:
+        matchlink_query_template = Template(
+            """
+        UNWIND $DictList as item
+            $source_match
+            $target_match
+            MERGE $rel
+            ON CREATE SET
+                r.firstseen = timestamp(),
+                r._module_name = "$module_name"
+            SET
+                r._module_version = "$module_version",
+                $set_rel_properties_statement;
+        """
+        )
+    sub_resource_match = "\n        ".join(sub_resource_match_statements)
+
+    source_match = _build_matchlink_endpoint_match(
+        "from",
+        rel_schema.source_node_label,
+        rel_schema.source_node_matcher,
+        source_sub_resource_var,
+        source_sub_resource,
     )
 
-    source_match = Template(
-        "MATCH (from:$source_node_label{$match_clause})"
-    ).safe_substitute(
-        source_node_label=rel_schema.source_node_label,
-        match_clause=_build_match_clause(rel_schema.source_node_matcher),
-    )
-
-    target_match = Template(
-        "MATCH (to:$target_node_label{$match_clause})"
-    ).safe_substitute(
-        target_node_label=rel_schema.target_node_label,
-        match_clause=_build_match_clause(rel_schema.target_node_matcher),
+    target_match = _build_matchlink_endpoint_match(
+        "to",
+        rel_schema.target_node_label,
+        rel_schema.target_node_matcher,
+        target_sub_resource_var,
+        target_sub_resource,
     )
 
     if rel_schema.direction == LinkDirection.INWARD:
@@ -1664,6 +1911,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
     return matchlink_query_template.safe_substitute(
+        sub_resource_match=sub_resource_match,
         source_match=source_match,
         target_match=target_match,
         rel=rel,

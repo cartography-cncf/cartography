@@ -58,12 +58,12 @@ def test_sync_eventbridge(
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "EventBridgeRule", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEventBridgeRule", ["arn"]) == {
         ("arn:aws:events:us-east-1:123456789012:rule/UserSignupRule",),
         ("arn:aws:events:us-east-1:123456789012:rule/DailyCleanupRule",),
     }
 
-    assert check_nodes(neo4j_session, "EventBridgeTarget", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSEventBridgeTarget", ["arn"]) == {
         ("arn:aws:lambda:us-east-1:123456789012:function:ProcessSignup",),
         ("arn:aws:sns:us-east-1:123456789012:NotifyAdmin",),
     }
@@ -73,7 +73,7 @@ def test_sync_eventbridge(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EventBridgeRule",
+        "AWSEventBridgeRule",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -90,7 +90,7 @@ def test_sync_eventbridge(
 
     assert check_rels(
         neo4j_session,
-        "EventBridgeRule",
+        "AWSEventBridgeRule",
         "arn",
         "AWSRole",
         "arn",
@@ -111,7 +111,7 @@ def test_sync_eventbridge(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EventBridgeTarget",
+        "AWSEventBridgeTarget",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -128,9 +128,9 @@ def test_sync_eventbridge(
 
     assert check_rels(
         neo4j_session,
-        "EventBridgeTarget",
+        "AWSEventBridgeTarget",
         "arn",
-        "EventBridgeRule",
+        "AWSEventBridgeRule",
         "arn",
         "LINKED_TO_RULE",
         rel_direction_right=True,

@@ -1,34 +1,61 @@
 import datetime
 import logging
+import os
 import traceback
+from collections.abc import Callable
+from dataclasses import dataclass
+from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Mapping
 
 import aioboto3
 import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
+from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
+from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
+from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_EKS_ASSET_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_FOREIGN_ACCOUNTS
+from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
+from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
+from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
+from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
-from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
-from cartography.util import run_scoped_analysis_job
+from cartography.util import run_typed_analysis_and_ensure_deps
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 from . import ec2
 from . import organizations
+from . import ssm as ssm_intel
 from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class AWSOrganizationDiscoveryCandidate:
+    profile_name: str
+    account_id: str
+    organization_id: str | None = None
+    management_account_id: str | None = None
+    result: organizations.AWSOrganizationSyncResult | None = None
 
 
 # DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
@@ -81,9 +108,9 @@ def _sync_one_account(
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
     aioboto3_session: aioboto3.Session | None = None,
+    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
 ) -> None:
-    if aioboto3_session is None:
-        aioboto3_session = aioboto3.Session()
+    migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
@@ -113,6 +140,7 @@ def _sync_one_account(
     module_dependencies = {
         "ssm": ["ec2:instance"],
         "ec2:images": ["ec2:instance"],
+        "ec2:autoscalinggroup": ["ec2:launch_templates", "ec2:instance"],
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2:expose": [
@@ -120,9 +148,31 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE relationships from ECSContainerInstance to EC2Instance
-        "ecs": ["ec2:instance"],
+        # ECS matches existing roles, images, instances, ENIs, and target groups.
+        "ecs": [
+            "iam",
+            "ecr",
+            "ec2:instance",
+            "ec2:network_interface",
+            "ec2:load_balancer_v2",
+        ],
         "dynamodb": ["kms"],
+        # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
+        # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
+        "s3": ["kms"],
+        "rds": ["kms"],
+        "efs": ["kms"],
+        # `route53` creates DNS_POINTS_TO edges by matching already-existing target nodes,
+        # so selecting it without these produces zero such edges, and cleanup_route53 then
+        # deletes the ones a previous run had created. AWSESDomain is deliberately absent:
+        # `elasticsearch` runs after `route53`, so that edge is never created on a first run
+        # no matter what the user selects, and a warning here would not help.
+        "route53": [
+            "ec2:load_balancer",
+            "ec2:load_balancer_v2",
+            "ec2:instance",
+            "elastic_ip_addresses",
+        ],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -143,6 +193,10 @@ def _sync_one_account(
         # Skip permission relationships and tags for now because they rely on data already being in the graph
         if func_name == "ecr:image_layers":
             # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+            if aioboto3_session is None:
+                aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
+                aioboto3_session = aioboto3_session_factory()
+
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
@@ -150,6 +204,7 @@ def _sync_one_account(
                 current_aws_account_id,
                 update_tag,
                 common_job_parameters,
+                aioboto3_session_factory=aioboto3_session_factory,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
@@ -164,30 +219,25 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_scoped_analysis_job(
-        "aws_ec2_iaminstanceprofile.json",
-        neo4j_session,
+    run_typed_analysis_and_ensure_deps(
+        AWS_EC2_IAM_INSTANCE_PROFILE,
+        AWS_EC2_IAM_INSTANCE_PROFILE_DEPS,
+        requested_syncs_set,
         common_job_parameters,
+        neo4j_session,
     )
 
-    run_analysis_job(
-        "aws_lambda_ecr.json",
-        neo4j_session,
+    run_typed_analysis_and_ensure_deps(
+        AWS_LAMBDA_ECR,
+        AWS_LAMBDA_ECR_DEPS,
+        requested_syncs_set,
         common_job_parameters,
+        neo4j_session,
     )
 
-    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
-        requested_syncs_set
-    ):
-        run_scoped_analysis_job(
-            "aws_lb_container_exposure.json",
-            neo4j_session,
-            common_job_parameters,
-        )
-
-    if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
-        run_scoped_analysis_job(
-            "aws_lb_nacl_direct.json",
+    if AWS_LB_NACL_DIRECT_DEPS.issubset(requested_syncs_set):
+        run_typed_analysis_job(
+            AWS_LB_NACL_DIRECT,
             neo4j_session,
             common_job_parameters,
         )
@@ -222,40 +272,338 @@ def _autodiscover_account_regions(
     return regions
 
 
-def _autodiscover_accounts(
+def _resolve_aws_ssm_public_parameter_prefix_allowlist(
+    config_value: str | None,
+    env_value: str | None,
+) -> str:
+    if config_value is not None:
+        return config_value
+    if env_value is not None:
+        return env_value
+    return ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+
+
+def _get_boto3_session_for_profile(
+    default_boto3_session: boto3.Session,
+    profile_name: str | None,
+) -> boto3.Session:
+    if profile_name in {None, "default"}:
+        return default_boto3_session
+    return boto3.Session(profile_name=profile_name)
+
+
+def _sync_shared_public_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    default_boto3_session: boto3.Session,
+    aws_accounts: Mapping[str, str],
+    requested_syncs: List[str],
+    common_job_parameters: Dict[str, Any],
+    configured_regions: list[str] | None,
+    aws_best_effort_mode: bool,
+) -> None:
+    if "ssm" not in requested_syncs:
+        return
+
+    region_session_candidates: dict[str, list[boto3.Session]] = {}
+    all_profiles_prepared = True
+    for profile_name, account_id in aws_accounts.items():
+        try:
+            boto3_session = _get_boto3_session_for_profile(
+                default_boto3_session,
+                profile_name,
+            )
+            profile_regions = configured_regions or _autodiscover_account_regions(
+                boto3_session,
+                account_id,
+            )
+        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError):
+            if not aws_best_effort_mode:
+                raise
+            logger.warning(
+                "Unable to prepare an AWS profile for shared public SSM parameter sync; continuing because aws-best-effort-mode is on.",
+                exc_info=True,
+            )
+            all_profiles_prepared = False
+            continue
+
+        for region in profile_regions:
+            region_session_candidates.setdefault(region, []).append(boto3_session)
+
+    ssm_intel.sync_public_parameters(
+        neo4j_session,
+        region_session_candidates,
+        common_job_parameters["UPDATE_TAG"],
+        common_job_parameters,
+        cleanup_allowed=all_profiles_prepared,
+    )
+
+
+def _sync_aws_organization_for_account(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
-) -> None:
-    logger.info("Trying to autodiscover accounts.")
+) -> organizations.AWSOrganizationSyncResult:
+    logger.info("Trying to sync AWS Organizations hierarchy.")
     try:
-        # Fetch all accounts
         client = create_boto3_client(boto3_session, "organizations")
-        paginator = client.get_paginator("list_accounts")
-        accounts: List[Dict] = []
-        for page in paginator.paginate():
-            accounts.extend(page["Accounts"])
-
-        # Filter out every account which is not in the ACTIVE status
-        # and select only the Id and Name fields
-        filtered_accounts: Dict[str, str] = {
-            x["Name"]: x["Id"] for x in accounts if x["Status"] == "ACTIVE"
-        }
-
-        # Add them to the graph
-        logger.info("Loading autodiscovered accounts.")
-        organizations.load_aws_accounts(
+        return organizations.sync_aws_organization(
             neo4j_session,
-            filtered_accounts,
+            client,
+            account_id,
             sync_tag,
             common_job_parameters,
         )
-    except botocore.exceptions.ClientError:
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "AWSOrganizationsNotInUseException":
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+            return organizations.AWSOrganizationSyncResult(
+                account_id,
+                organizations.AWSOrganizationSyncStatus.NOT_IN_ORG,
+                error_code=error_code,
+            )
         logger.warning(
-            f"The current account ({account_id}) doesn't have enough permissions to perform autodiscovery.",
+            "The current account (%s) doesn't have enough permissions to sync AWS Organizations hierarchy. "
+            "AWS Organizations error code: %s.",
+            account_id,
+            error_code,
+            exc_info=True,
         )
+        status = (
+            organizations.AWSOrganizationSyncStatus.ACCESS_DENIED
+            if error_code in {"AccessDenied", "AccessDeniedException"}
+            else organizations.AWSOrganizationSyncStatus.INCOMPLETE
+        )
+        return organizations.AWSOrganizationSyncResult(
+            account_id,
+            status,
+            error_code=error_code,
+        )
+
+
+def _discover_aws_organization_candidate(
+    profile_name: str,
+    account_id: str,
+    use_explicit_profile: bool,
+) -> AWSOrganizationDiscoveryCandidate:
+    session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
+    boto3_session = boto3.Session(**session_kwargs)
+    try:
+        client = create_boto3_client(boto3_session, "organizations")
+        response = client.describe_organization()
+        organization = response["Organization"]
+    except botocore.exceptions.ClientError as e:
+        result = organizations.get_aws_organization_sync_result_from_client_error(
+            account_id,
+            e,
+        )
+        if result.status == organizations.AWSOrganizationSyncStatus.NOT_IN_ORG:
+            logger.info(
+                "The current account (%s) is not a member of an AWS Organization.",
+                account_id,
+            )
+        elif result.status == organizations.AWSOrganizationSyncStatus.ACCESS_DENIED:
+            logger.warning(
+                "The current account (%s) doesn't have enough permissions to describe AWS Organizations. "
+                "AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        else:
+            logger.warning(
+                "Unable to describe AWS Organization for account %s. AWS Organizations error code: %s.",
+                account_id,
+                result.error_code,
+                exc_info=True,
+            )
+        return AWSOrganizationDiscoveryCandidate(
+            profile_name,
+            account_id,
+            result=result,
+        )
+    return AWSOrganizationDiscoveryCandidate(
+        profile_name,
+        account_id,
+        organization_id=organization["Id"],
+        management_account_id=organization.get("MasterAccountId"),
+    )
+
+
+def _discover_aws_organization_candidates(
+    accounts: Dict[str, str],
+    use_explicit_profile: bool,
+) -> list[AWSOrganizationDiscoveryCandidate]:
+    account_items = list(accounts.items())
+    if not use_explicit_profile and len(account_items) > 1:
+        logger.warning(
+            "AWS Organizations discovery is using the default AWS session, so only the first configured AWS account "
+            "(%s) will be probed. Use --aws-sync-all-profiles to probe multiple configured profiles.",
+            account_items[0][1],
+        )
+    if not use_explicit_profile:
+        account_items = account_items[:1]
+    if not account_items:
+        return []
+
+    return [
+        _discover_aws_organization_candidate(
+            profile_name,
+            account_id,
+            use_explicit_profile,
+        )
+        for profile_name, account_id in account_items
+    ]
+
+
+def _group_aws_organization_candidates(
+    candidates: Iterable[AWSOrganizationDiscoveryCandidate],
+) -> tuple[
+    list[organizations.AWSOrganizationSyncResult],
+    dict[str, list[AWSOrganizationDiscoveryCandidate]],
+]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]] = {}
+    for candidate in candidates:
+        if candidate.result is not None:
+            results.append(candidate.result)
+            continue
+        if candidate.organization_id is None:
+            continue
+        candidates_by_organization.setdefault(candidate.organization_id, []).append(
+            candidate,
+        )
+    return results, candidates_by_organization
+
+
+def _sync_aws_organization_candidate_groups(
+    neo4j_session: neo4j.Session,
+    candidates_by_organization: dict[str, list[AWSOrganizationDiscoveryCandidate]],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    use_explicit_profile: bool,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    for organization_id, organization_candidates in candidates_by_organization.items():
+        organization_candidates.sort(
+            key=lambda candidate: (
+                candidate.account_id != candidate.management_account_id,
+            ),
+        )
+        for candidate in organization_candidates:
+            session_kwargs = (
+                {"profile_name": candidate.profile_name} if use_explicit_profile else {}
+            )
+            boto3_session = boto3.Session(**session_kwargs)
+            result = _sync_aws_organization_for_account(
+                neo4j_session,
+                boto3_session,
+                candidate.account_id,
+                sync_tag,
+                common_job_parameters,
+            )
+            results.append(result)
+            if result.status in {
+                organizations.AWSOrganizationSyncStatus.SYNCED,
+                organizations.AWSOrganizationSyncStatus.ALREADY_SYNCED,
+            }:
+                break
+        else:
+            logger.warning(
+                "Unable to find an account with access to enumerate AWS Organization %s.",
+                organization_id,
+            )
+    return results
+
+
+def _sync_explicit_aws_organization_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str],
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    account_ids = set(organization_account_ids)
+    candidate_accounts = {
+        profile_name: account_id
+        for profile_name, account_id in accounts.items()
+        if account_id in account_ids
+    }
+    candidates = _discover_aws_organization_candidates(
+        candidate_accounts,
+        use_explicit_profile,
+    )
+    results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
+        )
+    )
+
+    missing_account_ids = account_ids - set(accounts.values())
+    if missing_account_ids:
+        logger.warning(
+            "AWS Organizations sync candidate account IDs are not in the AWS sync account list: %s.",
+            ", ".join(sorted(missing_account_ids)),
+        )
+
+    return results
+
+
+def _sync_aws_organizations_for_accounts(
+    neo4j_session: neo4j.Session,
+    accounts: Dict[str, str],
+    sync_tag: int,
+    common_job_parameters: Dict[str, Any],
+    organization_account_ids: Iterable[str] | None = None,
+    use_explicit_profile: bool = False,
+) -> list[organizations.AWSOrganizationSyncResult]:
+    """
+    Discover AWS Organizations before per-account resource sync.
+
+    This keeps standard Cartography's sequential CLI/library flow compatible while
+    giving external orchestrators a single phase they can call before parallel
+    account fanout.
+    """
+    if organization_account_ids is not None:
+        return _sync_explicit_aws_organization_accounts(
+            neo4j_session,
+            accounts,
+            sync_tag,
+            common_job_parameters,
+            organization_account_ids,
+            use_explicit_profile=use_explicit_profile,
+        )
+
+    results: list[organizations.AWSOrganizationSyncResult] = []
+    candidates = _discover_aws_organization_candidates(accounts, use_explicit_profile)
+    discovery_results, candidates_by_organization = _group_aws_organization_candidates(
+        candidates,
+    )
+    results.extend(discovery_results)
+    results.extend(
+        _sync_aws_organization_candidate_groups(
+            neo4j_session,
+            candidates_by_organization,
+            sync_tag,
+            common_job_parameters,
+            use_explicit_profile,
+        )
+    )
+
+    return results
 
 
 def _sync_multiple_accounts(
@@ -266,10 +614,19 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    _sync_aws_organizations_for_accounts(
+        neo4j_session,
+        accounts,
+        sync_tag,
+        common_job_parameters,
+        organization_account_ids=organization_account_ids,
+        use_explicit_profile=use_explicit_profile,
+    )
 
     failed_account_ids = []
     exception_tracebacks = []
@@ -285,15 +642,6 @@ def _sync_multiple_accounts(
         # Otherwise fall back to the default session so env-var-only credentials keep working when ~/.aws/config is absent (#1042).
         session_kwargs = {"profile_name": profile_name} if use_explicit_profile else {}
         boto3_session = boto3.Session(**session_kwargs)
-        aioboto3_session = aioboto3.Session(**session_kwargs)
-
-        _autodiscover_accounts(
-            neo4j_session,
-            boto3_session,
-            account_id,
-            sync_tag,
-            common_job_parameters,
-        )
 
         try:
             _sync_one_account(
@@ -304,7 +652,10 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
-                aioboto3_session=aioboto3_session,
+                aioboto3_session_factory=partial(
+                    aioboto3.Session,
+                    **session_kwargs,
+                ),
             )
         except Exception as e:
             if aws_best_effort_mode:
@@ -343,6 +694,47 @@ def _sync_multiple_accounts(
     return False
 
 
+# Per-account analysis jobs must only run when every producer was refreshed.
+AWS_EC2_IAM_INSTANCE_PROFILE_DEPS = {
+    "iam",
+    "iaminstanceprofiles",
+    "ec2:instance",
+}
+AWS_LAMBDA_ECR_DEPS = {"ecr", "lambda_function"}
+AWS_LB_NACL_DIRECT_DEPS = {
+    "ec2:network_acls",
+    "ec2:load_balancer_v2",
+    "ec2:subnet",
+}
+
+# Resource syncs that feed the `exposed_internet` flag: AWS_EC2_ASSET_EXPOSURE_JOBS (which sets it on
+# load balancers, instances, etc.) only runs when all of these were requested this cycle.
+AWS_EC2_ASSET_EXPOSURE_DEPS = {
+    "ec2:instance",
+    "ec2:security_group",
+    "ec2:load_balancer",
+    "ec2:load_balancer_v2",
+}
+AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ec2:autoscalinggroup"
+}
+# Both the ECS internet-exposure property and the LB->container edge gate on lb.exposed_internet, so
+# they must require the full producer dependency set above: otherwise a partial sync that skips the
+# producer would leave a stale exposed_internet flag and let these consumers label/link containers
+# from it. On top of that they read the ECS graph, the LB EXPOSE edges, and the ENI chain directly
+# (the ECS "direct" statement also reads security-group inbound rules), so add those syncs too.
+AWS_ECS_ASSET_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ecs",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+}
+AWS_LB_CONTAINER_EXPOSURE_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ecs",
+    "ec2:load_balancer_v2:expose",
+    "ec2:network_interface",
+}
+
+
 @timeit
 def _perform_aws_analysis(
     requested_syncs: List[str],
@@ -362,47 +754,59 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    ec2_asset_exposure_requirements = {
-        "ec2:instance",
-        "ec2:security_group",
-        "ec2:load_balancer",
-        "ec2:load_balancer_v2",
-    }
-    run_analysis_and_ensure_deps(
-        "aws_ec2_asset_exposure.json",
-        ec2_asset_exposure_requirements,
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        dependencies = AWS_EC2_ASSET_EXPOSURE_DEPS
+        if job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:
+            dependencies = AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
+        run_typed_analysis_and_ensure_deps(
+            job,
+            dependencies,
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_ec2_keypair_analysis.json",
-        {"ec2:keypair"},
-        requested_syncs_as_set,
-        common_job_parameters,
-        neo4j_session,
-    )
+    for job in AWS_EC2_KEYPAIR_ANALYSIS_JOBS:
+        run_typed_analysis_and_ensure_deps(
+            job,
+            {"ec2:keypair"},
+            requested_syncs_as_set,
+            common_job_parameters,
+            neo4j_session,
+        )
 
-    run_analysis_and_ensure_deps(
-        "aws_eks_asset_exposure.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_EKS_ASSET_EXPOSURE,
         {"eks"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_foreign_accounts.json",
+    run_typed_analysis_and_ensure_deps(
+        AWS_FOREIGN_ACCOUNTS,
         set(),  # This job has no requirements
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    run_analysis_and_ensure_deps(
-        "aws_ecs_asset_exposure.json",
-        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
+    # Both the ECS container internet-exposure property and the LB->container EXPOSE edge gate on
+    # lb.exposed_internet, so they run here (after AWS_EC2_ASSET_EXPOSURE_JOBS) rather than in the
+    # per-account phase. Their dependency sets (see above) require the exposed_internet producer's
+    # syncs plus the ECS / ENI / SG data they read, so a partial sync skips them instead of labelling
+    # containers from a stale exposed_internet flag, security group, or ENI.
+    run_typed_analysis_and_ensure_deps(
+        AWS_ECS_ASSET_EXPOSURE,
+        AWS_ECS_ASSET_EXPOSURE_DEPS,
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    run_typed_analysis_and_ensure_deps(
+        AWS_LB_CONTAINER_EXPOSURE,
+        AWS_LB_CONTAINER_EXPOSURE_DEPS,
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
@@ -411,6 +815,12 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    aws_ssm_public_parameter_prefix_allowlist = (
+        _resolve_aws_ssm_public_parameter_prefix_allowlist(
+            config.aws_ssm_public_parameter_prefix_allowlist,
+            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
+        )
+    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -418,6 +828,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
+        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
     }
     try:
         boto3_session = boto3.Session()
@@ -465,6 +876,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         regions = parse_and_validate_aws_regions(config.aws_regions)
     else:
         regions = None
+    if config.aws_organization_account_ids:
+        organization_account_ids = parse_and_validate_aws_account_ids(
+            config.aws_organization_account_ids,
+        )
+    else:
+        organization_account_ids = None
 
     sync_successful = _sync_multiple_accounts(
         neo4j_session,
@@ -474,10 +891,20 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        organization_account_ids=organization_account_ids,
         # Today this flag mirrors aws_sync_all_profiles 1:1; it's named separately so _sync_multiple_accounts
         # stays decoupled from the CLI option should the two ever diverge.
         use_explicit_profile=config.aws_sync_all_profiles,
     )
 
     if sync_successful:
+        _sync_shared_public_ssm_parameters(
+            neo4j_session,
+            boto3_session,
+            aws_accounts,
+            requested_syncs,
+            common_job_parameters,
+            regions,
+            config.aws_best_effort_mode,
+        )
         _perform_aws_analysis(requested_syncs, neo4j_session, common_job_parameters)

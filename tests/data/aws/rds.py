@@ -197,6 +197,7 @@ DESCRIBE_DBSNAPSHOTS_RESPONSE = {
             "StorageType": "aurora",
             "TdeCredentialArn": "some-tde-credential-arn",
             "Encrypted": True,
+            "Public": True,
             "KmsKeyId": "arn:aws:kms:us-east-1:some-arn:key/some-guid",
             "DBSnapshotArn": "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
             "Timezone": "utc",

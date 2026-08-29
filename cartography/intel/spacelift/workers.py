@@ -34,7 +34,7 @@ def get_workers(session: requests.Session, api_endpoint: str) -> list[dict[str, 
     Fetch all Spacelift workers from the API.
     Workers are nested under workerPools, so we query workerPools and flatten the workers.
     """
-    logger.info("Fetching Spacelift workers")
+    logger.debug("Fetching Spacelift workers")
 
     response = call_spacelift_api(session, api_endpoint, GET_WORKERS_QUERY)
     worker_pools = response.get("data", {}).get("workerPools", [])

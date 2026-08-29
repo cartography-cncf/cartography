@@ -10,6 +10,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PERMISSION_ROLE
+from cartography.models.ontology.labels import USER_GROUP
 
 ####
 # User Role
@@ -59,6 +61,7 @@ class OktaGroupRoleSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[],
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
 
 
 @dataclass(frozen=True)
@@ -108,13 +111,13 @@ class OktaGroupToOktaUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaUserRel(CartographyRelSchema):
-    # (:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)
+    # (:OktaGroup)<-[:MEMBER_OF]-(:OktaUser)
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "MEMBER_OF_OKTA_GROUP"
+    rel_label: str = "MEMBER_OF"
     properties: OktaGroupToOktaUserRelProperties = OktaGroupToOktaUserRelProperties()
 
 
@@ -150,7 +153,7 @@ class OktaGroupSchema(CartographyNodeSchema):
             OktaGroupToOktaGroupRoleRel(),
         ],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
 
 
 @dataclass(frozen=True)

@@ -25,6 +25,7 @@ TEST_API_ENDPOINT = "https://fake.spacelift.io/graphql"
 TEST_ACCOUNT_ID = "test-account-123"
 TEST_AWS_ACCOUNT_ID = "000000000000"
 TEST_AWS_REGION = "us-east-1"
+TEST_AWS_ROLE_ARN = "arn:aws:iam::000000000000:role/SpaceLift-Administrator-Access"
 
 
 @patch.object(
@@ -53,7 +54,7 @@ def test_spacelift_end_to_end(
     """
     End-to-end integration test for Spacelift module.
     Tests syncing of all Spacelift resources and their relationships,
-    including Run-[:AFFECTED]->EC2Instance relationships.
+    including Run-[:AFFECTED]->AWSEC2Instance relationships.
 
     This test uses the real AWS EC2 sync to populate EC2 instances,
     making it more robust than manually creating EC2 nodes.
@@ -113,9 +114,22 @@ def test_spacelift_end_to_end(
         ("i-03", "i-03"),
         ("i-04", "i-04"),
     }
-    actual_ec2_nodes = check_nodes(neo4j_session, "EC2Instance", ["id", "instanceid"])
+    actual_ec2_nodes = check_nodes(
+        neo4j_session, "AWSEC2Instance", ["id", "instanceid"]
+    )
     assert actual_ec2_nodes is not None
     assert expected_ec2_nodes == actual_ec2_nodes
+
+    # Seed an AWSRole node (normally created by the AWS IAM sync) so the
+    # SpaceliftStack-[:ASSUMES]->AWSRole relationship can be matched.
+    neo4j_session.run(
+        """
+        MERGE (r:AWSRole {arn: $arn})
+        SET r.id = $arn, r.lastupdated = $update_tag
+        """,
+        arn=TEST_AWS_ROLE_ARN,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -238,7 +252,7 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Check that Run-[:AFFECTED]->EC2Instance relationships were created (from Spacelift entities API)
+    # Check that Run-[:AFFECTED]->AWSEC2Instance relationships were created (from Spacelift entities API)
     expected_run_ec2_relationships = {
         ("run-1", "i-01"),
         ("run-1", "i-02"),
@@ -248,7 +262,7 @@ def test_spacelift_end_to_end(
         neo4j_session,
         "SpaceliftRun",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "instanceid",
         "AFFECTED",
     )
@@ -302,3 +316,19 @@ def test_spacelift_end_to_end(
     )
     assert actual_pool_worker_relationships is not None
     assert expected_pool_worker_relationships == actual_pool_worker_relationships
+
+    # Check that Stack-[:ASSUMES]->AWSRole relationships were created.
+    # Only stack-1 has an assumed role ARN; stack-2's is null, so it gets no edge.
+    expected_stack_role_relationships = {
+        ("stack-1", TEST_AWS_ROLE_ARN),
+    }
+    actual_stack_role_relationships = check_rels(
+        neo4j_session,
+        "SpaceliftStack",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+    )
+    assert actual_stack_role_relationships is not None
+    assert expected_stack_role_relationships == actual_stack_role_relationships

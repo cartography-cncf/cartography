@@ -20,6 +20,22 @@ def test_build_default_sync():
     assert [name for name in sync._stages.keys()] == list(TOP_LEVEL_MODULES.keys())
 
 
+def test_default_sync_runs_cve_metadata_after_cve_producers():
+    stage_names = list(TOP_LEVEL_MODULES.keys())
+    cve_metadata_index = stage_names.index("cve_metadata")
+
+    for producer in (
+        "crowdstrike",
+        "cve",
+        "github",
+        "semgrep",
+        "trivy",
+        "ubuntu",
+        "sentinelone",
+    ):
+        assert stage_names.index(producer) < cve_metadata_index
+
+
 def test_build_sync():
     # Arrange
     selected_modules = "aws, gcp, analysis"

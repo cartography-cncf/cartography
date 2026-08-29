@@ -7,8 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from requests import Session
+from requests.exceptions import ChunkedEncodingError
 
 from cartography.intel.cve.feed import _call_cves_api
+from cartography.intel.cve.feed import _get_primary_metric
 from cartography.intel.cve.feed import _map_cve_dict
 from cartography.intel.cve.feed import get_cves_in_batches
 from cartography.intel.cve.feed import get_modified_cves
@@ -97,6 +99,29 @@ def _mock_good_responses() -> list[Mock]:
         "vulnerabilities": [],
     }
     return [mock_response_1, mock_response_2, mock_response_3]
+
+
+def test_call_cves_api_retries_on_chunked_encoding_error(mock_session):
+    """
+    _call_cves_api should retry per-page requests that fail with
+    ChunkedEncodingError (raised when the NVD API truncates a chunked
+    response body mid-read) and complete successfully once the next attempt
+    returns a valid payload.
+    """
+    # Arrange: first call raises, subsequent calls return the three good pages.
+    mock_session.get.side_effect = [
+        ChunkedEncodingError("Response ended prematurely"),
+        *_mock_good_responses(),
+    ]
+    params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
+
+    # Act
+    result = _call_cves_api(mock_session, NIST_CVE_URL, API_KEY, params)
+
+    # Assert: one retry + three successful page fetches.
+    assert mock_session.get.call_count == 4
+    assert result["totalResults"] == 4000
+    assert len(result["vulnerabilities"]) == 6
 
 
 def test_call_cves_api(mock_session):
@@ -232,3 +257,29 @@ def test_get_published_cves_per_year(mock_call_cves_api: Mock, mock_session: Ses
     # Assert
     assert mock_call_cves_api.call_count == 4
     assert cves == expected_cves
+
+
+def test_get_primary_metric_returns_primary_when_present():
+    metrics = [
+        {"type": "Secondary", "source": "a"},
+        {"type": "Primary", "source": "b"},
+    ]
+    assert _get_primary_metric(metrics) == {"type": "Primary", "source": "b"}
+
+
+def test_get_primary_metric_falls_back_to_first_when_no_primary():
+    metrics = [
+        {"type": "Secondary", "source": "a"},
+        {"type": "Secondary", "source": "b"},
+    ]
+    assert _get_primary_metric(metrics) == {"type": "Secondary", "source": "a"}
+
+
+def test_get_primary_metric_returns_none_for_empty_list():
+    # NVD can return a CVSS version key mapped to an empty list; falling back to
+    # metrics[0] would raise IndexError and abort the whole CVE sync.
+    assert _get_primary_metric([]) is None
+
+
+def test_get_primary_metric_returns_none_for_none():
+    assert _get_primary_metric(None) is None

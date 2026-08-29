@@ -21,15 +21,34 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SyftPackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Normalized package identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    version: PropertyRef = PropertyRef("version")
-    type: PropertyRef = PropertyRef("type")
-    purl: PropertyRef = PropertyRef("purl")
-    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
-    language: PropertyRef = PropertyRef("language")
-    found_by: PropertyRef = PropertyRef("found_by")
+    name: PropertyRef = PropertyRef("name", description="Package name.")
+    version: PropertyRef = PropertyRef("version", description="Package version.")
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Package ecosystem or type, such as npm, pypi, or deb.",
+    )
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description="Package URL identifying the package.",
+    )
+    normalized_id: PropertyRef = PropertyRef(
+        "normalized_id",
+        extra_index=True,
+        description="Normalized identifier used for cross-tool package matching.",
+    )
+    language: PropertyRef = PropertyRef(
+        "language",
+        description="Programming language associated with the package.",
+    )
+    found_by: PropertyRef = PropertyRef(
+        "found_by",
+        description="Syft cataloger that discovered the package.",
+    )
 
 
 @dataclass(frozen=True)
@@ -55,7 +74,29 @@ class SyftPackageDependsOnRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SyftPackageToOntologyImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SyftPackageToOntologyImageRel(CartographyRelSchema):
+    """Links a package to the ontology image in which Syft discovered it."""
+
+    target_node_label: str = "Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_digest": PropertyRef("ImageDigestCandidates", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: SyftPackageToOntologyImageRelProperties = (
+        SyftPackageToOntologyImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SyftPackageSchema(CartographyNodeSchema):
+    """A software package discovered in a Syft artifact scan."""
+
     label: str = "SyftPackage"
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
@@ -63,5 +104,6 @@ class SyftPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SyftPackageDependsOnRel(),
+            SyftPackageToOntologyImageRel(),
         ],
     )

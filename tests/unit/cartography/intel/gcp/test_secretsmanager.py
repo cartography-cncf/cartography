@@ -2,6 +2,7 @@ import json
 import logging
 from unittest.mock import MagicMock
 
+import pytest
 from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.secretsmanager import get_secret_versions
@@ -86,6 +87,21 @@ def test_get_secrets_returns_empty_when_insufficient_permissions(monkeypatch):
     assert get_secrets(secretmanager, "test-project") == []
 
 
+def test_get_secrets_reraises_generic_403(monkeypatch):
+    secretmanager, _req = _make_secretmanager_client()
+    error = _make_http_error(
+        403,
+        {"error": {"message": "Forbidden"}},
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.secretsmanager.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    with pytest.raises(HttpError):
+        get_secrets(secretmanager, "test-project")
+
+
 def test_get_secret_versions_returns_empty_when_iam_permission_denied(monkeypatch):
     secretmanager, _req = _make_secretmanager_client()
     error = _make_http_error(
@@ -106,6 +122,21 @@ def test_get_secret_versions_returns_empty_when_iam_permission_denied(monkeypatc
         get_secret_versions(secretmanager, "projects/test-project/secrets/example")
         == []
     )
+
+
+def test_get_secret_versions_reraises_generic_403(monkeypatch):
+    secretmanager, _req = _make_secretmanager_client()
+    error = _make_http_error(
+        403,
+        {"error": {"message": "Forbidden"}},
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.secretsmanager.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    with pytest.raises(HttpError):
+        get_secret_versions(secretmanager, "projects/test-project/secrets/example")
 
 
 def test_get_secrets_logs_compact_summary_for_permission_denied(monkeypatch, caplog):

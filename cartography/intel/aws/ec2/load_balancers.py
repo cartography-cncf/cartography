@@ -2,8 +2,13 @@ import logging
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
@@ -15,29 +20,56 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# DEPRECATED: Remove this migration function when releasing v1
-def _migrate_legacy_loadbalancer_labels(neo4j_session: neo4j.Session) -> None:
-    """One-time migration: relabel LoadBalancer → AWSLoadBalancer."""
-    check_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
-    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
-    RETURN count(n) as legacy_count
-    """
-    result = neo4j_session.run(check_query)
-    legacy_count = result.single()["legacy_count"]
+class ELBTransientRegionFailure(Exception):
+    pass
 
-    if legacy_count == 0:
-        return
 
-    logger.info(f"Migrating {legacy_count} legacy LoadBalancer nodes...")
-    migration_query = """
-    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
-    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
-    SET n:AWSLoadBalancer
-    RETURN count(n) as migrated
-    """
-    result = neo4j_session.run(migration_query)
-    logger.info(f"Migrated {result.single()['migrated']} nodes")
+TRANSIENT_REGION_EXCEPTIONS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
+
+RETRYABLE_ELB_ERROR_CODES = {
+    "InternalError",
+    "InternalFailure",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
+
+RETRYABLE_ELB_HTTP_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _is_retryable_elb_client_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code in RETRYABLE_ELB_ERROR_CODES
+        or status_code in RETRYABLE_ELB_HTTP_STATUS_CODES
+    )
+
+
+# DEPRECATED: This compatibility migration will be removed in v1.0.0.
+def _migrate_legacy_loadbalancer_labels(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+) -> None:
+    """Add AWSLoadBalancer to legacy Classic ELBs in the current account."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:LoadBalancer)
+        WHERE NOT n:AWSLoadBalancer
+          AND NOT n:LoadBalancerV2
+          AND NOT n:AWSLoadBalancerV2
+        SET n:AWSLoadBalancer
+        """,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 def _get_listener_id(load_balancer_id: str, port: int, protocol: str) -> str:
@@ -106,9 +138,11 @@ def transform_load_balancer_data(
     for lb in load_balancers:
         load_balancer_id = lb["DNSName"]
         transformed_lb = {
+            # `id` stays raw: it is what listeners join against. `dnsname` is lowercased so
+            # equality matchers survive AWS preserving the load balancer name's case.
             "id": load_balancer_id,
             "name": lb["LoadBalancerName"],
-            "dnsname": lb["DNSName"],
+            "dnsname": lb["DNSName"].lower(),
             "canonicalhostedzonename": lb.get("CanonicalHostedZoneName"),
             "canonicalhostedzonenameid": lb.get("CanonicalHostedZoneNameID"),
             "scheme": lb.get("Scheme"),
@@ -152,8 +186,13 @@ def get_loadbalancer_data(
     )
     paginator = client.get_paginator("describe_load_balancers")
     elbs: list[dict] = []
-    for page in paginator.paginate():
-        elbs.extend(page["LoadBalancerDescriptions"])
+    try:
+        for page in paginator.paginate():
+            elbs.extend(page["LoadBalancerDescriptions"])
+    except TRANSIENT_REGION_EXCEPTIONS as error:
+        raise ELBTransientRegionFailure(
+            "Encountered a transient regional ELB endpoint failure while calling DescribeLoadBalancers"
+        ) from error
     return elbs
 
 
@@ -214,7 +253,8 @@ def sync_load_balancers(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    _migrate_legacy_loadbalancer_labels(neo4j_session)
+    _migrate_legacy_loadbalancer_labels(neo4j_session, current_aws_account_id)
+    cleanup_safe = True
 
     for region in regions:
         logger.info(
@@ -222,7 +262,28 @@ def sync_load_balancers(
             region,
             current_aws_account_id,
         )
-        data = get_loadbalancer_data(boto3_session, region)
+        try:
+            data = get_loadbalancer_data(boto3_session, region)
+        except ELBTransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping classic ELB sync for account %s in region %s after transient ELB failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
+        except ClientError as error:
+            if _is_retryable_elb_client_error(error):
+                cleanup_safe = False
+                logger.warning(
+                    "Skipping classic ELB sync for account %s in region %s after AWS client retries were exhausted: %s",
+                    current_aws_account_id,
+                    region,
+                    error,
+                )
+                continue
+            raise
         transformed_data, listener_data = transform_load_balancer_data(data)
 
         load_load_balancers(
@@ -232,4 +293,10 @@ def sync_load_balancers(
             neo4j_session, listener_data, region, current_aws_account_id, update_tag
         )
 
-    cleanup_load_balancers(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_load_balancers(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping classic ELB cleanup for account %s because one or more regions had transient ELB failures. Preserving last-known-good ELB state.",
+            current_aws_account_id,
+        )

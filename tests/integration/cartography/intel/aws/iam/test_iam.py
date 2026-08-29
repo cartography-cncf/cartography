@@ -290,7 +290,7 @@ def test_map_permissions(neo4j_session):
     # Insert an s3 bucket to map
     neo4j_session.run(
         """
-    MERGE (s3:S3Bucket{arn:'arn:aws:s3:::test_bucket'})<-[:RESOURCE]-(a:AWSAccount{id:$AccountId})
+    MERGE (s3:AWSS3Bucket{arn:'arn:aws:s3:::test_bucket'})<-[:RESOURCE]-(a:AWSAccount{id:$AccountId})
     """,
         AccountId=TEST_ACCOUNT_ID,
     )

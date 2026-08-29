@@ -4,6 +4,7 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -17,4 +18,4 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
 class OktaOrganizationSchema(CartographyNodeSchema):
     label: str = "OktaOrganization"
     properties: OktaOrganizationNodeProperties = OktaOrganizationNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

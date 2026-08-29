@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
-from cartography.util import run_analysis_job
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.data.aws.lambda_function import LIST_LAMBDA_FUNCTIONS_CONTAINER_IMAGE
 from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test
 from tests.data.aws.lambda_function import mock_get_function_aliases_for_sync_test
@@ -16,6 +17,11 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-west-2"
 TEST_UPDATE_TAG = 123456789
+
+
+def _run_resolved_image_analysis(neo4j_session):
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(job, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
 
 @patch.object(
@@ -52,6 +58,16 @@ def test_sync_lambda_functions(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
+    # Seed the execution role of sample-function-7 so the canonical
+    # (:Function)-[:ASSUMES]->(:PermissionRole) edge has a target to match.
+    neo4j_session.run(
+        """
+        MERGE (r:AWSRole:AWSPrincipal {arn: $arn})
+        ON CREATE SET r.lastupdated = $update_tag
+        """,
+        arn="arn:aws:iam::000000000000:role/sample-role-2",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Act
     cartography.intel.aws.lambda_function.sync(
@@ -126,6 +142,22 @@ def test_sync_lambda_functions(
     }
 
     # Assert - Check all relationship types were created correctly
+
+    # Canonical ontology edge: (:Function)-[:ASSUMES]->(:PermissionRole)
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSRole",
+        "arn",
+        "ASSUMES",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+            "arn:aws:iam::000000000000:role/sample-role-2",
+        ),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -786,14 +818,14 @@ def test_container_image_lambda_has_image_and_resolved_image(
     neo4j_session,
 ):
     """A PackageType=Image Lambda should get image_uri/image_digest populated,
-    a HAS_IMAGE edge to ECRImage (matched on digest) and a RESOLVED_IMAGE edge
+    a HAS_IMAGE edge to AWSECRImage (matched on digest) and a RESOLVED_IMAGE edge
     produced by the Function-scoped analysis pass."""
     # Isolate from Lambdas/state left by the shared-session sync test above.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     neo4j_session.run(
         """
-        MERGE (i:Image:ECRImage {id: $digest})
+        MERGE (i:Image:AWSECRImage {id: $digest})
         SET i.digest = $digest, i.lastupdated = $tag
         """,
         digest=TEST_LAMBDA_IMAGE_DIGEST,
@@ -835,16 +867,12 @@ def test_container_image_lambda_has_image_and_resolved_image(
         neo4j_session,
         "AWSLambda",
         "id",
-        "ECRImage",
+        "AWSECRImage",
         "digest",
         "HAS_IMAGE",
     ) == {(TEST_CONTAINER_LAMBDA_ARN, TEST_LAMBDA_IMAGE_DIGEST)}
 
-    run_analysis_job(
-        "resolved_image_analysis.json",
-        neo4j_session,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
+    _run_resolved_image_analysis(neo4j_session)
 
     assert check_rels(
         neo4j_session,

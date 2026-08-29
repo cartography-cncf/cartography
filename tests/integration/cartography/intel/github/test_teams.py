@@ -211,20 +211,37 @@ def test_sync_github_teams(
     }
 
     # Assert - Verify MEMBER relationships to users
-    assert check_rels(
-        neo4j_session,
-        "GitHubTeam",
-        "id",
-        "GitHubUser",
-        "id",
-        "MEMBER",
-        rel_direction_right=False,
-    ) == {
+    expected_team_membership = {
         (
             "https://github.com/orgs/simpsoncorp/teams/team-c",
             "https://github.com/hjsimpson",
         ),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubTeam",
+            "id",
+            "GitHubUser",
+            "id",
+            "MEMBER",
+            rel_direction_right=False,
+        )
+        == expected_team_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubTeam",
+            "id",
+            "GitHubUser",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=False,
+        )
+        == expected_team_membership
+    )
 
     # Assert - Verify MAINTAINER relationships to users
     assert check_rels(
@@ -247,15 +264,7 @@ def test_sync_github_teams(
     }
 
     # Assert - Verify MEMBER_OF_TEAM relationships between teams
-    assert check_rels(
-        neo4j_session,
-        "GitHubTeam",
-        "id",
-        "GitHubTeam",
-        "id",
-        "MEMBER_OF_TEAM",
-        rel_direction_right=False,
-    ) == {
+    expected_child_team_rels = {
         (
             "https://github.com/orgs/simpsoncorp/teams/team-d",
             "https://github.com/orgs/simpsoncorp/teams/team-a",
@@ -265,3 +274,28 @@ def test_sync_github_teams(
             "https://github.com/orgs/simpsoncorp/teams/team-b",
         ),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubTeam",
+            "id",
+            "GitHubTeam",
+            "id",
+            "MEMBER_OF_TEAM",
+            rel_direction_right=False,
+        )
+        == expected_child_team_rels
+    )
+    # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitHubTeam",
+            "id",
+            "GitHubTeam",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=False,
+        )
+        == expected_child_team_rels
+    )

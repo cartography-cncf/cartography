@@ -142,21 +142,38 @@ def test_sync_duo_users(neo4j_session):
         ("userid2", "webauthnkey3"),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "DuoGroup",
-        "id",
-        "DuoUser",
-        "id",
-        "MEMBER_OF_DUO_GROUP",
-        rel_direction_right=False,
-    ) == {
+    expected_duo_group_membership = {
         ("groupid1", "userid1"),
         ("groupid2", "userid1"),
         ("groupid2", "userid2"),
         ("groupid3", "userid3"),
         ("groupid4", "userid4"),
     }
+    assert (
+        check_rels(
+            neo4j_session,
+            "DuoGroup",
+            "id",
+            "DuoUser",
+            "id",
+            "MEMBER_OF_DUO_GROUP",
+            rel_direction_right=False,
+        )
+        == expected_duo_group_membership
+    )
+    # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
+    assert (
+        check_rels(
+            neo4j_session,
+            "DuoGroup",
+            "id",
+            "DuoUser",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=False,
+        )
+        == expected_duo_group_membership
+    )
 
     assert check_rels(
         neo4j_session,

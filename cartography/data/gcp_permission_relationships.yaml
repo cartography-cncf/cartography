@@ -25,3 +25,81 @@
   permissions:
   - secretmanager.versions.access
   relationship_name: CAN_READ
+
+# Map principals that can read data from a BigQuery dataset.
+# bigquery.datasets.get is intentionally NOT included here: it grants
+# metadata-only access (dataset existence, location, labels) and would
+# over-attribute CAN_READ to roles like roles/bigquery.metadataViewer.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.getData
+  relationship_name: CAN_READ
+
+# Map principals that can write data to a BigQuery dataset.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.updateData
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete a BigQuery dataset or its tables.
+- target_label: GCPBigQueryDataset
+  permissions:
+  - bigquery.tables.delete
+  - bigquery.datasets.delete
+  relationship_name: CAN_DELETE
+
+# Map principals that can read data from a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.getData
+  relationship_name: CAN_READ
+
+# Map principals that can write data to a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.updateData
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete a BigQuery table.
+- target_label: GCPBigQueryTable
+  permissions:
+  - bigquery.tables.delete
+  relationship_name: CAN_DELETE
+
+# Map principals that can decrypt data with a Cloud KMS crypto key.
+- target_label: GCPCryptoKey
+  permissions:
+  - cloudkms.cryptoKeyVersions.useToDecrypt
+  relationship_name: CAN_DECRYPT
+
+# Map principals that can encrypt data with a Cloud KMS crypto key.
+- target_label: GCPCryptoKey
+  permissions:
+  - cloudkms.cryptoKeyVersions.useToEncrypt
+  relationship_name: CAN_ENCRYPT
+
+# Map principals that can download artifacts from an Artifact Registry repository.
+- target_label: GCPArtifactRegistryRepository
+  permissions:
+  - artifactregistry.repositories.downloadArtifacts
+  relationship_name: CAN_READ
+
+# Map principals that can upload artifacts to an Artifact Registry repository.
+- target_label: GCPArtifactRegistryRepository
+  permissions:
+  - artifactregistry.repositories.uploadArtifacts
+  relationship_name: CAN_WRITE
+
+# Map principals that can impersonate a GCP service account.
+# This is the GCP equivalent of AWS sts:AssumeRole and is the primary
+# privilege escalation vector in GCP. Bound roles include
+# roles/iam.serviceAccountTokenCreator and roles/iam.serviceAccountUser.
+- target_label: GCPServiceAccount
+  permissions:
+  - iam.serviceAccounts.actAs
+  - iam.serviceAccounts.getAccessToken
+  - iam.serviceAccounts.implicitDelegation
+  - iam.serviceAccounts.signBlob
+  - iam.serviceAccounts.signJwt
+  - iam.serviceAccounts.getOpenIdToken
+  relationship_name: CAN_IMPERSONATE

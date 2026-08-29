@@ -6,8 +6,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.bigtable.table import GCPBigtableTableSchema
 from cartography.util import timeit
 
@@ -43,7 +43,7 @@ def get_bigtable_tables(client: Resource, instance_id: str) -> list[dict] | None
             )
         return tables
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if classify_gcp_http_error(e) == "api_disabled":
             logger.warning(
                 "Could not retrieve Bigtable tables for instance %s due to permissions "
                 "issues or API not enabled. Skipping.",

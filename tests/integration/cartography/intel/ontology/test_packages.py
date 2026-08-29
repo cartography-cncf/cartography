@@ -19,8 +19,13 @@ def _setup_trivy_graph(neo4j_session):
         SET p.normalized_id = 'npm|express|4.18.2',
             p.name = 'express', p.version = '4.18.2',
             p.type = 'npm'
-        MERGE (img:ECRImage {id: 'sha256:abc123'})
+        MERGE (img:AWSECRImage {id: 'sha256:abc123'})
         MERGE (p)-[:DEPLOYED]->(img)
+        MERGE (ont_img:Image {id: 'ont-img-abc123'})
+        SET ont_img._ont_digest = 'sha256:abc123'
+        MERGE (p)-[:DEPLOYED]->(ont_img)
+        MERGE (snapshot:FilesystemSnapshot {id: 'filesystem-snapshot-1'})
+        MERGE (p)-[:DEPLOYED]->(snapshot)
         MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-00001'})
         SET f.name = 'CVE-2024-00001'
         MERGE (f)-[:AFFECTS]->(p)
@@ -38,6 +43,33 @@ def _setup_trivy_graph(neo4j_session):
             p.type = 'pypi'
         MERGE (img:GitLabContainerImage {id: 'sha256:def456'})
         MERGE (p)-[:DEPLOYED]->(img)
+        MERGE (ont_img:Image {id: 'ont-img-def456'})
+        SET ont_img._ont_digest = 'sha256:def456'
+        MERGE (p)-[:DEPLOYED]->(ont_img)
+        """,
+    )
+
+
+def _setup_gitlab_graph(neo4j_session):
+    """Create a GitLabDependency node so the Package ontology link can resolve."""
+    neo4j_session.run(
+        """
+        MERGE (d:GitLabDependency {id: 'gitlab-dep-1'})
+        SET d.normalized_id = 'npm|body-parser|1.20.2',
+            d.name = 'body-parser', d.version = '1.20.2',
+            d.type = 'npm', d.purl = 'pkg:npm/body-parser@1.20.2'
+        """,
+    )
+
+
+def _setup_github_graph(neo4j_session):
+    """Create a GitHubDependency node so the Package ontology link can resolve."""
+    neo4j_session.run(
+        """
+        MERGE (d:Dependency:GitHubDependency {id: 'github-dep-1'})
+        SET d.normalized_id = 'pypi|django|4.2.0',
+            d.name = 'django', d.version = '4.2.0',
+            d.type = 'pypi', d.purl = 'pkg:pypi/django@4.2.0'
         """,
     )
 
@@ -55,6 +87,10 @@ def _setup_syft_graph(neo4j_session):
             p2.name = 'body-parser', p2.version = '1.20.2',
             p2.type = 'npm'
         MERGE (p1)-[:DEPENDS_ON]->(p2)
+        MERGE (ont_img:Image {id: 'ont-img-syft'})
+        SET ont_img._ont_digest = 'sha256:syft789'
+        MERGE (p1)-[:DEPLOYED]->(ont_img)
+        MERGE (p2)-[:DEPLOYED]->(ont_img)
         """,
     )
 
@@ -84,6 +120,13 @@ def _setup_syft_graph(neo4j_session):
             "type": "npm",
             "purl": "pkg:npm/body-parser@1.20.2",
         },
+        {
+            "normalized_id": "pypi|django|4.2.0",
+            "name": "django",
+            "version": "4.2.0",
+            "type": "pypi",
+            "purl": "pkg:pypi/django@4.2.0",
+        },
     ],
 )
 def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
@@ -92,6 +135,8 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     # Arrange
     _setup_trivy_graph(neo4j_session)
     _setup_syft_graph(neo4j_session)
+    _setup_gitlab_graph(neo4j_session)
+    _setup_github_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -100,24 +145,25 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert - Check that Package nodes were created
+    # Assert - Check that PackageVersion nodes were created
     expected_packages = {
         ("npm|express|4.18.2", "express", "4.18.2", "npm"),
         ("pypi|requests|2.31.0", "requests", "2.31.0", "pypi"),
         ("npm|body-parser|1.20.2", "body-parser", "1.20.2", "npm"),
+        ("pypi|django|4.2.0", "django", "4.2.0", "pypi"),
     }
     actual_packages = check_nodes(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         ["id", "name", "version", "type"],
     )
     assert actual_packages == expected_packages
 
-    # Assert - Check that Package nodes have Ontology label
+    # Assert - Check that PackageVersion nodes have Ontology label
     ontology_count = neo4j_session.run(
-        "MATCH (p:Package:Ontology) RETURN count(p) as count",
+        "MATCH (p:PackageVersion:Ontology) RETURN count(p) as count",
     ).single()["count"]
-    assert ontology_count == 3
+    assert ontology_count == 4
 
     # Assert - Check DETECTED_AS relationships to TrivyPackage
     expected_trivy_rels = {
@@ -126,7 +172,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     }
     actual_trivy_rels = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "TrivyPackage",
         "normalized_id",
@@ -135,6 +181,16 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     )
     assert actual_trivy_rels == expected_trivy_rels
 
+    assert check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "DEPLOYED",
+        rel_direction_right=True,
+    ) == {("npm|express|4.18.2", "filesystem-snapshot-1")}
+
     # Assert - Check DETECTED_AS relationships to SyftPackage
     expected_syft_rels = {
         ("npm|express|4.18.2", "npm|express|4.18.2"),
@@ -142,7 +198,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     }
     actual_syft_rels = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "SyftPackage",
         "normalized_id",
@@ -151,35 +207,53 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     )
     assert actual_syft_rels == expected_syft_rels
 
-    # Assert - Check DEPLOYED propagated from TrivyPackage to Package -> ECRImage
-    expected_deployed_ecr = {
-        ("npm|express|4.18.2", "sha256:abc123"),
+    # Assert - Check DETECTED_AS relationships to GitLabDependency
+    expected_gitlab_rels = {
+        ("npm|body-parser|1.20.2", "npm|body-parser|1.20.2"),
     }
-    actual_deployed_ecr = check_rels(
+    actual_gitlab_rels = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
-        "ECRImage",
-        "id",
-        "DEPLOYED",
+        "GitLabDependency",
+        "normalized_id",
+        "DETECTED_AS",
         rel_direction_right=True,
     )
-    assert actual_deployed_ecr == expected_deployed_ecr
+    assert actual_gitlab_rels == expected_gitlab_rels
 
-    # Assert - Check DEPLOYED propagated from TrivyPackage to Package -> GitLabContainerImage
-    expected_deployed_gitlab = {
-        ("pypi|requests|2.31.0", "sha256:def456"),
+    # Assert - Check DETECTED_AS relationships to GitHubDependency
+    expected_github_rels = {
+        ("pypi|django|4.2.0", "pypi|django|4.2.0"),
     }
-    actual_deployed_gitlab = check_rels(
+    actual_github_rels = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
-        "GitLabContainerImage",
+        "GitHubDependency",
+        "normalized_id",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_github_rels == expected_github_rels
+
+    # Assert - Check DEPLOYED propagated to Package -> ontology Image
+    expected_deployed_image = {
+        ("npm|express|4.18.2", "ont-img-abc123"),
+        ("npm|express|4.18.2", "ont-img-syft"),
+        ("npm|body-parser|1.20.2", "ont-img-syft"),
+        ("pypi|requests|2.31.0", "ont-img-def456"),
+    }
+    actual_deployed_image = check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "Image",
         "id",
         "DEPLOYED",
         rel_direction_right=True,
     )
-    assert actual_deployed_gitlab == expected_deployed_gitlab
+    assert actual_deployed_image == expected_deployed_image
 
     # Assert - Check AFFECTS propagated from TrivyImageFinding to Package
     expected_affects = {
@@ -189,7 +263,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         neo4j_session,
         "TrivyImageFinding",
         "id",
-        "Package",
+        "PackageVersion",
         "id",
         "AFFECTS",
         rel_direction_right=True,
@@ -202,7 +276,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     }
     actual_should_update_to = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
         "TrivyFix",
         "id",
@@ -217,25 +291,56 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     }
     actual_depends_on = check_rels(
         neo4j_session,
-        "Package",
+        "PackageVersion",
         "id",
-        "Package",
+        "PackageVersion",
         "id",
         "DEPENDS_ON",
         rel_direction_right=True,
     )
     assert actual_depends_on == expected_depends_on
 
+    # Assert - Check version-independent Package nodes and their HAS_VERSION edges
+    expected_package_nodes = {
+        ("npm|express", "express", "npm"),
+        ("pypi|requests", "requests", "pypi"),
+        ("npm|body-parser", "body-parser", "npm"),
+        ("pypi|django", "django", "pypi"),
+    }
+    actual_package_nodes = check_nodes(
+        neo4j_session,
+        "Package",
+        ["id", "name", "type"],
+    )
+    assert actual_package_nodes == expected_package_nodes
+
+    expected_has_version = {
+        ("npm|express", "npm|express|4.18.2"),
+        ("pypi|requests", "pypi|requests|2.31.0"),
+        ("npm|body-parser", "npm|body-parser|1.20.2"),
+        ("pypi|django", "pypi|django|4.2.0"),
+    }
+    actual_has_version = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "PackageVersion",
+        "id",
+        "HAS_VERSION",
+        rel_direction_right=True,
+    )
+    assert actual_has_version == expected_has_version
+
 
 def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
     """
-    Verify Package cleanup deletes stale derived relationships created by ontology
+    Verify PackageVersion cleanup deletes stale derived relationships created by ontology
     mapping propagation while preserving fresh relationships.
     """
     neo4j_session.run(
         """
         MATCH (n)
-        WHERE n:Package OR n:TrivyPackage OR n:TrivyImageFinding OR n:TrivyFix OR n:ECRImage
+        WHERE n:Package OR n:PackageVersion OR n:TrivyPackage OR n:TrivyImageFinding OR n:TrivyFix OR n:Image
         DETACH DELETE n
         """,
     )
@@ -244,10 +349,10 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
 
     neo4j_session.run(
         """
-        MERGE (p:Package:Ontology {id: 'npm|express|4.18.2'})
+        MERGE (p:PackageVersion:Ontology {id: 'npm|express|4.18.2'})
         SET p.lastupdated = $update_tag
 
-        MERGE (img:ECRImage {id: 'sha256:stale'})
+        MERGE (img:Image {id: 'sha256:stale'})
         MERGE (p)-[r1:DEPLOYED]->(img)
         SET r1.lastupdated = $stale_tag
 
@@ -259,7 +364,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
         MERGE (p)-[r3:SHOULD_UPDATE_TO]->(fix)
         SET r3.lastupdated = $stale_tag
 
-        MERGE (p2:Package:Ontology {id: 'npm|body-parser|1.20.2'})
+        MERGE (p2:PackageVersion:Ontology {id: 'npm|body-parser|1.20.2'})
         SET p2.lastupdated = $update_tag
         MERGE (p)-[r4:DEPENDS_ON]->(p2)
         SET r4.lastupdated = $stale_tag
@@ -279,7 +384,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
 
     stale_derived_rels_count = neo4j_session.run(
         """
-        MATCH (:Package {id: 'npm|express|4.18.2'})-[r]->()
+        MATCH (:PackageVersion {id: 'npm|express|4.18.2'})-[r]->()
         WHERE type(r) IN ['DEPLOYED', 'SHOULD_UPDATE_TO', 'DEPENDS_ON']
         RETURN count(r) as count
         """,
@@ -288,7 +393,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
 
     stale_affects_count = neo4j_session.run(
         """
-        MATCH (:TrivyImageFinding {id: 'TIF|CVE-2024-99999'})-[r:AFFECTS]->(:Package {id: 'npm|express|4.18.2'})
+        MATCH (:TrivyImageFinding {id: 'TIF|CVE-2024-99999'})-[r:AFFECTS]->(:PackageVersion {id: 'npm|express|4.18.2'})
         RETURN count(r) as count
         """,
     ).single()["count"]
@@ -296,7 +401,7 @@ def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
 
     fresh_detected_as_count = neo4j_session.run(
         """
-        MATCH (:Package {id: 'npm|express|4.18.2'})-[r:DETECTED_AS]->(:TrivyPackage {normalized_id: 'npm|express|4.18.2'})
+        MATCH (:PackageVersion {id: 'npm|express|4.18.2'})-[r:DETECTED_AS]->(:TrivyPackage {normalized_id: 'npm|express|4.18.2'})
         RETURN count(r) as count
         """,
     ).single()["count"]

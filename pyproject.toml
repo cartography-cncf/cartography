@@ -26,7 +26,6 @@ classifiers = [
   'Natural Language :: English',
   'Programming Language :: Python',
   'Programming Language :: Python :: 3',
-  'Programming Language :: Python :: 3.10',
   'Programming Language :: Python :: 3.11',
   'Programming Language :: Python :: 3.12',
   'Programming Language :: Python :: 3.13',
@@ -34,7 +33,7 @@ classifiers = [
   'Topic :: Software Development :: Libraries',
   'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 # By convention (per pip/uv recommendations), dependencies should use a loose
 # lower bound and no upper bound unless explicitly needed. Exact pinning is
 # handled by the lockfile (uv.lock).
@@ -49,9 +48,10 @@ dependencies = [
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=2.0.0",
     "google-auth>=2.37.0",
+    "google-cloud-storage>=2.0.0",
     "marshmallow>=4.0.0",
     "oci>=2.71.0",
-    "okta>=3.4.0",
+    "okta>=3.4.4",
     "PyJWT[crypto]>=2.0.0",
     "cryptography>=45.0.0",
     "pyyaml>=5.3.1",
@@ -59,31 +59,32 @@ dependencies = [
     "statsd>=4.0.0",
     "packaging>=26.0.0",
     "packageurl-python>=0.17.0",
-    "python-digitalocean>=1.16.0",
-    "adal>=1.2.4",
-    "azure-cli-core>=2.26.0",
-    "azure-mgmt-compute>=5.0.0",
+    "azure-mgmt-compute>=38.1.0",
     "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-keyvault>=10.0.0",
-    "azure-mgmt-resource>=24.0.0,<25",
-    "azure-mgmt-cosmosdb>=6.0.0",
-    "azure-mgmt-web>=7.0.0",
+    "azure-mgmt-resource>=26.0.0,<27",
+    # Split out of azure-mgmt-resource in 25.0.0; provides azure.mgmt.resource.subscriptions.
+    "azure-mgmt-resource-subscriptions>=1.0.0,<2",
+    "azure-mgmt-cosmosdb>=10.0.0",
+    "azure-mgmt-web>=11.0.0",
     "azure-mgmt-eventgrid>=10.0.0",
     "azure-mgmt-logic>=10.0.0",
     "azure-mgmt-eventhub>=10.1.0",
     "azure-keyvault-secrets>=4.0.0",
     "azure-keyvault-keys>=4.0.0",
     "azure-keyvault-certificates>=4.0.0",
-    "azure-mgmt-datafactory>=8.0.0",
-    "azure-mgmt-containerservice>=30.0.0",
-    "azure-mgmt-network>=25.0.0",
+    "azure-mgmt-datafactory>=10.0.0",
+    "azure-mgmt-containerservice>=41.0.0",
+    "azure-mgmt-network>=31.0.0",
     "azure-mgmt-security>=5.0.0",
     "azure-mgmt-monitor>=3.0.0",
+    "azure-mgmt-managementgroups>=2.0.0",
     "msrestazure>=0.6.4",
-    "azure-mgmt-storage>=16.0.0",
-    "azure-mgmt-sql>=3.0.1",
+    "azure-mgmt-storage>=25.0.0",
+    "azure-mgmt-sql>=4.0.0",
     "azure-mgmt-authorization>=0.60.0",
     "azure-identity>=1.5.0",
+    "azure-storage-blob>=12.0.0",
     "msgraph-sdk>=1.53.0",
     "kubernetes>=22.6.0",
     "pagerduty>=4.0.1",
@@ -95,15 +96,37 @@ dependencies = [
     "scaleway>=2.10.0",
     "google-cloud-resource-manager>=1.14.2",
     "google-cloud-asset>=1.0.0",
+    "google-cloud-artifact-registry>=1.21.0",
+    "google-cloud-aiplatform>=1.127.0",
+    "google-cloud-run>=0.13.0",
     "types-aiobotocore-ecr>=3.1.0",
     "typer>=0.9.0",
     "azure-mgmt-synapse>=2.0.0",
     "azure-synapse-artifacts>=0.17.0",
     "slack-sdk>=3.37.0",
-    "workos>=5.44.0",
+    "workos>=8.0.0",
+    # Modal ships no public REST API, so the intel module talks to the gRPC service
+    # through this client. Upper-bounded because the module also uses Modal's internal
+    # protocol (see cartography/intel/modal/util.py), which is unversioned.
+    #
+    # The 1.5.3 floor is not cosmetic: the EnvironmentGetRoles RPC the module needs for
+    # per-environment RBAC does not exist in 1.5.0-1.5.2, and the resulting AttributeError
+    # is not a Modal API error, so it would abort the whole module rather than skip a
+    # resource. Every other RPC used is present from 1.5.0.
+    "modal>=1.5.3,<2",
+    "pydo>=0.40.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
+
+[project.optional-dependencies]
+# Swaps the pure-Python Bolt codec for the Rust one maintained by Neo4j. It ships as a
+# separate distribution that installs itself as `neo4j._rust`, which the driver picks up
+# on its own, so nothing in cartography imports it and nothing needs to be configured.
+# Install with `cartography[neo4j-rust]` to get it; plain `cartography` is unchanged.
+neo4j-rust = [
+    "neo4j-rust-ext>=6.0.0.0",
+]
 
 [dependency-groups]
 dev = [
@@ -125,6 +148,7 @@ doc = [
     "sphinx>=8.1.3",
     "sphinx-autobuild>=2024.10.3",
     "sphinx-copybutton>=0.5.2",
+    "sphinx-sitemap>=2.8.0",
     "sphinxcontrib-mermaid>=1.0.0",
 ]
 
@@ -146,8 +170,8 @@ cartography-rules = "cartography.rules.cli:main"
 "cartography.data.jobs.cleanup" = ["*.json"]
 
 [project.urls]
-Homepage = "https://cartography-cncf.github.io/cartography"
-Documentation = "https://cartography-cncf.github.io/cartography"
+Homepage = "https://docs.cartography.dev"
+Documentation = "https://docs.cartography.dev"
 Repository = "https://github.com/cartography-cncf/cartography"
 Issues = "https://github.com/cartography-cncf/cartography/issues"
 Changelog = "https://github.com/cartography-cncf/cartography/releases"

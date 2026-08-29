@@ -8,6 +8,7 @@ from scaleway.iam.v1alpha1 import PermissionSet
 from scaleway.iam.v1alpha1 import PermissionSetScopeType
 from scaleway.iam.v1alpha1 import Policy
 from scaleway.iam.v1alpha1 import Rule
+from scaleway.iam.v1alpha1 import SSHKey
 from scaleway.iam.v1alpha1 import User
 
 SCALEWAY_USERS = [
@@ -131,6 +132,20 @@ SCALEWAY_APIKEYS = [
         expires_at=datetime(2026, 3, 23, 20, 52, 20, tzinfo=tzutc()),
         application_id=None,
         user_id="b49932b2-2faa-4c56-905e-ffac52f063dc",
+    ),
+]
+
+SCALEWAY_SSH_KEYS = [
+    SSHKey(
+        id="1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+        name="laptop",
+        public_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI laptop@example",
+        fingerprint="256 MD5:00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        disabled=False,
+        created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
     ),
 ]
 

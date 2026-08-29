@@ -42,7 +42,7 @@ def get_application_data(
         params=params,
     )
 
-    logger.info(f"Retrieved {len(applications)} applications from SentinelOne")
+    logger.debug("Retrieved %s applications from SentinelOne", len(applications))
     return applications
 
 

@@ -1,0 +1,111 @@
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.models.ontology.mapping.specs import OntologyMapping
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+
+# FileStorage fields:
+# _ont_name - The name/identifier of the file system/share
+# _ont_location - The region/location of the file storage
+# _ont_encrypted - Whether the storage is encrypted at rest
+
+aws_mapping = OntologyMapping(
+    module_name="aws",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AWSEfsFileSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted", node_field="encrypted"
+                ),
+            ],
+        ),
+    ],
+)
+
+azure_mapping = OntologyMapping(
+    module_name="azure",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AzureStorageFileShare",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayFileSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # _ont_encrypted: Scaleway File Storage is encrypted at rest by
+                # default but the flag isn't surfaced on the file system object.
+            ],
+        ),
+    ],
+)
+
+modal_mapping = OntologyMapping(
+    module_name="modal",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ModalVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # location: Modal volumes are not region-scoped.
+                # encrypted: Modal does not expose an at-rest encryption flag.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="ModalNetworkFileSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # location: cloud_provider names a provider (AWS/GCP/OCI), not a region, so it
+                # is deliberately not mapped onto the location field.
+                # encrypted: not exposed.
+            ],
+        ),
+    ],
+)
+
+FILE_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "aws": aws_mapping,
+    "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
+    "modal": modal_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeStage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="location", node_field="region"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="has_encryption_key",
+                    ),
+                ],
+            ),
+        ],
+    ),
+}

@@ -29,10 +29,10 @@ from tests.integration.util import check_rels
 
 
 def create_test_s3_bucket(neo4j_session, bucket_name, update_tag):
-    """Create a test S3Bucket node for relationship testing."""
+    """Create a test AWSS3Bucket node for relationship testing."""
     neo4j_session.run(
         """
-        MERGE (bucket:S3Bucket{id: $bucket_id})
+        MERGE (bucket:AWSS3Bucket{id: $bucket_id})
         ON CREATE SET bucket.firstseen = timestamp()
         SET bucket.name = $bucket_name,
             bucket.lastupdated = $update_tag
@@ -96,6 +96,99 @@ class TestBedrockFoundationModelsSync:
                 "Meta",
             ),
         }
+
+
+class TestBedrockAIModelSemanticLabel:
+    """Tests that Bedrock model nodes carry the AIModel semantic label and _ont_* fields."""
+
+    @patch.object(
+        cartography.intel.aws.bedrock.foundation_models,
+        "get_foundation_models",
+        return_value=FOUNDATION_MODELS,
+    )
+    def test_foundation_models_have_aimodel_label(self, mock_get, neo4j_session):
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+
+        cartography.intel.aws.bedrock.foundation_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        assert check_nodes(
+            neo4j_session,
+            "AIModel",
+            ["_ont_name", "_ont_provider", "_ont_status", "_ont_type", "_ont_source"],
+        ) == {
+            ("Claude 3.5 Sonnet", "Anthropic", "active", "foundation", "aws"),
+            ("Titan Embeddings G1 - Text", "Amazon", "active", "foundation", "aws"),
+            ("Llama 3 70B Instruct", "Meta", "active", "foundation", "aws"),
+        }
+
+    @patch.object(
+        cartography.intel.aws.bedrock.custom_models,
+        "get_custom_models",
+        return_value=CUSTOM_MODELS,
+    )
+    @patch.object(
+        cartography.intel.aws.bedrock.foundation_models,
+        "get_foundation_models",
+        return_value=FOUNDATION_MODELS,
+    )
+    def test_custom_models_have_aimodel_label_with_finetuned_type(
+        self, mock_fm, mock_cm, neo4j_session
+    ):
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+
+        cartography.intel.aws.bedrock.foundation_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+        cartography.intel.aws.bedrock.custom_models.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        custom_rows = neo4j_session.run(
+            """
+            MATCH (m:AIModel:AWSBedrockCustomModel)
+            RETURN m._ont_name AS name,
+                   m._ont_provider AS provider,
+                   m._ont_status AS status,
+                   m._ont_type AS type,
+                   m._ont_source AS source
+            """
+        ).data()
+        assert custom_rows == [
+            {
+                "name": "test-custom-model",
+                "provider": "aws",
+                "status": "active",
+                "type": "fine-tuned",
+                "source": "aws",
+            }
+        ]
 
 
 class TestBedrockAgentsSync:
@@ -628,7 +721,7 @@ class TestBedrockS3Relationships:
     )
     def test_knowledge_base_to_s3_bucket_relationship(self, mock_kb, neo4j_session):
         """
-        Test that KnowledgeBase→S3Bucket SOURCES_DATA_FROM relationship is created.
+        Test that KnowledgeBase→AWSS3Bucket SOURCES_DATA_FROM relationship is created.
         This validates the data source bucket extraction from KB data sources.
         """
         # Arrange
@@ -658,7 +751,7 @@ class TestBedrockS3Relationships:
             neo4j_session,
             "AWSBedrockKnowledgeBase",
             "id",
-            "S3Bucket",
+            "AWSS3Bucket",
             "name",
             "SOURCES_DATA_FROM",
             rel_direction_right=True,
@@ -683,7 +776,7 @@ class TestBedrockS3Relationships:
         self, mock_fm, mock_cm, neo4j_session
     ):
         """
-        Test that CustomModel→S3Bucket TRAINED_FROM relationship is created.
+        Test that CustomModel→AWSS3Bucket TRAINED_FROM relationship is created.
         This validates the training data bucket extraction from custom model config.
         """
         # Arrange
@@ -736,7 +829,7 @@ class TestBedrockS3Relationships:
             neo4j_session,
             "AWSBedrockCustomModel",
             "id",
-            "S3Bucket",
+            "AWSS3Bucket",
             "name",
             "TRAINED_FROM",
             rel_direction_right=True,

@@ -13,7 +13,7 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="S3Bucket",
+            node_label="AWSS3Bucket",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",
@@ -52,15 +52,21 @@ gcp_mapping = OntologyMapping(
                     required=True,
                 ),
                 OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # GCS encrypts every bucket at rest by default; `default_kms_key_name`
+                # is set only for CMEK buckets, so use a static value rather than
+                # mistakenly reporting Google-managed-key buckets as unencrypted.
                 OntologyFieldMapping(
                     ontology_field="encrypted",
-                    node_field="default_kms_key_name",
-                    special_handling="to_boolean",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
                 ),
                 OntologyFieldMapping(
                     ontology_field="versioning", node_field="versioning_enabled"
                 ),
-                # _ont_public: Not directly available in GCPBucket (uses IAM policies)
+                # _ont_public is derived from ACLs + IAM policy bindings by the
+                # GCP_BUCKET_PUBLIC_PROJECTION analysis job, not from a single
+                # bucket field.
             ],
         ),
     ],
@@ -94,8 +100,165 @@ azure_mapping = OntologyMapping(
     ],
 )
 
+scaleway_mapping = OntologyMapping(
+    module_name="scaleway",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ScalewayObjectStorageBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # Scaleway Object Storage encrypts every object at rest by default,
+                # so report encrypted=True statically (as GCP does) rather than
+                # leaving it unset.
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="versioning",
+                    node_field="versioning_status",
+                    special_handling="equal_boolean",
+                    extra={"values": ["Enabled"]},
+                ),
+                # `public` is the tri-state combined signal (policy anonymous
+                # access OR ACL AllUsers/AuthenticatedUsers; null when both
+                # sources were unreadable). Mapped directly to preserve the
+                # unknown state instead of coalescing it to false.
+                OntologyFieldMapping(
+                    ontology_field="public",
+                    node_field="public",
+                ),
+            ],
+        ),
+    ],
+)
+
+# Databricks Unity Catalog external locations + volumes are cloud storage paths.
+databricks_mapping = OntologyMapping(
+    module_name="databricks",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DatabricksExternalLocation",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="DatabricksVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="full_name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseStorageBucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="public", node_field="public"),
+                # location: Buckets live in their project's region, which is stored
+                # on SupabaseProject rather than on the bucket.
+                # encrypted / versioning: Not exposed by the Management API.
+            ],
+        ),
+    ],
+)
+
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareR2Bucket",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # R2 encrypts every object at rest with no way to turn it off, so
+                # report encrypted=True statically (as GCP and Scaleway do).
+                OntologyFieldMapping(
+                    ontology_field="encrypted",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+                # `public` combines the managed r2.dev domain with the enabled
+                # custom domains, and stays null when neither could be read, so
+                # it is mapped directly to preserve the unknown state.
+                OntologyFieldMapping(ontology_field="public", node_field="public"),
+                # versioning: R2 supports it but no `r2.buckets.*` endpoint
+                # exposes the bucket's versioning state.
+            ],
+        ),
+    ],
+)
+
 OBJECT_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "azure": azure_mapping,
+    "scaleway": scaleway_mapping,
+    "databricks": databricks_mapping,
+    "supabase": supabase_mapping,
+    "cloudflare": cloudflare_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeStage",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="location", node_field="region"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="has_encryption_key",
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeExternalVolumeStorageLocation",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    # An external volume location is encrypted unless its
+                    # encryption type is explicitly NONE.
+                    OntologyFieldMapping(
+                        ontology_field="encrypted",
+                        node_field="encryption_type",
+                        special_handling="mapping",
+                        extra={
+                            "map": {
+                                "NONE": False,
+                                "AWS_SSE_S3": True,
+                                "AWS_SSE_KMS": True,
+                                "GCS_SSE_KMS": True,
+                            },
+                        },
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

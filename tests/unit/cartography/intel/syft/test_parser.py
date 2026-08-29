@@ -2,6 +2,7 @@
 Unit tests for cartography.intel.syft.parser module.
 """
 
+from cartography.intel.syft.parser import _extract_image_digests
 from cartography.intel.syft.parser import transform_artifacts
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
@@ -48,6 +49,9 @@ class TestTransformArtifacts:
         assert express["language"] == "javascript"
         assert express["found_by"] == "javascript-package-cataloger"
         assert express["normalized_id"] == "npm|express|4.18.2"
+        assert express["ImageDigestCandidates"] == [
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ]
 
     def test_transform_artifacts_empty(self):
         """Test with empty artifacts."""
@@ -111,3 +115,79 @@ class TestTransformArtifacts:
         assert pkg_by_id["npm|pkg-b|2.0.0"]["dependency_ids"] == ["npm|pkg-a|1.0.0"]
         # a has no deps (image-root is not an artifact)
         assert pkg_by_id["npm|pkg-a|1.0.0"]["dependency_ids"] == []
+
+    def test_extract_image_digests_from_current_source_metadata(self):
+        data = {
+            "source": {
+                "id": "sha256:source",
+                "name": "alpine",
+                "version": "3.19",
+                "type": "image",
+                "metadata": {
+                    "manifestDigest": "sha256:platform",
+                    "repoDigests": ["alpine@sha256:index"],
+                },
+            },
+        }
+
+        assert _extract_image_digests(data) == [
+            "sha256:platform",
+            "sha256:index",
+        ]
+
+    def test_extract_image_digests_ignores_source_version_and_target(self):
+        data = {
+            "source": {
+                "type": "image",
+                "version": "sha256:not-image-metadata",
+                "target": {
+                    "digest": "sha256:ignored-target",
+                    "manifestDigest": "sha256:ignored-manifest",
+                    "repoDigests": ["repo.example/app@sha256:ignored-repo"],
+                },
+                "metadata": {
+                    "manifestDigest": "sha256:metadata",
+                    "repoDigests": ["repo.example/app@sha256:repo"],
+                },
+            },
+        }
+
+        assert _extract_image_digests(data) == [
+            "sha256:metadata",
+            "sha256:repo",
+        ]
+
+    def test_extract_image_digests_returns_empty_without_metadata_digests(self):
+        data = {
+            "source": {
+                "type": "image",
+                "metadata": {
+                    "manifestDigest": "not-a-digest",
+                    "repoDigests": ["alpine:3.19", "alpine@not-a-digest"],
+                },
+            },
+        }
+
+        assert _extract_image_digests(data) == []
+
+    def test_transform_artifacts_warns_when_image_source_has_no_digest_candidates(
+        self,
+        caplog,
+    ):
+        data = {
+            "artifacts": [
+                {"id": "a", "name": "pkg-a", "version": "1.0.0", "type": "npm"},
+            ],
+            "artifactRelationships": [],
+            "source": {
+                "type": "image",
+                "metadata": {},
+            },
+        }
+
+        packages = transform_artifacts(data)
+
+        assert packages[0]["ImageDigestCandidates"] == []
+        assert (
+            "Syft image source did not include image digest candidates" in caplog.text
+        )

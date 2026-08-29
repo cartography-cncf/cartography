@@ -1,38 +1,51 @@
 # Syft Configuration
 
-## CLI Arguments
+## Prerequisites
 
-| Argument | Description |
-|----------|-------------|
-| `--syft-results-dir` | Path to directory containing Syft JSON results |
-| `--syft-s3-bucket` | S3 bucket containing Syft scan results |
-| `--syft-s3-prefix` | S3 prefix path containing Syft scan results |
+Install [Syft](https://github.com/anchore/syft) to generate software bill of
+materials reports.
 
-## Examples
+## Configure Cartography
 
-### Local Files
+Set `--syft-source` to a local path, `s3://bucket/prefix`,
+`gs://bucket/prefix`, or `azblob://account/container/prefix`.
 
-```bash
-cartography --neo4j-uri bolt://localhost:7687 \
-            --syft-results-dir /path/to/syft/results
-```
-
-### S3 Storage
+## Run Cartography
 
 ```bash
 cartography --neo4j-uri bolt://localhost:7687 \
-            --syft-s3-bucket my-security-bucket \
-            --syft-s3-prefix scans/syft/
+            --selected-modules syft \
+            --syft-source /path/to/syft/results
 ```
 
-## File Format
+For reports stored in S3:
 
-Syft JSON files should be in Syft's native JSON format (not CycloneDX):
+```bash
+cartography --neo4j-uri bolt://localhost:7687 \
+            --selected-modules syft \
+            --syft-source s3://my-security-bucket/scans/syft/
+```
+
+## Input Artifacts
+
+### Generate Input Artifacts
+
+Generate reports in Syft's native JSON format, not CycloneDX:
 
 ```bash
 syft <image> -o syft-json=output.json
 ```
 
-Required fields in the JSON:
-- `artifacts`: List of package objects with `id`, `name`, `version`
-- `artifactRelationships`: List of dependency relationships (optional but recommended)
+### Input Format
+
+Required fields in the JSON are:
+
+- `artifacts`: List of package objects with `id`, `name`, and `version`.
+- `artifactRelationships`: List of dependency relationships. This field is
+  optional but recommended.
+
+## Advanced Configuration
+
+Deprecated local and S3 report-source flags remain accepted until Cartography
+v1.0.0 and emit warnings when used. New configurations should use
+`--syft-source`.

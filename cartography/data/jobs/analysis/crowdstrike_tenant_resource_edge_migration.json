@@ -1,0 +1,25 @@
+{
+  "name": "Crowdstrike tenant RESOURCE edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions did not model CrowdstrikeTenant; CrowdstrikeHost nodes carried the CID as a property but had no parent. Backfill a CrowdstrikeTenant node for every distinct CID seen on existing hosts. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (h:CrowdstrikeHost) WHERE h.cid IS NOT NULL WITH DISTINCT h.cid AS cid MERGE (t:CrowdstrikeTenant {id: cid}) ON CREATE SET t.firstseen = timestamp(), t.lastupdated = timestamp()",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: same backfill from existing SpotlightVulnerability nodes (vulns may exist with no host of the same CID synced).",
+      "query": "MATCH (v:SpotlightVulnerability) WHERE v.cid IS NOT NULL WITH DISTINCT v.cid AS cid MERGE (t:CrowdstrikeTenant {id: cid}) ON CREATE SET t.firstseen = timestamp(), t.lastupdated = timestamp()",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: backfill the RESOURCE edge from CrowdstrikeTenant to existing hosts so the new scoped cleanup can see them. Remove in v1.0.0.",
+      "query": "MATCH (h:CrowdstrikeHost), (t:CrowdstrikeTenant {id: h.cid}) MERGE (t)-[r:RESOURCE]->(h) ON CREATE SET r.lastupdated = h.lastupdated",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: same RESOURCE edge backfill for SpotlightVulnerability. Remove in v1.0.0.",
+      "query": "MATCH (v:SpotlightVulnerability), (t:CrowdstrikeTenant {id: v.cid}) MERGE (t)-[r:RESOURCE]->(v) ON CREATE SET r.lastupdated = v.lastupdated",
+      "iterative": false
+    }
+  ]
+}

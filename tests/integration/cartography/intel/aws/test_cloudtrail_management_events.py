@@ -483,9 +483,9 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     neo4j_session.run(
         """
         CREATE (repo1:GitHubRepository {
-            fullname: 'sublimagesec/sublimage',
-            name: 'sublimage',
-            id: 'https://github.com/sublimagesec/sublimage',
+            fullname: 'example-org/example-repo',
+            name: 'example-repo',
+            id: 'https://github.com/example-org/example-repo',
             lastupdated: $update_tag
         }),
         (repo2:GitHubRepository {
@@ -515,7 +515,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     # Assert: Verify GitHubRepository nodes exist
     repo_nodes = check_nodes(neo4j_session, "GitHubRepository", ["fullname"])
     expected_repos = {
-        ("sublimagesec/sublimage",),
+        ("example-org/example-repo",),
         ("myorg/demo-app",),
     }
     assert repo_nodes is not None and expected_repos.issubset(repo_nodes)
@@ -530,7 +530,10 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
         "ASSUMED_ROLE_WITH_WEB_IDENTITY",
         rel_direction_right=True,
     ) == {
-        ("sublimagesec/sublimage", "arn:aws:iam::123456789012:role/GitHubActionsRole"),
+        (
+            "example-org/example-repo",
+            "arn:aws:iam::123456789012:role/GitHubActionsRole",
+        ),
         ("myorg/demo-app", "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"),
     }
 
@@ -538,7 +541,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     web_identity_role_usage_results = neo4j_session.run(
         """
         MATCH (repo:GitHubRepository)-[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]->(role:AWSRole)
-        WHERE repo.fullname IN ['sublimagesec/sublimage', 'myorg/demo-app']
+        WHERE repo.fullname IN ['example-org/example-repo', 'myorg/demo-app']
         RETURN repo.fullname as repo_fullname, r.times_used as times_used, r.last_used as last_used
         """
     ).data()
@@ -550,10 +553,10 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
         result["repo_fullname"]: result for result in web_identity_role_usage_results
     }
 
-    # Verify sublimagesec/sublimage repo relationship
-    sublimage_usage = usage_by_repo["sublimagesec/sublimage"]
-    assert sublimage_usage["times_used"] == 1
-    assert sublimage_usage["last_used"] is not None
+    # Verify example-org/example-repo relationship
+    example_repo_usage = usage_by_repo["example-org/example-repo"]
+    assert example_repo_usage["times_used"] == 1
+    assert example_repo_usage["last_used"] is not None
 
     # Verify myorg/demo-app repo relationship
     demo_app_usage = usage_by_repo["myorg/demo-app"]

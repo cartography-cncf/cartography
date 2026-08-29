@@ -11,6 +11,7 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.stats import get_stats_client
@@ -28,6 +29,13 @@ _MAX_RETRIES = 3
 ECOSYSTEM_TO_SCHEMA: Dict = {
     "gomod": SemgrepGoLibrarySchema,
     "npm": SemgrepNpmLibrarySchema,
+}
+
+# Map Semgrep ecosystems to canonical purl types so the normalized_id lines up
+# with the same package discovered by Trivy/Syft (Package ontology dedup key).
+ECOSYSTEM_TO_PACKAGE_TYPE: Dict = {
+    "gomod": "golang",
+    "npm": "npm",
 }
 
 
@@ -146,11 +154,29 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
 
         # We could call a different endpoint to get all repo IDs and store a mapping of repo ID to URL,
         # but it's much simpler to just extract the URL from the definedAt field.
-        repo_url = raw_dep["definedAt"]["url"].split("/blob/", 1)[0]
+        # GitLab blob URLs use `/-/blob/` as the delimiter while GitHub uses `/blob/`,
+        # so check for the GitLab form first to avoid leaving a trailing `/-` segment.
+        defined_at_url = raw_dep["definedAt"]["url"]
+        if "/-/blob/" in defined_at_url:
+            repo_url = defined_at_url.split("/-/blob/", 1)[0]
+        else:
+            repo_url = defined_at_url.split("/blob/", 1)[0]
 
         name = raw_dep["package"]["name"]
         version = raw_dep["package"]["versionSpecifier"]
         id = f"{name}|{version}"
+
+        # Cross-tool dedup key for the Package ontology node.
+        # ponytail: gomod dedup is best-effort. Go versions vary by source (bare
+        # "1.2.3" here vs purl-derived "v1.2.3") and names appear as full module
+        # path or short name, so some Go packages won't merge with Trivy/Syft.
+        # Normalize the leading "v" and the name form on all sources if it matters.
+        pkg_type = ECOSYSTEM_TO_PACKAGE_TYPE.get(raw_dep["ecosystem"])
+        normalized_id = make_normalized_package_id(
+            name=name,
+            version=version,
+            pkg_type=pkg_type,
+        )
 
         # As of November 2024, Semgrep does not import dependencies with version specifiers such as >, <, etc.
         # For now, hardcode the specifier to ==<version> to align with GitHub-sourced Python dependencies.
@@ -167,6 +193,8 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "repo_url": repo_url,
                 # Semgrep-specific properties:
                 "ecosystem": raw_dep["ecosystem"],
+                "type": pkg_type,
+                "normalized_id": normalized_id,
                 "transitivity": raw_dep["transitivity"].lower(),
                 "url": raw_dep["definedAt"]["url"],
             },

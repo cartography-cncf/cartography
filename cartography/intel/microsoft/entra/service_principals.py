@@ -4,16 +4,18 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.service_principal import ServicePrincipal
 
+from cartography.analysis.microsoft.entra.analysis import ENTRA_APPLICATION_PROJECTION
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.service_principal import (
     EntraServicePrincipalSchema,
 )
+from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -66,7 +68,7 @@ async def get_entra_service_principals(
             )
             raise
 
-    logger.info(f"Retrieved {count} Entra service principals total")
+    logger.debug("Retrieved %s Entra service principals total", count)
 
 
 async def get_service_principal_by_app_id(
@@ -188,11 +190,7 @@ async def sync_service_principals(
     :param common_job_parameters: Common job parameters for cleanup
     """
     # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
 
     client = GraphServiceClient(
         credential,
@@ -233,3 +231,16 @@ async def sync_service_principals(
         transformed_service_principals.clear()
 
     cleanup_service_principals(neo4j_session, common_job_parameters)
+
+    # Project `_ont_enabled` onto every EntraApplication from the linked
+    # service principal's `account_enabled`. Runs after cleanup so stale SPs
+    # are gone before we resolve enabled state, and so apps that lost their
+    # SP this sync get `_ont_enabled` reset to NULL rather than keeping a
+    # stale value from a prior run. Lives in the Entra path (not the
+    # ontology stage) so a `--selected-modules microsoft` sync still
+    # projects the field.
+    run_typed_analysis_job(
+        ENTRA_APPLICATION_PROJECTION,
+        neo4j_session,
+        common_job_parameters,
+    )

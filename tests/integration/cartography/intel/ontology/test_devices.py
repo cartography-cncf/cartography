@@ -8,6 +8,8 @@ import pytest
 
 import cartography.intel.ontology.devices
 import tests.data.snipeit.tenants
+from cartography.analysis.ontology.analysis import DEVICE_OWNS_LINKING
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
 )
@@ -271,10 +273,10 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         stale_tag=TEST_UPDATE_TAG - 1,
     )
 
-    cartography.intel.ontology.devices.link_ontology_nodes(
+    run_typed_analysis_job(
+        DEVICE_OWNS_LINKING,
         neo4j_session,
-        "devices",
-        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
     assert (
@@ -693,6 +695,174 @@ def test_load_ontology_devices_from_jamf_mobile_devices(neo4j_session):
     }
 
 
+def test_link_ontology_device_affected_by_sentinelone_finding(neo4j_session):
+    """SentinelOne app findings should AFFECTS the canonical Device via their agent."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (a:S1Agent {
+            id: 's1-agent-affects',
+            computer_name: 'sentinel-host-01',
+            os_name: 'Windows 11',
+            os_revision: '23H2',
+            serial_number: 'SN-S1-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (f:S1AppFinding {id: 'CVE-2024-0001', lastupdated: $update_tag})
+        MERGE (f)-[r:AFFECTS]->(a)
+        SET r.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["sentinelone"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "S1AppFinding",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("CVE-2024-0001", "SN-S1-AFFECTS")}
+
+
+def test_link_ontology_device_affected_by_huntress_incident_report(neo4j_session):
+    """Huntress incident reports should AFFECTS the canonical Device via their agent."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (a:HuntressAgent {
+            id: 3001,
+            hostname: 'homer-desktop',
+            os: 'Windows 11 Pro',
+            os_build_version: '22631',
+            platform: 'windows',
+            serial_number: 'SN-HUNTRESS-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (f:HuntressIncidentReport:SecurityIssue {
+            id: 4001,
+            subject: 'Malicious foothold on homer-desktop',
+            lastupdated: $update_tag
+        })
+        MERGE (f)-[r:AFFECTS]->(a)
+        SET r.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "HuntressIncidentReport",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {(4001, "SN-HUNTRESS-AFFECTS")}
+
+
+def test_link_ontology_device_affected_by_crowdstrike_finding(neo4j_session):
+    """CrowdStrike findings should AFFECTS the canonical Device via host and Spotlight vuln."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (h:CrowdstrikeHost {
+            id: 'crowdstrike-host-affects',
+            hostname: 'falcon-host-01',
+            platform_name: 'Windows',
+            os_version: '11.0.22631',
+            serial_number: 'SN-CROWDSTRIKE-AFFECTS',
+            lastupdated: $update_tag
+        })
+        CREATE (v:CrowdstrikeSpotlightVulnerability {id: 'spotlight-vuln-1', lastupdated: $update_tag})
+        CREATE (f:CrowdstrikeFinding {id: 'CVE-2024-0002', lastupdated: $update_tag})
+        MERGE (h)-[hv:HAS_VULNERABILITY]->(v)
+        SET hv.lastupdated = $update_tag
+        MERGE (v)-[hc:HAS_CVE]->(f)
+        SET hc.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["crowdstrike"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "CrowdstrikeFinding",
+        "id",
+        "Device",
+        "serial_number",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {("CVE-2024-0002", "SN-CROWDSTRIKE-AFFECTS")}
+
+
+def test_link_ontology_devices_from_intune_enrolled_to(neo4j_session):
+    """Intune enrollment should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'lisa@simpson.corp'})
+        SET u.email = 'lisa@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (eu:EntraUser {id: 'entra-user-1'})
+        SET eu.user_principal_name = 'lisa@simpson.corp',
+            eu.lastupdated = $update_tag
+        MERGE (u)-[:HAS_ACCOUNT]->(eu)
+
+        CREATE (device:IntuneManagedDevice {
+            id: 'intune-device-ownership-1',
+            device_name: 'entra-owned-laptop',
+            operating_system: 'Windows',
+            os_version: '11.0.22631',
+            model: 'Surface Laptop 6',
+            serial_number: 'SN-INTUNE-OWNED-001',
+            lastupdated: $update_tag
+        })
+        MERGE (eu)-[:ENROLLED_TO]->(device)
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["microsoft"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("lisa@simpson.corp", "entra-owned-laptop")}
+
+
 def test_link_ontology_devices_from_jamf_computer_email(neo4j_session):
     """Jamf computer email should derive canonical User-OWNS-Device relationships."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
@@ -825,3 +995,274 @@ def test_link_ontology_devices_from_jamf_email_skips_empty_and_non_matching(
         ).single()["count"]
         == 0
     )
+
+
+def test_load_ontology_devices_from_huntress_agents(neo4j_session):
+    """Huntress agents should populate the canonical Device and match on serial number."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:HuntressAgent {
+            id: 3001,
+            hostname: 'homer-desktop',
+            os: 'Windows 11 Pro',
+            os_build_version: '22631',
+            platform: 'windows',
+            serial_number: 'SN-HOMER-0001',
+            lastupdated: $update_tag
+        })
+        CREATE (:HuntressAgent {
+            id: 3002,
+            hostname: 'marge-macbook',
+            os: 'macOS Sequoia',
+            os_build_version: '24C101',
+            platform: 'darwin',
+            serial_number: 'SN-MARGE-0002',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        ["hostname", "os", "os_version", "platform", "serial_number"],
+    ) == {
+        ("homer-desktop", "Windows 11 Pro", "22631", "windows", "SN-HOMER-0001"),
+        ("marge-macbook", "macOS Sequoia", "24C101", "darwin", "SN-MARGE-0002"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "HuntressAgent",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {
+        ("SN-HOMER-0001", "SN-HOMER-0001"),
+        ("SN-MARGE-0002", "SN-MARGE-0002"),
+    }
+
+
+def test_load_ontology_devices_matches_huntress_agent_by_hostname(neo4j_session):
+    """A Huntress agent with no serial number should still match on hostname."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:HuntressAgent {
+            id: 3003,
+            hostname: 'bart-server',
+            os: 'Ubuntu 24.04.1 LTS',
+            platform: 'linux',
+            lastupdated: $update_tag
+        })
+        CREATE (:KandjiDevice {
+            id: 'kandji-bart-server',
+            device_name: 'bart-server',
+            platform: 'Mac',
+            os_version: '15.5',
+            serial_number: 'SN-BART-SHARED',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["kandji", "huntress"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "HuntressAgent",
+        "hostname",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("bart-server", "bart-server")}
+
+
+def test_load_ontology_devices_from_miradore_devices(neo4j_session):
+    """Miradore devices should populate the canonical Device and match on serial number."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:MiradoreDevice {
+            id: 1001,
+            hostname: 'marge-macbook',
+            os_platform: 'macOS',
+            os_version: '15.5',
+            model: 'MacBookPro18,3',
+            platform: 'macOS',
+            manufacturer: 'Apple',
+            serial_number: 'C02XY1234567',
+            lastupdated: $update_tag
+        })
+        CREATE (:MiradoreDevice {
+            id: 1003,
+            hostname: 'lisa-pixel',
+            os_platform: 'Android',
+            os_version: '15',
+            model: 'Pixel 8',
+            platform: 'Android',
+            manufacturer: 'Google',
+            serial_number: 'PIXEL8SERIAL01',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "Device",
+        [
+            "hostname",
+            "os",
+            "os_version",
+            "model",
+            "platform",
+            "manufacturer",
+            "serial_number",
+        ],
+    ) == {
+        (
+            "marge-macbook",
+            "macOS",
+            "15.5",
+            "MacBookPro18,3",
+            "macOS",
+            "Apple",
+            "C02XY1234567",
+        ),
+        (
+            "lisa-pixel",
+            "Android",
+            "15",
+            "Pixel 8",
+            "Android",
+            "Google",
+            "PIXEL8SERIAL01",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "serial_number",
+        "MiradoreDevice",
+        "serial_number",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {
+        ("C02XY1234567", "C02XY1234567"),
+        ("PIXEL8SERIAL01", "PIXEL8SERIAL01"),
+    }
+
+
+def test_load_ontology_devices_matches_miradore_device_by_hostname(neo4j_session):
+    """A Miradore device with no serial number should still match on hostname."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:MiradoreDevice {
+            id: 1005,
+            hostname: 'miradore-host-fallback',
+            os_platform: 'WindowsDesktop',
+            os_version: '10.0.22631',
+            lastupdated: $update_tag
+        })
+        CREATE (:KandjiDevice {
+            id: 'kandji-host-fallback',
+            device_name: 'miradore-host-fallback',
+            platform: 'Mac',
+            os_version: '15.5',
+            serial_number: 'SN-SHARED-HOSTNAME',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["kandji", "miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Device",
+        "hostname",
+        "MiradoreDevice",
+        "hostname",
+        "OBSERVED_AS",
+        rel_direction_right=True,
+    ) == {("miradore-host-fallback", "miradore-host-fallback")}
+
+
+def test_link_ontology_devices_from_miradore_user(neo4j_session):
+    """A Miradore user account should derive canonical User-OWNS-Device relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        MERGE (u:User {id: 'mbsimpson@simpson.corp'})
+        SET u.email = 'mbsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        CREATE (mu:MiradoreUser:UserAccount {
+            id: 2001,
+            email: 'mbsimpson@simpson.corp',
+            lastupdated: $update_tag
+        })
+        CREATE (md:MiradoreDevice {
+            id: 1001,
+            hostname: 'marge-macbook',
+            os_platform: 'macOS',
+            serial_number: 'C02XY1234567',
+            lastupdated: $update_tag
+        })
+        CREATE (u)-[:HAS_ACCOUNT {lastupdated: $update_tag}]->(mu)
+        CREATE (mu)-[:OWNS {lastupdated: $update_tag}]->(md)
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.ontology.devices.sync(
+        neo4j_session,
+        ["miradore"],
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "id",
+        "Device",
+        "hostname",
+        "OWNS",
+        rel_direction_right=True,
+    ) == {("mbsimpson@simpson.corp", "marge-macbook")}

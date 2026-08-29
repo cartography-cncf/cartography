@@ -5,6 +5,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.docker_scout.recommendation_parser import (
     parse_recommendation_text,
@@ -16,6 +17,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.docker_scout.image import DockerScoutImageBuiltOnMatchLink
 from cartography.models.docker_scout.image import DockerScoutPublicImageSchema
 from cartography.models.docker_scout.public_image_tag import (
     DockerScoutPublicImageTagSchema,
@@ -38,8 +40,8 @@ class DockerScoutPublicImageCleanupBuiltOnRel(CartographyRelSchema):
 
     The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
     only needs the relationship label and target node label to delete stale
-    BUILT_ON edges. Relationship creation still happens via targeted Cypher because
-    Docker Scout exposes only a digest prefix.
+    BUILT_ON edges. Relationship creation uses a MatchLink after resolving Docker
+    Scout's digest prefix to Image node IDs.
     """
 
     target_node_label: str = "Image"
@@ -238,30 +240,34 @@ def attach_public_image_to_target_image(
     public_image_id = public_image_data["id"]
 
     query = """
-    WITH $public_image_id AS public_image_id, $target_digest AS target_digest, $update_tag AS update_tag
-    MATCH (p:DockerScoutPublicImage {id: public_image_id})
-    OPTIONAL MATCH (img:Image)
-    WHERE toLower(replace(coalesce(img._ont_digest, ''), 'sha256:', '')) STARTS WITH target_digest
-    WITH p, img, update_tag WHERE img IS NOT NULL
-    MERGE (img)-[r:BUILT_ON]->(p)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r._module_name = 'cartography:docker_scout',
-        r._module_version = $module_version,
-        r.lastupdated = update_tag
-    RETURN count(img) AS total_matches
+    MATCH (img:Image)
+    WHERE toLower(replace(coalesce(img._ont_digest, ''), 'sha256:', '')) STARTS WITH $target_digest
+    RETURN img.id AS image_id
     """
-    result = neo4j_session.run(
-        query,
-        public_image_id=public_image_id,
-        target_digest=target_digest,
-        update_tag=update_tag,
-        module_version=get_cartography_version(),
-    ).single()
-    total_matches = result["total_matches"] if result else 0
+    image_matches = [
+        {
+            "image_id": record["image_id"],
+            "public_image_id": public_image_id,
+        }
+        for record in neo4j_session.run(
+            query,
+            target_digest=target_digest,
+        )
+    ]
+    load_matchlinks(
+        neo4j_session,
+        DockerScoutImageBuiltOnMatchLink(),
+        image_matches,
+        lastupdated=update_tag,
+        _sub_resource_label="DockerScout",
+        _sub_resource_id="global",
+        _module_name="cartography:docker_scout",
+        _module_version=get_cartography_version(),
+    )
     logger.info(
         "Attached DockerScoutPublicImage %s to %d target image node(s)",
         public_image_id,
-        total_matches,
+        len(image_matches),
     )
 
 

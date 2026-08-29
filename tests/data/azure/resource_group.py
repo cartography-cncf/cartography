@@ -1,3 +1,5 @@
+# Mirrors as_attribute_dict() output (snake_case keys), not the camelCase keys that
+# as_dict() returns on azure-mgmt-resource 26.x hybrid models.
 MOCK_RESOURCE_GROUPS = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG1",

@@ -8,6 +8,8 @@ from azure.mgmt.storage import StorageManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.storage import transform_storage_account
+from cartography.intel.azure.storage import transform_storage_blob_container
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.data_lake_filesystem import AzureDataLakeFileSystemSchema
 from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
@@ -31,7 +33,10 @@ def _get_resource_group_from_id(resource_id: str) -> str:
 def get_datalake_accounts(credentials: Credentials, subscription_id: str) -> list[dict]:
     try:
         client = StorageManagementClient(credentials.credential, subscription_id)
-        storage_accounts = [sa.as_dict() for sa in client.storage_accounts.list()]
+        storage_accounts = [
+            transform_storage_account(sa.as_dict())
+            for sa in client.storage_accounts.list()
+        ]
         return [sa for sa in storage_accounts if sa.get("is_hns_enabled")]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(f"Failed to get Storage Accounts for Data Lake sync: {str(e)}")
@@ -46,7 +51,7 @@ def get_filesystems_for_account(
     resource_group_name = _get_resource_group_from_id(account["id"])
     try:
         return [
-            c.as_dict()
+            transform_storage_blob_container(c.as_dict())
             for c in client.blob_containers.list(
                 resource_group_name,
                 account["name"],
@@ -63,15 +68,14 @@ def get_filesystems_for_account(
 def transform_datalake_filesystems(filesystems_response: list[dict]) -> list[dict]:
     transformed_filesystems: list[dict[str, Any]] = []
     for fs in filesystems_response:
+        fs = transform_storage_blob_container(fs)
         transformed_filesystem = {
             "id": fs.get("id"),
             "name": fs.get("name"),
-            "public_access": fs.get("properties", {}).get("public_access"),
-            "last_modified_time": fs.get("properties", {}).get("last_modified_time"),
-            "has_immutability_policy": fs.get("properties", {}).get(
-                "has_immutability_policy",
-            ),
-            "has_legal_hold": fs.get("properties", {}).get("has_legal_hold"),
+            "public_access": fs.get("public_access"),
+            "last_modified_time": fs.get("last_modified_time"),
+            "has_immutability_policy": fs.get("has_immutability_policy"),
+            "has_legal_hold": fs.get("has_legal_hold"),
         }
         transformed_filesystems.append(transformed_filesystem)
     return transformed_filesystems

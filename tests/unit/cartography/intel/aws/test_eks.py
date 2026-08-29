@@ -2,7 +2,10 @@ import base64
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
+from botocore.exceptions import ClientError
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -103,6 +106,190 @@ def test_transform_eks_clusters_valid_der_certificate_authority_data():
     assert cluster["certificate_authority_not_after"].tzinfo == timezone.utc
     assert cluster["certificate_authority_subject_key_identifier"] == expected_ski
     assert cluster["certificate_authority_authority_key_identifier"] == expected_aki
+
+
+def test_transform_eks_clusters_access_config_authentication_mode():
+    cluster_data = {
+        "prod-cluster": {
+            "name": "prod-cluster",
+            "arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            "resourcesVpcConfig": {"endpointPublicAccess": True},
+            "logging": {"clusterLogging": []},
+            "accessConfig": {"authenticationMode": "API_AND_CONFIG_MAP"},
+        },
+    }
+
+    transformed = eks.transform(cluster_data)
+
+    assert transformed[0]["AuthenticationMode"] == "API_AND_CONFIG_MAP"
+
+
+def test_transform_access_entries_adds_id_and_cluster_arn():
+    # Arrange
+    access_entries = [
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+            "accessEntryArn": (
+                "arn:aws:eks:us-east-1:123456789012:access-entry/"
+                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+            ),
+            "username": "eks-admin",
+            "type": "STANDARD",
+            "kubernetesGroups": ["system:masters"],
+        },
+    ]
+
+    # Act
+    transformed = eks.transform_access_entries(
+        access_entries,
+        "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+    )
+
+    # Assert
+    assert transformed == [
+        {
+            "id": (
+                "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster/"
+                "access-entry/arn:aws:iam::123456789012:role/EKSAdmin"
+            ),
+            "cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+            "accessEntryArn": (
+                "arn:aws:eks:us-east-1:123456789012:access-entry/"
+                "prod-cluster/role/123456789012/EKSAdmin/ae-12345"
+            ),
+            "username": "eks-admin",
+            "type": "STANDARD",
+            "kubernetesGroups": ["system:masters"],
+        },
+    ]
+
+
+def test_transform_access_entries_uses_stable_id_when_detail_is_missing():
+    # Arrange
+    access_entries = [
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+        },
+    ]
+
+    # Act
+    transformed = eks.transform_access_entries(
+        access_entries,
+        "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+    )
+
+    # Assert
+    assert transformed == [
+        {
+            "id": (
+                "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster/"
+                "access-entry/arn:aws:iam::123456789012:role/EKSAdmin"
+            ),
+            "cluster_arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+        },
+    ]
+
+
+@patch("cartography.intel.aws.eks.create_boto3_client")
+def test_get_eks_access_entries_skips_config_map_auth_mode(mock_create_client):
+    result = eks.get_eks_access_entries(
+        MagicMock(),
+        "us-east-1",
+        "prod-cluster",
+        "CONFIG_MAP",
+    )
+
+    assert result == []
+    mock_create_client.assert_not_called()
+
+
+@patch("cartography.intel.aws.eks.create_boto3_client")
+def test_get_eks_access_entries_uses_list_output_when_describe_is_denied(
+    mock_create_client,
+    caplog,
+):
+    client = MagicMock()
+    paginator = MagicMock()
+    paginator.paginate.return_value = [
+        {
+            "accessEntries": [
+                "arn:aws:iam::123456789012:role/EKSAdmin",
+                "arn:aws:iam::123456789012:role/EKSDeveloper",
+            ]
+        }
+    ]
+    client.get_paginator.return_value = paginator
+    client.describe_access_entry.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "not authorized",
+            }
+        },
+        "DescribeAccessEntry",
+    )
+    mock_create_client.return_value = client
+
+    with caplog.at_level("WARNING"):
+        result = eks.get_eks_access_entries(
+            MagicMock(),
+            "us-east-1",
+            "prod-cluster",
+            "API_AND_CONFIG_MAP",
+        )
+
+    assert result == [
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSAdmin",
+        },
+        {
+            "clusterName": "prod-cluster",
+            "principalArn": "arn:aws:iam::123456789012:role/EKSDeveloper",
+        },
+    ]
+    assert client.describe_access_entry.call_count == 1
+    assert "loading minimal access entry data" in caplog.text
+
+
+@patch("cartography.intel.aws.eks.create_boto3_client")
+def test_get_eks_access_entries_skips_regional_access_error(
+    mock_create_client,
+    caplog,
+):
+    # Arrange
+    client = MagicMock()
+    paginator = MagicMock()
+    paginator.paginate.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "AuthFailure",
+                "Message": "AWS was not able to validate the provided credentials",
+            }
+        },
+        "ListAccessEntries",
+    )
+    client.get_paginator.return_value = paginator
+    mock_create_client.return_value = client
+
+    # Act
+    with caplog.at_level("WARNING"):
+        result = eks.get_eks_access_entries(
+            MagicMock(),
+            "us-east-1",
+            "prod-cluster",
+            "API_AND_CONFIG_MAP",
+        )
+
+    # Assert
+    assert result == []
+    assert "Skipping" in caplog.text
 
 
 def test_transform_eks_clusters_valid_pem_certificate_authority_data():

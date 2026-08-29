@@ -5,7 +5,7 @@
 # functionality that you can extend on your own.
 services:
   neo4j:
-    image: neo4j:5.15.0-community
+    image: neo4j:5-community
     restart: unless-stopped
     ports:
       - 7474:7474

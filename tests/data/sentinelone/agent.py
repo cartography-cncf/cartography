@@ -7,6 +7,12 @@ AGENTS_DATA = [
         "id": AGENT_ID,
         "uuid": "uuid-123-456-789",
         "computerName": "test-computer-01",
+        "externalIp": "203.0.113.10",
+        "networkInterfaces": [
+            {
+                "inet": ["192.168.1.10", "127.0.0.1"],
+            },
+        ],
         "firewallEnabled": True,
         "osName": "Windows 10",
         "osRevision": "1909",
@@ -20,6 +26,15 @@ AGENTS_DATA = [
         "id": AGENT_ID_2,
         "uuid": "uuid-456-789-123",
         "computerName": "test-computer-02",
+        "externalIp": "203.0.113.11",
+        "networkInterfaces": [
+            {
+                "inet": ["10.0.0.20"],
+            },
+            {
+                "inet": ["127.0.0.1"],
+            },
+        ],
         "firewallEnabled": False,
         "osName": "Ubuntu 20.04",
         "osRevision": "5.4.0-89-generic",
@@ -33,6 +48,8 @@ AGENTS_DATA = [
         "id": AGENT_ID_3,
         "uuid": "uuid-789-123-456",
         "computerName": "test-computer-03",
+        "externalIp": None,
+        "networkInterfaces": [],
         "firewallEnabled": True,
         "osName": "macOS",
         "osRevision": "12.6.1",

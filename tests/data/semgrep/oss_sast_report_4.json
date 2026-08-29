@@ -1,0 +1,105 @@
+{
+  "version": "1.161.0",
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.open-redirect.fake-8",
+      "path": "/workspace/chatbox-sandbox/app/routes.py",
+      "start": {
+        "line": 58,
+        "col": 11,
+        "offset": 1530
+      },
+      "end": {
+        "line": 58,
+        "col": 46,
+        "offset": 1565
+      },
+      "extra": {
+        "message": "Redirect target is derived from untrusted input.",
+        "metadata": {
+          "category": "security",
+          "confidence": "LOW",
+          "cwe": [
+            "CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"
+          ],
+          "owasp": [
+            "A01:2021 - Broken Access Control"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A01_2021-Broken_Access_Control"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Open Redirect"
+          ]
+        },
+        "severity": "WARNING",
+        "fingerprint": "fake-fingerprint-8",
+        "lines": "fake lines 8",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.hardcoded-secret.fake-9",
+      "path": "/workspace/chatbox-sandbox/app/settings.py",
+      "start": {
+        "line": 12,
+        "col": 8,
+        "offset": 211
+      },
+      "end": {
+        "line": 12,
+        "col": 39,
+        "offset": 242
+      },
+      "extra": {
+        "message": "A hardcoded secret appears in application settings.",
+        "metadata": {
+          "category": "security",
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-798: Use of Hard-coded Credentials"
+          ],
+          "owasp": [
+            "A07:2021 - Identification and Authentication Failures"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures"
+          ],
+          "subcategory": [
+            "vuln"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Hardcoded Secret"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "fake-fingerprint-9",
+        "lines": "fake lines 9",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {
+    "scanned": [
+      "/workspace/chatbox-sandbox/app/routes.py",
+      "/workspace/chatbox-sandbox/app/settings.py"
+    ]
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.1
+  },
+  "engine_requested": "OSS"
+}

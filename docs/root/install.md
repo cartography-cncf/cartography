@@ -34,7 +34,7 @@ machine to pull data from AWS.
 
 1. **Configure and run Cartography.**
 
-    In this example we will run Cartography on [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
+    In this example we will run Cartography on [AWS](https://docs.cartography.dev/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
 
     ```bash
     docker-compose run \
@@ -52,7 +52,7 @@ machine to pull data from AWS.
     **Notes:**
     - You can view a full list of Cartography's CLI arguments by running `docker-compose run cartography --help`.
 
-    - Refer to the configuration sections of the relevant intel modules - such as [AWS](https://cartography-cncf.github.io/cartography/modules/aws/index.html), [GCP](https://cartography-cncf.github.io/cartography/modules/gcp/index.html), [Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html), and others - to properly set up each data source. The instructions for configuring additional modules can be found in the sidebar menu under the "Intel Modules" section. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
+    - Refer to the configuration sections of the relevant intel modules - such as [AWS](https://docs.cartography.dev/modules/aws/index.html), [GCP](https://docs.cartography.dev/modules/gcp/index.html), [Azure](https://docs.cartography.dev/modules/azure/index.html), and others - to properly set up each data source. The instructions for configuring additional modules can be found in the sidebar menu under the "Intel Modules" section. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
 
         - You can pass in environment variables to the cartography container using the docker-compose format like this: `-e VARIABLE1 -e VARIABLE2=value2`.
         - You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.
@@ -63,12 +63,12 @@ machine to pull data from AWS.
 
         - `AWS_DEFAULT_REGION` must be specified.
         - The docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container so that the container has access to AWS profile and credential files.
-        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://cartography-cncf.github.io/cartography/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
+        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://docs.cartography.dev/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
 
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker-compose run --rm cartography cartography-rules run all --uri bolt://cartography-neo4j-1:7687 --neo4j-password-prompt
+    docker-compose run --rm --entrypoint cartography-rules cartography run all --uri bolt://cartography-neo4j-1:7687
     ```
 
     Full docs [here](usage/rules).
@@ -134,7 +134,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
 1. **Configure and run Cartography.**
 
-    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://docs.cartography.dev/modules) to set up each data source. In this example we will use [AWS](https://docs.cartography.dev/modules/aws/config.html).
 
     This command runs cartography on an AWS profile called "1234_testprofile" on region us-east-1. We also expose the host machine's ~/.aws directory to ~/var/cartography/.aws in the container so that AWS configs work.
 
@@ -144,7 +144,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v ~/.aws:/var/cartography/.aws/ \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
+        ghcr.io/cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
      ```
 
    If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:
@@ -159,12 +159,12 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
       - `AWS_DEFAULT_REGION` must be specified.
       - Our docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container, so the container has access to AWS profile and credential files.
-    - You can view a full list of Cartography's CLI arguments by running `docker run cartography-cncf/cartography --help`.
+    - You can view a full list of Cartography's CLI arguments by running `docker run ghcr.io/cartography-cncf/cartography --help`.
 
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker run --rm --network cartography-network cartography-cncf/cartography cartography-rules run all --uri bolt://cartography-neo4j:7687 --neo4j-password-prompt
+    docker run --rm --network cartography-network --entrypoint cartography-rules ghcr.io/cartography-cncf/cartography run all --uri bolt://cartography-neo4j:7687
     ```
 
     Full docs [here](usage/rules).
@@ -191,9 +191,9 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 1. **Ensure that you have Python 3.13 set up on your machine.**
 
-    Older versions of Python (3.10-3.12) may work but are not tested. Python 3.10 support will be removed in October 2026.
+    Python 3.11 and 3.12 may work but are not tested. Python 3.10 and older are not supported.
 
-1. **Run Neo4j graph database version 5.x or higher.**
+1. **Run Neo4j graph database version 5.23 or higher.** Cartography emits scoped subqueries (`CALL (var) { ... }`) that earlier 5.x releases do not support.
 
     1. We recommend running Neo4j as a Docker container so that you save time and don't need to install Java. Run `docker run --publish=7474:7474 --publish=7687:7687 -v data:/data --env=NEO4J_AUTH=none neo4j:5-community`.
 
@@ -203,7 +203,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
             ⚠️ Make sure you have the `JAVA_HOME` environment variable set. The following works for Mac OS: `export JAVA_HOME=$(/usr/libexec/java_home)`
 
-        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.\*.
+        1. Go to the [Neo4j download page](https://neo4j.com/download-center/#community), and download Neo4j Community Edition 5.23 or higher.
 
         1. [Install](https://neo4j.com/docs/operations-manual/current/installation/) Neo4j.
 
@@ -221,13 +221,29 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
 
-1. **Install cartography to the current Python virtual environment with `pip install cartography`.**
+1. **Install cartography with [uv](https://docs.astral.sh/uv/).**
 
-    We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.
+    Cartography uses uv for development and CI. We recommend it for installation as well: it manages an isolated environment for you and is significantly faster than pip.
+
+    ```bash
+    # Install uv if you don't have it (see https://docs.astral.sh/uv/getting-started/installation/ for alternatives).
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Install cartography as an isolated tool exposed on your PATH.
+    uv tool install cartography
+    ```
+
+    Use `uv tool upgrade cartography` to pull in new releases.
+
+    If you prefer pip, `pip install cartography` still works inside a venv. See the [Python packaging guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments) for venv setup with `pyenv` / `pyenv-virtualenv`.
+
+    ```{tip}
+    Install `cartography[neo4j-rust]` instead of `cartography` to get a faster Neo4j driver. See [Faster Neo4j driver](ops.md#faster-neo4j-driver).
+    ```
 
 1. **Configure your data sources.**
 
-    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) for more details. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://docs.cartography.dev/modules) for more details. In this example we will use [AWS](https://docs.cartography.dev/modules/aws/config.html).
 
 1. **Run cartography.**
 
@@ -263,6 +279,11 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
     ```bash
     cartography-rules run all
     ```
+
+    This command needs no password for the no-auth Neo4j container used in this
+    guide. If your Neo4j server requires authentication, set
+    `NEO4J_PASSWORD` before running it, use `--neo4j-password-env-var NAME`, or
+    request an interactive prompt with `--neo4j-password-prompt`.
 
     Full docs [here](usage/rules).
 

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+import warnings
 from datetime import datetime
 from datetime import timezone
 from functools import partial
@@ -32,6 +33,8 @@ from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
 from cartography import helpers
+from cartography.graph.analysis import AnalysisJob
+from cartography.graph.analysisbuilder import to_graph_job
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -129,6 +132,16 @@ def run_analysis_job(
     )
 
 
+def run_typed_analysis_job(
+    analysis_job: AnalysisJob,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    job = to_graph_job(analysis_job)
+    job.merge_parameters(dict(common_job_parameters or {}))
+    job.run(neo4j_session)
+
+
 def run_analysis_and_ensure_deps(
     analysis_job_name: str,
     resource_dependencies: Set[str],
@@ -205,6 +218,24 @@ def run_analysis_and_ensure_deps(
     )
 
 
+def run_typed_analysis_and_ensure_deps(
+    analysis_job: AnalysisJob,
+    resource_dependencies: Set[str],
+    requested_syncs: Set[str],
+    common_job_parameters: Dict[str, Any],
+    neo4j_session: neo4j.Session,
+) -> None:
+    if not resource_dependencies.issubset(requested_syncs):
+        logger.info(
+            f"Did not run {analysis_job.name} because it needs {resource_dependencies} to be included "
+            f"as a requested sync. You specified: {requested_syncs}. If you want this job to run, please change your "
+            f"CLI args/cartography config so that all required resources are included.",
+        )
+        return
+
+    run_typed_analysis_job(analysis_job, neo4j_session, common_job_parameters)
+
+
 def run_scoped_analysis_job(
     filename: str,
     neo4j_session: neo4j.Session,
@@ -220,7 +251,8 @@ def run_scoped_analysis_job(
     organizational unit or account.
 
     Args:
-        filename: Name of the JSON file containing the scoped analysis job queries.
+        filename: AnalysisJob object or name of the JSON file containing the scoped
+                  analysis job queries.
         neo4j_session: Active Neo4j session for executing the analysis queries.
         common_job_parameters: Dictionary containing common parameters including
                               scope-specific identifiers (e.g., AWS account ID).
@@ -346,7 +378,7 @@ def merge_module_sync_metadata(
         neo4j_session: Active Neo4j session for executing the metadata update.
         group_type: The parent module's node label (e.g., 'AWSAccount').
         group_id: The unique identifier of the parent module instance.
-        synced_type: The sub-module's node label that was synced (e.g., 'S3Bucket').
+        synced_type: The sub-module's node label that was synced (e.g., 'AWSS3Bucket').
         update_tag: Timestamp used to determine data freshness.
         stat_handler: StatsD client for sending metrics about the sync operation.
 
@@ -356,7 +388,7 @@ def merge_module_sync_metadata(
         ...     neo4j_session,
         ...     group_type="AWSAccount",
         ...     group_id="123456789012",
-        ...     synced_type="S3Bucket",
+        ...     synced_type="AWSS3Bucket",
         ...     update_tag=1234567890,
         ...     stat_handler=stats_client
         ... )
@@ -542,7 +574,7 @@ def aws_paginate(
     paginator = client.get_paginator(method_name)
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
-            logger.info(f"fetching page number {i}")
+            logger.debug("fetching page number %s", i)
         if object_name in page:
             items = page[object_name]
             yield from items
@@ -570,6 +602,7 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnauthorizedOperation",
     "UnrecognizedClientException",
     "InternalServerErrorException",
+    "SubscriptionRequiredException",
 ]
 
 AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS = (
@@ -631,7 +664,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     Args:
         func: An AWS API function that returns an iterable (typically a list)
-              of resources. Should be a 'get_' function that queries AWS services.
+              of resources. Should be a ``get_`` function that queries AWS services.
 
     Returns:
         The decorated function with error handling and retry logic applied.
@@ -1080,13 +1113,20 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
         prefer using await directly with asyncio.gather().
     """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError("event loop is closed")
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="There is no current event loop",
+                category=DeprecationWarning,
+            )
+            event_loop = asyncio.get_event_loop()
+            if event_loop.is_closed():
+                raise RuntimeError("event loop is closed")
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(asyncio.gather(*awaitables))
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+
+    return event_loop.run_until_complete(asyncio.gather(*awaitables))
 
 
 def to_datetime(value: Any) -> Union[datetime, None]:

@@ -10,16 +10,29 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
 
 
 @dataclass(frozen=True)
 class AWSSSOGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId")
-    display_name: PropertyRef = PropertyRef("DisplayName")
-    description: PropertyRef = PropertyRef("Description")
-    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
-    external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "GroupId", description="Unique identifier for the SSO group"
+    )
+    display_name: PropertyRef = PropertyRef(
+        "DisplayName", description="The display name of the SSO group"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the SSO group"
+    )
+    identity_store_id: PropertyRef = PropertyRef(
+        "IdentityStoreId", description="The identity store ID of the SSO group"
+    )
+    external_id: PropertyRef = PropertyRef(
+        "ExternalId", extra_index=True, description="The external ID of the SSO group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,6 +60,9 @@ class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+# edge (AWSSSOGroupToPermissionSetHasRoleRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
 class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -60,13 +76,35 @@ class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSSSOGroupToPermissionSetHasRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
+class AWSSSOGroupToPermissionSetHasRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSPermissionSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ROLE"
+    properties: AWSSSOGroupToPermissionSetHasRoleRelProperties = (
+        AWSSSOGroupToPermissionSetHasRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS SSO Group."""
+
     label: str = "AWSSSOGroup"
     properties: AWSSSOGroupProperties = AWSSSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserGroup"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSSSOGroupToPermissionSetRel(),
+            AWSSSOGroupToPermissionSetHasRoleRel(),
         ]
     )

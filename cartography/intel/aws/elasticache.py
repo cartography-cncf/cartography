@@ -165,7 +165,7 @@ def sync(
         neo4j_session,
         group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type="ElasticacheCluster",
+        synced_type="AWSElasticacheCluster",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

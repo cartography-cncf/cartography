@@ -1,0 +1,140 @@
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.models.ontology.mapping.specs import OntologyMapping
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+
+# DNSRecord fields:
+# name - The DNS record hostname (REQUIRED)
+# type - The DNS record type (A, AAAA, CNAME, MX, TXT, etc.)
+# value - The DNS record value / target (IP address, CNAME target, etc.)
+
+# AWS
+aws_mapping = OntologyMapping(
+    module_name="aws",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AWSDNSRecord",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
+            ],
+        ),
+    ],
+)
+
+# GCP
+# GCPRecordSet.data is list-valued, so it is not mapped to the scalar _ont_value:
+# toString(_ont_value) in the DNS_RECORD_LINKING_JOBS analysis jobs rejects lists. GCP
+# record linking is done directly off the raw list field via UNWIND dns.data in those jobs.
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPRecordSet",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+            ],
+        ),
+    ],
+)
+
+# Cloudflare
+cloudflare_mapping = OntologyMapping(
+    module_name="cloudflare",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="CloudflareDNSRecord",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
+            ],
+        ),
+    ],
+)
+
+# Vercel
+vercel_mapping = OntologyMapping(
+    module_name="vercel",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="VercelDNSRecord",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
+            ],
+        ),
+    ],
+)
+
+# BBOT
+bbot_mapping = OntologyMapping(
+    module_name="bbot",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BbotDNSName",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
+# Supabase
+supabase_mapping = OntologyMapping(
+    module_name="supabase",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SupabaseCustomHostname",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="hostname", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                # value: The CNAME target is the project's own *.supabase.co
+                # endpoint, which the API does not return on this response.
+            ],
+        ),
+    ],
+)
+
+# Netlify
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDNSRecord",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(ontology_field="value", node_field="value"),
+            ],
+        ),
+    ],
+)
+
+DNSRECORDS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "aws": aws_mapping,
+    "gcp": gcp_mapping,
+    "cloudflare": cloudflare_mapping,
+    "vercel": vercel_mapping,
+    "bbot": bbot_mapping,
+    "supabase": supabase_mapping,
+    "netlify": netlify_mapping,
+}

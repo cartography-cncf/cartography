@@ -3,50 +3,73 @@ from __future__ import annotations
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from typing import Optional
 
+from okta.models.application import Application
+from okta.models.application_json_converter import ApplicationJsonConverter
+from okta.models.saml_application_settings import SamlApplicationSettings
+from okta.models.saml_application_settings_sign_on import SamlApplicationSettingsSignOn
+from okta.models.swa_application_settings import SwaApplicationSettings
+from okta.models.swa_application_settings_application import (
+    SwaApplicationSettingsApplication,
+)
 from okta.pagination import PaginationHelper
 
-
-def _relax_required_fields(*model_paths: str) -> None:
-    """
-    Work around okta-sdk-python models that mark API response fields as
-    required (StrictStr / StrictBool / StrictInt) even though the Okta API
-    frequently omits them on real tenants. A strict model_validate rejects
-    the whole list response, so we rewrite the given pydantic models to
-    make every required field Optional with a None default.
-
-    This is a pragmatic shim, not a tracked upstream fix. The
-    overly-restrictive-validation pattern is a known family of bugs in the
-    SDK (see okta/okta-sdk-python#498, #479) that the maintainers declared
-    fixed in 3.1.0, yet 3.4.2 still ships strict-required fields on several
-    response models. We have not filed a specific issue for
-    SamlApplicationSettingsSignOn; if sync breaks on another model, extend
-    the list below with the exact dotted path.
-    """
-    import importlib
-
-    for path in model_paths:
-        module_name, _, class_name = path.rpartition(".")
-        try:
-            model_cls = getattr(importlib.import_module(module_name), class_name)
-        except (ImportError, AttributeError):
-            continue
-        changed = False
-        for field_info in model_cls.model_fields.values():
-            if field_info.is_required():
-                field_info.default = None
-                field_info.annotation = Optional[field_info.annotation]
-                changed = True
-        if changed:
-            model_cls.model_rebuild(force=True)
+OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
 
 
-# Loosen Okta SDK 3.4.2 models that declare API-optional fields as required.
-# See the _relax_required_fields docstring for context.
-_relax_required_fields(
-    "okta.models.saml_application_settings_sign_on.SamlApplicationSettingsSignOn",
-)
+def _make_fields_optional(model_cls: type[Any], *field_names: str) -> None:
+    for field_name in field_names:
+        field_info = model_cls.model_fields.get(field_name)
+        if field_info and field_info.is_required():
+            field_info.default = None
+            field_info.annotation = field_info.annotation | None
+    model_cls.model_rebuild(force=True)
+
+
+def _remove_field_validator(model_cls: type[Any], validator_name: str) -> None:
+    validators = model_cls.__pydantic_decorators__.field_validators
+    validators.pop(validator_name, None)
+
+
+def _patch_okta_sdk_application_models() -> None:
+    """Accept application response shapes returned by Okta but rejected by SDK 3.4.4."""
+    _make_fields_optional(
+        SamlApplicationSettingsSignOn,
+        "allow_multiple_acs_endpoints",
+        "assertion_signed",
+        "honor_force_authn",
+        "request_compressed",
+        "response_signed",
+    )
+    _make_fields_optional(
+        SwaApplicationSettingsApplication,
+        "button_field",
+        "password_field",
+        "url",
+        "username_field",
+    )
+    SamlApplicationSettings.model_rebuild(force=True)
+    SwaApplicationSettings.model_rebuild(force=True)
+
+    application_models = {
+        Application,
+        *ApplicationJsonConverter.SIGN_ON_MODE_MAPPING.values(),
+    }
+    for model_cls in application_models:
+        _remove_field_validator(model_cls, "features_validate_enum")
+
+    browser_plugin_model = ApplicationJsonConverter.SIGN_ON_MODE_MAPPING[
+        "BROWSER_PLUGIN"
+    ]
+    _remove_field_validator(browser_plugin_model, "name_validate_enum")
+
+    for model_cls in application_models:
+        model_cls.model_rebuild(force=True)
+
+
+# DEPRECATED: Remove this Okta SDK 3.4.4 compatibility shim in v1.0.0 after
+# okta/okta-sdk-python#546 and #574 are released upstream.
+_patch_okta_sdk_application_models()
 
 
 class OktaApiError(RuntimeError):
@@ -57,6 +80,10 @@ class OktaApiError(RuntimeError):
         self.error = error
         self.error_code: str | None = getattr(error, "error_code", None)
         super().__init__(f"Okta API error in {context}: {error}")
+
+
+def is_resource_not_found_error(error: OktaApiError) -> bool:
+    return error.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 
 
 async def collect_paginated(

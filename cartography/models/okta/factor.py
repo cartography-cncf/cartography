@@ -29,9 +29,7 @@ class OktaUserFactorToOktaUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaUserFactorToOktaUserRel(CartographyRelSchema):
-    """
-    (:OktaUserFactor)<-[:FACTOR]-(:OktaUser)
-    """
+    """Links an Okta user to one of their authentication factors."""
 
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -51,9 +49,7 @@ class OktaUserFactorToOktaOrganizationRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaUserFactorToOktaOrganizationRel(CartographyRelSchema):
-    """
-    (:OktaUserFactor)<-[:RESOURCE]-(:OktaOrganization)
-    """
+    """Links an Okta organization to one of its user authentication factors."""
 
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

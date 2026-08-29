@@ -8,11 +8,15 @@ including both network-level errors and HTTP 5xx server errors.
 import json
 import logging
 from typing import Any
+from typing import cast
+from typing import Collection
 from typing import Dict
 from typing import List
 
 import backoff
 from google.api_core.exceptions import ServerError
+from google.api_core.exceptions import TooManyRequests
+from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
@@ -24,7 +28,16 @@ GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
 GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
-    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+    {
+        "forbidden",
+        "insufficientPermissions",
+        "IAM_PERMISSION_DENIED",
+        # A VPC Service Controls perimeter denies the request with this specific
+        # reason rather than an IAM-style one. It still means "you can't read this
+        # resource" from the sync's perspective, so it should be skippable the same
+        # way any other permission-denied reason is, instead of crashing the sync.
+        "vpcServiceControls",
+    }
 )
 GCP_QUOTA_EXCEEDED_REASONS = frozenset(
     {
@@ -37,6 +50,37 @@ GCP_QUOTA_EXCEEDED_REASONS = frozenset(
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
+
+# `aggregatedList` reports an empty scope with this warning code. It is benign: it
+# means "nothing here", not "we could not read this scope".
+GCP_SCOPE_NO_RESULTS_WARNING = "NO_RESULTS_ON_PAGE"
+# Error categories that mean "this identity cannot read this collection", as opposed
+# to a failure that should abort the whole project sync.
+GCP_EXPECTED_SKIP_CATEGORIES = ("api_disabled", "billing_disabled", "forbidden")
+
+
+def _get_gcp_http_error_status(e: HttpError) -> int | None:
+    try:
+        return int(e.resp.status)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def proto_message_to_dict(
+    message: object,
+    *,
+    preserving_proto_field_name: bool = False,
+) -> dict[str, Any]:
+    proto = getattr(message, "_pb", None)
+    if proto is None:
+        raise TypeError(f"Expected protobuf-backed message, got {type(message)!r}")
+    return cast(
+        dict[str, Any],
+        MessageToDict(
+            proto,
+            preserving_proto_field_name=preserving_proto_field_name,
+        ),
+    )
 
 
 def is_retryable_gcp_http_error(exc: Exception) -> bool:
@@ -53,7 +97,7 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
-    if isinstance(exc, ServerError):
+    if isinstance(exc, (ServerError, TooManyRequests)):
         return True
     if not isinstance(exc, HttpError):
         return False
@@ -244,6 +288,17 @@ def get_error_reason(http_error: HttpError) -> str:
                         if isinstance(reason, str):
                             return reason
 
+                for detail in details:
+                    if not isinstance(detail, dict):
+                        continue
+                    violations = detail.get("violations", [])
+                    if isinstance(violations, list):
+                        for violation in violations:
+                            if isinstance(violation, dict):
+                                violation_type = violation.get("type")
+                                if isinstance(violation_type, str):
+                                    return violation_type
+
             return ""
 
         if isinstance(data, list) and data:
@@ -272,6 +327,8 @@ def is_billing_disabled_error(e: HttpError) -> bool:
     reason = get_error_reason(e)
     if reason == "BILLING_DISABLED":
         return True
+    if reason:
+        return False
 
     try:
         error_json = json.loads(e.content.decode("utf-8"))
@@ -279,7 +336,10 @@ def is_billing_disabled_error(e: HttpError) -> bool:
         message = err.get("message", "")
         if isinstance(message, str):
             lowered = message.lower()
-            return "requires billing to be enabled" in lowered
+            return (
+                "requires billing to be enabled" in lowered
+                or "billing is disabled for project" in lowered
+            )
         return False
     except (ValueError, UnicodeDecodeError, AttributeError):
         return False
@@ -419,21 +479,24 @@ def classify_gcp_http_error(e: HttpError) -> str:
     classified as "unknown".
 
     Mapping rules:
-      - 403 + api-disabled pattern (is_api_disabled_error) → "api_disabled"
-      - (other) 403                                        → "forbidden"
-      - 404                                                → "not_found"
-      - 400 + reason "invalid" or "badRequest"            → "invalid"
-      - status in {429, 500, 502, 503, 504}               → "transient"
-      - anything else                                      → "unknown"
+      - billing-disabled pattern (is_billing_disabled_error) → "billing_disabled"
+      - 403 + api-disabled pattern (is_api_disabled_error)   → "api_disabled"
+      - (other) 403                                          → "forbidden"
+      - 404                                                  → "not_found"
+      - 400 + reason "invalid", "badRequest" or "invalidQuery" → "invalid"
+      - status in {429, 500, 502, 503, 504}                 → "transient"
+      - anything else                                        → "unknown"
 
     :param e: The HttpError exception to classify
-    :return: One of "api_disabled", "forbidden", "not_found", "invalid",
-             "transient", "unknown"
+    :return: One of "billing_disabled", "api_disabled", "forbidden",
+             "not_found", "invalid", "transient", "unknown"
     """
-    try:
-        status = int(e.resp.status)
-    except (AttributeError, TypeError, ValueError):
+    status = _get_gcp_http_error_status(e)
+    if status is None:
         return "unknown"
+
+    if is_billing_disabled_error(e):
+        return "billing_disabled"
 
     if status == 403:
         if is_api_disabled_error(e):
@@ -447,7 +510,7 @@ def classify_gcp_http_error(e: HttpError) -> str:
 
     if status == 400:
         reason = get_error_reason(e)
-        if reason.lower() in ("invalid", "badrequest"):
+        if reason.lower() in ("invalid", "badrequest", "invalidquery"):
             return "invalid"
         return "unknown"
 
@@ -455,3 +518,69 @@ def classify_gcp_http_error(e: HttpError) -> str:
         return "transient"
 
     return "unknown"
+
+
+def is_gcp_http_error_category(
+    e: HttpError,
+    categories: Collection[str],
+    *,
+    include_transient_403: bool = False,
+) -> bool:
+    """
+    Return whether a GCP HttpError belongs to one of the given categories.
+
+    `include_transient_403` exists for legacy REST handlers that intentionally
+    skipped all HTTP 403s, including quota/rate-limit 403s after retries, while
+    still re-raising 429/5xx transient failures.
+    """
+    category = classify_gcp_http_error(e)
+    if category in categories:
+        return True
+    return (
+        include_transient_403
+        and category == "transient"
+        and _get_gcp_http_error_status(e) == 403
+    )
+
+
+def aggregated_response_cleanup_safe(response: Any) -> bool:
+    """
+    Return whether every scope in an `aggregatedList` response was fully readable.
+
+    `returnPartialSuccess=True` makes GCP answer with the scopes it could read and a
+    per-scope warning for the ones it could not. Cleanup must be skipped in that case:
+    the response is not a complete replacement set, so deleting everything that was not
+    just refreshed would drop resources that still exist.
+    """
+    for scoped_list in response.get("items", {}).values():
+        warning = scoped_list.get("warning")
+        if warning and warning.get("code") != GCP_SCOPE_NO_RESULTS_WARNING:
+            return False
+    return True
+
+
+def merge_aggregated_scope_items(
+    items: dict[str, dict],
+    response: Any,
+    resource_key: str,
+) -> None:
+    """
+    Merge one page of an `aggregatedList` response into `items`, keyed by scope.
+
+    A scope can span several pages, so `resource_key` lists are appended rather than
+    replaced. A real per-scope warning is kept in preference to the benign
+    `NO_RESULTS_ON_PAGE` one, so an unreadable scope stays visible to
+    `aggregated_response_cleanup_safe()` no matter which page reported it.
+    """
+    for scope, scoped_list in response.get("items", {}).items():
+        target_scoped_list = items.setdefault(scope, {})
+        target_scoped_list.setdefault(resource_key, []).extend(
+            scoped_list.get(resource_key, [])
+        )
+        warning = scoped_list.get("warning")
+        existing_warning = target_scoped_list.get("warning")
+        if warning and (
+            not existing_warning
+            or existing_warning.get("code") == GCP_SCOPE_NO_RESULTS_WARNING
+        ):
+            target_scoped_list["warning"] = warning

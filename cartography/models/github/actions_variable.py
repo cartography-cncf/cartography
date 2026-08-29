@@ -24,14 +24,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubActionsVariableNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Scope-qualified GitHub Actions variable identifier."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
-    visibility: PropertyRef = PropertyRef("visibility")
-    level: PropertyRef = PropertyRef("level")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Variable name."
+    )
+    value: PropertyRef = PropertyRef(
+        "value", description="Plaintext variable value returned by GitHub."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the variable was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the variable was last updated."
+    )
+    visibility: PropertyRef = PropertyRef(
+        "visibility",
+        description="Organization variable visibility: `all`, `private`, or `selected`.",
+    )
+    level: PropertyRef = PropertyRef(
+        "level",
+        description="Variable scope: `organization`, `repository`, or `environment`.",
+    )
 
 
 # =============================================================================
@@ -46,6 +62,8 @@ class GitHubActionsVariableToOrgRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubActionsVariableToOrgRel(CartographyRelSchema):
+    """Scopes a GitHub resource to its organization."""
+
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org_url", set_in_kwargs=True)},
@@ -59,7 +77,7 @@ class GitHubActionsVariableToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubOrgActionsVariableSchema(CartographyNodeSchema):
-    """Schema for organization-level variables."""
+    """A plaintext GitHub Actions variable at organization, repository, or environment scope."""
 
     label: str = "GitHubActionsVariable"
     properties: GitHubActionsVariableNodeProperties = (
@@ -82,9 +100,11 @@ class GitHubActionsVariableToRepoRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubActionsVariableToRepoRel(CartographyRelSchema):
+    """Links a GitHub repository to an Actions variable."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_url")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_VARIABLE"
@@ -95,14 +115,17 @@ class GitHubActionsVariableToRepoRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRepoActionsVariableSchema(CartographyNodeSchema):
-    """Schema for repository-level variables."""
+    """A plaintext GitHub Actions variable at organization, repository, or environment scope."""
 
     label: str = "GitHubActionsVariable"
     properties: GitHubActionsVariableNodeProperties = (
         GitHubActionsVariableNodeProperties()
     )
-    sub_resource_relationship: GitHubActionsVariableToRepoRel = (
-        GitHubActionsVariableToRepoRel()
+    sub_resource_relationship: GitHubActionsVariableToOrgRel = (
+        GitHubActionsVariableToOrgRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubActionsVariableToRepoRel()]
     )
 
 
@@ -138,13 +161,7 @@ class GitHubEnvActionsVariableToOrgRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GitHubEnvActionsVariableToOrgRel(CartographyRelSchema):
-    """
-    Sub-resource relationship from environment-level variable to organization.
-
-    This uses org as the sub-resource (instead of environment) so that cleanup
-    is scoped to the organization. This ensures env-level secrets/variables are
-    properly cleaned up even when their parent environment is deleted.
-    """
+    """Scopes a GitHub resource to its organization."""
 
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -159,12 +176,7 @@ class GitHubEnvActionsVariableToOrgRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubEnvActionsVariableSchema(CartographyNodeSchema):
-    """
-    Schema for environment-level variables.
-
-    Uses GitHubOrganization as the sub-resource for cleanup scoping.
-    The relationship to GitHubEnvironment is in other_relationships.
-    """
+    """A plaintext GitHub Actions variable at organization, repository, or environment scope."""
 
     label: str = "GitHubActionsVariable"
     properties: GitHubActionsVariableNodeProperties = (

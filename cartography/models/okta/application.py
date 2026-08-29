@@ -10,6 +10,7 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 
 
 @dataclass(frozen=True)
@@ -213,7 +214,7 @@ class OktaApplicationToOktaOrganizationRelPropertiesRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class OktaApplicationToOktaUserProperties(CartographyRelProperties):
+class OktaApplicationToOktaUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -226,13 +227,13 @@ class OktaApplicationToOktaUserPropertiesRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "APPLICATION"
-    properties: OktaApplicationToOktaUserProperties = (
-        OktaApplicationToOktaUserProperties()
+    properties: OktaApplicationToOktaUserRelProperties = (
+        OktaApplicationToOktaUserRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class OktaApplicationToOktaGroupProperties(CartographyRelProperties):
+class OktaApplicationToOktaGroupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -245,8 +246,8 @@ class OktaApplicationToOktaGroupPropertiesRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "APPLICATION"
-    properties: OktaApplicationToOktaGroupProperties = (
-        OktaApplicationToOktaGroupProperties()
+    properties: OktaApplicationToOktaGroupRelProperties = (
+        OktaApplicationToOktaGroupRelProperties()
     )
 
 
@@ -263,4 +264,4 @@ class OktaApplicationSchema(CartographyNodeSchema):
             OktaApplicationToOktaGroupPropertiesRel(),
         ],
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])

@@ -31,7 +31,7 @@ def get(
         params=params,
     )
 
-    logger.info("Retrieved %d AppFindings from SentinelOne", len(cves))
+    logger.debug("Retrieved %d AppFindings from SentinelOne", len(cves))
     return cves
 
 

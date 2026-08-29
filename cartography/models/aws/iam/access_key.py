@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_ACCOUNT_ACCESS_KEY
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,25 +11,48 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 
 
 @dataclass(frozen=True)
 class AccountAccessKeyNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("accesskeyid")
-    accesskeyid: PropertyRef = PropertyRef("accesskeyid", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "accesskeyid", description="The access key ID (same as accesskeyid)"
+    )
+    accesskeyid: PropertyRef = PropertyRef(
+        "accesskeyid", extra_index=True, description="The ID for this access key"
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM access keys
-    createdate: PropertyRef = PropertyRef("createdate")
-    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
-    status: PropertyRef = PropertyRef("status")
-    lastuseddate: PropertyRef = PropertyRef("lastuseddate")
-    lastuseddate_dt: PropertyRef = PropertyRef("lastuseddate_dt")
-    lastusedservice: PropertyRef = PropertyRef("lastusedservice")
-    lastusedregion: PropertyRef = PropertyRef("lastusedregion")
+    createdate: PropertyRef = PropertyRef(
+        "createdate", description="Date when access key was created"
+    )
+    createdate_dt: PropertyRef = PropertyRef(
+        "createdate_dt",
+        description="Access-key creation timestamp normalized as a Neo4j datetime.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="Active: valid for API calls.  Inactive: not valid for API calls",
+    )
+    lastuseddate: PropertyRef = PropertyRef(
+        "lastuseddate", description="Date when the key was last used"
+    )
+    lastuseddate_dt: PropertyRef = PropertyRef(
+        "lastuseddate_dt",
+        description="Most recent access-key use timestamp normalized as a Neo4j datetime.",
+    )
+    lastusedservice: PropertyRef = PropertyRef(
+        "lastusedservice",
+        description="The service that was last used with the access key",
+    )
+    lastusedregion: PropertyRef = PropertyRef(
+        "lastusedregion", description="The region where the access key was last used"
+    )
 
 
 @dataclass(frozen=True)
@@ -37,6 +61,10 @@ class AccountAccessKeyToAWSUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# DEPRECATED: replaced by the canonical (:APIKey)-[:OWNED_BY]->(:UserAccount)
+# edge (AccountAccessKeyToAWSUserOwnedByRel). Kept for backward compatibility,
+# will be removed in v1.0.0.
+# (:AWSUser)-[:AWS_ACCESS_KEY]->(:AWSAccountAccessKey)
 class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -48,6 +76,27 @@ class AccountAccessKeyToAWSUserRel(CartographyRelSchema):
     rel_label: str = "AWS_ACCESS_KEY"
     properties: AccountAccessKeyToAWSUserRelProperties = (
         AccountAccessKeyToAWSUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AccountAccessKeyToAWSUserOwnedByRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
+class AccountAccessKeyToAWSUserOwnedByRel(CartographyRelSchema):
+    target_node_label: str = "AWSUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "arn": PropertyRef("user_arn"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: AccountAccessKeyToAWSUserOwnedByRelProperties = (
+        AccountAccessKeyToAWSUserOwnedByRelProperties()
     )
 
 
@@ -73,8 +122,13 @@ class AccountAccessKeyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AccountAccessKeySchema(CartographyNodeSchema):
-    label: str = "AccountAccessKey"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
+    """Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html)."""
+
+    label: str = "AWSAccountAccessKey"
+    # DEPRECATED: legacy AccountAccessKey node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [LEGACY_ACCOUNT_ACCESS_KEY, API_KEY]
+    )
     properties: AccountAccessKeyNodeProperties = AccountAccessKeyNodeProperties()
     sub_resource_relationship: AccountAccessKeyToAWSAccountRel = (
         AccountAccessKeyToAWSAccountRel()
@@ -82,5 +136,6 @@ class AccountAccessKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AccountAccessKeyToAWSUserRel(),
+            AccountAccessKeyToAWSUserOwnedByRel(),
         ]
     )

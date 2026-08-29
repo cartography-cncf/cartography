@@ -18,6 +18,7 @@ STORAGE_RESPONSE = {
                 "uniformBucketLevelAccess": {
                     "enabled": False,
                 },
+                "publicAccessPrevention": "inherited",
             },
             "location": "US",
             "locationType": "multi-region",
@@ -28,6 +29,22 @@ STORAGE_RESPONSE = {
                 "label_key_1": "label_value_1",
                 "label_key_2": "label_value_2",
             },
+            "acl": [
+                {
+                    "entity": "project-owners-123456789012",
+                    "role": "OWNER",
+                },
+                {
+                    "entity": "allUsers",
+                    "role": "READER",
+                },
+            ],
+            "defaultObjectAcl": [
+                {
+                    "entity": "project-owners-123456789012",
+                    "role": "OWNER",
+                },
+            ],
         },
     ],
 }

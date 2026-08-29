@@ -42,7 +42,7 @@ def test_sync_sns(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    assert check_nodes(neo4j_session, "SNSTopic", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSSNSTopic", ["arn"]) == {
         ("arn:aws:sns:us-east-1:123456789012:test-topic",),
     }
 
@@ -50,7 +50,7 @@ def test_sync_sns(
         neo4j_session,
         "AWSAccount",
         "id",
-        "SNSTopic",
+        "AWSSNSTopic",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -58,7 +58,7 @@ def test_sync_sns(
         (TEST_ACCOUNT_ID, "arn:aws:sns:us-east-1:123456789012:test-topic"),
     }
 
-    assert check_nodes(neo4j_session, "SNSTopicSubscription", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSSNSTopicSubscription", ["arn"]) == {
         (
             "arn:aws:sns:us-east-1:123456789012:test-topic:1111aaaa-2222-bbbb-3333-cccc4444dddd",
         ),
@@ -68,7 +68,7 @@ def test_sync_sns(
         neo4j_session,
         "AWSAccount",
         "id",
-        "SNSTopicSubscription",
+        "AWSSNSTopicSubscription",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -81,9 +81,9 @@ def test_sync_sns(
 
     assert check_rels(
         neo4j_session,
-        "SNSTopic",
+        "AWSSNSTopic",
         "arn",
-        "SNSTopicSubscription",
+        "AWSSNSTopicSubscription",
         "arn",
         "HAS_SUBSCRIPTION",
         rel_direction_right=False,

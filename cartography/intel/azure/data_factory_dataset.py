@@ -6,6 +6,7 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.data_factory_util import call_data_factory_operation
 from cartography.models.azure.data_factory.data_factory_dataset import (
     AzureDataFactoryDatasetSchema,
 )
@@ -26,7 +27,12 @@ def get_datasets(
     """
     Gets Datasets for a given Data Factory.
     """
-    return [d.as_dict() for d in client.datasets.list_by_factory(rg_name, factory_name)]
+    return call_data_factory_operation(
+        "list data factory datasets",
+        lambda: [
+            d.as_dict() for d in client.datasets.list_by_factory(rg_name, factory_name)
+        ],
+    )
 
 
 def transform_datasets(
@@ -41,16 +47,17 @@ def transform_datasets(
         if not dataset_id:
             continue
 
-        ls_name = (
-            d.get("properties", {}).get("linked_service_name", {}).get("reference_name")
-        )
-        linked_service_id = linked_service_name_to_id.get(ls_name)
+        # azure-mgmt-datafactory 10 serializes `as_dict()` in ARM wire format, so the
+        # linked service reference is camelCase under `properties`.
+        properties = d.get("properties") or {}
+        ls_name = (properties.get("linkedServiceName") or {}).get("referenceName")
+        linked_service_id = linked_service_name_to_id.get(ls_name) if ls_name else None
 
         transformed.append(
             {
                 "id": dataset_id,
                 "name": d.get("name"),
-                "type": d.get("properties", {}).get("type"),
+                "type": properties.get("type"),
                 "factory_id": factory_id,
                 "subscription_id": subscription_id,
                 "linked_service_id": linked_service_id,

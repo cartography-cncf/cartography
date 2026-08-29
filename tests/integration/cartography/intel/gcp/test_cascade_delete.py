@@ -28,6 +28,9 @@ TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790
 TEST_ORG_ID = "organizations/1337"
 TEST_PROJECT_ID = "test-project-cascade"
+SKIPPED_PROJECT_RESOURCES_RESULT = cartography.intel.gcp.GCPProjectResourcesSyncResult(
+    policy_bindings_cleanup_safe=False,
+)
 
 
 class TestProjectCascadeDelete:
@@ -286,7 +289,7 @@ class TestCascadeDeleteIntegration:
     @patch.object(
         cartography.intel.gcp,
         "_sync_project_resources",
-        return_value=None,
+        return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
     )
     @patch.object(
         cartography.intel.gcp.crm.projects,

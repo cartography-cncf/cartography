@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from cartography.models.aws.extra_labels import LEGACY_GLUE_CONNECTION
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -12,15 +14,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GlueConnectionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Name")
-    arn: PropertyRef = PropertyRef("Name", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    description: PropertyRef = PropertyRef("Description")
-    connection_type: PropertyRef = PropertyRef("ConnectionType")
-    status: PropertyRef = PropertyRef("Status")
-    status_reason: PropertyRef = PropertyRef("StatusReason")
-    authentication_type: PropertyRef = PropertyRef("AuthenticationType")
-    secret_arn: PropertyRef = PropertyRef("SecretArn")
+    id: PropertyRef = PropertyRef(
+        "Name", description="The name of the Glue connection definition"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Name",
+        extra_index=True,
+        description="The name of the Glue connection definition",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the Glue Connection"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the connection"
+    )
+    connection_type: PropertyRef = PropertyRef(
+        "ConnectionType",
+        description="The type of the connection. Currently, SFTP is not supported",
+    )
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="The status of the connection. Can be one of: READY, IN_PROGRESS, or FAILED",
+    )
+    status_reason: PropertyRef = PropertyRef(
+        "StatusReason", description="The reason for the connection status"
+    )
+    authentication_type: PropertyRef = PropertyRef(
+        "AuthenticationType",
+        description="A structure containing the authentication configuration",
+    )
+    secret_arn: PropertyRef = PropertyRef(
+        "SecretArn", description="The secret manager ARN to store credentials"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,7 +69,11 @@ class GlueConnectionToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueConnectionSchema(CartographyNodeSchema):
-    label: str = "GlueConnection"
+    """Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/latest/webapi/API_GetConnections.html)"""
+
+    label: str = "AWSGlueConnection"
+    # DEPRECATED: legacy GlueConnection node label will be removed in v1.0.0.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_CONNECTION])
     properties: GlueConnectionNodeProperties = GlueConnectionNodeProperties()
     sub_resource_relationship: GlueConnectionToAWSAccountRel = (
         GlueConnectionToAWSAccountRel()

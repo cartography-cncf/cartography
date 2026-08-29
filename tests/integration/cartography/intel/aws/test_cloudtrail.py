@@ -66,7 +66,7 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        "CloudTrailTrail",
+        "AWSCloudTrailTrail",
         ["arn", "event_selectors"],
     ) == {
         (
@@ -79,7 +79,7 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "CloudTrailTrail",
+        "AWSCloudTrailTrail",
         "arn",
         "RESOURCE",
         rel_direction_right=True,
@@ -89,9 +89,9 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "CloudTrailTrail",
+        "AWSCloudTrailTrail",
         "arn",
-        "S3Bucket",
+        "AWSS3Bucket",
         "name",
         "LOGS_TO",
         rel_direction_right=True,
@@ -101,9 +101,9 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "CloudTrailTrail",
+        "AWSCloudTrailTrail",
         "id",
-        "CloudWatchLogGroup",
+        "AWSCloudWatchLogGroup",
         "id",
         "SENDS_LOGS_TO_CLOUDWATCH",
         rel_direction_right=True,

@@ -1,0 +1,105 @@
+{
+  "version": "1.161.0",
+  "results": [
+    {
+      "check_id": "python.lang.security.audit.command-injection.fake-4",
+      "path": "/workspace/chatbox-sandbox/app/jobs.py",
+      "start": {
+        "line": 27,
+        "col": 12,
+        "offset": 711
+      },
+      "end": {
+        "line": 27,
+        "col": 58,
+        "offset": 757
+      },
+      "extra": {
+        "message": "User-controlled input is passed into a shell command.",
+        "metadata": {
+          "category": "security",
+          "confidence": "HIGH",
+          "cwe": [
+            "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+          ],
+          "owasp": [
+            "A03:2021 - Injection"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A03_2021-Injection"
+          ],
+          "subcategory": [
+            "vuln"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Command Injection"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "fake-fingerprint-4",
+        "lines": "fake lines 4",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.path-traversal.fake-5",
+      "path": "/workspace/chatbox-sandbox/app/files.py",
+      "start": {
+        "line": 63,
+        "col": 18,
+        "offset": 1789
+      },
+      "end": {
+        "line": 63,
+        "col": 53,
+        "offset": 1824
+      },
+      "extra": {
+        "message": "User input reaches filesystem access without path validation.",
+        "metadata": {
+          "category": "security",
+          "confidence": "MEDIUM",
+          "cwe": [
+            "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+          ],
+          "owasp": [
+            "A01:2021 - Broken Access Control"
+          ],
+          "references": [
+            "https://owasp.org/Top10/A01_2021-Broken_Access_Control"
+          ],
+          "subcategory": [
+            "vuln"
+          ],
+          "technology": [
+            "python"
+          ],
+          "vulnerability_class": [
+            "Path Traversal"
+          ]
+        },
+        "severity": "WARNING",
+        "fingerprint": "fake-fingerprint-5",
+        "lines": "fake lines 5",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {
+    "scanned": [
+      "/workspace/chatbox-sandbox/app/jobs.py",
+      "/workspace/chatbox-sandbox/app/files.py"
+    ]
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.1
+  },
+  "engine_requested": "OSS"
+}

@@ -145,7 +145,7 @@ def test_load_vpc_endpoint_subnet_relationships(neo4j_session):
 
     result = neo4j_session.run(
         """
-        MATCH (vpce:AWSVpcEndpoint)-[:USES_SUBNET]->(subnet:EC2Subnet)
+        MATCH (vpce:AWSVpcEndpoint)-[:USES_SUBNET]->(subnet:AWSEC2Subnet)
         RETURN vpce.vpc_endpoint_id, subnet.subnetid
         """,
     )
@@ -183,7 +183,7 @@ def test_load_vpc_endpoint_security_group_relationships(neo4j_session):
 
     result = neo4j_session.run(
         """
-        MATCH (vpce:AWSVpcEndpoint)-[:MEMBER_OF_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+        MATCH (vpce:AWSVpcEndpoint)-[:MEMBER_OF_SECURITY_GROUP]->(sg:AWSEC2SecurityGroup)
         RETURN vpce.vpc_endpoint_id, sg.id
         """,
     )
@@ -417,12 +417,12 @@ def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(
         """
         MATCH (account:AWSAccount {id: $AccountId})
 
-        MERGE (subnet:EC2Subnet {subnetid: 'subnet-stale'})
+        MERGE (subnet:AWSEC2Subnet {subnetid: 'subnet-stale'})
         ON CREATE SET subnet.firstseen = timestamp()
         SET subnet.lastupdated = $NewTag
         MERGE (account)-[:RESOURCE {lastupdated: $NewTag}]->(subnet)
 
-        MERGE (sg:EC2SecurityGroup {id: 'sg-stale'})
+        MERGE (sg:AWSEC2SecurityGroup {id: 'sg-stale'})
         ON CREATE SET sg.firstseen = timestamp()
         SET sg.lastupdated = $NewTag
         MERGE (account)-[:RESOURCE {lastupdated: $NewTag}]->(sg)
@@ -451,8 +451,8 @@ def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(
     neo4j_session.run(
         """
         MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-1234567890abcdef0'})
-        MATCH (subnet:EC2Subnet {subnetid: 'subnet-stale'})
-        MATCH (sg:EC2SecurityGroup {id: 'sg-stale'})
+        MATCH (subnet:AWSEC2Subnet {subnetid: 'subnet-stale'})
+        MATCH (sg:AWSEC2SecurityGroup {id: 'sg-stale'})
         MATCH (rtb:AWSRouteTable {id: 'rtb-stale'})
         CREATE (vpce)-[:USES_SUBNET {lastupdated: $OldTag, _module_name: 'cartography:aws', _module_version: '0.0.0', firstseen: timestamp()}]->(subnet)
         CREATE (vpce)-[:MEMBER_OF_SECURITY_GROUP {lastupdated: $OldTag, _module_name: 'cartography:aws', _module_version: '0.0.0', firstseen: timestamp()}]->(sg)

@@ -6,6 +6,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
+from cartography.intel.common.object_store import ReportRef
 from cartography.intel.trivy import sync_trivy_from_dir
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -23,12 +24,11 @@ TEST_REGION = "us-east-1"
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(TRIVY_SAMPLE),
+    read_data=json.dumps(TRIVY_SAMPLE).encode("utf-8"),
 )
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan.json"},
+@patch(
+    "cartography.intel.common.object_store.LocalReportReader.list_reports",
+    return_value=[ReportRef(uri="/tmp/scan.json", name="scan.json")],
 )
 @patch.object(
     cartography.intel.aws.ecr,

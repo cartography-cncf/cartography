@@ -114,7 +114,7 @@ def test_sync_okta_groups(
     # Assert - Verify users are members of groups
     result = neo4j_session.run(
         """
-        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup)
+        MATCH (u:OktaUser)-[:MEMBER_OF]->(g:OktaGroup)
         RETURN g.id as group_id, u.id as user_id
         """,
     )
@@ -286,8 +286,8 @@ def test_cleanup_okta_group_memberships(
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'test-group', lastupdated: $NEW_UPDATE_TAG})
         MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'stale-user', lastupdated: $NEW_UPDATE_TAG})
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})
-        MERGE (u1)-[r1:MEMBER_OF_OKTA_GROUP]->(g)
-        MERGE (u2)-[r2:MEMBER_OF_OKTA_GROUP]->(g)
+        MERGE (u1)-[r1:MEMBER_OF]->(g)
+        MERGE (u2)-[r2:MEMBER_OF]->(g)
         SET r1.lastupdated = $OLD_UPDATE_TAG,
             r2.lastupdated = $NEW_UPDATE_TAG
         """,
@@ -308,7 +308,7 @@ def test_cleanup_okta_group_memberships(
     # Assert - Only the fresh-user relationship should remain
     result = neo4j_session.run(
         """
-        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup{id: 'test-group'})
+        MATCH (u:OktaUser)-[:MEMBER_OF]->(g:OktaGroup{id: 'test-group'})
         RETURN u.id as user_id
         """,
     )

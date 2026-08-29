@@ -1,6 +1,46 @@
 import datetime
 import json
 
+PULL_THROUGH_CACHE_SECRET_ARN = "arn:aws:secretsmanager:us-east-1:000000000000:secret:ecr-pullthroughcache/dockerhub"
+PULL_THROUGH_CACHE_ROLE_ARN = (
+    "arn:aws:iam::000000000000:role/ecr-pull-through-cache-role"
+)
+
+PULL_THROUGH_CACHE_RULES = [
+    {
+        "ecrRepositoryPrefix": "docker-hub",
+        "upstreamRegistryUrl": "registry-1.docker.io",
+        "createdAt": datetime.datetime(2025, 1, 1, 0, 0, 1),
+        "registryId": "000000000000",
+        "credentialArn": PULL_THROUGH_CACHE_SECRET_ARN,
+        "customRoleArn": PULL_THROUGH_CACHE_ROLE_ARN,
+        "upstreamRepositoryPrefix": "library",
+        "upstreamRegistry": "docker-hub",
+        "updatedAt": datetime.datetime(2025, 1, 2, 0, 0, 1),
+    },
+    {
+        "ecrRepositoryPrefix": "ROOT",
+        "upstreamRegistryUrl": "public.ecr.aws",
+        "createdAt": datetime.datetime(2025, 2, 1, 0, 0, 1),
+        "registryId": "000000000000",
+        "upstreamRepositoryPrefix": "ROOT",
+        "upstreamRegistry": "ecr-public",
+        "updatedAt": datetime.datetime(2025, 2, 2, 0, 0, 1),
+    },
+]
+
+PULL_THROUGH_CACHE_RULES_SECOND_SYNC = [
+    {
+        "ecrRepositoryPrefix": "ROOT",
+        "upstreamRegistryUrl": "public.ecr.aws",
+        "createdAt": datetime.datetime(2025, 2, 1, 0, 0, 1),
+        "registryId": "000000000000",
+        "upstreamRepositoryPrefix": "ROOT",
+        "upstreamRegistry": "ecr-public",
+        "updatedAt": datetime.datetime(2025, 2, 3, 0, 0, 1),
+    },
+]
+
 DESCRIBE_REPOSITORIES = {
     "repositories": [
         {
@@ -156,6 +196,19 @@ SAMPLE_CONFIG_BLOB = {
             "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
             "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
         ],
+    },
+}
+
+SAMPLE_CONFIG_BLOB_WITH_CIRCLECI_LABELS = {
+    **SAMPLE_CONFIG_BLOB,
+    "config": {
+        "Labels": {
+            "com.example.CIRCLE_REPOSITORY_URL": (
+                "git@github.com:exampleorg/service.git"
+            ),
+            "com.example.CIRCLE_SHA1": "abcdef0123456789abcdef0123456789abcdef01",
+            "com.example.DOCKERFILE": "deploy/Dockerfile",
+        },
     },
 }
 

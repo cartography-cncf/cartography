@@ -12,6 +12,7 @@ from cartography.helpers import batch
 from cartography.intel.aws.iam import get_role_tags
 from cartography.intel.aws.iam import get_user_tags
 from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -20,6 +21,12 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 DEFAULT_CLEANUP_BATCH_SIZE = 1000
+
+# IAM is a global service, so its tags are not regional. We fetch IAM tags once
+# per sync rather than once per region, passing this marker as the region so the
+# IAM path skips the regional resource matching used for regional services.
+GLOBAL_REGION = "global"
+IAM_TAG_RESOURCE_TYPES = frozenset({"iam:role", "iam:user"})
 
 
 def get_short_id_from_ec2_arn(arn: str) -> str:
@@ -92,101 +99,32 @@ def get_resource_type_from_arn(arn: str) -> str:
     return f"{service}:{resource_type}" if resource_type else service
 
 
-# We maintain a mapping from AWS resource types to their associated labels and unique identifiers.
-# label: the node label used in cartography for this resource type
-# property: the field of this node that uniquely identified this resource type
-# id_func: [optional] - EC2 instances and S3 buckets in cartography currently use non-ARNs as their primary identifiers
-# so we need to supply a function pointer to translate the ARN returned by the resourcegroupstaggingapi to the form that
-# cartography uses.
-# TODO - we should make EC2 and S3 assets query-able by their full ARN so that we don't need this workaround.
-TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
-    "autoscaling:autoScalingGroup": {"label": "AutoScalingGroup", "property": "arn"},
-    "dynamodb:table": {"label": "DynamoDBTable", "property": "id"},
-    "ec2:instance": {
-        "label": "EC2Instance",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:internet-gateway": {
-        "label": "AWSInternetGateway",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:key-pair": {"label": "EC2KeyPair", "property": "id"},
-    "ec2:network-interface": {
-        "label": "NetworkInterface",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ecr:repository": {"label": "ECRRepository", "property": "id"},
-    "ec2:security-group": {
-        "label": "EC2SecurityGroup",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:subnet": {
-        "label": "EC2Subnet",
-        "property": "subnetid",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:transit-gateway": {"label": "AWSTransitGateway", "property": "id"},
-    "ec2:transit-gateway-attachment": {
-        "label": "AWSTransitGatewayAttachment",
-        "property": "id",
-    },
-    "ec2:vpc": {
-        "label": "AWSVpc",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:volume": {
-        "label": "EBSVolume",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ec2:elastic-ip-address": {
-        "label": "ElasticIPAddress",
-        "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
-    },
-    "ecs:cluster": {"label": "ECSCluster", "property": "id"},
-    "ecs:container": {"label": "ECSContainer", "property": "id"},
-    "ecs:container-instance": {"label": "ECSContainerInstance", "property": "id"},
-    "ecs:task": {"label": "ECSTask", "property": "id"},
-    "ecs:task-definition": {"label": "ECSTaskDefinition", "property": "id"},
-    "eks:cluster": {"label": "EKSCluster", "property": "id"},
-    "elasticache:cluster": {"label": "ElasticacheCluster", "property": "arn"},
-    "elasticloadbalancing:loadbalancer": {
-        "label": "LoadBalancer",
-        "property": "name",
-        "id_func": get_short_id_from_elb_arn,
-    },
-    "elasticloadbalancing:loadbalancer/app": {
-        "label": "AWSLoadBalancerV2",
-        "property": "name",
-        "id_func": get_short_id_from_lb2_arn,
-    },
-    "elasticloadbalancing:loadbalancer/net": {
-        "label": "AWSLoadBalancerV2",
-        "property": "name",
-        "id_func": get_short_id_from_lb2_arn,
-    },
-    "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
-    "es:domain": {"label": "ESDomain", "property": "arn"},
-    "kms:key": {"label": "KMSKey", "property": "arn"},
-    "iam:role": {"label": "AWSRole", "property": "arn"},
-    "iam:user": {"label": "AWSUser", "property": "arn"},
-    "lambda:function": {"label": "AWSLambda", "property": "id"},
-    "redshift:cluster": {"label": "RedshiftCluster", "property": "id"},
-    "rds:db": {"label": "RDSInstance", "property": "id"},
-    "rds:subgrp": {"label": "DBSubnetGroup", "property": "id"},
-    "rds:cluster": {"label": "RDSCluster", "property": "id"},
-    "rds:snapshot": {"label": "RDSSnapshot", "property": "id"},
-    # Buckets are the only objects in the S3 service: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
-    "s3": {"label": "S3Bucket", "property": "id", "id_func": get_bucket_name_from_arn},
-    "secretsmanager:secret": {"label": "SecretsManagerSecret", "property": "id"},
-    "sqs": {"label": "SQSQueue", "property": "id"},
+_TAG_ID_PARSERS = {
+    "ec2_short_id": get_short_id_from_ec2_arn,
+    "elb_short_id": get_short_id_from_elb_arn,
+    "lb2_short_id": get_short_id_from_lb2_arn,
+    "s3_bucket_name": get_bucket_name_from_arn,
 }
+
+
+def _tag_resource_type_mappings() -> dict[str, dict[str, Any]]:
+    """Build the legacy runtime mapping from the shared declarative catalog."""
+    mappings: dict[str, dict[str, Any]] = {}
+    for resource in AWS_TAGGABLE_RESOURCES:
+        mapping: dict[str, Any] = {
+            "label": resource.label,
+            "property": resource.property,
+        }
+        if resource.id_parser:
+            mapping["id_func"] = _TAG_ID_PARSERS[resource.id_parser]
+        if resource.region_property:
+            mapping["region_property"] = resource.region_property
+        mappings[resource.resource_type] = mapping
+    return mappings
+
+
+# Keep this public mapping backward compatible for callers that customize tag sync.
+TAG_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = _tag_resource_type_mappings()
 
 
 @timeit
@@ -198,14 +136,6 @@ def get_tags(
 ) -> list[dict[str, Any]]:
     """Retrieve tag data for the provided resource types."""
     resources: list[dict[str, Any]] = []
-
-    if "iam:role" in resource_types:
-        resources.extend(get_role_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:role"]
-
-    if "iam:user" in resource_types:
-        resources.extend(get_user_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:user"]
 
     if not resource_types:
         return resources
@@ -223,6 +153,49 @@ def get_tags(
     return resources
 
 
+INGEST_TAG_TEMPLATE = Template(
+    """
+    UNWIND $TagData as tag_mapping
+        UNWIND tag_mapping.Tags as input_tag
+            MATCH
+            (a:AWSAccount{id:$Account})-[res:RESOURCE]->(resource:$resource_label{$property:tag_mapping.resource_id})
+            $region_filter
+            MERGE
+            (aws_tag:AWSTag:Tag{id:input_tag.Key + ":" + input_tag.Value})
+            ON CREATE SET aws_tag.firstseen = timestamp()
+
+            SET aws_tag.lastupdated = $UpdateTag,
+            aws_tag.key = input_tag.Key,
+            aws_tag.value =  input_tag.Value,
+            aws_tag._ont_source = 'aws'
+
+            MERGE (resource)-[r:TAGGED]->(aws_tag)
+            SET r.lastupdated = $UpdateTag,
+            r.firstseen = timestamp()
+    """,
+)
+
+
+def _build_ingest_tag_query(resource_type: str) -> str:
+    """Build the tag ingestion Cypher for a resource type.
+
+    Region-scoped resource types (those with a ``region_property`` mapping) get a
+    ``WHERE resource.<prop> = $Region`` predicate so that same-named resources in
+    different regions are not cross-tagged. The injected ``$Region`` is not
+    re-scanned by ``safe_substitute`` and is bound as a normal Cypher parameter.
+    """
+    mapping = TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
+    region_property = mapping.get("region_property")
+    region_filter = (
+        f"WHERE resource.{region_property} = $Region" if region_property else ""
+    )
+    return INGEST_TAG_TEMPLATE.safe_substitute(
+        resource_label=mapping["label"],
+        property=mapping["property"],
+        region_filter=region_filter,
+    )
+
+
 def _load_tags_tx(
     tx: neo4j.Transaction,
     tag_data: Dict,
@@ -231,33 +204,10 @@ def _load_tags_tx(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    INGEST_TAG_TEMPLATE = Template(
-        """
-    UNWIND $TagData as tag_mapping
-        UNWIND tag_mapping.Tags as input_tag
-            MATCH
-            (a:AWSAccount{id:$Account})-[res:RESOURCE]->(resource:$resource_label{$property:tag_mapping.resource_id})
-            MERGE
-            (aws_tag:AWSTag:Tag{id:input_tag.Key + ":" + input_tag.Value})
-            ON CREATE SET aws_tag.firstseen = timestamp()
-
-            SET aws_tag.lastupdated = $UpdateTag,
-            aws_tag.key = input_tag.Key,
-            aws_tag.value =  input_tag.Value,
-            aws_tag.region = $Region
-
-            MERGE (resource)-[r:TAGGED]->(aws_tag)
-            SET r.lastupdated = $UpdateTag,
-            r.firstseen = timestamp()
-    """,
-    )
     if not tag_data:
         return
 
-    query = INGEST_TAG_TEMPLATE.safe_substitute(
-        resource_label=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["label"],
-        property=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["property"],
-    )
+    query = _build_ingest_tag_query(resource_type)
     tx.run(
         query,
         TagData=tag_data,
@@ -329,52 +279,52 @@ def _group_tag_data_by_resource_type(
 # Mapping of resource labels to their path to AWSAccount for cleanup
 # Most resources have a direct RESOURCE relationship, but some require traversal
 _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
-    "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "NetworkInterface": (
-        "(:NetworkInterface)-[:PART_OF_SUBNET]->"
-        "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEC2Instance": "(:AWSEC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSNetworkInterface": (
+        "(:AWSNetworkInterface)-[:PART_OF_SUBNET]->"
+        "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EC2SecurityGroup": "(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2Subnet": "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2SecurityGroup": "(:AWSEC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2Subnet": "(:AWSEC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ESDomain": "(:ESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RedshiftCluster": "(:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSCluster": "(:RDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSInstance": "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "RDSSnapshot": "(:RDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DBSubnetGroup": "(:DBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "S3Bucket": "(:S3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSESDomain": "(:AWSESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRedshiftCluster": "(:AWSRedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSCluster": "(:AWSRDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSInstance": "(:AWSRDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRDSSnapshot": "(:AWSRDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSDBSubnetGroup": "(:AWSDBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSS3Bucket": "(:AWSS3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "KMSKey": "(:KMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSKMSKey": "(:AWSKMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DynamoDBTable": "(:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSDynamoDBTable": "(:AWSDynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSAutoScalingGroup": "(:AWSAutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEC2KeyPair": "(:AWSEC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECRRepository": "(:AWSECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSTransitGatewayAttachment": (
         "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSCluster": "(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainer": "(:ECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSContainerInstance": (
-        "(:ECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEBSVolume": "(:AWSEBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSElasticIPAddress": "(:AWSElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSCluster": "(:AWSECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainer": "(:AWSECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSContainerInstance": (
+        "(:AWSECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "ECSTask": "(:ECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ECSTaskDefinition": "(:ECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "ElasticacheCluster": "(:ElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "LoadBalancer": "(:LoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTask": "(:AWSECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSECSTaskDefinition": "(:AWSECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSEKSCluster": "(:AWSEKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSElasticacheCluster": "(:AWSElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLoadBalancer": ("(:AWSLoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"),
     "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "SecretsManagerSecret": (
-        "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    "AWSEMRCluster": "(:AWSEMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSSecretsManagerSecret": (
+        "(:AWSSecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
-    "SQSQueue": "(:SQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSSQSQueue": "(:AWSSQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSInternetGateway": (
         "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
@@ -466,6 +416,30 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
 
 
+def _load_resource_type_tags(
+    neo4j_session: neo4j.Session,
+    grouped_tag_data: Dict[str, List[Dict]],
+    resource_types: List[str],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    for resource_type in resource_types:
+        tag_data = grouped_tag_data.get(resource_type, [])
+        transform_tags(tag_data, resource_type)  # type: ignore[arg-type]
+        logger.info(
+            f"Loading {len(tag_data)} tags for resource type {resource_type} (region={region})",
+        )
+        load_tags(
+            neo4j_session=neo4j_session,
+            tag_data=tag_data,  # type: ignore[arg-type]
+            resource_type=resource_type,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            aws_update_tag=update_tag,
+        )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -476,30 +450,50 @@ def sync(
     common_job_parameters: Dict,
     tag_resource_type_mappings: Dict = TAG_RESOURCE_TYPE_MAPPINGS,
 ) -> None:
+    iam_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt in IAM_TAG_RESOURCE_TYPES
+    ]
+    regional_resource_types = [
+        rt for rt in tag_resource_type_mappings if rt not in IAM_TAG_RESOURCE_TYPES
+    ]
+
+    if iam_resource_types:
+        logger.info(
+            f"Syncing AWS IAM tags (global) for account {current_aws_account_id}",
+        )
+        iam_tag_data: List[Dict] = []
+        if "iam:role" in iam_resource_types:
+            iam_tag_data.extend(get_role_tags(boto3_session))
+        if "iam:user" in iam_resource_types:
+            iam_tag_data.extend(get_user_tags(boto3_session))
+        iam_grouped = _group_tag_data_by_resource_type(
+            iam_tag_data, tag_resource_type_mappings
+        )
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=iam_grouped,
+            resource_types=iam_resource_types,
+            region=GLOBAL_REGION,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
+
     for region in regions:
         logger.info(
             f"Syncing AWS tags for account {current_aws_account_id} and region {region}",
         )
-        all_tag_data = get_tags(
-            boto3_session, list(tag_resource_type_mappings.keys()), region
-        )
+        all_tag_data = get_tags(boto3_session, regional_resource_types, region)
         grouped = _group_tag_data_by_resource_type(
             all_tag_data, tag_resource_type_mappings
         )
-        for resource_type in tag_resource_type_mappings.keys():
-            tag_data = grouped.get(resource_type, [])
-            transform_tags(tag_data, resource_type)  # type: ignore
-            logger.info(
-                f"Loading {len(tag_data)} tags for resource type {resource_type}",
-            )
-            load_tags(
-                neo4j_session=neo4j_session,
-                tag_data=tag_data,  # type: ignore
-                resource_type=resource_type,
-                region=region,
-                current_aws_account_id=current_aws_account_id,
-                aws_update_tag=update_tag,
-            )
+        _load_resource_type_tags(
+            neo4j_session=neo4j_session,
+            grouped_tag_data=grouped,
+            resource_types=regional_resource_types,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+            update_tag=update_tag,
+        )
     cleanup(
         neo4j_session,
         common_job_parameters,

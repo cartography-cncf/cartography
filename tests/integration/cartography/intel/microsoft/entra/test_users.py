@@ -49,7 +49,7 @@ async def test_sync_entra_users(
     expected_nodes = {
         (TEST_TENANT_ID,),
     }
-    assert check_nodes(neo4j_session, "EntraTenant", ["id"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AzureTenant", ["id"]) == expected_nodes
 
     # Assert Users exist with department and manager_id
     expected_nodes = {
@@ -106,7 +106,7 @@ async def test_sync_entra_users(
             neo4j_session,
             "EntraUser",
             "id",
-            "EntraTenant",
+            "AzureTenant",
             "id",
             "RESOURCE",
             rel_direction_right=False,

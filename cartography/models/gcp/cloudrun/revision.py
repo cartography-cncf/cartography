@@ -13,19 +13,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCloudRunRevisionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    service: PropertyRef = PropertyRef("service")
-    container_image: PropertyRef = PropertyRef("container_image")
-    container_images: PropertyRef = PropertyRef("container_images")
-    image_digest: PropertyRef = PropertyRef("image_digest")
-    image_digests: PropertyRef = PropertyRef("image_digests")
-    architecture: PropertyRef = PropertyRef("architecture")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    architecture_source: PropertyRef = PropertyRef("architecture_source")
-    service_account_email: PropertyRef = PropertyRef("service_account_email")
-    log_uri: PropertyRef = PropertyRef("log_uri")
-    project_id: PropertyRef = PropertyRef("project_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef("name", description="Short name of the revision.")
+    service: PropertyRef = PropertyRef(
+        "service", description="Full resource name of the parent service."
+    )
+    service_account_email: PropertyRef = PropertyRef(
+        "service_account_email",
+        description="The email of the service account used by this revision.",
+    )
+    log_uri: PropertyRef = PropertyRef(
+        "log_uri", description="URI to Cloud Logging for this revision."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The GCP project ID this revision belongs to."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -84,63 +88,9 @@ class CloudRunRevisionToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudRunRevisionToECRImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunRevisionToECRImageRelProperties = (
-        CloudRunRevisionToECRImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToGitLabContainerImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToGitLabContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunRevisionToGitLabContainerImageRelProperties = (
-        CloudRunRevisionToGitLabContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToArtifactRegistryContainerImageRelProperties(
-    CartographyRelProperties
-):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToArtifactRegistryContainerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digests", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_IMAGE"
-    properties: CloudRunRevisionToArtifactRegistryContainerImageRelProperties = (
-        CloudRunRevisionToArtifactRegistryContainerImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class GCPCloudRunRevisionSchema(CartographyNodeSchema):
+    """A Google Cloud Cloud Run Revision resource."""
+
     label: str = "GCPCloudRunRevision"
     properties: GCPCloudRunRevisionProperties = GCPCloudRunRevisionProperties()
     sub_resource_relationship: ProjectToCloudRunRevisionRel = (
@@ -150,8 +100,5 @@ class GCPCloudRunRevisionSchema(CartographyNodeSchema):
         [
             CloudRunServiceToRevisionRel(),
             CloudRunRevisionToServiceAccountRel(),
-            CloudRunRevisionToECRImageRel(),
-            CloudRunRevisionToGitLabContainerImageRel(),
-            CloudRunRevisionToArtifactRegistryContainerImageRel(),
         ],
     )

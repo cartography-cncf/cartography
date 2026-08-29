@@ -51,6 +51,20 @@ class TestGetGkeClustersCurrentStateSemantics:
         ):
             assert get_gke_clusters(mock_container, "test-project") == {}
 
+    def test_returns_empty_dict_on_billing_disabled(self):
+        mock_container = MagicMock()
+        with (
+            patch(
+                "cartography.intel.gcp.gke.gcp_api_execute_with_retry",
+                side_effect=_make_http_error(403),
+            ),
+            patch(
+                "cartography.intel.gcp.gke.classify_gcp_http_error",
+                return_value="billing_disabled",
+            ),
+        ):
+            assert get_gke_clusters(mock_container, "test-project") == {}
+
     def test_reraises_on_unexpected_error(self):
         mock_container = MagicMock()
         with (

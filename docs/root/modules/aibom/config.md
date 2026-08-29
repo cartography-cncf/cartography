@@ -1,107 +1,94 @@
-## AIBOM Configuration
+# AIBOM Configuration
 
-The AIBOM module ingests pre-generated [Cisco AI BOM](https://github.com/cisco-ai-defense/aibom) JSON reports and maps them onto container images already present in Cartography.
+## Prerequisites
 
-Cartography does not run the scanner in this module. It only ingests JSON artifacts from local disk or S3.
+Run the applicable provider ingestion before AIBOM:
 
-### Why this module exists
+- Image reports require concrete `Image` nodes populated by ECR, GCP Artifact
+  Registry, GitLab Container Registry, or another image provider.
+- Repository reports require matching `GitHubRepository` or `GitLabProject`
+  nodes.
 
-Traditional image inventory tells you what packages and vulnerabilities exist in a container. It does not tell you whether that container includes AI agents, models, prompts, tools, memory layers, or other agentic building blocks.
+In the default sync order, AIBOM runs after provider modules automatically.
 
-This module adds that missing inventory layer and ties it to the production graph through `ECRImage`, so you can ask questions such as:
+## Configure Cartography
 
-- Which production images contain AI agents?
-- Which agents use tools, prompts, models, or memory?
-- Which scans failed or did not match a known image in the graph?
+Set `--aibom-source` to a local directory or supported object storage URI.
+Supported URI schemes include `s3://`, `gs://`, and `azblob://`.
 
-### Input format
+## Run Cartography
 
-Each JSON file must be an envelope wrapping the native scanner output with the image URI that should be matched to the graph.
+Run with local files:
+
+```bash
+cartography \
+  --selected-modules aibom \
+  --aibom-source /path/to/aibom-results
+```
+
+Run with object storage:
+
+```bash
+cartography \
+  --selected-modules aibom \
+  --aibom-source s3://my-aibom-bucket/reports/
+```
+
+## Input Artifacts
+
+Cartography ingests pre-generated
+[Cisco AI BOM](https://github.com/cisco-ai-defense/aibom) JSON reports. It
+does not run the scanner.
+
+### Generate Input Artifacts
+
+Generate AIBOM reports before running Cartography and place the resulting JSON
+files in the configured local directory or object storage location. Keep only
+the latest scan for each image in that location.
+
+### Input Format
+
+Each JSON file must be a raw AIBOM `1.0.0rc4` report with a top-level `aibom_analysis` object.
 
 ```json
 {
-  "image_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:v1.0",
-  "scan_scope": "/app",
-  "scanner": {
-    "name": "cisco-aibom",
-    "version": "0.4.0"
-  },
-  "report": {
-    "aibom_analysis": {
-      "...": "native scanner output"
-    }
+  "aibom_analysis": {
+    "metadata": {
+      "...": "report-level metadata"
+    },
+    "sources": {
+      "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@sha256:...": {
+        "...": "source-level inventory"
+      }
+    },
+    "summary": {
+      "...": "report-level summary"
+    },
+    "risk": {
+      "...": "report-level risk summary"
+    },
+    "errors": []
   }
 }
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `image_uri` | Yes | Image URI to map into the graph. Tag-based and digest-based URIs are both supported. |
-| `report` | Yes | Wrapper object containing the native `aibom_analysis`. |
-| `scan_scope` | No | Path or scope scanned inside the image or extracted filesystem. Stored on `AIBOMSource`. |
-| `scanner.name` | No | Scanner name. Defaults to `cisco-aibom`. |
-| `scanner.version` | No | Scanner version. Falls back to `aibom_analysis.metadata.analyzer_version`. |
+| `aibom_analysis` | Yes | Root payload for a raw AIBOM `1.0.0rc4` report. |
+| `aibom_analysis.metadata` | Yes | Report-level metadata such as analyzer version, timing, model, and schema version. |
+| `aibom_analysis.sources` | Yes | Map keyed by a digest-qualified image reference or a GitHub/GitLab repository URI. |
+| `aibom_analysis.summary` | No | Report-level summary counts and severity fields. |
+| `aibom_analysis.risk` | No | Report-level risk score and severity summary. |
+| `aibom_analysis.errors` | No | Report-level error list. |
 
-The native source payload may optionally include:
+`aibom_analysis.sources` must be non-empty. Empty source maps are treated as
+malformed input and fail AIBOM sync with a validation error.
 
-- `workflows`
+Each source under `aibom_analysis.sources` should include:
+
+- `source_name`
+- `source_path`
+- `summary`
+- `metadata`
+- `components`
 - `relationships`
-- `source_kind`
-- category-specific component fields such as `model_name`, `framework`, and `label`
-
-The module preserves those optional fields when present.
-
-### ECR-first linking behavior
-
-AIBOM resolves each report to the most canonical `ECRImage` already in the graph:
-
-1. Prefer `ECRImage` nodes where `type = "manifest_list"`.
-1. Fall back to `ECRImage` nodes where `type = "image"` only when no manifest list exists for the tagged image.
-
-This avoids duplicating detections across platform-specific child images while still supporting single-platform images.
-
-### Provenance behavior
-
-Cartography now preserves source provenance even when component inventory is not loaded:
-
-- If a source has a non-`completed` status, Cartography loads `AIBOMSource` but skips components, workflows, and relationships.
-- If `image_uri` does not resolve to an `ECRImage`, Cartography still loads `AIBOMSource` with `image_matched = false` for troubleshooting.
-
-This makes stale coverage, failed scans, and mismatched image URIs visible in the graph instead of silently disappearing.
-
-### Prerequisite
-
-Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` nodes exist. In the default sync order AIBOM runs after AWS automatically.
-
-### Results layout
-
-The AIBOM module ingests every `*.json` file under the configured directory or S3 prefix as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their scans and detections will all be loaded in that snapshot because they share the same `update_tag`.
-
-### Run with local files
-
-```bash
-cartography \
-  --selected-modules aibom \
-  --aibom-results-dir /path/to/aibom-results
-```
-
-### Run with S3
-
-```bash
-cartography \
-  --selected-modules aibom \
-  --aibom-s3-bucket my-aibom-bucket \
-  --aibom-s3-prefix reports/
-```
-
-`--aibom-s3-prefix` is optional and defaults to an empty prefix.
-
-### Observability counters
-
-- `aibom_reports_processed`
-- `aibom_sources_total`
-- `aibom_sources_matched`
-- `aibom_sources_unmatched`
-- `aibom_sources_skipped_incomplete`
-- `aibom_components_loaded_<category>`
-- `aibom_relationships_loaded_<relationship_type>`

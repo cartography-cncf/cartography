@@ -9,7 +9,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_FQDN = "example.cartography.test"
 TEST_PARENT_ID = "es-domain-001"
-TEST_RECORD_LABEL = "ESDomain"
+TEST_RECORD_LABEL = "AWSESDomain"
 TEST_DNS_LABEL = "AWSDNSRecord"
 
 
@@ -17,7 +17,7 @@ def _create_parent_node(neo4j_session):
     run_write_query(
         neo4j_session,
         """
-        MERGE (n:ESDomain{id: $Id})
+        MERGE (n:AWSESDomain{id: $Id})
         ON CREATE SET n.firstseen = timestamp()
         SET n.lastupdated = $update_tag
         """,
@@ -56,12 +56,12 @@ def test_ingest_dns_record_by_fqdn(mock_resolve, mock_type, neo4j_session):
         ("192.0.2.10",),
     }
 
-    # Verify DNSRecord -[:DNS_POINTS_TO]-> ESDomain
+    # Verify DNSRecord -[:DNS_POINTS_TO]-> AWSESDomain
     assert check_rels(
         neo4j_session,
         "DNSRecord",
         "id",
-        "ESDomain",
+        "AWSESDomain",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,

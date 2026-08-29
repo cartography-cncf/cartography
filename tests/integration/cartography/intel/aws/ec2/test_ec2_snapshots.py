@@ -56,6 +56,47 @@ def test_get_snapshots_in_use(neo4j_session):
     assert expected_snapshots == set(actual_snapshots)
 
 
+@patch.object(cartography.intel.aws.ec2.snapshots, "create_boto3_client")
+def test_get_snapshots_only_checks_owned_snapshot_visibility(mock_create_client):
+    client = MagicMock()
+    paginator = MagicMock()
+    paginator.paginate.side_effect = [
+        [
+            {
+                "Snapshots": [
+                    {
+                        "SnapshotId": "sn-owned",
+                        "OwnerId": TEST_ACCOUNT_ID,
+                    },
+                    {
+                        "SnapshotId": "sn-external",
+                        "OwnerId": "111111111111",
+                    },
+                ],
+            },
+        ],
+    ]
+    client.get_paginator.return_value = paginator
+    client.describe_snapshot_attribute.return_value = {
+        "CreateVolumePermissions": [{"Group": "all"}],
+    }
+    mock_create_client.return_value = client
+
+    snapshots = cartography.intel.aws.ec2.snapshots.get_snapshots(
+        MagicMock(),
+        TEST_REGION,
+        [],
+        TEST_ACCOUNT_ID,
+    )
+
+    assert snapshots[0]["Public"] is True
+    assert snapshots[1]["Public"] is None
+    client.describe_snapshot_attribute.assert_called_once_with(
+        SnapshotId="sn-owned",
+        Attribute="createVolumePermission",
+    )
+
+
 def test_load_snapshots(neo4j_session):
     data = tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS
     transformed = cartography.intel.aws.ec2.snapshots.transform_snapshots(data)
@@ -68,16 +109,16 @@ def test_load_snapshots(neo4j_session):
     )
 
     expected_nodes = {
-        "sn-01",
-        "sn-02",
+        ("sn-01", True, TEST_ACCOUNT_ID),
+        ("sn-02", False, TEST_ACCOUNT_ID),
     }
 
     nodes = neo4j_session.run(
         """
-        MATCH (r:EBSSnapshot) RETURN r.id;
+        MATCH (r:AWSEBSSnapshot) RETURN r.id, r.ispublic, r.ownerid;
         """,
     )
-    actual_nodes = {n["r.id"] for n in nodes}
+    actual_nodes = {(n["r.id"], n["r.ispublic"], n["r.ownerid"]) for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -113,7 +154,7 @@ def test_load_snapshots_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:EBSSnapshot) RETURN n1.id, n2.id;
+        MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:AWSEBSSnapshot) RETURN n1.id, n2.id;
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
@@ -151,16 +192,24 @@ def test_sync_ebs_snapshots(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert EBSSnapshot nodes exist with expected properties
+    # Assert AWSEBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
+        ("sn-01", True, "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", False, "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
             neo4j_session,
-            "EBSSnapshot",
-            ["id", "description", "encrypted", "state", "volumeid", "volumesize"],
+            "AWSEBSSnapshot",
+            [
+                "id",
+                "ispublic",
+                "description",
+                "encrypted",
+                "state",
+                "volumeid",
+                "volumesize",
+            ],
         )
         == expected_snapshot_nodes
     )
@@ -175,7 +224,7 @@ def test_sync_ebs_snapshots(
             neo4j_session,
             "AWSAccount",
             "id",
-            "EBSSnapshot",
+            "AWSEBSSnapshot",
             "id",
             "RESOURCE",
             rel_direction_right=True,
@@ -186,7 +235,7 @@ def test_sync_ebs_snapshots(
     # Assert snapshots have correct region property
     result = neo4j_session.run(
         """
-        MATCH (s:EBSSnapshot) RETURN s.id, s.region
+        MATCH (s:AWSEBSSnapshot) RETURN s.id, s.region
         """,
     )
     actual_regions = {(r["s.id"], r["s.region"]) for r in result}
@@ -199,7 +248,7 @@ def test_sync_ebs_snapshots(
     # Assert snapshots have correct lastupdated property
     result = neo4j_session.run(
         """
-        MATCH (s:EBSSnapshot) RETURN s.id, s.lastupdated
+        MATCH (s:AWSEBSSnapshot) RETURN s.id, s.lastupdated
         """,
     )
     actual_update_tags = {(r["s.id"], r["s.lastupdated"]) for r in result}
@@ -214,6 +263,7 @@ def test_sync_ebs_snapshots(
         boto3_session,
         TEST_REGION,
         [],  # Empty list since get_snapshots_in_use is mocked to return empty list
+        TEST_ACCOUNT_ID,
     )
     # Note: CREATED_FROM relationships are not created in this test because volumes are not loaded
     # The relationships would be created if volumes existed in the graph
@@ -257,16 +307,24 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert EBSSnapshot nodes exist with expected properties
+    # Assert AWSEBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
+        ("sn-01", True, "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", False, "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
             neo4j_session,
-            "EBSSnapshot",
-            ["id", "description", "encrypted", "state", "volumeid", "volumesize"],
+            "AWSEBSSnapshot",
+            [
+                "id",
+                "ispublic",
+                "description",
+                "encrypted",
+                "state",
+                "volumeid",
+                "volumesize",
+            ],
         )
         == expected_snapshot_nodes
     )
@@ -281,7 +339,7 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
             neo4j_session,
             "AWSAccount",
             "id",
-            "EBSSnapshot",
+            "AWSEBSSnapshot",
             "id",
             "RESOURCE",
             rel_direction_right=True,
@@ -297,12 +355,57 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
     assert (
         check_rels(
             neo4j_session,
-            "EBSSnapshot",
+            "AWSEBSSnapshot",
             "id",
-            "EBSVolume",
+            "AWSEBSVolume",
             "id",
             "CREATED_FROM",
             rel_direction_right=True,
         )
         == expected_created_from_relationships
     )
+
+
+@patch.object(
+    cartography.intel.aws.ec2.snapshots,
+    "get_snapshots",
+    return_value=tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.snapshots,
+    "get_snapshots_in_use",
+    return_value=[],
+)
+def test_snapshot_ontology_labels(
+    mock_get_snapshots_in_use, mock_get_snapshots, neo4j_session
+):
+    # Arrange / Act
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ec2.snapshots.sync_ebs_snapshots(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: every AWSEBSSnapshot carries the Snapshot semantic label with
+    # normalized _ont_* properties populated.
+    assert check_nodes(
+        neo4j_session,
+        "Snapshot",
+        [
+            "_ont_name",
+            "_ont_public",
+            "_ont_encrypted",
+            "_ont_source_id",
+            "_ont_region",
+            "_ont_source",
+        ],
+    ) == {
+        ("sn-01", True, True, "vol-0df", TEST_REGION, "aws"),
+        ("sn-02", False, True, "vol-03", TEST_REGION, "aws"),
+    }

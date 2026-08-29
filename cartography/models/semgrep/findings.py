@@ -3,46 +3,127 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import CVE
+from cartography.models.ontology.labels import SECURITY_ISSUE
 
 
 @dataclass(frozen=True)
 class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier for the finding from the Semgrep API.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    rule_id: PropertyRef = PropertyRef("ruleId", extra_index=True)
-    repository: PropertyRef = PropertyRef("repositoryName", extra_index=True)
-    repository_url: PropertyRef = PropertyRef("repositoryUrl")
-    branch: PropertyRef = PropertyRef("branch")
-    summary: PropertyRef = PropertyRef("title", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    package_manager: PropertyRef = PropertyRef("ecosystem")
-    severity: PropertyRef = PropertyRef("severity")
-    cve_id: PropertyRef = PropertyRef("cveId", extra_index=True)
-    reachability_check: PropertyRef = PropertyRef("reachability")
-    reachability_condition: PropertyRef = PropertyRef("reachableIf")
-    reachability: PropertyRef = PropertyRef("exposureType")
-    transitivity: PropertyRef = PropertyRef("transitivity")
-    dependency: PropertyRef = PropertyRef("matchedDependency")
-    dependency_fix: PropertyRef = PropertyRef("closestSafeDependency")
-    ref_urls: PropertyRef = PropertyRef("ref_urls")
+    rule_id: PropertyRef = PropertyRef(
+        "ruleId",
+        extra_index=True,
+        description="Identifier of the rule that triggered the finding.",
+    )
+    repository: PropertyRef = PropertyRef(
+        "repositoryName",
+        extra_index=True,
+        description="Repository path where the finding was discovered.",
+    )
+    repository_url: PropertyRef = PropertyRef(
+        "repositoryUrl",
+        description="Full URL of the repository where the finding was discovered.",
+    )
+    branch: PropertyRef = PropertyRef(
+        "branch",
+        description="Repository branch where the finding was discovered.",
+    )
+    summary: PropertyRef = PropertyRef(
+        "title",
+        extra_index=True,
+        description="Short title summarizing the finding.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Description of the dependency vulnerability.",
+    )
+    package_manager: PropertyRef = PropertyRef(
+        "ecosystem",
+        description="Package ecosystem of the affected dependency.",
+    )
+    severity: PropertyRef = PropertyRef(
+        "severity",
+        description="Severity assigned by Semgrep.",
+    )
+    cve_id: PropertyRef = PropertyRef(
+        "cveId",
+        extra_index=True,
+        description="CVE identifier associated with the vulnerability.",
+    )
+    ghsa_id: PropertyRef = PropertyRef(
+        "ghsaId",
+        extra_index=True,
+        description="GHSA advisory identifier when the finding is not CVE-backed.",
+    )
+    has_cve: PropertyRef = PropertyRef(
+        "has_cve",
+        description="Whether cve_id contains a valid CVE identifier.",
+    )
+    reachability_check: PropertyRef = PropertyRef(
+        "reachability",
+        description="Semgrep's determination of whether reachability was confirmed.",
+    )
+    reachability_condition: PropertyRef = PropertyRef(
+        "reachableIf",
+        description="Condition under which the vulnerable code is reachable.",
+    )
+    reachability: PropertyRef = PropertyRef(
+        "exposureType",
+        description="Whether the vulnerable dependency is reachable.",
+    )
+    transitivity: PropertyRef = PropertyRef(
+        "transitivity",
+        description="Whether the affected dependency is direct or transitive.",
+    )
+    dependency: PropertyRef = PropertyRef(
+        "matchedDependency",
+        description="Affected dependency name and version.",
+    )
+    dependency_fix: PropertyRef = PropertyRef(
+        "closestSafeDependency",
+        description="Closest dependency version that fixes the vulnerability.",
+    )
+    ref_urls: PropertyRef = PropertyRef(
+        "ref_urls",
+        description="Reference URLs associated with the finding.",
+    )
     dependency_file: PropertyRef = PropertyRef(
         "dependencyFileLocation_path",
         extra_index=True,
+        description="Path of the dependency manifest containing the vulnerable package.",
     )
     dependency_file_url: PropertyRef = PropertyRef(
         "dependencyFileLocation_url",
         extra_index=True,
+        description="URL of the dependency manifest containing the vulnerable package.",
     )
-    scan_time: PropertyRef = PropertyRef("openedAt")
-    fix_status: PropertyRef = PropertyRef("fixStatus")
-    triage_status: PropertyRef = PropertyRef("triageStatus")
-    confidence: PropertyRef = PropertyRef("confidence")
+    scan_time: PropertyRef = PropertyRef(
+        "openedAt",
+        description="UTC date and time when the finding was discovered.",
+    )
+    fix_status: PropertyRef = PropertyRef(
+        "fixStatus",
+        description="Fix status based on finding triage.",
+    )
+    triage_status: PropertyRef = PropertyRef(
+        "triageStatus",
+        description="Current triage status of the finding.",
+    )
+    confidence: PropertyRef = PropertyRef(
+        "confidence",
+        description="Confidence assigned by Semgrep.",
+    )
 
 
 @dataclass(frozen=True)
@@ -53,6 +134,8 @@ class SemgrepSCAFindingToSemgrepDeploymentRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)<-[:RESOURCE]-(:SemgrepDeployment)
 class SemgrepSCAFindingToSemgrepDeploymentRel(CartographyRelSchema):
+    """Connects a Semgrep deployment to one of its SCA findings."""
+
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -72,6 +155,8 @@ class SemgrepSCAFindingToGithubRepoRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)-[:FOUND_IN]->(:GitHubRepository)
 class SemgrepSCAFindingToGithubRepoRel(CartographyRelSchema):
+    """Links an SCA finding to the GitHub repository containing the dependency."""
+
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repositoryUrl")},
@@ -84,6 +169,27 @@ class SemgrepSCAFindingToGithubRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSCAFindingToGitLabProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSCAFinding)-[:FOUND_IN]->(:GitLabProject)
+class SemgrepSCAFindingToGitLabProjectRel(CartographyRelSchema):
+    """Links an SCA finding to the GitLab project containing the dependency."""
+
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"web_url": PropertyRef("repositoryUrl")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "FOUND_IN"
+    properties: SemgrepSCAFindingToGitLabProjectRelProperties = (
+        SemgrepSCAFindingToGitLabProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -91,6 +197,8 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)-[:AFFECTS]->(:Dependency)
 class SemgrepSCAFindingToDependencyRel(CartographyRelSchema):
+    """Links an SCA finding to the affected dependency observation."""
+
     target_node_label: str = "Dependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("matchedDependency")},
@@ -110,6 +218,8 @@ class SemgrepSCAFindingToCVERelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)<-[:LINKED_TO]-(:CVE)
 class SemgrepSCAFindingToCVERel(CartographyRelSchema):
+    """Links a CVE to the Semgrep SCA finding that identified it."""
+
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cveId")},
@@ -129,6 +239,8 @@ class SemgrepSCAFindingToAssistantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)-[:HAS_ASSISTANT]->(:SemgrepFindingAssistant)
 class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
+    """Links an SCA finding to its Semgrep Assistant analysis."""
+
     target_node_label: str = "SemgrepFindingAssistant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("assistantId")},
@@ -142,7 +254,19 @@ class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
+    """A dependency vulnerability discovered by Semgrep Supply Chain."""
+
     label: str = "SemgrepSCAFinding"
+    # An SCA finding is either CVE-backed or an advisory-only security issue, never
+    # both, so both labels are conditional and mutually exclusive on has_cve. This
+    # mirrors AWSInspectorFinding (PACKAGE_VULNERABILITY -> CVE vs
+    # NETWORK_REACHABILITY -> SecurityIssue).
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            SECURITY_ISSUE.when(has_cve="false"),
+            CVE.when(has_cve="true"),
+        ],
+    )
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
     sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (
         SemgrepSCAFindingToSemgrepDeploymentRel()
@@ -150,6 +274,7 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SemgrepSCAFindingToGithubRepoRel(),
+            SemgrepSCAFindingToGitLabProjectRel(),
             SemgrepSCAFindingToDependencyRel(),
             SemgrepSCAFindingToCVERel(),
             SemgrepSCAFindingToAssistantRel(),

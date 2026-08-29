@@ -7,6 +7,9 @@ and then running the analysis jobs against it.
 """
 
 import cartography.util
+from cartography.analysis.azure.analysis import AZURE_COMPUTE_ASSET_EXPOSURE_JOBS
+from cartography.analysis.azure.analysis import AZURE_FIREWALL_LB_PROTECTION
+from cartography.analysis.azure.analysis import AZURE_LB_EXPOSURE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -148,12 +151,12 @@ def _create_base_graph(neo4j_session):
 
     # --- Scenario 4: Container instances ---
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance{id: 'public-aci-id'}) "
+        "MERGE (c:AzureGroupContainer{id: 'public-aci-id'}) "
         "SET c.name = 'public-aci', c.ip_address = '20.1.2.3', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MERGE (c:AzureContainerInstance{id: 'private-aci-id'}) "
+        "MERGE (c:AzureGroupContainer{id: 'private-aci-id'}) "
         "SET c.name = 'private-aci', c.ip_address = '10.0.1.5', c.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
@@ -162,7 +165,7 @@ def _create_base_graph(neo4j_session):
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (c:AzureContainerInstance{id:'private-aci-id'}), (sn:AzureSubnet{id:'container-subnet-id'}) "
+        "MATCH (c:AzureGroupContainer{id:'private-aci-id'}), (sn:AzureSubnet{id:'container-subnet-id'}) "
         "MERGE (c)-[:ATTACHED_TO]->(sn)",
     )
 
@@ -176,18 +179,17 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
     _create_base_graph(neo4j_session)
 
     # Act: Run all three analysis jobs in order
-    cartography.util.run_analysis_job(
-        "azure_compute_asset_exposure.json",
+    for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
+        cartography.util.run_typed_analysis_job(
+            job, neo4j_session, COMMON_JOB_PARAMETERS
+        )
+    cartography.util.run_typed_analysis_job(
+        AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
     )
-    cartography.util.run_scoped_analysis_job(
-        "azure_lb_exposure.json",
-        neo4j_session,
-        COMMON_JOB_PARAMETERS,
-    )
-    cartography.util.run_scoped_analysis_job(
-        "azure_firewall_lb_protection.json",
+    cartography.util.run_typed_analysis_job(
+        AZURE_FIREWALL_LB_PROTECTION,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
     )
@@ -214,7 +216,7 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
     # Assert: exposed_internet on containers
     assert check_nodes(
         neo4j_session,
-        "AzureContainerInstance",
+        "AzureGroupContainer",
         ["id", "exposed_internet"],
     ) == {
         ("public-aci-id", True),
@@ -247,14 +249,14 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
 def test_azure_lb_exposure_requires_compute_analysis_first(neo4j_session):
     """
     LB EXPOSE relationships depend on lb.exposed_internet, which is set by
-    azure_compute_asset_exposure.json.
+    the Azure compute exposure analysis jobs.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_base_graph(neo4j_session)
 
     # Running scoped LB exposure before compute analysis should not create EXPOSE rels.
-    cartography.util.run_scoped_analysis_job(
-        "azure_lb_exposure.json",
+    cartography.util.run_typed_analysis_job(
+        AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
     )
@@ -272,13 +274,12 @@ def test_azure_lb_exposure_requires_compute_analysis_first(neo4j_session):
     )
 
     # After compute analysis, scoped LB exposure should create EXPOSE rels.
-    cartography.util.run_analysis_job(
-        "azure_compute_asset_exposure.json",
-        neo4j_session,
-        COMMON_JOB_PARAMETERS,
-    )
-    cartography.util.run_scoped_analysis_job(
-        "azure_lb_exposure.json",
+    for job in AZURE_COMPUTE_ASSET_EXPOSURE_JOBS:
+        cartography.util.run_typed_analysis_job(
+            job, neo4j_session, COMMON_JOB_PARAMETERS
+        )
+    cartography.util.run_typed_analysis_job(
+        AZURE_LB_EXPOSURE,
         neo4j_session,
         COMMON_JOB_PARAMETERS,
     )

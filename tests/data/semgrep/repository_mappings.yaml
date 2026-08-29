@@ -1,0 +1,16 @@
+repositories:
+  - provider: "github"
+    owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://github.com/simpsoncorp/sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/semgrep/oss_sast_report.json"
+  - provider: "github"
+    owner: "different-org"
+    repo: "different-repo"
+    url: "https://github.com/different-org/different-repo"
+    branch: "main"
+    reports:
+      - "tests/data/semgrep/oss_sast_report.json"
+      - "s3://security-artifacts/semgrep/different-repo/pr-123.json"

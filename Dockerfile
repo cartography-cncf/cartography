@@ -1,5 +1,5 @@
 # Base image
-FROM python:3.13-slim@sha256:d168b8d9eb761f4d3fe305ebd04aeb7e7f2de0297cec5fb2f8f6403244621664 AS base
+FROM python:3.13.14-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91 AS base
 # Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
 ARG VERSION_SPECIFIER
 # the UID and GID to run cartography as
@@ -18,7 +18,12 @@ FROM base AS builder
 COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
 # Install cartography
 RUN ls -alh /var/cartography
-RUN uv tool install cartography${VERSION_SPECIFIER}
+# The neo4j-rust extra swaps in Neo4j's Rust Bolt codec, worth ~20-30% off sync time.
+# It is an extra rather than a hard dependency because a platform without a pre-built
+# wheel would have to build it from source, which needs a Rust toolchain. That is not a
+# concern here: the linux/amd64 and linux/arm64 images this Dockerfile targets are both
+# covered by manylinux wheels.
+RUN uv tool install "cartography[neo4j-rust]${VERSION_SPECIFIER}"
 RUN ls -alh /var/cartography
 
 

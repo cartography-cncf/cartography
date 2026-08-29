@@ -24,17 +24,7 @@ def _ensure_local_neo4j_has_test_environment(neo4j_session):
 
 
 def _ensure_local_neo4j_has_test_organizations(neo4j_session):
-    """Ensure the WorkOSOrganization nodes exist for relationship testing."""
-    neo4j_session.run(
-        """
-        MERGE (o:WorkOSOrganization{id: $org_id})
-        ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $update_tag, o.name = $name
-        """,
-        org_id="org_01HXYZ1234567890ABCDEFGHIJ",
-        name="Springfield Nuclear Power Plant",
-        update_tag=TEST_UPDATE_TAG,
-    )
+    """Ensure the WorkOSOrganization node exists for relationship testing."""
     neo4j_session.run(
         """
         MERGE (o:WorkOSOrganization{id: $org_id})
@@ -74,7 +64,7 @@ def test_load_workos_applications(mock_api, neo4j_session):
 
     # Assert applications exist
     expected_nodes = {
-        ("conn_app_01HXYZ1111111111AAAAAAAA", "Springfield Portal", "oauth"),
+        ("conn_app_01HXYZ1111111111AAAAAAAA", "Springfield Portal", None),
         ("conn_app_02HXYZ2222222222BBBBBBBB", "Squishee Inventory Sync", "m2m"),
     }
     assert (
@@ -104,9 +94,8 @@ def test_load_workos_applications(mock_api, neo4j_session):
         == expected_env_rels
     )
 
-    # Assert applications are linked to their organizations
+    # Assert M2M application is linked to its organization (OAuth app has no org)
     expected_org_rels = {
-        ("conn_app_01HXYZ1111111111AAAAAAAA", "org_01HXYZ1234567890ABCDEFGHIJ"),
         ("conn_app_02HXYZ2222222222BBBBBBBB", "org_02HXYZ0987654321ZYXWVUTSRQ"),
     }
     assert (

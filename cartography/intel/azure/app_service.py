@@ -45,14 +45,15 @@ def transform_app_services(app_services_response: List[Dict]) -> List[Dict]:
     transformed_apps: List[Dict[str, Any]] = []
     for app in app_services_response:
         if "functionapp" not in app.get("kind", ""):
+            properties = app.get("properties", {}) or {}
             transformed_app = {
                 "id": app.get("id"),
                 "name": app.get("name"),
                 "kind": app.get("kind"),
                 "location": app.get("location"),
-                "state": app.get("state"),
-                "default_host_name": app.get("default_host_name"),
-                "https_only": app.get("https_only"),
+                "state": properties.get("state"),
+                "default_host_name": properties.get("defaultHostName"),
+                "https_only": properties.get("httpsOnly"),
                 "tags": app.get("tags"),
             }
             transformed_apps.append(transformed_app)

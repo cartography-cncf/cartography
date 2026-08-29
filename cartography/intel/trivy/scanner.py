@@ -7,7 +7,12 @@ import boto3
 from neo4j import Session
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.common.object_store import filter_report_refs
+from cartography.intel.common.object_store import read_text_report
+from cartography.intel.common.object_store import ReportRef
+from cartography.intel.common.object_store import S3BucketReader
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
@@ -41,7 +46,9 @@ def _validate_packages(package_list: list[dict]) -> list[dict]:
 
 
 def transform_scan_results(
-    results: list[dict], image_digest: str
+    results: list[dict],
+    image_digest: str | None,
+    filesystem_snapshot_ids: list[str] | None = None,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """
     Transform raw Trivy scan results into a format suitable for loading into Neo4j.
@@ -69,11 +76,33 @@ def transform_scan_results(
                     data_source_id = result["DataSource"].get("ID")
                     data_source_name = result["DataSource"].get("Name")
 
+                # Trivy reports more than CVEs: GHSA-, DLA-/DSA-, TEMP-, RUSTSEC-, etc.
+                # The primary identifier lives in VulnerabilityID, and vendor advisory
+                # ids (e.g. RHSA-, DSA-) in VendorIDs. Keep the whole set on the finding
+                # and classify it, so an identifier is recognised whichever slot it
+                # appears in and no authority is dropped for lack of a dedicated field.
+                # cve_id gates the :CVE label.
+                vuln_id = result["VulnerabilityID"]
+                vulnerability_ids = list(
+                    dict.fromkeys([vuln_id, *(result.get("VendorIDs") or [])]),
+                )
+                cve_id = next(
+                    (vid for vid in vulnerability_ids if vid.startswith("CVE-")),
+                    None,
+                )
+                ghsa_id = next(
+                    (vid for vid in vulnerability_ids if vid.startswith("GHSA-")),
+                    None,
+                )
+
                 # Transform finding data
                 finding = {
-                    "id": f'TIF|{result["VulnerabilityID"]}',
-                    "VulnerabilityID": result["VulnerabilityID"],
-                    "cve_id": result["VulnerabilityID"],
+                    "id": f"TIF|{vuln_id}",
+                    "VulnerabilityID": vuln_id,
+                    "vulnerability_ids": vulnerability_ids,
+                    "cve_id": cve_id,
+                    "ghsa_id": ghsa_id,
+                    "has_cve": "true" if cve_id else "false",
                     "Description": result.get("Description"),
                     "LastModifiedDate": result.get("LastModifiedDate"),
                     "PrimaryURL": result.get("PrimaryURL"),
@@ -92,6 +121,7 @@ def transform_scan_results(
                     "Class": scan_class["Class"],
                     "Type": scan_class["Type"],
                     "ImageDigest": image_digest,  # For AFFECTS relationship
+                    "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                     # Additional fields
                     "CweIDs": result.get("CweIDs"),
                     "Status": result.get("Status"),
@@ -146,6 +176,7 @@ def transform_scan_results(
                         "Class": scan_class["Class"],
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
+                        "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -172,8 +203,9 @@ def transform_scan_results(
 
 def transform_all_packages(
     results: list[dict],
-    image_digest: str,
+    image_digest: str | None,
     seen_ids: set[str],
+    filesystem_snapshot_ids: list[str] | None = None,
 ) -> list[dict]:
     """
     Transform Trivy Packages arrays into package dicts for loading.
@@ -229,6 +261,7 @@ def transform_all_packages(
                     "Class": class_name,
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
+                    "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
@@ -296,35 +329,92 @@ def sync_single_image(
     """
     try:
         _, results, image_digest = _parse_trivy_data(trivy_data, source)
-
-        # Transform all data in one pass
-        findings_list, packages_list, fixes_list = transform_scan_results(
+        num_findings = _sync_scan_results(
+            neo4j_session,
             results,
-            image_digest,
+            source,
+            update_tag,
+            image_digest=image_digest,
         )
-
-        num_findings = len(findings_list)
         stat_handler.incr("image_scan_cve_count", num_findings)
-
-        # Load the transformed data
-        load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
-        load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
-        load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
-
-        # Load non-vulnerable packages from the Packages arrays (requires --list-all-pkgs)
-        seen_ids = {pkg["id"] for pkg in packages_list}
-        all_packages = transform_all_packages(results, image_digest, seen_ids)
-        if all_packages:
-            logger.info(
-                f"Loading {len(all_packages)} additional non-vulnerable packages for {source}",
-            )
-            load_scan_packages(neo4j_session, all_packages, update_tag=update_tag)
-
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
         logger.error(f"Failed to process scan results for {source}: {e}")
         raise
+
+
+@timeit
+def sync_single_filesystem_snapshot(
+    neo4j_session: Session,
+    trivy_data: dict,
+    filesystem_snapshot_ids: list[str],
+    source: str,
+    update_tag: int,
+) -> None:
+    """Sync one Trivy filesystem or repository report to matching snapshots."""
+    try:
+        artifact_type = trivy_data.get("ArtifactType")
+        if artifact_type not in {"filesystem", "repository"}:
+            raise ValueError(
+                f"Expected a filesystem or repository Trivy report for {source}",
+            )
+        if not filesystem_snapshot_ids:
+            raise ValueError(f"No filesystem snapshot targets for {source}")
+
+        results = trivy_data.get("Results") or []
+        if not results:
+            logger.debug("No vulnerabilities found for %s", source)
+
+        num_findings = _sync_scan_results(
+            neo4j_session,
+            results,
+            source,
+            update_tag,
+            filesystem_snapshot_ids=filesystem_snapshot_ids,
+        )
+        stat_handler.incr("filesystem_scan_cve_count", num_findings)
+        stat_handler.incr("filesystem_scans_processed_count")
+    except Exception as exc:
+        logger.error("Failed to process scan results for %s: %s", source, exc)
+        raise
+
+
+def _sync_scan_results(
+    neo4j_session: Session,
+    results: list[dict],
+    source: str,
+    update_tag: int,
+    *,
+    image_digest: str | None = None,
+    filesystem_snapshot_ids: list[str] | None = None,
+) -> int:
+    findings_list, packages_list, fixes_list = transform_scan_results(
+        results,
+        image_digest,
+        filesystem_snapshot_ids,
+    )
+
+    load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
+    load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
+    load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+
+    seen_ids = {pkg["id"] for pkg in packages_list}
+    all_packages = transform_all_packages(
+        results,
+        image_digest,
+        seen_ids,
+        filesystem_snapshot_ids,
+    )
+    if all_packages:
+        logger.info(
+            "Loading %d additional non-vulnerable packages for %s",
+            len(all_packages),
+            source,
+        )
+        load_scan_packages(neo4j_session, all_packages, update_tag=update_tag)
+
+    return len(findings_list)
 
 
 @timeit
@@ -342,30 +432,20 @@ def get_json_files_in_s3(
     Returns:
         Set of S3 object keys for JSON files in the S3 prefix
     """
-    s3_client = boto3_session.client("s3")
-
+    # DEPRECATED: get_json_files_in_s3() will be removed in v1.0.0.
     try:
-        # List objects in the S3 prefix
-        paginator = s3_client.get_paginator("list_objects_v2")
-        page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-        results = set()
-
-        for page in page_iterator:
-            if "Contents" not in page:
-                continue
-
-            for obj in page["Contents"]:
-                object_key = obj["Key"]
-
-                # Skip non-JSON files
-                if not object_key.endswith(".json"):
-                    continue
-
-                # Skip files that don't start with our prefix
-                if not object_key.startswith(s3_prefix):
-                    continue
-
-                results.add(object_key)
+        with S3BucketReader(
+            boto3_session,
+            s3_bucket,
+            s3_prefix,
+        ) as reader:
+            results = {
+                ref.name
+                for ref in filter_report_refs(
+                    reader.list_reports(),
+                    suffix=".json",
+                )
+            }
 
     except Exception as e:
         logger.error(
@@ -408,7 +488,61 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
 
 
-# DEPRECATED: Remove this migration function when releasing v1
+@timeit
+def cleanup_filesystem_snapshot_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale filesystem edges without touching image-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
+    )
+
+
+@timeit
+def cleanup_image_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale image edges without touching filesystem-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
+    )
+
+
+# DEPRECATED: legacy Package label migration will be removed in v1.0.0.
 def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
     # Package is reserved as the canonical ontology primary label.
@@ -511,11 +645,15 @@ def sync_single_image_from_s3(
         s3_object_key: S3 object key for this image's scan results
         boto3_session: boto3 session for S3 operations
     """
-    s3_client = boto3_session.client("s3")
-
+    # DEPRECATED: sync_single_image_from_s3() will be removed in v1.0.0.
     logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
-    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
-    scan_data_json = response["Body"].read().decode("utf-8")
+    # Empty prefix is intentional: this compatibility wrapper reads exactly one
+    # caller-provided key through the shared reader API.
+    with S3BucketReader(boto3_session, s3_bucket, "") as reader:
+        scan_data_json = read_text_report(
+            reader,
+            ReportRef(uri=f"s3://{s3_bucket}/{s3_object_key}", name=s3_object_key),
+        )
 
     trivy_data = json.loads(scan_data_json)
     sync_single_image(neo4j_session, trivy_data, image_uri, update_tag)

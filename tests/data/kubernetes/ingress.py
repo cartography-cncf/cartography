@@ -65,6 +65,7 @@ KUBERNETES_INGRESS_DATA = [
                 },
             ]
         ),
+        "host_names": ["example.com", "api.example.com"],
         "target_services": ["api-service", "app-service"],
         "ingress_group_name": None,
         "load_balancer_dns_names": [],
@@ -92,6 +93,7 @@ KUBERNETES_INGRESS_DATA = [
                 },
             ]
         ),
+        "host_names": ["simple.example.com"],
         "target_services": ["simple-service"],
         "ingress_group_name": None,
         "load_balancer_dns_names": [],
@@ -131,6 +133,7 @@ KUBERNETES_ALB_INGRESS_DATA = [
             ]
         ),
         "default_backend": json.dumps({}),
+        "host_names": ["api.myapp.example.com"],
         "target_services": ["api-service"],
         "ingress_group_name": "shared-alb",
         "load_balancer_dns_names": [SHARED_ALB_DNS_NAME],
@@ -165,6 +168,7 @@ KUBERNETES_ALB_INGRESS_DATA = [
             ]
         ),
         "default_backend": json.dumps({}),
+        "host_names": ["www.myapp.example.com"],
         "target_services": ["web-service"],
         "ingress_group_name": "shared-alb",
         "load_balancer_dns_names": [SHARED_ALB_DNS_NAME],
@@ -374,6 +378,33 @@ KUBERNETES_ALB_INGRESS_RAW = [
                 ingress=[
                     V1IngressLoadBalancerIngress(
                         hostname=SHARED_ALB_DNS_NAME,
+                    ),
+                ],
+            ),
+        ),
+    ),
+]
+
+# The AWS Load Balancer Controller copies the ELB DNSName verbatim into the ingress status,
+# and AWS preserves the load balancer name's case there.
+MIXED_CASE_ALB_HOSTNAME = "My-Mixed-ALB-1234567890.us-east-1.elb.amazonaws.com"
+
+KUBERNETES_MIXED_CASE_ALB_INGRESS_RAW = [
+    V1Ingress(
+        metadata=V1ObjectMeta(
+            name="alb-ingress-mixed-case",
+            namespace=KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+            uid="alb-ing-uid-003-qrst-7890",
+            creation_timestamp=datetime.fromisoformat("2021-10-07T06:22:30+00:00"),
+            deletion_timestamp=None,
+            annotations={},
+        ),
+        spec=V1IngressSpec(rules=[], default_backend=None),
+        status=V1IngressStatus(
+            load_balancer=V1IngressLoadBalancerStatus(
+                ingress=[
+                    V1IngressLoadBalancerIngress(
+                        hostname=MIXED_CASE_ALB_HOSTNAME,
                     ),
                 ],
             ),

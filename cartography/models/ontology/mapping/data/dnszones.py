@@ -68,16 +68,17 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
-# Vercel
-vercel_mapping = OntologyMapping(
-    module_name="vercel",
+# Netlify
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
     nodes=[
         OntologyNodeMapping(
-            node_label="VercelDomain",
+            node_label="NetlifyDNSZone",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
+                # Netlify DNS only hosts public zones; there is no private-zone concept.
                 OntologyFieldMapping(
                     ontology_field="public",
                     node_field="",
@@ -93,5 +94,5 @@ DNSZONES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
-    "vercel": vercel_mapping,
+    "netlify": netlify_mapping,
 }

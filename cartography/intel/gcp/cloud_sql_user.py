@@ -6,8 +6,8 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
-from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudsql.user import GCPSqlUserSchema
 from cartography.util import timeit
 
@@ -35,7 +35,7 @@ def get_sql_users(
         users.extend(response.get("items", []))
         return users
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if classify_gcp_http_error(e) == "api_disabled":
             logger.warning(
                 "Could not retrieve Cloud SQL users for instance %s on project %s "
                 "due to permissions issues or API not enabled. Skipping.",
@@ -114,6 +114,20 @@ def sync_sql_users(
         instance_name = inst.get("name")
         instance_id = inst.get("selfLink")
         if not instance_name or not instance_id:
+            continue
+
+        # The Cloud SQL Admin API rejects users.list with HTTP 400 on instances
+        # that are not running (SUSPENDED, PENDING_CREATE, MAINTENANCE, FAILED, ...,
+        # or RUNNABLE but stopped by owner via activationPolicy=NEVER).
+        state = inst.get("state")
+        activation_policy = inst.get("settings", {}).get("activationPolicy")
+        if state != "RUNNABLE" or activation_policy == "NEVER":
+            logger.info(
+                "Skipping SQL users sync for instance %s: state=%s activationPolicy=%s.",
+                instance_name,
+                state,
+                activation_policy,
+            )
             continue
 
         try:

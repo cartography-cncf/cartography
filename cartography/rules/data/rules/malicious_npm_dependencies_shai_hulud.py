@@ -1,3 +1,5 @@
+from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -52,9 +54,16 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
         { name: 'rxnt-authentication', version: '0.0.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -99,8 +108,10 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
         CALL {
             WITH r
             OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
@@ -125,9 +136,13 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     """,
     cypher_count_query="""
     MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -1141,9 +1156,16 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
         { name: 'create-kinvey-flex-service', version: '0.2.1' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
     WHERE REPLACE(d.requirements, "= ", "") = v.version
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -2150,8 +2172,10 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
         MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
-                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
         WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
         CALL {
             WITH r
             OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
@@ -2176,9 +2200,1152 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     """,
     cypher_count_query="""
     MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
     RETURN COUNT(r) AS count
     """,
+    asset_label="GitHubRepository",
     asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
+    module=Module.GITHUB,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_malicious_npm_dependencies_shai_hulud_mini_2026_github = Fact(
+    id="malicious-npm-dependencies-shai-hulud-mini-2026-github",
+    name="GitHub repositories with Mini Shai-Hulud malicious npm dependencies (May 2026 wave)",
+    description="Finds GitHub repositories that depend on npm packages compromised during the Mini Shai-Hulud (TheBeautifulSandsOfTime) wave of the Shai-Hulud attack campaign in May 2026.",
+    cypher_query="""
+    WITH [
+        { name: '@tanstack/arktype-adapter', version: '1.166.12' },
+        { name: '@tanstack/arktype-adapter', version: '1.166.15' },
+        { name: '@tanstack/eslint-plugin-router', version: '1.161.9' },
+        { name: '@tanstack/eslint-plugin-router', version: '1.161.12' },
+        { name: '@tanstack/eslint-plugin-start', version: '0.0.4' },
+        { name: '@tanstack/eslint-plugin-start', version: '0.0.7' },
+        { name: '@tanstack/history', version: '1.161.9' },
+        { name: '@tanstack/history', version: '1.161.12' },
+        { name: '@tanstack/nitro-v2-vite-plugin', version: '1.154.12' },
+        { name: '@tanstack/nitro-v2-vite-plugin', version: '1.154.15' },
+        { name: '@tanstack/react-router', version: '1.169.5' },
+        { name: '@tanstack/react-router', version: '1.169.8' },
+        { name: '@tanstack/react-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/react-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/react-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/react-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/react-start', version: '1.167.68' },
+        { name: '@tanstack/react-start', version: '1.167.71' },
+        { name: '@tanstack/react-start-client', version: '1.166.51' },
+        { name: '@tanstack/react-start-client', version: '1.166.54' },
+        { name: '@tanstack/react-start-rsc', version: '0.0.47' },
+        { name: '@tanstack/react-start-rsc', version: '0.0.50' },
+        { name: '@tanstack/react-start-server', version: '1.166.55' },
+        { name: '@tanstack/react-start-server', version: '1.166.58' },
+        { name: '@tanstack/router-cli', version: '1.166.46' },
+        { name: '@tanstack/router-cli', version: '1.166.49' },
+        { name: '@tanstack/router-core', version: '1.169.5' },
+        { name: '@tanstack/router-core', version: '1.169.8' },
+        { name: '@tanstack/router-devtools', version: '1.166.16' },
+        { name: '@tanstack/router-devtools', version: '1.166.19' },
+        { name: '@tanstack/router-devtools-core', version: '1.167.6' },
+        { name: '@tanstack/router-devtools-core', version: '1.167.9' },
+        { name: '@tanstack/router-generator', version: '1.166.45' },
+        { name: '@tanstack/router-generator', version: '1.166.48' },
+        { name: '@tanstack/router-plugin', version: '1.167.38' },
+        { name: '@tanstack/router-plugin', version: '1.167.41' },
+        { name: '@tanstack/router-ssr-query-core', version: '1.168.3' },
+        { name: '@tanstack/router-ssr-query-core', version: '1.168.6' },
+        { name: '@tanstack/router-utils', version: '1.161.11' },
+        { name: '@tanstack/router-utils', version: '1.161.14' },
+        { name: '@tanstack/router-vite-plugin', version: '1.166.53' },
+        { name: '@tanstack/router-vite-plugin', version: '1.166.56' },
+        { name: '@tanstack/solid-router', version: '1.169.5' },
+        { name: '@tanstack/solid-router', version: '1.169.8' },
+        { name: '@tanstack/solid-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/solid-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/solid-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/solid-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/solid-start', version: '1.167.65' },
+        { name: '@tanstack/solid-start', version: '1.167.68' },
+        { name: '@tanstack/solid-start-client', version: '1.166.50' },
+        { name: '@tanstack/solid-start-client', version: '1.166.53' },
+        { name: '@tanstack/solid-start-server', version: '1.166.54' },
+        { name: '@tanstack/solid-start-server', version: '1.166.57' },
+        { name: '@tanstack/start-client-core', version: '1.168.5' },
+        { name: '@tanstack/start-client-core', version: '1.168.8' },
+        { name: '@tanstack/start-fn-stubs', version: '1.161.9' },
+        { name: '@tanstack/start-fn-stubs', version: '1.161.12' },
+        { name: '@tanstack/start-plugin-core', version: '1.169.23' },
+        { name: '@tanstack/start-plugin-core', version: '1.169.26' },
+        { name: '@tanstack/start-server-core', version: '1.167.33' },
+        { name: '@tanstack/start-server-core', version: '1.167.36' },
+        { name: '@tanstack/start-static-server-functions', version: '1.166.44' },
+        { name: '@tanstack/start-static-server-functions', version: '1.166.47' },
+        { name: '@tanstack/start-storage-context', version: '1.166.38' },
+        { name: '@tanstack/start-storage-context', version: '1.166.41' },
+        { name: '@tanstack/valibot-adapter', version: '1.166.12' },
+        { name: '@tanstack/valibot-adapter', version: '1.166.15' },
+        { name: '@tanstack/virtual-file-routes', version: '1.161.10' },
+        { name: '@tanstack/virtual-file-routes', version: '1.161.13' },
+        { name: '@tanstack/vue-router', version: '1.169.5' },
+        { name: '@tanstack/vue-router', version: '1.169.8' },
+        { name: '@tanstack/vue-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/vue-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/vue-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/vue-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/vue-start', version: '1.167.61' },
+        { name: '@tanstack/vue-start', version: '1.167.64' },
+        { name: '@tanstack/vue-start-client', version: '1.166.46' },
+        { name: '@tanstack/vue-start-client', version: '1.166.49' },
+        { name: '@tanstack/vue-start-server', version: '1.166.50' },
+        { name: '@tanstack/vue-start-server', version: '1.166.53' },
+        { name: '@tanstack/zod-adapter', version: '1.166.12' },
+        { name: '@tanstack/zod-adapter', version: '1.166.15' },
+        { name: '@mistralai/mistralai', version: '2.2.2' },
+        { name: '@mistralai/mistralai', version: '2.2.3' },
+        { name: '@mistralai/mistralai', version: '2.2.4' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.1' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.2' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.3' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.1' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.2' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.3' },
+        { name: '@uipath/access-policy-sdk', version: '0.3.1' },
+        { name: '@uipath/access-policy-tool', version: '0.3.1' },
+        { name: '@uipath/admin-tool', version: '0.1.1' },
+        { name: '@uipath/agent-sdk', version: '1.0.2' },
+        { name: '@uipath/agent-tool', version: '1.0.1' },
+        { name: '@uipath/agent.sdk', version: '0.0.18' },
+        { name: '@uipath/aops-policy-tool', version: '0.3.1' },
+        { name: '@uipath/ap-chat', version: '1.5.7' },
+        { name: '@uipath/api-workflow-tool', version: '1.0.1' },
+        { name: '@uipath/apollo-core', version: '5.9.2' },
+        { name: '@uipath/apollo-react', version: '4.24.5' },
+        { name: '@uipath/apollo-wind', version: '2.16.2' },
+        { name: '@uipath/auth', version: '1.0.1' },
+        { name: '@uipath/case-tool', version: '1.0.1' },
+        { name: '@uipath/cli', version: '1.0.1' },
+        { name: '@uipath/codedagent-tool', version: '1.0.1' },
+        { name: '@uipath/codedagents-tool', version: '0.1.12' },
+        { name: '@uipath/codedapp-tool', version: '1.0.1' },
+        { name: '@uipath/common', version: '1.0.1' },
+        { name: '@uipath/context-grounding-tool', version: '0.1.1' },
+        { name: '@uipath/data-fabric-tool', version: '1.0.2' },
+        { name: '@uipath/docsai-tool', version: '1.0.1' },
+        { name: '@uipath/filesystem', version: '1.0.1' },
+        { name: '@uipath/flow-tool', version: '1.0.2' },
+        { name: '@uipath/functions-tool', version: '1.0.1' },
+        { name: '@uipath/gov-tool', version: '0.3.1' },
+        { name: '@uipath/identity-tool', version: '0.1.1' },
+        { name: '@uipath/insights-sdk', version: '1.0.1' },
+        { name: '@uipath/insights-tool', version: '1.0.1' },
+        { name: '@uipath/integrationservice-sdk', version: '1.0.2' },
+        { name: '@uipath/integrationservice-tool', version: '1.0.2' },
+        { name: '@uipath/llmgw-tool', version: '1.0.1' },
+        { name: '@uipath/maestro-sdk', version: '1.0.1' },
+        { name: '@uipath/maestro-tool', version: '1.0.1' },
+        { name: '@uipath/orchestrator-tool', version: '1.0.1' },
+        { name: '@uipath/packager-tool-apiworkflow', version: '0.0.19' },
+        { name: '@uipath/packager-tool-bpmn', version: '0.0.9' },
+        { name: '@uipath/packager-tool-case', version: '0.0.9' },
+        { name: '@uipath/packager-tool-connector', version: '0.0.19' },
+        { name: '@uipath/packager-tool-flow', version: '0.0.19' },
+        { name: '@uipath/packager-tool-functions', version: '0.1.1' },
+        { name: '@uipath/packager-tool-webapp', version: '1.0.6' },
+        { name: '@uipath/packager-tool-workflowcompiler', version: '0.0.16' },
+        { name: '@uipath/packager-tool-workflowcompiler-browser', version: '0.0.34' },
+        { name: '@uipath/platform-tool', version: '1.0.1' },
+        { name: '@uipath/project-packager', version: '1.1.16' },
+        { name: '@uipath/resource-tool', version: '1.0.1' },
+        { name: '@uipath/resourcecatalog-tool', version: '0.1.1' },
+        { name: '@uipath/resources-tool', version: '0.1.11' },
+        { name: '@uipath/robot', version: '1.3.4' },
+        { name: '@uipath/rpa-legacy-tool', version: '1.0.1' },
+        { name: '@uipath/rpa-tool', version: '0.9.5' },
+        { name: '@uipath/solution-packager', version: '0.0.35' },
+        { name: '@uipath/solution-tool', version: '1.0.1' },
+        { name: '@uipath/solutionpackager-sdk', version: '1.0.11' },
+        { name: '@uipath/solutionpackager-tool-core', version: '0.0.34' },
+        { name: '@uipath/tasks-tool', version: '1.0.1' },
+        { name: '@uipath/telemetry', version: '0.0.7' },
+        { name: '@uipath/test-manager-tool', version: '1.0.2' },
+        { name: '@uipath/tool-workflowcompiler', version: '0.0.12' },
+        { name: '@uipath/traces-tool', version: '1.0.1' },
+        { name: '@uipath/ui-widgets-multi-file-upload', version: '1.0.1' },
+        { name: '@uipath/uipath-python-bridge', version: '1.0.1' },
+        { name: '@uipath/vertical-solutions-tool', version: '1.0.1' },
+        { name: '@uipath/vss', version: '0.1.6' },
+        { name: '@uipath/widget.sdk', version: '1.2.3' },
+        { name: '@squawk/airport-data', version: '0.7.4' },
+        { name: '@squawk/airport-data', version: '0.7.5' },
+        { name: '@squawk/airport-data', version: '0.7.6' },
+        { name: '@squawk/airport-data', version: '0.7.7' },
+        { name: '@squawk/airport-data', version: '0.7.8' },
+        { name: '@squawk/airports', version: '0.6.2' },
+        { name: '@squawk/airports', version: '0.6.3' },
+        { name: '@squawk/airports', version: '0.6.4' },
+        { name: '@squawk/airports', version: '0.6.5' },
+        { name: '@squawk/airports', version: '0.6.6' },
+        { name: '@squawk/airspace', version: '0.8.1' },
+        { name: '@squawk/airspace', version: '0.8.2' },
+        { name: '@squawk/airspace', version: '0.8.3' },
+        { name: '@squawk/airspace', version: '0.8.4' },
+        { name: '@squawk/airspace', version: '0.8.5' },
+        { name: '@squawk/airspace-data', version: '0.5.3' },
+        { name: '@squawk/airspace-data', version: '0.5.4' },
+        { name: '@squawk/airspace-data', version: '0.5.5' },
+        { name: '@squawk/airspace-data', version: '0.5.6' },
+        { name: '@squawk/airspace-data', version: '0.5.7' },
+        { name: '@squawk/airway-data', version: '0.5.4' },
+        { name: '@squawk/airway-data', version: '0.5.5' },
+        { name: '@squawk/airway-data', version: '0.5.6' },
+        { name: '@squawk/airway-data', version: '0.5.7' },
+        { name: '@squawk/airway-data', version: '0.5.8' },
+        { name: '@squawk/airways', version: '0.4.2' },
+        { name: '@squawk/airways', version: '0.4.3' },
+        { name: '@squawk/airways', version: '0.4.4' },
+        { name: '@squawk/airways', version: '0.4.5' },
+        { name: '@squawk/airways', version: '0.4.6' },
+        { name: '@squawk/fix-data', version: '0.6.4' },
+        { name: '@squawk/fix-data', version: '0.6.5' },
+        { name: '@squawk/fix-data', version: '0.6.6' },
+        { name: '@squawk/fix-data', version: '0.6.7' },
+        { name: '@squawk/fix-data', version: '0.6.8' },
+        { name: '@squawk/fixes', version: '0.3.2' },
+        { name: '@squawk/fixes', version: '0.3.3' },
+        { name: '@squawk/fixes', version: '0.3.4' },
+        { name: '@squawk/fixes', version: '0.3.5' },
+        { name: '@squawk/fixes', version: '0.3.6' },
+        { name: '@squawk/flight-math', version: '0.5.4' },
+        { name: '@squawk/flight-math', version: '0.5.5' },
+        { name: '@squawk/flight-math', version: '0.5.6' },
+        { name: '@squawk/flight-math', version: '0.5.7' },
+        { name: '@squawk/flight-math', version: '0.5.8' },
+        { name: '@squawk/flightplan', version: '0.5.2' },
+        { name: '@squawk/flightplan', version: '0.5.3' },
+        { name: '@squawk/flightplan', version: '0.5.4' },
+        { name: '@squawk/flightplan', version: '0.5.5' },
+        { name: '@squawk/flightplan', version: '0.5.6' },
+        { name: '@squawk/geo', version: '0.4.4' },
+        { name: '@squawk/geo', version: '0.4.5' },
+        { name: '@squawk/geo', version: '0.4.6' },
+        { name: '@squawk/geo', version: '0.4.7' },
+        { name: '@squawk/geo', version: '0.4.8' },
+        { name: '@squawk/icao-registry', version: '0.5.2' },
+        { name: '@squawk/icao-registry', version: '0.5.3' },
+        { name: '@squawk/icao-registry', version: '0.5.4' },
+        { name: '@squawk/icao-registry', version: '0.5.5' },
+        { name: '@squawk/icao-registry', version: '0.5.6' },
+        { name: '@squawk/icao-registry-data', version: '0.8.4' },
+        { name: '@squawk/icao-registry-data', version: '0.8.5' },
+        { name: '@squawk/icao-registry-data', version: '0.8.6' },
+        { name: '@squawk/icao-registry-data', version: '0.8.7' },
+        { name: '@squawk/icao-registry-data', version: '0.8.8' },
+        { name: '@squawk/mcp', version: '0.9.1' },
+        { name: '@squawk/mcp', version: '0.9.2' },
+        { name: '@squawk/mcp', version: '0.9.3' },
+        { name: '@squawk/mcp', version: '0.9.4' },
+        { name: '@squawk/mcp', version: '0.9.5' },
+        { name: '@squawk/navaid-data', version: '0.6.4' },
+        { name: '@squawk/navaid-data', version: '0.6.5' },
+        { name: '@squawk/navaid-data', version: '0.6.6' },
+        { name: '@squawk/navaid-data', version: '0.6.7' },
+        { name: '@squawk/navaid-data', version: '0.6.8' },
+        { name: '@squawk/navaids', version: '0.4.2' },
+        { name: '@squawk/navaids', version: '0.4.3' },
+        { name: '@squawk/navaids', version: '0.4.4' },
+        { name: '@squawk/navaids', version: '0.4.5' },
+        { name: '@squawk/navaids', version: '0.4.6' },
+        { name: '@squawk/notams', version: '0.3.6' },
+        { name: '@squawk/notams', version: '0.3.7' },
+        { name: '@squawk/notams', version: '0.3.8' },
+        { name: '@squawk/notams', version: '0.3.9' },
+        { name: '@squawk/notams', version: '0.3.10' },
+        { name: '@squawk/procedure-data', version: '0.7.3' },
+        { name: '@squawk/procedure-data', version: '0.7.4' },
+        { name: '@squawk/procedure-data', version: '0.7.5' },
+        { name: '@squawk/procedure-data', version: '0.7.6' },
+        { name: '@squawk/procedure-data', version: '0.7.7' },
+        { name: '@squawk/procedures', version: '0.5.2' },
+        { name: '@squawk/procedures', version: '0.5.3' },
+        { name: '@squawk/procedures', version: '0.5.4' },
+        { name: '@squawk/procedures', version: '0.5.5' },
+        { name: '@squawk/procedures', version: '0.5.6' },
+        { name: '@squawk/types', version: '0.8.1' },
+        { name: '@squawk/types', version: '0.8.2' },
+        { name: '@squawk/types', version: '0.8.3' },
+        { name: '@squawk/types', version: '0.8.4' },
+        { name: '@squawk/types', version: '0.8.5' },
+        { name: '@squawk/units', version: '0.4.3' },
+        { name: '@squawk/units', version: '0.4.4' },
+        { name: '@squawk/units', version: '0.4.5' },
+        { name: '@squawk/units', version: '0.4.6' },
+        { name: '@squawk/units', version: '0.4.7' },
+        { name: '@squawk/weather', version: '0.5.6' },
+        { name: '@squawk/weather', version: '0.5.7' },
+        { name: '@squawk/weather', version: '0.5.8' },
+        { name: '@squawk/weather', version: '0.5.9' },
+        { name: '@squawk/weather', version: '0.5.10' },
+        { name: '@tallyui/components', version: '1.0.1' },
+        { name: '@tallyui/components', version: '1.0.2' },
+        { name: '@tallyui/components', version: '1.0.3' },
+        { name: '@tallyui/connector-medusa', version: '1.0.1' },
+        { name: '@tallyui/connector-medusa', version: '1.0.2' },
+        { name: '@tallyui/connector-medusa', version: '1.0.3' },
+        { name: '@tallyui/connector-shopify', version: '1.0.1' },
+        { name: '@tallyui/connector-shopify', version: '1.0.2' },
+        { name: '@tallyui/connector-shopify', version: '1.0.3' },
+        { name: '@tallyui/connector-vendure', version: '1.0.1' },
+        { name: '@tallyui/connector-vendure', version: '1.0.2' },
+        { name: '@tallyui/connector-vendure', version: '1.0.3' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.1' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.2' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.3' },
+        { name: '@tallyui/database', version: '1.0.1' },
+        { name: '@tallyui/database', version: '1.0.2' },
+        { name: '@tallyui/database', version: '1.0.3' },
+        { name: '@tallyui/core', version: '0.2.1' },
+        { name: '@tallyui/core', version: '0.2.2' },
+        { name: '@tallyui/core', version: '0.2.3' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.1' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.2' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.3' },
+        { name: '@tallyui/theme', version: '0.2.1' },
+        { name: '@tallyui/theme', version: '0.2.2' },
+        { name: '@tallyui/theme', version: '0.2.3' },
+        { name: '@tallyui/pos', version: '0.1.1' },
+        { name: '@tallyui/pos', version: '0.1.2' },
+        { name: '@tallyui/pos', version: '0.1.3' },
+        { name: '@draftauth/client', version: '0.2.1' },
+        { name: '@draftauth/client', version: '0.2.2' },
+        { name: '@draftauth/core', version: '0.13.1' },
+        { name: '@draftauth/core', version: '0.13.2' },
+        { name: '@draftlab/auth', version: '0.24.1' },
+        { name: '@draftlab/auth', version: '0.24.2' },
+        { name: '@draftlab/auth-router', version: '0.5.1' },
+        { name: '@draftlab/auth-router', version: '0.5.2' },
+        { name: '@draftlab/db', version: '0.16.1' },
+        { name: '@draftlab/db', version: '0.16.2' },
+        { name: '@ml-toolkit-ts/preprocessing', version: '1.0.2' },
+        { name: '@ml-toolkit-ts/preprocessing', version: '1.0.3' },
+        { name: '@ml-toolkit-ts/xgboost', version: '1.0.3' },
+        { name: '@ml-toolkit-ts/xgboost', version: '1.0.4' },
+        { name: 'ml-toolkit-ts', version: '1.0.4' },
+        { name: 'ml-toolkit-ts', version: '1.0.5' },
+        { name: '@supersurkhet/cli', version: '0.0.2' },
+        { name: '@supersurkhet/cli', version: '0.0.3' },
+        { name: '@supersurkhet/cli', version: '0.0.4' },
+        { name: '@supersurkhet/cli', version: '0.0.5' },
+        { name: '@supersurkhet/cli', version: '0.0.6' },
+        { name: '@supersurkhet/cli', version: '0.0.7' },
+        { name: '@supersurkhet/sdk', version: '0.0.2' },
+        { name: '@supersurkhet/sdk', version: '0.0.3' },
+        { name: '@supersurkhet/sdk', version: '0.0.4' },
+        { name: '@supersurkhet/sdk', version: '0.0.5' },
+        { name: '@supersurkhet/sdk', version: '0.0.6' },
+        { name: '@supersurkhet/sdk', version: '0.0.7' },
+        { name: '@cap-js/db-service', version: '2.10.1' },
+        { name: '@cap-js/postgres', version: '2.2.2' },
+        { name: '@cap-js/sqlite', version: '2.2.2' },
+        { name: 'mbt', version: '1.2.48' },
+        { name: '@dirigible-ai/sdk', version: '0.6.2' },
+        { name: '@dirigible-ai/sdk', version: '0.6.3' },
+        { name: '@mesadev/rest', version: '0.28.3' },
+        { name: '@mesadev/saguaro', version: '0.4.22' },
+        { name: '@mesadev/sdk', version: '0.28.3' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.2' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.3' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.4' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.5' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.6' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.7' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.8' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.9' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.10' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.11' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.12' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.13' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.14' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.15' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.16' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.17' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.18' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.19' },
+        { name: '@opensearch-project/opensearch', version: '3.5.3' },
+        { name: '@opensearch-project/opensearch', version: '3.6.2' },
+        { name: '@opensearch-project/opensearch', version: '3.7.0' },
+        { name: '@opensearch-project/opensearch', version: '3.8.0' },
+        { name: '@taskflow-corp/cli', version: '0.1.24' },
+        { name: '@taskflow-corp/cli', version: '0.1.25' },
+        { name: '@taskflow-corp/cli', version: '0.1.26' },
+        { name: '@taskflow-corp/cli', version: '0.1.27' },
+        { name: '@taskflow-corp/cli', version: '0.1.28' },
+        { name: '@taskflow-corp/cli', version: '0.1.29' },
+        { name: '@tolka/cli', version: '1.0.2' },
+        { name: '@tolka/cli', version: '1.0.3' },
+        { name: '@tolka/cli', version: '1.0.4' },
+        { name: '@tolka/cli', version: '1.0.5' },
+        { name: '@tolka/cli', version: '1.0.6' },
+        { name: 'agentwork-cli', version: '0.1.4' },
+        { name: 'agentwork-cli', version: '0.1.5' },
+        { name: 'cmux-agent-mcp', version: '0.1.3' },
+        { name: 'cmux-agent-mcp', version: '0.1.4' },
+        { name: 'cmux-agent-mcp', version: '0.1.5' },
+        { name: 'cmux-agent-mcp', version: '0.1.6' },
+        { name: 'cmux-agent-mcp', version: '0.1.7' },
+        { name: 'cmux-agent-mcp', version: '0.1.8' },
+        { name: 'cross-stitch', version: '1.1.3' },
+        { name: 'cross-stitch', version: '1.1.4' },
+        { name: 'cross-stitch', version: '1.1.5' },
+        { name: 'cross-stitch', version: '1.1.6' },
+        { name: 'cross-stitch', version: '1.1.7' },
+        { name: 'git-branch-selector', version: '1.3.3' },
+        { name: 'git-branch-selector', version: '1.3.4' },
+        { name: 'git-branch-selector', version: '1.3.5' },
+        { name: 'git-branch-selector', version: '1.3.6' },
+        { name: 'git-branch-selector', version: '1.3.7' },
+        { name: 'git-git-git', version: '1.0.8' },
+        { name: 'git-git-git', version: '1.0.9' },
+        { name: 'git-git-git', version: '1.0.10' },
+        { name: 'git-git-git', version: '1.0.11' },
+        { name: 'git-git-git', version: '1.0.12' },
+        { name: 'intercom-client', version: '7.0.4' },
+        { name: 'nextmove-mcp', version: '0.1.3' },
+        { name: 'nextmove-mcp', version: '0.1.4' },
+        { name: 'nextmove-mcp', version: '0.1.5' },
+        { name: 'nextmove-mcp', version: '0.1.6' },
+        { name: 'nextmove-mcp', version: '0.1.7' },
+        { name: 'safe-action', version: '0.8.3' },
+        { name: 'safe-action', version: '0.8.4' },
+        { name: 'ts-dna', version: '3.0.1' },
+        { name: 'ts-dna', version: '3.0.2' },
+        { name: 'ts-dna', version: '3.0.3' },
+        { name: 'ts-dna', version: '3.0.4' },
+        { name: 'ts-dna', version: '3.0.5' },
+        { name: 'wot-api', version: '0.8.1' },
+        { name: 'wot-api', version: '0.8.2' },
+        { name: 'wot-api', version: '0.8.3' },
+        { name: 'wot-api', version: '0.8.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+    WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
+    """,
+    cypher_visual_query="""
+    WITH [
+        { name: '@tanstack/arktype-adapter', version: '1.166.12' },
+        { name: '@tanstack/arktype-adapter', version: '1.166.15' },
+        { name: '@tanstack/eslint-plugin-router', version: '1.161.9' },
+        { name: '@tanstack/eslint-plugin-router', version: '1.161.12' },
+        { name: '@tanstack/eslint-plugin-start', version: '0.0.4' },
+        { name: '@tanstack/eslint-plugin-start', version: '0.0.7' },
+        { name: '@tanstack/history', version: '1.161.9' },
+        { name: '@tanstack/history', version: '1.161.12' },
+        { name: '@tanstack/nitro-v2-vite-plugin', version: '1.154.12' },
+        { name: '@tanstack/nitro-v2-vite-plugin', version: '1.154.15' },
+        { name: '@tanstack/react-router', version: '1.169.5' },
+        { name: '@tanstack/react-router', version: '1.169.8' },
+        { name: '@tanstack/react-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/react-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/react-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/react-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/react-start', version: '1.167.68' },
+        { name: '@tanstack/react-start', version: '1.167.71' },
+        { name: '@tanstack/react-start-client', version: '1.166.51' },
+        { name: '@tanstack/react-start-client', version: '1.166.54' },
+        { name: '@tanstack/react-start-rsc', version: '0.0.47' },
+        { name: '@tanstack/react-start-rsc', version: '0.0.50' },
+        { name: '@tanstack/react-start-server', version: '1.166.55' },
+        { name: '@tanstack/react-start-server', version: '1.166.58' },
+        { name: '@tanstack/router-cli', version: '1.166.46' },
+        { name: '@tanstack/router-cli', version: '1.166.49' },
+        { name: '@tanstack/router-core', version: '1.169.5' },
+        { name: '@tanstack/router-core', version: '1.169.8' },
+        { name: '@tanstack/router-devtools', version: '1.166.16' },
+        { name: '@tanstack/router-devtools', version: '1.166.19' },
+        { name: '@tanstack/router-devtools-core', version: '1.167.6' },
+        { name: '@tanstack/router-devtools-core', version: '1.167.9' },
+        { name: '@tanstack/router-generator', version: '1.166.45' },
+        { name: '@tanstack/router-generator', version: '1.166.48' },
+        { name: '@tanstack/router-plugin', version: '1.167.38' },
+        { name: '@tanstack/router-plugin', version: '1.167.41' },
+        { name: '@tanstack/router-ssr-query-core', version: '1.168.3' },
+        { name: '@tanstack/router-ssr-query-core', version: '1.168.6' },
+        { name: '@tanstack/router-utils', version: '1.161.11' },
+        { name: '@tanstack/router-utils', version: '1.161.14' },
+        { name: '@tanstack/router-vite-plugin', version: '1.166.53' },
+        { name: '@tanstack/router-vite-plugin', version: '1.166.56' },
+        { name: '@tanstack/solid-router', version: '1.169.5' },
+        { name: '@tanstack/solid-router', version: '1.169.8' },
+        { name: '@tanstack/solid-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/solid-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/solid-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/solid-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/solid-start', version: '1.167.65' },
+        { name: '@tanstack/solid-start', version: '1.167.68' },
+        { name: '@tanstack/solid-start-client', version: '1.166.50' },
+        { name: '@tanstack/solid-start-client', version: '1.166.53' },
+        { name: '@tanstack/solid-start-server', version: '1.166.54' },
+        { name: '@tanstack/solid-start-server', version: '1.166.57' },
+        { name: '@tanstack/start-client-core', version: '1.168.5' },
+        { name: '@tanstack/start-client-core', version: '1.168.8' },
+        { name: '@tanstack/start-fn-stubs', version: '1.161.9' },
+        { name: '@tanstack/start-fn-stubs', version: '1.161.12' },
+        { name: '@tanstack/start-plugin-core', version: '1.169.23' },
+        { name: '@tanstack/start-plugin-core', version: '1.169.26' },
+        { name: '@tanstack/start-server-core', version: '1.167.33' },
+        { name: '@tanstack/start-server-core', version: '1.167.36' },
+        { name: '@tanstack/start-static-server-functions', version: '1.166.44' },
+        { name: '@tanstack/start-static-server-functions', version: '1.166.47' },
+        { name: '@tanstack/start-storage-context', version: '1.166.38' },
+        { name: '@tanstack/start-storage-context', version: '1.166.41' },
+        { name: '@tanstack/valibot-adapter', version: '1.166.12' },
+        { name: '@tanstack/valibot-adapter', version: '1.166.15' },
+        { name: '@tanstack/virtual-file-routes', version: '1.161.10' },
+        { name: '@tanstack/virtual-file-routes', version: '1.161.13' },
+        { name: '@tanstack/vue-router', version: '1.169.5' },
+        { name: '@tanstack/vue-router', version: '1.169.8' },
+        { name: '@tanstack/vue-router-devtools', version: '1.166.16' },
+        { name: '@tanstack/vue-router-devtools', version: '1.166.19' },
+        { name: '@tanstack/vue-router-ssr-query', version: '1.166.15' },
+        { name: '@tanstack/vue-router-ssr-query', version: '1.166.18' },
+        { name: '@tanstack/vue-start', version: '1.167.61' },
+        { name: '@tanstack/vue-start', version: '1.167.64' },
+        { name: '@tanstack/vue-start-client', version: '1.166.46' },
+        { name: '@tanstack/vue-start-client', version: '1.166.49' },
+        { name: '@tanstack/vue-start-server', version: '1.166.50' },
+        { name: '@tanstack/vue-start-server', version: '1.166.53' },
+        { name: '@tanstack/zod-adapter', version: '1.166.12' },
+        { name: '@tanstack/zod-adapter', version: '1.166.15' },
+        { name: '@mistralai/mistralai', version: '2.2.2' },
+        { name: '@mistralai/mistralai', version: '2.2.3' },
+        { name: '@mistralai/mistralai', version: '2.2.4' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.1' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.2' },
+        { name: '@mistralai/mistralai-azure', version: '1.7.3' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.1' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.2' },
+        { name: '@mistralai/mistralai-gcp', version: '1.7.3' },
+        { name: '@uipath/access-policy-sdk', version: '0.3.1' },
+        { name: '@uipath/access-policy-tool', version: '0.3.1' },
+        { name: '@uipath/admin-tool', version: '0.1.1' },
+        { name: '@uipath/agent-sdk', version: '1.0.2' },
+        { name: '@uipath/agent-tool', version: '1.0.1' },
+        { name: '@uipath/agent.sdk', version: '0.0.18' },
+        { name: '@uipath/aops-policy-tool', version: '0.3.1' },
+        { name: '@uipath/ap-chat', version: '1.5.7' },
+        { name: '@uipath/api-workflow-tool', version: '1.0.1' },
+        { name: '@uipath/apollo-core', version: '5.9.2' },
+        { name: '@uipath/apollo-react', version: '4.24.5' },
+        { name: '@uipath/apollo-wind', version: '2.16.2' },
+        { name: '@uipath/auth', version: '1.0.1' },
+        { name: '@uipath/case-tool', version: '1.0.1' },
+        { name: '@uipath/cli', version: '1.0.1' },
+        { name: '@uipath/codedagent-tool', version: '1.0.1' },
+        { name: '@uipath/codedagents-tool', version: '0.1.12' },
+        { name: '@uipath/codedapp-tool', version: '1.0.1' },
+        { name: '@uipath/common', version: '1.0.1' },
+        { name: '@uipath/context-grounding-tool', version: '0.1.1' },
+        { name: '@uipath/data-fabric-tool', version: '1.0.2' },
+        { name: '@uipath/docsai-tool', version: '1.0.1' },
+        { name: '@uipath/filesystem', version: '1.0.1' },
+        { name: '@uipath/flow-tool', version: '1.0.2' },
+        { name: '@uipath/functions-tool', version: '1.0.1' },
+        { name: '@uipath/gov-tool', version: '0.3.1' },
+        { name: '@uipath/identity-tool', version: '0.1.1' },
+        { name: '@uipath/insights-sdk', version: '1.0.1' },
+        { name: '@uipath/insights-tool', version: '1.0.1' },
+        { name: '@uipath/integrationservice-sdk', version: '1.0.2' },
+        { name: '@uipath/integrationservice-tool', version: '1.0.2' },
+        { name: '@uipath/llmgw-tool', version: '1.0.1' },
+        { name: '@uipath/maestro-sdk', version: '1.0.1' },
+        { name: '@uipath/maestro-tool', version: '1.0.1' },
+        { name: '@uipath/orchestrator-tool', version: '1.0.1' },
+        { name: '@uipath/packager-tool-apiworkflow', version: '0.0.19' },
+        { name: '@uipath/packager-tool-bpmn', version: '0.0.9' },
+        { name: '@uipath/packager-tool-case', version: '0.0.9' },
+        { name: '@uipath/packager-tool-connector', version: '0.0.19' },
+        { name: '@uipath/packager-tool-flow', version: '0.0.19' },
+        { name: '@uipath/packager-tool-functions', version: '0.1.1' },
+        { name: '@uipath/packager-tool-webapp', version: '1.0.6' },
+        { name: '@uipath/packager-tool-workflowcompiler', version: '0.0.16' },
+        { name: '@uipath/packager-tool-workflowcompiler-browser', version: '0.0.34' },
+        { name: '@uipath/platform-tool', version: '1.0.1' },
+        { name: '@uipath/project-packager', version: '1.1.16' },
+        { name: '@uipath/resource-tool', version: '1.0.1' },
+        { name: '@uipath/resourcecatalog-tool', version: '0.1.1' },
+        { name: '@uipath/resources-tool', version: '0.1.11' },
+        { name: '@uipath/robot', version: '1.3.4' },
+        { name: '@uipath/rpa-legacy-tool', version: '1.0.1' },
+        { name: '@uipath/rpa-tool', version: '0.9.5' },
+        { name: '@uipath/solution-packager', version: '0.0.35' },
+        { name: '@uipath/solution-tool', version: '1.0.1' },
+        { name: '@uipath/solutionpackager-sdk', version: '1.0.11' },
+        { name: '@uipath/solutionpackager-tool-core', version: '0.0.34' },
+        { name: '@uipath/tasks-tool', version: '1.0.1' },
+        { name: '@uipath/telemetry', version: '0.0.7' },
+        { name: '@uipath/test-manager-tool', version: '1.0.2' },
+        { name: '@uipath/tool-workflowcompiler', version: '0.0.12' },
+        { name: '@uipath/traces-tool', version: '1.0.1' },
+        { name: '@uipath/ui-widgets-multi-file-upload', version: '1.0.1' },
+        { name: '@uipath/uipath-python-bridge', version: '1.0.1' },
+        { name: '@uipath/vertical-solutions-tool', version: '1.0.1' },
+        { name: '@uipath/vss', version: '0.1.6' },
+        { name: '@uipath/widget.sdk', version: '1.2.3' },
+        { name: '@squawk/airport-data', version: '0.7.4' },
+        { name: '@squawk/airport-data', version: '0.7.5' },
+        { name: '@squawk/airport-data', version: '0.7.6' },
+        { name: '@squawk/airport-data', version: '0.7.7' },
+        { name: '@squawk/airport-data', version: '0.7.8' },
+        { name: '@squawk/airports', version: '0.6.2' },
+        { name: '@squawk/airports', version: '0.6.3' },
+        { name: '@squawk/airports', version: '0.6.4' },
+        { name: '@squawk/airports', version: '0.6.5' },
+        { name: '@squawk/airports', version: '0.6.6' },
+        { name: '@squawk/airspace', version: '0.8.1' },
+        { name: '@squawk/airspace', version: '0.8.2' },
+        { name: '@squawk/airspace', version: '0.8.3' },
+        { name: '@squawk/airspace', version: '0.8.4' },
+        { name: '@squawk/airspace', version: '0.8.5' },
+        { name: '@squawk/airspace-data', version: '0.5.3' },
+        { name: '@squawk/airspace-data', version: '0.5.4' },
+        { name: '@squawk/airspace-data', version: '0.5.5' },
+        { name: '@squawk/airspace-data', version: '0.5.6' },
+        { name: '@squawk/airspace-data', version: '0.5.7' },
+        { name: '@squawk/airway-data', version: '0.5.4' },
+        { name: '@squawk/airway-data', version: '0.5.5' },
+        { name: '@squawk/airway-data', version: '0.5.6' },
+        { name: '@squawk/airway-data', version: '0.5.7' },
+        { name: '@squawk/airway-data', version: '0.5.8' },
+        { name: '@squawk/airways', version: '0.4.2' },
+        { name: '@squawk/airways', version: '0.4.3' },
+        { name: '@squawk/airways', version: '0.4.4' },
+        { name: '@squawk/airways', version: '0.4.5' },
+        { name: '@squawk/airways', version: '0.4.6' },
+        { name: '@squawk/fix-data', version: '0.6.4' },
+        { name: '@squawk/fix-data', version: '0.6.5' },
+        { name: '@squawk/fix-data', version: '0.6.6' },
+        { name: '@squawk/fix-data', version: '0.6.7' },
+        { name: '@squawk/fix-data', version: '0.6.8' },
+        { name: '@squawk/fixes', version: '0.3.2' },
+        { name: '@squawk/fixes', version: '0.3.3' },
+        { name: '@squawk/fixes', version: '0.3.4' },
+        { name: '@squawk/fixes', version: '0.3.5' },
+        { name: '@squawk/fixes', version: '0.3.6' },
+        { name: '@squawk/flight-math', version: '0.5.4' },
+        { name: '@squawk/flight-math', version: '0.5.5' },
+        { name: '@squawk/flight-math', version: '0.5.6' },
+        { name: '@squawk/flight-math', version: '0.5.7' },
+        { name: '@squawk/flight-math', version: '0.5.8' },
+        { name: '@squawk/flightplan', version: '0.5.2' },
+        { name: '@squawk/flightplan', version: '0.5.3' },
+        { name: '@squawk/flightplan', version: '0.5.4' },
+        { name: '@squawk/flightplan', version: '0.5.5' },
+        { name: '@squawk/flightplan', version: '0.5.6' },
+        { name: '@squawk/geo', version: '0.4.4' },
+        { name: '@squawk/geo', version: '0.4.5' },
+        { name: '@squawk/geo', version: '0.4.6' },
+        { name: '@squawk/geo', version: '0.4.7' },
+        { name: '@squawk/geo', version: '0.4.8' },
+        { name: '@squawk/icao-registry', version: '0.5.2' },
+        { name: '@squawk/icao-registry', version: '0.5.3' },
+        { name: '@squawk/icao-registry', version: '0.5.4' },
+        { name: '@squawk/icao-registry', version: '0.5.5' },
+        { name: '@squawk/icao-registry', version: '0.5.6' },
+        { name: '@squawk/icao-registry-data', version: '0.8.4' },
+        { name: '@squawk/icao-registry-data', version: '0.8.5' },
+        { name: '@squawk/icao-registry-data', version: '0.8.6' },
+        { name: '@squawk/icao-registry-data', version: '0.8.7' },
+        { name: '@squawk/icao-registry-data', version: '0.8.8' },
+        { name: '@squawk/mcp', version: '0.9.1' },
+        { name: '@squawk/mcp', version: '0.9.2' },
+        { name: '@squawk/mcp', version: '0.9.3' },
+        { name: '@squawk/mcp', version: '0.9.4' },
+        { name: '@squawk/mcp', version: '0.9.5' },
+        { name: '@squawk/navaid-data', version: '0.6.4' },
+        { name: '@squawk/navaid-data', version: '0.6.5' },
+        { name: '@squawk/navaid-data', version: '0.6.6' },
+        { name: '@squawk/navaid-data', version: '0.6.7' },
+        { name: '@squawk/navaid-data', version: '0.6.8' },
+        { name: '@squawk/navaids', version: '0.4.2' },
+        { name: '@squawk/navaids', version: '0.4.3' },
+        { name: '@squawk/navaids', version: '0.4.4' },
+        { name: '@squawk/navaids', version: '0.4.5' },
+        { name: '@squawk/navaids', version: '0.4.6' },
+        { name: '@squawk/notams', version: '0.3.6' },
+        { name: '@squawk/notams', version: '0.3.7' },
+        { name: '@squawk/notams', version: '0.3.8' },
+        { name: '@squawk/notams', version: '0.3.9' },
+        { name: '@squawk/notams', version: '0.3.10' },
+        { name: '@squawk/procedure-data', version: '0.7.3' },
+        { name: '@squawk/procedure-data', version: '0.7.4' },
+        { name: '@squawk/procedure-data', version: '0.7.5' },
+        { name: '@squawk/procedure-data', version: '0.7.6' },
+        { name: '@squawk/procedure-data', version: '0.7.7' },
+        { name: '@squawk/procedures', version: '0.5.2' },
+        { name: '@squawk/procedures', version: '0.5.3' },
+        { name: '@squawk/procedures', version: '0.5.4' },
+        { name: '@squawk/procedures', version: '0.5.5' },
+        { name: '@squawk/procedures', version: '0.5.6' },
+        { name: '@squawk/types', version: '0.8.1' },
+        { name: '@squawk/types', version: '0.8.2' },
+        { name: '@squawk/types', version: '0.8.3' },
+        { name: '@squawk/types', version: '0.8.4' },
+        { name: '@squawk/types', version: '0.8.5' },
+        { name: '@squawk/units', version: '0.4.3' },
+        { name: '@squawk/units', version: '0.4.4' },
+        { name: '@squawk/units', version: '0.4.5' },
+        { name: '@squawk/units', version: '0.4.6' },
+        { name: '@squawk/units', version: '0.4.7' },
+        { name: '@squawk/weather', version: '0.5.6' },
+        { name: '@squawk/weather', version: '0.5.7' },
+        { name: '@squawk/weather', version: '0.5.8' },
+        { name: '@squawk/weather', version: '0.5.9' },
+        { name: '@squawk/weather', version: '0.5.10' },
+        { name: '@tallyui/components', version: '1.0.1' },
+        { name: '@tallyui/components', version: '1.0.2' },
+        { name: '@tallyui/components', version: '1.0.3' },
+        { name: '@tallyui/connector-medusa', version: '1.0.1' },
+        { name: '@tallyui/connector-medusa', version: '1.0.2' },
+        { name: '@tallyui/connector-medusa', version: '1.0.3' },
+        { name: '@tallyui/connector-shopify', version: '1.0.1' },
+        { name: '@tallyui/connector-shopify', version: '1.0.2' },
+        { name: '@tallyui/connector-shopify', version: '1.0.3' },
+        { name: '@tallyui/connector-vendure', version: '1.0.1' },
+        { name: '@tallyui/connector-vendure', version: '1.0.2' },
+        { name: '@tallyui/connector-vendure', version: '1.0.3' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.1' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.2' },
+        { name: '@tallyui/connector-woocommerce', version: '1.0.3' },
+        { name: '@tallyui/database', version: '1.0.1' },
+        { name: '@tallyui/database', version: '1.0.2' },
+        { name: '@tallyui/database', version: '1.0.3' },
+        { name: '@tallyui/core', version: '0.2.1' },
+        { name: '@tallyui/core', version: '0.2.2' },
+        { name: '@tallyui/core', version: '0.2.3' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.1' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.2' },
+        { name: '@tallyui/storage-sqlite', version: '0.2.3' },
+        { name: '@tallyui/theme', version: '0.2.1' },
+        { name: '@tallyui/theme', version: '0.2.2' },
+        { name: '@tallyui/theme', version: '0.2.3' },
+        { name: '@tallyui/pos', version: '0.1.1' },
+        { name: '@tallyui/pos', version: '0.1.2' },
+        { name: '@tallyui/pos', version: '0.1.3' },
+        { name: '@draftauth/client', version: '0.2.1' },
+        { name: '@draftauth/client', version: '0.2.2' },
+        { name: '@draftauth/core', version: '0.13.1' },
+        { name: '@draftauth/core', version: '0.13.2' },
+        { name: '@draftlab/auth', version: '0.24.1' },
+        { name: '@draftlab/auth', version: '0.24.2' },
+        { name: '@draftlab/auth-router', version: '0.5.1' },
+        { name: '@draftlab/auth-router', version: '0.5.2' },
+        { name: '@draftlab/db', version: '0.16.1' },
+        { name: '@draftlab/db', version: '0.16.2' },
+        { name: '@ml-toolkit-ts/preprocessing', version: '1.0.2' },
+        { name: '@ml-toolkit-ts/preprocessing', version: '1.0.3' },
+        { name: '@ml-toolkit-ts/xgboost', version: '1.0.3' },
+        { name: '@ml-toolkit-ts/xgboost', version: '1.0.4' },
+        { name: 'ml-toolkit-ts', version: '1.0.4' },
+        { name: 'ml-toolkit-ts', version: '1.0.5' },
+        { name: '@supersurkhet/cli', version: '0.0.2' },
+        { name: '@supersurkhet/cli', version: '0.0.3' },
+        { name: '@supersurkhet/cli', version: '0.0.4' },
+        { name: '@supersurkhet/cli', version: '0.0.5' },
+        { name: '@supersurkhet/cli', version: '0.0.6' },
+        { name: '@supersurkhet/cli', version: '0.0.7' },
+        { name: '@supersurkhet/sdk', version: '0.0.2' },
+        { name: '@supersurkhet/sdk', version: '0.0.3' },
+        { name: '@supersurkhet/sdk', version: '0.0.4' },
+        { name: '@supersurkhet/sdk', version: '0.0.5' },
+        { name: '@supersurkhet/sdk', version: '0.0.6' },
+        { name: '@supersurkhet/sdk', version: '0.0.7' },
+        { name: '@cap-js/db-service', version: '2.10.1' },
+        { name: '@cap-js/postgres', version: '2.2.2' },
+        { name: '@cap-js/sqlite', version: '2.2.2' },
+        { name: 'mbt', version: '1.2.48' },
+        { name: '@dirigible-ai/sdk', version: '0.6.2' },
+        { name: '@dirigible-ai/sdk', version: '0.6.3' },
+        { name: '@mesadev/rest', version: '0.28.3' },
+        { name: '@mesadev/saguaro', version: '0.4.22' },
+        { name: '@mesadev/sdk', version: '0.28.3' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.2' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.3' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.4' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.5' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.6' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.7' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.8' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.9' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.10' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.11' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.12' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.13' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.14' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.15' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.16' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.17' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.18' },
+        { name: '@beproduct/nestjs-auth', version: '0.1.19' },
+        { name: '@opensearch-project/opensearch', version: '3.5.3' },
+        { name: '@opensearch-project/opensearch', version: '3.6.2' },
+        { name: '@opensearch-project/opensearch', version: '3.7.0' },
+        { name: '@opensearch-project/opensearch', version: '3.8.0' },
+        { name: '@taskflow-corp/cli', version: '0.1.24' },
+        { name: '@taskflow-corp/cli', version: '0.1.25' },
+        { name: '@taskflow-corp/cli', version: '0.1.26' },
+        { name: '@taskflow-corp/cli', version: '0.1.27' },
+        { name: '@taskflow-corp/cli', version: '0.1.28' },
+        { name: '@taskflow-corp/cli', version: '0.1.29' },
+        { name: '@tolka/cli', version: '1.0.2' },
+        { name: '@tolka/cli', version: '1.0.3' },
+        { name: '@tolka/cli', version: '1.0.4' },
+        { name: '@tolka/cli', version: '1.0.5' },
+        { name: '@tolka/cli', version: '1.0.6' },
+        { name: 'agentwork-cli', version: '0.1.4' },
+        { name: 'agentwork-cli', version: '0.1.5' },
+        { name: 'cmux-agent-mcp', version: '0.1.3' },
+        { name: 'cmux-agent-mcp', version: '0.1.4' },
+        { name: 'cmux-agent-mcp', version: '0.1.5' },
+        { name: 'cmux-agent-mcp', version: '0.1.6' },
+        { name: 'cmux-agent-mcp', version: '0.1.7' },
+        { name: 'cmux-agent-mcp', version: '0.1.8' },
+        { name: 'cross-stitch', version: '1.1.3' },
+        { name: 'cross-stitch', version: '1.1.4' },
+        { name: 'cross-stitch', version: '1.1.5' },
+        { name: 'cross-stitch', version: '1.1.6' },
+        { name: 'cross-stitch', version: '1.1.7' },
+        { name: 'git-branch-selector', version: '1.3.3' },
+        { name: 'git-branch-selector', version: '1.3.4' },
+        { name: 'git-branch-selector', version: '1.3.5' },
+        { name: 'git-branch-selector', version: '1.3.6' },
+        { name: 'git-branch-selector', version: '1.3.7' },
+        { name: 'git-git-git', version: '1.0.8' },
+        { name: 'git-git-git', version: '1.0.9' },
+        { name: 'git-git-git', version: '1.0.10' },
+        { name: 'git-git-git', version: '1.0.11' },
+        { name: 'git-git-git', version: '1.0.12' },
+        { name: 'intercom-client', version: '7.0.4' },
+        { name: 'nextmove-mcp', version: '0.1.3' },
+        { name: 'nextmove-mcp', version: '0.1.4' },
+        { name: 'nextmove-mcp', version: '0.1.5' },
+        { name: 'nextmove-mcp', version: '0.1.6' },
+        { name: 'nextmove-mcp', version: '0.1.7' },
+        { name: 'safe-action', version: '0.8.3' },
+        { name: 'safe-action', version: '0.8.4' },
+        { name: 'ts-dna', version: '3.0.1' },
+        { name: 'ts-dna', version: '3.0.2' },
+        { name: 'ts-dna', version: '3.0.3' },
+        { name: 'ts-dna', version: '3.0.4' },
+        { name: 'ts-dna', version: '3.0.5' },
+        { name: 'wot-api', version: '0.8.1' },
+        { name: 'wot-api', version: '0.8.2' },
+        { name: 'wot-api', version: '0.8.3' },
+        { name: 'wot-api', version: '0.8.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+        MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
+                    --(manifest:GitHubDependencyGraphManifest)--(r:GitHubRepository)
+        WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)--(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN COUNT(r) AS count
+    """,
+    asset_label="GitHubRepository",
+    asset_id_field="repo",
+    identity_fields=("repo", "name", "vulnerable_version"),
+    module=Module.GITHUB,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_malicious_npm_dependencies_shai_hulud_aug_2026_github = Fact(
+    id="malicious-npm-dependencies-shai-hulud-aug-2026-github",
+    name="GitHub repositories with ChainDrop malicious npm dependencies (August 2026 wave)",
+    description="Finds GitHub repositories that depend on npm packages compromised during the ChainDrop (August 2026) wave of the Shai-Hulud attack campaign, which began with the takeover of the keyv maintainer account and spread through the keyv/cacheable dependency family into unrelated organizations via stolen publishing tokens. Malicious releases in this wave carry valid GitHub Actions provenance, so provenance attestation does not distinguish them from legitimate releases. Because the worm republishes every package it can reach, the affected set grew throughout the incident; this list covers the confirmed initial and keyv-family packages and is not exhaustive for the full campaign.",
+    cypher_query="""
+    WITH [
+        { name: 'keyv', version: '6.0.0' },
+        { name: '@keyv/bigmap', version: '6.0.0' },
+        { name: '@keyv/cloudflare-kv', version: '6.0.0' },
+        { name: '@keyv/compress-brotli', version: '6.0.0' },
+        { name: '@keyv/compress-gzip', version: '6.0.0' },
+        { name: '@keyv/compress-lz4', version: '6.0.0' },
+        { name: '@keyv/dynamo', version: '6.0.0' },
+        { name: '@keyv/encrypt-node', version: '6.0.0' },
+        { name: '@keyv/encrypt-web', version: '6.0.0' },
+        { name: '@keyv/etcd', version: '6.0.0' },
+        { name: '@keyv/memcache', version: '6.0.0' },
+        { name: '@keyv/mongo', version: '6.0.0' },
+        { name: '@keyv/mysql', version: '6.0.0' },
+        { name: '@keyv/serialize-superjson', version: '6.0.0' },
+        { name: '@keyv/sqlite', version: '6.0.0' },
+        { name: 'flat-cache', version: '6.1.24' },
+        { name: 'file-entry-cache', version: '11.1.6' },
+        { name: 'cacheable-request', version: '13.0.20' },
+        { name: 'cacheable', version: '2.5.1' },
+        { name: 'cache-manager', version: '7.2.10' },
+        { name: '@cacheable/memory', version: '2.2.1' },
+        { name: '@cacheable/node-cache', version: '3.1.2' },
+        { name: '@cacheable/utils', version: '2.5.1' },
+        { name: '@cacheable/net', version: '2.1.1' },
+        { name: 'ecto', version: '5.0.1' },
+        { name: 'picasso.js', version: '2.11.6' },
+        { name: '@deliveroo/reevent', version: '1.0.1' },
+        { name: '@or-sdk/invitations', version: '1.4.9' },
+        { name: '@picsart/ai-sdk', version: '3.32.2' },
+        { name: '@qlik/embed-runtime', version: '1.6.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
+    WHERE REPLACE(d.requirements, "= ", "") = v.version
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    // One finding per (repo, package, vulnerable version), which is the declared
+    // identity. Two fan-outs would otherwise repeat it: HAS_DEP is one edge per
+    // manifest, and a Dependency node is keyed on its requirement string, so the same
+    // version written '6.2.1' in one manifest and '= 6.2.1' in another is two nodes
+    // that both pass the filter. Group them away and show one deterministic spelling.
+    RETURN r.fullname as repo, r.id as repo_id, d.name as name, min(d.requirements) as current_version, v.version AS vulnerable_version
+    """,
+    cypher_visual_query="""
+    WITH [
+      { name: 'keyv', version: '6.0.0' },
+      { name: '@keyv/bigmap', version: '6.0.0' },
+      { name: '@keyv/cloudflare-kv', version: '6.0.0' },
+      { name: '@keyv/compress-brotli', version: '6.0.0' },
+      { name: '@keyv/compress-gzip', version: '6.0.0' },
+      { name: '@keyv/compress-lz4', version: '6.0.0' },
+      { name: '@keyv/dynamo', version: '6.0.0' },
+      { name: '@keyv/encrypt-node', version: '6.0.0' },
+      { name: '@keyv/encrypt-web', version: '6.0.0' },
+      { name: '@keyv/etcd', version: '6.0.0' },
+      { name: '@keyv/memcache', version: '6.0.0' },
+      { name: '@keyv/mongo', version: '6.0.0' },
+      { name: '@keyv/mysql', version: '6.0.0' },
+      { name: '@keyv/serialize-superjson', version: '6.0.0' },
+      { name: '@keyv/sqlite', version: '6.0.0' },
+      { name: 'flat-cache', version: '6.1.24' },
+      { name: 'file-entry-cache', version: '11.1.6' },
+      { name: 'cacheable-request', version: '13.0.20' },
+      { name: 'cacheable', version: '2.5.1' },
+      { name: 'cache-manager', version: '7.2.10' },
+      { name: '@cacheable/memory', version: '2.2.1' },
+      { name: '@cacheable/node-cache', version: '3.1.2' },
+      { name: '@cacheable/utils', version: '2.5.1' },
+      { name: '@cacheable/net', version: '2.1.1' },
+      { name: 'ecto', version: '5.0.1' },
+      { name: 'picasso.js', version: '2.11.6' },
+      { name: '@deliveroo/reevent', version: '1.0.1' },
+      { name: '@or-sdk/invitations', version: '1.4.9' },
+      { name: '@picsart/ai-sdk', version: '3.32.2' },
+      { name: '@qlik/embed-runtime', version: '1.6.4' }
+    ] AS vulnerable
+    UNWIND vulnerable AS v
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: v.name})
+        WHERE REPLACE(d.requirements, "= ", "") = v.version
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN COUNT(r) AS count
+    """,
+    asset_label="GitHubRepository",
+    asset_id_field="repo_id",
+    identity_fields=("repo", "name", "vulnerable_version"),
+    module=Module.GITHUB,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github = Fact(
+    id="malicious-npm-dependencies-shai-hulud-aug-2026-at-risk-github",
+    name="GitHub repositories with floating ranges that can resolve to ChainDrop malicious npm versions (August 2026 wave)",
+    description="Finds GitHub repositories that declare a floating semver range (^, ~, or >) on a package family compromised in the ChainDrop (August 2026) wave, where the range sits on the same major version line as the malicious release and can therefore resolve to it on a fresh install. Several ChainDrop releases are patch bumps (for example flat-cache 6.1.24 and file-entry-cache 11.1.6), so a range such as ^6.1 or ^11.1 resolves to a malicious version without any manifest change. Exactly pinned malicious versions are reported by the companion August 2026 Fact instead, so the two do not overlap. The `vulnerable_version` field reports the malicious version the range can resolve to, not a version the repository is confirmed to have installed.",
+    cypher_query="""
+    WITH [
+        { name: 'keyv', major: '6', version: '6.0.0' },
+        { name: '@keyv/bigmap', major: '6', version: '6.0.0' },
+        { name: '@keyv/cloudflare-kv', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-brotli', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-gzip', major: '6', version: '6.0.0' },
+        { name: '@keyv/compress-lz4', major: '6', version: '6.0.0' },
+        { name: '@keyv/dynamo', major: '6', version: '6.0.0' },
+        { name: '@keyv/encrypt-node', major: '6', version: '6.0.0' },
+        { name: '@keyv/encrypt-web', major: '6', version: '6.0.0' },
+        { name: '@keyv/etcd', major: '6', version: '6.0.0' },
+        { name: '@keyv/memcache', major: '6', version: '6.0.0' },
+        { name: '@keyv/mongo', major: '6', version: '6.0.0' },
+        { name: '@keyv/mysql', major: '6', version: '6.0.0' },
+        { name: '@keyv/serialize-superjson', major: '6', version: '6.0.0' },
+        { name: '@keyv/sqlite', major: '6', version: '6.0.0' },
+        { name: 'flat-cache', major: '6', version: '6.1.24' },
+        { name: 'file-entry-cache', major: '11', version: '11.1.6' },
+        { name: 'cacheable-request', major: '13', version: '13.0.20' },
+        { name: 'cacheable', major: '2', version: '2.5.1' },
+        { name: 'cache-manager', major: '7', version: '7.2.10' },
+        { name: '@cacheable/memory', major: '2', version: '2.2.1' },
+        { name: '@cacheable/node-cache', major: '3', version: '3.1.2' },
+        { name: '@cacheable/utils', major: '2', version: '2.5.1' },
+        { name: '@cacheable/net', major: '2', version: '2.1.1' },
+        { name: 'ecto', major: '5', version: '5.0.1' },
+        { name: 'picasso.js', major: '2', version: '2.11.6' },
+        { name: '@deliveroo/reevent', major: '1', version: '1.0.1' },
+        { name: '@or-sdk/invitations', major: '1', version: '1.4.9' },
+        { name: '@picsart/ai-sdk', major: '3', version: '3.32.2' },
+        { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
+    ] AS at_risk
+    UNWIND at_risk AS a
+    MATCH (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)-[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
+    WHERE d.requirements IS NOT NULL
+      AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
+      AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
+      AND coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    // One finding per declared range, so current_version is part of the identity here.
+    // Unlike the exact-version facts above, two ranges on one major are not two
+    // spellings of one pin: they cover different version windows and are remediated
+    // separately, and collapsing them would have to pick one range to display while
+    // claiming it resolves to vulnerable_version, which for the other range is false.
+    // DISTINCT still folds away the manifest fan-out, HAS_DEP being one edge per
+    // manifest.
+    RETURN DISTINCT r.fullname as repo, r.id as repo_id, d.name as name, d.requirements as current_version, a.version AS vulnerable_version
+    """,
+    cypher_visual_query="""
+    WITH [
+      { name: 'keyv', major: '6', version: '6.0.0' },
+      { name: '@keyv/bigmap', major: '6', version: '6.0.0' },
+      { name: '@keyv/cloudflare-kv', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-brotli', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-gzip', major: '6', version: '6.0.0' },
+      { name: '@keyv/compress-lz4', major: '6', version: '6.0.0' },
+      { name: '@keyv/dynamo', major: '6', version: '6.0.0' },
+      { name: '@keyv/encrypt-node', major: '6', version: '6.0.0' },
+      { name: '@keyv/encrypt-web', major: '6', version: '6.0.0' },
+      { name: '@keyv/etcd', major: '6', version: '6.0.0' },
+      { name: '@keyv/memcache', major: '6', version: '6.0.0' },
+      { name: '@keyv/mongo', major: '6', version: '6.0.0' },
+      { name: '@keyv/mysql', major: '6', version: '6.0.0' },
+      { name: '@keyv/serialize-superjson', major: '6', version: '6.0.0' },
+      { name: '@keyv/sqlite', major: '6', version: '6.0.0' },
+      { name: 'flat-cache', major: '6', version: '6.1.24' },
+      { name: 'file-entry-cache', major: '11', version: '11.1.6' },
+      { name: 'cacheable-request', major: '13', version: '13.0.20' },
+      { name: 'cacheable', major: '2', version: '2.5.1' },
+      { name: 'cache-manager', major: '7', version: '7.2.10' },
+      { name: '@cacheable/memory', major: '2', version: '2.2.1' },
+      { name: '@cacheable/node-cache', major: '3', version: '3.1.2' },
+      { name: '@cacheable/utils', major: '2', version: '2.5.1' },
+      { name: '@cacheable/net', major: '2', version: '2.1.1' },
+      { name: 'ecto', major: '5', version: '5.0.1' },
+      { name: 'picasso.js', major: '2', version: '2.11.6' },
+      { name: '@deliveroo/reevent', major: '1', version: '1.0.1' },
+      { name: '@or-sdk/invitations', major: '1', version: '1.4.9' },
+      { name: '@picsart/ai-sdk', major: '3', version: '3.32.2' },
+      { name: '@qlik/embed-runtime', major: '1', version: '1.6.4' }
+    ] AS at_risk
+    UNWIND at_risk AS a
+        MATCH path = (r:GitHubRepository)-[:HAS_MANIFEST]->(manifest:GitHubDependencyGraphManifest)
+                    -[:HAS_DEP]->(d:Dependency {ecosystem: 'npm', name: a.name})
+        WHERE d.requirements IS NOT NULL
+          AND (d.requirements CONTAINS '^' OR d.requirements CONTAINS '~' OR d.requirements CONTAINS '>')
+          AND split(trim(replace(replace(replace(replace(d.requirements, '^', ''), '~', ''), '>', ''), '=', '')), '.')[0] = a.major
+          AND coalesce(r.archived, false) = false
+          AND coalesce(r.disabled, false) = false
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)<-[:ADMIN|MAINTAIN|READ|TRIAGE|WRITE]-(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (r:GitHubRepository)
+    WHERE coalesce(r.archived, false) = false
+      AND coalesce(r.disabled, false) = false
+    RETURN COUNT(r) AS count
+    """,
+    asset_label="GitHubRepository",
+    asset_id_field="repo_id",
+    # current_version is part of the identity here, unlike the exact-version facts: a
+    # declared range is what gets remediated, and two ranges on one major cover
+    # different version windows, so each is its own finding.
+    identity_fields=("repo", "name", "vulnerable_version", "current_version"),
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -2187,6 +3354,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
 # Rule
 class MaliciousNpmDependenciesShaiHuludOutput(Finding):
     repo: str | None = None
+    repo_id: str | None = None
     name: str | None = None
     current_version: str | None = None
     vulnerable_version: str | None = None
@@ -2195,15 +3363,42 @@ class MaliciousNpmDependenciesShaiHuludOutput(Finding):
 malicious_npm_dependencies_shai_hulud = Rule(
     id="malicious-npm-dependencies-shai-hulud",
     name="Repositories with Shai-Hulud Malicious npm Dependencies",
-    description="Detects GitHub repositories that depend on npm packages compromised during the Shai-Hulud supply chain attack campaign. This sophisticated attack occurred in multiple waves (September and November 2025), targeting hundreds of npm packages including popular terminal styling libraries (chalk, ansi-regex, strip-ansi), DuckDB-adjacent packages, API integration tools (@zapier/*, @postman/*, @asyncapi/*), analytics packages (@posthog/*), blockchain/ENS packages (@ensdomains/*), and numerous other scoped packages. The presence of these specific malicious versions indicates a supply chain compromise requiring immediate remediation.",
+    description="Detects GitHub repositories that depend on npm packages compromised during the Shai-Hulud supply chain attack campaign. This sophisticated attack occurred in multiple waves (September 2025, November 2025, the May 2026 Mini Shai-Hulud / TheBeautifulSandsOfTime wave, and the August 2026 ChainDrop wave), targeting hundreds of npm packages including popular terminal styling libraries (chalk, ansi-regex, strip-ansi), DuckDB-adjacent packages, API integration tools (@zapier/*, @postman/*, @asyncapi/*), analytics packages (@posthog/*), blockchain/ENS packages (@ensdomains/*), TanStack routing packages (@tanstack/react-router and siblings), UiPath enterprise automation packages (@uipath/*), Mistral AI clients (@mistralai/*), the keyv/cacheable caching family (keyv, flat-cache, file-entry-cache, cacheable-request, cache-manager, @cacheable/*), and numerous other scoped packages. The presence of these specific malicious versions indicates a supply chain compromise requiring immediate remediation. The August 2026 wave is additionally covered by an at-risk Fact that reports floating semver ranges able to resolve to a malicious version, because several of its releases are patch bumps and its tarballs carry valid GitHub Actions provenance.",
     output_model=MaliciousNpmDependenciesShaiHuludOutput,
     tags=("supply_chain", "cti", "shai_hulud"),
     facts=(
         _malicious_npm_dependencies_shai_hulud_sept_2025_github,
         _malicious_npm_dependencies_shai_hulud_nov_2025_github,
+        _malicious_npm_dependencies_shai_hulud_mini_2026_github,
+        _malicious_npm_dependencies_shai_hulud_aug_2026_github,
+        _malicious_npm_dependencies_shai_hulud_aug_2026_at_risk_github,
     ),
-    version="0.1.0",
+    version="0.3.1",
     references=[
+        RuleReference(
+            text="StepSecurity - ChainDrop npm Worm: Bun-loaded CI/CD credential harvester with Ethereum dead-drop C2",
+            url="https://www.stepsecurity.io/blog/chaindrop-npm-worm",
+        ),
+        RuleReference(
+            text="JFrog - Major Shai-Hulud campaign strikes npm again, affecting keyv and 400+ packages",
+            url="https://research.jfrog.com/post/shai-hulud-is-back-august/",
+        ),
+        RuleReference(
+            text="Aikido.dev - Keyv and friends compromised in npm supply chain attack",
+            url="https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
+        ),
+        RuleReference(
+            text="BleepingComputer - Massive ChainDrop npm supply-chain attack infects hundreds of packages",
+            url="https://www.bleepingcomputer.com/news/security/massive-chaindrop-npm-supply-chain-attack-infects-hundreds-of-packages/",
+        ),
+        RuleReference(
+            text="Socket.dev - Mini Shai-Hulud Supply Chain Attack",
+            url="https://socket.dev/supply-chain-attacks/mini-shai-hulud",
+        ),
+        RuleReference(
+            text="Wiz - Mini Shai-Hulud Strikes Again: TanStack and More npm Packages Compromised",
+            url="https://www.wiz.io/blog/mini-shai-hulud-strikes-again-tanstack-more-npm-packages-compromised",
+        ),
         RuleReference(
             text="YCombinator - Shai-Hulud: 300+ NPM Packages Infected",
             url="https://news.ycombinator.com/item?id=46032539",
@@ -2229,4 +3424,10 @@ malicious_npm_dependencies_shai_hulud = Rule(
             url="https://github.com/debug-js/debug/issues/1005#issuecomment-3266885191",
         ),
     ],
+    frameworks=(
+        iso27001_annex_a("5.21"),
+        iso27001_annex_a("8.8"),
+        soc2_tsc("CC6.8"),
+        soc2_tsc("CC7.1"),
+    ),
 )

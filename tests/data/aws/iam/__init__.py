@@ -178,11 +178,13 @@ LIST_SAML_PROVIDERS = {
     "SAMLProviderList": [
         {
             "Arn": "arn:aws:iam::000000000000:saml-provider/ADFS",
+            "Name": "ADFS",
             "ValidUntil": datetime.datetime(2025, 12, 31, 23, 59, 59),
             "CreateDate": datetime.datetime(2020, 1, 1, 0, 0, 0),
         },
         {
             "Arn": "arn:aws:iam::000000000000:saml-provider/Okta",
+            "Name": "Okta",
             "ValidUntil": datetime.datetime(2026, 1, 1, 0, 0, 0),
             "CreateDate": datetime.datetime(2021, 6, 15, 12, 0, 0),
         },

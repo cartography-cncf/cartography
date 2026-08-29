@@ -91,6 +91,16 @@ def get_repo_commits(
             since=since_iso,
         )
 
+        # This caller has no retry path, so it owns the severity of any errors
+        # that call_github_api() logged at DEBUG.
+        if response.get("errors"):
+            logger.warning(
+                "GitHub returned errors fetching commits for %s/%s; results may be incomplete. Errors: %s",
+                organization,
+                repo_name,
+                response["errors"],
+            )
+
         # Navigate to the nested commit history
         repo_data = response.get("data", {}).get("organization", {}).get("repository")
         if not repo_data:
@@ -271,7 +281,7 @@ def transform_commits_to_user_repo_relationships(
     :param organization: The Github organization name.
     :return: List of user-repository relationship records.
     """
-    logger.info("Transforming commit data into user-repository relationships")
+    logger.debug("Transforming commit data into user-repository relationships")
 
     # Group commits by user and repository
     user_repo_commits: dict[tuple[str, str], list[dict[str, Any]]] = {}

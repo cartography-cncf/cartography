@@ -3,7 +3,7 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
-from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.app_role_assignment_collection_response import (
     AppRoleAssignmentCollectionResponse,
@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.applications import (
     APP_ROLE_ASSIGNMENTS_PAGE_SIZE,
 )
@@ -36,7 +37,7 @@ async def get_app_role_assignments_for_app(
     :param app_id: Application ID
     :return: Generator of app role assignment data as dicts
     """
-    logger.info(f"Fetching role assignments for application: {app_id}")
+    logger.debug("Fetching role assignments for application: %s", app_id)
 
     # Query the graph to get the service principal ID for this application
     query = """
@@ -74,11 +75,17 @@ async def get_app_role_assignments_for_app(
                 ).app_role_assigned_to.get(request_configuration=request_config),
             )
         )
-    except Exception:
-        logger.exception(
-            "Failed to fetch app role assignments for application %s",
-            app_id,
-        )
+    except APIError as e:
+        if e.response_status_code in (404, 410):
+            logger.warning(
+                "Service principal %s (app %s) not found (%d) when fetching "
+                "appRoleAssignedTo; likely deleted between list and fetch. "
+                "Skipping.",
+                service_principal_id,
+                app_id,
+                e.response_status_code,
+            )
+            return
         raise
 
     assignment_count = 0
@@ -148,6 +155,10 @@ async def get_app_role_assignments_for_app(
                 .get(),
             )
         except Exception:
+            # Intentionally not narrowed to 404/410: partial-pagination state
+            # is already in the graph with the current update_tag, so a silent
+            # skip here would leave stale rows that survive cleanup. Stay loud
+            # and let the caller decide.
             logger.exception(
                 "Failed to fetch next page of assignments for %s",
                 app_id,
@@ -251,11 +262,7 @@ async def sync_app_role_assignments(
     :param common_job_parameters: Common job parameters for cleanup
     """
     # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
 
     client = GraphServiceClient(
         credential,
