@@ -398,6 +398,35 @@ def test_vulnerability_transform_rejects_unknown_boolean_values() -> None:
         vulnerabilities.transform([raw], ORGANIZATION_ID)
 
 
+@pytest.mark.parametrize(
+    ("field", "expected_type"),
+    [
+        ("Description", "string"),
+        ("CvssSource", "string"),
+        ("CvssScore", "number"),
+        ("CvssSeverity", "string"),
+        ("CvssVector", "string"),
+        ("EpssPercentile", "number"),
+        ("EpssProbability", "number"),
+        ("UpstreamDisposition", "string"),
+    ],
+)  # type: ignore[misc]
+def test_vulnerability_transform_rejects_malformed_scalars(
+    field: str,
+    expected_type: str,
+) -> None:
+    # Arrange
+    raw = deepcopy(VULNERABILITIES[0])
+    raw[field] = {"unexpected": "object"}
+
+    # Act and assert
+    with pytest.raises(
+        ValueError,
+        match=rf"Orca vulnerability.{field} must be a {expected_type}",
+    ):
+        vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+
 def test_vulnerability_transform_rejects_non_string_package_identity() -> None:
     # Arrange
     raw = deepcopy(VULNERABILITIES[0])
@@ -405,6 +434,16 @@ def test_vulnerability_transform_rejects_non_string_package_identity() -> None:
 
     # Act and assert
     with pytest.raises(ValueError, match="InstalledPackage.PURL"):
+        vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+
+def test_vulnerability_transform_rejects_malformed_nonidentity_package_field() -> None:
+    # Arrange
+    raw = deepcopy(VULNERABILITIES[0])
+    raw["InstalledPackage"]["SourcePackage"] = {"unexpected": "object"}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="InstalledPackage.SourcePackage"):
         vulnerabilities.transform([raw], ORGANIZATION_ID)
 
 

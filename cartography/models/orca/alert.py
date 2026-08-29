@@ -16,7 +16,7 @@ from cartography.models.ontology.labels import SECURITY_ISSUE
 class OrcaAlertNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
         "id",
-        description="Stable Orca AlertId identifier.",
+        description="Stable organization-scoped identifier for the Orca alert.",
     )
     lastupdated: PropertyRef = PropertyRef(
         "lastupdated",

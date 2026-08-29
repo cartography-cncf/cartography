@@ -10,8 +10,7 @@ listed below.
 
 ## Required Permissions
 
-The token must authorize the following operations across the entire Orca
-organization:
+The token must authorize these operations:
 
 | Operation | Required access |
 |-----------|-----------------|

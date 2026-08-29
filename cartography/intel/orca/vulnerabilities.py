@@ -12,6 +12,8 @@ from cartography.intel.orca import api
 from cartography.intel.orca.response import canonical_cve_ids
 from cartography.intel.orca.response import inventory_target_context
 from cartography.intel.orca.response import optional_nonempty_string
+from cartography.intel.orca.response import optional_number
+from cartography.intel.orca.response import optional_string
 from cartography.intel.orca.response import parse_datetime
 from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
@@ -73,22 +75,31 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     )
 
 
-def _package_key(package: dict[str, Any]) -> tuple[str, ...]:
-    for key in ("id", "PURL", "CPE"):
-        value = optional_nonempty_string(
-            package.get(key),
-            f"Orca vulnerability.InstalledPackage.{key}",
+def _package_properties(package: dict[str, Any]) -> dict[str, str | None]:
+    return {
+        field: optional_nonempty_string(
+            package.get(orca_field),
+            f"Orca vulnerability.InstalledPackage.{orca_field}",
         )
+        for field, orca_field in (
+            ("package_id", "id"),
+            ("package_base_id_uuid", "base_id_uuid"),
+            ("package_name", "Name"),
+            ("package_version", "Version"),
+            ("purl", "PURL"),
+            ("cpe", "CPE"),
+            ("source_package", "SourcePackage"),
+        )
+    }
+
+
+def _package_key(package: dict[str, str | None]) -> tuple[str, ...]:
+    for field in ("package_id", "purl", "cpe"):
+        value = package[field]
         if value is not None:
-            return (key.casefold(), value)
-    name = optional_nonempty_string(
-        package.get("Name"),
-        "Orca vulnerability.InstalledPackage.Name",
-    )
-    version = optional_nonempty_string(
-        package.get("Version"),
-        "Orca vulnerability.InstalledPackage.Version",
-    )
+            return (field.removeprefix("package_"), value)
+    name = package["package_name"]
+    version = package["package_version"]
     if name or version:
         normalized_name = (name or "").casefold()
         normalized_version = version or ""
@@ -147,21 +158,45 @@ def transform(
         )
         common_fields = {
             "orca_id": orca_id,
-            "description": vulnerability.get("Description"),
+            "description": optional_string(
+                vulnerability.get("Description"),
+                "Orca vulnerability.Description",
+            ),
             "references": [source_link] if source_link else [],
-            "cvss_source": vulnerability.get("CvssSource"),
-            "base_score": vulnerability.get("CvssScore"),
-            "base_severity": vulnerability.get("CvssSeverity"),
-            "vector_string": vulnerability.get("CvssVector"),
-            "epss_percentile": vulnerability.get("EpssPercentile"),
-            "epss_probability": vulnerability.get("EpssProbability"),
+            "cvss_source": optional_string(
+                vulnerability.get("CvssSource"),
+                "Orca vulnerability.CvssSource",
+            ),
+            "base_score": optional_number(
+                vulnerability.get("CvssScore"),
+                "Orca vulnerability.CvssScore",
+            ),
+            "base_severity": optional_string(
+                vulnerability.get("CvssSeverity"),
+                "Orca vulnerability.CvssSeverity",
+            ),
+            "vector_string": optional_string(
+                vulnerability.get("CvssVector"),
+                "Orca vulnerability.CvssVector",
+            ),
+            "epss_percentile": optional_number(
+                vulnerability.get("EpssPercentile"),
+                "Orca vulnerability.EpssPercentile",
+            ),
+            "epss_probability": optional_number(
+                vulnerability.get("EpssProbability"),
+                "Orca vulnerability.EpssProbability",
+            ),
             "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
             "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
             "patch_available": _optional_bool(
                 vulnerability.get("PatchAvailable"),
             ),
             "trending": _optional_bool(vulnerability.get("Trending")),
-            "upstream_disposition": vulnerability.get("UpstreamDisposition"),
+            "upstream_disposition": optional_string(
+                vulnerability.get("UpstreamDisposition"),
+                "Orca vulnerability.UpstreamDisposition",
+            ),
             "first_seen": parse_datetime(
                 vulnerability.get("FirstSeen"),
                 "Orca vulnerability.FirstSeen",
@@ -170,7 +205,8 @@ def transform(
         }
 
         for package in _related_packages(vulnerability):
-            package_key = _package_key(package)
+            package_properties = _package_properties(package)
+            package_key = _package_key(package_properties)
             for cve_id in cve_ids:
                 finding_id = _vulnerability_id(
                     organization_id,
@@ -182,13 +218,7 @@ def transform(
                     "id": finding_id,
                     "cve_id": cve_id,
                     **common_fields,
-                    "package_id": package.get("id"),
-                    "package_base_id_uuid": package.get("base_id_uuid"),
-                    "package_name": package.get("Name"),
-                    "package_version": package.get("Version"),
-                    "purl": package.get("PURL"),
-                    "cpe": package.get("CPE"),
-                    "source_package": package.get("SourcePackage"),
+                    **package_properties,
                 }
                 if finding_id in transformed:
                     duplicate_count += 1
