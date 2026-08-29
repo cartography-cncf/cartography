@@ -28,6 +28,7 @@ modules/github/index
 modules/gitlab/index
 modules/googleworkspace/index
 modules/gsuite/index
+modules/huntress/index
 modules/jamf/index
 modules/jumpcloud/index
 modules/kandji/index

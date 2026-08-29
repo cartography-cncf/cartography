@@ -5,15 +5,16 @@ from typing import Any
 import neo4j
 
 from cartography.client.container_registry import AnonymousRegistryClient
+from cartography.client.container_registry import RegistryClient
 from cartography.client.container_registry import RegistryError
 from cartography.client.container_registry import ResolvedRegistryReference
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.container_image import ContainerImageReference
 from cartography.intel.container_image import parse_container_image_reference
 from cartography.intel.external_container_images import load_external_container_images
 from cartography.intel.railway.utils import is_live_entrypoint
+from cartography.intel.railway.utils import preserve_image_relationships
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.serviceinstance import RailwayServiceInstanceSchema
 from cartography.util import timeit
@@ -26,10 +27,6 @@ class RailwayExternalImageBinding:
     reference: ContainerImageReference
     resolved_digest: str | None
 
-    @property
-    def reference_type(self) -> str:
-        return "digest" if self.reference.digest else "tag"
-
 
 @dataclass(frozen=True)
 class RailwayUnresolvedImageReference:
@@ -40,17 +37,10 @@ class RailwayUnresolvedImageReference:
 @dataclass(frozen=True)
 class RailwayExternalImageState:
     by_instance_id: dict[str, RailwayExternalImageBinding]
-    by_service_environment: dict[tuple[str, str], RailwayExternalImageBinding]
     unresolved_by_instance_id: dict[str, RailwayUnresolvedImageReference]
-    unresolved_by_service_environment: dict[
-        tuple[str, str],
-        RailwayUnresolvedImageReference,
-    ]
 
 
 EMPTY_EXTERNAL_IMAGE_STATE = RailwayExternalImageState(
-    {},
-    {},
     {},
     {},
 )
@@ -64,7 +54,7 @@ def sync(
     tcp_proxies_by_instance: dict[str, list[dict[str, Any]]],
     workspace: dict[str, Any],
     update_tag: int,
-    registry_client: AnonymousRegistryClient | None = None,
+    registry_client: RegistryClient | None = None,
 ) -> RailwayExternalImageState:
     """
     Load the per-environment service instances from the already-fetched project bundles.
@@ -102,20 +92,19 @@ def sync(
 
 def resolve_external_images(
     bundles: dict[str, dict[str, Any]],
-    registry_client: AnonymousRegistryClient | None = None,
+    registry_client: RegistryClient | None = None,
 ) -> tuple[RailwayExternalImageState, list[ResolvedRegistryReference]]:
     """Resolve explicit Railway image references once without weakening cleanup safety."""
-    client = registry_client or AnonymousRegistryClient()
-    owns_client = registry_client is None
+    if registry_client is None:
+        owned_client = AnonymousRegistryClient()
+        client: RegistryClient = owned_client
+    else:
+        owned_client = None
+        client = registry_client
     resolved_by_reference: dict[str, ResolvedRegistryReference] = {}
     failed_references: set[str] = set()
     by_instance_id: dict[str, RailwayExternalImageBinding] = {}
-    by_service_environment: dict[tuple[str, str], RailwayExternalImageBinding] = {}
     unresolved_by_instance_id: dict[str, RailwayUnresolvedImageReference] = {}
-    unresolved_by_service_environment: dict[
-        tuple[str, str],
-        RailwayUnresolvedImageReference,
-    ] = {}
 
     def mark_unresolved(
         instance: dict[str, Any],
@@ -127,9 +116,6 @@ def resolve_external_images(
             reference.normalized if reference else None,
         )
         unresolved_by_instance_id[instance["id"]] = unresolved
-        unresolved_by_service_environment[
-            (instance["serviceId"], instance["environmentId"])
-        ] = unresolved
 
     try:
         for bundle in bundles.values():
@@ -149,6 +135,10 @@ def resolve_external_images(
                     )
                     continue
 
+                by_instance_id[instance["id"]] = RailwayExternalImageBinding(
+                    reference,
+                    None,
+                )
                 if reference.normalized not in resolved_by_reference:
                     if reference.normalized in failed_references:
                         mark_unresolved(instance, raw_reference, reference)
@@ -170,19 +160,14 @@ def resolve_external_images(
                 resolution = resolved_by_reference[reference.normalized]
                 binding = RailwayExternalImageBinding(reference, resolution.top.digest)
                 by_instance_id[instance["id"]] = binding
-                by_service_environment[
-                    (instance["serviceId"], instance["environmentId"])
-                ] = binding
     finally:
-        if owns_client:
-            client.close()
+        if owned_client is not None:
+            owned_client.close()
 
     return (
         RailwayExternalImageState(
             by_instance_id,
-            by_service_environment,
             unresolved_by_instance_id,
-            unresolved_by_service_environment,
         ),
         list(resolved_by_reference.values()),
     )
@@ -264,13 +249,15 @@ def transform(
                     "source_image_tag": reference.tag if reference else None,
                     "source_image_digest": reference.digest if reference else None,
                     "source_image_reference_type": (
-                        external_image.reference_type if external_image else None
+                        ("digest" if reference.digest else "tag") if reference else None
                     ),
                     "resolved_source_image_digest": (
                         external_image.resolved_digest if external_image else None
                     ),
                     "resolved_source_image_reference": (
-                        reference.normalized if reference else None
+                        external_image.reference.normalized
+                        if external_image and external_image.resolved_digest
+                        else None
                     ),
                     "source_repo": source.get("repo"),
                     "latest_deployment_id": latest_deployment.get("id"),
@@ -313,27 +300,18 @@ def preserve_unresolved_image_relationships(
         return
     unresolved_images = [
         {
-            "instance_id": instance_id,
+            "source_id": instance_id,
             "source_reference": unresolved.source_reference,
             "normalized_reference": unresolved.normalized_reference,
         }
         for instance_id, unresolved in sorted(unresolved_by_instance_id.items())
     ]
-    run_write_query(
+    preserve_image_relationships(
         neo4j_session,
-        """
-        UNWIND $unresolved_images AS unresolved
-        MATCH (:RailwayServiceInstance {id: unresolved.instance_id})
-              -[relationship:HAS_IMAGE]->(:ExternalContainerImageReference)
-        WHERE relationship.source_reference = unresolved.source_reference
-           OR (
-               unresolved.normalized_reference IS NOT NULL
-               AND relationship.normalized_reference = unresolved.normalized_reference
-           )
-        SET relationship.lastupdated = $update_tag
-        """,
-        unresolved_images=unresolved_images,
-        update_tag=update_tag,
+        unresolved_images,
+        "RailwayServiceInstance",
+        "ExternalContainerImageReference",
+        update_tag,
     )
 
 

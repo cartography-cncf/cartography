@@ -85,6 +85,18 @@ def test_parse_image_uri_trailing_at_no_digest() -> None:
             ),
         ),
         (
+            "index.docker.io/postgres:16",
+            ContainerImageReference(
+                original="index.docker.io/postgres:16",
+                registry="docker.io",
+                repository="library/postgres",
+                tag="16",
+                digest=None,
+                normalized="docker.io/library/postgres:16",
+                selector="16",
+            ),
+        ),
+        (
             "registry.example.com/team/service:v1",
             ContainerImageReference(
                 original="registry.example.com/team/service:v1",

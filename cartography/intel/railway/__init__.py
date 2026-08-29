@@ -138,7 +138,7 @@ def _sync_workspace(
     common_job_parameters: dict[str, Any],
     account_user_id: str | None,
     update_tag: int,
-    registry_client: AnonymousRegistryClient | None = None,
+    registry_client: AnonymousRegistryClient,
 ) -> None:
     # Ordering matters so that cross-resource matchers resolve: the workspace tenant and its
     # projects first, then the principals that tokens are owned by, then everything scoped

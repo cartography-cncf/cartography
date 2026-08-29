@@ -331,6 +331,79 @@ def test_registry_failure_preserves_last_verified_service_image_edge(neo4j_sessi
     ) == {
         (WEB_INSTANCE_ID, "docker.io/nginxdemos/hello:latest"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "RailwayServiceInstance",
+        [
+            "id",
+            "source_image_normalized",
+            "source_image_reference_type",
+            "resolved_source_image_digest",
+            "resolved_source_image_reference",
+        ],
+    ) == {
+        (
+            WEB_INSTANCE_ID,
+            "docker.io/nginxdemos/hello:latest",
+            "tag",
+            None,
+            None,
+        ),
+        (POSTGRES_INSTANCE_ID, None, None, None, None),
+    }
+
+
+def test_first_registry_failure_keeps_configured_digest_provenance(neo4j_session):
+    # Arrange
+    bundle = copy.deepcopy(tests.data.railway.bundles.RAILWAY_PROJECT_BUNDLE)
+    instances = cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundle
+    )
+    web = next(instance for instance in instances if instance["id"] == WEB_INSTANCE_ID)
+    web["source"]["image"] = f"postgres@{EXTERNAL_IMAGE_DIGEST}"
+
+    # Act
+    _sync_compute_tier(
+        neo4j_session,
+        bundles={TEST_PROJECT_ID: bundle},
+        registry_client=_RegistryClient(RegistryTransientError("temporary failure")),
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "RailwayServiceInstance",
+        [
+            "id",
+            "source_image_normalized",
+            "source_image_digest",
+            "source_image_reference_type",
+            "resolved_source_image_digest",
+            "resolved_source_image_reference",
+        ],
+    ) == {
+        (
+            WEB_INSTANCE_ID,
+            f"docker.io/library/postgres@{EXTERNAL_IMAGE_DIGEST}",
+            EXTERNAL_IMAGE_DIGEST,
+            "digest",
+            None,
+            None,
+        ),
+        (POSTGRES_INSTANCE_ID, None, None, None, None, None),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "RailwayServiceInstance",
+            "id",
+            "ExternalContainerImageReference",
+            "id",
+            "HAS_IMAGE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 def test_registry_failure_for_changed_reference_cleans_stale_service_image_edge(

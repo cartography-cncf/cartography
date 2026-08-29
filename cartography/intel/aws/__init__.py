@@ -16,6 +16,7 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
 from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
@@ -139,6 +140,7 @@ def _sync_one_account(
     module_dependencies = {
         "ssm": ["ec2:instance"],
         "ec2:images": ["ec2:instance"],
+        "ec2:autoscalinggroup": ["ec2:launch_templates", "ec2:instance"],
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2:expose": [
@@ -146,9 +148,14 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
-        # `ecs` creates IS_INSTANCE rels (AWSECSContainerInstance→AWSEC2Instance) and
-        # TARGETS matchlinks (AWSELBV2TargetGroup→AWSECSService)
-        "ecs": ["ec2:instance", "ec2:load_balancer_v2"],
+        # ECS matches existing roles, images, instances, ENIs, and target groups.
+        "ecs": [
+            "iam",
+            "ecr",
+            "ec2:instance",
+            "ec2:network_interface",
+            "ec2:load_balancer_v2",
+        ],
         "dynamodb": ["kms"],
         # s3/rds/efs create canonical (:...)-[:ENCRYPTED_BY]->(:AWSKMSKey) edges by
         # matching existing AWSKMSKey nodes on their ARN, so kms must sync first.
@@ -212,19 +219,23 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_typed_analysis_job(
+    run_typed_analysis_and_ensure_deps(
         AWS_EC2_IAM_INSTANCE_PROFILE,
-        neo4j_session,
+        AWS_EC2_IAM_INSTANCE_PROFILE_DEPS,
+        requested_syncs_set,
         common_job_parameters,
+        neo4j_session,
     )
 
-    run_typed_analysis_job(
+    run_typed_analysis_and_ensure_deps(
         AWS_LAMBDA_ECR,
-        neo4j_session,
+        AWS_LAMBDA_ECR_DEPS,
+        requested_syncs_set,
         common_job_parameters,
+        neo4j_session,
     )
 
-    if {"ec2:network_acls", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
+    if AWS_LB_NACL_DIRECT_DEPS.issubset(requested_syncs_set):
         run_typed_analysis_job(
             AWS_LB_NACL_DIRECT,
             neo4j_session,
@@ -683,6 +694,19 @@ def _sync_multiple_accounts(
     return False
 
 
+# Per-account analysis jobs must only run when every producer was refreshed.
+AWS_EC2_IAM_INSTANCE_PROFILE_DEPS = {
+    "iam",
+    "iaminstanceprofiles",
+    "ec2:instance",
+}
+AWS_LAMBDA_ECR_DEPS = {"ecr", "lambda_function"}
+AWS_LB_NACL_DIRECT_DEPS = {
+    "ec2:network_acls",
+    "ec2:load_balancer_v2",
+    "ec2:subnet",
+}
+
 # Resource syncs that feed the `exposed_internet` flag: AWS_EC2_ASSET_EXPOSURE_JOBS (which sets it on
 # load balancers, instances, etc.) only runs when all of these were requested this cycle.
 AWS_EC2_ASSET_EXPOSURE_DEPS = {
@@ -690,6 +714,9 @@ AWS_EC2_ASSET_EXPOSURE_DEPS = {
     "ec2:security_group",
     "ec2:load_balancer",
     "ec2:load_balancer_v2",
+}
+AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS = AWS_EC2_ASSET_EXPOSURE_DEPS | {
+    "ec2:autoscalinggroup"
 }
 # Both the ECS internet-exposure property and the LB->container edge gate on lb.exposed_internet, so
 # they must require the full producer dependency set above: otherwise a partial sync that skips the
@@ -728,9 +755,12 @@ def _perform_aws_analysis(
     )
 
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
+        dependencies = AWS_EC2_ASSET_EXPOSURE_DEPS
+        if job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:
+            dependencies = AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
         run_typed_analysis_and_ensure_deps(
             job,
-            AWS_EC2_ASSET_EXPOSURE_DEPS,
+            dependencies,
             requested_syncs_as_set,
             common_job_parameters,
             neo4j_session,

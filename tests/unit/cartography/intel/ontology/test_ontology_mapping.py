@@ -14,6 +14,7 @@ from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
+from tests.utils import is_node_schema
 from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
@@ -39,7 +40,7 @@ OLD_FORMAT_NODES = [
 def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema]]:
     models = []
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class.label == node_label:
             models.append(node_class)
@@ -64,7 +65,7 @@ def _get_models_with_properties_for_label(
 
     # Include models that declare this label among their extra_node_labels.
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class in all_models:
             continue
@@ -99,7 +100,7 @@ def test_extra_label_condition_fields_exist_on_node_schema() -> None:
     violations: list[str] = []
 
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         node_schema = node_class()
         if not node_schema.extra_node_labels:
@@ -150,7 +151,7 @@ def test_ontology_primary_labels_are_reserved_for_ontology_models():
     violations: set[str] = set()
 
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class.__module__.startswith("cartography.models.ontology"):
             continue

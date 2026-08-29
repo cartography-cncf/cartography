@@ -21,8 +21,12 @@ def _rel_cleanup(
     scope: ScopeById | None = None,
     scoped_to: str = "source",
     cleanup_where: str = "",
+    cleanup_source_label: bool = True,
+    cleanup_target_label: bool = True,
 ) -> str:
-    match = f"MATCH (source:{source})-[r:{rel}]->(target:{target})"
+    source_match = f"(source:{source})" if cleanup_source_label else "(source)"
+    target_match = f"(target:{target})" if cleanup_target_label else "(target)"
+    match = f"MATCH {source_match}-[r:{rel}]->{target_match}"
     if scope:
         match = (
             f"MATCH (scope:{scope.label} {{id: ${scope.id_param}}})"
@@ -341,15 +345,43 @@ CLEANUP_CASES = [
         id="ontology_users_authorized_app",
     ),
     pytest.param(
-        RelationshipEffect("Container", "RESOLVED_IMAGE", "Image"),
+        RelationshipEffect(
+            "Container",
+            "RESOLVED_IMAGE",
+            "Image",
+            cleanup_where="source:Container OR NOT source:Function",
+            cleanup_source_label=False,
+            cleanup_target_label=False,
+        ),
         None,
-        _rel_cleanup("Container", "RESOLVED_IMAGE", "Image"),
+        _rel_cleanup(
+            "Container",
+            "RESOLVED_IMAGE",
+            "Image",
+            cleanup_where="source:Container OR NOT source:Function",
+            cleanup_source_label=False,
+            cleanup_target_label=False,
+        ),
         id="resolved_image_container",
     ),
     pytest.param(
-        RelationshipEffect("Function", "RESOLVED_IMAGE", "Image"),
+        RelationshipEffect(
+            "Function",
+            "RESOLVED_IMAGE",
+            "Image",
+            cleanup_where="source:Function OR NOT source:Container",
+            cleanup_source_label=False,
+            cleanup_target_label=False,
+        ),
         None,
-        _rel_cleanup("Function", "RESOLVED_IMAGE", "Image"),
+        _rel_cleanup(
+            "Function",
+            "RESOLVED_IMAGE",
+            "Image",
+            cleanup_where="source:Function OR NOT source:Container",
+            cleanup_source_label=False,
+            cleanup_target_label=False,
+        ),
         id="resolved_image_function",
     ),
     pytest.param(

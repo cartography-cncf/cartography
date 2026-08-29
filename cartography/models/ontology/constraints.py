@@ -10,6 +10,11 @@ class RelConstraint:
     name when both endpoints carry the listed ontology labels. Both abstract
     ontology nodes (User, Device, PublicIP, Package) and semantic extra
     labels (Container, ComputePod, ...) are valid src/dst values.
+
+    Constraints are validation-only. They are not inherited onto concrete node
+    schemas as expected edges. Materialized ontology edges that introspection
+    projects onto concretes come from ``OntologyExpectedEdge`` (relationships
+    actually produced under ontology labels by models or analysis).
     """
 
     src: str
@@ -76,6 +81,12 @@ ONTOLOGY_REL_CONSTRAINTS: tuple[RelConstraint, ...] = (
     # semantic.
     RelConstraint(src="Container", dst="Image", label="RESOLVED_IMAGE"),
     RelConstraint(src="Function", dst="Image", label="RESOLVED_IMAGE"),
+    # A running workload can be assessed through an immutable filesystem view.
+    RelConstraint(src="Container", dst="FilesystemSnapshot", label="SCANNED_AS"),
+    RelConstraint(src="CVE", dst="FilesystemSnapshot", label="AFFECTS"),
+    RelConstraint(src="PackageVersion", dst="FilesystemSnapshot", label="DEPLOYED"),
+    # A source snapshot identifies the repository whose exact revision it represents.
+    RelConstraint(src="FilesystemSnapshot", dst="CodeRepository", label="SNAPSHOT_OF"),
     # An image/function is built from a source code repository (CI provenance).
     RelConstraint(src="Image", dst="CodeRepository", label="PACKAGED_FROM"),
     # NOTE: no UserAccount->CodeRepository constraint. Several distinct edges

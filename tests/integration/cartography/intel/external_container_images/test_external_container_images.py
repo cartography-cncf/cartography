@@ -301,6 +301,141 @@ def test_duplicate_digest_is_one_global_artifact(neo4j_session):
     assert tuple(artifact.values()) == (None, None, None, None)
 
 
+@pytest.mark.parametrize(
+    "direct_first", [False, True], ids=("child-first", "direct-first")
+)
+def test_duplicate_digest_keeps_descriptor_platform_data(
+    neo4j_session,
+    direct_first,
+):
+    # Arrange
+    direct = _tagged_resolution(
+        repository="public/direct",
+        tag="stable",
+        top=_image(DIGEST_C, architecture="arm64"),
+    )
+    index = _tagged_resolution(
+        repository="public/multi",
+        tag="stable",
+        top=_index(DIGEST_INDEX),
+        children=(_image(DIGEST_C, architecture="arm64", variant="v8"),),
+    )
+    resolutions = [direct, index] if direct_first else [index, direct]
+
+    # Act
+    load_external_container_images(neo4j_session, resolutions, update_tag=1)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ExternalContainerImage",
+        ["digest", "architecture", "variant"],
+    ) == {
+        (DIGEST_C, "arm64", "v8"),
+        (DIGEST_INDEX, None, None),
+    }
+
+
+def test_duplicate_digest_keeps_first_conflicting_platform_data(neo4j_session):
+    # Arrange
+    resolutions = [
+        _tagged_resolution(
+            repository="public/multi",
+            tag="stable",
+            top=_index(DIGEST_INDEX),
+            children=(_image(DIGEST_C, architecture="arm64", variant="v8"),),
+        ),
+        _tagged_resolution(
+            repository="public/direct",
+            tag="stable",
+            top=_image(DIGEST_C, architecture="arm64", variant="v9"),
+        ),
+    ]
+
+    # Act
+    load_external_container_images(neo4j_session, resolutions, update_tag=1)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ExternalContainerImage",
+        ["digest", "variant"],
+    ) == {
+        (DIGEST_C, "v8"),
+        (DIGEST_INDEX, None),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "ImageTag",
+        ["repository", "digest"],
+    ) == {
+        ("public/multi", DIGEST_INDEX),
+        ("public/direct", DIGEST_C),
+    }
+
+
+def test_later_load_preserves_descriptor_platform_data(neo4j_session):
+    # Arrange
+    index = _tagged_resolution(
+        repository="public/multi",
+        tag="stable",
+        top=_index(DIGEST_INDEX),
+        children=(_image(DIGEST_C, architecture="arm64", variant="v8"),),
+    )
+    direct = _tagged_resolution(
+        repository="public/direct",
+        tag="stable",
+        top=_image(DIGEST_C, architecture="arm64"),
+    )
+    load_external_container_images(neo4j_session, [index], update_tag=1)
+
+    # Act
+    load_external_container_images(neo4j_session, [direct], update_tag=2)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ExternalContainerImage",
+        ["digest", "architecture", "variant", "lastupdated"],
+    ) == {
+        (DIGEST_C, "arm64", "v8", 2),
+        (DIGEST_INDEX, None, None, 1),
+    }
+
+
+def test_later_load_keeps_existing_conflicting_platform_data(neo4j_session):
+    # Arrange
+    first = _tagged_resolution(
+        repository="public/first",
+        tag="stable",
+        top=_image(DIGEST_C, architecture="arm64", variant="v8"),
+    )
+    conflicting = _tagged_resolution(
+        repository="public/conflicting",
+        tag="stable",
+        top=_image(DIGEST_C, architecture="arm64", variant="v9"),
+    )
+    load_external_container_images(neo4j_session, [first], update_tag=1)
+
+    # Act
+    load_external_container_images(neo4j_session, [conflicting], update_tag=2)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ExternalContainerImage",
+        ["digest", "variant", "lastupdated"],
+    ) == {(DIGEST_C, "v8", 2)}
+    assert check_nodes(
+        neo4j_session,
+        "ImageTag",
+        ["repository", "digest"],
+    ) == {
+        ("public/first", DIGEST_C),
+        ("public/conflicting", DIGEST_C),
+    }
+
+
 def test_tagged_digest_keeps_exact_and_canonical_references(neo4j_session):
     # Arrange
     registry = "registry.example.test"

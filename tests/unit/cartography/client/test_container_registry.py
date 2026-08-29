@@ -3,15 +3,27 @@ from __future__ import annotations
 import hashlib
 import json
 import socket
+import sys
+import time
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import requests
 from requests.adapters import HTTPAdapter
+from requests.models import PreparedRequest
 
-from cartography.client.container_registry import AnonymousRegistryClient
+from cartography.client.container_registry import (
+    _AnonymousRegistryClient as AnonymousRegistryClient,
+)
+from cartography.client.container_registry import _PinnedHTTPSAdapter
+from cartography.client.container_registry import _PinnedHTTPSConnection
+from cartography.client.container_registry import _read_body
+from cartography.client.container_registry import (
+    AnonymousRegistryClient as BoundedRegistryClient,
+)
 from cartography.client.container_registry import DOCKER_IMAGE_MANIFEST
 from cartography.client.container_registry import DOCKER_MANIFEST_LIST
 from cartography.client.container_registry import MANIFEST_MEDIA_TYPES
@@ -179,6 +191,154 @@ def test_resolve_single_platform_manifest_fetches_config_not_layers(
     assert accepted == MANIFEST_MEDIA_TYPES
 
 
+def test_docker_hub_reference_uses_distribution_api_host() -> None:
+    # Arrange
+    manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
+    session = _mock_session(
+        [_manifest_response(manifest, OCI_IMAGE_MANIFEST), _response(200, config)],
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act
+    client.resolve("postgres:16")
+
+    # Assert
+    assert (
+        session.get.call_args_list[0]
+        .args[0]
+        .startswith("https://registry-1.docker.io/v2/library/postgres/manifests/16")
+    )
+
+
+def test_resolve_stops_when_deadline_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    session = _mock_session([])
+    clock = iter((0.0, 121.0))
+    monkeypatch.setattr(
+        "cartography.client.container_registry.time.monotonic",
+        lambda: next(clock),
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryTransientError, match="exceeded time limit"):
+        client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    session.get.assert_not_called()
+
+
+def test_resolve_stops_when_response_body_exceeds_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    response = _manifest_response(b"{}", OCI_IMAGE_MANIFEST)
+    session = _mock_session([response])
+    clock = iter((0.0, 1.0, 1.0, 121.0))
+    monkeypatch.setattr(
+        "cartography.client.container_registry.time.monotonic",
+        lambda: next(clock),
+    )
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryTransientError, match="exceeded time limit"):
+        client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    session.get.assert_called_once()
+
+
+def test_total_resolution_budget_applies_across_distinct_references(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    now = [0.0]
+    monkeypatch.setattr(
+        "cartography.client.container_registry.time.monotonic",
+        lambda: now[0],
+    )
+    client = BoundedRegistryClient(total_timeout_seconds=300.0)
+    # Time spent on unrelated provider API work before the first image should not
+    # consume the image-resolution budget.
+    now[0] = 301.0
+    with client:
+        with pytest.raises(RegistrySecurityError):
+            client.resolve("127.0.0.1/team/service:first")
+        now[0] = 602.0
+
+        # Act and assert
+        with pytest.raises(
+            RegistryTransientError,
+            match="exceeded wall-clock time limit",
+        ):
+            client.resolve("127.0.0.1/team/service:remaining")
+
+
+def test_client_enforces_wall_clock_timeout_for_blocked_dns() -> None:
+    # Arrange
+    client = BoundedRegistryClient(
+        resolution_timeout_seconds=0.05,
+        total_timeout_seconds=1.0,
+        _worker_command=(
+            sys.executable,
+            "-c",
+            "import time; "
+            "from cartography.client import container_registry as cr; "
+            "cr.socket.getaddrinfo = lambda *args, **kwargs: time.sleep(60); "
+            "cr._registry_worker_main()",
+        ),
+    )
+    started_at = time.monotonic()
+
+    # Act and assert
+    with (
+        client,
+        pytest.raises(
+            RegistryTransientError,
+            match="wall-clock time limit",
+        ),
+    ):
+        client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    assert time.monotonic() - started_at < 3.0
+
+
+def test_client_preserves_worker_errors() -> None:
+    # Act and assert
+    with BoundedRegistryClient() as client, pytest.raises(RegistrySecurityError):
+        client.resolve("127.0.0.1/team/service:stable")
+
+
+def test_client_restarts_worker_after_timeout(tmp_path: Path) -> None:
+    # Arrange
+    marker = tmp_path / "worker-started"
+    worker_code = (
+        "from pathlib import Path\n"
+        "import time\n"
+        f"marker = Path({str(marker)!r})\n"
+        "if marker.exists():\n"
+        "    from cartography.client import container_registry as cr\n"
+        "    cr._registry_worker_main()\n"
+        "else:\n"
+        "    marker.touch()\n"
+        "    time.sleep(60)\n"
+    )
+    client = BoundedRegistryClient(
+        resolution_timeout_seconds=1.0,
+        total_timeout_seconds=5.0,
+        _worker_command=(sys.executable, "-c", worker_code),
+    )
+
+    # Act and assert
+    with client:
+        with pytest.raises(
+            RegistryTransientError,
+            match="wall-clock time limit",
+        ):
+            client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+        with pytest.raises(RegistrySecurityError):
+            client.resolve("127.0.0.1/team/service:stable")
+    assert marker.exists()
+
+
 @pytest.mark.parametrize(  # type: ignore[misc]
     ("index_type", "image_type"),
     [
@@ -203,6 +363,9 @@ def test_resolve_manifest_list_keeps_runnable_children_and_skips_attestation(
             "manifests": [
                 {
                     "mediaType": image_type,
+                    # Chainguard indexes include the config artifact type on normal
+                    # runnable image descriptors.
+                    "artifactType": "application/vnd.oci.image.config.v1+json",
                     "digest": _digest(child),
                     "size": len(child),
                     "platform": {
@@ -226,6 +389,21 @@ def test_resolve_manifest_list_keeps_runnable_children_and_skips_attestation(
                     "size": 789,
                     "artifactType": "application/vnd.example.sbom.v1+json",
                 },
+                *[
+                    {
+                        "mediaType": "application/vnd.example.future.v1+json",
+                        "digest": f"sha256:{'c' * 64}",
+                        "size": 321,
+                    }
+                    for _ in range(65)
+                ],
+                {
+                    "mediaType": OCI_IMAGE_INDEX,
+                    "digest": f"sha256:{'b' * 64}",
+                    "size": 654,
+                },
+                {"mediaType": [], "digest": f"sha256:{'a' * 64}", "size": 1},
+                {"mediaType": {}, "digest": f"sha256:{'9' * 64}", "size": 1},
             ],
         },
     )
@@ -249,6 +427,32 @@ def test_resolve_manifest_list_keeps_runnable_children_and_skips_attestation(
     assert resolved.children[0].architecture == "arm64"
     assert resolved.children[0].variant == "v8"
     assert session.get.call_count == 3
+    assert len(next(iter(client._manifest_cache.values()))[1]) == 1
+
+
+def test_manifest_list_rejects_excessive_unknown_descriptors() -> None:
+    # Arrange
+    index = _json_bytes(
+        {
+            "schemaVersion": 2,
+            "mediaType": OCI_IMAGE_INDEX,
+            "manifests": [
+                {
+                    "mediaType": "application/vnd.example.future.v1+json",
+                    "digest": f"sha256:{index:064x}",
+                    "size": 1,
+                }
+                for index in range(1025)
+            ],
+        },
+    )
+    session = _mock_session([_manifest_response(index, OCI_IMAGE_INDEX)])
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryResponseError, match="too many descriptors"):
+        client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    assert not client._manifest_cache
 
 
 def test_anonymous_bearer_challenge_uses_minimal_pull_scope_and_hides_token(
@@ -398,17 +602,23 @@ def test_public_ecr_rejects_other_nonstandard_scopes() -> None:
 def test_registry_http_failures_are_classified(
     status: int,
     error: type[Exception],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange
-    session = _mock_session([_response(status)])
+    attempts = 4 if status in {429, 503} else 1
+    session = _mock_session([_response(status) for _ in range(attempts)])
+    monkeypatch.setattr(
+        "cartography.client.container_registry.time.sleep", lambda _: None
+    )
     client = AnonymousRegistryClient(session)
 
     # Act and assert
     with pytest.raises(error):
         client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    assert session.get.call_count == attempts
 
 
-def test_client_configures_get_retries_and_closes_its_session() -> None:
+def test_client_disables_transport_retries_and_closes_its_session() -> None:
     # Arrange
     client = AnonymousRegistryClient()
 
@@ -419,10 +629,7 @@ def test_client_configures_get_retries_and_closes_its_session() -> None:
     client.close()
 
     # Assert
-    assert retry.total == 3
-    assert retry.allowed_methods == frozenset({"GET"})
-    assert set(retry.status_forcelist) == {429, 500, 502, 503, 504}
-    assert retry.respect_retry_after_header is False
+    assert retry.total == 0
 
 
 def test_client_removes_supplied_session_credentials_and_hooks() -> None:
@@ -452,6 +659,37 @@ def test_client_removes_supplied_session_credentials_and_hooks() -> None:
     assert not session.proxies
     assert session.hooks == {"response": []}
     assert session.get_adapter(f"https://{_REGISTRY}/v2/") is not unsafe_adapter
+    client.close()
+
+
+def test_client_does_not_replay_registry_cookies() -> None:
+    # Arrange
+    session = requests.Session()
+    seen_cookies: list[str | None] = []
+
+    class CookieSettingAdapter(HTTPAdapter):
+        def send(self, request, **_kwargs):
+            seen_cookies.append(request.headers.get("Cookie"))
+            session.cookies.set(
+                "registry-session",
+                "synthetic-cookie",
+                domain=_REGISTRY,
+                path="/",
+            )
+            response = _response(200, url=request.url)
+            response.request = request
+            return response
+
+    client = AnonymousRegistryClient(session)
+    session.mount("https://", CookieSettingAdapter())
+
+    # Act
+    client._get(f"https://{_REGISTRY}/first", headers={}).close()
+    client._get(f"https://{_REGISTRY}/second", headers={}).close()
+
+    # Assert
+    assert seen_cookies == [None, None]
+    assert not session.cookies
     client.close()
 
 
@@ -593,21 +831,31 @@ def test_malformed_redirect_is_classified_and_closed(
     close.assert_called_once_with()
 
 
+def test_redirect_chain_is_bounded() -> None:
+    # Arrange
+    responses = [
+        _response(307, headers={"Location": f"https://{_REGISTRY}/next"})
+        for _ in range(6)
+    ]
+    session = _mock_session(responses)
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryResponseError, match="too many redirects"):
+        client._get(f"https://{_REGISTRY}/start", headers={})
+    assert session.get.call_count == 6
+
+
 def test_dns_rebinding_to_private_address_is_blocked_by_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange
-    lookups = 0
-
     def rebinding_getaddrinfo(
         _host: str,
         port: int,
         **_kwargs: object,
     ) -> list[tuple[int, int, int, str, tuple[str, int]]]:
-        nonlocal lookups
-        lookups += 1
-        address = _PUBLIC_IP if lookups == 1 else "127.0.0.1"
-        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, port))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))]
 
     monkeypatch.setattr(socket, "getaddrinfo", rebinding_getaddrinfo)
     client = AnonymousRegistryClient()
@@ -616,6 +864,56 @@ def test_dns_rebinding_to_private_address_is_blocked_by_transport(
     with pytest.raises(RegistrySecurityError, match="non-public"):
         client._get(f"https://{_REGISTRY}/v2/", headers={})
     client.close()
+
+
+def test_pinned_connection_pools_evict_oldest_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    addresses = iter(("93.184.216.34", "93.184.216.35"))
+    monkeypatch.setattr(
+        "cartography.client.container_registry._resolve_public_https_url",
+        lambda _url: next(addresses),
+    )
+    adapter = _PinnedHTTPSAdapter(pool_connections=1)
+    request = PreparedRequest()
+    request.prepare(method="GET", url=f"https://{_REGISTRY}/v2/")
+    first = adapter.get_connection_with_tls_context(request, True)
+    close = MagicMock()
+    monkeypatch.setattr(first, "close", close)
+
+    # Act
+    second = adapter.get_connection_with_tls_context(request, True)
+
+    # Assert
+    assert second is not first
+    assert len(adapter._pinned_pools) == 1
+    close.assert_called_once_with()
+    adapter.close()
+
+
+def test_pinned_connection_uses_vetted_ip_without_changing_tls_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    create_connection = MagicMock(return_value=MagicMock(spec=socket.socket))
+    monkeypatch.setattr(
+        "urllib3.connection.connection.create_connection",
+        create_connection,
+    )
+    connection = _PinnedHTTPSConnection(
+        _REGISTRY,
+        443,
+        pinned_address=_PUBLIC_IP,
+    )
+
+    # Act
+    connection._new_conn()
+
+    # Assert
+    assert create_connection.call_args.args[0] == (_PUBLIC_IP, 443)
+    assert connection.host == _REGISTRY
+    assert connection._dns_host == _REGISTRY
 
 
 def test_successful_resolve_closes_manifest_and_config_responses(
@@ -676,6 +974,13 @@ def test_oversized_manifest_is_rejected_before_reading_body() -> None:
         client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
 
 
+def test_streamed_body_size_limit_does_not_trust_content_length() -> None:
+    response = _response(200, b"ab")
+
+    with pytest.raises(RegistryResponseError, match="size limit"):
+        _read_body(response, "manifest", 1)
+
+
 def test_child_descriptor_size_mismatch_aborts_resolution() -> None:
     # Arrange
     child, _ = _image_payload(OCI_IMAGE_MANIFEST)
@@ -725,7 +1030,7 @@ def test_immutable_manifest_and_config_are_cached() -> None:
     assert session.get.call_count == 2
 
 
-def test_cached_manifest_applies_descriptor_only_platform_variant() -> None:
+def test_cached_manifest_applies_descriptor_platform_only_in_index_context() -> None:
     # Arrange
     manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
     index = _json_bytes(
@@ -758,13 +1063,15 @@ def test_cached_manifest_applies_descriptor_only_platform_variant() -> None:
 
     # Act
     resolved = client.resolve(f"{_REGISTRY}/{_REPOSITORY}:multi")
+    direct = client.resolve(f"{_REGISTRY}/{_REPOSITORY}@{_digest(manifest)}")
 
     # Assert
     assert resolved.children[0].variant == "v3"
+    assert direct.top.variant is None
     assert session.get.call_count == 3
 
 
-def test_cached_manifest_rejects_conflicting_descriptor_platforms() -> None:
+def test_cached_manifest_keeps_descriptor_platforms_local_to_each_child() -> None:
     # Arrange
     manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
     descriptors = [
@@ -796,9 +1103,94 @@ def test_cached_manifest_rejects_conflicting_descriptor_platforms() -> None:
     )
     client = AnonymousRegistryClient(session)
 
+    # Act
+    resolved = client.resolve(f"{_REGISTRY}/{_REPOSITORY}:multi")
+
+    # Assert
+    assert [child.variant for child in resolved.children] == ["v3", "v4"]
+    assert session.get.call_count == 3
+
+
+def test_descriptor_platform_is_scoped_to_parent_index() -> None:
+    # Arrange
+    manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
+
+    def index(variant: str) -> bytes:
+        return _json_bytes(
+            {
+                "schemaVersion": 2,
+                "mediaType": OCI_IMAGE_INDEX,
+                "manifests": [
+                    {
+                        "mediaType": OCI_IMAGE_MANIFEST,
+                        "digest": _digest(manifest),
+                        "size": len(manifest),
+                        "platform": {
+                            "os": "linux",
+                            "architecture": "amd64",
+                            "variant": variant,
+                        },
+                    },
+                ],
+            },
+        )
+
+    first_index = index("v3")
+    second_index = index("v4")
+    session = _mock_session(
+        [
+            _manifest_response(first_index, OCI_IMAGE_INDEX),
+            _manifest_response(manifest, OCI_IMAGE_MANIFEST),
+            _response(200, config),
+            _manifest_response(second_index, OCI_IMAGE_INDEX),
+            _manifest_response(manifest, OCI_IMAGE_MANIFEST),
+            _response(200, config),
+        ],
+    )
+    client = AnonymousRegistryClient(session)
+    first = client.resolve(f"{_REGISTRY}/first/repository:multi")
+
+    # Act
+    second = client.resolve(f"{_REGISTRY}/second/repository:multi")
+
+    # Assert
+    assert first.children[0].variant == "v3"
+    assert second.children[0].variant == "v4"
+    assert session.get.call_count == 6
+
+
+def test_invalid_descriptor_does_not_change_cached_manifest() -> None:
+    # Arrange
+    manifest, config = _image_payload(OCI_IMAGE_MANIFEST)
+    index = _json_bytes(
+        {
+            "schemaVersion": 2,
+            "mediaType": OCI_IMAGE_INDEX,
+            "manifests": [
+                {
+                    "mediaType": OCI_IMAGE_MANIFEST,
+                    "digest": _digest(manifest),
+                    "size": len(manifest),
+                    "platform": {"os": "windows", "architecture": "amd64"},
+                },
+            ],
+        },
+    )
+    session = _mock_session(
+        [
+            _manifest_response(index, OCI_IMAGE_INDEX),
+            _manifest_response(manifest, OCI_IMAGE_MANIFEST),
+            _response(200, config),
+        ],
+    )
+    client = AnonymousRegistryClient(session)
+
     # Act and assert
-    with pytest.raises(RegistryResponseError, match="conflicting platform"):
+    with pytest.raises(RegistryResponseError, match="disagrees with config"):
         client.resolve(f"{_REGISTRY}/{_REPOSITORY}:multi")
+    resolved = client.resolve(f"{_REGISTRY}/{_REPOSITORY}@{_digest(manifest)}")
+    assert resolved.top.os == "linux"
+    assert resolved.top.architecture == "amd64"
     assert session.get.call_count == 3
 
 
@@ -979,7 +1371,9 @@ def test_index_with_only_non_runnable_artifacts_is_rejected() -> None:
         client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
 
 
-def test_partial_child_failure_raises_without_returning_partial_resolution() -> None:
+def test_partial_child_failure_raises_without_returning_partial_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Arrange
     first_child, first_config = _image_payload(OCI_IMAGE_MANIFEST)
     second_child, _ = _image_payload(
@@ -1012,9 +1406,12 @@ def test_partial_child_failure_raises_without_returning_partial_resolution() -> 
                 _manifest_response(index, OCI_IMAGE_INDEX),
                 _manifest_response(first_child, OCI_IMAGE_MANIFEST),
                 _response(200, first_config),
-                _response(503),
+                *[_response(503) for _ in range(4)],
             ],
         ),
+    )
+    monkeypatch.setattr(
+        "cartography.client.container_registry.time.sleep", lambda _: None
     )
 
     # Act and assert
@@ -1049,6 +1446,24 @@ def test_unsupported_or_artifact_manifests_are_rejected(
     # Act and assert
     with pytest.raises(RegistryUnsupportedArtifactError):
         client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+
+
+@pytest.mark.parametrize("config_media_type", [[], {}])  # type: ignore[misc]
+def test_malformed_config_media_type_is_rejected(
+    config_media_type: object,
+) -> None:
+    # Arrange
+    raw_manifest, _ = _image_payload(OCI_IMAGE_MANIFEST)
+    manifest = json.loads(raw_manifest)
+    manifest["config"]["mediaType"] = config_media_type
+    raw_manifest = _json_bytes(manifest)
+    session = _mock_session([_manifest_response(raw_manifest, OCI_IMAGE_MANIFEST)])
+    client = AnonymousRegistryClient(session)
+
+    # Act and assert
+    with pytest.raises(RegistryUnsupportedArtifactError, match="config media type"):
+        client.resolve(f"{_REGISTRY}/{_REPOSITORY}:stable")
+    session.get.assert_called_once()
 
 
 def test_malformed_manifest_is_rejected() -> None:
