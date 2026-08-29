@@ -1120,8 +1120,6 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
                 category=DeprecationWarning,
             )
             event_loop = asyncio.get_event_loop()
-            if event_loop.is_closed():
-                raise RuntimeError("event loop is closed")
     except RuntimeError:
         event_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(event_loop)
