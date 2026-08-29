@@ -12,8 +12,8 @@ RETURN source.image_uri, image._ont_digest, collect(component.name) AS agents
 
 ```cypher
 MATCH (image:Image)<-[:DETECTED_IN]-(component:AIBOMComponent)
-RETURN image._ont_digest, component.category, component.name
-ORDER BY component.category, component.name
+RETURN image._ont_digest, component.component_type, component.name
+ORDER BY component.component_type, component.name
 ```
 
 ## Find components detected in a repository
@@ -22,8 +22,8 @@ ORDER BY component.category, component.name
 MATCH (source:AIBOMSource)-[:SCANNED_REPOSITORY]->(repository)
 MATCH (source)-[:HAS_COMPONENT]->(component:AIBOMComponent)
 WHERE repository:GitHubRepository OR repository:GitLabProject
-RETURN labels(repository), source.source_key, component.category, component.name
-ORDER BY source.source_key, component.category, component.name
+RETURN labels(repository), source.source_key, component.component_type, component.name
+ORDER BY source.source_key, component.component_type, component.name
 ```
 
 ## Inspect component relationships
