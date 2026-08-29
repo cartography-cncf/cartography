@@ -9,9 +9,15 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class OktaOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Okta name.")
 
 
 @dataclass(frozen=True)

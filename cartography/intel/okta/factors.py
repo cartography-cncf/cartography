@@ -11,6 +11,8 @@ from okta.models.user_factor import UserFactor
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.okta.common import is_resource_not_found_error
+from cartography.intel.okta.common import OktaApiError
 from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.factor import OktaUserFactorSchema
 from cartography.util import timeit
@@ -37,7 +39,13 @@ def sync_okta_user_factors(
 
     all_factors: list[dict[str, Any]] = []
     for user_id in user_ids:
-        user_factors = asyncio.run(_get_okta_user_factors(okta_client, user_id))
+        try:
+            user_factors = asyncio.run(_get_okta_user_factors(okta_client, user_id))
+        except OktaApiError as error:
+            if not is_resource_not_found_error(error):
+                raise
+            logger.warning("Skipping factors for deleted Okta user %s", user_id)
+            continue
         transformed = _transform_okta_user_factors(user_factors, user_id)
         all_factors.extend(transformed)
 

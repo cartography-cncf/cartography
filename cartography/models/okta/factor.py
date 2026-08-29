@@ -13,18 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OktaUserFactorNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    factor_type: PropertyRef = PropertyRef("factor_type")
-    provider: PropertyRef = PropertyRef("provider")
-    status: PropertyRef = PropertyRef("status")
-    created: PropertyRef = PropertyRef("created")
-    okta_last_updated: PropertyRef = PropertyRef("okta_last_updated")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    factor_type: PropertyRef = PropertyRef(
+        "factor_type", description="Okta factor type."
+    )
+    provider: PropertyRef = PropertyRef("provider", description="Okta provider.")
+    status: PropertyRef = PropertyRef("status", description="Okta status.")
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
+    okta_last_updated: PropertyRef = PropertyRef(
+        "okta_last_updated", description="Okta okta last updated."
+    )
 
 
 @dataclass(frozen=True)
 class OktaUserFactorToOktaUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -33,7 +47,11 @@ class OktaUserFactorToOktaUserRel(CartographyRelSchema):
 
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("user_id")},
+        {
+            "id": PropertyRef(
+                "user_id", description="Identifier of the related Okta user."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "FACTOR"
@@ -44,7 +62,11 @@ class OktaUserFactorToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaUserFactorToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -53,7 +75,13 @@ class OktaUserFactorToOktaOrganizationRel(CartographyRelSchema):
 
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

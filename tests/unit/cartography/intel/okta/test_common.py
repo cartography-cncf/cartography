@@ -1,9 +1,12 @@
+import json
 from copy import deepcopy
 from typing import Any
 
 from okta.models.application_json_converter import ApplicationJsonConverter
 
 import cartography.intel.okta.common  # noqa: F401
+from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
+from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
 from tests.data.okta.application import SAML_APPLICATION_WITH_UNKNOWN_FEATURE
 
@@ -58,3 +61,27 @@ def test_browser_plugin_application_accepts_oin_catalog_shape() -> None:
     assert application.id == "0oaOinSwa"
     assert application.name == "docusign"
     assert application.settings.app is None
+
+
+def test_bookmark_application_accepts_omitted_url() -> None:
+    # Act
+    application = ApplicationJsonConverter.from_dict(BOOKMARK_APPLICATION_WITHOUT_URL)
+
+    # Assert
+    assert application is not None
+    assert application.id == "0oaBookmark"
+    assert application.settings.app.url is None
+
+
+def test_openid_connect_application_accepts_omitted_grant_types() -> None:
+    # Arrange
+    payload = json.loads(APPLICATION_WITH_REDITECT_URIS)
+    del payload["settings"]["oauthClient"]["grant_types"]
+
+    # Act
+    application = ApplicationJsonConverter.from_dict(payload)
+
+    # Assert
+    assert application is not None
+    assert application.id == "someid"
+    assert application.settings.oauth_client.grant_types is None

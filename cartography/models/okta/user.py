@@ -23,18 +23,32 @@ class OktaUserTypeNodeProperties(CartographyNodeProperties):
     # last_updated_by, default). `list_user_types` is typed as
     # `List[UserType]`, so the richer metadata never reaches us.
     # Tracked upstream at https://github.com/okta/okta-sdk-python/issues/535.
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
 class OktaUserTypeToOktaUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
 class OktaUserToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,7 +56,13 @@ class OktaUserToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaUserTypeToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -56,7 +76,11 @@ class OktaUserTypeToOktaOrganizationRel(CartographyRelSchema):
 class OktaUserTypeToOktaUserRel(CartographyRelSchema):
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"type": PropertyRef("id")},
+        {
+            "type": PropertyRef(
+                "id", description="Unique identifier for the Okta resource."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_TYPE"
@@ -84,21 +108,37 @@ class OktaUserTypeSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OktaUserRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    created: PropertyRef = PropertyRef("created")
-    description: PropertyRef = PropertyRef("description")
-    label: PropertyRef = PropertyRef("label")
-    assignment_type: PropertyRef = PropertyRef("assignment_type")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    status: PropertyRef = PropertyRef("status")
-    role_type: PropertyRef = PropertyRef("role_type")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Okta description."
+    )
+    label: PropertyRef = PropertyRef("label", description="Okta label.")
+    assignment_type: PropertyRef = PropertyRef(
+        "assignment_type", description="Okta assignment type."
+    )
+    last_updated: PropertyRef = PropertyRef(
+        "last_updated", description="Okta last updated."
+    )
+    status: PropertyRef = PropertyRef("status", description="Okta status.")
+    role_type: PropertyRef = PropertyRef("role_type", description="Okta role type.")
+    name: PropertyRef = PropertyRef("name", description="Okta name.")
 
 
 @dataclass(frozen=True)
 class OktaUserRoleToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -106,7 +146,13 @@ class OktaUserRoleToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaUserRoleToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -130,57 +176,109 @@ class OktaUserRoleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OktaUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
     # Top-level Okta User fields
-    created: PropertyRef = PropertyRef("created")
-    status: PropertyRef = PropertyRef("status")
-    activated: PropertyRef = PropertyRef("activated")
-    status_changed: PropertyRef = PropertyRef("status_changed")
-    last_login: PropertyRef = PropertyRef("last_login")
-    okta_last_updated: PropertyRef = PropertyRef("okta_last_updated")
-    password_changed: PropertyRef = PropertyRef("password_changed")
-    transition_to_status: PropertyRef = PropertyRef("transition_to_status")
-    type: PropertyRef = PropertyRef("type")
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
+    status: PropertyRef = PropertyRef("status", description="Okta status.")
+    activated: PropertyRef = PropertyRef("activated", description="Okta activated.")
+    status_changed: PropertyRef = PropertyRef(
+        "status_changed", description="Okta status changed."
+    )
+    last_login: PropertyRef = PropertyRef("last_login", description="Okta last login.")
+    okta_last_updated: PropertyRef = PropertyRef(
+        "okta_last_updated", description="Okta okta last updated."
+    )
+    password_changed: PropertyRef = PropertyRef(
+        "password_changed", description="Okta password changed."
+    )
+    transition_to_status: PropertyRef = PropertyRef(
+        "transition_to_status", description="Okta transition to status."
+    )
+    type: PropertyRef = PropertyRef("type", description="Okta type.")
     # UserProfile — standard Okta schema fields
-    login: PropertyRef = PropertyRef("login")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    second_email: PropertyRef = PropertyRef("second_email")
-    first_name: PropertyRef = PropertyRef("first_name")
-    last_name: PropertyRef = PropertyRef("last_name")
-    middle_name: PropertyRef = PropertyRef("middle_name")
-    honorific_prefix: PropertyRef = PropertyRef("honorific_prefix")
-    honorific_suffix: PropertyRef = PropertyRef("honorific_suffix")
-    display_name: PropertyRef = PropertyRef("display_name")
-    nick_name: PropertyRef = PropertyRef("nick_name")
-    profile_url: PropertyRef = PropertyRef("profile_url")
-    locale: PropertyRef = PropertyRef("locale")
-    preferred_language: PropertyRef = PropertyRef("preferred_language")
-    timezone: PropertyRef = PropertyRef("timezone")
-    user_type: PropertyRef = PropertyRef("user_type")
-    title: PropertyRef = PropertyRef("title")
-    department: PropertyRef = PropertyRef("department")
-    division: PropertyRef = PropertyRef("division")
-    organization: PropertyRef = PropertyRef("organization")
-    cost_center: PropertyRef = PropertyRef("cost_center")
-    employee_number: PropertyRef = PropertyRef("employee_number")
-    manager: PropertyRef = PropertyRef("manager")
-    manager_id: PropertyRef = PropertyRef("manager_id")
-    mobile_phone: PropertyRef = PropertyRef("mobile_phone")
-    primary_phone: PropertyRef = PropertyRef("primary_phone")
-    street_address: PropertyRef = PropertyRef("street_address")
-    city: PropertyRef = PropertyRef("city")
-    state: PropertyRef = PropertyRef("state")
-    zip_code: PropertyRef = PropertyRef("zip_code")
-    country_code: PropertyRef = PropertyRef("country_code")
-    postal_address: PropertyRef = PropertyRef("postal_address")
+    login: PropertyRef = PropertyRef("login", description="Okta login.")
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Okta email."
+    )
+    second_email: PropertyRef = PropertyRef(
+        "second_email", description="Okta second email."
+    )
+    first_name: PropertyRef = PropertyRef("first_name", description="Okta first name.")
+    last_name: PropertyRef = PropertyRef("last_name", description="Okta last name.")
+    middle_name: PropertyRef = PropertyRef(
+        "middle_name", description="Okta middle name."
+    )
+    honorific_prefix: PropertyRef = PropertyRef(
+        "honorific_prefix", description="Okta honorific prefix."
+    )
+    honorific_suffix: PropertyRef = PropertyRef(
+        "honorific_suffix", description="Okta honorific suffix."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="Okta display name."
+    )
+    nick_name: PropertyRef = PropertyRef("nick_name", description="Okta nick name.")
+    profile_url: PropertyRef = PropertyRef(
+        "profile_url", description="Okta profile URL."
+    )
+    locale: PropertyRef = PropertyRef("locale", description="Okta locale.")
+    preferred_language: PropertyRef = PropertyRef(
+        "preferred_language", description="Okta preferred language."
+    )
+    timezone: PropertyRef = PropertyRef("timezone", description="Okta timezone.")
+    user_type: PropertyRef = PropertyRef("user_type", description="Okta user type.")
+    title: PropertyRef = PropertyRef("title", description="Okta title.")
+    department: PropertyRef = PropertyRef("department", description="Okta department.")
+    division: PropertyRef = PropertyRef("division", description="Okta division.")
+    organization: PropertyRef = PropertyRef(
+        "organization", description="Okta organization."
+    )
+    cost_center: PropertyRef = PropertyRef(
+        "cost_center", description="Okta cost center."
+    )
+    employee_number: PropertyRef = PropertyRef(
+        "employee_number", description="Okta employee number."
+    )
+    manager: PropertyRef = PropertyRef("manager", description="Okta manager.")
+    manager_id: PropertyRef = PropertyRef("manager_id", description="Okta manager ID.")
+    mobile_phone: PropertyRef = PropertyRef(
+        "mobile_phone", description="Okta mobile phone."
+    )
+    primary_phone: PropertyRef = PropertyRef(
+        "primary_phone", description="Okta primary phone."
+    )
+    street_address: PropertyRef = PropertyRef(
+        "street_address", description="Okta street address."
+    )
+    city: PropertyRef = PropertyRef("city", description="Okta city.")
+    state: PropertyRef = PropertyRef("state", description="Okta state.")
+    zip_code: PropertyRef = PropertyRef("zip_code", description="Okta zip code.")
+    country_code: PropertyRef = PropertyRef(
+        "country_code", description="Okta country code."
+    )
+    postal_address: PropertyRef = PropertyRef(
+        "postal_address", description="Okta postal address."
+    )
     # JSON-encoded tenant-specific custom profile attributes
-    custom_attributes: PropertyRef = PropertyRef("custom_attributes")
+    custom_attributes: PropertyRef = PropertyRef(
+        "custom_attributes", description="Okta custom attributes."
+    )
 
 
 @dataclass(frozen=True)
 class OktaUserToOrgRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -188,7 +286,13 @@ class OktaUserToOrgRelProperties(CartographyRelProperties):
 class OktaUserToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -197,7 +301,11 @@ class OktaUserToOktaOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaUserToOktaUserRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -205,7 +313,11 @@ class OktaUserToOktaUserRoleRel(CartographyRelSchema):
     # (:OktaUser)-[:HAS_ROLE]->(:OktaUserRole)
     target_node_label: str = "OktaUserRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("role_id")},
+        {
+            "id": PropertyRef(
+                "role_id", description="Identifier of the related Okta role."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ROLE"

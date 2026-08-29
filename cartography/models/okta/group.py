@@ -20,21 +20,37 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class OktaGroupRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    created: PropertyRef = PropertyRef("created")
-    description: PropertyRef = PropertyRef("description")
-    label: PropertyRef = PropertyRef("label")
-    assignment_type: PropertyRef = PropertyRef("assignment_type")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    status: PropertyRef = PropertyRef("status")
-    role_type: PropertyRef = PropertyRef("role_type")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Okta description."
+    )
+    label: PropertyRef = PropertyRef("label", description="Okta label.")
+    assignment_type: PropertyRef = PropertyRef(
+        "assignment_type", description="Okta assignment type."
+    )
+    last_updated: PropertyRef = PropertyRef(
+        "last_updated", description="Okta last updated."
+    )
+    status: PropertyRef = PropertyRef("status", description="Okta status.")
+    role_type: PropertyRef = PropertyRef("role_type", description="Okta role type.")
+    name: PropertyRef = PropertyRef("name", description="Okta name.")
 
 
 @dataclass(frozen=True)
 class OktaGroupRoleToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -42,7 +58,13 @@ class OktaGroupRoleToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaGroupRoleToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -66,28 +88,51 @@ class OktaGroupRoleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OktaGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # Legacy fields for backward compatibility
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    sam_account_name: PropertyRef = PropertyRef("sam_account_name")
-    dn: PropertyRef = PropertyRef("dn")
-    windows_domain_qualified_name: PropertyRef = PropertyRef(
-        "windows_domain_qualified_name"
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
     )
-    external_id: PropertyRef = PropertyRef("external_id")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    # Legacy fields for backward compatibility
+    name: PropertyRef = PropertyRef("name", extra_index=True, description="Okta name.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Okta description."
+    )
+    sam_account_name: PropertyRef = PropertyRef(
+        "sam_account_name", description="Okta sam account name."
+    )
+    dn: PropertyRef = PropertyRef("dn", description="Okta dn.")
+    windows_domain_qualified_name: PropertyRef = PropertyRef(
+        "windows_domain_qualified_name",
+        description="Okta windows domain qualified name.",
+    )
+    external_id: PropertyRef = PropertyRef(
+        "external_id", description="Okta external ID."
+    )
     # New fields from SDK v3.x
-    created: PropertyRef = PropertyRef("created")
-    last_membership_updated: PropertyRef = PropertyRef("last_membership_updated")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    object_class: PropertyRef = PropertyRef("object_class")
-    group_type: PropertyRef = PropertyRef("group_type")
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
+    last_membership_updated: PropertyRef = PropertyRef(
+        "last_membership_updated", description="Okta last membership updated."
+    )
+    last_updated: PropertyRef = PropertyRef(
+        "last_updated", description="Okta last updated."
+    )
+    object_class: PropertyRef = PropertyRef(
+        "object_class", description="Okta object class."
+    )
+    group_type: PropertyRef = PropertyRef("group_type", description="Okta group type.")
 
 
 @dataclass(frozen=True)
 class OktaGroupToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -95,7 +140,13 @@ class OktaGroupToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaGroupToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -106,7 +157,11 @@ class OktaGroupToOktaOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaUserRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -114,7 +169,11 @@ class OktaGroupToOktaUserRel(CartographyRelSchema):
     # (:OktaGroup)<-[:MEMBER_OF]-(:OktaUser)
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("user_id")},
+        {
+            "id": PropertyRef(
+                "user_id", description="Identifier of the related Okta user."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
@@ -123,7 +182,11 @@ class OktaGroupToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaGroupRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -131,7 +194,11 @@ class OktaGroupToOktaGroupRoleRel(CartographyRelSchema):
     # (:OktaGroup)-[:HAS_ROLE]->(:OktaGroupRole)
     target_node_label: str = "OktaGroupRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("role_id")},
+        {
+            "id": PropertyRef(
+                "role_id", description="Identifier of the related Okta role."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ROLE"
@@ -158,25 +225,43 @@ class OktaGroupSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class OktaGroupRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    status: PropertyRef = PropertyRef("status")
-    last_updated: PropertyRef = PropertyRef("last_updated")
-    created: PropertyRef = PropertyRef("created")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
+    name: PropertyRef = PropertyRef("name", description="Okta name.")
+    status: PropertyRef = PropertyRef("status", description="Okta status.")
+    last_updated: PropertyRef = PropertyRef(
+        "last_updated", description="Okta last updated."
+    )
+    created: PropertyRef = PropertyRef("created", description="Okta created.")
     # Condition properties - supports expression, group_membership, and complex types
-    condition_type: PropertyRef = PropertyRef("condition_type")
-    conditions: PropertyRef = PropertyRef("conditions")
-    expression_type: PropertyRef = PropertyRef("expression_type")
+    condition_type: PropertyRef = PropertyRef(
+        "condition_type", description="Okta condition type."
+    )
+    conditions: PropertyRef = PropertyRef("conditions", description="Okta conditions.")
+    expression_type: PropertyRef = PropertyRef(
+        "expression_type", description="Okta expression type."
+    )
     # People filter properties
-    exclusions: PropertyRef = PropertyRef("exclusions")
-    inclusions: PropertyRef = PropertyRef("inclusions")
-    assigned_groups: PropertyRef = PropertyRef("assigned_groups")
+    exclusions: PropertyRef = PropertyRef("exclusions", description="Okta exclusions.")
+    inclusions: PropertyRef = PropertyRef("inclusions", description="Okta inclusions.")
+    assigned_groups: PropertyRef = PropertyRef(
+        "assigned_groups", description="Okta assigned groups."
+    )
 
 
 @dataclass(frozen=True)
 class OktaGroupRuleToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -184,7 +269,13 @@ class OktaGroupRuleToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaGroupRuleToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -195,7 +286,11 @@ class OktaGroupRuleToOktaOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaGroupRuleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -203,7 +298,11 @@ class OktaGroupToOktaGroupRuleRel(CartographyRelSchema):
     # (:OktaGroupRule)-[:ASSIGNED_BY_GROUP_RULE]->(:OktaGroup)
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("group_id")},
+        {
+            "id": PropertyRef(
+                "group_id", description="Identifier of the related Okta group."
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSIGNED_BY_GROUP_RULE"

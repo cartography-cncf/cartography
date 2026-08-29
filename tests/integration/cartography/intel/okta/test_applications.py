@@ -58,7 +58,7 @@ def _create_mock_application(app_id: str, name: str, label: str) -> MagicMock:
     app.credentials.signing.use = None
     app.credentials.user_name_template = MagicMock()
     app.credentials.user_name_template.push_status = None
-    app.credentials.user_name_template.suffix = None
+    app.credentials.user_name_template.user_suffix = None
     app.credentials.user_name_template.template = None
     app.credentials.user_name_template.type = None
 
@@ -96,7 +96,7 @@ def _create_mock_application(app_id: str, name: str, label: str) -> MagicMock:
     app.visibility.auto_launch = False
     app.visibility.auto_submit_toolbar = False
     app.visibility.hide = MagicMock()
-    app.visibility.hide.as_dict = MagicMock(return_value={})
+    app.visibility.hide.to_dict = MagicMock(return_value={})
 
     return app
 

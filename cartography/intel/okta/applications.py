@@ -104,7 +104,7 @@ def _transform_okta_applications(
             user_name_template.push_status if user_name_template else None
         )
         application_props["credentials_user_name_template_suffix"] = (
-            user_name_template.suffix if user_name_template else None
+            user_name_template.user_suffix if user_name_template else None
         )
         application_props["credentials_user_name_template_template"] = (
             user_name_template.template if user_name_template else None
@@ -126,53 +126,53 @@ def _transform_okta_applications(
         )
         application_props["name"] = okta_application.name
         settings = okta_application.settings
-        settings_app = settings.app if settings else None
-        application_props["settings_app_acs_url"] = (
-            settings_app.acs_url if settings_app else None
+        settings_app = getattr(settings, "app", None)
+        application_props["settings_app_acs_url"] = getattr(
+            settings_app, "acs_url", None
         )
-        application_props["settings_app_button_field"] = (
-            settings_app.button_field if settings_app else None
+        application_props["settings_app_button_field"] = getattr(
+            settings_app, "button_field", None
         )
-        application_props["settings_app_login_url_regex"] = (
-            settings_app.login_url_regex if settings_app else None
+        application_props["settings_app_login_url_regex"] = getattr(
+            settings_app, "login_url_regex", None
         )
-        application_props["settings_app_org_name"] = (
-            settings_app.org_name if settings_app else None
+        application_props["settings_app_org_name"] = getattr(
+            settings_app, "org_name", None
         )
-        application_props["settings_app_password_field"] = (
-            settings_app.password_field if settings_app else None
+        application_props["settings_app_password_field"] = getattr(
+            settings_app, "password_field", None
         )
-        application_props["settings_app_url"] = (
-            settings_app.url if settings_app else None
+        application_props["settings_app_url"] = getattr(settings_app, "url", None)
+        application_props["settings_app_username_field"] = getattr(
+            settings_app, "username_field", None
         )
-        application_props["settings_app_username_field"] = (
-            settings_app.username_field if settings_app else None
+        application_props["settings_app_implicit_assignment"] = getattr(
+            settings, "implicit_assignment", None
         )
-        application_props["settings_app_implicit_assignment"] = (
-            settings.implicit_assignment if settings else None
+        application_props["settings_app_inline_hook_id"] = getattr(
+            settings, "inline_hook_id", None
         )
-        application_props["settings_app_inline_hook_id"] = (
-            settings.inline_hook_id if settings else None
+        notifications = getattr(settings, "notifications", None)
+        vpn = getattr(notifications, "vpn", None)
+        network = getattr(vpn, "network", None)
+        application_props["settings_notifications_vpn_help_url"] = getattr(
+            vpn, "help_url", None
         )
-        notifications = settings.notifications if settings else None
-        vpn = notifications.vpn if notifications else None
-        network = vpn.network if vpn else None
-        application_props["settings_notifications_vpn_help_url"] = (
-            vpn.help_url if vpn else None
+        application_props["settings_notifications_vpn_message"] = getattr(
+            vpn, "message", None
         )
-        application_props["settings_notifications_vpn_message"] = (
-            vpn.message if vpn else None
+        application_props["settings_notifications_vpn_network_connection"] = getattr(
+            network, "connection", None
         )
-        application_props["settings_notifications_vpn_network_connection"] = (
-            network.connection if network else None
-        )
+        network_exclude = getattr(network, "exclude", None)
         application_props["settings_notifications_vpn_network_exclude"] = (
-            json.dumps(network.exclude) if network else None
+            json.dumps(network_exclude) if network_exclude is not None else None
         )
+        network_include = getattr(network, "include", None)
         application_props["settings_notifications_vpn_network_include"] = (
-            json.dumps(network.include) if network else None
+            json.dumps(network_include) if network_include is not None else None
         )
-        notes = settings.notes if settings else None
+        notes = getattr(settings, "notes", None)
         application_props["settings_notes_admin"] = getattr(notes, "admin", None)
         application_props["settings_notes_enduser"] = getattr(notes, "enduser", None)
         # Parse SAML sign-on configuration if present
@@ -298,7 +298,7 @@ def _transform_okta_applications(
         application_props["status"] = (
             okta_application.status.value if okta_application.status else None
         )
-        application_props["activated"] = okta_application.activated
+        application_props["activated"] = getattr(okta_application, "activated", None)
         visibility = okta_application.visibility
         # visibility.app_links is a dict of poorly defined shape, treat as JSON blob.
         application_props["visibility_app_links"] = (
@@ -310,11 +310,10 @@ def _transform_okta_applications(
         application_props["visibility_auto_submit_toolbar"] = (
             visibility.auto_submit_toolbar if visibility else None
         )
-        # visibility.hide is an ApplicationVisibilityHide model that behaves
-        # like a dict; stored as JSON.
+        # visibility.hide is an ApplicationVisibilityHide model; store it as JSON.
         hide = visibility.hide if visibility else None
         application_props["visibility_hide"] = (
-            json.dumps(hide.as_dict()) if hide else None
+            json.dumps(hide.to_dict()) if hide else None
         )
         transformed_applications.append(application_props)
         # Add user assignments

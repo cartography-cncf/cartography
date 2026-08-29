@@ -13,14 +13,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class OktaReplyUriNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    uri: PropertyRef = PropertyRef("uri")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for the Okta resource."
+    )
+    uri: PropertyRef = PropertyRef("uri", description="Okta URI.")
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
 class OktaReplyUriToOktaOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -28,7 +38,13 @@ class OktaReplyUriToOktaOrganizationRelProperties(CartographyRelProperties):
 class OktaReplyUriToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},
+        {
+            "id": PropertyRef(
+                "OKTA_ORG_ID",
+                set_in_kwargs=True,
+                description="Identifier of the owning Okta organization.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -39,7 +55,11 @@ class OktaReplyUriToOktaOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaReplyUriToOktaApplicationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this resource.",
+    )
 
 
 @dataclass(frozen=True)
@@ -47,7 +67,12 @@ class OktaReplyUriToOktaApplicationRelProperties(CartographyRelProperties):
 class OktaReplyUriToOktaApplicationRel(CartographyRelSchema):
     target_node_label: str = "OktaApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("application_id")},
+        {
+            "id": PropertyRef(
+                "application_id",
+                description="Identifier of the related Okta application.",
+            )
+        },
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REPLYURI"

@@ -6,6 +6,16 @@ from typing import Callable
 
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
+from okta.models.bookmark_application_settings import BookmarkApplicationSettings
+from okta.models.bookmark_application_settings_application import (
+    BookmarkApplicationSettingsApplication,
+)
+from okta.models.open_id_connect_application_settings import (
+    OpenIdConnectApplicationSettings,
+)
+from okta.models.open_id_connect_application_settings_client import (
+    OpenIdConnectApplicationSettingsClient,
+)
 from okta.models.saml_application_settings import SamlApplicationSettings
 from okta.models.saml_application_settings_sign_on import SamlApplicationSettingsSignOn
 from okta.models.swa_application_settings import SwaApplicationSettings
@@ -48,6 +58,10 @@ def _patch_okta_sdk_application_models() -> None:
         "url",
         "username_field",
     )
+    _make_fields_optional(BookmarkApplicationSettingsApplication, "url")
+    _make_fields_optional(OpenIdConnectApplicationSettingsClient, "grant_types")
+    BookmarkApplicationSettings.model_rebuild(force=True)
+    OpenIdConnectApplicationSettings.model_rebuild(force=True)
     SamlApplicationSettings.model_rebuild(force=True)
     SwaApplicationSettings.model_rebuild(force=True)
 

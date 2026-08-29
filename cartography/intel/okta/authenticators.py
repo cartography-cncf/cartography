@@ -74,11 +74,12 @@ def _transform_okta_authenticators(
         authenticator_props["last_updated"] = okta_authenticator.last_updated
         authenticator_props["name"] = okta_authenticator.name
         # Parse provider configuration into separate properties
-        if okta_authenticator.provider:
-            authenticator_props["provider_type"] = okta_authenticator.provider.type
-            provider_config = okta_authenticator.provider.configuration
+        provider = getattr(okta_authenticator, "provider", None)
+        if provider:
+            authenticator_props["provider_type"] = provider.type
+            provider_config = provider.configuration
             if provider_config:
-                config_dict = provider_config.as_dict()
+                config_dict = provider_config.to_dict()
                 # Common provider configuration fields
                 authenticator_props["provider_auth_port"] = config_dict.get("authPort")
                 authenticator_props["provider_host_name"] = config_dict.get("hostName")
@@ -88,20 +89,20 @@ def _transform_okta_authenticators(
                 authenticator_props["provider_integration_key"] = config_dict.get(
                     "integrationKey"
                 )
-                authenticator_props["provider_secret_key"] = config_dict.get(
-                    "secretKey"
-                )
-                authenticator_props["provider_shared_secret"] = config_dict.get(
-                    "sharedSecret"
-                )
                 authenticator_props["provider_user_name_template"] = config_dict.get(
                     "userNameTemplate", {}
                 ).get("template")
                 # Keep full configuration as JSON for any additional fields
-                authenticator_props["provider_configuration"] = json.dumps(config_dict)
+                safe_config = {
+                    key: value
+                    for key, value in config_dict.items()
+                    if key not in {"secretKey", "sharedSecret"}
+                }
+                authenticator_props["provider_configuration"] = json.dumps(safe_config)
         # Parse settings into separate properties
-        if okta_authenticator.settings:
-            settings_dict = okta_authenticator.settings.as_dict()
+        settings = getattr(okta_authenticator, "settings", None)
+        if settings:
+            settings_dict = settings.to_dict()
             # Common settings fields
             authenticator_props["settings_allowed_for"] = settings_dict.get(
                 "allowedFor"
@@ -109,7 +110,10 @@ def _transform_okta_authenticators(
             authenticator_props["settings_token_lifetime_minutes"] = settings_dict.get(
                 "tokenLifetimeInMinutes"
             )
-            authenticator_props["settings_compliance"] = settings_dict.get("compliance")
+            compliance = settings_dict.get("compliance")
+            authenticator_props["settings_compliance"] = (
+                json.dumps(compliance) if compliance is not None else None
+            )
             authenticator_props["settings_channel_binding"] = settings_dict.get(
                 "channelBinding", {}
             ).get("style")

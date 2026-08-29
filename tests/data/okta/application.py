@@ -202,3 +202,18 @@ OIN_BROWSER_PLUGIN_APPLICATION = {
     "signOnMode": "BROWSER_PLUGIN",
     "settings": {},
 }
+
+BOOKMARK_APPLICATION_WITHOUT_URL = {
+    "id": "0oaBookmark",
+    "name": "bookmark",
+    "label": "Bookmark",
+    "status": "ACTIVE",
+    "signOnMode": "BOOKMARK",
+    "settings": {
+        "app": {
+            "regionType": "com",
+            "subdomain": "example",
+            "domain": "example.com",
+        },
+    },
+}
