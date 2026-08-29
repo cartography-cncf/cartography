@@ -12,6 +12,8 @@ from cartography.intel.orca.response import empty_target_context
 from cartography.intel.orca.response import field_value
 from cartography.intel.orca.response import inventory_target_context
 from cartography.intel.orca.response import optional_nonempty_string
+from cartography.intel.orca.response import optional_number
+from cartography.intel.orca.response import optional_string
 from cartography.intel.orca.response import parse_datetime
 from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
@@ -75,7 +77,7 @@ def transform(
             "Orca Alert.data",
         )
         alert_id = require_nonempty_string(
-            unwrap_value(data["AlertId"]),
+            field_value(data, "AlertId"),
             "Orca AlertId",
         )
 
@@ -102,19 +104,41 @@ def transform(
                 asset_data.get("asset_type"),
                 "Orca Alert.AssetData.asset_type",
             )
-        alert_type = field_value(data, "AlertType")
-        title = field_value(data, "Title") or alert_type or f"Orca alert {alert_id}"
+        alert_type = optional_string(
+            field_value(data, "AlertType"),
+            "Orca Alert.AlertType",
+        )
+        title = (
+            optional_string(field_value(data, "Title"), "Orca Alert.Title")
+            or alert_type
+            or f"Orca alert {alert_id}"
+        )
         transformed.append(
             {
                 "id": f"orca:{organization_id}:{alert_id}",
                 "orca_id": alert_id,
                 "title": title,
-                "details": field_value(data, "Details"),
-                "severity": field_value(data, "Severity"),
-                "category": field_value(data, "Category"),
+                "details": optional_string(
+                    field_value(data, "Details"),
+                    "Orca Alert.Details",
+                ),
+                "severity": optional_string(
+                    field_value(data, "Severity"),
+                    "Orca Alert.Severity",
+                ),
+                "category": optional_string(
+                    field_value(data, "Category"),
+                    "Orca Alert.Category",
+                ),
                 "alert_type": alert_type,
-                "orca_score": field_value(data, "OrcaScore"),
-                "status": field_value(data, "Status"),
+                "orca_score": optional_number(
+                    field_value(data, "OrcaScore"),
+                    "Orca Alert.OrcaScore",
+                ),
+                "status": optional_string(
+                    field_value(data, "Status"),
+                    "Orca Alert.Status",
+                ),
                 "created_at": parse_datetime(
                     field_value(data, "CreatedAt"),
                     "Orca Alert.CreatedAt",
@@ -123,7 +147,10 @@ def transform(
                     field_value(data, "LastSeen"),
                     "Orca Alert.LastSeen",
                 ),
-                "console_url": field_value(data, "ConsoleUrlLink"),
+                "console_url": optional_string(
+                    field_value(data, "ConsoleUrlLink"),
+                    "Orca Alert.ConsoleUrlLink",
+                ),
                 "cve_ids": canonical_cve_ids(
                     field_value(data, "CveIds"),
                 ),

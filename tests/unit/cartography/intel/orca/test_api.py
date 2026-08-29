@@ -5,7 +5,47 @@ import pytest
 import requests
 from requests.adapters import HTTPAdapter
 
+import cartography.intel.orca
 from cartography.intel.orca import api
+
+
+@pytest.mark.parametrize(
+    ("api_endpoint", "api_token"),
+    [
+        (None, "test-token"),
+        ("https://api.orcasecurity.example", None),
+    ],
+)  # type: ignore[misc]
+def test_start_orca_ingestion_skips_incomplete_config(
+    mocker,
+    api_endpoint: str | None,
+    api_token: str | None,
+) -> None:
+    # Arrange
+    config = MagicMock(orca_api_endpoint=api_endpoint, orca_api_token=api_token)
+    create_session = mocker.patch.object(api, "create_session")
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(MagicMock(), config)
+
+    # Assert
+    create_session.assert_not_called()
+
+
+def test_start_orca_ingestion_skips_invalid_endpoint(mocker, caplog) -> None:
+    # Arrange
+    config = MagicMock(
+        orca_api_endpoint="not-an-api-origin",
+        orca_api_token="test-token",
+    )
+    create_session = mocker.patch.object(api, "create_session")
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(MagicMock(), config)
+
+    # Assert
+    create_session.assert_not_called()
+    assert "Invalid Orca API endpoint" in caplog.text
 
 
 def test_normalize_api_endpoint_accepts_origin_and_trailing_slash() -> None:

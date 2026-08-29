@@ -20,18 +20,18 @@ def start_orca_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """Ingest organization-wide Orca security findings."""
     api_endpoint = config.orca_api_endpoint
     api_token = config.orca_api_token
-    if not api_endpoint and not api_token:
+    if not api_endpoint or not api_token:
         logger.info(
             "Orca import is not configured - skipping this module. "
             "Set orca_api_endpoint and orca_api_token to enable.",
         )
         return
-    if not api_endpoint or not api_token:
-        raise ValueError(
-            "Orca requires both orca_api_endpoint and orca_api_token",
-        )
 
-    api_endpoint = api.normalize_api_endpoint(api_endpoint)
+    try:
+        api_endpoint = api.normalize_api_endpoint(api_endpoint)
+    except ValueError as exc:
+        logger.warning("Invalid Orca API endpoint - skipping this module: %s", exc)
+        return
     session = api.create_session(api_token)
     try:
         organization = api.get_organization(session, api_endpoint)

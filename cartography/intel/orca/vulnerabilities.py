@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from typing import Any
 
 import neo4j
@@ -16,6 +17,8 @@ from cartography.intel.orca.response import require_nonempty_string
 from cartography.intel.orca.response import require_object
 from cartography.models.orca import OrcaVulnerabilityFindingSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
 VULNERABILITY_MODEL = "VulnerabilityV2"
@@ -112,6 +115,7 @@ def transform(
     organization_id: str,
 ) -> list[dict[str, Any]]:
     transformed: dict[str, dict[str, Any]] = {}
+    duplicate_count = 0
     for vulnerability in raw_vulnerabilities:
         inventory = require_object(
             vulnerability.get("Inventory"),
@@ -186,12 +190,15 @@ def transform(
                     "cpe": package.get("CPE"),
                     "source_package": package.get("SourcePackage"),
                 }
-                existing = transformed.get(finding_id)
-                if existing is not None and existing != finding:
-                    raise ValueError(
-                        "Orca vulnerability rows contained conflicting identities",
-                    )
+                if finding_id in transformed:
+                    duplicate_count += 1
+                    continue
                 transformed[finding_id] = finding
+    if duplicate_count:
+        logger.warning(
+            "Skipped %d duplicate Orca vulnerability findings within a page.",
+            duplicate_count,
+        )
     return list(transformed.values())
 
 
@@ -227,18 +234,25 @@ def sync(
         result_name="vulnerabilities",
     ):
         vulnerabilities = transform(page, organization_id)
-        page_ids = {vulnerability["id"] for vulnerability in vulnerabilities}
-        if len(page_ids) != len(vulnerabilities) or page_ids & seen_ids:
-            raise RuntimeError(
-                "Orca vulnerabilities response contained duplicate identities",
+        new_vulnerabilities = [
+            vulnerability
+            for vulnerability in vulnerabilities
+            if vulnerability["id"] not in seen_ids
+        ]
+        duplicate_count = len(vulnerabilities) - len(new_vulnerabilities)
+        if duplicate_count:
+            logger.warning(
+                "Skipped %d duplicate Orca vulnerability findings across pages.",
+                duplicate_count,
             )
-        seen_ids.update(page_ids)
-        load_vulnerabilities(
-            neo4j_session,
-            vulnerabilities,
-            organization_id,
-            update_tag,
-        )
+        seen_ids.update(vulnerability["id"] for vulnerability in new_vulnerabilities)
+        if new_vulnerabilities:
+            load_vulnerabilities(
+                neo4j_session,
+                new_vulnerabilities,
+                organization_id,
+                update_tag,
+            )
 
 
 def cleanup(

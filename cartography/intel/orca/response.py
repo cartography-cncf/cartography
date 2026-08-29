@@ -33,6 +33,24 @@ def optional_nonempty_string(value: Any, field: str) -> str | None:
     return require_nonempty_string(value, field)
 
 
+def optional_string(value: Any, field: str) -> str | None:
+    """Return an optional string or reject a malformed present value."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
+def optional_number(value: Any, field: str) -> int | float | None:
+    """Return an optional number or reject a malformed present value."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a number")
+    return value
+
+
 def require_object(value: Any, field: str) -> dict[str, Any]:
     """Return a required JSON object or reject the malformed field."""
     if not isinstance(value, dict):

@@ -30,7 +30,7 @@ route. Cartography reads the token from `ORCASECURITY_API_TOKEN` by default.
 | Option | Default | Required | Description |
 |--------|---------|----------|-------------|
 | `--orca-api-endpoint` |  | Yes | Regional Orca API origin. |
-| `--orca-api-token-env-var` | `ORCASECURITY_API_TOKEN` | Yes | Environment variable that contains the Orca API token. |
+| `--orca-api-token-env-var` | `ORCASECURITY_API_TOKEN` | No | Environment variable that contains the Orca API token. |
 
 ## Run Cartography
 

@@ -33,11 +33,7 @@ _INSPECTOR_SEVERITY = {
 # Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
 # lowercase variants so normalized results remain stable across API casing.
 _ORCA_CVSS_SEVERITY = {
-    "NONE": "info",
-    "LOW": "low",
-    "MEDIUM": "medium",
-    "HIGH": "high",
-    "CRITICAL": "critical",
+    **_CVSS_SEVERITY,
     "none": "info",
     "low": "low",
     "medium": "medium",

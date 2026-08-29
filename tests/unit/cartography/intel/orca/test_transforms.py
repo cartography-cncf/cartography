@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from cartography.intel.orca import alerts
+from cartography.intel.orca import api
 from cartography.intel.orca import vulnerabilities
 from tests.data.orca import ALERTS
 from tests.data.orca import ASSET_UNIQUE_ID_1
@@ -125,6 +126,48 @@ def test_alert_transform_normalizes_identifiers_and_timestamps() -> None:
     assert result["target_orca_inventory_id"] == INVENTORY_ID_1
     assert result["target_orca_asset_unique_id"] == ASSET_UNIQUE_ID_1
     assert result["created_at"] == datetime.fromisoformat("2026-08-02T12:00:00+00:00")
+
+
+def test_alert_transform_reports_missing_alert_id() -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"].pop("AlertId")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="Orca AlertId must be a nonempty string"):
+        alerts.transform([raw], ORGANIZATION_ID)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "Title",
+        "Details",
+        "Severity",
+        "Category",
+        "AlertType",
+        "Status",
+        "ConsoleUrlLink",
+    ],
+)  # type: ignore[misc]
+def test_alert_transform_rejects_non_string_scalars(field: str) -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"][field] = {"value": ["not", "a", "string"]}
+
+    # Act and assert
+    with pytest.raises(ValueError, match=rf"Orca Alert.{field} must be a string"):
+        alerts.transform([raw], ORGANIZATION_ID)
+
+
+def test_alert_transform_rejects_non_numeric_score() -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"]["OrcaScore"] = {"value": True}
+
+    # Act and assert
+    with pytest.raises(ValueError, match="Orca Alert.OrcaScore must be a number"):
+        alerts.transform([raw], ORGANIZATION_ID)
 
 
 @pytest.mark.parametrize("malformed_data", [None, [], "", 0, False])  # type: ignore[misc]
@@ -278,16 +321,56 @@ def test_vulnerability_transform_deduplicates_identical_package_rows() -> None:
     assert len(results) == 1
 
 
-def test_vulnerability_transform_rejects_conflicting_duplicate_identity() -> None:
+def test_vulnerability_transform_skips_conflicting_duplicate_identity(caplog) -> None:
     # Arrange
     raw = deepcopy(VULNERABILITIES[0])
     package = raw["InstalledPackage"]
     conflicting_package = {**package, "Name": "different-name"}
     raw["InstalledPackage"] = [package, conflicting_package]
 
-    # Act and assert
-    with pytest.raises(ValueError, match="conflicting identities"):
-        vulnerabilities.transform([raw], ORGANIZATION_ID)
+    # Act
+    results = vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert len(results) == 1
+    assert results[0]["package_name"] == package["Name"]
+    assert "Skipped 1 duplicate Orca vulnerability findings within a page" in (
+        caplog.text
+    )
+
+
+def test_vulnerability_sync_skips_duplicate_identity_across_pages(
+    mocker,
+    caplog,
+) -> None:
+    # Arrange
+    duplicate = deepcopy(VULNERABILITIES[0])
+    duplicate["id"] = "another-orca-row"
+    duplicate["Description"] = "Different advisory for the same occurrence."
+    mocker.patch.object(
+        api,
+        "iter_serving_layer_pages",
+        return_value=[[VULNERABILITIES[0]], [duplicate]],
+    )
+    load_vulnerabilities = mocker.patch.object(
+        vulnerabilities,
+        "load_vulnerabilities",
+    )
+
+    # Act
+    vulnerabilities.sync(
+        mocker.MagicMock(),
+        mocker.MagicMock(),
+        "https://api.orcasecurity.example",
+        ORGANIZATION_ID,
+        12345,
+    )
+
+    # Assert
+    load_vulnerabilities.assert_called_once()
+    assert "Skipped 1 duplicate Orca vulnerability findings across pages" in (
+        caplog.text
+    )
 
 
 @pytest.mark.parametrize(
