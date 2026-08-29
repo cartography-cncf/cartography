@@ -126,6 +126,15 @@ def test_sync_okta_groups(
         assert (user_id, "group-001") in user_group_pairs
         assert (user_id, "group-002") in user_group_pairs
 
+    # The legacy edge remains available until v1.0.0.
+    legacy_result = neo4j_session.run(
+        """
+        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup)
+        RETURN g.id as group_id, u.id as user_id
+        """,
+    )
+    assert {(r["user_id"], r["group_id"]) for r in legacy_result} == user_group_pairs
+
 
 @patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
 @patch.object(
@@ -288,8 +297,12 @@ def test_cleanup_okta_group_memberships(
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})
         MERGE (u1)-[r1:MEMBER_OF]->(g)
         MERGE (u2)-[r2:MEMBER_OF]->(g)
+        MERGE (u1)-[legacy1:MEMBER_OF_OKTA_GROUP]->(g)
+        MERGE (u2)-[legacy2:MEMBER_OF_OKTA_GROUP]->(g)
         SET r1.lastupdated = $OLD_UPDATE_TAG,
-            r2.lastupdated = $NEW_UPDATE_TAG
+            r2.lastupdated = $NEW_UPDATE_TAG,
+            legacy1.lastupdated = $OLD_UPDATE_TAG,
+            legacy2.lastupdated = $NEW_UPDATE_TAG
         """,
         ORG_ID=TEST_ORG_ID,
         OLD_UPDATE_TAG=OLD_UPDATE_TAG,
@@ -314,3 +327,11 @@ def test_cleanup_okta_group_memberships(
     )
     remaining_users = {r["user_id"] for r in result}
     assert remaining_users == {"fresh-user"}
+
+    legacy_result = neo4j_session.run(
+        """
+        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup{id: 'test-group'})
+        RETURN u.id as user_id
+        """,
+    )
+    assert {r["user_id"] for r in legacy_result} == {"fresh-user"}

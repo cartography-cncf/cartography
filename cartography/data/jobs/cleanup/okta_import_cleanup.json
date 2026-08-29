@@ -25,12 +25,6 @@
       "__comment__": "Migration: drop deprecated (:OktaGroup)-[:MEMBER_OF_OKTA_ROLE]->() edges, replaced by :HAS_ROLE to OktaGroupRole"
     },
     {
-      "query": "MATCH (:OktaUser)-[r:MEMBER_OF_OKTA_GROUP]->(:OktaGroup) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
-      "iterative": true,
-      "iterationsize": 100,
-      "__comment__": "Migration: drop deprecated Okta user-group edges, replaced by MEMBER_OF"
-    },
-    {
       "query": "MATCH (:OktaGroup)-[r:MAPS_TO]->(:KubernetesGroup) WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 100,

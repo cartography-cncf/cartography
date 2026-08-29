@@ -180,6 +180,23 @@ class OktaGroupToOktaUserRel(CartographyRelSchema):
     properties: OktaGroupToOktaUserRelProperties = OktaGroupToOktaUserRelProperties()
 
 
+# DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
+@dataclass(frozen=True)
+class OktaGroupToOktaUserDeprecatedRel(CartographyRelSchema):
+    # (:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)
+    target_node_label: str = "OktaUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef(
+                "user_id", description="Identifier of the related Okta user."
+            )
+        },
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF_OKTA_GROUP"
+    properties: OktaGroupToOktaUserRelProperties = OktaGroupToOktaUserRelProperties()
+
+
 @dataclass(frozen=True)
 class OktaGroupToOktaGroupRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef(
@@ -217,6 +234,7 @@ class OktaGroupSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             OktaGroupToOktaUserRel(),
+            OktaGroupToOktaUserDeprecatedRel(),
             OktaGroupToOktaGroupRoleRel(),
         ],
     )
