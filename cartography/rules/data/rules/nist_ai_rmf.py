@@ -626,7 +626,7 @@ _aibom_nist_ai_agent_runtime_inventory = Fact(
         representative_agent,
         min(representative_source.image_uri) AS image_uri,
         min(representative_image._ont_digest) AS manifest_digest
-    RETURN
+    RETURN DISTINCT
         coalesce(
             representative_agent.name,
             representative_agent.logical_id,
