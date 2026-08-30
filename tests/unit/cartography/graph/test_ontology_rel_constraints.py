@@ -5,6 +5,8 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.ontology.constraints import ONTOLOGY_REL_CONSTRAINTS
 from cartography.models.ontology.constraints_whitelist import LEGACY_REL_WHITELIST
+from tests.utils import is_node_schema
+from tests.utils import is_rel_schema
 from tests.utils import load_models
 from tests.utils import node_schema_labels
 
@@ -58,14 +60,14 @@ def test_ontology_rel_constraints():
     node_classes: list[type[CartographyNodeSchema]] = []
     rel_classes: list[type[CartographyRelSchema]] = []
     for _module_name, element in load_models(cartography.models):
-        if issubclass(element, CartographyNodeSchema):
+        if is_node_schema(element):
             primary = getattr(element, "label", None)
             if isinstance(primary, str):
                 labels = node_schema_labels(element)
                 label_index[primary] = labels
                 extra_labels_seen.update(labels - {primary})
                 node_classes.append(element)
-        elif issubclass(element, CartographyRelSchema):
+        elif is_rel_schema(element):
             rel_classes.append(element)
     for extra in extra_labels_seen:
         label_index.setdefault(extra, {extra})

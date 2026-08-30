@@ -237,6 +237,10 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     If you prefer pip, `pip install cartography` still works inside a venv. See the [Python packaging guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments) for venv setup with `pyenv` / `pyenv-virtualenv`.
 
+    ```{tip}
+    Install `cartography[neo4j-rust]` instead of `cartography` to get a faster Neo4j driver. See [Faster Neo4j driver](ops.md#faster-neo4j-driver).
+    ```
+
 1. **Configure your data sources.**
 
     See the configuration section of [each relevant intel module](https://docs.cartography.dev/modules) for more details. In this example we will use [AWS](https://docs.cartography.dev/modules/aws/config.html).

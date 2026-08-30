@@ -2,10 +2,10 @@ import asyncio
 import logging
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 
 from cartography.config import Config
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.client import create_graph_service_client
 from cartography.intel.microsoft.o365.license_details import (
     cleanup_user_license_assignments,
@@ -49,11 +49,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     async def main() -> None:
-        credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret,
-        )
+        credential = credentials.make_credential(tenant_id, client_id, client_secret)
         o365_client = create_graph_service_client(credential)
 
         try:

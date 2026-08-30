@@ -1,7 +1,10 @@
 import cartography.intel.gcp.compute
 from tests.data.gcp.compute import LIST_FIREWALLS_RESPONSE
+from tests.data.gcp.compute import VPC_PEERING_RESPONSE
 from tests.data.gcp.compute import VPC_RESPONSE
 from tests.data.gcp.compute import VPC_SUBNET_RESPONSE
+from tests.data.gcp.compute import VPN_GATEWAYS_RESPONSE
+from tests.data.gcp.compute import VPN_TUNNELS_RESPONSE
 
 
 def test_transform_gcp_vpcs():
@@ -117,3 +120,106 @@ def test_transform_gcp_firewall():
     assert sample_fw_icmp_rule["fromport"] is None
     assert sample_fw_icmp_rule["toport"] is None
     assert sample_fw_icmp_rule["protocol"] == "icmp"
+
+
+def test_transform_gcp_vpc_peerings():
+    """
+    Ensure that transform_gcp_vpc_peerings() extracts peerings from a
+    networks.list response, builds stable IDs, and parses peer project IDs.
+    """
+    peerings = cartography.intel.gcp.compute.transform_gcp_vpc_peerings(
+        VPC_PEERING_RESPONSE
+    )
+    assert len(peerings) == 2
+
+    peering = peerings[0]
+    assert (
+        peering["id"]
+        == "projects/project-abc/global/networks/vpc-a/networkPeerings/peering-a-to-b"
+    )
+    assert peering["network_partial_uri"] == (
+        "projects/project-abc/global/networks/vpc-a"
+    )
+    assert peering["peer_network_partial_uri"] == (
+        "projects/project-def/global/networks/vpc-b"
+    )
+    assert peering["peer_project_id"] == "project-def"
+    assert peering["state"] == "ACTIVE"
+    assert peering["peer_mtu"] == 1460
+    assert peering["export_custom_routes"] is True
+    assert peering["import_custom_routes"] is False
+
+    peering2 = peerings[1]
+    assert peering2["peer_project_id"] == "project-xyz"
+
+
+def test_transform_gcp_vpc_peerings_no_peerings():
+    """
+    Ensure that transform_gcp_vpc_peerings() returns an empty list when no
+    network has peerings.
+    """
+    assert cartography.intel.gcp.compute.transform_gcp_vpc_peerings(VPC_RESPONSE) == []
+
+
+def test_transform_gcp_vpn_gateways():
+    """
+    Ensure that transform_gcp_vpn_gateways() builds correct partial URIs and
+    parses the network reference.
+    """
+    gateways = cartography.intel.gcp.compute.transform_gcp_vpn_gateways(
+        VPN_GATEWAYS_RESPONSE["items"],
+        "project-abc",
+    )
+    assert len(gateways) == 1
+
+    gateway = gateways[0]
+    assert (
+        gateway["partial_uri"]
+        == "projects/project-abc/regions/us-central1/vpnGateways/gw-a"
+    )
+    assert gateway["project_id"] == "project-abc"
+    assert gateway["region"] == "us-central1"
+    assert gateway["network_partial_uri"] == (
+        "projects/project-abc/global/networks/vpc-a"
+    )
+    assert gateway["gateway_ip_version"] == "IPV4"
+
+
+def test_transform_gcp_vpn_tunnels():
+    """
+    Ensure that transform_gcp_vpn_tunnels() builds correct partial URIs, parses
+    gateway references, and never copies the shared secret fields.
+    """
+    tunnels = cartography.intel.gcp.compute.transform_gcp_vpn_tunnels(
+        VPN_TUNNELS_RESPONSE["items"],
+        "project-abc",
+    )
+    assert len(tunnels) == 3
+
+    tunnel = tunnels[0]
+    assert (
+        tunnel["partial_uri"]
+        == "projects/project-abc/regions/us-central1/vpnTunnels/tunnel-a-to-b"
+    )
+    assert tunnel["vpn_gateway_partial_uri"] == (
+        "projects/project-abc/regions/us-central1/vpnGateways/gw-a"
+    )
+    assert tunnel["peer_gcp_gateway_partial_uri"] == (
+        "projects/project-def/regions/us-central1/vpnGateways/gw-b"
+    )
+    assert tunnel["target_vpn_gateway_partial_uri"] is None
+    assert tunnel["status"] == "ESTABLISHED"
+
+    classic = tunnels[2]
+    assert classic["vpn_gateway_partial_uri"] is None
+    assert classic["peer_gcp_gateway_partial_uri"] is None
+    assert classic["target_vpn_gateway_partial_uri"] == (
+        "projects/project-abc/regions/us-central1/targetVpnGateways/classic-gw"
+    )
+    assert classic["peer_ip"] == "198.51.100.1"
+
+    # sharedSecret / sharedSecretHash must never be copied to the graph.
+    for t in tunnels:
+        assert "sharedSecret" not in t
+        assert "sharedSecretHash" not in t
+        assert "shared_secret" not in t

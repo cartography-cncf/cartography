@@ -160,3 +160,60 @@ def create_test_application():
         "signOnMode": "app_signonmode_value",
     }
     return app
+
+
+SAML_APPLICATION_WITH_UNKNOWN_FEATURE = {
+    "id": "0oaFeatures",
+    "name": "myorg_app_1",
+    "label": "Custom SAML app",
+    "status": "ACTIVE",
+    "signOnMode": "SAML_2_0",
+    "features": [
+        "PUSH_NEW_USERS",
+        "AUTO_CONFIRM_IMPORTS",
+        "SCIM_PROVISIONING",
+    ],
+    "settings": {
+        "signOn": {
+            "allowMultipleAcsEndpoints": False,
+            "assertionSigned": True,
+            "honorForceAuthn": True,
+            "requestCompressed": False,
+            "responseSigned": True,
+            "audience": "https://example.com",
+            "destination": "https://example.com",
+            "idpIssuer": "https://example.com",
+            "recipient": "https://example.com",
+            "ssoAcsUrl": "https://example.com",
+            "digestAlgorithm": "SHA256",
+            "signatureAlgorithm": "RSA_SHA256",
+            "authnContextClassRef": "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport",
+            "subjectNameIdFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
+            "subjectNameIdTemplate": "${user.userName}",
+        },
+    },
+}
+
+OIN_BROWSER_PLUGIN_APPLICATION = {
+    "id": "0oaOinSwa",
+    "name": "docusign",
+    "label": "DocuSign",
+    "status": "ACTIVE",
+    "signOnMode": "BROWSER_PLUGIN",
+    "settings": {},
+}
+
+BOOKMARK_APPLICATION_WITHOUT_URL = {
+    "id": "0oaBookmark",
+    "name": "bookmark",
+    "label": "Bookmark",
+    "status": "ACTIVE",
+    "signOnMode": "BOOKMARK",
+    "settings": {
+        "app": {
+            "regionType": "com",
+            "subdomain": "example",
+            "domain": "example.com",
+        },
+    },
+}
