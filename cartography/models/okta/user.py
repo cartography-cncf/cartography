@@ -93,7 +93,7 @@ class OktaUserTypeToOktaUserRel(CartographyRelSchema):
 class OktaUserTypeSchema(CartographyNodeSchema):
     """An Okta user type.
 
-    Okta SDK 3.4.4 exposes only the ID returned by the list-user-types API.
+    The Okta SDK currently exposes only the ID returned by the list-user-types API.
     See https://github.com/okta/okta-sdk-python/issues/535.
     """
 

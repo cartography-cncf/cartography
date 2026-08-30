@@ -160,8 +160,10 @@ Center users:
 (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
 ```
 
-The AWS Identity Center sync creates these federation links from identity-store
-data. The Okta sync does not create `CAN_ASSUME_IDENTITY` relationships.
+The AWS Identity Center sync creates `CAN_ASSUME_IDENTITY` relationships from
+identity-store external IDs. The Microsoft sync creates `CAN_SIGN_ON_TO` and
+`FEDERATES_TO` relationships. The Okta sync does not create
+`CAN_ASSUME_IDENTITY` relationships.
 
 For an Okta user, combine federation, permitted access, and actual use:
 

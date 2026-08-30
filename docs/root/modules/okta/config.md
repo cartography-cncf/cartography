@@ -32,6 +32,7 @@ use the standard `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` pattern
 from [Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC),
 provide your pattern with `--okta-saml-role-regex`.
 
-This option affects only direct `OktaGroup` to `AWSRole` mapping. It does not
-control SCIM-provisioned users, groups, or permission assignments in AWS
-Identity Center. The AWS module imports that data.
+This option controls `OktaGroup` to `AWSRole` mapping for directly federated IAM
+roles and AWS Identity Center `AWSReservedSSO` roles. It does not control
+SCIM-provisioned users, groups, or account assignments; the AWS module imports
+that data.
