@@ -107,6 +107,25 @@ class FlyMachineToReleaseRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class FlyMachineToImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:FlyMachine)-[:HAS_IMAGE]->(:FlyImage)
+class FlyMachineToImageRel(CartographyRelSchema):
+    """Connects `FlyMachine` to the `FlyImage` it runs, matched by digest."""
+
+    target_node_label: str = "FlyImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: FlyMachineToImageRelProperties = FlyMachineToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class FlyMachineSchema(CartographyNodeSchema):
     """Represents a Fly Machine."""
 
@@ -115,5 +134,5 @@ class FlyMachineSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_INSTANCE])
     sub_resource_relationship: FlyMachineToAppRel = FlyMachineToAppRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [FlyMachineToReleaseRel()],
+        [FlyMachineToReleaseRel(), FlyMachineToImageRel()],
     )

@@ -30,6 +30,9 @@ TEST_APP_ID = "jlyv9r258ew18xrg"
 TEST_APP_NAME = "nhmhvxo3b9"
 TEST_MACHINE_ID = "90802949c92987"
 TEST_SERVICE_ID = f"{TEST_MACHINE_ID}/tcp/8000"
+TEST_IMAGE_DIGEST = (
+    "sha256:b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
+)
 
 
 @patch.object(
@@ -422,6 +425,41 @@ def test_start_flyio_ingestion(
         "DEPLOYED_FROM",
     ) == {
         (TEST_MACHINE_ID, "YgoYklRLL8Xo3fBPg6AoX28AG"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "Image",
+        ["id", "digest", "registry", "repository", "tag", "_ont_digest"],
+    ) == {
+        (
+            TEST_IMAGE_DIGEST,
+            TEST_IMAGE_DIGEST,
+            "registry.fly.io",
+            "nhmhvxo3b9",
+            "deployment-01JMWNHS84ZCCV89XYH9SQ48FX",
+            TEST_IMAGE_DIGEST,
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyImage",
+        "id",
+        "FlyApp",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_IMAGE_DIGEST, TEST_APP_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "FlyMachine",
+        "id",
+        "FlyImage",
+        "id",
+        "HAS_IMAGE",
+    ) == {
+        (TEST_MACHINE_ID, TEST_IMAGE_DIGEST),
     }
     assert check_rels(
         neo4j_session,

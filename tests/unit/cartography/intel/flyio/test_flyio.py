@@ -19,6 +19,7 @@ from tests.data.flyio.access_tokens import ORG_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.apps import APPS_RESPONSE
 from tests.data.flyio.certificates import CERTIFICATES_RESPONSE
 from tests.data.flyio.ips import IPS_RESPONSE
+from tests.data.flyio.machines import MACHINES_FOR_IMAGE_TEST_RESPONSE
 from tests.data.flyio.machines import MACHINES_RESPONSE
 from tests.data.flyio.releases import RELEASES_RESPONSE
 from tests.data.flyio.secrets import SECRETS_RESPONSE
@@ -213,6 +214,43 @@ def test_transform_machines_rejects_non_list_input():
         cartography.intel.flyio.machines.transform_services({})
     with pytest.raises(ValueError, match="missing required list machines"):
         cartography.intel.flyio.machines.transform_service_ports({})
+
+
+def test_transform_images_dedups_by_digest():
+    # Act
+    images = cartography.intel.flyio.machines.transform_images(
+        MACHINES_FOR_IMAGE_TEST_RESPONSE
+    )
+
+    # Assert: 3 machines share 1 digest and 1 has no image_ref -> exactly 1 image.
+    assert images == [
+        {
+            "id": (
+                "sha256:"
+                "b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
+            ),
+            "digest": (
+                "sha256:"
+                "b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
+            ),
+            "registry": "registry.fly.io",
+            "repository": "nhmhvxo3b9",
+            "tag": "deployment-01JMWNHS84ZCCV89XYH9SQ48FX",
+            "uri": "registry.fly.io/nhmhvxo3b9:deployment-01JMWNHS84ZCCV89XYH9SQ48FX",
+        },
+    ]
+
+
+def test_transform_images_skips_machines_without_a_digest():
+    # Arrange: a machine with no image_ref key at all.
+    machine = {**MACHINES_RESPONSE[0]}
+    machine.pop("image_ref")
+
+    # Act
+    images = cartography.intel.flyio.machines.transform_images([machine])
+
+    # Assert
+    assert images == []
 
 
 def test_transform_services_and_ports():

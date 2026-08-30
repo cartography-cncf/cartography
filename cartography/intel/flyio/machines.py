@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.flyio.util import get_json
 from cartography.intel.flyio.util import require_list
 from cartography.intel.flyio.util import require_non_empty
+from cartography.models.flyio.image import FlyImageSchema
 from cartography.models.flyio.machine import FlyMachineSchema
 from cartography.models.flyio.service import FlyMachineServicePortSchema
 from cartography.models.flyio.service import FlyMachineServiceSchema
@@ -52,7 +53,14 @@ def sync(
     transformed_machines = transform_machines(machines)
     services = transform_services(machines)
     service_ports = transform_service_ports(machines)
+    images = transform_images(machines)
 
+    load_images(
+        neo4j_session,
+        images,
+        common_job_parameters["APP_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    )
     load_machines(
         neo4j_session,
         transformed_machines,
@@ -125,6 +133,33 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return result
+
+
+def transform_images(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Extracts the distinct container images referenced by a set of Machines,
+    deduplicated by digest (several Machines commonly run the same deploy).
+    Machines with no image_ref yet (e.g. still starting) are skipped: without a
+    digest there is no stable identity to key the image node on.
+    """
+    images: dict[str, dict[str, Any]] = {}
+    for machine in require_list(machines, "machines"):
+        image_ref = machine.get("image_ref") or {}
+        digest = image_ref.get("digest")
+        if not digest:
+            continue
+        registry = image_ref.get("registry")
+        repository = image_ref.get("repository")
+        tag = image_ref.get("tag")
+        images[digest] = {
+            "id": digest,
+            "digest": digest,
+            "registry": registry,
+            "repository": repository,
+            "tag": tag,
+            "uri": f"{registry}/{repository}:{tag}",
+        }
+    return list(images.values())
 
 
 def transform_services(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -212,6 +247,22 @@ def load_machines(
 
 
 @timeit
+def load_images(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    app_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        FlyImageSchema(),
+        data,
+        lastupdated=update_tag,
+        APP_ID=app_id,
+    )
+
+
+@timeit
 def load_services(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -255,5 +306,8 @@ def cleanup(
         neo4j_session,
     )
     GraphJob.from_node_schema(FlyMachineSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(FlyImageSchema(), common_job_parameters).run(
         neo4j_session,
     )
