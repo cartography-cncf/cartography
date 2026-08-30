@@ -37,10 +37,10 @@ class FlyMachineNodeProperties(CartographyNodeProperties):
     )
     image_tag: PropertyRef = PropertyRef("image_tag", description="Image tag.")
     image_digest: PropertyRef = PropertyRef("image_digest", description="Image digest.")
-    image_id: PropertyRef = PropertyRef(
-        "image_id",
-        description="Id of the `FlyImage` this Machine runs (`<app_id>/<digest>`).",
-    )
+    # NOTE: no `image_id` property here. It exists in the transformed row purely
+    # so FlyMachineToImageRel's matcher can resolve HAS_IMAGE - not as a node
+    # property, to avoid it as a second, redundant source of truth for the same
+    # relationship target the edge itself already encodes.
     cpu_kind: PropertyRef = PropertyRef("cpu_kind", description="Machine CPU kind.")
     cpus: PropertyRef = PropertyRef("cpus", description="Number of CPUs.")
     memory_mb: PropertyRef = PropertyRef("memory_mb", description="Memory size in MB.")

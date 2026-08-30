@@ -584,34 +584,33 @@ def test_flyio_image_is_scoped_per_app_not_shared_across_apps(neo4j_session):
         )
 
     # Assert: two distinct app-scoped FlyImage nodes, not one shared node.
-    # (subset, not exact equality: this file's neo4j_session fixture is
-    # module-scoped and shared with test_start_flyio_ingestion above)
-    assert {
+    # Filtered to this test's own ids (exact, not subset) rather than asserting
+    # over the whole label: this file's neo4j_session fixture is module-scoped
+    # and shared with test_start_flyio_ingestion above, and filtering our own
+    # rows out lets this stay exact without hardcoding that other test's ids
+    # (and thus without depending on test execution order between the two).
+    all_images = check_nodes(neo4j_session, "FlyImage", ["id", "digest"])
+    our_images = {row for row in all_images if row[0].startswith(("app-a/", "app-b/"))}
+    assert our_images == {
         (f"app-a/{shared_digest}", shared_digest),
         (f"app-b/{shared_digest}", shared_digest),
-    } <= check_nodes(neo4j_session, "FlyImage", ["id", "digest"])
+    }
 
-    # Assert: each Machine links HAS_IMAGE only to its own app's image - not
-    # cross-linked to the other app's image node sharing the same digest.
-    assert {
+    # Assert: each Machine links HAS_IMAGE to exactly its own app's image - no
+    # cross-linking to the other app's image node sharing the same digest, and
+    # no unexpected extra edges from either machine.
+    all_has_image = check_rels(
+        neo4j_session,
+        "FlyMachine",
+        "id",
+        "FlyImage",
+        "id",
+        "HAS_IMAGE",
+    )
+    our_has_image = {
+        row for row in all_has_image if row[0] in ("machine-a", "machine-b")
+    }
+    assert our_has_image == {
         ("machine-a", f"app-a/{shared_digest}"),
         ("machine-b", f"app-b/{shared_digest}"),
-    } <= check_rels(
-        neo4j_session,
-        "FlyMachine",
-        "id",
-        "FlyImage",
-        "id",
-        "HAS_IMAGE",
-    )
-    assert (
-        "machine-a",
-        f"app-b/{shared_digest}",
-    ) not in check_rels(
-        neo4j_session,
-        "FlyMachine",
-        "id",
-        "FlyImage",
-        "id",
-        "HAS_IMAGE",
-    )
+    }
