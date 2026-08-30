@@ -602,7 +602,7 @@ _aibom_nist_ai_agent_runtime_inventory = Fact(
     name="Deployed AI agents running in a workload",
     description=(
         "Inventories AI agents whose scanned image is running on a workload, one row "
-        "per agent and workload. Narrows the AIBOM inventory to what is actually "
+        "per logical agent and workload. Narrows the AIBOM inventory to what is actually "
         "deployed, and names the workload so its tenant, cluster, region, and "
         "internet reachability can be read from the graph around it."
     ),
@@ -612,19 +612,36 @@ _aibom_nist_ai_agent_runtime_inventory = Fact(
     // Aggregate over the images rather than grouping by the image node: a digest is not
     // unique across registries, so an image pushed to both ECR and GHCR is two :Image
     // nodes sharing one _ont_digest, and grouping would report the agent once per registry.
-    WITH source, agent, svc, min(img._ont_digest) AS manifest_digest
+    WITH
+        coalesce(agent.logical_id, agent.id) AS agent_logical_id,
+        svc,
+        min(agent.id) AS representative_agent_id
+    MATCH (representative_source:AIBOMSource)-[:HAS_COMPONENT]->
+        (representative_agent:AIAgent {id: representative_agent_id})
+    MATCH (representative_source)-[:SCANNED_IMAGE]->(representative_image:Image)
+        <-[:HAS_RUNTIME_IMAGE]-(svc)
+    WITH
+        agent_logical_id,
+        svc,
+        representative_agent,
+        min(representative_source.image_uri) AS image_uri,
+        min(representative_image._ont_digest) AS manifest_digest
     RETURN
-        coalesce(agent.name, agent.logical_id, agent.id) AS agent_name,
+        coalesce(
+            representative_agent.name,
+            representative_agent.logical_id,
+            representative_agent.id
+        ) AS agent_name,
         coalesce(svc._ont_name, svc.name, svc.id) AS workload_name,
         svc.id AS workload_id,
         svc._ont_source AS ontology_source,
-        source.image_uri AS image_uri,
+        image_uri,
         manifest_digest,
-        agent.id AS agent_component_id,
-        agent.logical_id AS agent_logical_id,
-        agent.framework AS agent_framework,
-        agent.file_path AS agent_file_path,
-        agent.line_number AS agent_line_number
+        representative_agent.id AS agent_component_id,
+        agent_logical_id AS agent_logical_id,
+        representative_agent.framework AS agent_framework,
+        representative_agent.file_path AS agent_file_path,
+        representative_agent.line_number AS agent_line_number
     ORDER BY agent_name, workload_name
     """,
     cypher_visual_query="""
@@ -637,11 +654,11 @@ _aibom_nist_ai_agent_runtime_inventory = Fact(
     cypher_count_query="""
     MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
-    RETURN COUNT(DISTINCT agent) AS count
+    RETURN COUNT(DISTINCT coalesce(agent.logical_id, agent.id)) AS count
     """,
     asset_label="AIAgent",
     asset_id_field="agent_component_id",
-    identity_fields=("agent_component_id", "workload_id"),
+    identity_fields=("agent_logical_id", "workload_id"),
     module=Module.AIBOM,
     maturity=Maturity.EXPERIMENTAL,
 )

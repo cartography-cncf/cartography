@@ -126,8 +126,8 @@ def test_has_runtime_image_ignores_non_running_container(neo4j_session):
 
 
 def test_has_runtime_image_denormalizes_exposure(neo4j_session):
-    """Exposure is the logical OR across running replicas: an exposed workload's edge is
-    true, a non-exposed workload's edge is false."""
+    """Exposure is true if any replica is exposed, false with explicit internal
+    evidence, and absent when no replica has been evaluated."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
@@ -148,18 +148,28 @@ def test_has_runtime_image_denormalizes_exposure(neo4j_session):
         MERGE (c_exposed)-[re4:RESOLVED_IMAGE]->(img_a) SET re4.lastupdated = $tag
         MERGE (c_internal)-[re5:RESOLVED_IMAGE]->(img_a) SET re5.lastupdated = $tag
 
-        // Non-exposed workload: replica has no exposure property at all -> edge should be false.
+        // Non-exposed workload: replica has explicit non-public evidence.
         MERGE (svc_safe:ComputeService:KubernetesDeployment {id: 'deploy-safe'})
         SET svc_safe.lastupdated = $tag
         MERGE (pod_safe:ComputePod:KubernetesPod {id: 'pod-safe'})
         SET pod_safe.lastupdated = $tag
         MERGE (c_safe:Container:KubernetesContainer {id: 'container-safe'})
-        SET c_safe._ont_state = 'running', c_safe.lastupdated = $tag
+        SET c_safe._ont_state = 'running', c_safe.exposed_internet = false, c_safe.lastupdated = $tag
         MERGE (img_b:Image:AWSECRImage {id: 'sha256:imgb'})
         SET img_b.lastupdated = $tag
         MERGE (c_safe)-[rs1:WORKLOAD_PARENT]->(pod_safe) SET rs1.lastupdated = $tag
         MERGE (pod_safe)-[rs2:WORKLOAD_PARENT]->(svc_safe) SET rs2.lastupdated = $tag
         MERGE (c_safe)-[rs3:RESOLVED_IMAGE]->(img_b) SET rs3.lastupdated = $tag
+
+        // Unknown workload: neither service nor replica has exposure evidence.
+        MERGE (svc_unknown:ComputeService:KubernetesDeployment {id: 'deploy-unknown'})
+        SET svc_unknown.lastupdated = $tag
+        MERGE (c_unknown:Container:KubernetesContainer {id: 'container-unknown'})
+        SET c_unknown._ont_state = 'running', c_unknown.lastupdated = $tag
+        MERGE (img_c:Image:AWSECRImage {id: 'sha256:imgc'})
+        SET img_c.lastupdated = $tag
+        MERGE (c_unknown)-[ru1:WORKLOAD_PARENT]->(svc_unknown) SET ru1.lastupdated = $tag
+        MERGE (c_unknown)-[ru2:RESOLVED_IMAGE]->(img_c) SET ru2.lastupdated = $tag
         """,
         tag=TEST_UPDATE_TAG,
     )
@@ -168,6 +178,7 @@ def test_has_runtime_image_denormalizes_exposure(neo4j_session):
 
     assert _edge_exposure(neo4j_session, "deploy-exposed", "sha256:imga") == [True]
     assert _edge_exposure(neo4j_session, "deploy-safe", "sha256:imgb") == [False]
+    assert _edge_exposure(neo4j_session, "deploy-unknown", "sha256:imgc") == [None]
 
 
 def test_has_runtime_image_exposure_from_service_level_signal(neo4j_session):

@@ -92,6 +92,25 @@ def _seed(neo4j_session) -> None:
         """,
         tag=TEST_UPDATE_TAG,
     )
+    neo4j_session.run(
+        """
+        // The same logical agent detected in another scan of the same running image
+        // must not create another agent/workload finding.
+        MATCH (img:Image {id: 'sha256:exposed'})
+        MERGE (source:AIBOMSource {id: 'aibom-exposed-copy'})
+        SET source.image_uri = 'registry.example.com/exposed-copy:latest',
+            source.lastupdated = $tag
+        MERGE (agent:AIBOMComponent:AIAgent {id: 'agent-exposed-copy'})
+        SET agent.name = 'agent-exposed',
+            agent.logical_id = 'logical-exposed',
+            agent.framework = 'examplechain',
+            agent.lastupdated = $tag
+        MERGE (source)-[si:SCANNED_IMAGE]->(img) SET si.lastupdated = $tag
+        MERGE (source)-[hc:HAS_COMPONENT]->(agent) SET hc.lastupdated = $tag
+        MERGE (agent)-[di:DETECTED_IN]->(img) SET di.lastupdated = $tag
+        """,
+        tag=TEST_UPDATE_TAG,
+    )
     run_typed_analysis_job(
         WORKLOAD_HAS_RUNTIME_IMAGE, neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG}
     )
@@ -110,10 +129,10 @@ def test_reports_only_agents_that_are_running(neo4j_session) -> None:
 
     # The scanned-but-not-running agent is the whole point of the runtime narrowing:
     # it is in the AIBOM inventory and must not be in this one.
-    assert {f["agent_component_id"] for f in findings} == {
-        "agent-exposed",
-        "agent-internal",
-        "agent-staging",
+    assert {f["agent_logical_id"] for f in findings} == {
+        "logical-exposed",
+        "logical-internal",
+        "logical-staging",
     }
 
 
@@ -121,11 +140,12 @@ def test_reports_one_row_per_agent_and_workload(neo4j_session) -> None:
     _seed(neo4j_session)
 
     findings = _findings(neo4j_session)
-    by_agent = {f["agent_component_id"]: f for f in findings}
+    by_agent = {f["agent_logical_id"]: f for f in findings}
 
     assert len(findings) == len(by_agent)
-    exposed = by_agent["agent-exposed"]
+    exposed = by_agent["logical-exposed"]
     assert exposed["agent_name"] == "agent-exposed"
+    assert exposed["agent_component_id"] == "agent-exposed"
     assert exposed["workload_name"] == "workload-exposed"
     assert exposed["workload_id"] == "svc-exposed"
     assert exposed["ontology_source"] == "aws"
@@ -138,7 +158,7 @@ def test_reported_workload_anchors_tenant_and_exposure(neo4j_session) -> None:
     reachable", so a change that broke that anchor would fail here."""
     _seed(neo4j_session)
 
-    by_agent = {f["agent_component_id"]: f for f in _findings(neo4j_session)}
+    by_agent = {f["agent_logical_id"]: f for f in _findings(neo4j_session)}
 
     context = neo4j_session.run(
         """
@@ -157,19 +177,19 @@ def test_reported_workload_anchors_tenant_and_exposure(neo4j_session) -> None:
     )
     by_workload = {r["workload_id"]: r for r in context}
 
-    assert by_workload[by_agent["agent-exposed"]["workload_id"]] == {
+    assert by_workload[by_agent["logical-exposed"]["workload_id"]] == {
         "workload_id": "svc-exposed",
         "tenant_name": "example-prod",
         "cluster_name": "prod-cluster",
         "internet_exposed": True,
     }
-    assert by_workload[by_agent["agent-internal"]["workload_id"]] == {
+    assert by_workload[by_agent["logical-internal"]["workload_id"]] == {
         "workload_id": "svc-internal",
         "tenant_name": "example-prod",
         "cluster_name": "prod-cluster",
         "internet_exposed": False,
     }
     # Serverless: a tenant but no cluster.
-    staging = by_workload[by_agent["agent-staging"]["workload_id"]]
+    staging = by_workload[by_agent["logical-staging"]["workload_id"]]
     assert staging["tenant_name"] == "example-staging"
     assert staging["cluster_name"] is None
