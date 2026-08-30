@@ -224,12 +224,18 @@ def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
     )
 
 
-def test_nist_ai_aibom_coverage_gap_count_query_counts_all_sources():
+def test_nist_ai_aibom_coverage_gap_count_query_counts_only_gaps():
     fact = aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
 
-    assert fact.cypher_count_query.strip() == (
-        "MATCH (source:AIBOMSource)\n    RETURN COUNT(source) AS count"
-    )
+    assert "source.agentic_status" in fact.cypher_count_query
+    assert "coalesce(source.pending_agent_review, 0) > 0" in fact.cypher_count_query
+
+
+def test_nist_ai_aibom_coverage_gap_includes_incomplete_agentic_review():
+    fact = aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
+
+    assert "source.agentic_status" in fact.cypher_query
+    assert "coalesce(source.pending_agent_review, 0) > 0" in fact.cypher_query
 
 
 def test_aibom_agent_inventory_stages_embedding_aggregation():

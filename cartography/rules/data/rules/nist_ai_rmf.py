@@ -704,6 +704,7 @@ class NistAiAibomCoverageGapOutput(Finding):
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
+    agentic_status: str | None = None
     image_matched: bool | None = None
     total_components: int | None = None
     gap_reason: str | None = None
@@ -725,6 +726,9 @@ _aibom_nist_ai_coverage_gaps = Fact(
             WHEN toLower(coalesce(source.source_status, 'completed')) <> 'completed' THEN 'incomplete_source'
             WHEN source.analysis_status IS NOT NULL
                  AND toLower(source.analysis_status) <> 'completed' THEN 'analysis_not_completed'
+            WHEN source.agentic_status IS NOT NULL
+                 AND toLower(source.agentic_status) <> 'completed' THEN 'agentic_review_incomplete'
+            WHEN coalesce(source.pending_agent_review, 0) > 0 THEN 'agentic_review_pending'
             ELSE NULL
         END AS gap_reason
     WHERE gap_reason IS NOT NULL
@@ -737,6 +741,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
         source.scanner_version AS scanner_version,
         source.source_status AS source_status,
         source.analysis_status AS analysis_status,
+        source.agentic_status AS agentic_status,
         source.image_matched AS image_matched,
         source.total_components AS total_components,
         gap_reason
@@ -751,11 +756,28 @@ _aibom_nist_ai_coverage_gaps = Fact(
             source.analysis_status IS NOT NULL
             AND toLower(source.analysis_status) <> 'completed'
         )
+        OR (
+            source.agentic_status IS NOT NULL
+            AND toLower(source.agentic_status) <> 'completed'
+        )
+        OR coalesce(source.pending_agent_review, 0) > 0
     OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:Image)
     RETURN source, p
     """,
     cypher_count_query="""
     MATCH (source:AIBOMSource)
+    WHERE
+        coalesce(source.image_matched, false) = false
+        OR toLower(coalesce(source.source_status, 'completed')) <> 'completed'
+        OR (
+            source.analysis_status IS NOT NULL
+            AND toLower(source.analysis_status) <> 'completed'
+        )
+        OR (
+            source.agentic_status IS NOT NULL
+            AND toLower(source.agentic_status) <> 'completed'
+        )
+        OR coalesce(source.pending_agent_review, 0) > 0
     RETURN COUNT(source) AS count
     """,
     asset_label="AIBOMSource",

@@ -235,6 +235,7 @@ def _build_source_payload(
         "run_id": _as_str(report_metadata.get("run_id")),
         "analyzer_version": _as_str(report_metadata.get("analyzer_version")),
         "analysis_status": _as_str(report_metadata.get("status")),
+        "agentic_status": _as_str(report_metadata.get("agentic_status")),
         "report_schema_version": _as_str(report_metadata.get("report_schema_version")),
         "report_started_at": _as_str(report_metadata.get("started_at")),
         "report_completed_at": _as_str(report_metadata.get("completed_at")),
