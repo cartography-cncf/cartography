@@ -166,9 +166,49 @@ railway_mapping = OntologyMapping(
     ],
 )
 
+# Fly Volume state, per https://fly.io/docs/volumes/volume-states/ (the full
+# documented state machine).
+_FLYIO_VOLUME_STATE = {
+    "creating": "creating",
+    "created": "available",
+    "extending": "in_use",
+    "restoring": "creating",
+    "enabling_remote_export": "in_use",
+    "hydrating": "in_use",
+    "recovering": "creating",
+    "scheduling_destroy": "deleting",
+    "pending_destroy": "deleting",
+}
+
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="size_gb", node_field="size_gb"),
+                OntologyFieldMapping(
+                    ontology_field="encrypted", node_field="encrypted"
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _FLYIO_VOLUME_STATE},
+                ),
+            ],
+        ),
+    ],
+)
+
 BLOCK_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "railway": railway_mapping,
+    "flyio": flyio_mapping,
 }

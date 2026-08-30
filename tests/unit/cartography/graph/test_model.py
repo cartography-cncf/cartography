@@ -367,6 +367,11 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # (`_sub_resource_label`/`_sub_resource_id` kwargs) rather than a fixed
     # sub_resource_relationship, so the label legitimately has no static root.
     "GCPArtifactRegistryImage",
+    # A Fly.io user keeps the same provider identity across organizations.
+    # Anchoring the node to one organization would let that organization's
+    # cleanup delete a user that still belongs to another organization, so
+    # Fly.io loads RESOURCE and MEMBER_OF through organization-scoped MatchLinks.
+    "FlyUser",
     # GitHub nodes that can exist outside any organization. A GitHubUser may
     # be unaffiliated, and a GitHubRepository can be owned by a personal user
     # rather than an organization, so neither is anchored to a single tenant.

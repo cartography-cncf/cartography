@@ -22,6 +22,7 @@ modules/databricks/index
 modules/digitalocean/index
 modules/docker_scout/index
 modules/duo/index
+modules/flyio/index
 modules/gcp/index
 modules/github/index
 modules/gitlab/index

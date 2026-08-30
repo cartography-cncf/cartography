@@ -92,8 +92,26 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+flyio_mapping = OntologyMapping(
+    module_name="flyio",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="FlyImage",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="digest", node_field="digest", required=True
+                ),
+                OntologyFieldMapping(ontology_field="uri", node_field="uri"),
+                # architecture / os / variant: Fly's Machine API exposes no
+                # per-digest platform metadata.
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
+    "flyio": flyio_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
