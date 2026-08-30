@@ -37,6 +37,10 @@ class FlyMachineNodeProperties(CartographyNodeProperties):
     )
     image_tag: PropertyRef = PropertyRef("image_tag", description="Image tag.")
     image_digest: PropertyRef = PropertyRef("image_digest", description="Image digest.")
+    image_id: PropertyRef = PropertyRef(
+        "image_id",
+        description="Id of the `FlyImage` this Machine runs (`<app_id>/<digest>`).",
+    )
     cpu_kind: PropertyRef = PropertyRef("cpu_kind", description="Machine CPU kind.")
     cpus: PropertyRef = PropertyRef("cpus", description="Number of CPUs.")
     memory_mb: PropertyRef = PropertyRef("memory_mb", description="Memory size in MB.")
@@ -114,11 +118,14 @@ class FlyMachineToImageRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:FlyMachine)-[:HAS_IMAGE]->(:FlyImage)
 class FlyMachineToImageRel(CartographyRelSchema):
-    """Connects `FlyMachine` to the `FlyImage` it runs, matched by digest."""
+    """Connects `FlyMachine` to the `FlyImage` it runs, matched by the app-scoped
+    image id (not digest: digest alone is no longer unique once FlyImage is
+    scoped per-app, so matching on it would also link to other apps' images
+    sharing that digest)."""
 
     target_node_label: str = "FlyImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("image_digest")},
+        {"id": PropertyRef("image_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_IMAGE"

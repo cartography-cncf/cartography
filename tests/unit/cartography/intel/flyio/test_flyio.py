@@ -150,7 +150,9 @@ def test_transform_apps_rejects_missing_apps_list():
 
 def test_transform_machines_does_not_store_env_values():
     # Act
-    machines = cartography.intel.flyio.machines.transform_machines(MACHINES_RESPONSE)
+    machines = cartography.intel.flyio.machines.transform_machines(
+        MACHINES_RESPONSE, TEST_APP_ID
+    )
 
     # Assert
     assert machines == [
@@ -167,6 +169,10 @@ def test_transform_machines_does_not_store_env_values():
             "image_tag": "deployment-01JMWNHS84ZCCV89XYH9SQ48FX",
             "image_digest": (
                 "sha256:"
+                "b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
+            ),
+            "image_id": (
+                f"{TEST_APP_ID}/sha256:"
                 "b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
             ),
             "cpu_kind": "shared",
@@ -193,7 +199,7 @@ def test_transform_machines_rejects_empty_ids():
 
     # Act and assert
     with pytest.raises(ValueError, match="required non-empty machine id"):
-        cartography.intel.flyio.machines.transform_machines(machines)
+        cartography.intel.flyio.machines.transform_machines(machines, TEST_APP_ID)
 
 
 def test_transform_machines_rejects_missing_ids():
@@ -203,13 +209,13 @@ def test_transform_machines_rejects_missing_ids():
 
     # Act and assert
     with pytest.raises(ValueError, match="required non-empty machine id"):
-        cartography.intel.flyio.machines.transform_machines([machine])
+        cartography.intel.flyio.machines.transform_machines([machine], TEST_APP_ID)
 
 
 def test_transform_machines_rejects_non_list_input():
     # Act and assert
     with pytest.raises(ValueError, match="missing required list machines"):
-        cartography.intel.flyio.machines.transform_machines({})
+        cartography.intel.flyio.machines.transform_machines({}, TEST_APP_ID)
     with pytest.raises(ValueError, match="missing required list machines"):
         cartography.intel.flyio.machines.transform_services({})
     with pytest.raises(ValueError, match="missing required list machines"):

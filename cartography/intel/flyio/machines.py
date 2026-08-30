@@ -50,7 +50,7 @@ def sync(
         common_job_parameters["BASE_URL"],
         common_job_parameters["APP_NAME"],
     )
-    transformed_machines = transform_machines(machines)
+    transformed_machines = transform_machines(machines, common_job_parameters["APP_ID"])
     services = transform_services(machines)
     service_ports = transform_service_ports(machines)
     images = transform_images(machines, common_job_parameters["APP_ID"])
@@ -96,7 +96,9 @@ def get(
     )
 
 
-def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_machines(
+    machines: list[dict[str, Any]], app_id: str
+) -> list[dict[str, Any]]:
     result = []
     for machine in require_list(machines, "machines"):
         machine_id = _machine_id(machine)
@@ -105,6 +107,7 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
         restart = config.get("restart") or {}
         metadata = config.get("metadata") or {}
         image_ref = machine.get("image_ref") or {}
+        digest = image_ref.get("digest")
         result.append(
             {
                 "id": machine_id,
@@ -117,7 +120,12 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "image_registry": image_ref.get("registry"),
                 "image_repository": image_ref.get("repository"),
                 "image_tag": image_ref.get("tag"),
-                "image_digest": image_ref.get("digest"),
+                "image_digest": digest,
+                # Matches FlyImage.id (app-scoped), not digest: digest alone is no
+                # longer unique once FlyImage is scoped per-app, so matching on it
+                # directly would link this machine to every app's image sharing
+                # that digest, not just this app's.
+                "image_id": f"{app_id}/{digest}" if digest else None,
                 "cpu_kind": guest.get("cpu_kind"),
                 "cpus": guest.get("cpus"),
                 "memory_mb": guest.get("memory_mb"),

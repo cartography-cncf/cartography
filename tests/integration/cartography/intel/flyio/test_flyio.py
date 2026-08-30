@@ -1,3 +1,4 @@
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import cartography.intel.flyio
@@ -10,7 +11,9 @@ import cartography.intel.flyio.releases
 import cartography.intel.flyio.secrets
 import cartography.intel.flyio.users
 import cartography.intel.flyio.volumes
+from cartography.client.core.tx import load
 from cartography.config import Config
+from cartography.models.flyio.app import FlyAppSchema
 from tests.data.flyio.access_tokens import APP_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.access_tokens import ORG_ACCESS_TOKENS_RESPONSE
 from tests.data.flyio.apps import APPS_RESPONSE
@@ -496,3 +499,119 @@ def test_start_flyio_ingestion(
         (f"{TEST_SERVICE_ID}/80", TEST_SERVICE_ID),
         (f"{TEST_SERVICE_ID}/443", TEST_SERVICE_ID),
     }
+
+
+def _minimal_machine(machine_id: str, digest: str) -> dict:
+    return {
+        "id": machine_id,
+        "name": machine_id,
+        "state": "started",
+        "region": "lhr",
+        "instance_id": f"{machine_id}-instance",
+        "private_ip": "fdaa:10:e286:a7b:34e:c803:57c:9",
+        "config": {"guest": {}, "restart": {}, "metadata": {}, "services": []},
+        "image_ref": {
+            "registry": "registry.fly.io",
+            "repository": "shared-repo",
+            "tag": "latest",
+            "digest": digest,
+        },
+        "created_at": "2026-08-01T00:00:00Z",
+        "updated_at": "2026-08-01T00:00:00Z",
+        "host_status": "ok",
+        "cordoned": False,
+    }
+
+
+def test_flyio_image_is_scoped_per_app_not_shared_across_apps(neo4j_session):
+    """
+    Two different apps deploying the exact same image digest must not collapse
+    onto one FlyImage node, and each app's Machine must link (HAS_IMAGE) only to
+    its own app's image - not to the other app's image node sharing that digest.
+    This is a regression test for a bug where FlyImage was keyed purely by
+    digest while its cleanup stayed app-scoped, and the HAS_IMAGE matcher
+    matched on that non-unique digest.
+    """
+    # Arrange
+    shared_digest = (
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    )
+    load(
+        neo4j_session,
+        FlyAppSchema(),
+        [{"id": "app-a", "name": "app-a"}],
+        lastupdated=TEST_UPDATE_TAG,
+        ORGANIZATION_ID="org-x",
+    )
+    load(
+        neo4j_session,
+        FlyAppSchema(),
+        [{"id": "app-b", "name": "app-b"}],
+        lastupdated=TEST_UPDATE_TAG,
+        ORGANIZATION_ID="org-x",
+    )
+
+    # Act: sync app-a and app-b, each with one Machine sharing the same digest.
+    with patch.object(
+        cartography.intel.flyio.machines,
+        "get",
+        return_value=[_minimal_machine("machine-a", shared_digest)],
+    ):
+        cartography.intel.flyio.machines.sync(
+            neo4j_session,
+            Mock(),
+            {
+                "BASE_URL": "https://api.machines.dev",
+                "APP_NAME": "app-a",
+                "APP_ID": "app-a",
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+            },
+        )
+    with patch.object(
+        cartography.intel.flyio.machines,
+        "get",
+        return_value=[_minimal_machine("machine-b", shared_digest)],
+    ):
+        cartography.intel.flyio.machines.sync(
+            neo4j_session,
+            Mock(),
+            {
+                "BASE_URL": "https://api.machines.dev",
+                "APP_NAME": "app-b",
+                "APP_ID": "app-b",
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+            },
+        )
+
+    # Assert: two distinct app-scoped FlyImage nodes, not one shared node.
+    # (subset, not exact equality: this file's neo4j_session fixture is
+    # module-scoped and shared with test_start_flyio_ingestion above)
+    assert {
+        (f"app-a/{shared_digest}", shared_digest),
+        (f"app-b/{shared_digest}", shared_digest),
+    } <= check_nodes(neo4j_session, "FlyImage", ["id", "digest"])
+
+    # Assert: each Machine links HAS_IMAGE only to its own app's image - not
+    # cross-linked to the other app's image node sharing the same digest.
+    assert {
+        ("machine-a", f"app-a/{shared_digest}"),
+        ("machine-b", f"app-b/{shared_digest}"),
+    } <= check_rels(
+        neo4j_session,
+        "FlyMachine",
+        "id",
+        "FlyImage",
+        "id",
+        "HAS_IMAGE",
+    )
+    assert (
+        "machine-a",
+        f"app-b/{shared_digest}",
+    ) not in check_rels(
+        neo4j_session,
+        "FlyMachine",
+        "id",
+        "FlyImage",
+        "id",
+        "HAS_IMAGE",
+    )
