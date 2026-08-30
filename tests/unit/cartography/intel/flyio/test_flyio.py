@@ -219,14 +219,15 @@ def test_transform_machines_rejects_non_list_input():
 def test_transform_images_dedups_by_digest():
     # Act
     images = cartography.intel.flyio.machines.transform_images(
-        MACHINES_FOR_IMAGE_TEST_RESPONSE
+        MACHINES_FOR_IMAGE_TEST_RESPONSE, TEST_APP_ID
     )
 
-    # Assert: 3 machines share 1 digest and 1 has no image_ref -> exactly 1 image.
+    # Assert: 2 machines share 1 digest and 1 has no image_ref -> exactly 1 image,
+    # with the node id scoped to this app (not the bare digest).
     assert images == [
         {
             "id": (
-                "sha256:"
+                f"{TEST_APP_ID}/sha256:"
                 "b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
             ),
             "digest": (
@@ -247,7 +248,7 @@ def test_transform_images_skips_machines_without_a_digest():
     machine.pop("image_ref")
 
     # Act
-    images = cartography.intel.flyio.machines.transform_images([machine])
+    images = cartography.intel.flyio.machines.transform_images([machine], TEST_APP_ID)
 
     # Assert
     assert images == []

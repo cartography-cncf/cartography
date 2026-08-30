@@ -14,7 +14,12 @@ from cartography.models.ontology.labels import IMAGE
 
 @dataclass(frozen=True)
 class FlyImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", description="Same as digest.")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Composite `<app_id>/<digest>`. Scoped per-app to match"
+        " this module's per-app cleanup, since a node-level cleanup keyed only by"
+        " digest could delete an image another app still deploys.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     digest: PropertyRef = PropertyRef(
         "digest", extra_index=True, description="SHA256 digest of the image."
@@ -55,8 +60,11 @@ class FlyImageToAppRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class FlyImageSchema(CartographyNodeSchema):
-    """Represents a container image deployed by one or more Fly Machines,
-    identified by its digest. Deduplicated across Machines that share a deploy."""
+    """Represents a container image deployed by one or more Fly Machines within
+    a single app, identified by digest. Deduplicated across Machines in the same
+    app that share a deploy; scoped per-app (not deduplicated across apps) so
+    this module's per-app cleanup can never delete an image another app still
+    references."""
 
     label: str = "FlyImage"
     properties: FlyImageNodeProperties = FlyImageNodeProperties()

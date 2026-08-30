@@ -53,7 +53,7 @@ def sync(
     transformed_machines = transform_machines(machines)
     services = transform_services(machines)
     service_ports = transform_service_ports(machines)
-    images = transform_images(machines)
+    images = transform_images(machines, common_job_parameters["APP_ID"])
 
     load_images(
         neo4j_session,
@@ -135,12 +135,17 @@ def transform_machines(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def transform_images(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_images(
+    machines: list[dict[str, Any]], app_id: str
+) -> list[dict[str, Any]]:
     """
     Extracts the distinct container images referenced by a set of Machines,
     deduplicated by digest (several Machines commonly run the same deploy).
     Machines with no image_ref yet (e.g. still starting) are skipped: without a
-    digest there is no stable identity to key the image node on.
+    digest there is no stable identity to key the image node on. The node id is
+    scoped to this app (`<app_id>/<digest>`, not the bare digest) so this
+    module's per-app cleanup can never delete an image another app still
+    deploys.
     """
     images: dict[str, dict[str, Any]] = {}
     for machine in require_list(machines, "machines"):
@@ -152,7 +157,7 @@ def transform_images(machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
         repository = image_ref.get("repository")
         tag = image_ref.get("tag")
         images[digest] = {
-            "id": digest,
+            "id": f"{app_id}/{digest}",
             "digest": digest,
             "registry": registry,
             "repository": repository,

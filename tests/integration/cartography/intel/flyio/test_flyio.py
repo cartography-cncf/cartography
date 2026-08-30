@@ -33,6 +33,7 @@ TEST_SERVICE_ID = f"{TEST_MACHINE_ID}/tcp/8000"
 TEST_IMAGE_DIGEST = (
     "sha256:b0cbba70b2f1fbb720502cff65ca83bbdbca1e02a78860ce075efdb320eb9802"
 )
+TEST_IMAGE_ID = f"{TEST_APP_ID}/{TEST_IMAGE_DIGEST}"
 
 
 @patch.object(
@@ -432,7 +433,7 @@ def test_start_flyio_ingestion(
         ["id", "digest", "registry", "repository", "tag", "_ont_digest"],
     ) == {
         (
-            TEST_IMAGE_DIGEST,
+            TEST_IMAGE_ID,
             TEST_IMAGE_DIGEST,
             "registry.fly.io",
             "nhmhvxo3b9",
@@ -449,7 +450,7 @@ def test_start_flyio_ingestion(
         "RESOURCE",
         rel_direction_right=False,
     ) == {
-        (TEST_IMAGE_DIGEST, TEST_APP_ID),
+        (TEST_IMAGE_ID, TEST_APP_ID),
     }
     assert check_rels(
         neo4j_session,
@@ -459,7 +460,7 @@ def test_start_flyio_ingestion(
         "id",
         "HAS_IMAGE",
     ) == {
-        (TEST_MACHINE_ID, TEST_IMAGE_DIGEST),
+        (TEST_MACHINE_ID, TEST_IMAGE_ID),
     }
     assert check_rels(
         neo4j_session,
