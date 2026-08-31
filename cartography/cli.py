@@ -941,6 +941,22 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            github_incremental_sync: Annotated[
+                bool,
+                typer.Option(
+                    "--github-incremental-sync",
+                    help=(
+                        "Enable incremental sync for GitHub repos. "
+                        "Skips archived/disabled repos in Actions, commits, and manifest syncs. "
+                        "Skips commits for repos with no push in the lookback window. "
+                        "Skips re-fetching workflow YAML and dependency manifests for repos "
+                        "whose pushedAt is unchanged since the last sync. "
+                        "Secrets, variables, and environments are always refreshed regardless."
+                    ),
+                    rich_help_panel=PANEL_GITHUB,
+                    hidden=PANEL_GITHUB not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -3583,6 +3599,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                github_incremental_sync=github_incremental_sync,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,

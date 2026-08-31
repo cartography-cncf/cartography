@@ -76,6 +76,9 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
         "parent",
         description="Web URL of the repository this repository was forked from.",
     )
+    pushedat: PropertyRef = PropertyRef(
+        "pushedat", description="Timestamp when the repository was last pushed to."
+    )
 
 
 @dataclass(frozen=True)
