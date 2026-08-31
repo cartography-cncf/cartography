@@ -122,6 +122,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     response = requests.get(
         "https://api.github.com/rate_limit",
         headers={"Authorization": f"Bearer {_resolve_token(token)}"},
+        timeout=_TIMEOUT,
     )
     response.raise_for_status()
     response_json = response.json()
@@ -240,6 +241,8 @@ def fetch_all(
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
     null_resource_retry = 0
+    page_number = 0
+    initial_count = kwargs.get("count")
 
     while has_next_page:
         exc: Any = None
@@ -248,7 +251,11 @@ def fetch_all(
             # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
             handle_rate_limit_sleep(token)
             resp = fetch_page(token, api_url, organization, query, cursor, **kwargs)
-            retry = 0
+            # Only reset retry counter if the page size has not been degraded by a 502.
+            # If count has been reduced, we keep accumulating retry so persistent errors
+            # at a degraded page size eventually exhaust retries rather than looping forever.
+            if kwargs.get("count") == initial_count:
+                retry = 0
         except requests.exceptions.Timeout as err:
             retry += 1
             exc = err
@@ -368,6 +375,20 @@ def fetch_all(
 
         cursor = resource["pageInfo"]["endCursor"]
         has_next_page = resource["pageInfo"]["hasNextPage"]
+        page_number += 1
+        logger.debug(
+            "GitHub: fetched page %d for resource `%s` in org `%s` (page_nodes=%d total_nodes=%d page_edges=%d total_edges=%d count=%s cursor=%s has_next=%s)",
+            page_number,
+            resource_type,
+            organization,
+            len(resource.get("nodes", [])),
+            len(data.nodes),
+            len(resource.get("edges", [])),
+            len(data.edges),
+            kwargs.get("count"),
+            resource.get("pageInfo", {}).get("endCursor"),
+            resource.get("pageInfo", {}).get("hasNextPage"),
+        )
         if not org_data:
             org_data = {
                 "url": resp["data"]["organization"]["url"],
