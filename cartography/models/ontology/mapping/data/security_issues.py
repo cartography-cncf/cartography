@@ -113,6 +113,29 @@ _WIZ_STATUS = {
     "REJECTED": "ignored",
 }
 
+# Orca alert severity and workflow status. Unknown severities intentionally stay
+# unmapped rather than being presented as informational findings.
+_ORCA_ALERT_SEVERITY = {
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low",
+    "CRITICAL": "critical",
+    "HIGH": "high",
+    "MEDIUM": "medium",
+    "LOW": "low",
+}
+_ORCA_ALERT_STATUS = {
+    "open": "open",
+    "in_progress": "open",
+    "close": "fixed",
+    "dismiss": "ignored",
+    "OPEN": "open",
+    "IN_PROGRESS": "open",
+    "CLOSE": "fixed",
+    "DISMISS": "ignored",
+}
+
 aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
@@ -373,6 +396,40 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_ALERT_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="alert_type",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_ALERT_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="created_at",
+                ),
+            ],
+        ),
+    ],
+)
+
 azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
@@ -482,6 +539,7 @@ SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,
     "wiz": wiz_mapping,
+    "orca": orca_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,
 }

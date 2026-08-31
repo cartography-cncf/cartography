@@ -516,6 +516,10 @@ class Config:
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
     :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
+    :type orca_api_endpoint: str
+    :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
+    :type orca_api_token: str
+    :param orca_api_token: Orca Security API token. Optional.
     """
 
     def __init__(
@@ -743,6 +747,8 @@ class Config:
         gcp_excluded_org_ids=None,
         gcp_excluded_folder_ids=None,
         gcp_exclude_org_root_projects=False,
+        orca_api_endpoint=None,
+        orca_api_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1022,3 +1028,5 @@ class Config:
         self.snowflake_role = snowflake_role
         self.snowflake_warehouse = snowflake_warehouse
         self.snowflake_databases = snowflake_databases
+        self.orca_api_endpoint = orca_api_endpoint
+        self.orca_api_token = orca_api_token

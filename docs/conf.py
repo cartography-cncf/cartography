@@ -180,7 +180,6 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "globaltoc_collapse": True,
     "github_url": "https://github.com/cartography-cncf/cartography",
     "page_layout": "default",
     "accent_color": "cyan",
@@ -216,6 +215,7 @@ html_favicon = os.path.join(_source_asset_prefix, "images/logo-vertical.svg")
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = [os.path.join(_source_asset_prefix, "_static")]
 html_css_files = ["custom.css"]
+html_js_files = ["expand-intel-modules.js"]
 
 # html_style = 'css/cartography.css'
 
