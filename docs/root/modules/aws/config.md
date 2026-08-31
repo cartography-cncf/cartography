@@ -158,7 +158,8 @@ If neither is set, public parameter ingestion is disabled because AWS-managed
 namespaces can contain tens of thousands of parameters in every region. Set the
 CLI option or environment variable to opt in to the prefixes your deployment
 needs. Existing deployments that rely on Bottlerocket or EKS optimized AMI
-parameters must configure those prefixes explicitly before upgrading.
+parameters must configure the previous default explicitly before upgrading:
+`/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/`.
 
 ```bash
 export AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST="/aws/service/eks/optimized-ami/,/aws/service/custom/"

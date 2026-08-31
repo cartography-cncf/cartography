@@ -8,6 +8,7 @@ from unittest import mock
 import botocore.exceptions
 import neo4j
 from moto import mock_aws
+from pytest import mark
 from pytest import raises
 
 import cartography.config
@@ -54,7 +55,7 @@ def test_sync_shared_public_ssm_parameters_unions_profile_regions(
         ["us-east-1", "us-west-2"],
         ["us-west-2", "eu-west-1"],
     ]
-    common_job_parameters = PUBLIC_SSM_JOB_PARAMETERS
+    common_job_parameters = PUBLIC_SSM_JOB_PARAMETERS.copy()
 
     # Act
     cartography.intel.aws._sync_shared_public_ssm_parameters(
@@ -106,7 +107,7 @@ def test_sync_shared_public_ssm_parameters_best_effort_skips_profile_setup_failu
         mock.MagicMock(),
         {"broken": "111111111111", "working": "222222222222"},
         ["ssm"],
-        PUBLIC_SSM_JOB_PARAMETERS,
+        PUBLIC_SSM_JOB_PARAMETERS.copy(),
         configured_regions=None,
         aws_best_effort_mode=True,
     )
@@ -133,7 +134,7 @@ def test_sync_shared_public_ssm_parameters_fails_loudly_on_profile_setup_error(
             mock.MagicMock(),
             {"broken": "111111111111"},
             ["ssm"],
-            PUBLIC_SSM_JOB_PARAMETERS,
+            PUBLIC_SSM_JOB_PARAMETERS.copy(),
             configured_regions=None,
             aws_best_effort_mode=False,
         )
@@ -155,7 +156,7 @@ def test_sync_shared_public_ssm_parameters_does_not_mask_unexpected_errors(
             mock.MagicMock(),
             {"default": "111111111111"},
             ["ssm"],
-            PUBLIC_SSM_JOB_PARAMETERS,
+            PUBLIC_SSM_JOB_PARAMETERS.copy(),
             configured_regions=["us-east-1"],
             aws_best_effort_mode=True,
         )
@@ -166,16 +167,18 @@ def test_sync_shared_public_ssm_parameters_does_not_mask_unexpected_errors(
 @mock.patch.object(cartography.intel.aws.ssm_intel, "sync_public_parameters")
 @mock.patch.object(cartography.intel.aws, "_autodiscover_account_regions")
 @mock.patch.object(cartography.intel.aws, "_get_boto3_session_for_profile")
+@mark.parametrize("allowlist", [None, "", ","])
 def test_sync_shared_public_ssm_parameters_skips_aws_calls_when_disabled(
     mock_get_session,
     mock_autodiscover_regions,
     mock_sync_public_parameters,
     neo4j_session,
+    allowlist,
 ):
     # Arrange
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "aws_ssm_public_parameter_prefix_allowlist": ",",
+        "aws_ssm_public_parameter_prefix_allowlist": allowlist,
     }
 
     # Act
