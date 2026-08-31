@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaGroup)<-[r:MEMBER_OF_OKTA_GROUP]-(:OktaUser) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaGroup)<-[r:MEMBER_OF]-(:OktaUser) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
       "iterative": true,
       "iterationsize": 100,
       "__comment__": "Delete stale OktaUser relationship to OktaGroup"
