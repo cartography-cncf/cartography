@@ -472,6 +472,21 @@ jumpcloud_mapping = OntologyMapping(
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
+
+# Tenable
+tenable_mapping = OntologyMapping(
+    module_name="tenable",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TenableTenant",
+            # The configured ID may be an arbitrary scope identifier, so it is not
+            # normalized as a tenant name or domain.
+            fields=[],
+        ),
+    ],
+)
+
+
 # WorkOS Tenant mapping
 workos_tenants_mapping = OntologyMapping(
     module_name="workos",
@@ -505,6 +520,45 @@ crowdstrike_mapping = OntologyMapping(
     module_name="crowdstrike",
     nodes=[
         OntologyNodeMapping(node_label="CrowdstrikeTenant", fields=[]),
+    ],
+)
+
+# Huntress account status
+_HUNTRESS_ACCOUNT_STATUS = {
+    "enabled": "active",
+    "disabled": "suspended",
+}
+
+# Huntress: the account is the billing and credential boundary, and each customer it
+# protects is an organization underneath it. Both are tenants.
+huntress_mapping = OntologyMapping(
+    module_name="huntress",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="HuntressAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _HUNTRESS_ACCOUNT_STATUS},
+                ),
+                # domain: `subdomain` is a Huntress console subdomain rather than a
+                # domain the tenant owns, so it is not the canonical field.
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="HuntressOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: an organization has no lifecycle state in the API.
+            ],
+        ),
     ],
 )
 
@@ -737,6 +791,22 @@ miradore_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: The regional API URL is not the organization's domain.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -744,6 +814,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "azure": azure_mapping,
     "cloudflare": cloudflare_mapping,
     "crowdstrike": crowdstrike_mapping,
+    "huntress": huntress_mapping,
     "digitalocean": digitalocean_mapping,
     "netlify": netlify_mapping,
     "microsoft": entra_mapping,
@@ -759,10 +830,12 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
     "miradore": miradore_mapping,
+    "orca": orca_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,
+    "tenable": tenable_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,

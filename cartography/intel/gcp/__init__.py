@@ -883,6 +883,7 @@ def start_gcp_ingestion(
         config.update_tag,
         common_job_parameters,
         credentials=credentials,
+        excluded_org_ids=config.gcp_excluded_org_ids,
     )
 
     # Track org cleanup jobs to run at the very end
@@ -914,6 +915,7 @@ def start_gcp_ingestion(
             common_job_parameters,
             org_resource_name,
             credentials=credentials,
+            excluded_folder_ids=config.gcp_excluded_folder_ids,
         )
 
         # Sync projects under org and each folder
@@ -924,6 +926,7 @@ def start_gcp_ingestion(
             config.update_tag,
             common_job_parameters,
             credentials=credentials,
+            exclude_org_root_projects=config.gcp_exclude_org_root_projects,
         )
 
         # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
@@ -1009,12 +1012,27 @@ def start_gcp_ingestion(
         # between syncs - its resources would otherwise remain as orphans since resource
         # cleanup is scoped to PROJECT_ID and we only sync existing projects.
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
-        GraphJob.from_node_schema(
-            GCPProjectSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            GCPFolderSchema(), common_job_parameters, cascade_delete=True
-        ).run(neo4j_session)
+        if config.gcp_excluded_folder_ids or config.gcp_exclude_org_root_projects:
+            logger.info(
+                "Skipping GCP project cleanup for %s because exclusions make "
+                "the project inventory incomplete. Preserving existing projects.",
+                org_resource_name,
+            )
+        else:
+            GraphJob.from_node_schema(
+                GCPProjectSchema(), common_job_parameters, cascade_delete=True
+            ).run(neo4j_session)
+
+        if config.gcp_excluded_folder_ids:
+            logger.info(
+                "Skipping GCP folder cleanup for %s because exclusions make "
+                "the folder inventory incomplete. Preserving existing folders.",
+                org_resource_name,
+            )
+        else:
+            GraphJob.from_node_schema(
+                GCPFolderSchema(), common_job_parameters, cascade_delete=True
+            ).run(neo4j_session)
 
         # Save org cleanup job for later (with cascade_delete for defense in depth)
         org_cleanup_jobs.append(
@@ -1031,6 +1049,10 @@ def start_gcp_ingestion(
         GraphJob.from_node_schema(schema_class(), params, cascade_delete=cascade).run(
             neo4j_session
         )
+
+    # Note: excluded organizations are deliberately NOT pruned here. An
+    # exclusion means the org was never inventoried this run, so its existing
+    # data is preserved; callers that want deletion can remove it explicitly.
 
     if requested_syncs is None or "compute" in requested_syncs:
         run_analysis_job(

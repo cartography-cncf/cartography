@@ -21,11 +21,11 @@ class TenableAssetTagNodeProperties(CartographyNodeProperties):
         "key", extra_index=True, description="Tag category or key."
     )
     value: PropertyRef = PropertyRef("value", description="Tag value.")
-    # DEPRECATED: will be deleted in version 1.0.0
+    # DEPRECATED: tag_key is a compatibility alias and will be removed in v1.0.0.
     tag_key: PropertyRef = PropertyRef(
         "key", description="Deprecated mirror of key; removed in v1.0.0."
     )
-    # DEPRECATED: will be deleted in version 1.0.0
+    # DEPRECATED: tag_value is a compatibility alias and will be removed in v1.0.0.
     tag_value: PropertyRef = PropertyRef(
         "value", description="Deprecated mirror of value; removed in v1.0.0."
     )

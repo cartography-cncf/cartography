@@ -106,6 +106,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [GitHub](https://docs.cartography.dev/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
 - [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute including SSL policies and target proxies, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
+- [Huntress](https://docs.cartography.dev/modules/huntress/index.html) - accounts, organizations, agents, incident reports, console users and roles
 - [Jumpcloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
 - [Kandji](https://docs.cartography.dev/modules/kandji/index.html) - Devices
 - [Keycloak](https://docs.cartography.dev/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
@@ -119,6 +120,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
 - [OpenAI](https://docs.cartography.dev/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM
+- [Orca Security](https://docs.cartography.dev/modules/orca/index.html) - Organizations, security alerts, per-target CVE findings
 - [PagerDuty](https://docs.cartography.dev/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
 - [Railway](https://docs.cartography.dev/modules/railway/index.html) - Workspaces, Projects, Environments, Services, Service Instances, Deployments, Domains, TCP Proxies, Volumes, Variables, Tokens
 - [Scaleway](https://docs.cartography.dev/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances

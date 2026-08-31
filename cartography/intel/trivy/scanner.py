@@ -7,6 +7,7 @@ import boto3
 from neo4j import Session
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.common.object_store import filter_report_refs
 from cartography.intel.common.object_store import read_text_report
@@ -45,7 +46,9 @@ def _validate_packages(package_list: list[dict]) -> list[dict]:
 
 
 def transform_scan_results(
-    results: list[dict], image_digest: str
+    results: list[dict],
+    image_digest: str | None,
+    filesystem_snapshot_ids: list[str] | None = None,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """
     Transform raw Trivy scan results into a format suitable for loading into Neo4j.
@@ -118,6 +121,7 @@ def transform_scan_results(
                     "Class": scan_class["Class"],
                     "Type": scan_class["Type"],
                     "ImageDigest": image_digest,  # For AFFECTS relationship
+                    "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                     # Additional fields
                     "CweIDs": result.get("CweIDs"),
                     "Status": result.get("Status"),
@@ -172,6 +176,7 @@ def transform_scan_results(
                         "Class": scan_class["Class"],
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
+                        "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                         "FindingId": finding["id"],  # For AFFECTS relationship
                         # Additional fields
                         "PURL": purl,
@@ -198,8 +203,9 @@ def transform_scan_results(
 
 def transform_all_packages(
     results: list[dict],
-    image_digest: str,
+    image_digest: str | None,
     seen_ids: set[str],
+    filesystem_snapshot_ids: list[str] | None = None,
 ) -> list[dict]:
     """
     Transform Trivy Packages arrays into package dicts for loading.
@@ -255,6 +261,7 @@ def transform_all_packages(
                     "Class": class_name,
                     "Type": pkg_type,
                     "ImageDigest": image_digest,
+                    "FilesystemSnapshotIds": filesystem_snapshot_ids or [],
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
@@ -322,35 +329,92 @@ def sync_single_image(
     """
     try:
         _, results, image_digest = _parse_trivy_data(trivy_data, source)
-
-        # Transform all data in one pass
-        findings_list, packages_list, fixes_list = transform_scan_results(
+        num_findings = _sync_scan_results(
+            neo4j_session,
             results,
-            image_digest,
+            source,
+            update_tag,
+            image_digest=image_digest,
         )
-
-        num_findings = len(findings_list)
         stat_handler.incr("image_scan_cve_count", num_findings)
-
-        # Load the transformed data
-        load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
-        load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
-        load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
-
-        # Load non-vulnerable packages from the Packages arrays (requires --list-all-pkgs)
-        seen_ids = {pkg["id"] for pkg in packages_list}
-        all_packages = transform_all_packages(results, image_digest, seen_ids)
-        if all_packages:
-            logger.info(
-                f"Loading {len(all_packages)} additional non-vulnerable packages for {source}",
-            )
-            load_scan_packages(neo4j_session, all_packages, update_tag=update_tag)
-
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
         logger.error(f"Failed to process scan results for {source}: {e}")
         raise
+
+
+@timeit
+def sync_single_filesystem_snapshot(
+    neo4j_session: Session,
+    trivy_data: dict,
+    filesystem_snapshot_ids: list[str],
+    source: str,
+    update_tag: int,
+) -> None:
+    """Sync one Trivy filesystem or repository report to matching snapshots."""
+    try:
+        artifact_type = trivy_data.get("ArtifactType")
+        if artifact_type not in {"filesystem", "repository"}:
+            raise ValueError(
+                f"Expected a filesystem or repository Trivy report for {source}",
+            )
+        if not filesystem_snapshot_ids:
+            raise ValueError(f"No filesystem snapshot targets for {source}")
+
+        results = trivy_data.get("Results") or []
+        if not results:
+            logger.debug("No vulnerabilities found for %s", source)
+
+        num_findings = _sync_scan_results(
+            neo4j_session,
+            results,
+            source,
+            update_tag,
+            filesystem_snapshot_ids=filesystem_snapshot_ids,
+        )
+        stat_handler.incr("filesystem_scan_cve_count", num_findings)
+        stat_handler.incr("filesystem_scans_processed_count")
+    except Exception as exc:
+        logger.error("Failed to process scan results for %s: %s", source, exc)
+        raise
+
+
+def _sync_scan_results(
+    neo4j_session: Session,
+    results: list[dict],
+    source: str,
+    update_tag: int,
+    *,
+    image_digest: str | None = None,
+    filesystem_snapshot_ids: list[str] | None = None,
+) -> int:
+    findings_list, packages_list, fixes_list = transform_scan_results(
+        results,
+        image_digest,
+        filesystem_snapshot_ids,
+    )
+
+    load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
+    load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
+    load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+
+    seen_ids = {pkg["id"] for pkg in packages_list}
+    all_packages = transform_all_packages(
+        results,
+        image_digest,
+        seen_ids,
+        filesystem_snapshot_ids,
+    )
+    if all_packages:
+        logger.info(
+            "Loading %d additional non-vulnerable packages for %s",
+            len(all_packages),
+            source,
+        )
+        load_scan_packages(neo4j_session, all_packages, update_tag=update_tag)
+
+    return len(findings_list)
 
 
 @timeit
@@ -421,6 +485,60 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
+    )
+
+
+@timeit
+def cleanup_filesystem_snapshot_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale filesystem edges without touching image-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:FilesystemSnapshot)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
+    )
+
+
+@timeit
+def cleanup_image_relationships(
+    neo4j_session: Session,
+    update_tag: int,
+) -> None:
+    """Remove stale image edges without touching filesystem-scoped scan data."""
+    run_write_query(
+        neo4j_session,
+        """
+        CALL {
+          MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_findings
+        }
+        CALL {
+          MATCH (:TrivyPackage)-[r:DEPLOYED]->(:Image)
+          WHERE r.lastupdated IS NULL OR r.lastupdated <> $UPDATE_TAG
+          DELETE r
+          RETURN count(*) AS removed_packages
+        }
+        RETURN removed_findings, removed_packages
+        """,
+        UPDATE_TAG=update_tag,
     )
 
 
