@@ -341,6 +341,61 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+# Render service deploy status, per the documented `deployStatus` enum
+# (https://api-docs.render.com/reference/retrieve-deploy), sourced from
+# RenderService.effective_deploy_status (see RenderServiceOntologyStateProperties in
+# cartography/models/render/service.py) rather than latest_deploy_status directly:
+# effective_deploy_status overrides to "suspended" when the service's `suspended` flag
+# is set, since Render doesn't create a new deploy or change deploy status just
+# because a service was suspended - reading latest_deploy_status alone would keep
+# reporting a suspended service as "live"/"running".
+#
+# "canceled" deliberately maps to "unknown" rather than a specific state: a canceled
+# deploy attempt says nothing about whether the service's previously-live version is
+# still running - Render does not take a service down just because a newer deploy was
+# canceled.
+_RENDER_SERVICE_DEPLOY_STATE = {
+    "created": "pending",
+    "queued": "pending",
+    "pre_deploy_in_progress": "starting",
+    "build_in_progress": "starting",
+    "update_in_progress": "starting",
+    "live": "running",
+    "deactivated": "stopped",
+    "build_failed": "error",
+    "update_failed": "error",
+    "pre_deploy_failed": "error",
+    "canceled": "unknown",
+    "suspended": "suspended",
+}
+
+render_mapping = OntologyMapping(
+    module_name="render",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RenderService",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(ontology_field="type", node_field="plan"),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="effective_deploy_status",
+                    special_handling="mapping",
+                    extra={"map": _RENDER_SERVICE_DEPLOY_STATE},
+                ),
+                # public_ip_address / private_ip_address: Render services are reached via
+                # hostname (RenderService.url), not a stable IP.
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
@@ -348,4 +403,5 @@ COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "render": render_mapping,
 }

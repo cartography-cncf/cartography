@@ -1,0 +1,6 @@
+# Render
+
+```{toctree}
+config
+schema
+```

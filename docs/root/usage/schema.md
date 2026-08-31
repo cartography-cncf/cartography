@@ -67,6 +67,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Orca Security](../modules/orca/schema.md)
 - [Pagerduty](../modules/pagerduty/schema.md)
 - [Railway](../modules/railway/schema.md)
+- [Render](../modules/render/schema.md)
 - [Salesforce](../modules/salesforce/schema.md)
 - [Scaleway](../modules/scaleway/schema.md)
 - [Semgrep](../modules/semgrep/schema.md)

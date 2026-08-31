@@ -339,6 +339,8 @@ class Config:
     :type modal_environments: list
     :param modal_environments: Modal environment names whose contents should be synced.
         Defaults to every environment in the workspace. Optional.
+    :type render_api_key: str
+    :param render_api_key: Render API key. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -636,6 +638,7 @@ class Config:
         modal_token_id=None,
         modal_token_secret=None,
         modal_environments=None,
+        render_api_key=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -897,6 +900,7 @@ class Config:
         self.modal_token_id = modal_token_id
         self.modal_token_secret = modal_token_secret
         self.modal_environments = modal_environments
+        self.render_api_key = render_api_key
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
