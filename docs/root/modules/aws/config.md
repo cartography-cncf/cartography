@@ -142,6 +142,21 @@ cartography --selected-modules aws --aws-requested-syncs "ecr:pull_through_cache
 For the current identifier list, see the `RESOURCE_FUNCTIONS` dictionary in
 `cartography/intel/aws/resources.py`.
 
+### Additional Sync Options
+
+- `--aws-regions`: [EXPERIMENTAL] Comma-separated list of AWS regions to sync,
+  for example `us-east-1,us-east-2`. Assets in previously synced regions that
+  are absent from this list are deleted.
+- `--aws-best-effort-mode`: Continue syncing the remaining accounts when one
+  account fails, raising the collected exceptions at the end.
+- `--aws-cloudtrail-management-events-lookback-hours`: Number of hours back to
+  retrieve CloudTrail management events. The events are not retrieved when the
+  option is omitted.
+- `--aws-guardduty-severity-threshold`: GuardDuty severity threshold. Valid
+  values are `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`.
+- `--aws-tagging-api-cleanup-batch`: Batch size for Resource Groups Tagging API
+  cleanup of `AWSTag` nodes. The default is `1000`.
+
 ### SSM Public Parameter Prefixes
 
 Cartography ingests AWS-managed public SSM parameters only when their names
