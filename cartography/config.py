@@ -339,6 +339,8 @@ class Config:
     :type modal_environments: list
     :param modal_environments: Modal environment names whose contents should be synced.
         Defaults to every environment in the workspace. Optional.
+    :type unikraft_token: str
+    :param unikraft_token: Unikraft Cloud API token. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -632,6 +634,7 @@ class Config:
         modal_token_id=None,
         modal_token_secret=None,
         modal_environments=None,
+        unikraft_token=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -891,6 +894,7 @@ class Config:
         self.modal_token_id = modal_token_id
         self.modal_token_secret = modal_token_secret
         self.modal_environments = modal_environments
+        self.unikraft_token = unikraft_token
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id

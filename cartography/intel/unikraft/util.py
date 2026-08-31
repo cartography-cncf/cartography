@@ -1,0 +1,109 @@
+from typing import Any
+
+import requests
+
+# Unikraft Cloud has no dynamic "list metros" API; the platform's five metros
+# are hardcoded here per https://docs.unikraft.com/api/platform/v1/node.
+METRO_BASE_URLS: dict[str, str] = {
+    "fra": "https://api.fra.unikraft.cloud",
+    "dal": "https://api.dal.unikraft.cloud",
+    "sin": "https://api.sin.unikraft.cloud",
+    "was": "https://api.was.unikraft.cloud",
+    "sfo": "https://api.sfo.unikraft.cloud",
+}
+
+
+def require_non_empty(value: Any, field_name: str) -> Any:
+    if value is None or value == "":
+        raise ValueError(f"Unikraft record is missing required non-empty {field_name}.")
+    return value
+
+
+def list_resources(
+    session: requests.Session,
+    url: str,
+    data_key: str,
+) -> list[dict[str, Any]]:
+    """
+    Calls a Unikraft Cloud "list" endpoint and returns the `data[data_key]`
+    payload.
+
+    The platform API docs describe `count`/`from`/`order`/`sortby` query
+    params for cursor-based pagination, but every combination of them (as
+    query params, as a JSON body, in either casing) is rejected with a 400
+    against the live API, confirmed directly. A bare, unparameterized GET is
+    the only request shape that actually works, so that is what this sends;
+    there is currently no working way to page through results beyond
+    whatever a single call returns.
+    """
+    response = session.get(url, timeout=(60, 60))
+    response.raise_for_status()
+    body = response.json()
+    if body.get("status") == "error":
+        raise ValueError(
+            f"Unikraft API returned an error for {url}: {body.get('message')}"
+        )
+    data = body.get("data")
+    items = data.get(data_key) if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        # A real empty result is `{"data": {data_key: []}}`, which is a list.
+        # Anything else under a "success" status is a malformed/unexpected
+        # payload shape, not evidence the account has zero resources of this
+        # type -- treating it as an empty list here would make the caller's
+        # subsequent scoped cleanup delete every real node of this type.
+        raise ValueError(
+            f"Unikraft API returned a success status for {url} but no valid "
+            f"'{data_key}' list in the response body."
+        )
+    return items
+
+
+def check_count_matches(
+    resource_name: str,
+    expected: int | None,
+    actual: int,
+) -> None:
+    """
+    Unikraft's list endpoints have no working pagination (see list_resources()), so a
+    single-page response could be silently truncated for an account with more
+    resources of a type than the API's implicit per-page cap. The account quota
+    endpoint separately reports how many resources of some types currently exist
+    (`used.<resource_name>`), which gives an independent signal to notice truncation:
+    if the total number of records list_resources() actually returned across every
+    metro doesn't match the quota's reported count, raise instead of proceeding.
+
+    Callers must call this BEFORE running cleanup for the resource type: cleanup
+    treats every node not seen in this sync as stale and deletes it, so proceeding
+    to cleanup on a suspected-truncated fetch would delete real, still-existing
+    resources -- the same risk list_resources() already guards against for a
+    malformed response, per its own docstring. `expected` is None for resource types
+    quotas doesn't track (e.g. certificates), in which case there is nothing to
+    compare against and this is a no-op.
+    """
+    if expected is not None and actual != expected:
+        raise ValueError(
+            f"Unikraft {resource_name} sync fetched {actual} records across all "
+            f"metros, but the account quota reports {expected} in use. Refusing to "
+            "run cleanup on a fetch that may be truncated (pagination is not "
+            "supported; see list_resources())."
+        )
+
+
+def require_tracked_count(used_counts: dict[str, int], resource_name: str) -> int:
+    """
+    Returns the account quota's `used` count for a resource type this module relies
+    on for truncation detection (instances, volumes, service_groups - see
+    check_count_matches()). Unlike certificates, which the quotas endpoint genuinely
+    never reports, a missing count here means the quota response itself is malformed,
+    not that this resource type is untracked. Raising instead of defaulting to None
+    fails closed: check_count_matches() treats expected=None as "nothing to compare,
+    skip the check", so silently defaulting would disable the truncation guard
+    exactly when the quota data it depends on can't be trusted.
+    """
+    if resource_name not in used_counts:
+        raise ValueError(
+            f"Unikraft account quota response is missing the expected "
+            f"'{resource_name}' used-count; refusing to skip the truncation check "
+            "for a resource type quotas is known to track."
+        )
+    return used_counts[resource_name]
