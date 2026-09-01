@@ -189,6 +189,16 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
         CREATE (:ScalewayServerlessFunction {
             id: 'scw-function', domain_name: 'function.functions.test'
         })
+        CREATE (:ModalSandboxTunnel {id: 'null-tunnel'})
+        CREATE (:AWSEC2Instance {id: 'private-instance', publicdnsname: ''})
+        CREATE (stale_record:DNSRecord {
+            id: 'stale-service-record', _ont_value: 'gone.example.test'
+        })
+        CREATE (stale_target:NetlifySite {
+            id: 'stale-site', default_domain: 'different.example.test'
+        })
+        CREATE (stale_record)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(stale_target)
+        CREATE (:DNSRecord {id: 'empty-record', _ont_value: ''})
         WITH 1 AS ignored
         UNWIND [
             ['tls', 'TLS.MODAL.TEST.'],
@@ -202,7 +212,8 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
             ['scw-function', 'function.functions.test']
         ] AS pair
         CREATE (:DNSRecord {id: pair[0], _ont_value: pair[1]})
-        """
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
     )
 
     cartography.intel.ontology.dnsrecords.sync(
@@ -237,3 +248,23 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
         ("scw-container", "ScalewayServerlessContainer", "container"),
         ("scw-function", "ScalewayServerlessFunction", "scw-function"),
     }
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'stale-service-record'})
+                  -[r:DNS_POINTS_TO]->(:NetlifySite {id: 'stale-site'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'empty-record'})-[r:DNS_POINTS_TO]->()
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
+    )
