@@ -35,12 +35,12 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     source_image: PropertyRef = PropertyRef(
         "source_image",
         extra_index=True,
-        description="Container image reference configured for the current deployment.",
+        description="Container image reference reported for this deployment.",
     )
     image_digest: PropertyRef = PropertyRef(
         "image_digest",
         extra_index=True,
-        description="Immutable digest parsed when the configured image reference is digest-pinned.",
+        description="Immutable image digest reported or configured for this deployment.",
     )
     status_updated_at: PropertyRef = PropertyRef(
         "statusUpdatedAt", description="Time when the deployment status last changed."
@@ -123,7 +123,7 @@ class RailwayDeploymentToImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class RailwayDeploymentToECRImageRel(CartographyRelSchema):
-    """Links a digest-pinned Railway deployment to an Amazon ECR image."""
+    """Links a Railway deployment to an Amazon ECR image by immutable digest."""
 
     target_node_label: str = "AWSECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -138,7 +138,7 @@ class RailwayDeploymentToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayDeploymentToGitLabImageRel(CartographyRelSchema):
-    """Links a digest-pinned Railway deployment to a GitLab registry image."""
+    """Links a Railway deployment to a GitLab registry image by immutable digest."""
 
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,7 +153,7 @@ class RailwayDeploymentToGitLabImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayDeploymentToGCPArtifactRegistryImageRel(CartographyRelSchema):
-    """Links a digest-pinned Railway deployment to a GCP Artifact Registry image."""
+    """Links a Railway deployment to a GCP Artifact Registry image by immutable digest."""
 
     target_node_label: str = "GCPArtifactRegistryImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -168,7 +168,7 @@ class RailwayDeploymentToGCPArtifactRegistryImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RailwayDeploymentToGitHubImageRel(CartographyRelSchema):
-    """Links a digest-pinned Railway deployment to a GitHub registry image."""
+    """Links a Railway deployment to a GitHub registry image by immutable digest."""
 
     target_node_label: str = "GitHubContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
