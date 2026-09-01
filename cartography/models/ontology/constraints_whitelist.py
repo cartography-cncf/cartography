@@ -187,6 +187,7 @@ from cartography.models.kubernetes.statefulsets import (
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.okta.awssaml import OktaGroupToAWSRoleAllowedByMatchLink
 from cartography.models.okta.group import OktaGroupToOktaUserDeprecatedRel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
@@ -238,6 +239,7 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         KeycloakUserAssumeRoleMatchLink,
         AWSSSOGroupToPermissionSetRel,
         KeycloakGroupToRoleRel,
+        OktaGroupToAWSRoleAllowedByMatchLink,
         # ALLOWED_BY is a distinct "this role is assumable by that SSO user"
         # semantic (PermissionRole->UserAccount), not a role assignment, so it
         # intentionally runs counter to the HAS_ROLE (UserAccount->PermissionRole)

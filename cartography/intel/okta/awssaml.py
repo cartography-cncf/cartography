@@ -7,9 +7,12 @@ from collections import namedtuple
 
 import neo4j
 
+from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_single_value_tx
-from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.models.okta.awssaml import OktaGroupToAWSRoleAllowedByMatchLink
+from cartography.models.okta.awssaml import OktaGroupToAWSRoleHasRoleMatchLink
 from cartography.util import timeit
 
 AccountRole = namedtuple("AccountRole", ["account_id", "role_name"])
@@ -61,19 +64,27 @@ def transform_okta_group_to_aws_role(
 def query_for_okta_to_aws_role_mapping(
     neo4j_session: neo4j.Session,
     mapping_regex: str,
+    okta_org_id: str,
 ) -> list[dict]:
     """
     Query the graph for all groups associated with the amazon_aws application and map them to AWSRoles
     :param neo4j_session: session from the Neo4j server
     :param mapping_regex: the regex used by the organization to map groups to aws roles
+    :param okta_org_id: Okta organization that owns the groups and application
     """
-    query = (
-        "MATCH (app:OktaApplication{name:'amazon_aws'})--(group:OktaGroup) "
-        "RETURN group.id AS group_id, group.name AS group_name"
-    )
+    query = """
+    MATCH (org:OktaOrganization {id: $okta_org_id})-[:RESOURCE]->
+          (app:OktaApplication {name: 'amazon_aws'})
+    MATCH (org)-[:RESOURCE]->(group:OktaGroup)-[:APPLICATION]->(app)
+    RETURN group.id AS group_id, group.name AS group_name
+    """
 
     group_to_role_mapping: list[dict] = []
-    results = neo4j_session.execute_read(read_list_of_dicts_tx, query)
+    results = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        okta_org_id=okta_org_id,
+    )
 
     for res in results:
         # input: okta group id, okta group name. output: aws role arn.
@@ -97,32 +108,41 @@ def query_for_okta_to_aws_role_mapping(
 @timeit
 def _load_okta_group_to_aws_roles(
     neo4j_session: neo4j.Session,
-    group_to_role: list[dict],
+    group_to_role: list[GroupRole],
     okta_update_tag: int,
+    okta_org_id: str,
 ) -> None:
     """
-    Add the ALLOWED_BY relationship between OktaGroups and the AWSRoles they enable
+    Add canonical HAS_ROLE and compatibility ALLOWED_BY relationships between
+    OktaGroups and the AWSRoles they enable.
     :param neo4j_session: session with the Neo4j server
     :param group_to_role: the mapping between OktaGroups and the AWSRoles they allow access to
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    :param okta_org_id: Okta organization that owns the relationships
     :return: Nothing
     """
-    ingest_statement = """
-
-    UNWIND $GROUP_TO_ROLE as app_data
-    MATCH (role:AWSRole{arn: app_data.role})
-    MATCH (group:OktaGroup{id: app_data.groupid})
-    MERGE (role)<-[r:ALLOWED_BY]-(group)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_statement,
-        GROUP_TO_ROLE=group_to_role,
-        okta_update_tag=okta_update_tag,
+    mappings = [mapping._asdict() for mapping in group_to_role]
+    schemas = (
+        OktaGroupToAWSRoleHasRoleMatchLink(),
+        OktaGroupToAWSRoleAllowedByMatchLink(),
     )
+    for schema in schemas:
+        load_matchlinks(
+            neo4j_session,
+            schema,
+            mappings,
+            lastupdated=okta_update_tag,
+            _sub_resource_label="OktaOrganization",
+            _sub_resource_id=okta_org_id,
+        )
+        GraphJob.from_matchlink(
+            schema,
+            "OktaOrganization",
+            okta_org_id,
+            okta_update_tag,
+        ).run(
+            neo4j_session,
+        )
 
 
 def get_awssso_okta_groups(
@@ -134,8 +154,9 @@ def get_awssso_okta_groups(
     "amazon_aws_sso".
     """
     query = """
-    MATCH (g:OktaGroup)-[:APPLICATION]->(a:OktaApplication{name:"amazon_aws_sso"})
-           <-[:RESOURCE]-(:OktaOrganization{id: $okta_org_id})
+    MATCH (org:OktaOrganization {id: $okta_org_id})-[:RESOURCE]->
+          (a:OktaApplication {name: "amazon_aws_sso"})
+    MATCH (org)-[:RESOURCE]->(g:OktaGroup)-[:APPLICATION]->(a)
     RETURN g.id as group_id, g.name as group_name
     """
     result = neo4j_session.execute_read(
@@ -206,34 +227,6 @@ def query_for_okta_to_awssso_role_mapping(
     return result
 
 
-def _load_awssso_tx(
-    tx: neo4j.Transaction,
-    group_to_role: list[GroupRole],
-    okta_update_tag: int,
-) -> None:
-    ingest_statement = """
-    UNWIND $GROUP_TO_ROLE as app_data
-        MATCH (role:AWSRole{arn: app_data.aws_role_arn})
-        MATCH (group:OktaGroup{id: app_data.okta_group_id})
-        MERGE (role)<-[r:ALLOWED_BY]-(group)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $okta_update_tag
-    """
-    tx.run(
-        ingest_statement,
-        GROUP_TO_ROLE=[g._asdict() for g in group_to_role],
-        okta_update_tag=okta_update_tag,
-    ).consume()
-
-
-def _load_okta_group_to_awssso_roles(
-    neo4j_session: neo4j.Session,
-    group_to_role: list[GroupRole],
-    okta_update_tag: int,
-) -> None:
-    neo4j_session.execute_write(_load_awssso_tx, group_to_role, okta_update_tag)
-
-
 @timeit
 def sync_okta_aws_saml(
     neo4j_session: neo4j.Session,
@@ -259,8 +252,15 @@ def sync_okta_aws_saml(
     group_to_role_mapping = query_for_okta_to_aws_role_mapping(
         neo4j_session,
         mapping_regex,
+        okta_org_id,
     )
-    _load_okta_group_to_aws_roles(neo4j_session, group_to_role_mapping, okta_update_tag)
+    combined_group_to_role_mapping = [
+        GroupRole(
+            okta_group_id=mapping["groupid"],
+            aws_role_arn=mapping["role"],
+        )
+        for mapping in group_to_role_mapping
+    ]
 
     sso_okta_groups = get_awssso_okta_groups(neo4j_session, okta_org_id)
     group_to_ssorole_mapping = query_for_okta_to_awssso_role_mapping(
@@ -268,8 +268,10 @@ def sync_okta_aws_saml(
         sso_okta_groups,
         mapping_regex,
     )
-    _load_okta_group_to_awssso_roles(
+    combined_group_to_role_mapping.extend(group_to_ssorole_mapping)
+    _load_okta_group_to_aws_roles(
         neo4j_session,
-        group_to_ssorole_mapping,
+        combined_group_to_role_mapping,
         okta_update_tag,
+        okta_org_id,
     )
