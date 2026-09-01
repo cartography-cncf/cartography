@@ -2,6 +2,7 @@ import importlib
 import json
 import logging
 import os
+import warnings
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -576,6 +577,12 @@ def __getattr__(name: str) -> Any:
     module = _MOVED_TO_SUBMODULES.get(name)
     if module is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    warnings.warn(
+        f"{__name__}.{name} moved to {module}; import it from there instead. "
+        f"This alias will be removed in v1.0.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return getattr(importlib.import_module(module), name)
 
 

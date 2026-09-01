@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import Dict
 
 import neo4j
 
@@ -11,17 +12,16 @@ from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
 
-okta_error = lazy_import("okta.framework.OktaError")
 # Bound lazily so that the provider SDK only loads once the config gate below
 # has decided that this module has something to sync.
-OktaSyncState = lazy_callable("cartography.intel.okta.sync_state", "OktaSyncState")
+OktaClient = lazy_callable("okta.client", "Client")
 applications = lazy_import("cartography.intel.okta.applications")
+authenticators = lazy_import("cartography.intel.okta.authenticators")
 awssaml = lazy_import("cartography.intel.okta.awssaml")
 factors = lazy_import("cartography.intel.okta.factors")
 groups = lazy_import("cartography.intel.okta.groups")
 organization = lazy_import("cartography.intel.okta.organization")
 origins = lazy_import("cartography.intel.okta.origins")
-roles = lazy_import("cartography.intel.okta.roles")
 users = lazy_import("cartography.intel.okta.users")
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ stat_handler = get_stats_client(__name__)
 @timeit
 def _cleanup_okta_organizations(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Remove stale Okta organization
@@ -39,13 +39,14 @@ def _cleanup_okta_organizations(
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
+    # DEPRECATED: migration cleanup, will be removed in v1
     run_cleanup_job("okta_import_cleanup.json", neo4j_session, common_job_parameters)
     cleanup_okta_groups(neo4j_session, common_job_parameters)
 
 
 def cleanup_okta_groups(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
@@ -64,86 +65,49 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    logger.debug(f"Starting Okta sync on {config.okta_org_id}")
+    logger.debug("Starting Okta sync on %s", config.okta_org_id)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    state = OktaSyncState()
+    okta_client = OktaClient(
+        {
+            "orgUrl": f"https://{config.okta_org_id}.{config.okta_base_domain}",
+            "token": config.okta_api_key,
+        }
+    )
 
-    organization.create_okta_organization(
-        neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-    )
-    users.sync_okta_users(
-        neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
-        state,
-        config.okta_base_domain,
-    )
-    groups.sync_okta_groups(
-        neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
-        state,
-        config.okta_base_domain,
-    )
+    organization.sync_okta_organization(neo4j_session, common_job_parameters)
+    user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)
+    groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
+    users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
     applications.sync_okta_applications(
+        okta_client,
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
-        config.okta_base_domain,
+        common_job_parameters,
     )
-    factors.sync_users_factors(
+    origins.sync_okta_origins(okta_client, neo4j_session, common_job_parameters)
+    authenticators.sync_okta_authenticators(
+        okta_client,
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
-        state,
-        config.okta_base_domain,
+        common_job_parameters,
     )
-    origins.sync_trusted_origins(
+    factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
-        config.okta_base_domain,
+        common_job_parameters,
+        user_ids,
     )
+
+    # Sync Okta groups to AWS roles via SAML
     awssaml.sync_okta_aws_saml(
         neo4j_session,
         config.okta_saml_role_regex,
         config.update_tag,
         config.okta_org_id,
     )
-
-    # need creds with permission
-    # soft fail as some won't be able to get such high priv token
-    # when we get the E0000006 error
-    # see https://developer.okta.com/docs/reference/error-codes/
-    try:
-        roles.sync_roles(
-            neo4j_session,
-            config.okta_org_id,
-            config.update_tag,
-            config.okta_api_key,
-            state,
-            config.okta_base_domain,
-        )
-    except okta_error.OktaError as err:
-        logger.warning(f"Unable to pull admin roles got {err}")
-
-        # Getting roles requires super admin which most won't be able to get easily
-        if err.error_code == "E0000006":
-            logger.warning(
-                "Unable to sync admin roles - api token needs admin rights to pull admin roles data",
-            )
 
     _cleanup_okta_organizations(neo4j_session, common_job_parameters)
 

@@ -4,6 +4,9 @@ from tests.data.tenable.assets import ASSET_ID_2
 from tests.data.tenable.assets import ASSETS_DATA
 from tests.data.tenable.assets import AWS_EC2_INSTANCE_ID_1
 from tests.data.tenable.assets import AZURE_VM_ID_2
+from tests.data.tenable.assets import GCP_ASSET_DATA
+from tests.data.tenable.assets import GCP_ASSET_ID
+from tests.data.tenable.assets import GCP_INSTANCE_ID
 from tests.data.tenable.assets import NETWORK_ID
 from tests.data.tenable.assets import TAG_ID_1
 from tests.data.tenable.assets import TENABLE_TENANT_ID
@@ -20,7 +23,7 @@ SOURCE_ID_2 = f"{ASSET_ID_2}::NESSUS_SCAN"
 def _sync_assets(neo4j_session, mocker, data=None):
     """Helper: run assets sync with optional custom data."""
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=data if data is not None else ASSETS_DATA,
     )
     cartography.intel.tenable.assets.sync(
@@ -35,8 +38,9 @@ def _sync_assets(neo4j_session, mocker, data=None):
 
 def test_sync_assets(neo4j_session, mocker):
     """Test that asset sync correctly creates TenableAsset nodes and relationships."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
     )
 
@@ -45,6 +49,7 @@ def test_sync_assets(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -54,9 +59,20 @@ def test_sync_assets(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     # Verify tenant node exists
     tenant_nodes = check_nodes(neo4j_session, "TenableTenant", ["id"])
     assert (TENABLE_TENANT_ID,) in tenant_nodes
+    tenant = neo4j_session.run(
+        """
+        MATCH (t:TenableTenant {id: $tenant_id})
+        RETURN t:Tenant AS has_tenant_label,
+               t._ont_source AS ontology_source
+        """,
+        tenant_id=TENABLE_TENANT_ID,
+    ).single()
+    assert tenant["has_tenant_label"] is True
+    assert tenant["ontology_source"] == "tenable"
 
     # Verify asset nodes (cloud detail fields are on sub-nodes, not here)
     actual_nodes = check_nodes(
@@ -124,8 +140,9 @@ def test_sync_assets(neo4j_session, mocker):
 
 def test_sync_networks(neo4j_session, mocker):
     """Test that TenableNetwork nodes are created and linked to assets."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
     )
 
@@ -134,6 +151,7 @@ def test_sync_networks(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -143,6 +161,7 @@ def test_sync_networks(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     # Both assets share the same network; only one node should exist
     actual_networks = check_nodes(neo4j_session, "TenableNetwork", ["id", "name"])
     assert actual_networks == {(NETWORK_ID, "Default")}
@@ -164,8 +183,9 @@ def test_sync_networks(neo4j_session, mocker):
 
 def test_sync_aws_cloud(neo4j_session, mocker):
     """Test that TenableAssetAWS nodes are created and linked to assets."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
     )
 
@@ -174,6 +194,7 @@ def test_sync_aws_cloud(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -183,6 +204,7 @@ def test_sync_aws_cloud(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     actual_aws = check_nodes(
         neo4j_session,
         "TenableAssetAWS",
@@ -206,8 +228,9 @@ def test_sync_aws_cloud(neo4j_session, mocker):
 
 def test_sync_azure_cloud(neo4j_session, mocker):
     """Test that TenableAssetAzure nodes are created and linked to assets."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
     )
 
@@ -216,6 +239,7 @@ def test_sync_azure_cloud(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -225,6 +249,7 @@ def test_sync_azure_cloud(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     actual_azure = check_nodes(
         neo4j_session, "TenableAssetAzure", ["id", "resource_id"]
     )
@@ -247,18 +272,19 @@ def test_sync_azure_cloud(neo4j_session, mocker):
     assert actual_rels == {(ASSET_ID_2, AZURE_VM_ID_2)}
 
 
-def test_sync_sources(neo4j_session, mocker):
-    """Test that TenableAssetSource nodes are created and linked to assets."""
+def test_sync_gcp_cloud(neo4j_session, mocker):
+    """Test that TenableAssetGCP nodes are created and linked to assets and tenants."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
-        return_value=ASSETS_DATA,
+        "cartography.intel.tenable.assets.get",
+        return_value=[GCP_ASSET_DATA],
     )
-
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -268,6 +294,58 @@ def test_sync_sources(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "TenableAssetGCP",
+        ["id", "project_id", "zone"],
+    ) == {
+        (GCP_INSTANCE_ID, "example-project", "us-central1-a"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "TenableAsset",
+        "id",
+        "TenableAssetGCP",
+        "id",
+        "HAS_GCP_INFO",
+        rel_direction_right=True,
+    ) == {(GCP_ASSET_ID, GCP_INSTANCE_ID)}
+    assert check_rels(
+        neo4j_session,
+        "TenableTenant",
+        "id",
+        "TenableAssetGCP",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {(TENABLE_TENANT_ID, GCP_INSTANCE_ID)}
+
+
+def test_sync_sources(neo4j_session, mocker):
+    """Test that TenableAssetSource nodes are created and linked to assets."""
+    # Arrange
+    mocker.patch(
+        "cartography.intel.tenable.assets.get",
+        return_value=ASSETS_DATA,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
+    }
+
+    # Act
+    cartography.intel.tenable.assets.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert
     actual_sources = check_nodes(neo4j_session, "TenableAssetSource", ["id", "name"])
     assert actual_sources == {
         (SOURCE_ID_1, "NESSUS_AGENT"),
@@ -291,8 +369,9 @@ def test_sync_sources(neo4j_session, mocker):
 
 def test_sync_tags(neo4j_session, mocker):
     """Test that TenableAssetTag nodes are created and linked to assets."""
+    # Arrange
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=ASSETS_DATA,
     )
 
@@ -301,6 +380,7 @@ def test_sync_tags(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -310,6 +390,7 @@ def test_sync_tags(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     actual_tags = check_nodes(neo4j_session, "TenableAssetTag", ["id", "key", "value"])
     assert actual_tags == {(TAG_ID_1, "Environment", "Production")}
 
@@ -337,8 +418,47 @@ def test_sync_tags(neo4j_session, mocker):
     assert tagged_rels == {(ASSET_ID_1, TAG_ID_1)}
 
 
+def test_sync_asset_subresources_have_tenant_ownership(neo4j_session, mocker):
+    """Test that every asset subresource has the RESOURCE edge used for cleanup."""
+    # Arrange
+    mocker.patch(
+        "cartography.intel.tenable.assets.get",
+        return_value=ASSETS_DATA,
+    )
+
+    # Act
+    cartography.intel.tenable.assets.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENABLE_TENANT_ID": TENABLE_TENANT_ID},
+    )
+
+    # Assert
+    expected_ids_by_label = {
+        "TenableNetwork": {NETWORK_ID},
+        "TenableAssetAWS": {AWS_EC2_INSTANCE_ID_1},
+        "TenableAssetAzure": {AZURE_VM_ID_2},
+        "TenableAssetSource": {SOURCE_ID_1, SOURCE_ID_2},
+        "TenableAssetTag": {TAG_ID_1},
+    }
+    for label, expected_ids in expected_ids_by_label.items():
+        assert check_rels(
+            neo4j_session,
+            "TenableTenant",
+            "id",
+            label,
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        ) == {(TENABLE_TENANT_ID, resource_id) for resource_id in expected_ids}
+
+
 def test_sync_assets_empty_response(neo4j_session, mocker):
     """Test that asset sync handles an empty export gracefully."""
+    # Arrange
     neo4j_session.run(
         """
         MATCH (n)
@@ -350,7 +470,7 @@ def test_sync_assets_empty_response(neo4j_session, mocker):
     )
 
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=[],
     )
 
@@ -359,6 +479,7 @@ def test_sync_assets_empty_response(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -368,6 +489,7 @@ def test_sync_assets_empty_response(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "TenableAsset", ["id"]) == set()
     assert check_nodes(neo4j_session, "TenableNetwork", ["id"]) == set()
     assert check_nodes(neo4j_session, "TenableAssetSource", ["id"]) == set()
@@ -379,6 +501,7 @@ def test_sync_assets_empty_response(neo4j_session, mocker):
 
 def test_sync_assets_cleanup(neo4j_session, mocker):
     """Test that stale TenableAsset nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -392,7 +515,7 @@ def test_sync_assets_cleanup(neo4j_session, mocker):
     )
 
     mocker.patch(
-        "cartography.intel.tenable.assets.export_and_download",
+        "cartography.intel.tenable.assets.get",
         return_value=[ASSETS_DATA[0]],
     )
 
@@ -401,6 +524,7 @@ def test_sync_assets_cleanup(neo4j_session, mocker):
         "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
     }
 
+    # Act
     cartography.intel.tenable.assets.sync(
         neo4j_session,
         mocker.MagicMock(),
@@ -410,14 +534,101 @@ def test_sync_assets_cleanup(neo4j_session, mocker):
         common_job_parameters,
     )
 
+    # Assert
     result = neo4j_session.run("MATCH (a:TenableAsset) RETURN a.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-asset-id" not in existing_ids
     assert ASSET_ID_1 in existing_ids
 
 
+def test_sync_assets_cleanup_across_update_tags(neo4j_session, mocker):
+    """Test that a second complete sync removes assets absent from the new export."""
+    # Arrange
+    first_update_tag = TEST_UPDATE_TAG
+    second_update_tag = TEST_UPDATE_TAG + 1
+    mocker.patch(
+        "cartography.intel.tenable.assets.get",
+        side_effect=[ASSETS_DATA, [ASSETS_DATA[0]]],
+    )
+
+    # Act
+    cartography.intel.tenable.assets.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        first_update_tag,
+        {
+            "UPDATE_TAG": first_update_tag,
+            "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
+        },
+    )
+    cartography.intel.tenable.assets.sync(
+        neo4j_session,
+        mocker.MagicMock(),
+        TEST_BASE_URL,
+        TENABLE_TENANT_ID,
+        second_update_tag,
+        {
+            "UPDATE_TAG": second_update_tag,
+            "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
+        },
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "TenableAsset", ["id"]) == {(ASSET_ID_1,)}
+
+
+def test_sync_assets_removes_stale_relationships_across_update_tags(
+    neo4j_session,
+    mocker,
+):
+    """Test that relationships absent from a later export are removed."""
+    # Arrange
+    first_update_tag = TEST_UPDATE_TAG
+    second_update_tag = TEST_UPDATE_TAG + 1
+    mocker.patch(
+        "cartography.intel.tenable.assets.get",
+        side_effect=[[ASSETS_DATA[0]], [{"id": ASSET_ID_1}]],
+    )
+
+    # Act
+    for update_tag in (first_update_tag, second_update_tag):
+        cartography.intel.tenable.assets.sync(
+            neo4j_session,
+            mocker.MagicMock(),
+            TEST_BASE_URL,
+            TENABLE_TENANT_ID,
+            update_tag,
+            {
+                "UPDATE_TAG": update_tag,
+                "TENABLE_TENANT_ID": TENABLE_TENANT_ID,
+            },
+        )
+
+    # Assert
+    for target_label, rel_label in (
+        ("TenableNetwork", "MEMBER_OF_NETWORK"),
+        ("TenableAssetAWS", "HAS_AWS_INFO"),
+        ("TenableAssetTag", "TAGGED"),
+    ):
+        assert (
+            check_rels(
+                neo4j_session,
+                "TenableAsset",
+                "id",
+                target_label,
+                "id",
+                rel_label,
+                rel_direction_right=True,
+            )
+            == set()
+        )
+
+
 def test_sync_networks_cleanup(neo4j_session, mocker):
     """Test that stale TenableNetwork nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -430,8 +641,10 @@ def test_sync_networks_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (n:TenableNetwork) RETURN n.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-network-id" not in existing_ids
@@ -440,6 +653,7 @@ def test_sync_networks_cleanup(neo4j_session, mocker):
 
 def test_sync_sources_cleanup(neo4j_session, mocker):
     """Test that stale TenableAssetSource nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -452,8 +666,10 @@ def test_sync_sources_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (s:TenableAssetSource) RETURN s.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-source-id" not in existing_ids
@@ -463,6 +679,7 @@ def test_sync_sources_cleanup(neo4j_session, mocker):
 
 def test_sync_tags_cleanup(neo4j_session, mocker):
     """Test that stale TenableAssetTag nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -475,8 +692,10 @@ def test_sync_tags_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (tag:TenableAssetTag) RETURN tag.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-tag-id" not in existing_ids
@@ -485,6 +704,7 @@ def test_sync_tags_cleanup(neo4j_session, mocker):
 
 def test_sync_aws_cleanup(neo4j_session, mocker):
     """Test that stale TenableAssetAWS nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -497,8 +717,10 @@ def test_sync_aws_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (a:TenableAssetAWS) RETURN a.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-aws-id" not in existing_ids
@@ -507,6 +729,7 @@ def test_sync_aws_cleanup(neo4j_session, mocker):
 
 def test_sync_azure_cleanup(neo4j_session, mocker):
     """Test that stale TenableAssetAzure nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -519,8 +742,10 @@ def test_sync_azure_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (a:TenableAssetAzure) RETURN a.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-azure-id" not in existing_ids
@@ -529,6 +754,7 @@ def test_sync_azure_cleanup(neo4j_session, mocker):
 
 def test_sync_gcp_cleanup(neo4j_session, mocker):
     """Test that stale TenableAssetGCP nodes are deleted after sync."""
+    # Arrange
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -541,9 +767,11 @@ def test_sync_gcp_cleanup(neo4j_session, mocker):
         old_tag=old_update_tag,
     )
 
+    # Act
     # ASSETS_DATA has no GCP assets; the stale node must still be removed
     _sync_assets(neo4j_session, mocker)
 
+    # Assert
     result = neo4j_session.run("MATCH (g:TenableAssetGCP) RETURN g.id AS id")
     existing_ids = {r["id"] for r in result}
     assert "stale-gcp-id" not in existing_ids

@@ -153,11 +153,13 @@ The configuration priority is:
 
 1. `--aws-ssm-public-parameter-prefix-allowlist`
 2. `AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST`
-3. The built-in defaults: `/aws/service/bottlerocket/` and
-   `/aws/service/eks/optimized-ami/`
 
-Set the CLI option or environment variable to an empty string to disable public
-parameter ingestion.
+If neither is set, public parameter ingestion is disabled because AWS-managed
+namespaces can contain tens of thousands of parameters in every region. Set the
+CLI option or environment variable to opt in to the prefixes your deployment
+needs. Existing deployments that rely on Bottlerocket or EKS optimized AMI
+parameters must configure the previous default explicitly before upgrading:
+`/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/`.
 
 ```bash
 export AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST="/aws/service/eks/optimized-ami/,/aws/service/custom/"

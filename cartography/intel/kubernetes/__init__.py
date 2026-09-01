@@ -35,6 +35,7 @@ sync_nodes = lazy_callable("cartography.intel.kubernetes.nodes", "sync_nodes")
 sync_pods = lazy_callable("cartography.intel.kubernetes.pods", "sync_pods")
 sync_secrets = lazy_callable("cartography.intel.kubernetes.secrets", "sync_secrets")
 sync_services = lazy_callable("cartography.intel.kubernetes.services", "sync_services")
+sync_storage = lazy_callable("cartography.intel.kubernetes.storage", "sync_storage")
 sync_workloads = lazy_callable(
     "cartography.intel.kubernetes.workloads", "sync_workloads"
 )
@@ -91,6 +92,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             replicaset_owner_map = sync_workloads(
                 session, client, config.update_tag, common_job_parameters
             )
+            sync_storage(session, client, config.update_tag, common_job_parameters)
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             region: str | None = None

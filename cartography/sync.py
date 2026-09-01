@@ -133,6 +133,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.tenable", "start_tenable_ingestion"
         ),
         "wiz": lazy_callable("cartography.intel.wiz", "start_wiz_ingestion"),
+        "orca": lazy_callable("cartography.intel.orca", "start_orca_ingestion"),
         "cve_metadata": lazy_callable(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
