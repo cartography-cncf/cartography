@@ -87,13 +87,31 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
             id: 'custom-domain',
             domain: 'app.example.com'
         })
+        CREATE (tcp_proxy:RailwayTCPProxy {
+            id: 'tcp-proxy',
+            domain: 'tcp.proxy.rlwy.net'
+        })
         CREATE (instance:RailwayServiceInstance {id: 'service-instance'})
         CREATE (service_domain)-[:EXPOSE]->(instance)
         CREATE (custom_domain)-[:EXPOSE]->(instance)
+        CREATE (tcp_proxy)-[:EXPOSE]->(instance)
         CREATE (:CloudflareDNSRecord:DNSRecord {
             id: 'custom-domain-record',
             _ont_name: 'APP.EXAMPLE.COM.',
-            _ont_value: 'web-production.up.railway.app'
+            _ont_type: 'CNAME',
+            _ont_value: 'WEB-PRODUCTION.UP.RAILWAY.APP.'
+        })
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'tcp-proxy-record',
+            _ont_name: 'database.example.com',
+            _ont_type: 'CNAME',
+            _ont_value: 'TCP.PROXY.RLWY.NET.'
+        })
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'unrelated-text-record',
+            _ont_name: 'app.example.com',
+            _ont_type: 'TXT',
+            _ont_value: 'verification-token'
         })
         CREATE (stale:CloudflareDNSRecord:DNSRecord {
             id: 'stale-record',
@@ -102,6 +120,7 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         })
         CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(service_domain)
         CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(custom_domain)
+        CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(tcp_proxy)
         """,
         stale_tag=TEST_UPDATE_TAG - 1,
     )
@@ -119,7 +138,9 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         for record_id, domain_label, instance_id in neo4j_session.run(
             """
             MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(domain)-[:EXPOSE]->(instance)
-            WHERE domain:RailwayServiceDomain OR domain:RailwayCustomDomain
+            WHERE domain:RailwayServiceDomain
+               OR domain:RailwayCustomDomain
+               OR domain:RailwayTCPProxy
             RETURN dns.id AS record_id, labels(domain)[0] AS domain_label,
                    instance.id AS instance_id
             """
@@ -128,12 +149,15 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
     assert paths == {
         ("custom-domain-record", "RailwayServiceDomain", "service-instance"),
         ("custom-domain-record", "RailwayCustomDomain", "service-instance"),
+        ("tcp-proxy-record", "RailwayTCPProxy", "service-instance"),
     }
 
     stale_relationship_count = neo4j_session.run(
         """
         MATCH (:DNSRecord {id: 'stale-record'})-[r:DNS_POINTS_TO]->(domain)
-        WHERE domain:RailwayServiceDomain OR domain:RailwayCustomDomain
+        WHERE domain:RailwayServiceDomain
+           OR domain:RailwayCustomDomain
+           OR domain:RailwayTCPProxy
         RETURN count(r) AS count
         """
     ).single()["count"]
