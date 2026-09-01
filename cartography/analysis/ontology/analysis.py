@@ -259,28 +259,79 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
 DNS_RECORD_TARGETS = (
     (
         "AWSLoadBalancerV2",
-        "dnsname",
+        "[target.dnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
     (
         "AWSLoadBalancer",
-        "dnsname",
+        "[target.dnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
-    ("AWSCloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
+    (
+        "AWSCloudFrontDistribution",
+        "[target.domain_name]",
+        "AND NOT dns:GCPRecordSet",
+        "",
+    ),
     (
         "AWSEC2Instance",
-        "publicdnsname",
+        "[target.publicdnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
     ),
-    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("RailwayServiceDomain", "domain", "", ""),
-    ("RailwayTCPProxy", "domain", "", ""),
+    ("GCPInstance", "[target.hostname]", "AND NOT dns:GCPRecordSet", ""),
+    (
+        "AzureAppService",
+        "[target.default_host_name]",
+        "AND NOT dns:GCPRecordSet",
+        "",
+    ),
+    (
+        "AzureFunctionApp",
+        "[target.default_host_name]",
+        "AND NOT dns:GCPRecordSet",
+        "",
+    ),
+    ("RailwayServiceDomain", "[target.domain]", "", ""),
+    ("RailwayTCPProxy", "[target.domain]", "", ""),
+    (
+        "ModalSandboxTunnel",
+        "[target.host, target.unencrypted_host]",
+        "",
+        "",
+    ),
+    (
+        "ModalFunction",
+        "[split(replace(replace(target.web_url, 'https://', ''), 'http://', ''), '/')[0]]",
+        "",
+        "",
+    ),
+    (
+        "GCPCloudRunService",
+        "[split(replace(replace(target.uri, 'https://', ''), 'http://', ''), '/')[0]]",
+        "",
+        "",
+    ),
+    (
+        "NetlifySite",
+        "[target.default_domain, target.custom_domain] + coalesce(target.domain_aliases, [])",
+        "",
+        "",
+    ),
+    (
+        "ScalewayServerlessContainer",
+        "[target.domain_name]",
+        "",
+        "",
+    ),
+    (
+        "ScalewayServerlessFunction",
+        "[target.domain_name]",
+        "",
+        "",
+    ),
 )
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
@@ -294,7 +345,7 @@ DNS_RECORD_LINKING_JOBS = (
             cleanup_iterationsize=1000,
             statements=(
                 AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{target_property}, '.'))",
+                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH dns, target, target_value WHERE target_value IS NOT NULL AND trim(toString(target_value)) <> '' AND toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(toString(target_value), '.'))",
                     effects=(
                         AddRelationship(
                             "dns",
@@ -307,7 +358,7 @@ DNS_RECORD_LINKING_JOBS = (
                     ),
                 ),
                 AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{target_property}, '.'))",
+                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH dns, val, target, target_value WHERE target_value IS NOT NULL AND trim(toString(target_value)) <> '' AND toLower(rtrim(toString(val), '.')) = toLower(rtrim(toString(target_value), '.'))",
                     effects=(
                         AddRelationship(
                             "dns",
@@ -328,7 +379,7 @@ DNS_RECORD_LINKING_JOBS = (
                 ),
             ),
         )
-        for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
+        for target_label, target_values_expression, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
 )
 BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
