@@ -2,6 +2,8 @@ import copy
 
 import cartography.intel.railway.deployments
 import tests.data.railway.bundles
+from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
+from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.railway.test_projects import (
     _common_job_parameters,
 )
@@ -52,10 +54,24 @@ def test_load_railway_deployments(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayDeployment",
-        ["id", "status", "static_url", "source_revision"],
+        [
+            "id",
+            "status",
+            "static_url",
+            "source_revision",
+            "source_image",
+            "image_digest",
+        ],
     ) == {
-        (WEB_DEPLOYMENT_ID, "SUCCESS", "web-production-abcde.up.railway.app", None),
-        (POSTGRES_DEPLOYMENT_ID, "SUCCESS", None, SOURCE_REVISION),
+        (
+            WEB_DEPLOYMENT_ID,
+            "SUCCESS",
+            "web-production-abcde.up.railway.app",
+            None,
+            "nginxdemos/hello",
+            None,
+        ),
+        (POSTGRES_DEPLOYMENT_ID, "SUCCESS", None, SOURCE_REVISION, None, None),
     }
 
     # Assert the canonical ontology edge required for Container -> ComputeService
@@ -91,6 +107,68 @@ def test_load_railway_deployments(neo4j_session):
         (TEST_PROJECT_ID, WEB_DEPLOYMENT_ID),
         (TEST_PROJECT_ID, POSTGRES_DEPLOYMENT_ID),
     }
+
+
+def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session):
+    digest = "sha256:" + "a" * 64
+    bundles = copy.deepcopy(BUNDLES)
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] == WEB_INSTANCE_ID:
+            instance["source"] = {
+                "image": f"registry.example.com/team/app@{digest}",
+                "repo": None,
+            }
+
+    _sync_compute_tier(neo4j_session)
+    neo4j_session.run(
+        "CREATE (:AWSECRImage:Image {id: $digest, digest: $digest})",
+        digest=digest,
+    )
+
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        bundles,
+        TEST_UPDATE_TAG,
+    )
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(
+            job,
+            neo4j_session,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+        )
+
+    assert check_nodes(
+        neo4j_session,
+        "RailwayDeployment",
+        ["id", "source_image", "image_digest"],
+    ) >= {
+        (
+            WEB_DEPLOYMENT_ID,
+            f"registry.example.com/team/app@{digest}",
+            digest,
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RailwayDeployment",
+        "id",
+        "AWSECRImage",
+        "digest",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {(WEB_DEPLOYMENT_ID, digest)}
+    assert check_rels(
+        neo4j_session,
+        "RailwayDeployment",
+        "id",
+        "AWSECRImage",
+        "digest",
+        "RESOLVED_IMAGE",
+        rel_direction_right=True,
+    ) == {(WEB_DEPLOYMENT_ID, digest)}
 
 
 def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
