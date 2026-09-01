@@ -303,6 +303,10 @@ class Config:
     :param vercel_team_id: Vercel team ID to sync. Optional.
     :type vercel_base_url: str
     :param vercel_base_url: Vercel API base URL. Optional.
+    :type civo_api_key: str
+    :param civo_api_key: Civo API key. Optional.
+    :type civo_base_url: str
+    :param civo_base_url: Civo API base URL. Optional.
     :type supabase_access_token: str
     :param supabase_access_token: Supabase personal access token used against the
         Management API. Optional.
@@ -624,6 +628,8 @@ class Config:
         vercel_token=None,
         vercel_team_id=None,
         vercel_base_url=None,
+        civo_api_key=None,
+        civo_base_url=None,
         supabase_access_token=None,
         supabase_organizations=None,
         supabase_base_url=None,
@@ -882,6 +888,8 @@ class Config:
         self.vercel_token = vercel_token
         self.vercel_team_id = vercel_team_id
         self.vercel_base_url = vercel_base_url
+        self.civo_api_key = civo_api_key
+        self.civo_base_url = civo_base_url
         self.supabase_access_token = supabase_access_token
         self.supabase_organizations = supabase_organizations
         self.supabase_base_url = supabase_base_url

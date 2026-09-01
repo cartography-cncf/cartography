@@ -105,6 +105,7 @@ PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
+PANEL_CIVO = "Civo Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -166,6 +167,7 @@ MODULE_PANELS = {
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
     "vercel": PANEL_VERCEL,
+    "civo": PANEL_CIVO,
     "supabase": PANEL_SUPABASE,
     "railway": PANEL_RAILWAY,
     "netlify": PANEL_NETLIFY,
@@ -2532,6 +2534,27 @@ class CLI:
                 ),
             ] = "https://api.vercel.com",
             # =================================================================
+            # Civo Options
+            # =================================================================
+            civo_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--civo-api-key-env-var",
+                    help="Environment variable name containing Civo API key.",
+                    rich_help_panel=PANEL_CIVO,
+                    hidden=PANEL_CIVO not in visible_panels,
+                ),
+            ] = None,
+            civo_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--civo-base-url",
+                    help="Civo API base URL.",
+                    rich_help_panel=PANEL_CIVO,
+                    hidden=PANEL_CIVO not in visible_panels,
+                ),
+            ] = "https://api.civo.com",
+            # =================================================================
             # Supabase Options
             # =================================================================
             supabase_access_token_env_var: Annotated[
@@ -3184,6 +3207,15 @@ class CLI:
                 )
                 vercel_token = os.environ.get(vercel_token_env_var)
 
+            # Read Civo API key
+            civo_api_key = None
+            if civo_api_key_env_var:
+                logger.debug(
+                    "Reading Civo API key from environment variable %s",
+                    civo_api_key_env_var,
+                )
+                civo_api_key = os.environ.get(civo_api_key_env_var)
+
             # Read Supabase access token
             supabase_access_token = None
             if supabase_access_token_env_var:
@@ -3701,6 +3733,8 @@ class CLI:
                 vercel_token=vercel_token,
                 vercel_team_id=vercel_team_id,
                 vercel_base_url=vercel_base_url,
+                civo_api_key=civo_api_key,
+                civo_base_url=civo_base_url,
                 supabase_access_token=supabase_access_token,
                 supabase_organizations=supabase_organizations,
                 supabase_base_url=supabase_base_url,
