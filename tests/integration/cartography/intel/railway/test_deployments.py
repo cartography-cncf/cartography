@@ -249,6 +249,35 @@ def test_reported_digest_resolves_tagged_image(neo4j_session):
     ) == {(WEB_DEPLOYMENT_ID, digest)}
 
 
+def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
+    digest = "sha256:" + "d" * 64
+    bundles = copy.deepcopy(BUNDLES)
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] == WEB_INSTANCE_ID:
+            instance["source"] = {
+                "image": f"registry.example.com/team/app@{digest}",
+                "repo": None,
+            }
+    _update_deployment_meta(
+        bundles,
+        WEB_DEPLOYMENT_ID,
+        {
+            "image": "registry.example.com/team/app:latest",
+            "imageDigest": "sha256:not-a-digest",
+        },
+    )
+
+    deployments, _, _ = cartography.intel.railway.deployments.transform(bundles)
+    deployment = next(
+        item for item in deployments[TEST_PROJECT_ID] if item["id"] == WEB_DEPLOYMENT_ID
+    )
+
+    assert deployment["source_image"] == "registry.example.com/team/app:latest"
+    assert deployment["image_digest"] == digest
+
+
 def test_reported_digest_resolves_source_built_image(neo4j_session):
     # Arrange
     digest = "sha256:" + "c" * 64

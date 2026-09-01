@@ -80,18 +80,22 @@ def transform(
             source = (current_instance or {}).get("source") or {}
             meta = deployment.get("meta")
             meta_image = meta.get("image") if isinstance(meta, dict) else None
-            raw_source_image = (
-                meta_image
-                if isinstance(meta_image, str) and meta_image.strip()
-                else source.get("image")
-            )
-            source_image, pinned_digest = parse_image_uri(raw_source_image)
+            source_image, source_pinned_digest = parse_image_uri(source.get("image"))
+            meta_pinned_digest = None
+            if isinstance(meta_image, str) and meta_image.strip():
+                source_image, meta_pinned_digest = parse_image_uri(meta_image)
             reported_digest = (
                 meta.get("imageDigest") if isinstance(meta, dict) else None
             )
-            image_digest = _normalize_image_digest(
-                reported_digest,
-            ) or _normalize_image_digest(pinned_digest)
+            image_digest = (
+                _normalize_image_digest(
+                    reported_digest,
+                )
+                or _normalize_image_digest(
+                    meta_pinned_digest,
+                )
+                or _normalize_image_digest(source_pinned_digest)
+            )
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
                 commit_hash.lower()
