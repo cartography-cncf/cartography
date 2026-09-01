@@ -280,7 +280,7 @@ def _resolve_aws_ssm_public_parameter_prefix_allowlist(
         return config_value
     if env_value is not None:
         return env_value
-    return ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+    return ""
 
 
 def _get_boto3_session_for_profile(
@@ -302,6 +302,15 @@ def _sync_shared_public_ssm_parameters(
     aws_best_effort_mode: bool,
 ) -> None:
     if "ssm" not in requested_syncs:
+        return
+
+    if not ssm_intel.get_public_parameter_prefixes(common_job_parameters):
+        ssm_intel.sync_public_parameters(
+            neo4j_session,
+            {},
+            common_job_parameters["UPDATE_TAG"],
+            common_job_parameters,
+        )
         return
 
     region_session_candidates: dict[str, list[boto3.Session]] = {}

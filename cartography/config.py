@@ -164,8 +164,8 @@ class Config:
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
     :type aws_ssm_public_parameter_prefix_allowlist: str
     :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
-        prefixes to ingest (for example /aws/service/bottlerocket/). Defaults to the Bottlerocket and EKS optimized
-        AMI public namespaces when unset. Set to an empty string to disable public SSM parameter ingestion. Optional.
+        prefixes to ingest (for example /aws/service/bottlerocket/). Public SSM parameter ingestion is disabled when
+        unset. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool

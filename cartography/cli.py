@@ -660,7 +660,8 @@ class CLI:
                     "--aws-ssm-public-parameter-prefix-allowlist",
                     help=(
                         "Comma-separated AWS-managed public SSM parameter prefixes to ingest. "
-                        "Set to an empty string to disable public parameter ingestion."
+                        "For example: /aws/service/eks/optimized-ami/. "
+                        "Public parameter ingestion is disabled by default."
                     ),
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
