@@ -9,6 +9,7 @@ import importlib
 import pkgutil
 from types import ModuleType
 from typing import Any
+from typing import Iterable
 
 
 # TODO: translate a ModuleNotFoundError raised by these helpers into an actionable
@@ -216,3 +217,30 @@ def lazy_submodule(package: str, name: str) -> ModuleType:
         for submodule in pkgutil.iter_modules(module.__path__):
             importlib.import_module(f"{target}.{submodule.name}")
     return module
+
+
+def lazy_namespace_all(
+    package_path: Iterable[str], package_globals: dict[str, Any]
+) -> list[str]:
+    """``__all__`` for a package whose submodules are served by ``__getattr__``.
+
+    A star-import only consults ``__getattr__`` for names ``__all__`` mentions, so a
+    package using :func:`lazy_submodule` needs one or `from pkg import *` silently
+    stops exporting the submodules it used to. Written as::
+
+        __all__ = lazy_namespace_all(__path__, globals())
+
+    The list is computed rather than spelled out because these packages never declared
+    ``__all__``: a hand-written one would also change what a star-import gives for
+    everything else defined here.
+
+    Args:
+        package_path: The package's ``__path__``. Only listed, never imported.
+        package_globals: The package's ``globals()``.
+
+    Returns:
+        Every public name already defined in the package, plus its submodules.
+    """
+    names = {name for name in package_globals if not name.startswith("_")}
+    names.update(module.name for module in pkgutil.iter_modules(package_path))
+    return sorted(names)

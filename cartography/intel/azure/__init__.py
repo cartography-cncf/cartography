@@ -563,12 +563,25 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)
 
 
-# DEPRECATED: Credentials was re-exported from this package before its imports became
-# lazy. Served on demand rather than bound eagerly, so that reaching for it does not
-# drag the Azure SDK into a sync that has no Azure credentials. Remove in v1.0.0.
+# DEPRECATED: these were re-exported from this package before its imports became lazy.
+# Served on demand rather than bound eagerly, so that reaching for one does not drag the
+# Azure SDK into a sync that has no Azure credentials. Remove in v1.0.0.
+_MOVED_TO_SUBMODULES = {
+    "AzureDataFactoryTransientError": "cartography.intel.azure.data_factory_util",
+    "Credentials": "cartography.intel.azure.util.credentials",
+}
+
+
 def __getattr__(name: str) -> Any:
-    if name == "Credentials":
-        return importlib.import_module(
-            "cartography.intel.azure.util.credentials",
-        ).Credentials
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = _MOVED_TO_SUBMODULES.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(importlib.import_module(module), name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.azure import *` too.
+__all__ = sorted(
+    [name for name in list(globals()) if not name.startswith("_")]
+    + list(_MOVED_TO_SUBMODULES),
+)

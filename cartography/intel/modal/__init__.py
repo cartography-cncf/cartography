@@ -11,6 +11,7 @@ from cartography.util import run_analysis_job
 from cartography.util import timeit
 from cartography.util.lazy import lazy_callable
 from cartography.util.lazy import lazy_import
+from cartography.util.lazy import lazy_namespace_all
 from cartography.util.lazy import lazy_submodule
 
 # Bound lazily so that the provider SDK only loads once the config gate below
@@ -304,3 +305,8 @@ async def _sync(neo4j_session: neo4j.Session, config: Config) -> None:
 # demand instead. Remove in v1.0.0.
 def __getattr__(name: str) -> Any:
     return lazy_submodule(__name__, name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.modal import *` too.
+__all__ = lazy_namespace_all(__path__, globals())
