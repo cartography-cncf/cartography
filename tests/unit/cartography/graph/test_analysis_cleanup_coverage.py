@@ -293,12 +293,6 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_railway_service_domain",
     ),
     pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayTCPProxy"),
-        None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayTCPProxy"),
-        id="ontology_dnsrecords_to_railway_tcp_proxy",
-    ),
-    pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),
         ENTRA,
         _prop_cleanup("EntraApplication", "_ont_enabled", scope=ENTRA),

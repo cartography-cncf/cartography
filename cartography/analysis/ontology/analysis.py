@@ -225,7 +225,7 @@ DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
+            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
             effects=(
                 AddRelationship(
                     "dns",
@@ -279,8 +279,7 @@ DNS_RECORD_TARGETS = (
     ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("RailwayServiceDomain", "domain", "", ""),
-    ("RailwayTCPProxy", "domain", "", ""),
+    ("RailwayServiceDomain", "domain", "AND NOT dns:GCPRecordSet", ""),
 )
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
