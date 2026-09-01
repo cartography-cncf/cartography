@@ -89,7 +89,31 @@ def _entrypoint_module(stage_name: str) -> str:
     return f"cartography.intel.{stage_name}"
 
 
+# Namespace packages the virtualenv materialises without executing anything, plus
+# interpreter site machinery. They show up in sys.modules with nothing imported.
+_ENVIRONMENT_ARTEFACTS = frozenset({"google", "sitecustomize", "sphinxcontrib"})
+
 BASELINE = _top_level_imports("cartography.sync") | CORE_DISTRIBUTIONS
+
+
+def test_sync_import_stays_within_the_core_allowlist() -> None:
+    """The baseline every other check is measured against must itself be core-only.
+
+    BASELINE is derived from what cartography.sync pulls, so a provider SDK imported
+    somewhere in the core would be absorbed into it and quietly widen every per-module
+    assertion in this file without anything failing.
+    """
+    outside = {
+        name
+        for name in _top_level_imports("cartography.sync")
+        - CORE_DISTRIBUTIONS
+        - _ENVIRONMENT_ARTEFACTS
+        if name not in sys.stdlib_module_names and name != "cartography"
+    }
+    assert not outside, (
+        f"cartography.sync pulls {sorted(outside)}, which is outside the core "
+        "allowlist; either it belongs in CORE_DISTRIBUTIONS or it should be lazy"
+    )
 
 
 def test_sync_import_does_not_pull_boto3() -> None:
@@ -344,8 +368,14 @@ def _lazy_import_attribute_uses() -> dict[str, set[str]]:
 
 _ATTRIBUTE_PROBE = """
 import importlib, json
-module = importlib.import_module({target!r})
-print('@@' + json.dumps([a for a in {attrs!r} if not hasattr(module, a)]))
+try:
+    module = importlib.import_module({target!r})
+except ModuleNotFoundError as exc:
+    print('@@' + json.dumps({{"absent": exc.name}}))
+else:
+    print('@@' + json.dumps(
+        {{"missing": [a for a in {attrs!r} if not hasattr(module, a)]}}
+    ))
 """
 
 
@@ -370,13 +400,24 @@ def test_lazy_import_target_exposes_the_attributes_it_is_used_for(target, attrs)
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"importing {target} failed:\n{result.stderr}"
-    absent = next(
+    assert result.returncode == 0, f"probing {target} failed:\n{result.stderr}"
+    outcome = next(
         json.loads(line[2:])
         for line in result.stdout.splitlines()
         if line.startswith("@@")
     )
-    assert not absent, (
-        f"`import {target}` does not expose {absent}; bind the submodule directly, "
-        f'e.g. lazy_import("{target}.{absent[0]}")'
+
+    absent = outcome.get("absent")
+    if absent is not None:
+        # An SDK that is not installed is the point of the extras split, not a failure.
+        # A ModuleNotFoundError naming something else is a broken dependency, so it
+        # still fails.
+        if absent == target or target.startswith(f"{absent}."):
+            pytest.skip(f"{absent} is not installed")
+        pytest.fail(f"importing {target} failed on a missing {absent!r}")
+
+    missing = outcome["missing"]
+    assert not missing, (
+        f"`import {target}` does not expose {missing}; bind the submodule directly, "
+        f'e.g. lazy_import("{target}.{missing[0]}")'
     )
