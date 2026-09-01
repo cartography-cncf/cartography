@@ -720,6 +720,40 @@ FUNCTION_RESOLVED_IMAGE = AnalysisJob(
     ),
 )
 RESOLVED_IMAGE_JOBS = (CONTAINER_RESOLVED_IMAGE, FUNCTION_RESOLVED_IMAGE)
+RAILWAY_CONTAINER_CONFIGURED_IMAGE = AnalysisJob(
+    name="Railway Container CONFIGURED_IMAGE analysis",
+    short_name="railway_container_configured_image_analysis",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            comment=(
+                "Link the current Railway deployment to the mutable registry tag it is "
+                "configured to pull. This deliberately does not create HAS_IMAGE or "
+                "RESOLVED_IMAGE: Railway does not report the digest actually running, "
+                "and a tag may move after deployment."
+            ),
+            match="""
+            MATCH (container:RailwayDeployment:Container)-[:WORKLOAD_PARENT]->
+                  (instance:RailwayServiceInstance),
+                  (tag:ImageTag)
+            WHERE instance.source_image IS NOT NULL
+              AND trim(instance.source_image) <> ''
+              AND trim(instance.source_image) = trim(
+                    coalesce(tag._ont_uri, tag.uri, tag.id)
+                  )
+            """,
+            effects=(
+                AddRelationship(
+                    "container",
+                    "CONFIGURED_IMAGE",
+                    "tag",
+                    source_label="Container",
+                    target_label="ImageTag",
+                ),
+            ),
+        ),
+    ),
+)
 WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
     name="Workload HAS_RUNTIME_IMAGE inventory analysis",
     short_name="workload_has_runtime_image_analysis",
