@@ -19,6 +19,15 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _normalize_image_digest(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    digest = value.strip()
+    if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+        return None
+    return digest.lower()
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -69,8 +78,20 @@ def transform(
         for deployment in project_deployments_by_id.values():
             current_instance = current_instances.get(deployment["id"])
             source = (current_instance or {}).get("source") or {}
-            source_image, image_digest = parse_image_uri(source.get("image"))
             meta = deployment.get("meta")
+            meta_image = meta.get("image") if isinstance(meta, dict) else None
+            raw_source_image = (
+                meta_image
+                if isinstance(meta_image, str) and meta_image.strip()
+                else source.get("image")
+            )
+            source_image, pinned_digest = parse_image_uri(raw_source_image)
+            reported_digest = (
+                meta.get("imageDigest") if isinstance(meta, dict) else None
+            )
+            image_digest = _normalize_image_digest(
+                reported_digest,
+            ) or _normalize_image_digest(pinned_digest)
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
                 commit_hash.lower()
