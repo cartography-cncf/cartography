@@ -159,3 +159,12 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         """
     ).single()["count"]
     assert stale_relationship_count == 0
+
+    unverified_relationship_count = neo4j_session.run(
+        """
+        MATCH (:DNSRecord {id: 'pending-domain-record'})
+              -[r:DNS_POINTS_TO]->(:RailwayCustomDomain {id: 'unverified-domain'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert unverified_relationship_count == 0
