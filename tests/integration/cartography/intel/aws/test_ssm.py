@@ -465,6 +465,7 @@ def test_empty_public_ssm_allowlist_removes_existing_parameters(
     neo4j_session,
 ):
     # Arrange
+    neo4j_session.run("MATCH (n:AWSPublicSSMParameter) DETACH DELETE n")
     mock_boto3_session = MagicMock()
     common_params = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
