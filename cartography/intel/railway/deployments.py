@@ -28,6 +28,17 @@ def _normalize_image_digest(value: Any) -> str | None:
     return digest.lower()
 
 
+def _image_repository(image_uri: str | None) -> str | None:
+    if image_uri is None:
+        return None
+    repository = image_uri.partition("@")[0]
+    last_slash = repository.rfind("/")
+    last_colon = repository.rfind(":")
+    if last_colon > last_slash:
+        repository = repository[:last_colon]
+    return repository or None
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -80,10 +91,18 @@ def transform(
             source = (current_instance or {}).get("source") or {}
             meta = deployment.get("meta")
             meta_image = meta.get("image") if isinstance(meta, dict) else None
-            source_image, source_pinned_digest = parse_image_uri(source.get("image"))
+            configured_image, source_pinned_digest = parse_image_uri(
+                source.get("image"),
+            )
+            source_image = configured_image
             meta_pinned_digest = None
+            source_fallback_digest = source_pinned_digest
             if isinstance(meta_image, str) and meta_image.strip():
                 source_image, meta_pinned_digest = parse_image_uri(meta_image)
+                if _image_repository(source_image) != _image_repository(
+                    configured_image,
+                ):
+                    source_fallback_digest = None
             reported_digest = (
                 meta.get("imageDigest") if isinstance(meta, dict) else None
             )
@@ -94,7 +113,7 @@ def transform(
                 or _normalize_image_digest(
                     meta_pinned_digest,
                 )
-                or _normalize_image_digest(source_pinned_digest)
+                or _normalize_image_digest(source_fallback_digest)
             )
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
