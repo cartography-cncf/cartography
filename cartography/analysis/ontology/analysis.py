@@ -219,6 +219,25 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
         ),
     ),
 )
+DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
+    name="Ontology - DNSRecord to RailwayCustomDomain linking",
+    short_name="ontology_dnsrecords_railway_custom_domain",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "domain",
+                    source_label="DNSRecord",
+                    target_label="RailwayCustomDomain",
+                ),
+            ),
+        ),
+    ),
+)
 BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     name="Ontology - BbotDNSName to provider DNSRecord linking",
     short_name="ontology_bbot_dns_matches_provider",
@@ -260,9 +279,11 @@ DNS_RECORD_TARGETS = (
     ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
+    ("RailwayServiceDomain", "domain", "", ""),
 )
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
+    DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
 ) + tuple(
     (

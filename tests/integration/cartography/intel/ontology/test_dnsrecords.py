@@ -72,3 +72,69 @@ def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
         lb_dns_name=LB_DNS_NAME,
     ).single()["count"]
     assert stale_count == 0
+
+
+def test_sync_links_dns_records_to_railway_domains(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (service_domain:RailwayServiceDomain {
+            id: 'service-domain',
+            domain: 'web-production.up.railway.app'
+        })
+        CREATE (custom_domain:RailwayCustomDomain {
+            id: 'custom-domain',
+            domain: 'app.example.com'
+        })
+        CREATE (instance:RailwayServiceInstance {id: 'service-instance'})
+        CREATE (service_domain)-[:EXPOSE]->(instance)
+        CREATE (custom_domain)-[:EXPOSE]->(instance)
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'custom-domain-record',
+            _ont_name: 'APP.EXAMPLE.COM.',
+            _ont_value: 'web-production.up.railway.app'
+        })
+        CREATE (stale:CloudflareDNSRecord:DNSRecord {
+            id: 'stale-record',
+            _ont_name: 'old.example.com',
+            _ont_value: 'old.up.railway.app'
+        })
+        CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(service_domain)
+        CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(custom_domain)
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    paths = {
+        (record_id, domain_label, instance_id)
+        for record_id, domain_label, instance_id in neo4j_session.run(
+            """
+            MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(domain)-[:EXPOSE]->(instance)
+            WHERE domain:RailwayServiceDomain OR domain:RailwayCustomDomain
+            RETURN dns.id AS record_id, labels(domain)[0] AS domain_label,
+                   instance.id AS instance_id
+            """
+        ).values()
+    }
+    assert paths == {
+        ("custom-domain-record", "RailwayServiceDomain", "service-instance"),
+        ("custom-domain-record", "RailwayCustomDomain", "service-instance"),
+    }
+
+    stale_relationship_count = neo4j_session.run(
+        """
+        MATCH (:DNSRecord {id: 'stale-record'})-[r:DNS_POINTS_TO]->(domain)
+        WHERE domain:RailwayServiceDomain OR domain:RailwayCustomDomain
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert stale_relationship_count == 0
