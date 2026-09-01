@@ -225,7 +225,7 @@ DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
+            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
             effects=(
                 AddRelationship(
                     "dns",
@@ -280,6 +280,7 @@ DNS_RECORD_TARGETS = (
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("RailwayServiceDomain", "domain", "", ""),
+    ("RailwayTCPProxy", "domain", "", ""),
 )
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
@@ -293,7 +294,7 @@ DNS_RECORD_LINKING_JOBS = (
             cleanup_iterationsize=1000,
             statements=(
                 AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
+                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{target_property}, '.'))",
                     effects=(
                         AddRelationship(
                             "dns",
@@ -306,7 +307,7 @@ DNS_RECORD_LINKING_JOBS = (
                     ),
                 ),
                 AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
+                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{target_property}, '.'))",
                     effects=(
                         AddRelationship(
                             "dns",
