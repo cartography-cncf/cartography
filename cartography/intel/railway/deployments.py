@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image import parse_image_uri
 from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.deployment import RailwayDeploymentSchema
@@ -66,6 +67,9 @@ def transform(
         project_snapshots: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
         for deployment in project_deployments_by_id.values():
+            current_instance = current_instances.get(deployment["id"])
+            source = (current_instance or {}).get("source") or {}
+            source_image, image_digest = parse_image_uri(source.get("image"))
             meta = deployment.get("meta")
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
@@ -78,12 +82,13 @@ def transform(
                 {
                     **deployment,
                     "source_revision": source_revision,
+                    "source_image": source_image,
+                    "image_digest": image_digest,
                     "lifecycle": (
                         "current" if deployment["id"] in current_ids else "historical"
                     ),
                 },
             )
-            current_instance = current_instances.get(deployment["id"])
             source_repo = meta.get("repo") if isinstance(meta, dict) else None
             root_directory = (
                 meta.get("rootDirectory") if isinstance(meta, dict) else None

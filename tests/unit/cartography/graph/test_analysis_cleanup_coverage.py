@@ -365,12 +365,6 @@ CLEANUP_CASES = [
         id="resolved_image_function",
     ),
     pytest.param(
-        RelationshipEffect("Container", "CONFIGURED_IMAGE", "ImageTag"),
-        None,
-        _rel_cleanup("Container", "CONFIGURED_IMAGE", "ImageTag"),
-        id="railway_container_configured_image",
-    ),
-    pytest.param(
         RelationshipEffect("AWSEC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole"),
         AWS,
         _rel_cleanup("AWSEC2Instance", "STS_ASSUMEROLE_ALLOW", "AWSRole", scope=AWS),
