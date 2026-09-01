@@ -9,7 +9,6 @@ import cartography.intel.ontology.publicips
 import cartography.intel.ontology.users
 from cartography.analysis.aibom.analysis import AIBOM_RUNS_ON_CONTAINER
 from cartography.analysis.ontology.analysis import BBOT_IP_MATCHES_PUBLIC_IP
-from cartography.analysis.ontology.analysis import RAILWAY_CONTAINER_CONFIGURED_IMAGE
 from cartography.analysis.ontology.analysis import RESOLVED_IMAGE_JOBS
 from cartography.analysis.ontology.analysis import TAILSCALE_DEVICE_INSTANCE_LINKING
 from cartography.analysis.ontology.analysis import WORKLOAD_HAS_RUNTIME_IMAGE
@@ -92,14 +91,6 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     # Runs after provider syncs so EC2/GCP ComputeInstance nodes are available.
     run_typed_analysis_job(
         TAILSCALE_DEVICE_INSTANCE_LINKING,
-        neo4j_session,
-        common_job_parameters,
-    )
-    # Railway reports a configured image tag but not the immutable digest that is
-    # actually running. Preserve that provenance without feeding the digest-based
-    # RESOLVED_IMAGE / HAS_RUNTIME_IMAGE inventory.
-    run_typed_analysis_job(
-        RAILWAY_CONTAINER_CONFIGURED_IMAGE,
         neo4j_session,
         common_job_parameters,
     )
