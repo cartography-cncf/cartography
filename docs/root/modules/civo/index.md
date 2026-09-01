@@ -1,0 +1,6 @@
+# Civo
+
+```{toctree}
+config
+schema
+```
