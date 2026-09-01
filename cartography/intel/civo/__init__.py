@@ -12,6 +12,8 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_BASE_URL = "https://api.civo.com"
+
 
 @timeit
 def start_civo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -37,10 +39,11 @@ def start_civo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     )
     api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     api_session.headers.update({"Authorization": f"bearer {config.civo_api_key}"})
+    base_url = config.civo_base_url or DEFAULT_BASE_URL
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        "BASE_URL": config.civo_base_url,
+        "BASE_URL": base_url,
     }
 
     # Phase 1: Root tenant

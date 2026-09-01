@@ -108,8 +108,8 @@ def get_json_array(
     Fetch a Civo list endpoint that returns a bare JSON array, not the
     ``{"page", "per_page", "pages", "items"}`` wrapper. Confirmed against
     civogo (civo/civogo on GitHub) that not every list endpoint paginates -
-    e.g. firewalls, networks, subnets, volumes, DNS domains/records, and load
-    balancers all return a bare array, while instances, ssh keys, kubernetes
+    e.g. ssh keys, firewalls, networks, subnets, volumes, DNS domains/records,
+    and load balancers all return a bare array, while instances, kubernetes
     clusters, object stores, object store credentials, databases, and IPs are
     paginated. Use this for the former, ``list_all_pages`` for the latter -
     don't assume every endpoint shares one shape.

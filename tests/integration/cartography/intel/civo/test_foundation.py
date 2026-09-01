@@ -220,6 +220,50 @@ def test_start_civo_ingestion_wires_every_available_module(neo4j_session):
         module_mock.assert_called_once()
 
 
+def test_start_civo_ingestion_defaults_base_url_for_programmatic_config(
+    neo4j_session,
+):
+    """
+    Config defaults civo_base_url to None; the CLI supplies the default, but
+    programmatic callers should still get the documented API base URL.
+    """
+    # Arrange
+    config = Config(
+        neo4j_uri="bolt://fake-neo4j:7687",
+        update_tag=TEST_UPDATE_TAG,
+        civo_api_key="fake-key",
+        civo_base_url=None,
+    )
+
+    modules = _discover_sync_modules()
+    assert {"account", "sshkeys"} <= set(modules)
+
+    with ExitStack() as stack:
+        sync_mocks = {}
+        cleanup_mocks = {}
+        for name, module in modules.items():
+            return_value = QUOTA_RESPONSE if name == "account" else None
+            sync_mocks[name] = stack.enter_context(
+                patch.object(module, "sync", return_value=return_value),
+            )
+            cleanup_mocks[name] = stack.enter_context(patch.object(module, "cleanup"))
+        stack.enter_context(
+            patch.object(
+                cartography.intel.civo,
+                "get_regions",
+                return_value=[],
+                create=True,
+            ),
+        )
+
+        # Act
+        cartography.intel.civo.start_civo_ingestion(neo4j_session, config)
+
+    # Assert
+    account_parameters = sync_mocks["account"].call_args.args[2]
+    assert account_parameters["BASE_URL"] == "https://api.civo.com"
+
+
 def test_start_civo_ingestion_failure_skips_every_cleanup(neo4j_session):
     """A failed load must abort before cleanup for every available module."""
     config = Config(
