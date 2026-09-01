@@ -277,6 +277,20 @@ def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
     assert deployment["source_image"] == "registry.example.com/team/app:latest"
     assert deployment["image_digest"] == digest
 
+    _update_deployment_meta(
+        bundles,
+        WEB_DEPLOYMENT_ID,
+        {"image": "registry.example.com/team/different-app:latest"},
+    )
+    deployments, _, _ = cartography.intel.railway.deployments.transform(bundles)
+    deployment = next(
+        item for item in deployments[TEST_PROJECT_ID] if item["id"] == WEB_DEPLOYMENT_ID
+    )
+    assert deployment["source_image"] == (
+        "registry.example.com/team/different-app:latest"
+    )
+    assert deployment["image_digest"] is None
+
 
 def test_reported_digest_resolves_source_built_image(neo4j_session):
     # Arrange
