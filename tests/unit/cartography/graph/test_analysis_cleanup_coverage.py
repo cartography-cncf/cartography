@@ -292,12 +292,6 @@ CLEANUP_CASES = [
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
         id="ontology_dnsrecords_to_railway_service_domain",
     ),
-    pytest.param(
-        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayTCPProxy"),
-        None,
-        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayTCPProxy"),
-        id="ontology_dnsrecords_to_railway_tcp_proxy",
-    ),
     *[
         pytest.param(
             RelationshipEffect("DNSRecord", "DNS_POINTS_TO", label),

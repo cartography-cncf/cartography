@@ -225,7 +225,7 @@ DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
+            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain IS NOT NULL AND toLower(rtrim(dns._ont_name, '.')) = toLower(rtrim(domain.domain, '.'))",
             effects=(
                 AddRelationship(
                     "dns",
@@ -294,8 +294,12 @@ DNS_RECORD_TARGETS = (
         "AND NOT dns:GCPRecordSet",
         "",
     ),
-    ("RailwayServiceDomain", "[target.domain]", "", ""),
-    ("RailwayTCPProxy", "[target.domain]", "", ""),
+    (
+        "RailwayServiceDomain",
+        "[target.domain]",
+        "AND NOT dns:GCPRecordSet",
+        "",
+    ),
     (
         "ModalSandboxTunnel",
         "[target.host, target.unencrypted_host]",

@@ -38,6 +38,34 @@ TRIGGER_ID = "dt111111-1111-1111-1111-111111111111"
 SOURCE_REVISION = "0123456789abcdef0123456789abcdef01234567"
 
 
+def _update_deployment_meta(
+    bundles,
+    deployment_id: str,
+    updates: dict,
+) -> None:
+    for bundle in bundles.values():
+        for environment_edge in bundle["environments"]["edges"]:
+            environment = environment_edge["node"]
+            for deployment_edge in environment["deployments"]["edges"]:
+                deployment = deployment_edge["node"]
+                if deployment["id"] == deployment_id:
+                    deployment.setdefault("meta", {}).update(updates)
+            for instance_edge in environment["serviceInstances"]["edges"]:
+                instance = instance_edge["node"]
+                for deployment in instance.get("activeDeployments") or []:
+                    if deployment["id"] == deployment_id:
+                        deployment.setdefault("meta", {}).update(updates)
+
+
+def _run_resolved_image_analysis(neo4j_session) -> None:
+    for job in RESOLVED_IMAGE_JOBS:
+        run_typed_analysis_job(
+            job,
+            neo4j_session,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+        )
+
+
 def test_load_railway_deployments(neo4j_session):
     # Arrange
     _sync_compute_tier(neo4j_session)
@@ -110,8 +138,10 @@ def test_load_railway_deployments(neo4j_session):
 
 
 def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session):
+    # Arrange
     digest = "sha256:" + "a" * 64
     bundles = copy.deepcopy(BUNDLES)
+    neo4j_session.run("MATCH (d:RailwayDeployment) DETACH DELETE d")
     for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
         bundles[TEST_PROJECT_ID]
     ):
@@ -127,19 +157,16 @@ def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session)
         digest=digest,
     )
 
+    # Act
     cartography.intel.railway.deployments.sync(
         neo4j_session,
         _common_job_parameters(),
         bundles,
         TEST_UPDATE_TAG,
     )
-    for job in RESOLVED_IMAGE_JOBS:
-        run_typed_analysis_job(
-            job,
-            neo4j_session,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-        )
+    _run_resolved_image_analysis(neo4j_session)
 
+    # Assert
     assert check_nodes(
         neo4j_session,
         "RailwayDeployment",
@@ -169,6 +196,137 @@ def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session)
         "RESOLVED_IMAGE",
         rel_direction_right=True,
     ) == {(WEB_DEPLOYMENT_ID, digest)}
+
+
+def test_reported_digest_resolves_tagged_image(neo4j_session):
+    # Arrange
+    digest = "sha256:" + "b" * 64
+    bundles = copy.deepcopy(BUNDLES)
+    neo4j_session.run("MATCH (d:RailwayDeployment) DETACH DELETE d")
+    _update_deployment_meta(
+        bundles,
+        WEB_DEPLOYMENT_ID,
+        {
+            "image": "registry.example.com/team/app:latest",
+            "imageDigest": "sha256:" + "B" * 64,
+        },
+    )
+    _sync_compute_tier(neo4j_session)
+    neo4j_session.run(
+        "CREATE (:AWSECRImage:Image {id: $digest, digest: $digest})",
+        digest=digest,
+    )
+
+    # Act
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        bundles,
+        TEST_UPDATE_TAG,
+    )
+    _run_resolved_image_analysis(neo4j_session)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "RailwayDeployment",
+        ["id", "source_image", "image_digest"],
+    ) >= {
+        (
+            WEB_DEPLOYMENT_ID,
+            "registry.example.com/team/app:latest",
+            digest,
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "RailwayDeployment",
+        "id",
+        "AWSECRImage",
+        "digest",
+        "RESOLVED_IMAGE",
+        rel_direction_right=True,
+    ) == {(WEB_DEPLOYMENT_ID, digest)}
+
+
+def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
+    digest = "sha256:" + "d" * 64
+    bundles = copy.deepcopy(BUNDLES)
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] == WEB_INSTANCE_ID:
+            instance["source"] = {
+                "image": f"registry.example.com/team/app@{digest}",
+                "repo": None,
+            }
+    _update_deployment_meta(
+        bundles,
+        WEB_DEPLOYMENT_ID,
+        {
+            "image": "registry.example.com/team/app:latest",
+            "imageDigest": "sha256:not-a-digest",
+        },
+    )
+
+    deployments, _, _ = cartography.intel.railway.deployments.transform(bundles)
+    deployment = next(
+        item for item in deployments[TEST_PROJECT_ID] if item["id"] == WEB_DEPLOYMENT_ID
+    )
+
+    assert deployment["source_image"] == "registry.example.com/team/app:latest"
+    assert deployment["image_digest"] == digest
+
+
+def test_reported_digest_resolves_source_built_image(neo4j_session):
+    # Arrange
+    digest = "sha256:" + "c" * 64
+    bundles = copy.deepcopy(BUNDLES)
+    neo4j_session.run("MATCH (d:RailwayDeployment) DETACH DELETE d")
+    _update_deployment_meta(
+        bundles,
+        POSTGRES_DEPLOYMENT_ID,
+        {"imageDigest": digest},
+    )
+    _sync_compute_tier(neo4j_session)
+    neo4j_session.run(
+        "CREATE (:GitHubContainerImage:Image {id: $digest, digest: $digest})",
+        digest=digest,
+    )
+
+    # Act
+    cartography.intel.railway.deployments.sync(
+        neo4j_session,
+        _common_job_parameters(),
+        bundles,
+        TEST_UPDATE_TAG,
+    )
+    _run_resolved_image_analysis(neo4j_session)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "RailwayDeployment",
+        ["id", "source_image", "image_digest"],
+    ) >= {(POSTGRES_DEPLOYMENT_ID, None, digest)}
+    assert check_rels(
+        neo4j_session,
+        "RailwayDeployment",
+        "id",
+        "GitHubContainerImage",
+        "digest",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {(POSTGRES_DEPLOYMENT_ID, digest)}
+    assert check_rels(
+        neo4j_session,
+        "RailwayDeployment",
+        "id",
+        "GitHubContainerImage",
+        "digest",
+        "RESOLVED_IMAGE",
+        rel_direction_right=True,
+    ) == {(POSTGRES_DEPLOYMENT_ID, digest)}
 
 
 def test_git_backed_deployment_resolves_exact_source_context(neo4j_session):
