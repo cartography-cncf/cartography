@@ -52,11 +52,11 @@ def test_sync_apprunner_services_nodes(mock_get, neo4j_session):
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",),
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",),
     }
-    assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == expected_nodes
+    assert check_nodes(neo4j_session, "AWSAppRunnerService", ["arn"]) == expected_nodes
 
     # Code-source services should populate code_repository_url; image-source ones populate image_identifier.
     code_service_props = check_nodes(
-        neo4j_session, "AppRunnerService", ["arn", "code_repository_url"]
+        neo4j_session, "AWSAppRunnerService", ["arn", "code_repository_url"]
     )
     assert (
         "arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",
@@ -105,7 +105,7 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
             neo4j_session,
             "AWSAccount",
             "id",
-            "AppRunnerService",
+            "AWSAppRunnerService",
             "arn",
             "RESOURCE",
         )
@@ -115,7 +115,7 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
     # Assert: access role is linked for services with an AccessRoleArn
     assert check_rels(
         neo4j_session,
-        "AppRunnerService",
+        "AWSAppRunnerService",
         "arn",
         "AWSRole",
         "arn",
@@ -135,7 +135,7 @@ def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
     # Assert: instance role is linked for every service (enables iam:PassRole privesc traversal)
     assert check_rels(
         neo4j_session,
-        "AppRunnerService",
+        "AWSAppRunnerService",
         "arn",
         "AWSRole",
         "arn",
@@ -177,7 +177,7 @@ def test_cleanup_apprunner(mock_get, neo4j_session):
     # Arrange: load in an unrelated EC2 instance. This should not be affected by the AppRunner module's cleanup job.
     neo4j_session.run(
         """
-        MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
+        MERGE (i:AWSEC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
         SET r.lastupdated = $lastupdated
         """,
         aws_account_id=TEST_ACCOUNT_ID,
@@ -185,7 +185,7 @@ def test_cleanup_apprunner(mock_get, neo4j_session):
     )
 
     # [Pre-test] Assert that the AppRunner services exist
-    assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == {
+    assert check_nodes(neo4j_session, "AWSAppRunnerService", ["arn"]) == {
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-service/abc123",),
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-other-service/def456",),
         ("arn:aws:apprunner:us-east-1:123456789012:service/my-code-service/ghi789",),
@@ -195,7 +195,7 @@ def test_cleanup_apprunner(mock_get, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {
@@ -215,13 +215,13 @@ def test_cleanup_apprunner(mock_get, neo4j_session):
     cleanup(neo4j_session, common_job_parameters)
 
     # Assert: Expect no AppRunner services in the graph now
-    assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == set()
+    assert check_nodes(neo4j_session, "AWSAppRunnerService", ["arn"]) == set()
     # Assert: Expect that the unrelated EC2 instance was not touched by the cleanup job
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "EC2Instance",
+        "AWSEC2Instance",
         "id",
         "RESOURCE",
     ) == {

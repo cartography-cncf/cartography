@@ -13,24 +13,73 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AppRunnerServiceNodeProperties(CartographyNodeProperties):
-    access_role_arn: PropertyRef = PropertyRef("AccessRoleArn")
-    arn: PropertyRef = PropertyRef("ServiceArn", extra_index=True)
-    auto_deployments_enabled: PropertyRef = PropertyRef("AutoDeploymentsEnabled")
-    code_repository_url: PropertyRef = PropertyRef("CodeRepositoryUrl")
-    cpu: PropertyRef = PropertyRef("Cpu")
-    created_at: PropertyRef = PropertyRef("CreatedAt")
-    egress_type: PropertyRef = PropertyRef("EgressType")
-    id: PropertyRef = PropertyRef("ServiceArn")
-    image_identifier: PropertyRef = PropertyRef("ImageIdentifier")
-    instance_role_arn: PropertyRef = PropertyRef("InstanceRoleArn")
-    is_publicly_accessible: PropertyRef = PropertyRef("IsPubliclyAccessible")
+    access_role_arn: PropertyRef = PropertyRef(
+        "AccessRoleArn",
+        description="ARN of the IAM role App Runner uses to pull the source image from ECR. Only set for image-based services in a private ECR repository",
+    )
+    arn: PropertyRef = PropertyRef(
+        "ServiceArn",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the App Runner service",
+    )
+    auto_deployments_enabled: PropertyRef = PropertyRef(
+        "AutoDeploymentsEnabled",
+        description="Whether App Runner automatically redeploys the service when the source image or code changes",
+    )
+    code_repository_url: PropertyRef = PropertyRef(
+        "CodeRepositoryUrl",
+        description="URL of the source code repository the service builds from. Only set for source-code-based services",
+    )
+    cpu: PropertyRef = PropertyRef(
+        "Cpu",
+        description="Number of CPU units reserved for each instance of the service",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "CreatedAt", description="Time at which the App Runner service was created"
+    )
+    egress_type: PropertyRef = PropertyRef(
+        "EgressType",
+        description="Type of egress the service uses for outbound traffic, either DEFAULT for the public internet or VPC for a VPC connector",
+    )
+    id: PropertyRef = PropertyRef(
+        "ServiceArn", description="The ARN of the App Runner service"
+    )
+    image_identifier: PropertyRef = PropertyRef(
+        "ImageIdentifier",
+        description="Identifier of the source image the service runs, in the form of an ECR image URI. Only set for image-based services",
+    )
+    instance_role_arn: PropertyRef = PropertyRef(
+        "InstanceRoleArn",
+        description="ARN of the IAM role that provides permissions to the running service, equivalent to a task role",
+    )
+    is_publicly_accessible: PropertyRef = PropertyRef(
+        "IsPubliclyAccessible",
+        description="Whether the service is reachable from the public internet. False means it is only reachable through a VPC ingress connection",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    memory: PropertyRef = PropertyRef("Memory")
-    name: PropertyRef = PropertyRef("ServiceName")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    service_url: PropertyRef = PropertyRef("ServiceUrl")
-    status: PropertyRef = PropertyRef("Status")
-    updated_at: PropertyRef = PropertyRef("UpdatedAt")
+    memory: PropertyRef = PropertyRef(
+        "Memory",
+        description="Amount of memory reserved for each instance of the service",
+    )
+    name: PropertyRef = PropertyRef(
+        "ServiceName",
+        description="The customer-supplied name of the App Runner service",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the App Runner service"
+    )
+    service_url: PropertyRef = PropertyRef(
+        "ServiceUrl",
+        description="Subdomain URL that App Runner generated for this service. The URL is unpredictable and only resolves when the service is publicly accessible",
+    )
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="Current state of the service, for example RUNNING, PAUSED, CREATE_FAILED or DELETED",
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "UpdatedAt",
+        description="Time at which the App Runner service was last updated",
+    )
 
 
 @dataclass(frozen=True)
@@ -39,7 +88,7 @@ class AppRunnerServiceToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AppRunnerService)<-[:RESOURCE]-(:AWSAccount)
+# (:AWSAppRunnerService)<-[:RESOURCE]-(:AWSAccount)
 class AppRunnerServiceToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -58,7 +107,7 @@ class AppRunnerServiceToAWSRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AppRunnerService)-[:USES_ACCESS_ROLE]->(:AWSRole)
+# (:AWSAppRunnerService)-[:USES_ACCESS_ROLE]->(:AWSRole)
 class AppRunnerServiceToAccessRoleRel(CartographyRelSchema):
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -72,7 +121,7 @@ class AppRunnerServiceToAccessRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-# (:AppRunnerService)-[:USES_INSTANCE_ROLE]->(:AWSRole)
+# (:AWSAppRunnerService)-[:USES_INSTANCE_ROLE]->(:AWSRole)
 class AppRunnerServiceToInstanceRoleRel(CartographyRelSchema):
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -87,7 +136,7 @@ class AppRunnerServiceToInstanceRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AppRunnerServiceSchema(CartographyNodeSchema):
-    label: str = "AppRunnerService"
+    label: str = "AWSAppRunnerService"
     properties: AppRunnerServiceNodeProperties = AppRunnerServiceNodeProperties()
     sub_resource_relationship: AppRunnerServiceToAWSAccountRel = (
         AppRunnerServiceToAWSAccountRel()

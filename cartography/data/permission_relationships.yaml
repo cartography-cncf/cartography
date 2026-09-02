@@ -90,7 +90,7 @@
     relationship: HAS_INFORMATION
     direction: outgoing
 # App Runner - Execute code via service deployment
-- target_label: AppRunnerService
+- target_label: AWSAppRunnerService
   permissions:
   - apprunner:CreateService
   - apprunner:UpdateService
