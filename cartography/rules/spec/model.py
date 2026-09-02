@@ -122,6 +122,111 @@ def _expression_for_alias(cypher_query: str, alias: str) -> str | None:
     return None
 
 
+class AnchorValidationCode(str, Enum):
+    """Why ``validate_anchor`` rejected a candidate ``(asset_label, asset_id_field)``."""
+
+    EMPTY_LABEL = "empty_label"
+    EMPTY_ID_FIELD = "empty_id_field"
+    MISSING_ID_ALIAS = "missing_id_alias"
+    UNBOUND_LABEL = "unbound_label"
+    ID_NOT_ON_LABELED_VAR = "id_not_on_labeled_var"
+
+
+@dataclass(frozen=True)
+class AnchorValidationError:
+    """Structured failure from ``validate_anchor``. ``None`` from that function means valid."""
+
+    code: AnchorValidationCode
+    asset_label: str
+    asset_id_field: str
+    id_expression: str | None = None
+    asset_vars: frozenset[str] = frozenset()
+
+
+def validate_anchor(
+    cypher_query: str,
+    asset_label: str,
+    asset_id_field: str | None,
+) -> AnchorValidationError | None:
+    """Check that a query's ``(asset_label, asset_id_field)`` describes one node.
+
+    Returns ``None`` when the query binds ``asset_label`` and the final ``RETURN``
+    projects ``asset_id_field`` off that same variable. Returns a structured
+    failure otherwise, so a caller can validate a candidate query without
+    constructing a ``Fact``.
+    """
+    id_field = asset_id_field or ""
+    if not asset_label:
+        return AnchorValidationError(
+            code=AnchorValidationCode.EMPTY_LABEL,
+            asset_label=asset_label or "",
+            asset_id_field=id_field,
+        )
+    if not asset_id_field:
+        return AnchorValidationError(
+            code=AnchorValidationCode.EMPTY_ID_FIELD,
+            asset_label=asset_label,
+            asset_id_field=id_field,
+        )
+    aliases = returned_aliases(cypher_query)
+    if asset_id_field not in aliases:
+        return AnchorValidationError(
+            code=AnchorValidationCode.MISSING_ID_ALIAS,
+            asset_label=asset_label,
+            asset_id_field=asset_id_field,
+        )
+    asset_vars = frozenset(_variables_bound_to_label(cypher_query, asset_label))
+    if not asset_vars:
+        return AnchorValidationError(
+            code=AnchorValidationCode.UNBOUND_LABEL,
+            asset_label=asset_label,
+            asset_id_field=asset_id_field,
+        )
+    id_expression = _expression_for_alias(cypher_query, asset_id_field)
+    owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
+    if not owners & asset_vars:
+        return AnchorValidationError(
+            code=AnchorValidationCode.ID_NOT_ON_LABELED_VAR,
+            asset_label=asset_label,
+            asset_id_field=asset_id_field,
+            id_expression=id_expression,
+            asset_vars=asset_vars,
+        )
+    return None
+
+
+def _fact_anchor_value_error(fact_id: str, err: AnchorValidationError) -> str:
+    """``Fact.__post_init__`` wording for a ``validate_anchor`` failure."""
+    if err.code is AnchorValidationCode.EMPTY_LABEL:
+        return f"Fact '{fact_id}' must declare a non-empty asset_label."
+    if err.code is AnchorValidationCode.EMPTY_ID_FIELD:
+        return (
+            f"Fact '{fact_id}' must declare asset_id_field: it is the id half of "
+            f"the (asset_label, id) anchor."
+        )
+    if err.code is AnchorValidationCode.MISSING_ID_ALIAS:
+        return (
+            f"Fact '{fact_id}' asset_id_field '{err.asset_id_field}' is not returned "
+            f"by its cypher_query (expected a '... AS {err.asset_id_field}' alias)."
+        )
+    if err.code is AnchorValidationCode.UNBOUND_LABEL:
+        return (
+            f"Fact '{fact_id}' declares asset_label '{err.asset_label}' but its "
+            f"cypher_query never binds a variable to that label, so the rows it "
+            f"returns and the asset it claims can diverge. Match it explicitly, "
+            f"e.g. 'MATCH (n:{err.asset_label})'."
+        )
+    asset_vars = sorted(err.asset_vars)
+    return (
+        f"Fact '{fact_id}' returns asset_id_field '{err.asset_id_field}' as "
+        f"'{err.id_expression}', which reads no property off {asset_vars} "
+        f"(the variable(s) bound to asset_label '{err.asset_label}'). The "
+        f"(label, id) anchor must describe one node: project the id directly "
+        f"off the labeled variable, e.g. "
+        f"'{asset_vars[0]}.id AS {err.asset_id_field}'."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fan-out analysis: can `identity_fields` key the rows the query returns?
 #
@@ -908,19 +1013,10 @@ class Fact:
             raise ValueError(
                 f"Fact '{self.id}' must declare a non-empty identity_fields tuple."
             )
-        if not self.asset_label:
-            raise ValueError(f"Fact '{self.id}' must declare a non-empty asset_label.")
-        if not self.asset_id_field:
-            raise ValueError(
-                f"Fact '{self.id}' must declare asset_id_field: it is the id half of "
-                f"the (asset_label, id) anchor."
-            )
+        err = validate_anchor(self.cypher_query, self.asset_label, self.asset_id_field)
+        if err is not None:
+            raise ValueError(_fact_anchor_value_error(self.id, err))
         aliases = returned_aliases(self.cypher_query)
-        if self.asset_id_field not in aliases:
-            raise ValueError(
-                f"Fact '{self.id}' asset_id_field '{self.asset_id_field}' is not returned "
-                f"by its cypher_query (expected a '... AS {self.asset_id_field}' alias)."
-            )
         missing_identity = tuple(
             name for name in self.identity_fields if name not in aliases
         )
@@ -930,28 +1026,6 @@ class Fact:
                 f"that its cypher_query does not return (expected a '... AS <name>' alias "
                 f"in the final RETURN for each). An identity a consumer cannot read is "
                 f"not an identity."
-            )
-        # The anchor is only meaningful if the label and the id describe the same
-        # node, so require a variable bound to asset_label and require the
-        # asset_id_field expression to read a property off that same variable.
-        asset_vars = _variables_bound_to_label(self.cypher_query, self.asset_label)
-        if not asset_vars:
-            raise ValueError(
-                f"Fact '{self.id}' declares asset_label '{self.asset_label}' but its "
-                f"cypher_query never binds a variable to that label, so the rows it "
-                f"returns and the asset it claims can diverge. Match it explicitly, "
-                f"e.g. 'MATCH (n:{self.asset_label})'."
-            )
-        id_expression = _expression_for_alias(self.cypher_query, self.asset_id_field)
-        owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
-        if not owners & asset_vars:
-            raise ValueError(
-                f"Fact '{self.id}' returns asset_id_field '{self.asset_id_field}' as "
-                f"'{id_expression}', which reads no property off {sorted(asset_vars)} "
-                f"(the variable(s) bound to asset_label '{self.asset_label}'). The "
-                f"(label, id) anchor must describe one node: project the id directly "
-                f"off the labeled variable, e.g. "
-                f"'{sorted(asset_vars)[0]}.id AS {self.asset_id_field}'."
             )
         reserved = RESERVED_FINDING_FIELDS & aliases
         if reserved:
