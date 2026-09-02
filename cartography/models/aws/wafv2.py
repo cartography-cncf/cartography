@@ -13,13 +13,31 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSWebACLNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ARN")
-    arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    web_acl_id: PropertyRef = PropertyRef("Id")
-    name: PropertyRef = PropertyRef("Name")
-    description: PropertyRef = PropertyRef("Description")
-    scope: PropertyRef = PropertyRef("Scope")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("ARN", description="The ARN of the web ACL")
+    arn: PropertyRef = PropertyRef(
+        "ARN",
+        extra_index=True,
+        description="The Amazon Resource Name (ARN) of the web ACL",
+    )
+    web_acl_id: PropertyRef = PropertyRef(
+        "Id",
+        description="The unique identifier WAF assigned to the web ACL. Required alongside the name and scope when calling the WAFv2 API",
+    )
+    name: PropertyRef = PropertyRef(
+        "Name", description="The customer-supplied name of the web ACL"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The customer-supplied description of the web ACL"
+    )
+    scope: PropertyRef = PropertyRef(
+        "Scope",
+        description="Where the web ACL can be deployed, either REGIONAL for regional resources such as load balancers and API Gateway stages, or CLOUDFRONT for CloudFront distributions",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The region of the web ACL. CLOUDFRONT scoped web ACLs are global and are recorded as us-east-1, the only region that can list them",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -29,8 +47,11 @@ class AWSWebACLToAWSAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AWSWebACL)<-[:RESOURCE]-(:AWSAccount)
 class AWSWebACLToAWSAccountRel(CartographyRelSchema):
+    """
+    Scopes each web ACL to the AWS account it was found in.
+    """
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -51,7 +72,6 @@ class AWSWebACLToLoadBalancerV2RelProperties(CartographyRelProperties):
 class AWSWebACLToLoadBalancerV2Rel(CartographyRelSchema):
     """
     Created when a REGIONAL web ACL is associated with an application load balancer.
-    (:AWSWebACL)-[:PROTECTS]->(:AWSLoadBalancerV2)
     """
 
     target_node_label: str = "AWSLoadBalancerV2"
@@ -75,10 +95,9 @@ class AWSWebACLToAPIGatewayStageRel(CartographyRelSchema):
     """
     Created when a REGIONAL web ACL is associated with an API Gateway REST API stage.
     Matches on the webaclarn property that the apigateway module already sets on stages.
-    (:AWSWebACL)-[:PROTECTS]->(:APIGatewayStage)
     """
 
-    target_node_label: str = "APIGatewayStage"
+    target_node_label: str = "AWSAPIGatewayStage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"webaclarn": PropertyRef("ARN")},
     )
@@ -100,10 +119,9 @@ class AWSWebACLToCloudFrontDistributionRel(CartographyRelSchema):
     Created when a CLOUDFRONT-scoped web ACL is associated with a distribution.
     Matches on the web_acl_id property that the cloudfront module sets on
     distributions, which holds the WAFv2 web ACL ARN.
-    (:AWSWebACL)-[:PROTECTS]->(:CloudFrontDistribution)
     """
 
-    target_node_label: str = "CloudFrontDistribution"
+    target_node_label: str = "AWSCloudFrontDistribution"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"web_acl_id": PropertyRef("ARN")},
     )
@@ -116,6 +134,8 @@ class AWSWebACLToCloudFrontDistributionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSWebACLSchema(CartographyNodeSchema):
+    """Representation of an AWS WAFv2 [web ACL](https://docs.aws.amazon.com/waf/latest/APIReference/API_WebACL.html)"""
+
     label: str = "AWSWebACL"
     properties: AWSWebACLNodeProperties = AWSWebACLNodeProperties()
     sub_resource_relationship: AWSWebACLToAWSAccountRel = AWSWebACLToAWSAccountRel()

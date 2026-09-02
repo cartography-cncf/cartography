@@ -24,8 +24,8 @@ def _cleanup(neo4j_session):
     neo4j_session.run("MATCH (n:AWSWebACL) DETACH DELETE n")
     neo4j_session.run(
         "MATCH (n) WHERE (n:AWSLoadBalancerV2 AND n.arn = $alb_arn) "
-        "OR (n:APIGatewayStage AND n.id = $stage_arn) "
-        "OR (n:CloudFrontDistribution AND n.arn = $distribution_arn) "
+        "OR (n:AWSAPIGatewayStage AND n.id = $stage_arn) "
+        "OR (n:AWSCloudFrontDistribution AND n.arn = $distribution_arn) "
         "DETACH DELETE n",
         alb_arn=test_data.PROTECTED_ALB_ARN,
         stage_arn=APIGW_STAGE_ARN,
@@ -39,12 +39,12 @@ def _seed_protected_resources(neo4j_session):
         arn=test_data.PROTECTED_ALB_ARN,
     )
     neo4j_session.run(
-        "MERGE (:APIGatewayStage {id: $id, webaclarn: $webaclarn})",
+        "MERGE (:AWSAPIGatewayStage {id: $id, webaclarn: $webaclarn})",
         id=APIGW_STAGE_ARN,
         webaclarn=test_data.REGIONAL_WEB_ACL_ARN,
     )
     neo4j_session.run(
-        "MERGE (:CloudFrontDistribution {arn: $arn, web_acl_id: $web_acl_id})",
+        "MERGE (:AWSCloudFrontDistribution {arn: $arn, web_acl_id: $web_acl_id})",
         arn=CLOUDFRONT_DISTRIBUTION_ARN,
         web_acl_id=test_data.CLOUDFRONT_WEB_ACL_ARN,
     )
@@ -135,7 +135,7 @@ def test_sync_wafv2_web_acls(mock_get_web_acls, neo4j_session):
         neo4j_session,
         "AWSWebACL",
         "arn",
-        "APIGatewayStage",
+        "AWSAPIGatewayStage",
         "id",
         "PROTECTS",
         rel_direction_right=True,
@@ -147,7 +147,7 @@ def test_sync_wafv2_web_acls(mock_get_web_acls, neo4j_session):
         neo4j_session,
         "AWSWebACL",
         "arn",
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         "arn",
         "PROTECTS",
         rel_direction_right=True,
@@ -179,7 +179,7 @@ def test_sync_wafv2_cleanup_removes_stale_nodes_and_rels(
     # Second sync: the regional ACL was deleted in AWS, and the CloudFront
     # distribution no longer has a web ACL associated
     neo4j_session.run(
-        "MATCH (d:CloudFrontDistribution {arn: $arn}) SET d.web_acl_id = null",
+        "MATCH (d:AWSCloudFrontDistribution {arn: $arn}) SET d.web_acl_id = null",
         arn=CLOUDFRONT_DISTRIBUTION_ARN,
     )
     mock_get_web_acls.side_effect = lambda boto3_session, region, scope: (
@@ -208,7 +208,7 @@ def test_sync_wafv2_cleanup_removes_stale_nodes_and_rels(
             neo4j_session,
             "AWSWebACL",
             "arn",
-            "CloudFrontDistribution",
+            "AWSCloudFrontDistribution",
             "arn",
             "PROTECTS",
             rel_direction_right=True,
@@ -224,7 +224,7 @@ def test_sync_wafv2_cleanup_removes_stale_nodes_and_rels(
     )
     assert (CLOUDFRONT_DISTRIBUTION_ARN,) in check_nodes(
         neo4j_session,
-        "CloudFrontDistribution",
+        "AWSCloudFrontDistribution",
         ["arn"],
     )
 
