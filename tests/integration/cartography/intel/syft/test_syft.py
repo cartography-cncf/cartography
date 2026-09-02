@@ -449,8 +449,11 @@ def test_sync_single_syft_preserves_per_image_deployed_evidence(neo4j_session):
         RETURN i._ont_digest AS digest, d.found_by AS found_by, d.locations AS locations
         """,
     )
+    evidence_rows = list(evidence)
+    assert len(evidence_rows) == 2
+    assert {row["digest"] for row in evidence_rows} == {IMAGE_A_DIGEST, IMAGE_B_DIGEST}
     evidence_by_digest = {
-        row["digest"]: (row["found_by"], row["locations"]) for row in evidence
+        row["digest"]: (row["found_by"], row["locations"]) for row in evidence_rows
     }
     assert evidence_by_digest[IMAGE_A_DIGEST] == (
         ["javascript-package-cataloger"],

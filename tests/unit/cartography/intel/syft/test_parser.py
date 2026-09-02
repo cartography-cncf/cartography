@@ -207,6 +207,7 @@ class TestTransformArtifacts:
                     "foundBy": "javascript-package-cataloger",
                     "locations": [
                         {"path": "/app/node_modules/brace-expansion/package.json"},
+                        {"path": "/app/node_modules/brace-expansion/package.json"},
                     ],
                 },
                 {
@@ -217,6 +218,17 @@ class TestTransformArtifacts:
                     "purl": "pkg:npm/brace-expansion@5.0.6",
                     "foundBy": "javascript-lock-cataloger",
                     "locations": [{"path": "/app/pnpm-lock.yaml"}],
+                },
+                {
+                    "id": "brace-files-dup",
+                    "name": "brace-expansion",
+                    "version": "5.0.6",
+                    "type": "npm",
+                    "purl": "pkg:npm/brace-expansion@5.0.6",
+                    "foundBy": "javascript-package-cataloger",
+                    "locations": [
+                        {"path": "/app/node_modules/brace-expansion/package.json"},
+                    ],
                 },
                 {
                     "id": "dep-a",
@@ -242,6 +254,11 @@ class TestTransformArtifacts:
                 {
                     "parent": "dep-b",
                     "child": "brace-lock",
+                    "type": "dependency-of",
+                },
+                {
+                    "parent": "dep-a",
+                    "child": "brace-files-dup",
                     "type": "dependency-of",
                 },
             ],
