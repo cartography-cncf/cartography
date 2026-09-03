@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.intel.gcp.dns import get_dns_rrs
 from cartography.intel.gcp.dns import get_dns_zones
+from cartography.intel.gcp.dns import transform_dns_rrs
 
 
 def _make_http_error(status: int) -> HttpError:
@@ -104,6 +105,30 @@ class TestGetDnsRrsCurrentStateSemantics:
             ),
         ):
             assert get_dns_rrs(mock_dns, zones, "test-project") == []
+
+
+def test_transform_dns_rrs_normalizes_only_hostname_targets():
+    records = transform_dns_rrs(
+        [
+            {
+                "name": "WWW.Example.COM.",
+                "type": "CNAME",
+                "rrdatas": [" Target.Example.COM. "],
+                "zone": "zone-1",
+            },
+            {
+                "name": "_token.example.com.",
+                "type": "TXT",
+                "rrdatas": ["Case-Sensitive.Value."],
+                "zone": "zone-1",
+            },
+        ]
+    )
+
+    assert records[0]["target_hostnames"] == ["target.example.com"]
+    assert records[0]["data"] == [" Target.Example.COM. "]
+    assert records[1]["target_hostnames"] == []
+    assert records[1]["data"] == ["Case-Sensitive.Value."]
 
     def test_returns_empty_list_on_api_disabled(self):
         mock_dns = MagicMock()
