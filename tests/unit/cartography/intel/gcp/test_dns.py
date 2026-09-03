@@ -106,6 +106,36 @@ class TestGetDnsRrsCurrentStateSemantics:
         ):
             assert get_dns_rrs(mock_dns, zones, "test-project") == []
 
+    def test_returns_empty_list_on_billing_disabled(self):
+        mock_dns = MagicMock()
+        zones = [{"id": "zone-1"}]
+        with (
+            patch(
+                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
+                side_effect=_make_http_error(403),
+            ),
+            patch(
+                "cartography.intel.gcp.dns.classify_gcp_http_error",
+                return_value="billing_disabled",
+            ),
+        ):
+            assert get_dns_rrs(mock_dns, zones, "test-project") == []
+
+    def test_returns_empty_list_on_api_disabled(self):
+        mock_dns = MagicMock()
+        zones = [{"id": "zone-1"}]
+        with (
+            patch(
+                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
+                side_effect=_make_http_error(403),
+            ),
+            patch(
+                "cartography.intel.gcp.dns.classify_gcp_http_error",
+                return_value="api_disabled",
+            ),
+        ):
+            assert get_dns_rrs(mock_dns, zones, "test-project") == []
+
 
 def test_transform_dns_rrs_normalizes_only_hostname_targets():
     records = transform_dns_rrs(
@@ -129,33 +159,3 @@ def test_transform_dns_rrs_normalizes_only_hostname_targets():
     assert records[0]["data"] == [" Target.Example.COM. "]
     assert records[1]["target_hostnames"] == []
     assert records[1]["data"] == ["Case-Sensitive.Value."]
-
-    def test_returns_empty_list_on_api_disabled(self):
-        mock_dns = MagicMock()
-        zones = [{"id": "zone-1"}]
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="api_disabled",
-            ),
-        ):
-            assert get_dns_rrs(mock_dns, zones, "test-project") == []
-
-    def test_returns_empty_list_on_billing_disabled(self):
-        mock_dns = MagicMock()
-        zones = [{"id": "zone-1"}]
-        with (
-            patch(
-                "cartography.intel.gcp.dns.gcp_api_execute_with_retry",
-                side_effect=_make_http_error(403),
-            ),
-            patch(
-                "cartography.intel.gcp.dns.classify_gcp_http_error",
-                return_value="billing_disabled",
-            ),
-        ):
-            assert get_dns_rrs(mock_dns, zones, "test-project") == []
