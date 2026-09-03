@@ -311,10 +311,16 @@ def _sync_one_account(
             resource_function_failures,
         )
 
+    # An analysis derives relationships from what the resource functions just wrote, and it
+    # deletes the edges it no longer finds support for. A module that failed must therefore not
+    # count as a satisfied dependency: recomputing from its incomplete data would drop edges
+    # that the previous run had correctly created.
+    synced_syncs_set = requested_syncs_set - set(resource_function_failures)
+
     run_typed_analysis_and_ensure_deps(
         AWS_EC2_IAM_INSTANCE_PROFILE,
         AWS_EC2_IAM_INSTANCE_PROFILE_DEPS,
-        requested_syncs_set,
+        synced_syncs_set,
         common_job_parameters,
         neo4j_session,
     )
@@ -322,12 +328,12 @@ def _sync_one_account(
     run_typed_analysis_and_ensure_deps(
         AWS_LAMBDA_ECR,
         AWS_LAMBDA_ECR_DEPS,
-        requested_syncs_set,
+        synced_syncs_set,
         common_job_parameters,
         neo4j_session,
     )
 
-    if AWS_LB_NACL_DIRECT_DEPS.issubset(requested_syncs_set):
+    if AWS_LB_NACL_DIRECT_DEPS.issubset(synced_syncs_set):
         run_typed_analysis_job(
             AWS_LB_NACL_DIRECT,
             neo4j_session,
