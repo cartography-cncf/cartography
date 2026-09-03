@@ -81,16 +81,16 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         """
         CREATE (service_domain:RailwayServiceDomain {
             id: 'service-domain',
-            domain: 'web-production.up.railway.app'
+            domain_normalized: 'web-production.up.railway.app'
         })
         CREATE (custom_domain:RailwayCustomDomain {
             id: 'custom-domain',
-            domain: 'app.example.com',
+            domain_normalized: 'app.example.com',
             verified: true
         })
         CREATE (unverified_domain:RailwayCustomDomain {
             id: 'unverified-domain',
-            domain: 'pending.example.com',
+            domain_normalized: 'pending.example.com',
             verified: false
         })
         CREATE (instance:RailwayServiceInstance {id: 'service-instance'})
@@ -98,15 +98,15 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         CREATE (custom_domain)-[:EXPOSE]->(instance)
         CREATE (:CloudflareDNSRecord:DNSRecord {
             id: 'custom-domain-record',
-            _ont_name: 'APP.EXAMPLE.COM.',
+            _ont_name: 'app.example.com',
             _ont_type: 'CNAME',
-            _ont_value: 'WEB-PRODUCTION.UP.RAILWAY.APP.'
+            _ont_target_hostname: 'web-production.up.railway.app'
         })
         CREATE (:CloudflareDNSRecord:DNSRecord {
             id: 'pending-domain-record',
             _ont_name: 'pending.example.com',
             _ont_type: 'CNAME',
-            _ont_value: 'pending.up.railway.app'
+            _ont_target_hostname: 'pending.up.railway.app'
         })
         CREATE (:CloudflareDNSRecord:DNSRecord {
             id: 'unrelated-text-record',
@@ -117,7 +117,7 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         CREATE (stale:CloudflareDNSRecord:DNSRecord {
             id: 'stale-record',
             _ont_name: 'old.example.com',
-            _ont_value: 'old.up.railway.app'
+            _ont_target_hostname: 'old.up.railway.app'
         })
         CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(service_domain)
         CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(custom_domain)
