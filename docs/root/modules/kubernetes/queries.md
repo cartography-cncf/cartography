@@ -2,6 +2,57 @@
 
 These examples show how to inspect Kubernetes data after a successful sync.
 
+## Trace internet-facing load balancers to Kubernetes workloads
+
+Find Kubernetes traffic entry points correlated with internet-facing cloud load
+balancers and the pods selected by their service backends:
+
+```cypher
+CALL {
+  MATCH (service:KubernetesService)-[:USES_LOAD_BALANCER]->(load_balancer:LoadBalancer)
+  WHERE load_balancer.exposed_internet = true OR (
+    load_balancer._ont_source = 'aws'
+    AND load_balancer._ont_scheme = 'internet_facing'
+    AND load_balancer._ont_lb_type = 'network'
+  )
+  RETURN load_balancer, service, service AS entry_point
+  UNION
+  MATCH (ingress:KubernetesIngress)-[:USES_LOAD_BALANCER]->(load_balancer:LoadBalancer)
+  WHERE load_balancer.exposed_internet = true OR (
+    load_balancer._ont_source = 'aws'
+    AND load_balancer._ont_scheme = 'internet_facing'
+    AND load_balancer._ont_lb_type = 'network'
+  )
+  MATCH (ingress)-[:TARGETS]->(service:KubernetesService)
+  RETURN load_balancer, service, ingress AS entry_point
+  UNION
+  MATCH (gateway:KubernetesGateway {programmed: true})
+    -[:USES_LOAD_BALANCER]->(load_balancer:LoadBalancer)
+  WHERE load_balancer.exposed_internet = true OR (
+    load_balancer._ont_source = 'aws'
+    AND load_balancer._ont_scheme = 'internet_facing'
+    AND load_balancer._ont_lb_type = 'network'
+  )
+  MATCH (gateway)-[:ROUTES]->(route:KubernetesHTTPRoute)
+    -[:TARGETS]->(service:KubernetesService)
+  WHERE gateway.qualified_name IN route.accepted_parent_gateway_qualified_names
+  RETURN load_balancer, service, gateway AS entry_point
+}
+MATCH (service:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+RETURN labels(load_balancer), load_balancer.id,
+       labels(entry_point), entry_point.name,
+       service.namespace, service.name, pod.name
+ORDER BY service.namespace, service.name, pod.name;
+```
+
+This query reports correlated cloud load-balancer paths. Gateway paths require a
+current `Programmed=True` Gateway condition and an `Accepted=True` route-parent
+condition. Kubernetes status can identify a bound hostname or public IP address,
+but it can't by itself prove that the endpoint is reachable from the internet.
+IP correlation is an exact, graph-wide match; recycled addresses can correlate
+stale Kubernetes status with an unrelated load balancer, so treat IP-only paths
+as evidence to verify rather than proof of exposure.
+
 ## Inspect kubeconfig TLS posture
 
 Use the TLS posture fields on each cluster to find kubeconfig contexts that skip

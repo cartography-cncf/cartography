@@ -31,6 +31,7 @@ def test_transform_services_formats_load_balancer_port_status():
                 ingress=[
                     V1LoadBalancerIngress(
                         hostname="lb.example.com",
+                        ip="8.8.8.8",
                         ports=[
                             V1PortStatus(
                                 error="PortAllocationFailed",
@@ -49,7 +50,7 @@ def test_transform_services_formats_load_balancer_port_status():
     assert json.loads(transformed["load_balancer_ingress"]) == [
         {
             "hostname": "lb.example.com",
-            "ip": None,
+            "ip": "8.8.8.8",
             "ip_mode": None,
             "ports": [
                 {
@@ -61,6 +62,7 @@ def test_transform_services_formats_load_balancer_port_status():
         },
     ]
     assert transformed["load_balancer_dns_names"] == ["lb.example.com"]
+    assert transformed["load_balancer_ip_addresses"] == ["8.8.8.8"]
 
 
 def test_transform_services_lowercases_load_balancer_dns_names():

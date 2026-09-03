@@ -300,9 +300,12 @@ def test_load_services_multiple_dns_names_creates_multiple_relationships(
     # Create second LB manually (simulating a second NLB/ALB)
     neo4j_session.run(
         """
-        MERGE (lb:AWSLoadBalancerV2{id: $dns_name, dnsname: $dns_name})
-        ON CREATE SET lb.firstseen = timestamp()
-        SET lb.lastupdated = $update_tag, lb.name = 'second-lb'
+            MERGE (lb:AWSLoadBalancerV2{id: $dns_name, dnsname: $dns_name})
+            ON CREATE SET lb.firstseen = timestamp()
+            SET lb.lastupdated = $update_tag,
+                lb.name = 'second-lb',
+                lb._ont_dns_name = $dns_name,
+                lb._ont_source = 'aws'
         """,
         dns_name=AWS_TEST_LB_DNS_NAME_2,
         update_tag=TEST_UPDATE_TAG,

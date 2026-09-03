@@ -9,6 +9,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import get_qualified_resource_name
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import normalize_global_ip_addresses
 from cartography.intel.kubernetes.util import parse_rfc3339
 from cartography.models.kubernetes.gateway_api import KubernetesGatewaySchema
 from cartography.models.kubernetes.gateway_api import KubernetesHTTPRouteSchema
@@ -20,6 +21,39 @@ GATEWAY_API_GROUP = "gateway.networking.k8s.io"
 CORE_API_GROUP = ""
 GATEWAY_KIND = "Gateway"
 SERVICE_KIND = "Service"
+
+
+def _condition_is_current_and_true(
+    conditions: list[dict[str, Any]],
+    condition_type: str,
+    generation: int | None,
+) -> bool:
+    if generation is None:
+        return False
+    for condition in conditions:
+        if condition.get("type") != condition_type or condition.get("status") != "True":
+            continue
+        observed_generation = condition.get("observedGeneration")
+        if observed_generation == generation:
+            return True
+    return False
+
+
+def _gateway_status_addresses(
+    status: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    dns_names: set[str] = set()
+    ip_addresses: set[str] = set()
+    for address in status.get("addresses") or []:
+        value = address.get("value")
+        if not value:
+            continue
+        address_type = address.get("type") or "IPAddress"
+        if address_type == "Hostname":
+            dns_names.add(value.lower())
+        elif address_type == "IPAddress":
+            ip_addresses.add(value)
+    return sorted(dns_names), normalize_global_ip_addresses(list(ip_addresses))
 
 
 def _ref_matches(
@@ -116,8 +150,12 @@ def transform_gateways(gateways: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for gateway in gateways:
         metadata = gateway.get("metadata", {})
         spec = gateway.get("spec", {})
+        status = gateway.get("status", {})
         namespace = metadata["namespace"]
         name = metadata["name"]
+        load_balancer_dns_names, load_balancer_ip_addresses = _gateway_status_addresses(
+            status
+        )
 
         transformed.append(
             {
@@ -126,6 +164,13 @@ def transform_gateways(gateways: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "namespace": namespace,
                 "qualified_name": get_qualified_resource_name(namespace, name),
                 "gateway_class_name": spec.get("gatewayClassName"),
+                "programmed": _condition_is_current_and_true(
+                    status.get("conditions") or [],
+                    "Programmed",
+                    metadata.get("generation"),
+                ),
+                "load_balancer_dns_names": load_balancer_dns_names,
+                "load_balancer_ip_addresses": load_balancer_ip_addresses,
                 "creation_timestamp": get_epoch(
                     parse_rfc3339(metadata.get("creationTimestamp"))
                 ),
@@ -145,6 +190,7 @@ def transform_http_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for route in routes:
         metadata = route.get("metadata", {})
         spec = route.get("spec", {})
+        status = route.get("status", {})
         namespace = metadata["namespace"]
         name = metadata["name"]
 
@@ -187,6 +233,34 @@ def transform_http_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     get_qualified_resource_name(parent_namespace, parent_name)
                 )
 
+        accepted_parent_gateway_qualified_names: set[str] = set()
+        for parent_status in status.get("parents") or []:
+            parent_ref = parent_status.get("parentRef") or {}
+            if not _ref_matches(
+                parent_ref,
+                default_group=GATEWAY_API_GROUP,
+                default_kind=GATEWAY_KIND,
+                group=GATEWAY_API_GROUP,
+                kind=GATEWAY_KIND,
+            ):
+                continue
+            if not _condition_is_current_and_true(
+                parent_status.get("conditions") or [],
+                "Accepted",
+                metadata.get("generation"),
+            ):
+                continue
+            parent_name = parent_ref.get("name")
+            if not parent_name:
+                continue
+            parent_namespace = parent_ref.get("namespace") or namespace
+            accepted_parent_gateway_qualified_names.add(
+                get_qualified_resource_name(parent_namespace, parent_name)
+            )
+        accepted_parent_gateway_qualified_names.intersection_update(
+            parent_gateway_qualified_names
+        )
+
         transformed.append(
             {
                 "uid": metadata["uid"],
@@ -206,6 +280,9 @@ def transform_http_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ],
                 "parent_gateway_qualified_names": sorted(
                     parent_gateway_qualified_names
+                ),
+                "accepted_parent_gateway_qualified_names": sorted(
+                    accepted_parent_gateway_qualified_names
                 ),
             }
         )
