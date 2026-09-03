@@ -27,6 +27,9 @@ class OntologyFieldMapping:
         - "mapping": Maps provider-specific values to normalized ontology values using extra['map'] dict
           (e.g., {"BASIC": "builtin", "PREDEFINED": "builtin", "CUSTOM": "custom"}). Unmapped values become NULL.
         - "coalesce": Sets the first non-null value from node_field and extra['fields'].
+        - "normalize_hostname": Lowercases a hostname and removes surrounding whitespace and
+          the trailing DNS root dot. Set extra['record_types'] to populate the field only for
+          hostname-valued DNS record types; extra['record_type_field'] defaults to "type".
 
     Example:
         OntologyFieldMapping(ontology_field="email", node_field="email_address", required=True)
