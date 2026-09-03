@@ -21,6 +21,13 @@
 
 ### OAuth
 
+Authorize the OAuth flow as a Google Workspace administrator that can read
+customer details, users, and user OAuth token metadata. A super administrator
+is the simplest choice for validating the setup. A personal Google account or
+a Workspace account without those privileges can complete OAuth consent but
+will receive `403 Not Authorized to access this resource/api` from the Admin
+Directory API.
+
 Use the following helper to complete the OAuth flow and obtain a refresh token:
 
 ```python

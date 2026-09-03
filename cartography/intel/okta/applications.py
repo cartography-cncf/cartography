@@ -74,6 +74,10 @@ def _transform_okta_applications(
         # Sparse app types (bookmarks, SWA, ...) can have any of the nested
         # sub-objects set to None, so every level must be guarded to avoid
         # aborting the whole sync on one atypical app.
+        # The SDK also picks the concrete model from signOnMode and falls back to
+        # the base Application class for unknown or empty values, and to
+        # ActiveDirectoryApplication for a null one. Those classes do not declare
+        # credentials/name/settings at all, so read them with getattr().
         accessibility = okta_application.accessibility
         application_props["accessibility_error_redirect_url"] = (
             accessibility.error_redirect_url if accessibility else None
@@ -86,7 +90,7 @@ def _transform_okta_applications(
         )
 
         application_props["created"] = okta_application.created
-        credentials = okta_application.credentials
+        credentials = getattr(okta_application, "credentials", None)
         signing = credentials.signing if credentials else None
         application_props["credentials_signing_kid"] = signing.kid if signing else None
         application_props["credentials_signing_last_rotated"] = (
@@ -124,8 +128,8 @@ def _transform_okta_applications(
         application_props["licensing_seat_count"] = (
             getattr(licensing, "seat_count", None) if licensing else None
         )
-        application_props["name"] = okta_application.name
-        settings = okta_application.settings
+        application_props["name"] = getattr(okta_application, "name", None)
+        settings = getattr(okta_application, "settings", None)
         settings_app = getattr(settings, "app", None)
         application_props["settings_app_acs_url"] = getattr(
             settings_app, "acs_url", None
@@ -290,11 +294,17 @@ def _transform_okta_applications(
             application_props["settings_oauth_client_wildcard_redirect"] = (
                 oauth_client.wildcard_redirect
             )
-        # This value can also be None, in which case it has no value
+        # A known sign-on mode is parsed into the ApplicationSignOnMode enum. An
+        # unknown or empty one is set to None on the model, but the SDK preserves
+        # the raw value for forward compatibility and restores it in the public
+        # serialization, so recover it from there instead of losing it. An app
+        # with a null sign-on mode (Active Directory) has no value there either.
         if okta_application.sign_on_mode:
             application_props["sign_on_mode"] = okta_application.sign_on_mode.value
         else:
-            application_props["sign_on_mode"] = okta_application.sign_on_mode
+            application_props["sign_on_mode"] = okta_application.to_dict().get(
+                "signOnMode"
+            )
         application_props["status"] = (
             okta_application.status.value if okta_application.status else None
         )
@@ -415,7 +425,7 @@ def _transform_okta_reply_uris(
     """
     reply_uris: list[dict[str, Any]] = []
     for okta_application in okta_applications:
-        settings = okta_application.settings
+        settings = getattr(okta_application, "settings", None)
         oauth_client = getattr(settings, "oauth_client", None) if settings else None
         if not oauth_client:
             continue
