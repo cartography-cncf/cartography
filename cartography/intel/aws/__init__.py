@@ -15,6 +15,8 @@ import aioboto3
 import boto3
 import botocore.exceptions
 import neo4j
+from neo4j.exceptions import ServiceUnavailable as Neo4jServiceUnavailable
+from neo4j.exceptions import SessionExpired as Neo4jSessionExpired
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_JOBS
@@ -97,6 +99,75 @@ def _build_aws_sync_kwargs(
         "update_tag": sync_tag,
         "common_job_parameters": common_job_parameters,
     }
+
+
+# Errors that mean the rest of the account cannot be synced either: the credentials are
+# gone, or Neo4j is unreachable. Isolating a single resource function's failure only helps
+# when the next resource function still has a chance of succeeding, and for these it does
+# not: every remaining module would fail the same way, each after up to 10 minutes of
+# backoff in aws_handle_regions.
+_FATAL_SYNC_EXCEPTIONS = (
+    botocore.exceptions.NoCredentialsError,
+    botocore.exceptions.PartialCredentialsError,
+    botocore.exceptions.CredentialRetrievalError,
+    botocore.exceptions.TokenRetrievalError,
+    botocore.exceptions.UnauthorizedSSOTokenError,
+    Neo4jServiceUnavailable,
+    Neo4jSessionExpired,
+)
+
+_FATAL_AWS_ERROR_CODES = {
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "RequestExpired",
+}
+
+
+def _is_fatal_sync_error(e: Exception) -> bool:
+    """
+    Return True when an exception from one resource function dooms the whole account sync.
+    """
+    if isinstance(e, _FATAL_SYNC_EXCEPTIONS):
+        return True
+    if isinstance(e, botocore.exceptions.ClientError):
+        error_code = e.response.get("Error", {}).get("Code")
+        return error_code in _FATAL_AWS_ERROR_CODES
+    return False
+
+
+def _run_resource_function(
+    func_name: str,
+    call: Callable[[], Any],
+    failures: Dict[str, str],
+) -> None:
+    """
+    Run one AWS resource function, recording its failure instead of propagating it.
+
+    An unexpected error in a single intel module must not discard the rest of the account:
+    the modules that ran before it have already written to the graph, and the ones queued
+    after it are unrelated to it. Failures are collected in ``failures`` and re-raised as an
+    aggregate once the account is done, so the sync still reports them. Errors that make the
+    rest of the account pointless (see ``_is_fatal_sync_error``) still propagate immediately.
+    """
+    try:
+        call()
+    except Exception as e:
+        if _is_fatal_sync_error(e):
+            raise
+        timestamp = datetime.datetime.now()
+        traceback_string = "".join(
+            traceback.TracebackException.from_exception(e).format(),
+        )
+        failures[func_name] = (
+            f"{timestamp} - Exception in AWS resource function '{func_name}'\n{traceback_string}"
+        )
+        logger.error(
+            "Caught exception syncing AWS resource function '%s'. Continuing on to the remaining "
+            "resource functions for this account. All exceptions will be aggregated and re-raised "
+            "at the end of the account sync.",
+            func_name,
+            exc_info=True,
+        )
 
 
 def _sync_one_account(
@@ -185,6 +256,10 @@ def _sync_one_account(
                     f"Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
                 )
 
+    # Failures are collected per resource function and re-raised as one exception at the end of
+    # the account so that a single failing module does not discard every module queued after it.
+    resource_function_failures: Dict[str, str] = {}
+
     # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
     # Skip modules not in the user's requested list
     for func_name in RESOURCE_FUNCTIONS:
@@ -197,27 +272,44 @@ def _sync_one_account(
                 aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
                 aioboto3_session = aioboto3_session_factory()
 
-            RESOURCE_FUNCTIONS[func_name](
-                neo4j_session,
-                aioboto3_session,
-                regions,
-                current_aws_account_id,
-                update_tag,
-                common_job_parameters,
-                aioboto3_session_factory=aioboto3_session_factory,
+            _run_resource_function(
+                func_name,
+                partial(
+                    RESOURCE_FUNCTIONS[func_name],
+                    neo4j_session,
+                    aioboto3_session,
+                    regions,
+                    current_aws_account_id,
+                    update_tag,
+                    common_job_parameters,
+                    aioboto3_session_factory=aioboto3_session_factory,
+                ),
+                resource_function_failures,
             )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
         else:
-            RESOURCE_FUNCTIONS[func_name](**sync_args)
+            _run_resource_function(
+                func_name,
+                partial(RESOURCE_FUNCTIONS[func_name], **sync_args),
+                resource_function_failures,
+            )
 
     # MAP IAM permissions
     if "permission_relationships" in aws_requested_syncs:
-        RESOURCE_FUNCTIONS["permission_relationships"](**sync_args)
+        _run_resource_function(
+            "permission_relationships",
+            partial(RESOURCE_FUNCTIONS["permission_relationships"], **sync_args),
+            resource_function_failures,
+        )
 
     # AWS Tags - Must always be last.
     if "resourcegroupstaggingapi" in aws_requested_syncs:
-        RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
+        _run_resource_function(
+            "resourcegroupstaggingapi",
+            partial(RESOURCE_FUNCTIONS["resourcegroupstaggingapi"], **sync_args),
+            resource_function_failures,
+        )
 
     run_typed_analysis_and_ensure_deps(
         AWS_EC2_IAM_INSTANCE_PROFILE,
@@ -250,6 +342,16 @@ def _sync_one_account(
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
+
+    # Raise only now that everything else in the account has been written, so that the data
+    # collected by the resource functions that did succeed survives the failure of one module.
+    if resource_function_failures:
+        logger.error(
+            "AWS sync for account %s failed for resource function(s) %s",
+            current_aws_account_id,
+            sorted(resource_function_failures),
+        )
+        raise Exception("\n".join(resource_function_failures.values()))
 
 
 def _autodiscover_account_regions(
