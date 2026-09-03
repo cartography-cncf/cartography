@@ -47,7 +47,8 @@ class TestTransformArtifacts:
         assert express["type"] == "npm"
         assert express["purl"] == "pkg:npm/express@4.18.2"
         assert express["language"] == "javascript"
-        assert express["found_by"] == "javascript-package-cataloger"
+        assert express["found_by"] == ["javascript-package-cataloger"]
+        assert express["locations"] == ["/app/node_modules/express/package.json"]
         assert express["normalized_id"] == "npm|express|4.18.2"
         assert express["ImageDigestCandidates"] == [
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -191,3 +192,91 @@ class TestTransformArtifacts:
         assert (
             "Syft image source did not include image digest candidates" in caplog.text
         )
+
+    def test_transform_artifacts_merges_same_normalized_id(self):
+        """Test one package row unions catalogers, paths, and dependency_ids."""
+        # Arrange
+        data = {
+            "artifacts": [
+                {
+                    "id": "brace-files",
+                    "name": "brace-expansion",
+                    "version": "5.0.6",
+                    "type": "npm",
+                    "purl": "pkg:npm/brace-expansion@5.0.6",
+                    "foundBy": "javascript-package-cataloger",
+                    "locations": [
+                        {"path": "/app/node_modules/brace-expansion/package.json"},
+                        {"path": "/app/node_modules/brace-expansion/package.json"},
+                    ],
+                },
+                {
+                    "id": "brace-lock",
+                    "name": "brace-expansion",
+                    "version": "5.0.6",
+                    "type": "npm",
+                    "purl": "pkg:npm/brace-expansion@5.0.6",
+                    "foundBy": "javascript-lock-cataloger",
+                    "locations": [{"path": "/app/pnpm-lock.yaml"}],
+                },
+                {
+                    "id": "brace-files-dup",
+                    "name": "brace-expansion",
+                    "version": "5.0.6",
+                    "type": "npm",
+                    "purl": "pkg:npm/brace-expansion@5.0.6",
+                    "foundBy": "javascript-package-cataloger",
+                    "locations": [
+                        {"path": "/app/node_modules/brace-expansion/package.json"},
+                    ],
+                },
+                {
+                    "id": "dep-a",
+                    "name": "dep-a",
+                    "version": "1.0.0",
+                    "type": "npm",
+                    "purl": "pkg:npm/dep-a@1.0.0",
+                },
+                {
+                    "id": "dep-b",
+                    "name": "dep-b",
+                    "version": "2.0.0",
+                    "type": "npm",
+                    "purl": "pkg:npm/dep-b@2.0.0",
+                },
+            ],
+            "artifactRelationships": [
+                {
+                    "parent": "dep-a",
+                    "child": "brace-files",
+                    "type": "dependency-of",
+                },
+                {
+                    "parent": "dep-b",
+                    "child": "brace-lock",
+                    "type": "dependency-of",
+                },
+                {
+                    "parent": "dep-a",
+                    "child": "brace-files-dup",
+                    "type": "dependency-of",
+                },
+            ],
+        }
+
+        # Act
+        packages = transform_artifacts(data)
+        pkg_by_id = {p["id"]: p for p in packages}
+        brace = pkg_by_id["npm|brace-expansion|5.0.6"]
+
+        # Assert
+        assert len(packages) == 3
+        assert brace["found_by"] == [
+            "javascript-package-cataloger",
+            "javascript-lock-cataloger",
+        ]
+        assert brace["locations"] == [
+            "/app/node_modules/brace-expansion/package.json",
+            "/app/pnpm-lock.yaml",
+        ]
+        assert brace["dependency_ids"] == ["npm|dep-a|1.0.0", "npm|dep-b|2.0.0"]
