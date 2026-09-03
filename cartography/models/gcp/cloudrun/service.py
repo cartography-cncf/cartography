@@ -28,6 +28,11 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
     uri: PropertyRef = PropertyRef(
         "uri", description="Default URL serving the service."
     )
+    uri_hostname: PropertyRef = PropertyRef(
+        "uri_hostname",
+        extra_index=True,
+        description="Canonical hostname extracted from the default service URL.",
+    )
     latest_ready_revision: PropertyRef = PropertyRef(
         "latest_ready_revision",
         description="Full resource name of the latest ready revision for this service.",

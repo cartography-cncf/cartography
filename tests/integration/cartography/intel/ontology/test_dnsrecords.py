@@ -175,39 +175,43 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
     neo4j_session.run(
         """
         CREATE (:ModalSandboxTunnel {
-            id: 'tunnel', host: 'tls.modal.test',
-            unencrypted_host: 'clear.modal.test'
+            id: 'tunnel', host_normalized: 'tls.modal.test',
+            unencrypted_host_normalized: 'clear.modal.test'
         })
         CREATE (:ModalFunction {
-            id: 'modal-function', web_url: 'https://function.modal.test/path'
+            id: 'modal-function', web_hostname: 'function.modal.test'
         })
         CREATE (:GCPCloudRunService {
-            id: 'cloud-run', uri: 'https://service.run.test'
+            id: 'cloud-run', uri_hostname: 'service.run.test'
         })
         CREATE (:NetlifySite {
-            id: 'netlify', default_domain: 'site.netlify.test',
-            custom_domain: 'www.example.test',
-            domain_aliases: ['alias.example.test']
+            id: 'netlify', default_domain_normalized: 'site.netlify.test',
+            custom_domain_normalized: 'www.example.test',
+            domain_aliases_normalized: ['alias.example.test']
         })
         CREATE (:ScalewayServerlessContainer {
-            id: 'container', domain_name: 'container.functions.test'
+            id: 'container', domain_name_normalized: 'container.functions.test'
         })
         CREATE (:ScalewayServerlessFunction {
-            id: 'scw-function', domain_name: 'function.functions.test'
+            id: 'scw-function', domain_name_normalized: 'function.functions.test'
         })
         CREATE (:ModalSandboxTunnel {id: 'null-tunnel'})
         CREATE (:AWSEC2Instance {id: 'private-instance', publicdnsname: ''})
         CREATE (stale_record:DNSRecord {
-            id: 'stale-service-record', _ont_value: 'gone.example.test'
+            id: 'stale-service-record', _ont_target_hostname: 'gone.example.test'
         })
         CREATE (stale_target:NetlifySite {
-            id: 'stale-site', default_domain: 'different.example.test'
+            id: 'stale-site', default_domain_normalized: 'different.example.test'
         })
         CREATE (stale_record)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(stale_target)
-        CREATE (:DNSRecord {id: 'empty-record', _ont_value: ''})
+        CREATE (:DNSRecord {id: 'empty-record', _ont_target_hostname: ''})
+        CREATE (:GCPRecordSet:DNSRecord {
+            id: 'gcp-modal-function',
+            _ont_target_hostnames: ['function.modal.test']
+        })
         WITH 1 AS ignored
         UNWIND [
-            ['tls', 'TLS.MODAL.TEST.'],
+            ['tls', 'tls.modal.test'],
             ['clear', 'clear.modal.test'],
             ['modal-function', 'function.modal.test'],
             ['cloud-run', 'service.run.test'],
@@ -217,7 +221,7 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
             ['scw-container', 'container.functions.test'],
             ['scw-function', 'function.functions.test']
         ] AS pair
-        CREATE (:DNSRecord {id: pair[0], _ont_value: pair[1]})
+        CREATE (:DNSRecord {id: pair[0], _ont_target_hostname: pair[1]})
         """,
         stale_tag=TEST_UPDATE_TAG - 1,
     )
@@ -247,6 +251,7 @@ def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
         ("tls", "ModalSandboxTunnel", "tunnel"),
         ("clear", "ModalSandboxTunnel", "tunnel"),
         ("modal-function", "ModalFunction", "modal-function"),
+        ("gcp-modal-function", "ModalFunction", "modal-function"),
         ("cloud-run", "GCPCloudRunService", "cloud-run"),
         ("netlify-default", "NetlifySite", "netlify"),
         ("netlify-custom", "NetlifySite", "netlify"),
