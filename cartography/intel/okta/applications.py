@@ -294,11 +294,17 @@ def _transform_okta_applications(
             application_props["settings_oauth_client_wildcard_redirect"] = (
                 oauth_client.wildcard_redirect
             )
-        # This value can also be None, in which case it has no value
+        # A known sign-on mode is parsed into the ApplicationSignOnMode enum. An
+        # unknown or empty one is set to None on the model, but the SDK preserves
+        # the raw value for forward compatibility and restores it in the public
+        # serialization, so recover it from there instead of losing it. An app
+        # with a null sign-on mode (Active Directory) has no value there either.
         if okta_application.sign_on_mode:
             application_props["sign_on_mode"] = okta_application.sign_on_mode.value
         else:
-            application_props["sign_on_mode"] = okta_application.sign_on_mode
+            application_props["sign_on_mode"] = okta_application.to_dict().get(
+                "signOnMode"
+            )
         application_props["status"] = (
             okta_application.status.value if okta_application.status else None
         )

@@ -60,6 +60,10 @@ def test_transform_handles_applications_without_credentials_or_settings(
 
     # Assert
     assert [app["id"] for app in result] == ["0oaUnknownMode", "0oaActiveDirectory"]
+    # The SDK sets an unknown mode to None on the model but preserves the raw
+    # value, which must still reach the transform.
+    assert result[0]["sign_on_mode"] == "MFA_AS_SERVICE"
+    assert result[1]["sign_on_mode"] is None
     assert result[0]["name"] is None
     assert result[0]["credentials_signing_kid"] is None
     assert result[0]["settings_app_url"] is None
