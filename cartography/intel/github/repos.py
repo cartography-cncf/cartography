@@ -3,10 +3,13 @@ import hashlib
 import json
 import logging
 import random
+import threading
 import time
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
+from concurrent.futures import as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 from typing import cast
@@ -60,6 +63,8 @@ from cartography.models.github.rulesets import GitHubRulesetSchema
 from cartography.util import retries_with_backoff
 from cartography.util import run_analysis_job
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
@@ -578,11 +583,70 @@ def _get_repo_dep_manifests(
     return manifests, cleanup_safe
 
 
+def _fetch_manifests_for_repo(
+    repo: dict[str, Any],
+    org: str,
+    api_url: str,
+    token: str,
+    org_wide_forbidden: threading.Event,
+) -> tuple[str, list[Any], bool, str | None, bool]:
+    """
+    Fetch dependency graph manifests for a single repo.
+
+    Returns (repo_url, manifests, cleanup_safe, forbidden_message, not_attempted).
+    Designed to be called from worker threads via ThreadPoolExecutor.
+
+    Preserves master's org-wide-forbidden optimization under parallelism via the
+    shared ``org_wide_forbidden`` event: once any worker observes an org-wide
+    forbidden error it sets the event, and every not-yet-started worker returns
+    immediately with ``not_attempted=True`` without spending a GraphQL request
+    (ticket 09 decision). In-flight requests still drain (fail-with-drain,
+    ticket 04); we never eagerly cancel. At parallel_workers == 1 this reduces
+    to master's original early-exit — the single worker sees the event it just
+    set on the next repo and stops fetching.
+    """
+    repo_name = repo.get("name")
+    repo_url = repo.get("url", "")
+
+    if org_wide_forbidden.is_set():
+        # Every remaining repo would spend a GraphQL request only to be refused
+        # too, so short-circuit without hitting the API.
+        return repo_url, [], False, None, True
+
+    try:
+        manifests, repo_cleanup_safe = _get_repo_dep_manifests(
+            token,
+            api_url,
+            org,
+            str(repo_name),
+        )
+        if manifests:
+            logger.debug(
+                "Fetched %d dependency manifests for repo %s.",
+                len(manifests),
+                repo_name,
+            )
+        return repo_url, manifests, repo_cleanup_safe, None, False
+    except DependencyGraphForbiddenError as err:
+        message = str(err)
+        if _is_org_wide_forbidden(message):
+            org_wide_forbidden.set()
+        return repo_url, [], False, message, False
+    except requests.exceptions.RequestException:
+        logger.warning(
+            "Failed to fetch dependency manifests for repo %s; skipping.",
+            repo_name,
+            exc_info=True,
+        )
+        return repo_url, [], False, None, False
+
+
 def _get_dep_manifests_for_repos(
     repo_raw_data: list[dict[str, Any] | None],
     org: str,
     api_url: str,
     token: str,
+    parallel_workers: int = 1,
 ) -> tuple[dict[str, dict[str, Any]], bool]:
     """
     For every repo in the given list, retrieve its dependency graph manifests individually.
@@ -592,65 +656,60 @@ def _get_dep_manifests_for_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     :return: A tuple of repo URL to dependencyGraphManifests structure and
         whether manifest cleanup is safe.
     """
     logger.info(
-        "Fetching dependency graph manifests for %d repos in org %s.",
+        "Fetching dependency graph manifests for %d repos in org %s (parallel_workers=%d).",
         len(repo_raw_data),
         org,
+        parallel_workers,
     )
+    eligible = [
+        repo
+        for repo in repo_raw_data
+        if repo is not None and repo.get("name") and repo.get("url")
+    ]
+
     result: dict[str, dict[str, Any]] = {}
     failed_count = 0
     forbidden_count = 0
     forbidden_message: str | None = None
-    org_wide_forbidden = False
     not_attempted_count = 0
     cleanup_safe = True
 
-    for index, repo in enumerate(repo_raw_data):
-        if repo is None:
-            continue
-        repo_name = repo.get("name")
-        repo_url = repo.get("url")
-        if not repo_name or not repo_url:
-            continue
+    # Shared across workers: once an org-wide forbidden error is seen, peers
+    # short-circuit instead of spending quota. See _fetch_manifests_for_repo.
+    org_wide_forbidden = threading.Event()
 
-        try:
-            manifests, repo_cleanup_safe = _get_repo_dep_manifests(
-                token,
-                api_url,
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_manifests_for_repo,
+                repo,
                 org,
-                repo_name,
-            )
+                api_url,
+                token,
+                org_wide_forbidden,
+            ): repo
+            for repo in eligible
+        }
+        for f in as_completed(futures):
+            repo_url, manifests, repo_cleanup_safe, message, not_attempted = f.result()
             cleanup_safe = cleanup_safe and repo_cleanup_safe
+            if not_attempted:
+                not_attempted_count += 1
+                continue
+            if message is not None:
+                forbidden_count += 1
+                forbidden_message = message
+            elif not repo_cleanup_safe:
+                failed_count += 1
             if manifests:
                 result[repo_url] = {"nodes": manifests}
-                logger.debug(
-                    "Fetched %d dependency manifests for repo %s.",
-                    len(manifests),
-                    repo_name,
-                )
-        except DependencyGraphForbiddenError as err:
-            forbidden_count += 1
-            forbidden_message = str(err)
-            cleanup_safe = False
-            if _is_org_wide_forbidden(forbidden_message):
-                # Every remaining repo would spend a GraphQL request only to be
-                # refused too, so stop and report what we did not attempt.
-                org_wide_forbidden = True
-                not_attempted_count = len(repo_raw_data) - index - 1
-                break
-        except requests.exceptions.RequestException:
-            failed_count += 1
-            cleanup_safe = False
-            logger.warning(
-                "Failed to fetch dependency manifests for repo %s; skipping.",
-                repo_name,
-                exc_info=True,
-            )
 
-    if org_wide_forbidden:
+    if org_wide_forbidden.is_set():
         logger.warning(
             "GitHub refused the dependency graph for org %s with an org-wide IP allow "
             "list error: %s. No retry can succeed, so the remaining %d of %d repos in "
@@ -681,68 +740,120 @@ def _get_dep_manifests_for_repos(
     return result, cleanup_safe
 
 
+def _fetch_collaborators_for_repo(
+    repo: dict[str, Any],
+    org: str,
+    api_url: str,
+    token: str,
+    affiliation: str,
+) -> tuple[str, list[UserAffiliationAndRepoPermission]]:
+    """
+    Fetch collaborators for a single repo.
+    Returns (repo_url, collabs_list).
+    Designed to be called from worker threads via ThreadPoolExecutor.
+    """
+    repo_name = repo["name"]
+    repo_url = repo["url"]
+
+    # Guard against None when collaborator fields are not accessible due to permissions.
+    direct_info = repo.get("directCollaborators")
+    outside_info = repo.get("outsideCollaborators")
+
+    if affiliation == "OUTSIDE":
+        total_outside = 0 if not outside_info else outside_info.get("totalCount", 0)
+        if total_outside == 0:
+            # No outside collaborators or not permitted to view; skip API calls.
+            return repo_url, []
+    else:  # DIRECT
+        total_direct = 0 if not direct_info else direct_info.get("totalCount", 0)
+        if total_direct == 0:
+            # No direct collaborators or not permitted to view; skip API calls.
+            return repo_url, []
+
+    logger.info("Loading %s collaborators for repo %s.", affiliation, repo_name)
+    collaborators = _get_repo_collaborators(token, api_url, org, repo_name, affiliation)
+
+    collab_users: List[dict[str, Any]] = []
+    collab_permission: List[str] = []
+
+    # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
+    # however sometimes GitHub returns None, as in issue 1334 and 1404.
+    for collab in collaborators.nodes or []:
+        collab_users.append(collab)
+
+    # The `or []` is because `.edges` can be None.
+    for perm in collaborators.edges or []:
+        collab_permission.append(perm["permission"])
+
+    return repo_url, [
+        UserAffiliationAndRepoPermission(user, permission, affiliation)
+        for user, permission in zip(collab_users, collab_permission)
+    ]
+
+
 def _get_repo_collaborators_inner_func(
     org: str,
     api_url: str,
     token: str,
     repo_raw_data: list[dict[str, Any] | None],
     affiliation: str,
+    parallel_workers: int = 1,
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     result: dict[str, list[UserAffiliationAndRepoPermission]] = {}
 
-    for repo in repo_raw_data:
-        # GitHub can return null repo entries. See issues #1334 and #1404.
-        if repo is None:
-            logger.info(
-                "Skipping null repository entry while fetching %s collaborators.",
-                affiliation,
-            )
-            continue
-        repo_name = repo["name"]
-        repo_url = repo["url"]
-
-        # Guard against None when collaborator fields are not accessible due to permissions.
-        direct_info = repo.get("directCollaborators")
-        outside_info = repo.get("outsideCollaborators")
-
-        if affiliation == "OUTSIDE":
-            total_outside = 0 if not outside_info else outside_info.get("totalCount", 0)
-            if total_outside == 0:
-                # No outside collaborators or not permitted to view; skip API calls for this repo.
-                result[repo_url] = []
-                continue
-        else:  # DIRECT
-            total_direct = 0 if not direct_info else direct_info.get("totalCount", 0)
-            if total_direct == 0:
-                # No direct collaborators or not permitted to view; skip API calls for this repo.
-                result[repo_url] = []
-                continue
-
-        logger.info(f"Loading {affiliation} collaborators for repo {repo_name}.")
-        collaborators = _get_repo_collaborators(
-            token,
-            api_url,
-            org,
-            repo_name,
+    eligible = [
+        repo
+        for repo in repo_raw_data
+        if repo is not None and repo.get("name") and repo.get("url")
+    ]
+    skipped_null = len(repo_raw_data) - len([r for r in repo_raw_data if r is not None])
+    if skipped_null:
+        logger.info(
+            "Skipping %d null repository entries while fetching %s collaborators.",
+            skipped_null,
             affiliation,
         )
 
-        collab_users: List[dict[str, Any]] = []
-        collab_permission: List[str] = []
+    logger.info(
+        "Fetching %s collaborators for %d repos in org %s (parallel_workers=%d).",
+        affiliation,
+        len(eligible),
+        org,
+        parallel_workers,
+    )
 
-        # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
-        # however sometimes GitHub returns None, as in issue 1334 and 1404.
-        for collab in collaborators.nodes or []:
-            collab_users.append(collab)
+    total = len(eligible)
+    completed = 0
 
-        # The `or []` is because `.edges` can be None.
-        for perm in collaborators.edges or []:
-            collab_permission.append(perm["permission"])
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_collaborators_for_repo,
+                repo,
+                org,
+                api_url,
+                token,
+                affiliation,
+            ): repo
+            for repo in eligible
+        }
+        for f in as_completed(futures):
+            repo_url, collabs = f.result()
+            result[repo_url] = collabs
+            completed += 1
+            if (
+                completed == 1
+                or completed % max(1, parallel_workers) == 0
+                or completed == total
+            ):
+                logger.info(
+                    "Collaborators (%s) progress for org %s: %d/%d repos completed.",
+                    affiliation,
+                    org,
+                    completed,
+                    total,
+                )
 
-        result[repo_url] = [
-            UserAffiliationAndRepoPermission(user, permission, affiliation)
-            for user, permission in zip(collab_users, collab_permission)
-        ]
     return result
 
 
@@ -752,6 +863,7 @@ def _get_repo_collaborators_for_multiple_repos(
     org: str,
     api_url: str,
     token: str,
+    parallel_workers: int = 1,
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     """
     For every repo in the given list, retrieve the collaborators.
@@ -761,6 +873,7 @@ def _get_repo_collaborators_for_multiple_repos(
     :param org: The name of the target Github organization as string.
     :param api_url: The Github v4 API endpoint as string.
     :param token: The Github API token as string.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     :return: A dictionary of repo URL to list of UserAffiliationAndRepoPermission
     """
     logger.info(
@@ -778,6 +891,7 @@ def _get_repo_collaborators_for_multiple_repos(
         token=token,
         repo_raw_data=repo_raw_data,
         affiliation=affiliation,
+        parallel_workers=parallel_workers,
     )
     return result
 
@@ -930,54 +1044,114 @@ def _rest_ruleset_cache_key(ruleset: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _fetch_rulesets_for_repo(
+    repo: dict[str, Any],
+    token: str,
+    base_url: str,
+    owner: str,
+    cache: dict[tuple[Any, ...], dict[str, Any]],
+    cache_lock: threading.Lock,
+) -> tuple[str, dict[str, Any]]:
+    """
+    Fetch rulesets for a single repo via REST.
+    Returns (repo_url, rulesets_dict).
+    Designed to be called from worker threads via ThreadPoolExecutor.
+    The cache and its lock are shared across workers to de-duplicate org-level
+    ruleset detail fetches.
+    """
+    repo_name = repo.get("name", "")
+    repo_url = repo.get("url", "")
+    encoded_repo_name = quote(repo_name, safe="")
+    endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
+    ruleset_summaries = fetch_all_rest_api_pages(
+        token,
+        base_url,
+        endpoint,
+        result_key="rulesets",
+        raise_on_status=(403, 404),
+        params={"per_page": 100, "includes_parents": "true"},
+    )
+    normalized_rulesets = []
+    for ruleset_summary in ruleset_summaries:
+        cache_key = _rest_ruleset_cache_key(ruleset_summary)
+        with cache_lock:
+            ruleset_detail = cache.get(cache_key)
+        if ruleset_detail is None:
+            ruleset_detail = call_github_rest_api(
+                f"{endpoint}/{ruleset_summary['id']}",
+                token,
+                base_url,
+                params={"includes_parents": "true"},
+            )
+            with cache_lock:
+                cache[cache_key] = ruleset_detail
+        normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
+    return repo_url, {
+        "nodes": normalized_rulesets,
+        "totalCount": len(normalized_rulesets),
+    }
+
+
 def _get_repo_rulesets_by_url(
     token: str,
     api_url: str,
     organization: str,
     repo_raw_data: list[dict[str, Any] | None],
+    parallel_workers: int = 1,
 ) -> dict[str, dict[str, Any]]:
     """
     Retrieve full GitHub repository rulesets through REST for every repo.
+    :param parallel_workers: Number of repos to fetch concurrently. Default 1 (sequential).
     """
     base_url = rest_api_base_url(api_url)
     owner = quote(organization, safe="")
     rulesets_by_url: dict[str, dict[str, Any]] = {}
     ruleset_detail_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
+    cache_lock = threading.Lock()
 
-    for repo in repo_raw_data:
-        if repo is None:
-            continue
-        repo_name = repo.get("name")
-        repo_url = repo.get("url")
-        if not repo_name or not repo_url:
-            continue
-        encoded_repo_name = quote(repo_name, safe="")
-        endpoint = f"/repos/{owner}/{encoded_repo_name}/rulesets"
-        ruleset_summaries = fetch_all_rest_api_pages(
-            token,
-            base_url,
-            endpoint,
-            result_key="rulesets",
-            raise_on_status=(403, 404),
-            params={"per_page": 100, "includes_parents": "true"},
-        )
-        normalized_rulesets = []
-        for ruleset_summary in ruleset_summaries:
-            cache_key = _rest_ruleset_cache_key(ruleset_summary)
-            ruleset_detail = ruleset_detail_cache.get(cache_key)
-            if ruleset_detail is None:
-                ruleset_detail = call_github_rest_api(
-                    f"{endpoint}/{ruleset_summary['id']}",
-                    token,
-                    base_url,
-                    params={"includes_parents": "true"},
-                )
-                ruleset_detail_cache[cache_key] = ruleset_detail
-            normalized_rulesets.append(_normalize_rest_ruleset(ruleset_detail))
-        rulesets_by_url[repo_url] = {
-            "nodes": normalized_rulesets,
-            "totalCount": len(normalized_rulesets),
+    eligible = [
+        repo
+        for repo in repo_raw_data
+        if repo is not None and repo.get("name") and repo.get("url")
+    ]
+    logger.info(
+        "Fetching rulesets for %d repos in org %s (parallel_workers=%d).",
+        len(eligible),
+        organization,
+        parallel_workers,
+    )
+
+    total = len(eligible)
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_rulesets_for_repo,
+                repo,
+                token,
+                base_url,
+                owner,
+                ruleset_detail_cache,
+                cache_lock,
+            ): repo
+            for repo in eligible
         }
+        for f in as_completed(futures):
+            repo_url, rulesets_dict = f.result()
+            rulesets_by_url[repo_url] = rulesets_dict
+            completed += 1
+            if (
+                completed == 1
+                or completed % max(1, parallel_workers) == 0
+                or completed == total
+            ):
+                logger.info(
+                    "Rulesets progress for org %s: %d/%d repos completed.",
+                    organization,
+                    completed,
+                    total,
+                )
 
     return rulesets_by_url
 
@@ -1040,6 +1214,7 @@ def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
     organization: str,
+    parallel_workers: int = 1,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Retrieve collaborator counts, branch protection, and ruleset fields for repositories in an organization.
@@ -1059,6 +1234,7 @@ def get_repo_privileged_details_by_url(
         api_url,
         organization,
         privileged_nodes,
+        parallel_workers=parallel_workers,
     )
     for repo in privileged_nodes:
         # GitHub can return null repository entries.
@@ -2670,6 +2846,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
+    parallel_workers: int = 1,
 ) -> GitHubRepoSyncResult:
     """
     Performs the sequential tasks to collect, transform, and sync github data
@@ -2678,6 +2855,7 @@ def sync(
     :param github_api_key: The API key to access the GitHub v4 API
     :param github_url: The URL for the GitHub v4 endpoint to use
     :param organization: The organization to query GitHub for
+    :param parallel_workers: Number of parallel workers for per-repo API fetches. Default 1 (sequential).
     :return: Repository and dependency manifest data fetched for this org.
     """
     logger.info("Syncing GitHub repos")
@@ -2692,6 +2870,7 @@ def sync(
                 github_api_key,
                 github_url,
                 organization,
+                parallel_workers=parallel_workers,
             )
         except (requests.exceptions.RequestException, ValueError):
             rulesets_cleanup_safe = False
@@ -2719,24 +2898,51 @@ def sync(
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     try:
-        direct_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
-            "DIRECT",
-            organization,
-            github_url,
-            github_api_key,
-        )
-        outside_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
-            "OUTSIDE",
-            organization,
-            github_url,
-            github_api_key,
-        )
-    except TypeError:
-        # due to permission errors or transient network error or some other nonsense
+        if parallel_workers > 1:
+            logger.info(
+                "Fetching DIRECT and OUTSIDE collaborators concurrently for org %s.",
+                organization,
+            )
+            direct_collabs, outside_collabs = to_synchronous(
+                to_asynchronous(
+                    _get_repo_collaborators_for_multiple_repos,
+                    repos_json,
+                    "DIRECT",
+                    organization,
+                    github_url,
+                    github_api_key,
+                    parallel_workers,
+                ),
+                to_asynchronous(
+                    _get_repo_collaborators_for_multiple_repos,
+                    repos_json,
+                    "OUTSIDE",
+                    organization,
+                    github_url,
+                    github_api_key,
+                    parallel_workers,
+                ),
+            )
+        else:
+            direct_collabs = _get_repo_collaborators_for_multiple_repos(
+                repos_json,
+                "DIRECT",
+                organization,
+                github_url,
+                github_api_key,
+            )
+            outside_collabs = _get_repo_collaborators_for_multiple_repos(
+                repos_json,
+                "OUTSIDE",
+                organization,
+                github_url,
+                github_api_key,
+            )
+    except (TypeError, ValueError):
+        # TypeError: permission errors or transient network issues
+        # ValueError: fetch_all raises this when all retries are exhausted (e.g. repeated timeouts)
         logger.warning(
-            "Unable to list repo collaborators due to permission errors; continuing on.",
+            "Unable to list repo collaborators due to permission errors or exhausted retries; continuing on.",
             exc_info=True,
         )
 
@@ -2746,6 +2952,7 @@ def sync(
         organization,
         github_url,
         github_api_key,
+        parallel_workers=parallel_workers,
     )
     for repo in repos_json:
         if repo is not None and repo.get("url") in dep_manifests_by_url:

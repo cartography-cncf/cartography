@@ -127,6 +127,7 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            parallel_workers=config.github_parallel_workers,
         )
         cartography.intel.github.personal_access_tokens.sync(
             neo4j_session,
@@ -169,6 +170,7 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+            parallel_workers=config.github_parallel_workers,
         )
 
         # Sync commit relationships for the configured lookback period

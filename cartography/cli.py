@@ -944,6 +944,21 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            github_parallel_workers: Annotated[
+                int,
+                typer.Option(
+                    "--github-parallel-workers",
+                    help=(
+                        "Number of parallel workers for per-repo GitHub API fetches "
+                        "(rulesets, collaborators, dependency manifests). "
+                        "Default: 1 (sequential). Increase conservatively; each worker "
+                        "consumes GraphQL/REST quota independently."
+                    ),
+                    min=1,
+                    rich_help_panel=PANEL_GITHUB,
+                    hidden=PANEL_GITHUB not in visible_panels,
+                ),
+            ] = 1,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -3622,6 +3637,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                github_parallel_workers=github_parallel_workers,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,

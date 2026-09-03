@@ -850,6 +850,93 @@ def test_get_dep_manifests_for_repos_stops_the_org_on_ip_allow_list_forbidden(ca
     assert "Skipped dependency manifests" not in caplog.text
 
 
+def test_get_dep_manifests_for_repos_parallel_fetches_all_repos():
+    """
+    With parallel_workers > 1 every eligible repo is still fetched exactly once
+    and its manifests land in the result, regardless of completion order.
+    """
+    # Arrange
+    manifests = [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    repos = [
+        {"name": f"repo-{i}", "url": f"https://github.com/test-org/repo-{i}"}
+        for i in range(6)
+    ]
+    with patch.object(
+        cartography.intel.github.repos,
+        "_get_repo_dep_manifests",
+        return_value=(manifests, True),
+    ) as mock_get_repo_dep_manifests:
+        # Act
+        result, cleanup_safe = (
+            cartography.intel.github.repos._get_dep_manifests_for_repos(
+                repos,
+                "test-org",
+                "https://api.github.com/graphql",
+                "token",
+                parallel_workers=4,
+            )
+        )
+
+    # Assert
+    assert mock_get_repo_dep_manifests.call_count == 6
+    assert result == {
+        f"https://github.com/test-org/repo-{i}": {"nodes": manifests} for i in range(6)
+    }
+    assert cleanup_safe is True
+
+
+def test_get_dep_manifests_for_repos_parallel_org_forbidden_short_circuits():
+    """
+    Under parallel_workers > 1 an org-wide IP-allow-list refusal sets the shared
+    flag so not-yet-started workers short-circuit without spending a GraphQL
+    request. The exact number of skipped repos is nondeterministic (it depends on
+    how many workers were already in flight), but cleanup must be unsafe and at
+    least one repo must be spared the doomed fetch.
+    """
+    # Arrange
+    manifests = [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    repos = [
+        {"name": f"repo-{i}", "url": f"https://github.com/test-org/repo-{i}"}
+        for i in range(20)
+    ]
+    org_forbidden = DependencyGraphForbiddenError(
+        "Although you appear to have the correct authorization credentials, "
+        "the `test-org` organization has an IP allow list enabled, and "
+        "203.0.113.1 is not permitted to access this resource.",
+    )
+
+    def side_effect(token, api_url, org, repo_name):
+        # The very first repo triggers the org-wide refusal; the shared flag then
+        # spares later, not-yet-started workers.
+        if repo_name == "repo-0":
+            raise org_forbidden
+        return (manifests, True)
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_get_repo_dep_manifests",
+        side_effect=side_effect,
+    ) as mock_get_repo_dep_manifests:
+        # Act
+        result, cleanup_safe = (
+            cartography.intel.github.repos._get_dep_manifests_for_repos(
+                repos,
+                "test-org",
+                "https://api.github.com/graphql",
+                "token",
+                parallel_workers=2,
+            )
+        )
+
+    # Assert
+    # At least one repo must have been short-circuited (never fetched).
+    assert mock_get_repo_dep_manifests.call_count < 20
+    assert mock_get_repo_dep_manifests.call_count >= 1
+    assert cleanup_safe is False
+    # No spurious manifests recorded for the forbidden repo.
+    assert "https://github.com/test-org/repo-0" not in result
+
+
 def test_enrich_dependencies_with_lockfile_versions():
     """
     Range-only deps present in the repo lockfile are upgraded to exact versions
@@ -1741,6 +1828,7 @@ def test_sync_continues_when_privileged_fetch_fails(
         "token",
         "https://api.github.com/graphql",
         "example-org",
+        parallel_workers=1,
     )
     assert mock_get_repo_collaborators.call_count == 2
     mock_load.assert_called_once()
