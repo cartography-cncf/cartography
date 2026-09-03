@@ -120,6 +120,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Okta](https://docs.cartography.dev/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
 - [OpenAI](https://docs.cartography.dev/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://docs.cartography.dev/modules/oci/index.html) - IAM
+- [Orca Security](https://docs.cartography.dev/modules/orca/index.html) - Organizations, security alerts, per-target CVE findings
 - [PagerDuty](https://docs.cartography.dev/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
 - [Railway](https://docs.cartography.dev/modules/railway/index.html) - Workspaces, Projects, Environments, Services, Service Instances, Deployments, Domains, TCP Proxies, Volumes, Variables, Tokens
 - [Scaleway](https://docs.cartography.dev/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances

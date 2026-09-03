@@ -247,7 +247,9 @@ def test_ontology_and_cross_module_relationships_are_duplicated_in_module_docs()
     generated = render_module_schema(model, "lastpass")
 
     # Assert
-    assert "(:User)-[:HAS_ACCOUNT]->(:UserAccount)" in generated
+    # Inherited ontology edges keep the far endpoint semantic when possible, but
+    # rewrite the near endpoint to the concrete node being documented.
+    assert "(:User)-[:HAS_ACCOUNT]->(:LastpassUser)" in generated
     assert "(:Human)-[:IDENTITY_LASTPASS]->(:LastpassUser)" in generated
 
 
@@ -435,3 +437,30 @@ def test_each_relationship_is_documented_once_per_node_section():
     assert (
         section.count("(:GitLabProject)-[:HAS_ENVIRONMENT]->(:GitLabEnvironment)") == 1
     )
+
+
+def test_concrete_nodes_render_inherited_ontology_relationships():
+    model = inspect_data_model()
+
+    for module, label in (
+        ("aws", "AWSECSContainer"),
+        ("kubernetes", "KubernetesContainer"),
+        ("railway", "RailwayDeployment"),
+    ):
+        generated = render_module_schema(model, module)
+        section = generated.split(f"### {label}", 1)[1].split("\n### ", 1)[0]
+
+        assert f"`(:{label})-[:RESOLVED_IMAGE]->(:Image)`" in section
+        assert "`(:Container)-[:RESOLVED_IMAGE]->(:Image)`" not in section
+        # Validation-only Container→FilesystemSnapshot must not appear; a
+        # provider-native SCANNED_AS to a concrete snapshot label is fine.
+        assert f"`(:{label})-[:SCANNED_AS]->(:FilesystemSnapshot)`" not in section
+
+
+def test_ontology_schema_documents_constraint_vs_expected_edges():
+    model = inspect_data_model()
+
+    generated = render_module_schema(model, "ontology")
+
+    assert "not inherited onto concrete node schemas" in generated
+    assert "Expected (materialized) ontology edges" in generated

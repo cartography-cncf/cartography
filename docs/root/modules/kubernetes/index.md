@@ -1,9 +1,29 @@
 # Kubernetes
 
-The Kubernetes module ingests cluster inventory, workloads, networking resources,
-secrets metadata, and RBAC identities and permissions. It also connects Kubernetes
-resources to cloud infrastructure, container images, and shared ontology labels so
-that workload and identity paths can be queried across providers.
+The Kubernetes module ingests cluster inventory, GPU capacity and requests,
+persistent storage, workloads, networking resources, secrets metadata, and RBAC
+identities and permissions. It also connects Kubernetes resources to cloud
+infrastructure, container images, and shared ontology labels so that workload and
+identity paths can be queried across providers.
+
+PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
+already-ingested cloud disks with `BACKED_BY` relationships.
+
+Container `MOUNTS` relationships identify the PersistentVolumeClaims used by
+individual containers. Each container's `persistent_volume_claim_mounts`
+property preserves the claim identifier, mount path, read-only setting, and
+other per-mount Kubernetes configuration as a JSON-encoded list. The
+`persistent_volume_claim_read_write_ids` property provides a queryable list of
+claims that have at least one read-write mount.
+
+For raw block volumes, container `USES_BLOCK_DEVICE` relationships and the
+`persistent_volume_claim_devices` property preserve the claim identifier and
+device path. Pod `REFERENCES` relationships identify claims declared by pod
+volumes, including claims that no container mounts.
+
+Container storage relationships currently cover regular application containers
+in `spec.containers`. Init containers and ephemeral containers aren't modeled as
+`KubernetesContainer` nodes.
 
 Use the configuration guide to grant read-only access and connect one or more
 clusters. The schema reference is generated from the model definitions and is
@@ -21,6 +41,14 @@ the `Gateway -[:ROUTES]-> HTTPRoute -[:TARGETS]-> Service` traffic path.
 If the identity cannot list network policies, Cartography skips both ingestion
 and cleanup and preserves existing `KubernetesNetworkPolicy` nodes. Ingested
 policies use `APPLIES_TO` edges to identify selected pods.
+
+Until v1.0.0, if the identity cannot list persistent volumes, persistent volume
+claims, or storage classes, Cartography skips persistent storage ingestion and
+cleanup and preserves existing storage nodes. Pods continue to load. On a first
+sync, pods have no `REFERENCES` relationships and containers have no `MOUNTS` or
+`USES_BLOCK_DEVICE` relationships. After an earlier successful storage sync,
+pods and containers can link to the preserved storage snapshot, which may be
+stale until permissions are restored.
 
 If the identity cannot list secrets, Cartography skips secret ingestion and
 cleanup and preserves existing `KubernetesSecret` nodes. Cartography stores

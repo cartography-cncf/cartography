@@ -86,12 +86,10 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "s3": s3.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
-        "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
         # `ec2:instance` must be included before `ssm` and `ec2:images`,
         # they rely on AWSEC2Instance data provided by this module.
         "ec2:instance": sync_ec2_instances,
         "ec2:images": sync_ec2_images,
-        "ec2:keypair": sync_ec2_key_pairs,
         # `ec2:security_group` must run before load balancers and network interfaces
         # so that AWSEC2SecurityGroup nodes exist for MEMBER_OF_EC2_SECURITY_GROUP edges.
         "ec2:security_group": sync_ec2_security_groupinfo,
@@ -119,10 +117,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:snapshots": sync_ebs_snapshots,
         "ecr": ecr.sync,
         "ecr:image_layers": ecr_image_layers.sync,
-        # `ec2:instance` must be synced before `ecs` so that AWSEC2Instance nodes exist
-        # when AWSECSContainerInstance creates IS_INSTANCE relationships.
-        "ecs": ecs.sync,
-        "eks": eks.sync,
         "elasticache": elasticache.sync,
         "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
@@ -163,10 +157,21 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cloudtrail_management_events": cloudtrail_management_events.sync,
         "cloudwatch": cloudwatch.sync,
         "efs": efs.sync,
+        # GuardDuty findings match existing EKS clusters.
+        "eks": eks.sync,
         "guardduty": guardduty.sync,
         "codebuild": codebuild.sync,
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
+        # These resources feed final AWS analysis jobs and have no remaining
+        # regular-resource consumers, so keep them close to that analysis.
+        "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
+        "ec2:keypair": sync_ec2_key_pairs,
+        # Keep ECS last among regular resources. Its tasks and containers are
+        # short-lived, so syncing them close to AWS analysis minimizes the period
+        # in which replacements lack analysis-derived relationships. EC2 instances
+        # and load balancers must already exist for ECS relationships.
+        "ecs": ecs.sync,
     }
 )

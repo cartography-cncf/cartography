@@ -17,6 +17,9 @@ Cartography's Kubernetes module requires read-only access to the following Kuber
 - `list pods`
 - `list services`
 - `list serviceaccounts`
+- `list persistentvolumes`
+- `list persistentvolumeclaims`
+- `list storageclasses` in the `storage.k8s.io` group: required to map pod mounts through `PersistentVolumeClaim` and `PersistentVolume` resources to their storage class and CSI driver. Until v1.0.0, if these verbs are missing Cartography logs a warning and skips persistent storage ingestion and cleanup so previously synced storage nodes are preserved; from v1.0.0 a missing verb will be a hard failure.
 - `list roles`
 - `list rolebindings`
 - `list clusterroles`
@@ -61,6 +64,18 @@ rules:
     - pods
     - services
     - serviceaccounts
+  verbs: ["list"]
+# Persistent storage (required). Until v1.0.0 Cartography tolerates these verbs
+# being withheld and preserves existing storage nodes; from v1.0.0 a missing
+# verb is a hard failure.
+- apiGroups: [""]
+  resources:
+    - persistentvolumes
+    - persistentvolumeclaims
+  verbs: ["list"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
   verbs: ["list"]
 # Secrets (optional): omit if you don't want to grant cluster-wide read access
 # to secret contents. Kubernetes RBAC has no metadata-only verb: `list secrets`

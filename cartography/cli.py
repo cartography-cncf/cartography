@@ -88,6 +88,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
+PANEL_ORCA = "Orca Security Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -157,6 +158,7 @@ MODULE_PANELS = {
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
+    "orca": PANEL_ORCA,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -658,7 +660,8 @@ class CLI:
                     "--aws-ssm-public-parameter-prefix-allowlist",
                     help=(
                         "Comma-separated AWS-managed public SSM parameter prefixes to ingest. "
-                        "Set to an empty string to disable public parameter ingestion."
+                        "For example: /aws/service/eks/optimized-ami/. "
+                        "Public parameter ingestion is disabled by default."
                     ),
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
@@ -2156,8 +2159,8 @@ class CLI:
                     "--tenable-tenant-id",
                     help=(
                         "Identifier used to scope all Tenable nodes in the graph "
-                        "(the TenableTenant node id). Defaults to the hostname of "
-                        "--tenable-url when not set."
+                        "(the TenableTenant node id). When not set, defaults to "
+                        "--tenable-url with a leading http:// or https:// removed."
                     ),
                     rich_help_panel=PANEL_TENABLE,
                     hidden=PANEL_TENABLE not in visible_panels,
@@ -2268,6 +2271,33 @@ class CLI:
                     hidden=PANEL_WIZ not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Orca Security Options
+            # =================================================================
+            orca_api_endpoint: Annotated[
+                str | None,
+                typer.Option(
+                    "--orca-api-endpoint",
+                    help=(
+                        "Region-specific Orca Security API origin, without the "
+                        "/api path."
+                    ),
+                    rich_help_panel=PANEL_ORCA,
+                    hidden=PANEL_ORCA not in visible_panels,
+                ),
+            ] = None,
+            orca_api_token_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--orca-api-token-env-var",
+                    help=(
+                        "Environment variable name containing the Orca Security "
+                        "API token."
+                    ),
+                    rich_help_panel=PANEL_ORCA,
+                    hidden=PANEL_ORCA not in visible_panels,
+                ),
+            ] = "ORCASECURITY_API_TOKEN",
             # =================================================================
             # Keycloak Options
             # =================================================================
@@ -3466,6 +3496,15 @@ class CLI:
                     len(wiz_project_ids_list),
                 )
 
+            # Read Orca Security API token
+            orca_api_token = None
+            if orca_api_token_env_var:
+                logger.debug(
+                    "Reading Orca Security API token from environment variable %s",
+                    orca_api_token_env_var,
+                )
+                orca_api_token = os.environ.get(orca_api_token_env_var)
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -3752,6 +3791,8 @@ class CLI:
                 wiz_tenant_id=wiz_tenant_id,
                 wiz_project_ids=wiz_project_ids_list,
                 wiz_lookback_days=wiz_lookback_days,
+                orca_api_endpoint=orca_api_endpoint,
+                orca_api_token=orca_api_token,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,

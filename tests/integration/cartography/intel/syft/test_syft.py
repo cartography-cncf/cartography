@@ -5,7 +5,9 @@ These tests verify that Syft ingestion correctly creates SyftPackage nodes
 with DEPENDS_ON relationships between them.
 """
 
+import copy
 import json
+from typing import Any
 from unittest.mock import MagicMock
 
 import cartography.intel.aws.ecr
@@ -185,8 +187,9 @@ def test_sync_single_syft_creates_syft_package_nodes(neo4j_session):
         """
         MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})
         RETURN p.name AS name, p.version AS version, p.type AS type,
-               p.purl AS purl, p.language AS language, p.found_by AS found_by,
-               p.normalized_id AS normalized_id, p.lastupdated AS lastupdated
+               p.purl AS purl, p.language AS language,
+               p.normalized_id AS normalized_id, p.lastupdated AS lastupdated,
+               p.found_by AS found_by
         """,
     ).single()
 
@@ -195,7 +198,7 @@ def test_sync_single_syft_creates_syft_package_nodes(neo4j_session):
     assert result["type"] == "npm"
     assert result["purl"] == "pkg:npm/express@4.18.2"
     assert result["language"] == "javascript"
-    assert result["found_by"] == "javascript-package-cataloger"
+    assert result["found_by"] is None
     assert result["normalized_id"] == "npm|express|4.18.2"
     assert result["lastupdated"] == TEST_UPDATE_TAG
 
@@ -257,6 +260,15 @@ def test_sync_single_syft_creates_deployed_to_image(neo4j_session):
         for pkg_id in EXPECTED_SYFT_PACKAGES
     }
     assert actual_rels == expected_rels
+
+    result = neo4j_session.run(
+        """
+        MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})-[d:DEPLOYED]->(i:Image)
+        RETURN d.found_by AS found_by, d.locations AS locations
+        """,
+    ).single()
+    assert result["found_by"] == ["javascript-package-cataloger"]
+    assert result["locations"] == ["/app/node_modules/express/package.json"]
 
 
 def test_sync_single_syft_creates_deployed_to_current_source_image_digest(
@@ -352,6 +364,181 @@ def test_sync_single_syft_skips_deployed_without_image_digest_candidates(
     )
 
     assert actual_rels == set()
+
+
+IMAGE_A_DIGEST = (
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+IMAGE_B_DIGEST = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+
+def _syft_sample_for_digest(
+    digest: str,
+    found_by: str,
+    location_path: str,
+) -> dict[str, Any]:
+    sample: dict[str, Any] = copy.deepcopy(SYFT_SAMPLE)
+    sample["source"]["metadata"]["manifestDigest"] = digest
+    sample["source"]["metadata"]["repoDigests"] = [f"myapp@{digest}"]
+    sample["source"]["metadata"]["digest"] = digest
+    for artifact in sample["artifacts"]:
+        artifact["foundBy"] = found_by
+        artifact["locations"] = [{"path": location_path}]
+    return sample
+
+
+def test_sync_single_syft_preserves_per_image_deployed_evidence(neo4j_session):
+    """
+    The same SyftPackage can be DEPLOYED to two images with different catalogers.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+    _sync_ecr_repository_images(
+        neo4j_session,
+        [
+            {
+                "imageDigest": IMAGE_A_DIGEST,
+                "imageTag": "a",
+                "repositoryName": "syft-test-repository",
+                "imageManifestMediaType": (
+                    "application/vnd.docker.distribution.manifest.v2+json"
+                ),
+            },
+            {
+                "imageDigest": IMAGE_B_DIGEST,
+                "imageTag": "b",
+                "repositoryName": "syft-test-repository",
+                "imageManifestMediaType": (
+                    "application/vnd.docker.distribution.manifest.v2+json"
+                ),
+            },
+        ],
+    )
+    sample_a = _syft_sample_for_digest(
+        IMAGE_A_DIGEST,
+        "javascript-package-cataloger",
+        "/app/node_modules/express/package.json",
+    )
+    sample_b = _syft_sample_for_digest(
+        IMAGE_B_DIGEST,
+        "javascript-lock-cataloger",
+        "/app/pnpm-lock.yaml",
+    )
+
+    # Act
+    sync_single_syft(neo4j_session, sample_a, TEST_UPDATE_TAG)
+    sync_single_syft(neo4j_session, sample_b, TEST_UPDATE_TAG)
+
+    # Assert
+    package_ids = check_nodes(neo4j_session, "SyftPackage", ["id"])
+    assert package_ids == {(pkg_id,) for pkg_id in EXPECTED_SYFT_PACKAGES}
+
+    node_found_by = neo4j_session.run(
+        """
+        MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})
+        RETURN p.found_by AS found_by
+        """,
+    ).single()
+    assert node_found_by["found_by"] is None
+
+    evidence = neo4j_session.run(
+        """
+        MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})-[d:DEPLOYED]->(i:Image)
+        RETURN i._ont_digest AS digest, d.found_by AS found_by, d.locations AS locations
+        """,
+    )
+    evidence_rows = list(evidence)
+    assert len(evidence_rows) == 2
+    assert {row["digest"] for row in evidence_rows} == {IMAGE_A_DIGEST, IMAGE_B_DIGEST}
+    evidence_by_digest = {
+        row["digest"]: (row["found_by"], row["locations"]) for row in evidence_rows
+    }
+    assert evidence_by_digest[IMAGE_A_DIGEST] == (
+        ["javascript-package-cataloger"],
+        ["/app/node_modules/express/package.json"],
+    )
+    assert evidence_by_digest[IMAGE_B_DIGEST] == (
+        ["javascript-lock-cataloger"],
+        ["/app/pnpm-lock.yaml"],
+    )
+
+
+def test_sync_single_syft_merges_catalogers_on_one_deployed_edge(neo4j_session):
+    """
+    Two Syft artifacts with the same PURL in one image become one DEPLOYED edge.
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+    _sync_single_platform_image(neo4j_session, IMAGE_A_DIGEST)
+    sample = {
+        "artifacts": [
+            {
+                "id": "brace-files",
+                "name": "brace-expansion",
+                "version": "5.0.6",
+                "type": "npm",
+                "purl": "pkg:npm/brace-expansion@5.0.6",
+                "language": "javascript",
+                "foundBy": "javascript-package-cataloger",
+                "locations": [
+                    {"path": "/app/node_modules/brace-expansion/package.json"},
+                ],
+            },
+            {
+                "id": "brace-lock",
+                "name": "brace-expansion",
+                "version": "5.0.6",
+                "type": "npm",
+                "purl": "pkg:npm/brace-expansion@5.0.6",
+                "language": "javascript",
+                "foundBy": "javascript-lock-cataloger",
+                "locations": [{"path": "/app/pnpm-lock.yaml"}],
+            },
+        ],
+        "artifactRelationships": [],
+        "source": {
+            "type": "image",
+            "metadata": {
+                "manifestDigest": IMAGE_A_DIGEST,
+            },
+        },
+    }
+
+    # Act
+    sync_single_syft(neo4j_session, sample, TEST_UPDATE_TAG)
+
+    # Assert
+    assert check_nodes(neo4j_session, "SyftPackage", ["id"]) == {
+        ("npm|brace-expansion|5.0.6",),
+    }
+    deployed = check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "Image",
+        "_ont_digest",
+        "DEPLOYED",
+        rel_direction_right=True,
+    )
+    assert deployed == {("npm|brace-expansion|5.0.6", IMAGE_A_DIGEST)}
+
+    result = neo4j_session.run(
+        """
+        MATCH (p:SyftPackage {id: 'npm|brace-expansion|5.0.6'})-[d:DEPLOYED]->(i:Image)
+        RETURN d.found_by AS found_by, d.locations AS locations, count(d) AS edge_count
+        """,
+    ).single()
+    assert result["edge_count"] == 1
+    assert result["found_by"] == [
+        "javascript-package-cataloger",
+        "javascript-lock-cataloger",
+    ]
+    assert result["locations"] == [
+        "/app/node_modules/brace-expansion/package.json",
+        "/app/pnpm-lock.yaml",
+    ]
 
 
 def test_sync_syft_from_dir(
