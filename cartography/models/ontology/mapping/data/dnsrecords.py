@@ -7,6 +7,27 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # type - The DNS record type (A, AAAA, CNAME, MX, TXT, etc.)
 # value - The DNS record value / target (IP address, CNAME target, etc.)
 
+HOSTNAME_RECORD_TYPES = ["CNAME", "ALIAS"]
+
+
+def _name_field(node_field: str = "name") -> OntologyFieldMapping:
+    return OntologyFieldMapping(
+        ontology_field="name",
+        node_field=node_field,
+        required=True,
+        special_handling="normalize_hostname",
+    )
+
+
+def _target_hostname_field(node_field: str = "value") -> OntologyFieldMapping:
+    return OntologyFieldMapping(
+        ontology_field="target_hostname",
+        node_field=node_field,
+        special_handling="normalize_hostname",
+        extra={"record_types": HOSTNAME_RECORD_TYPES},
+    )
+
+
 # AWS
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -14,11 +35,10 @@ aws_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AWSDNSRecord",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
+                _name_field(),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 OntologyFieldMapping(ontology_field="value", node_field="value"),
+                _target_hostname_field(),
             ],
         ),
     ],
@@ -34,10 +54,13 @@ gcp_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GCPRecordSet",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
+                _name_field(),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
+                OntologyFieldMapping(
+                    ontology_field="target_hostnames",
+                    node_field="target_hostnames",
+                    indexed=False,
+                ),
             ],
         ),
     ],
@@ -50,11 +73,10 @@ cloudflare_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="CloudflareDNSRecord",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
+                _name_field(),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 OntologyFieldMapping(ontology_field="value", node_field="value"),
+                _target_hostname_field(),
             ],
         ),
     ],
@@ -67,11 +89,10 @@ vercel_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="VercelDNSRecord",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
+                _name_field(),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 OntologyFieldMapping(ontology_field="value", node_field="value"),
+                _target_hostname_field(),
             ],
         ),
     ],
@@ -84,11 +105,7 @@ bbot_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="BbotDNSName",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name",
-                    node_field="name",
-                    required=True,
-                ),
+                _name_field(),
             ],
         ),
     ],
@@ -101,9 +118,7 @@ supabase_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SupabaseCustomHostname",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="hostname", required=True
-                ),
+                _name_field("hostname"),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 # value: The CNAME target is the project's own *.supabase.co
                 # endpoint, which the API does not return on this response.
@@ -119,11 +134,10 @@ netlify_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="NetlifyDNSRecord",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="name", required=True
-                ),
+                _name_field(),
                 OntologyFieldMapping(ontology_field="type", node_field="type"),
                 OntologyFieldMapping(ontology_field="value", node_field="value"),
+                _target_hostname_field(),
             ],
         ),
     ],
