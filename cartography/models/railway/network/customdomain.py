@@ -20,6 +20,11 @@ class RailwayCustomDomainNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Fully qualified customer-owned domain name.",
     )
+    domain_normalized: PropertyRef = PropertyRef(
+        "domain_normalized",
+        extra_index=True,
+        description="Canonical lowercase domain name without the trailing DNS root dot.",
+    )
     target_port: PropertyRef = PropertyRef(
         "targetPort", description="Port on the service to which the domain routes."
     )
