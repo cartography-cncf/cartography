@@ -171,7 +171,20 @@ def test_digest_pinned_image_creates_has_image_and_resolved_image(neo4j_session)
         neo4j_session,
         "RailwayDeployment",
         ["id", "source_image", "image_digest"],
-    ) >= {
+    ) == {
+        (POSTGRES_DEPLOYMENT_ID, None, None),
+        (
+            WEB_DEPLOYMENT_ID,
+            f"registry.example.com/team/app@{digest}",
+            digest,
+        ),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "RailwayDeployment",
+        ["id", "_ont_image", "_ont_image_digest"],
+    ) == {
+        (POSTGRES_DEPLOYMENT_ID, None, None),
         (
             WEB_DEPLOYMENT_ID,
             f"registry.example.com/team/app@{digest}",
@@ -231,7 +244,8 @@ def test_reported_digest_resolves_tagged_image(neo4j_session):
         neo4j_session,
         "RailwayDeployment",
         ["id", "source_image", "image_digest"],
-    ) >= {
+    ) == {
+        (POSTGRES_DEPLOYMENT_ID, None, None),
         (
             WEB_DEPLOYMENT_ID,
             "registry.example.com/team/app:latest",
@@ -249,7 +263,7 @@ def test_reported_digest_resolves_tagged_image(neo4j_session):
     ) == {(WEB_DEPLOYMENT_ID, digest)}
 
 
-def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
+def test_tagged_meta_image_does_not_use_configured_digest_fallback():
     digest = "sha256:" + "d" * 64
     bundles = copy.deepcopy(BUNDLES)
     for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
@@ -275,7 +289,7 @@ def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
     )
 
     assert deployment["source_image"] == "registry.example.com/team/app:latest"
-    assert deployment["image_digest"] == digest
+    assert deployment["image_digest"] is None
 
     _update_deployment_meta(
         bundles,
@@ -290,6 +304,33 @@ def test_tagged_meta_image_keeps_digest_pinned_source_fallback():
         "registry.example.com/team/different-app:latest"
     )
     assert deployment["image_digest"] is None
+
+
+def test_configured_digest_fallback_is_limited_to_latest_deployment():
+    digest = "sha256:" + "e" * 64
+    older_deployment_id = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+    bundles = copy.deepcopy(BUNDLES)
+
+    for instance in cartography.intel.railway.serviceinstances.iter_service_instances(
+        bundles[TEST_PROJECT_ID]
+    ):
+        if instance["id"] != WEB_INSTANCE_ID:
+            continue
+        instance["source"] = {
+            "image": f"registry.example.com/team/app@{digest}",
+            "repo": None,
+        }
+        older_deployment = copy.deepcopy(instance["activeDeployments"][0])
+        older_deployment["id"] = older_deployment_id
+        older_deployment["meta"] = {}
+        instance["activeDeployments"].append(older_deployment)
+
+    deployments, _, _ = cartography.intel.railway.deployments.transform(bundles)
+    by_id = {item["id"]: item for item in deployments[TEST_PROJECT_ID]}
+
+    assert by_id[WEB_DEPLOYMENT_ID]["image_digest"] == digest
+    assert by_id[older_deployment_id]["lifecycle"] == "current"
+    assert by_id[older_deployment_id]["image_digest"] is None
 
 
 def test_reported_digest_resolves_source_built_image(neo4j_session):
@@ -322,7 +363,10 @@ def test_reported_digest_resolves_source_built_image(neo4j_session):
         neo4j_session,
         "RailwayDeployment",
         ["id", "source_image", "image_digest"],
-    ) >= {(POSTGRES_DEPLOYMENT_ID, None, digest)}
+    ) == {
+        (POSTGRES_DEPLOYMENT_ID, None, digest),
+        (WEB_DEPLOYMENT_ID, "nginxdemos/hello", None),
+    }
     assert check_rels(
         neo4j_session,
         "RailwayDeployment",

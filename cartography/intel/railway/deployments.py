@@ -20,23 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_image_digest(value: Any) -> str | None:
+    # Cartography's canonical registry image nodes currently use SHA-256 identities. Do not
+    # accept another OCI algorithm until those node schemas and matchers support it too.
     if not isinstance(value, str):
         return None
     digest = value.strip()
     if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
         return None
     return digest.lower()
-
-
-def _image_repository(image_uri: str | None) -> str | None:
-    if image_uri is None:
-        return None
-    repository = image_uri.partition("@")[0]
-    last_slash = repository.rfind("/")
-    last_colon = repository.rfind(":")
-    if last_colon > last_slash:
-        repository = repository[:last_colon]
-    return repository or None
 
 
 @timeit
@@ -73,8 +64,11 @@ def transform(
         }
 
         current_instances: dict[str, dict[str, Any]] = {}
+        latest_deployment_ids: set[str] = set()
         for instance in iter_service_instances(bundle):
             latest_deployment = instance.get("latestDeployment") or {}
+            if latest_deployment.get("id"):
+                latest_deployment_ids.add(latest_deployment["id"])
             current_deployments = list(instance.get("activeDeployments") or [])
             if latest_deployment.get("status") == "SLEEPING":
                 current_deployments.append(latest_deployment)
@@ -96,13 +90,16 @@ def transform(
             )
             source_image = configured_image
             meta_pinned_digest = None
-            source_fallback_digest = source_pinned_digest
+            # ServiceSource is the service instance's current configuration, not immutable
+            # deployment provenance. It is only safe as a fallback for the latest deployment
+            # when that deployment did not report a different image reference of its own.
+            source_fallback_digest = (
+                source_pinned_digest
+                if deployment["id"] in latest_deployment_ids and not meta_image
+                else None
+            )
             if isinstance(meta_image, str) and meta_image.strip():
                 source_image, meta_pinned_digest = parse_image_uri(meta_image)
-                if _image_repository(source_image) != _image_repository(
-                    configured_image,
-                ):
-                    source_fallback_digest = None
             reported_digest = (
                 meta.get("imageDigest") if isinstance(meta, dict) else None
             )
