@@ -225,7 +225,7 @@ DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL AND (dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']) WITH dns MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain_normalized IS NOT NULL AND dns._ont_name = domain.domain_normalized",
+            match="MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain_normalized IS NOT NULL WITH domain MATCH (dns:DNSRecord {_ont_name: domain.domain_normalized}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']",
             effects=(
                 AddRelationship(
                     "dns",
@@ -243,7 +243,7 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     short_name="ontology_bbot_dns_matches_provider",
     statements=(
         AnalysisStatement(
-            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND bbot._ont_name = provider._ont_name",
+            match="MATCH (bbot:BbotDNSName) WHERE bbot._ont_name IS NOT NULL WITH bbot MATCH (provider:DNSRecord {_ont_name: bbot._ont_name}) WHERE NOT provider:BbotDNSName",
             effects=(
                 AddRelationship(
                     "bbot",
@@ -321,7 +321,7 @@ DNS_RECORD_LINKING_JOBS = (
             statements=(
                 AnalysisStatement(
                     match=(
-                        f"MATCH (dns:DNSRecord) WHERE dns._ont_target_hostname IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE dns._ont_target_hostname = target.{target_property}"
+                        f"MATCH (target:{target_label}) WHERE target.{target_property} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_target_hostname: target.{target_property}}}) WHERE true {match_filter}"
                         if target_is_normalized
                         else f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{target_property}, '.'))"
                     ),
