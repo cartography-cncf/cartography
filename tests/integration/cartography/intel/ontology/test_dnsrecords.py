@@ -35,6 +35,38 @@ def test_sync_links_canonical_dns_name_to_kubernetes_ingress(neo4j_session):
     )
 
 
+def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress',
+            host_names: ['app.example.com']
+        })
+        """
+    )
+
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'dns'})-[r:DNS_POINTS_TO]->
+                  (:KubernetesIngress {id: 'ingress'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 1
+    )
+
+
 def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
     """
     The route53 loader owns (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:AWSLoadBalancerV2) and stamps
