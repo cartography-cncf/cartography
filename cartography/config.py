@@ -164,8 +164,8 @@ class Config:
         AWSTag nodes and TAGGED relationships are deleted per batch. Default is 1000. Optional.
     :type aws_ssm_public_parameter_prefix_allowlist: str
     :param aws_ssm_public_parameter_prefix_allowlist: Comma-separated list of allowlisted public SSM parameter
-        prefixes to ingest (for example /aws/service/bottlerocket/). Defaults to the Bottlerocket and EKS optimized
-        AMI public namespaces when unset. Set to an empty string to disable public SSM parameter ingestion. Optional.
+        prefixes to ingest (for example /aws/service/bottlerocket/). Public SSM parameter ingestion is disabled when
+        unset. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -516,6 +516,10 @@ class Config:
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
     :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
+    :type orca_api_endpoint: str
+    :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
+    :type orca_api_token: str
+    :param orca_api_token: Orca Security API token. Optional.
     """
 
     def __init__(
@@ -743,6 +747,8 @@ class Config:
         gcp_excluded_org_ids=None,
         gcp_excluded_folder_ids=None,
         gcp_exclude_org_root_projects=False,
+        orca_api_endpoint=None,
+        orca_api_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1022,3 +1028,5 @@ class Config:
         self.snowflake_role = snowflake_role
         self.snowflake_warehouse = snowflake_warehouse
         self.snowflake_databases = snowflake_databases
+        self.orca_api_endpoint = orca_api_endpoint
+        self.orca_api_token = orca_api_token

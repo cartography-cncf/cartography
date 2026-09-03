@@ -1,29 +1,35 @@
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.factors
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.userfactors import create_test_factor
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_ORG_ID = "test-okta-org-id"
 TEST_UPDATE_TAG = 123456789
-TEST_API_KEY = "test-api-key"
 
 
-@patch.object(cartography.intel.okta.factors, "_create_factor_client")
-@patch.object(cartography.intel.okta.factors, "_get_factor_for_user_id")
-def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session):
+def _create_common_job_parameters():
+    return {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OKTA_ORG_ID": TEST_ORG_ID,
+    }
+
+
+@patch.object(
+    cartography.intel.okta.factors, "_get_okta_user_factors", new_callable=AsyncMock
+)
+def test_sync_okta_user_factors(mock_get_factors, neo4j_session):
     """
     Test that Okta user factors are synced correctly to the graph.
-    This follows the recommended pattern: mock get() functions, call sync(), verify outcomes.
     """
     # Arrange - Create test users in the graph first
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-001', email: 'user1@example.com'})
         SET u1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-002', email: 'user2@example.com'})
@@ -36,25 +42,25 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
     # Create test factors for user-001
     factor_totp = create_test_factor()
     factor_totp.id = "factor-totp-001"
-    factor_totp.factorType = "token:software:totp"
+    factor_totp.factor_type = "token:software:totp"
     factor_totp.provider = "GOOGLE"
     factor_totp.status = "ACTIVE"
 
     factor_sms = create_test_factor()
     factor_sms.id = "factor-sms-001"
-    factor_sms.factorType = "sms"
+    factor_sms.factor_type = "sms"
     factor_sms.provider = "OKTA"
     factor_sms.status = "ACTIVE"
 
     # Create test factors for user-002
     factor_push = create_test_factor()
     factor_push.id = "factor-push-002"
-    factor_push.factorType = "push"
+    factor_push.factor_type = "push"
     factor_push.provider = "OKTA"
     factor_push.status = "ACTIVE"
 
     # Mock the API calls - return different factors for different users
-    def mock_get_factors_side_effect(factor_client, user_id):
+    def mock_get_factors_side_effect(okta_client, user_id):
         if user_id == "user-001":
             return [factor_totp, factor_sms]
         elif user_id == "user-002":
@@ -62,19 +68,17 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
         return []
 
     mock_get_factors.side_effect = mock_get_factors_side_effect
-    mock_factor_client.return_value = MagicMock()
 
-    # Setup sync state with user IDs
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-001", "user-002"]
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
+    user_ids = ["user-001", "user-002"]
 
     # Act - Call the main sync function
-    cartography.intel.okta.factors.sync_users_factors(
+    cartography.intel.okta.factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        TEST_ORG_ID,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
+        user_ids,
     )
 
     # Assert - Verify factors were created with correct properties
@@ -106,39 +110,37 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
     assert actual_user_factor_rels == expected_user_factor_rels
 
 
-@patch.object(cartography.intel.okta.factors, "_create_factor_client")
-@patch.object(cartography.intel.okta.factors, "_get_factor_for_user_id")
-def test_sync_users_factors_with_no_users(
-    mock_get_factors, mock_factor_client, neo4j_session
-):
+@patch.object(
+    cartography.intel.okta.factors, "_get_okta_user_factors", new_callable=AsyncMock
+)
+def test_sync_okta_user_factors_with_no_users(mock_get_factors, neo4j_session):
     """
-    Test that sync handles gracefully when there are no users in sync_state.
-    Uses a different organization ID to avoid interference from other tests.
+    Test that sync handles gracefully when there are no users.
     """
     # Arrange - Use a different org ID for isolation
     test_org_id = "test-okta-org-id-no-users"
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
         """,
         ORG_ID=test_org_id,
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    mock_factor_client.return_value = MagicMock()
-
-    # Setup sync state with empty list (not None, as None would be falsy but empty list is also handled)
-    sync_state = OktaSyncState()
-    sync_state.users = []  # Empty list instead of None
+    okta_client = MagicMock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OKTA_ORG_ID": test_org_id,
+    }
+    user_ids = []  # Empty list
 
     # Act - Should not crash even with no users
-    cartography.intel.okta.factors.sync_users_factors(
+    cartography.intel.okta.factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        test_org_id,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
+        user_ids,
     )
 
     # Assert - No factors should be created for this organization
@@ -152,16 +154,15 @@ def test_sync_users_factors_with_no_users(
     count = [dict(r) for r in result][0]["count"]
     assert count == 0
 
-    # Verify that _get_factor_for_user_id was never called since list is empty
+    # Verify that _get_okta_user_factors was never called since list is empty
     mock_get_factors.assert_not_called()
 
 
-@patch.object(cartography.intel.okta.factors, "_create_factor_client")
-@patch.object(cartography.intel.okta.factors, "_get_factor_for_user_id")
-def test_sync_users_factors_handles_user_with_no_factors(
-    mock_get_factors,
-    mock_factor_client,
-    neo4j_session,
+@patch.object(
+    cartography.intel.okta.factors, "_get_okta_user_factors", new_callable=AsyncMock
+)
+def test_sync_okta_user_factors_handles_user_with_no_factors(
+    mock_get_factors, neo4j_session
 ):
     """
     Test that sync handles users who have no factors enrolled.
@@ -170,7 +171,7 @@ def test_sync_users_factors_handles_user_with_no_factors(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-no-factors', email: 'nofactors@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         """,
@@ -180,18 +181,17 @@ def test_sync_users_factors_handles_user_with_no_factors(
 
     # Mock API to return empty list for this user
     mock_get_factors.return_value = []
-    mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-no-factors"]
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
+    user_ids = ["user-no-factors"]
 
     # Act
-    cartography.intel.okta.factors.sync_users_factors(
+    cartography.intel.okta.factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        TEST_ORG_ID,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
+        user_ids,
     )
 
     # Assert - User should still exist but have no factors
@@ -207,11 +207,10 @@ def test_sync_users_factors_handles_user_with_no_factors(
     assert data["factor_count"] == 0
 
 
-@patch.object(cartography.intel.okta.factors, "_create_factor_client")
-@patch.object(cartography.intel.okta.factors, "_get_factor_for_user_id")
-def test_sync_users_factors_updates_existing(
-    mock_get_factors, mock_factor_client, neo4j_session
-):
+@patch.object(
+    cartography.intel.okta.factors, "_get_okta_user_factors", new_callable=AsyncMock
+)
+def test_sync_okta_user_factors_updates_existing(mock_get_factors, neo4j_session):
     """
     Test that syncing updates existing factors rather than creating duplicates.
     """
@@ -219,7 +218,7 @@ def test_sync_users_factors_updates_existing(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-update', email: 'update@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         MERGE (u)-[:FACTOR]->(f:OktaUserFactor{id: 'factor-existing'})
@@ -235,23 +234,22 @@ def test_sync_users_factors_updates_existing(
     # Create updated factor data
     updated_factor = create_test_factor()
     updated_factor.id = "factor-existing"
-    updated_factor.factorType = "sms"
+    updated_factor.factor_type = "sms"
     updated_factor.provider = "OKTA"
     updated_factor.status = "ACTIVE"  # Status changed from PENDING_ACTIVATION to ACTIVE
 
     mock_get_factors.return_value = [updated_factor]
-    mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-update"]
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
+    user_ids = ["user-update"]
 
     # Act
-    cartography.intel.okta.factors.sync_users_factors(
+    cartography.intel.okta.factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        TEST_ORG_ID,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
+        user_ids,
     )
 
     # Assert - Factor should be updated, not duplicated
@@ -268,13 +266,10 @@ def test_sync_users_factors_updates_existing(
     assert factor_data["lastupdated"] == TEST_UPDATE_TAG
 
 
-@patch.object(cartography.intel.okta.factors, "_create_factor_client")
-@patch.object(cartography.intel.okta.factors, "_get_factor_for_user_id")
-def test_sync_users_factors_multiple_factor_types(
-    mock_get_factors,
-    mock_factor_client,
-    neo4j_session,
-):
+@patch.object(
+    cartography.intel.okta.factors, "_get_okta_user_factors", new_callable=AsyncMock
+)
+def test_sync_okta_user_factors_multiple_factor_types(mock_get_factors, neo4j_session):
     """
     Test syncing various factor types (TOTP, SMS, Push, WebAuthn, etc.).
     """
@@ -282,7 +277,7 @@ def test_sync_users_factors_multiple_factor_types(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-multifactor', email: 'multi@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         """,
@@ -290,51 +285,49 @@ def test_sync_users_factors_multiple_factor_types(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    # TODO: Get real examples of different Okta factor types from API
     # Create various factor types
     factors = []
 
     factor_totp = create_test_factor()
     factor_totp.id = "factor-totp"
-    factor_totp.factorType = "token:software:totp"
+    factor_totp.factor_type = "token:software:totp"
     factor_totp.provider = "GOOGLE"
     factor_totp.status = "ACTIVE"
     factors.append(factor_totp)
 
     factor_sms = create_test_factor()
     factor_sms.id = "factor-sms"
-    factor_sms.factorType = "sms"
+    factor_sms.factor_type = "sms"
     factor_sms.provider = "OKTA"
     factor_sms.status = "ACTIVE"
     factors.append(factor_sms)
 
     factor_push = create_test_factor()
     factor_push.id = "factor-push"
-    factor_push.factorType = "push"
+    factor_push.factor_type = "push"
     factor_push.provider = "OKTA"
     factor_push.status = "ACTIVE"
     factors.append(factor_push)
 
     factor_webauthn = create_test_factor()
     factor_webauthn.id = "factor-webauthn"
-    factor_webauthn.factorType = "webauthn"
+    factor_webauthn.factor_type = "webauthn"
     factor_webauthn.provider = "FIDO"
     factor_webauthn.status = "ACTIVE"
     factors.append(factor_webauthn)
 
     mock_get_factors.return_value = factors
-    mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-multifactor"]
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
+    user_ids = ["user-multifactor"]
 
     # Act
-    cartography.intel.okta.factors.sync_users_factors(
+    cartography.intel.okta.factors.sync_okta_user_factors(
+        okta_client,
         neo4j_session,
-        TEST_ORG_ID,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
+        user_ids,
     )
 
     # Assert - All factor types should be created
