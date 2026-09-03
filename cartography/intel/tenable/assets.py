@@ -29,7 +29,7 @@ def get(
     session: requests.Session,
     base_url: str,
 ) -> list[dict[str, Any]]:
-    logger.info("Initiating Tenable asset export from %s", base_url)
+    logger.debug("Initiating Tenable asset export from %s", base_url)
     return export_and_download(
         session,
         base_url,
@@ -81,7 +81,7 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ),
                 "last_licensed_scan_date": scan.get("last_licensed_scan_date"),
                 "last_scan_id": scan.get("last_scan_id"),
-                # Network — name detail in TenableNetwork
+                # Network: name detail in TenableNetwork
                 "network_id": network.get("network_id"),
                 "fqdn": fqdns[0] if fqdns else None,
                 "ipv4s": network.get("ipv4s") or [],
@@ -89,7 +89,7 @@ def transform(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "fqdns": fqdns,
                 "hostnames": network.get("hostnames") or [],
                 "mac_addresses": network.get("mac_addresses") or [],
-                # Cloud identifiers — detail in TenableAssetAWS / TenableAssetAzure / TenableAssetGCP
+                # Cloud identifiers: detail in TenableAssetAWS / TenableAssetAzure / TenableAssetGCP
                 "aws_ec2_instance_id": aws.get("ec2_instance_id"),
                 "azure_vm_id": azure.get("vm_id"),
                 "gcp_instance_id": gcp.get("instance_id"),
@@ -123,7 +123,9 @@ def transform_sources(raw_assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for asset in raw_assets:
         asset_id = asset["id"]
         for source in asset.get("sources") or []:
-            name = source.get("name") or ""
+            name = source["name"]
+            if not name:
+                raise ValueError("Tenable asset source requires a non-empty name")
             result.append(
                 {
                     "id": f"{asset_id}::{name}",
@@ -350,3 +352,4 @@ def sync(
         update_tag,
     )
     cleanup(neo4j_session, common_job_parameters)
+    logger.info("Completed Tenable asset sync for tenant %s", tenant_id)

@@ -489,6 +489,21 @@ jumpcloud_mapping = OntologyMapping(
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
+
+# Tenable
+tenable_mapping = OntologyMapping(
+    module_name="tenable",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TenableTenant",
+            # The configured ID may be an arbitrary scope identifier, so it is not
+            # normalized as a tenant name or domain.
+            fields=[],
+        ),
+    ],
+)
+
+
 # WorkOS Tenant mapping
 workos_tenants_mapping = OntologyMapping(
     module_name="workos",
@@ -793,6 +808,22 @@ miradore_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: The regional API URL is not the organization's domain.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -816,11 +847,13 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
     "miradore": miradore_mapping,
+    "orca": orca_mapping,
     "slack": slack_mapping,
     "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,
+    "tenable": tenable_mapping,
     "workos": workos_tenants_mapping,
     "vercel": vercel_mapping,
     "railway": railway_mapping,

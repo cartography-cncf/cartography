@@ -88,6 +88,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
+PANEL_ORCA = "Orca Security Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -158,6 +159,7 @@ MODULE_PANELS = {
     "sentinelone": PANEL_SENTINELONE,
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
+    "orca": PANEL_ORCA,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -660,7 +662,8 @@ class CLI:
                     "--aws-ssm-public-parameter-prefix-allowlist",
                     help=(
                         "Comma-separated AWS-managed public SSM parameter prefixes to ingest. "
-                        "Set to an empty string to disable public parameter ingestion."
+                        "For example: /aws/service/eks/optimized-ami/. "
+                        "Public parameter ingestion is disabled by default."
                     ),
                     rich_help_panel=PANEL_AWS,
                     hidden=PANEL_AWS not in visible_panels,
@@ -832,6 +835,44 @@ class CLI:
                     hidden=PANEL_GCP not in visible_panels,
                 ),
             ] = "cartography/data/gcp_permission_relationships.yaml",
+            gcp_excluded_org_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-org-ids",
+                    help=(
+                        "Comma-separated list of GCP organization IDs to exclude from ingestion. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_excluded_folder_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-excluded-folder-ids",
+                    help=(
+                        "Comma-separated list of GCP folder IDs to exclude from ingestion. "
+                        "The entire subtree under each excluded folder is skipped. "
+                        'Example: "123456789012,987654321098".'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
+            gcp_exclude_org_root_projects: Annotated[
+                bool,
+                typer.Option(
+                    "--gcp-exclude-org-root-projects",
+                    help=(
+                        "If set, projects attached directly to the organization root "
+                        "(not inside any folder) are excluded from ingestion. "
+                        "Included by default."
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = False,
             # =================================================================
             # OCI Options
             # =================================================================
@@ -2132,8 +2173,8 @@ class CLI:
                     "--tenable-tenant-id",
                     help=(
                         "Identifier used to scope all Tenable nodes in the graph "
-                        "(the TenableTenant node id). Defaults to the hostname of "
-                        "--tenable-url when not set."
+                        "(the TenableTenant node id). When not set, defaults to "
+                        "--tenable-url with a leading http:// or https:// removed."
                     ),
                     rich_help_panel=PANEL_TENABLE,
                     hidden=PANEL_TENABLE not in visible_panels,
@@ -2244,6 +2285,33 @@ class CLI:
                     hidden=PANEL_WIZ not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Orca Security Options
+            # =================================================================
+            orca_api_endpoint: Annotated[
+                str | None,
+                typer.Option(
+                    "--orca-api-endpoint",
+                    help=(
+                        "Region-specific Orca Security API origin, without the "
+                        "/api path."
+                    ),
+                    rich_help_panel=PANEL_ORCA,
+                    hidden=PANEL_ORCA not in visible_panels,
+                ),
+            ] = None,
+            orca_api_token_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--orca-api-token-env-var",
+                    help=(
+                        "Environment variable name containing the Orca Security "
+                        "API token."
+                    ),
+                    rich_help_panel=PANEL_ORCA,
+                    hidden=PANEL_ORCA not in visible_panels,
+                ),
+            ] = "ORCASECURITY_API_TOKEN",
             # =================================================================
             # Keycloak Options
             # =================================================================
@@ -3451,6 +3519,15 @@ class CLI:
                     len(wiz_project_ids_list),
                 )
 
+            # Read Orca Security API token
+            orca_api_token = None
+            if orca_api_token_env_var:
+                logger.debug(
+                    "Reading Orca Security API token from environment variable %s",
+                    orca_api_token_env_var,
+                )
+                orca_api_token = os.environ.get(orca_api_token_env_var)
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -3574,6 +3651,17 @@ class CLI:
                 azure_permission_relationships_file=azure_permission_relationships_file,
                 gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
+                gcp_excluded_org_ids=(
+                    [x.strip() for x in gcp_excluded_org_ids.split(",") if x.strip()]
+                    if gcp_excluded_org_ids
+                    else None
+                ),
+                gcp_excluded_folder_ids=(
+                    [x.strip() for x in gcp_excluded_folder_ids.split(",") if x.strip()]
+                    if gcp_excluded_folder_ids
+                    else None
+                ),
+                gcp_exclude_org_root_projects=gcp_exclude_org_root_projects,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
                 jamf_password=jamf_password,
@@ -3727,6 +3815,8 @@ class CLI:
                 wiz_tenant_id=wiz_tenant_id,
                 wiz_project_ids=wiz_project_ids_list,
                 wiz_lookback_days=wiz_lookback_days,
+                orca_api_endpoint=orca_api_endpoint,
+                orca_api_token=orca_api_token,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+import pytest
+
 import cartography.analysis.gsuite as gsuite_analysis
 import cartography.analysis.ontology as ontology_analysis
 import cartography.models.gcp as gcp_models
@@ -37,6 +39,7 @@ from cartography.models.gcp.artifact_registry.image_layer import (
 from cartography.models.gcp.artifact_registry.repository_image import (
     GCPArtifactRegistryRepositoryImageSchema,
 )
+from cartography.models.introspection import _build_ontology_expected_edges
 from cartography.models.introspection import AnalysisJobDefinition
 from cartography.models.introspection import build_data_model
 from cartography.models.introspection import DataModel
@@ -46,6 +49,8 @@ from cartography.models.introspection import iter_model_classes
 from cartography.models.introspection import iter_permission_relationships
 from cartography.models.introspection import iter_relationship_catalog
 from cartography.models.introspection import Node
+from cartography.models.introspection import OntologyRelationshipConstraint
+from cartography.models.introspection import OntologySemanticLabel
 from cartography.models.introspection import PermissionRelationshipDefinition
 from cartography.models.introspection import Relationship
 from cartography.models.introspection import TargetPreconditionDefinition
@@ -412,6 +417,218 @@ def test_build_data_model_exposes_ontology_catalog_metadata():
     assert ("PackageVersion", "DEPLOYED", "FilesystemSnapshot") in constraints
     assert ("CVE", "AFFECTS", "PackageVersion") in constraints
     assert ("LoadBalancer", "EXPOSE", "ComputeInstance") in constraints
+
+
+def test_ontology_expected_edges_are_materialized_not_validation_only():
+    model = inspect_data_model()
+
+    expected = {
+        (edge.source_label, edge.label, edge.target_label): edge
+        for edge in model.ontology_expected_edges
+    }
+    resolved = expected[("Container", "RESOLVED_IMAGE", "Image")]
+    assert resolved.constrained
+    assert "analysis" in resolved.origins
+    assert resolved.analysis_jobs
+
+    assert ("ServiceAccount", "HAS_ROLE", "PermissionRole") not in expected
+    assert ("Container", "SCANNED_AS", "FilesystemSnapshot") not in expected
+
+    constraints = {
+        (
+            constraint.source_label,
+            constraint.label,
+            constraint.target_label,
+        )
+        for constraint in model.ontology_relationship_constraints
+    }
+    assert ("ServiceAccount", "HAS_ROLE", "PermissionRole") in constraints
+    assert ("Container", "SCANNED_AS", "FilesystemSnapshot") in constraints
+
+
+def test_relationships_for_node_inherits_materialized_ontology_edges():
+    model = inspect_data_model()
+
+    container_views = model.relationships_for_node("AWSECSContainer")
+    resolved_from_container = [
+        view for view in container_views if view.label == "RESOLVED_IMAGE"
+    ]
+    assert [
+        (view.other_label, view.direction, view.inherited)
+        for view in resolved_from_container
+    ] == [("Image", LinkDirection.OUTWARD, True)]
+
+    image_views = model.relationships_for_node("AWSECRImage")
+    resolved_from_image = {
+        (view.other_label, view.direction, view.inherited)
+        for view in image_views
+        if view.label == "RESOLVED_IMAGE"
+    }
+    assert ("Container", LinkDirection.INWARD, True) in resolved_from_image
+    assert ("Function", LinkDirection.INWARD, True) in resolved_from_image
+    assert not any(
+        other_label.startswith("AWS") for other_label, _, _ in resolved_from_image
+    )
+
+
+@pytest.mark.parametrize(
+    "module,label",
+    [
+        ("aws", "AWSECSContainer"),
+        ("kubernetes", "KubernetesContainer"),
+        ("railway", "RailwayDeployment"),
+    ],
+)
+def test_for_module_keeps_inherited_ontology_edges_with_one_semantic_endpoint(
+    module,
+    label,
+):
+    """Modules that carry Container but not Image still see RESOLVED_IMAGE."""
+    model = inspect_data_model()
+    scoped = model.for_module(module)
+
+    assert ("Container", "RESOLVED_IMAGE", "Image") in {
+        (
+            relationship.source_label,
+            relationship.label,
+            relationship.target_label,
+        )
+        for relationship in scoped.relationships
+    }
+    assert [
+        (view.other_label, view.direction, view.inherited)
+        for view in scoped.relationships_for_node(label)
+        if view.label == "RESOLVED_IMAGE"
+    ] == [("Image", LinkDirection.OUTWARD, True)]
+
+
+def test_relationships_for_node_excludes_validation_only_constraints():
+    model = inspect_data_model()
+
+    service_account_views = model.relationships_for_node("OpenAIServiceAccount")
+    assert not any(
+        view.label == "HAS_ROLE" and view.other_label == "PermissionRole"
+        for view in service_account_views
+    )
+
+    container_views = model.relationships_for_node("AWSECSContainer")
+    assert not any(view.label == "SCANNED_AS" for view in container_views)
+
+
+def test_relationships_for_node_ignores_compatibility_extra_labels():
+    node = Node(
+        label="AWSECSContainer",
+        descriptions=(),
+        extra_labels=("ECSContainer", "CompatAlias"),
+        conditional_labels=(),
+        properties=(),
+        modules=("aws",),
+        schemas=(),
+        ontology_labels=("Container",),
+    )
+    relationships = (
+        Relationship(
+            source_label="CompatAlias",
+            label="ALIAS_ONLY",
+            target_label="Something",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("aws",),
+            origins=("node_schema",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+        Relationship(
+            source_label="Container",
+            label="RESOLVED_IMAGE",
+            target_label="Image",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("analysis",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+    )
+    model = DataModel(nodes=(node,), relationships=relationships)
+
+    views = model.relationships_for_node("AWSECSContainer")
+    assert [("RESOLVED_IMAGE", "Image", True)] == [
+        (view.label, view.other_label, view.inherited) for view in views
+    ]
+
+
+def test_undirected_ontology_edges_are_not_marked_constrained():
+    relationships = (
+        Relationship(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+            direction=None,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("analysis",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+        Relationship(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+            direction=LinkDirection.OUTWARD,
+            descriptions=(),
+            properties=(),
+            modules=("ontology",),
+            origins=("node_schema",),
+            schemas=(),
+            analysis_jobs=(),
+        ),
+    )
+    semantic_labels = (
+        OntologySemanticLabel(
+            label="UserAccount",
+            mapping_group=None,
+            descriptions=(),
+            properties=(),
+            concrete_node_labels=("LastpassUser",),
+        ),
+    )
+    nodes = (
+        Node(
+            label="User",
+            descriptions=(),
+            extra_labels=(),
+            conditional_labels=(),
+            properties=(),
+            modules=("ontology",),
+            schemas=(),
+        ),
+    )
+    constraints = (
+        OntologyRelationshipConstraint(
+            source_label="User",
+            label="HAS_ACCOUNT",
+            target_label="UserAccount",
+        ),
+    )
+
+    expected = {
+        (edge.direction is LinkDirection.OUTWARD): edge.constrained
+        for edge in _build_ontology_expected_edges(
+            relationships,
+            semantic_labels,
+            nodes,
+            constraints,
+        )
+        if edge.source_label == "User"
+        and edge.label == "HAS_ACCOUNT"
+        and edge.target_label == "UserAccount"
+    }
+    assert expected[True] is True
+    assert expected[False] is False
 
 
 def test_build_data_model_distinguishes_canonical_ontology_projections():

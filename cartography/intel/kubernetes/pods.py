@@ -8,8 +8,10 @@ from kubernetes.client.models import V1Pod
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import format_resource_quantities
 from cartography.intel.kubernetes.util import get_controller_owner_reference
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
@@ -19,7 +21,26 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[str, Any]:
+def _claim_id(cluster_name: str, namespace: str, claim_name: str) -> str:
+    return f"{cluster_name}/{namespace}/{claim_name}"
+
+
+def _get_claim_name_by_volume_name(pod: V1Pod) -> dict[str, str]:
+    claims = {}
+    for volume in pod.spec.volumes or []:
+        if volume.persistent_volume_claim and volume.persistent_volume_claim.claim_name:
+            claims[volume.name] = volume.persistent_volume_claim.claim_name
+        elif volume.ephemeral:
+            claims[volume.name] = f"{pod.metadata.name}-{volume.name}"
+    return claims
+
+
+def _extract_pod_containers(
+    pod: V1Pod,
+    cluster_name: str,
+    claim_by_volume_name: dict[str, str],
+    node_arch: str | None = None,
+) -> dict[str, Any]:
     pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
@@ -40,7 +61,85 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
             "host_ports": [],
             "container_ports": json.dumps([]),
             "container_port_numbers": [],
+            "persistent_volume_claim_ids": [],
+            "persistent_volume_claim_read_write_ids": [],
+            "persistent_volume_claim_mounts": "[]",
+            "persistent_volume_claim_device_ids": [],
+            "persistent_volume_claim_devices": "[]",
         }
+
+        claim_ids = set()
+        read_write_claim_ids = set()
+        mount_details = []
+        for mount in container.volume_mounts or []:
+            claim_name = claim_by_volume_name.get(mount.name)
+            if not claim_name:
+                continue
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+            claim_ids.add(claim_id)
+            if not mount.read_only:
+                read_write_claim_ids.add(claim_id)
+            mount_details.append(
+                {
+                    "claim_id": claim_id,
+                    "claim_name": claim_name,
+                    "volume_name": mount.name,
+                    "mount_path": mount.mount_path,
+                    "read_only": bool(mount.read_only),
+                    "sub_path": mount.sub_path,
+                    "sub_path_expr": mount.sub_path_expr,
+                    "mount_propagation": mount.mount_propagation,
+                    "recursive_read_only": getattr(mount, "recursive_read_only", None),
+                }
+            )
+        mount_details.sort(
+            key=lambda detail: (
+                detail["claim_id"],
+                detail["mount_path"],
+                detail["volume_name"],
+                detail["sub_path"] or "",
+                detail["sub_path_expr"] or "",
+            )
+        )
+        containers[container.name]["persistent_volume_claim_ids"] = sorted(claim_ids)
+        containers[container.name]["persistent_volume_claim_read_write_ids"] = sorted(
+            read_write_claim_ids
+        )
+        containers[container.name]["persistent_volume_claim_mounts"] = json.dumps(
+            mount_details,
+            sort_keys=True,
+        )
+
+        device_claim_ids = set()
+        device_details = []
+        for device in getattr(container, "volume_devices", None) or []:
+            claim_name = claim_by_volume_name.get(device.name)
+            if not claim_name:
+                continue
+            claim_id = _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+            device_claim_ids.add(claim_id)
+            device_details.append(
+                {
+                    "claim_id": claim_id,
+                    "claim_name": claim_name,
+                    "volume_name": device.name,
+                    "device_path": device.device_path,
+                }
+            )
+        device_details.sort(
+            key=lambda detail: (
+                detail["claim_id"],
+                detail["device_path"],
+                detail["volume_name"],
+            )
+        )
+        containers[container.name]["persistent_volume_claim_device_ids"] = sorted(
+            device_claim_ids
+        )
+        containers[container.name]["persistent_volume_claim_devices"] = json.dumps(
+            device_details,
+            sort_keys=True,
+        )
 
         security_context = getattr(container, "security_context", None)
         if security_context:
@@ -103,28 +202,25 @@ def _extract_pod_containers(pod: V1Pod, node_arch: str | None = None) -> dict[st
 
         # Extract resource requests and limits
         if container.resources:
-            if container.resources.requests:
-                containers[container.name]["memory_request"] = (
-                    container.resources.requests.get("memory")
-                )
-                containers[container.name]["cpu_request"] = (
-                    container.resources.requests.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_request"] = None
-                containers[container.name]["cpu_request"] = None
-
-            if container.resources.limits:
-                containers[container.name]["memory_limit"] = (
-                    container.resources.limits.get("memory")
-                )
-                containers[container.name]["cpu_limit"] = (
-                    container.resources.limits.get("cpu")
-                )
-            else:
-                containers[container.name]["memory_limit"] = None
-                containers[container.name]["cpu_limit"] = None
+            requests = container.resources.requests or {}
+            limits = container.resources.limits or {}
+            containers[container.name]["resource_requests"] = (
+                format_resource_quantities(requests)
+            )
+            containers[container.name]["resource_limits"] = format_resource_quantities(
+                limits
+            )
+            containers[container.name]["gpu_request"] = get_gpu_quantity(requests)
+            containers[container.name]["gpu_limit"] = get_gpu_quantity(limits)
+            containers[container.name]["memory_request"] = requests.get("memory")
+            containers[container.name]["cpu_request"] = requests.get("cpu")
+            containers[container.name]["memory_limit"] = limits.get("memory")
+            containers[container.name]["cpu_limit"] = limits.get("cpu")
         else:
+            containers[container.name]["resource_requests"] = "{}"
+            containers[container.name]["resource_limits"] = "{}"
+            containers[container.name]["gpu_request"] = None
+            containers[container.name]["gpu_limit"] = None
             containers[container.name]["memory_request"] = None
             containers[container.name]["cpu_request"] = None
             containers[container.name]["memory_limit"] = None
@@ -281,12 +377,19 @@ def transform_pods(
 
     for pod in pods:
         node_arch = arch_map.get(pod.spec.node_name or "")
-        containers = _extract_pod_containers(pod, node_arch=node_arch)
+        claim_by_volume_name = _get_claim_name_by_volume_name(pod)
+        containers = _extract_pod_containers(
+            pod,
+            cluster_name,
+            claim_by_volume_name,
+            node_arch=node_arch,
+        )
         volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         service_account_name = pod.spec.service_account_name or "default"
         workload_parent = _resolve_pod_workload_parent(
             pod, rs_owner_map, workloads_available=workloads_available
         )
+        persistent_volume_claim_names = sorted(set(claim_by_volume_name.values()))
         transformed_pods.append(
             {
                 **workload_parent,
@@ -317,6 +420,11 @@ def transform_pods(
                         and getattr(volume.host_path, "path", None)
                     ]
                 ),
+                "persistent_volume_claim_names": persistent_volume_claim_names,
+                "persistent_volume_claim_ids": [
+                    _claim_id(cluster_name, pod.metadata.namespace, claim_name)
+                    for claim_name in persistent_volume_claim_names
+                ],
                 "service_account_id": (
                     f"{cluster_name}/{pod.metadata.namespace}/{service_account_name}"
                 ),

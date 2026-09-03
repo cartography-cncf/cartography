@@ -10,6 +10,11 @@ class RelConstraint:
     name when both endpoints carry the listed ontology labels. Both abstract
     ontology nodes (User, Device, PublicIP, Package) and semantic extra
     labels (Container, ComputePod, ...) are valid src/dst values.
+
+    Constraints are validation-only. They are not inherited onto concrete node
+    schemas as expected edges. Materialized ontology edges that introspection
+    projects onto concretes come from ``OntologyExpectedEdge`` (relationships
+    actually produced under ontology labels by models or analysis).
     """
 
     src: str
