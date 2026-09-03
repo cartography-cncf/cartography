@@ -1274,6 +1274,112 @@ def test_sync_one_account_uses_owned_ecr_session_factory(
     assert session_factory.call_count == 2
 
 
+def test_sync_one_account_isolates_resource_function_failures(
+    mocker,
+    neo4j_session,
+):
+    """
+    One failing intel module must not discard the modules queued after it: the failure is
+    recorded and re-raised once the rest of the account has been written.
+    """
+    # Arrange
+    first_sync = mock.MagicMock()
+    failing_sync = mock.MagicMock(
+        side_effect=botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "SomethingUnexpected",
+                    "Message": "this module is having a bad day",
+                },
+            },
+            "FakeOperation",
+        ),
+    )
+    later_sync = mock.MagicMock()
+    tags_sync = mock.MagicMock()
+    boto3_session = mock.MagicMock()
+    mocker.patch.object(cartography.intel.aws, "migrate_legacy_aws_labels")
+    mocker.patch.object(cartography.intel.aws, "run_typed_analysis_job")
+
+    # Act
+    with mock.patch.dict(
+        cartography.intel.aws.RESOURCE_FUNCTIONS,
+        {
+            "iam": first_sync,
+            "bedrock": failing_sync,
+            "s3": later_sync,
+            "resourcegroupstaggingapi": tags_sync,
+        },
+        clear=True,
+    ):
+        with raises(Exception, match="bedrock"):
+            cartography.intel.aws._sync_one_account(
+                neo4j_session,
+                boto3_session,
+                "111122223333",
+                TEST_UPDATE_TAG,
+                GRAPH_JOB_PARAMETERS,
+                regions=TEST_REGIONS,
+                aws_requested_syncs=[
+                    "iam",
+                    "bedrock",
+                    "s3",
+                    "resourcegroupstaggingapi",
+                ],
+            )
+
+    # Assert
+    assert first_sync.call_count == 1
+    assert later_sync.call_count == 1
+    assert tags_sync.call_count == 1
+
+
+def test_sync_one_account_aborts_on_expired_credentials(
+    mocker,
+    neo4j_session,
+):
+    """
+    Credential failures doom every remaining module, so they must abort the account
+    immediately instead of being collected like a per-module failure.
+    """
+    # Arrange
+    failing_sync = mock.MagicMock(
+        side_effect=botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "ExpiredToken",
+                    "Message": "The security token included in the request is expired",
+                },
+            },
+            "FakeOperation",
+        ),
+    )
+    never_called_sync = mock.MagicMock()
+    boto3_session = mock.MagicMock()
+    mocker.patch.object(cartography.intel.aws, "migrate_legacy_aws_labels")
+    mocker.patch.object(cartography.intel.aws, "run_typed_analysis_job")
+
+    # Act
+    with mock.patch.dict(
+        cartography.intel.aws.RESOURCE_FUNCTIONS,
+        {"iam": failing_sync, "s3": never_called_sync},
+        clear=True,
+    ):
+        with raises(botocore.exceptions.ClientError):
+            cartography.intel.aws._sync_one_account(
+                neo4j_session,
+                boto3_session,
+                "111122223333",
+                TEST_UPDATE_TAG,
+                GRAPH_JOB_PARAMETERS,
+                regions=TEST_REGIONS,
+                aws_requested_syncs=["iam", "s3"],
+            )
+
+    # Assert
+    assert never_called_sync.call_count == 0
+
+
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch.dict(

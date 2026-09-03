@@ -256,6 +256,47 @@ def test_aws_handle_regions(mocker):
     assert raises_connect_timeout_error(1, 2) == []
 
 
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "InternalError",
+        "InternalFailure",
+        "InternalServerError",
+        "InternalServerErrorException",
+        "InternalServerException",
+        "ServerException",
+        "ServiceException",
+        "ServiceUnavailable",
+        "ServiceUnavailableException",
+    ],
+)
+@patch(
+    "cartography.util.backoff",
+    Mock(
+        on_exception=lambda *args, **kwargs: lambda func: func,
+    ),
+)
+def test_aws_handle_regions_skips_server_errors(error_code):
+    """
+    A server-side 5xx is not actionable per-region, so it must degrade to a regional skip
+    instead of aborting every resource function left in the account sync.
+    """
+
+    @aws_handle_regions
+    def raises_server_error(a, b):
+        raise botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": error_code,
+                    "Message": "The server encountered an internal error while processing the request",
+                },
+            },
+            "FakeOperation",
+        )
+
+    assert raises_server_error(1, 2) == []
+
+
 def test_is_service_control_policy_explicit_deny():
     scp_error = botocore.exceptions.ClientError(
         {
