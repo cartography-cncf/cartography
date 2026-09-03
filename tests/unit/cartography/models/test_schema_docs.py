@@ -347,10 +347,13 @@ def test_conditional_labels_render_their_condition_and_ontology_link():
     generated = render_module_schema(model, "aibom")
 
     # Assert
-    assert "`AIAgent` when `category` equals `agent`." in generated
     assert (
-        "[`AIModel`](#ontology-aimodel) (ontology label) "
-        "when `category` equals `model`." in generated
+        "[`AIAgent`](#ontology-aiagent) (ontology label) "
+        "when `component_type` equals `agent`." in generated
+    )
+    assert (
+        "[`AIModelReference`](#ontology-aimodelreference) (ontology label) "
+        "when `component_type` equals `model`." in generated
     )
 
 

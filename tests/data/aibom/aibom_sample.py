@@ -494,6 +494,24 @@ AIBOM_REPORT = {
                     ],
                     "agent": [
                         {
+                            "name": "QueryAgent",
+                            "component_type": "agent",
+                            "file_path": "/app/app/sub_agents/query/agent.py",
+                            "line_number": 11,
+                            "framework": "openai",
+                            "detection_source": "agentic",
+                            "heuristic_confidence": 1.0,
+                            "agentic_confidence": None,
+                            "needs_agentic": False,
+                            "instance_id": "QueryAgent_/app/app/sub_agents/query/agent.py_11",
+                            "metadata": {
+                                "evidence_count": 1,
+                                "evidence_files": [
+                                    "/app/app/sub_agents/query/agent.py"
+                                ],
+                            },
+                        },
+                        {
                             "name": "Agent",
                             "component_type": "agent",
                             "file_path": "/private/var/folders/r9/q5vn3m2x30b2bv81r550cp_c0000gn/T/aibom_container_81p0fq2h/app/app/sub_agents/cloud_cli/agent.py",
@@ -561,7 +579,7 @@ AIBOM_REPORT = {
                             },
                             "instance_id": "Agent_/private/var/folders/r9/q5vn3m2x30b2bv81r550cp_c0000gn/T/aibom_container_81p0fq2h/app/app/sub_agents/cloud_cli/agent.py_39",
                             "confidence": 0.2,
-                        }
+                        },
                     ],
                     "dataset": [
                         {
@@ -719,6 +737,44 @@ AIBOM_REPORT = {
                             "confidence": 1.0,
                         }
                     ],
+                    "memory": [
+                        {
+                            "name": "conversation_buffer",
+                            "component_type": "memory",
+                            "file_path": "/app/app/memory.py",
+                            "line_number": 11,
+                            "framework": "openai",
+                            "detection_source": "agentic",
+                            "heuristic_confidence": 1.0,
+                            "agentic_confidence": None,
+                            "needs_agentic": False,
+                            "instance_id": "conversation_buffer_/app/app/memory.py_11",
+                            "storage_uri": "redis://cache/0",
+                            "metadata": {
+                                "evidence_count": 1,
+                                "evidence_files": ["/app/app/memory.py"],
+                            },
+                        },
+                    ],
+                    "embedding": [
+                        {
+                            "name": "text-embedding-3-large",
+                            "component_type": "embedding",
+                            "file_path": "/app/app/embed.py",
+                            "line_number": 11,
+                            "framework": "openai",
+                            "detection_source": "agentic",
+                            "heuristic_confidence": 1.0,
+                            "agentic_confidence": None,
+                            "needs_agentic": False,
+                            "instance_id": "text-embedding-3-large_/app/app/embed.py_11",
+                            "embedding_model": "text-embedding-3-large",
+                            "metadata": {
+                                "evidence_count": 1,
+                                "evidence_files": ["/app/app/embed.py"],
+                            },
+                        },
+                    ],
                     "model": [
                         {
                             "name": "gpt-5.2",
@@ -812,6 +868,54 @@ AIBOM_REPORT = {
                     {
                         "source_instance_id": "",
                         "target_instance_id": "",
+                        "relationship_type": "USES_MEMORY",
+                        "label": "USES_MEMORY",
+                        "source_name": "Agent",
+                        "target_name": "conversation_buffer",
+                        "source_type": "agent",
+                        "target_type": "memory",
+                        "source_repo": "",
+                        "target_repo": "",
+                    },
+                    {
+                        "source_instance_id": "",
+                        "target_instance_id": "",
+                        "relationship_type": "USES_EMBEDDING",
+                        "label": "USES_EMBEDDING",
+                        "source_name": "Agent",
+                        "target_name": "text-embedding-3-large",
+                        "source_type": "agent",
+                        "target_type": "embedding",
+                        "source_repo": "",
+                        "target_repo": "",
+                    },
+                    {
+                        "source_instance_id": "",
+                        "target_instance_id": "",
+                        "relationship_type": "USES_AGENT",
+                        "label": "USES_AGENT",
+                        "source_name": "Agent",
+                        "target_name": "QueryAgent",
+                        "source_type": "agent",
+                        "target_type": "agent",
+                        "source_repo": "",
+                        "target_repo": "",
+                    },
+                    {
+                        "source_instance_id": "",
+                        "target_instance_id": "",
+                        "relationship_type": "LOGS_TO",
+                        "label": "LOGS_TO",
+                        "source_name": "Agent",
+                        "target_name": "dataset",
+                        "source_type": "agent",
+                        "target_type": "dataset",
+                        "source_repo": "",
+                        "target_repo": "",
+                    },
+                    {
+                        "source_instance_id": "",
+                        "target_instance_id": "",
                         "relationship_type": "USES_MODEL",
                         "label": "USES_MODEL",
                         "source_name": "Agent",
@@ -842,7 +946,7 @@ AIBOM_REPORT = {
                             ],
                             "code_snippet": None,
                         },
-                    }
+                    },
                 ],
                 "summary": {
                     "status": "completed",

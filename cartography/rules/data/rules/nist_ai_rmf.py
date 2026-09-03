@@ -468,8 +468,6 @@ class NistAiAibomAgentInventoryOutput(Finding):
     tool_names: list[str] | None = None
     memory_count: int | None = None
     memory_names: list[str] | None = None
-    prompt_count: int | None = None
-    prompt_names: list[str] | None = None
     embedding_count: int | None = None
     embedding_names: list[str] | None = None
 
@@ -489,7 +487,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     // nodes sharing one _ont_digest, and grouping would report every agent of that
     // AIBOM once per registry.
     WITH source, agent, min(img._ont_digest) AS manifest_digest
-    OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModel)
+    OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModelReference)
     WITH source, manifest_digest, agent, collect(DISTINCT model.name) AS model_names
     OPTIONAL MATCH (agent)-[:USES_TOOL]->(tool:AITool)
     WITH
@@ -506,15 +504,6 @@ _aibom_nist_ai_agent_inventory = Fact(
         model_names,
         tool_names,
         collect(DISTINCT memory.name) AS memory_names
-    OPTIONAL MATCH (agent)-[:USES_PROMPT]->(prompt:AIPrompt)
-    WITH
-        source,
-        manifest_digest,
-        agent,
-        model_names,
-        tool_names,
-        memory_names,
-        collect(DISTINCT prompt.name) AS prompt_names
     OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)
     WITH
         source,
@@ -523,7 +512,6 @@ _aibom_nist_ai_agent_inventory = Fact(
         model_names,
         tool_names,
         memory_names,
-        prompt_names,
         count(DISTINCT embedding) AS embedding_count,
         collect(DISTINCT embedding.name) AS embedding_names
     RETURN
@@ -544,8 +532,6 @@ _aibom_nist_ai_agent_inventory = Fact(
         tool_names,
         size(memory_names) AS memory_count,
         memory_names,
-        size(prompt_names) AS prompt_count,
-        prompt_names,
         embedding_count,
         embedding_names
     ORDER BY image_uri, agent_name
@@ -553,11 +539,10 @@ _aibom_nist_ai_agent_inventory = Fact(
     cypher_visual_query="""
     MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH p1=(source)-[:HAS_COMPONENT]->(agent:AIAgent)
-    OPTIONAL MATCH p2=(agent)-[:USES_MODEL]->(:AIModel)
+    OPTIONAL MATCH p2=(agent)-[:USES_MODEL]->(:AIModelReference)
     OPTIONAL MATCH p3=(agent)-[:USES_TOOL]->(:AITool)
     OPTIONAL MATCH p4=(agent)-[:USES_MEMORY]->(:AIMemory)
-    OPTIONAL MATCH p5=(agent)-[:USES_PROMPT]->(:AIPrompt)
-    OPTIONAL MATCH p6=(agent)-[:USES_EMBEDDING]->(:AIEmbedding)
+    OPTIONAL MATCH p5=(agent)-[:USES_EMBEDDING]->(:AIEmbedding)
     RETURN *
     """,
     cypher_count_query="""
@@ -582,7 +567,7 @@ aibom_agent_inventory = Rule(
     output_model=NistAiAibomAgentInventoryOutput,
     facts=(_aibom_nist_ai_agent_inventory,),
     tags=("ai", "inventory", "software_supply_chain", "compliance"),
-    version="0.1.1",
+    version="0.2.0",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),
