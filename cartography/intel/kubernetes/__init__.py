@@ -8,6 +8,11 @@ from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
+from cartography.intel.kubernetes.endpoint_slices import get_endpoint_slice_data
+from cartography.intel.kubernetes.endpoint_slices import (
+    service_pod_ids_by_qualified_name,
+)
+from cartography.intel.kubernetes.endpoint_slices import sync_endpoint_slices
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
@@ -107,13 +112,30 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 replicaset_owner_map=replicaset_owner_map,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
+            # Fetch first to derive Service backends, then load after Services so
+            # FOR_SERVICE edges exist on the first sync without a second API call.
+            endpoint_slices = get_endpoint_slice_data(client)
+            endpoint_slice_pod_ids = (
+                service_pod_ids_by_qualified_name(endpoint_slices)
+                if endpoint_slices is not None
+                else None
+            )
             sync_services(
                 session,
                 client,
                 all_pods,
                 config.update_tag,
                 common_job_parameters,
+                endpoint_slice_pod_ids,
             )
+            if endpoint_slices is not None:
+                sync_endpoint_slices(
+                    session,
+                    endpoint_slices,
+                    client,
+                    config.update_tag,
+                    common_job_parameters,
+                )
             sync_network_policies(
                 session,
                 client,
