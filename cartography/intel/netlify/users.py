@@ -9,6 +9,7 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import GraphStatement
 from cartography.intel.netlify.util import paginated_get
+from cartography.intel.netlify.util import unwrap_extended_json
 from cartography.models.netlify.invite import NetlifyInvitedToAccountMatchLink
 from cartography.models.netlify.invite import NetlifyInviteSchema
 from cartography.models.netlify.invite import NetlifyInviteToAccountMatchLink
@@ -64,14 +65,19 @@ def transform_netlify_users(
 
     A row with no `user_id` and no email cannot be keyed either way, so it is skipped.
 
+    Every value is passed through `unwrap_extended_json` on the way in: Netlify leaks MongoDB's
+    extended JSON encoding on some membership fields, and a `{"$oid": ...}` map fails the whole
+    write batch rather than just its own property.
+
     :return: (memberships with a linked Netlify user, memberships known only by email)
     """
     users: list[dict[str, Any]] = []
     invites: list[dict[str, Any]] = []
     for member in members:
+        membership_id = unwrap_extended_json(member["id"])
         common = {
-            **{k: v for k, v in member.items() if k != "id"},
-            "membership_id": member["id"],
+            **{k: unwrap_extended_json(v) for k, v in member.items() if k != "id"},
+            "membership_id": membership_id,
             "account_id": account_id,
         }
         if member.get("user_id"):
@@ -86,7 +92,7 @@ def transform_netlify_users(
         if not member.get("email"):
             logger.warning(
                 "Skipping Netlify membership %s: it has neither a user_id nor an email.",
-                member["id"],
+                membership_id,
             )
             continue
         # A membership with no linked user is expected to be an outstanding invitation. If Netlify
@@ -96,7 +102,7 @@ def transform_netlify_users(
             logger.warning(
                 "Netlify membership %s has no user_id but is not marked pending and carries no "
                 "invite_id. Treating it as an invitation keyed on %s; please report this payload.",
-                member["id"],
+                membership_id,
                 member["email"],
             )
         invites.append(common)
