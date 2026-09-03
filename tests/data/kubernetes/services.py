@@ -107,6 +107,23 @@ KUBERNETES_LOADBALANCER_SERVICE_DATA = [
         "load_balancer_dns_names": [
             AWS_TEST_LB_DNS_NAME,
         ],
+        "ports": json.dumps(
+            [
+                {
+                    "name": "https",
+                    "protocol": "TCP",
+                    "port": 443,
+                    "target_port": 8443,
+                    "node_port": 30443,
+                    "app_protocol": None,
+                }
+            ]
+        ),
+        "port_keys": ["TCP/443"],
+        "node_port_keys": ["TCP/30443"],
+        "external_ip_addresses": ["8.8.8.8"],
+        "global_external_ip_addresses": ["8.8.8.8"],
+        "external_traffic_policy": "Local",
     },
 ]
 
