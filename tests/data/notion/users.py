@@ -37,3 +37,21 @@ USERS = [
         "bot": {"owner": {"type": "workspace", "workspace": True}},
     },
 ]
+
+
+TOKEN_USER = {
+    "object": "user",
+    "id": "bot-1",
+    "type": "bot",
+    "name": "Security Exporter",
+    "avatar_url": None,
+    "bot": {
+        "owner": {
+            "type": "user",
+            "user": {"object": "user", "id": "person-1"},
+        },
+        "workspace_name": "Example Workspace",
+        "workspace_id": "workspace-1",
+        "workspace_limits": {"max_file_upload_size_in_bytes": 5_000_000},
+    },
+}

@@ -14,7 +14,11 @@ class NotionWorkspaceNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name",
         extra_index=True,
-        description="Configured Notion workspace name.",
+        description="Notion workspace name when exposed to the connection.",
+    )
+    token_bot_notion_user_id: PropertyRef = PropertyRef(
+        "token_bot_notion_user_id",
+        description="Notion user UUID of the bot authenticated by this workspace token.",
     )
 
 

@@ -15,9 +15,8 @@ REQUEST_TIMEOUT = (60, 60)
 
 @dataclass(frozen=True)
 class NotionWorkspaceConfig:
-    workspace_id: str
-    workspace_name: str
     api_token: str
+    sync_public_pages: bool
 
 
 def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
@@ -34,25 +33,26 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
         raise ValueError("Notion config must contain a non-empty workspaces list")
 
     parsed: list[NotionWorkspaceConfig] = []
-    seen_ids: set[str] = set()
+    seen_tokens: set[str] = set()
     for workspace in workspaces:
         if not isinstance(workspace, dict):
             raise ValueError("Each Notion workspace config must be a JSON object")
-        values: dict[str, str] = {}
-        for field in ("workspace_id", "workspace_name", "api_token"):
-            value = workspace.get(field)
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(
-                    f"Notion workspace config field {field!r} must be a non-empty string"
-                )
-            values[field] = value.strip()
-
-        if values["workspace_id"] in seen_ids:
+        api_token = workspace.get("api_token")
+        if not isinstance(api_token, str) or not api_token.strip():
             raise ValueError(
-                f"Duplicate Notion workspace ID {values['workspace_id']!r}"
+                "Notion workspace config field 'api_token' must be a non-empty string"
             )
-        seen_ids.add(values["workspace_id"])
-        parsed.append(NotionWorkspaceConfig(**values))
+        api_token = api_token.strip()
+        if api_token in seen_tokens:
+            raise ValueError("Notion config contains a duplicate API token")
+        seen_tokens.add(api_token)
+
+        sync_public_pages = workspace.get("sync_public_pages", False)
+        if not isinstance(sync_public_pages, bool):
+            raise ValueError(
+                "Notion workspace config field 'sync_public_pages' must be a boolean"
+            )
+        parsed.append(NotionWorkspaceConfig(api_token, sync_public_pages))
 
     return parsed
 
@@ -62,7 +62,8 @@ def create_api_session(api_token: str) -> requests.Session:
         total=5,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=frozenset({"GET"}),
+        # Notion's search endpoint is a read-only POST operation.
+        allowed_methods=frozenset({"GET", "POST"}),
         respect_retry_after_header=True,
     )
     session = requests.Session()
@@ -123,3 +124,48 @@ def get_paginated(
 
 def scoped_id(workspace_id: str, notion_id: str) -> str:
     return f"{workspace_id}/{notion_id}"
+
+
+def post_paginated(
+    api_session: requests.Session,
+    endpoint: str,
+    body: dict[str, Any],
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    next_cursor: str | None = None
+    seen_cursors: set[str] = set()
+
+    while True:
+        request_body = {**body, "page_size": 100}
+        if next_cursor is not None:
+            request_body["start_cursor"] = next_cursor
+        response = api_session.post(
+            f"{NOTION_API_BASE_URL}/{endpoint}",
+            json=request_body,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Notion paginated response must be a JSON object")
+
+        page_results = payload.get("results")
+        has_more = payload.get("has_more")
+        if not isinstance(page_results, list) or not all(
+            isinstance(item, dict) for item in page_results
+        ):
+            raise ValueError("Notion paginated response must contain object results")
+        if not isinstance(has_more, bool):
+            raise ValueError("Notion paginated response must contain boolean has_more")
+        results.extend(page_results)
+
+        if not has_more:
+            return results
+
+        next_cursor_value = payload.get("next_cursor")
+        if not isinstance(next_cursor_value, str) or not next_cursor_value:
+            raise ValueError("Notion paginated response is missing next_cursor")
+        if next_cursor_value in seen_cursors:
+            raise ValueError("Notion pagination returned a repeated cursor")
+        seen_cursors.add(next_cursor_value)
+        next_cursor = next_cursor_value

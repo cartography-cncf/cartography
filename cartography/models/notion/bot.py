@@ -26,6 +26,10 @@ class NotionBotNodeProperties(CartographyNodeProperties):
         description="Notion's bot user UUID.",
     )
     name: PropertyRef = PropertyRef("name", description="Bot display name.")
+    is_token_bot: PropertyRef = PropertyRef(
+        "is_token_bot",
+        description="Whether this bot is authenticated by the configured token.",
+    )
     owner_type: PropertyRef = PropertyRef(
         "owner_type",
         description="Whether the bot is owned by a workspace or user.",

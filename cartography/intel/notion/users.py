@@ -22,11 +22,18 @@ def get(api_session: requests.Session) -> list[dict[str, Any]]:
 def transform(
     users: list[dict[str, Any]],
     workspace_id: str,
+    token_user: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     people: list[dict[str, Any]] = []
     bots: list[dict[str, Any]] = []
 
-    for user in users:
+    token_user_id = token_user.get("id")
+    if not isinstance(token_user_id, str) or not token_user_id:
+        raise ValueError("Notion current bot response is missing a valid id")
+    users_by_id = {user.get("id"): user for user in users}
+    users_by_id[token_user_id] = token_user
+
+    for user in users_by_id.values():
         notion_user_id = user.get("id")
         user_type = user.get("type")
         if not isinstance(notion_user_id, str) or not notion_user_id:
@@ -46,6 +53,7 @@ def transform(
                     "notion_user_id": notion_user_id,
                     "name": user.get("name"),
                     "email": email.lower() if isinstance(email, str) else None,
+                    "is_workspace_member": True,
                 },
             )
         elif user_type == "bot":
@@ -73,6 +81,7 @@ def transform(
                     "id": scoped_id(workspace_id, notion_user_id),
                     "notion_user_id": notion_user_id,
                     "name": user.get("name"),
+                    "is_token_bot": notion_user_id == token_user_id,
                     "owner_type": owner_type,
                     "owner_notion_user_id": owner_notion_user_id,
                     "owner_id": (
@@ -127,13 +136,14 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
-    workspace_id: str,
+    workspace: dict[str, Any],
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info("Starting Notion identity sync for workspace %s", workspace_id)
+    workspace_id = workspace["id"]
+    logger.info("Starting Notion identity sync")
     raw_users = get(api_session)
-    people, bots = transform(raw_users, workspace_id)
+    people, bots = transform(raw_users, workspace_id, workspace["token_user"])
     load_users(neo4j_session, people, bots, workspace_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    logger.info("Completed Notion identity sync for workspace %s", workspace_id)
+    logger.info("Completed Notion identity sync")

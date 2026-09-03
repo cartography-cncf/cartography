@@ -30,6 +30,10 @@ class NotionUserNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="User email when exposed to the connection.",
     )
+    is_workspace_member: PropertyRef = PropertyRef(
+        "is_workspace_member",
+        description="Whether the user was returned by Notion's member-only user list.",
+    )
 
 
 @dataclass(frozen=True)

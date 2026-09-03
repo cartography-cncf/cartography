@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import cartography.intel.notion.users
 import cartography.intel.notion.workspaces
+from tests.data.notion.users import TOKEN_USER
 from tests.data.notion.users import USERS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -20,10 +21,19 @@ def _response(results):
 
 
 def _sync(neo4j_session, workspace_id, workspace_name, raw_users, update_tag):
+    token_user = {
+        **TOKEN_USER,
+        "bot": {
+            **TOKEN_USER["bot"],
+            "workspace_id": workspace_id,
+            "workspace_name": workspace_name,
+        },
+    }
+    workspace = cartography.intel.notion.workspaces.transform(token_user)
+    workspace["token_user"] = token_user
     cartography.intel.notion.workspaces.sync(
         neo4j_session,
-        workspace_id,
-        workspace_name,
+        workspace,
         update_tag,
     )
     api_session = MagicMock()
@@ -31,7 +41,7 @@ def _sync(neo4j_session, workspace_id, workspace_name, raw_users, update_tag):
     cartography.intel.notion.users.sync(
         neo4j_session,
         api_session,
-        workspace_id,
+        workspace,
         update_tag,
         {"UPDATE_TAG": update_tag, "WORKSPACE_ID": workspace_id},
     )
@@ -51,18 +61,24 @@ def test_sync_users_and_bots(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "NotionUser",
-        ["id", "notion_user_id", "name", "email"],
+        ["id", "notion_user_id", "name", "email", "is_workspace_member"],
     ) == {
-        ("workspace-1/person-1", "person-1", "Alice Example", "alice@example.com"),
-        ("workspace-1/person-2", "person-2", "Bob Example", None),
+        (
+            "workspace-1/person-1",
+            "person-1",
+            "Alice Example",
+            "alice@example.com",
+            True,
+        ),
+        ("workspace-1/person-2", "person-2", "Bob Example", None, True),
     }
     assert check_nodes(
         neo4j_session,
         "NotionBot",
-        ["id", "notion_user_id", "name", "owner_type"],
+        ["id", "notion_user_id", "name", "owner_type", "is_token_bot"],
     ) == {
-        ("workspace-1/bot-1", "bot-1", "Security Exporter", "user"),
-        ("workspace-1/bot-2", "bot-2", "Workspace Bot", "workspace"),
+        ("workspace-1/bot-1", "bot-1", "Security Exporter", "user", True),
+        ("workspace-1/bot-2", "bot-2", "Workspace Bot", "workspace", False),
     }
     assert check_rels(
         neo4j_session,
@@ -126,6 +142,7 @@ def test_cleanup_is_scoped_to_workspace(neo4j_session):
         ("workspace-2/person-2",),
     }
     assert check_nodes(neo4j_session, "NotionBot", ["id"]) == {
+        ("workspace-1/bot-1",),
         ("workspace-2/bot-1",),
         ("workspace-2/bot-2",),
     }
