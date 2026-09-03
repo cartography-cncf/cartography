@@ -601,8 +601,26 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "InvalidClientTokenId",
     "UnauthorizedOperation",
     "UnrecognizedClientException",
-    "InternalServerErrorException",
     "SubscriptionRequiredException",
+]
+
+# Server-side error codes. By the time one of these reaches us, botocore has already
+# exhausted its own retries and so has our backoff wrapper, so the region is simply not
+# answering. None of them is actionable per-region, and letting one escape aborts every
+# resource function left in the account sync, so we degrade to a regional skip instead.
+# AWS is not consistent about which spelling a service uses: bedrock-agent returns the
+# Smithy-standard InternalServerException while older services return
+# InternalServerErrorException or InternalFailure, so all the spellings are listed here.
+AWS_REGION_SERVER_ERROR_CODES = [
+    "InternalError",
+    "InternalFailure",
+    "InternalServerError",
+    "InternalServerErrorException",
+    "InternalServerException",
+    "ServerException",
+    "ServiceException",
+    "ServiceUnavailable",
+    "ServiceUnavailableException",
 ]
 
 AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS = (
@@ -631,7 +649,8 @@ def is_aws_region_skippable_client_error(
     error: botocore.exceptions.ClientError,
 ) -> bool:
     """
-    Return True when a ClientError indicates regional unavailability or regional access denial.
+    Return True when a ClientError indicates regional unavailability, regional access denial,
+    or a server-side failure that is not actionable per-region.
 
     This is the shared classification used by AWS sync code that needs to decide
     whether a regional failure should degrade to a regional skip instead of
@@ -645,6 +664,7 @@ def is_aws_region_skippable_client_error(
             error_message,
         )
         or error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES
+        or error_code in AWS_REGION_SERVER_ERROR_CODES
     )
 
 
@@ -685,7 +705,10 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         - InvalidClientTokenId
         - UnauthorizedOperation
         - UnrecognizedClientException
-        - InternalServerErrorException
+        - SubscriptionRequiredException
+        - Server-side errors: InternalError, InternalFailure, InternalServerError,
+          InternalServerErrorException, InternalServerException, ServerException,
+          ServiceException, ServiceUnavailable, ServiceUnavailableException
 
         For these errors, a warning is logged and an empty list is returned.
         Other errors are re-raised normally.
