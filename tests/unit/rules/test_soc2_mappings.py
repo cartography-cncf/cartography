@@ -22,6 +22,7 @@ EXPECTED_SOC2_REQUIREMENTS = {
     "ai_provider_api_key_hygiene": {"CC6.1", "CC6.3"},
     "ai_third_party_app_inventory": {"CC9.2"},
     "ai_third_party_app_sensitive_scopes": {"CC6.1"},
+    "aibom_agent_runtime_inventory": {"CC6.1"},
     "aibom_agent_inventory": {"CC6.1"},
     "aibom_coverage_gaps": {"CC6.1"},
     "aws_access_keys_not_rotated": {"CC6.1"},

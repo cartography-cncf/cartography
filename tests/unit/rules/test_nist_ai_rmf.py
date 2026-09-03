@@ -4,6 +4,7 @@ from cartography.rules.data.rules.nist_ai_rmf import ai_provider_api_key_hygiene
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_inventory
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitive_scopes
 from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
+from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_runtime_inventory
 from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
@@ -15,6 +16,7 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_third_party_app_sensitive_scopes": ai_third_party_app_sensitive_scopes,
         "ai_admin_app_authorizations": ai_admin_app_authorizations,
         "aibom_agent_inventory": aibom_agent_inventory,
+        "aibom_agent_runtime_inventory": aibom_agent_runtime_inventory,
         "aibom_coverage_gaps": aibom_coverage_gaps,
         "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
@@ -38,6 +40,7 @@ def test_nist_ai_rule_modules():
     assert ai_third_party_app_sensitive_scopes.modules == {Module.CROSS_CLOUD}
     assert ai_admin_app_authorizations.modules == {Module.GOOGLEWORKSPACE}
     assert aibom_agent_inventory.modules == {Module.AIBOM}
+    assert aibom_agent_runtime_inventory.modules == {Module.AIBOM}
     assert aibom_coverage_gaps.modules == {Module.AIBOM}
     assert ai_provider_api_key_hygiene.modules == {Module.OPENAI, Module.ANTHROPIC}
 
@@ -48,6 +51,7 @@ def test_nist_ai_fact_structure_and_maturity():
         ai_third_party_app_sensitive_scopes,
         ai_admin_app_authorizations,
         aibom_agent_inventory,
+        aibom_agent_runtime_inventory,
         aibom_coverage_gaps,
         ai_provider_api_key_hygiene,
     )
@@ -64,6 +68,7 @@ def test_nist_ai_fact_structure_and_maturity():
     assert len(ai_third_party_app_sensitive_scopes.facts) == 1
     assert len(ai_admin_app_authorizations.facts) == 1
     assert len(aibom_agent_inventory.facts) == 1
+    assert len(aibom_agent_runtime_inventory.facts) == 1
     assert len(aibom_coverage_gaps.facts) == 1
     assert len(ai_provider_api_key_hygiene.facts) == 2
 
@@ -89,6 +94,11 @@ def test_nist_ai_framework_requirements():
         for fw in aibom_agent_inventory.frameworks
         if fw.short_name == "nist" and fw.scope == "ai-rmf"
     }
+    aibom_runtime_requirements = {
+        fw.requirement
+        for fw in aibom_agent_runtime_inventory.frameworks
+        if fw.short_name == "nist" and fw.scope == "ai-rmf"
+    }
     aibom_gap_requirements = {
         fw.requirement
         for fw in aibom_coverage_gaps.frameworks
@@ -104,6 +114,7 @@ def test_nist_ai_framework_requirements():
     assert sensitive_requirements == {"measure 2", "manage 2"}
     assert admin_requirements == {"govern 5"}
     assert aibom_inventory_requirements == {"map 1", "govern 1"}
+    assert aibom_runtime_requirements == {"map 1", "govern 1"}
     assert aibom_gap_requirements == {"measure 2", "manage 2"}
     assert provider_requirements == {"govern 5", "manage 2"}
 
@@ -213,12 +224,18 @@ def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
     )
 
 
-def test_nist_ai_aibom_coverage_gap_count_query_counts_all_sources():
+def test_nist_ai_aibom_coverage_gap_count_query_counts_only_gaps():
     fact = aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
 
-    assert fact.cypher_count_query.strip() == (
-        "MATCH (source:AIBOMSource)\n    RETURN COUNT(source) AS count"
-    )
+    assert "source.agentic_status" in fact.cypher_count_query
+    assert "coalesce(source.pending_agent_review, 0) > 0" in fact.cypher_count_query
+
+
+def test_nist_ai_aibom_coverage_gap_includes_incomplete_agentic_review():
+    fact = aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
+
+    assert "source.agentic_status" in fact.cypher_query
+    assert "coalesce(source.pending_agent_review, 0) > 0" in fact.cypher_query
 
 
 def test_aibom_agent_inventory_stages_embedding_aggregation():

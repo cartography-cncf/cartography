@@ -104,6 +104,7 @@ EXPECTED_ISO27001_REQUIREMENTS = {
     "ai_third_party_app_inventory": {"5.21", "5.23"},
     "ai_third_party_app_sensitive_scopes": {"5.15", "8.3"},
     "ai_admin_app_authorizations": {"5.18", "8.2"},
+    "aibom_agent_runtime_inventory": {"5.9", "5.21"},
     "aibom_agent_inventory": {"5.9", "5.21"},
     "aibom_coverage_gaps": {"5.9", "5.21"},
     "ai_provider_api_key_hygiene": {"5.17", "5.18"},
