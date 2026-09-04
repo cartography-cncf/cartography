@@ -31,7 +31,7 @@
       "__comment__": "Migration: drop deprecated Okta-to-Kubernetes group mapping edges, replaced by MEMBER_OF"
     },
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaGroup)-[r:ALLOWED_BY]->(:AWSRole) WHERE r._sub_resource_label IS NULL WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "query": "MATCH (:OktaGroup)-[r:ALLOWED_BY]->(:AWSRole) WHERE r._sub_resource_label IS NULL WITH r LIMIT $LIMIT_SIZE DELETE r",
       "iterative": true,
       "iterationsize": 100,
       "__comment__": "Migration: drop stale Okta-to-AWS role mappings created before ALLOWED_BY used scoped MatchLink metadata"

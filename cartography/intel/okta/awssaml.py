@@ -50,13 +50,13 @@ def transform_okta_group_to_aws_role(
     group_id: str,
     group_name: str,
     mapping_regex: str,
-) -> dict | None:
+) -> GroupRole | None:
     account_role = _parse_okta_group_name(group_name, mapping_regex)
     if account_role:
         role_arn = (
             f"arn:aws:iam::{account_role.account_id}:role/{account_role.role_name}"
         )
-        return {"groupid": group_id, "role": role_arn}
+        return GroupRole(group_id, role_arn)
     return None
 
 
@@ -65,7 +65,7 @@ def query_for_okta_to_aws_role_mapping(
     neo4j_session: neo4j.Session,
     mapping_regex: str,
     okta_org_id: str,
-) -> list[dict]:
+) -> list[GroupRole]:
     """
     Query the graph for all groups associated with the amazon_aws application and map them to AWSRoles
     :param neo4j_session: session from the Neo4j server
@@ -79,7 +79,7 @@ def query_for_okta_to_aws_role_mapping(
     RETURN group.id AS group_id, group.name AS group_name
     """
 
-    group_to_role_mapping: list[dict] = []
+    group_to_role_mapping: list[GroupRole] = []
     results = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         query,
@@ -121,7 +121,7 @@ def _load_okta_group_to_aws_roles(
     :param okta_org_id: Okta organization that owns the relationships
     :return: Nothing
     """
-    mappings = [mapping._asdict() for mapping in group_to_role]
+    mappings = [mapping._asdict() for mapping in dict.fromkeys(group_to_role)]
     schemas = (
         OktaGroupToAWSRoleHasRoleMatchLink(),
         OktaGroupToAWSRoleAllowedByMatchLink(),
@@ -135,6 +135,20 @@ def _load_okta_group_to_aws_roles(
             _sub_resource_label="OktaOrganization",
             _sub_resource_id=okta_org_id,
         )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+    okta_update_tag: int,
+    okta_org_id: str,
+) -> None:
+    """Remove stale Okta group-to-AWS role relationships."""
+    schemas = (
+        OktaGroupToAWSRoleHasRoleMatchLink(),
+        OktaGroupToAWSRoleAllowedByMatchLink(),
+    )
+    for schema in schemas:
         GraphJob.from_matchlink(
             schema,
             "OktaOrganization",
@@ -254,13 +268,6 @@ def sync_okta_aws_saml(
         mapping_regex,
         okta_org_id,
     )
-    combined_group_to_role_mapping = [
-        GroupRole(
-            okta_group_id=mapping["groupid"],
-            aws_role_arn=mapping["role"],
-        )
-        for mapping in group_to_role_mapping
-    ]
 
     sso_okta_groups = get_awssso_okta_groups(neo4j_session, okta_org_id)
     group_to_ssorole_mapping = query_for_okta_to_awssso_role_mapping(
@@ -268,10 +275,11 @@ def sync_okta_aws_saml(
         sso_okta_groups,
         mapping_regex,
     )
-    combined_group_to_role_mapping.extend(group_to_ssorole_mapping)
+    group_to_role_mapping.extend(group_to_ssorole_mapping)
     _load_okta_group_to_aws_roles(
         neo4j_session,
-        combined_group_to_role_mapping,
+        group_to_role_mapping,
         okta_update_tag,
         okta_org_id,
     )
+    cleanup(neo4j_session, okta_update_tag, okta_org_id)
