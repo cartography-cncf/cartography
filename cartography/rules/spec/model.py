@@ -151,9 +151,9 @@ def validate_anchor(
     """Check that a query's ``(asset_label, asset_id_field)`` describes one node.
 
     Returns ``None`` when the query binds ``asset_label`` and the final ``RETURN``
-    projects ``asset_id_field`` off that same variable. Returns a structured
-    failure otherwise, so a caller can validate a candidate query without
-    constructing a ``Fact``.
+    projects ``asset_id_field`` off only that variable (or variables bound to
+    the same label). Returns a structured failure otherwise, so a caller can
+    validate a candidate query without constructing a ``Fact``.
     """
     id_field = asset_id_field or ""
     if not asset_label:
@@ -184,7 +184,7 @@ def validate_anchor(
         )
     id_expression = _expression_for_alias(cypher_query, asset_id_field)
     owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
-    if not owners & asset_vars:
+    if not owners or not owners <= asset_vars:
         return AnchorValidationError(
             code=AnchorValidationCode.ID_NOT_ON_LABELED_VAR,
             asset_label=asset_label,
@@ -219,9 +219,9 @@ def _fact_anchor_value_error(fact_id: str, err: AnchorValidationError) -> str:
     asset_vars = sorted(err.asset_vars)
     return (
         f"Fact '{fact_id}' returns asset_id_field '{err.asset_id_field}' as "
-        f"'{err.id_expression}', which reads no property off {asset_vars} "
-        f"(the variable(s) bound to asset_label '{err.asset_label}'). The "
-        f"(label, id) anchor must describe one node: project the id directly "
+        f"'{err.id_expression}', which does not read properties exclusively off "
+        f"{asset_vars} (the variable(s) bound to asset_label '{err.asset_label}'). "
+        f"The (label, id) anchor must describe one node: project the id directly "
         f"off the labeled variable, e.g. "
         f"'{asset_vars[0]}.id AS {err.asset_id_field}'."
     )
