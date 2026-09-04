@@ -39,14 +39,20 @@ def test_sync_skips_us_west_1_for_bedrock_agent_apis(mocker):
     )
 
     # Assert
-    sync_mocks[bedrock.foundation_models].assert_called_once_with(
-        neo4j_session,
-        boto3_session,
-        ["us-west-1", "us-west-2"],
-        "123456789012",
-        123,
-        common_job_parameters,
-    )
+    for module in (
+        bedrock.custom_models,
+        bedrock.foundation_models,
+        bedrock.guardrails,
+        bedrock.provisioned_model_throughput,
+    ):
+        sync_mocks[module].assert_called_once_with(
+            neo4j_session,
+            boto3_session,
+            ["us-west-1", "us-west-2"],
+            "123456789012",
+            123,
+            common_job_parameters,
+        )
     for module in (bedrock.knowledge_bases, bedrock.agents):
         sync_mocks[module].assert_called_once_with(
             neo4j_session,
