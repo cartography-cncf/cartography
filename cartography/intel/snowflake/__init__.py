@@ -1,67 +1,87 @@
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
 
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.snowflake import access_tokens
-from cartography.intel.snowflake import account
-from cartography.intel.snowflake import account_grants
-from cartography.intel.snowflake import account_parameters
-from cartography.intel.snowflake import account_usage
-from cartography.intel.snowflake import alerts
-from cartography.intel.snowflake import api_integrations
-from cartography.intel.snowflake import artifact_repositories
-from cartography.intel.snowflake import authentication_policies
-from cartography.intel.snowflake import catalog_integrations
-from cartography.intel.snowflake import compute_pools
-from cartography.intel.snowflake import cortex_search_services
-from cartography.intel.snowflake import credentials
-from cartography.intel.snowflake import data_policies
-from cartography.intel.snowflake import database_roles
-from cartography.intel.snowflake import databases
-from cartography.intel.snowflake import dynamic_tables
-from cartography.intel.snowflake import event_tables
-from cartography.intel.snowflake import external_access_integrations
-from cartography.intel.snowflake import external_tables
-from cartography.intel.snowflake import external_volumes
-from cartography.intel.snowflake import file_formats
-from cartography.intel.snowflake import functions
-from cartography.intel.snowflake import grants
-from cartography.intel.snowflake import iceberg_tables
-from cartography.intel.snowflake import image_repositories
-from cartography.intel.snowflake import listings
-from cartography.intel.snowflake import materialized_views
-from cartography.intel.snowflake import network_policies
-from cartography.intel.snowflake import network_rules
-from cartography.intel.snowflake import notebooks
-from cartography.intel.snowflake import notification_integrations
-from cartography.intel.snowflake import password_policies
-from cartography.intel.snowflake import pipes
-from cartography.intel.snowflake import policy_references
-from cartography.intel.snowflake import procedures
-from cartography.intel.snowflake import replication_groups
-from cartography.intel.snowflake import resource_monitors
-from cartography.intel.snowflake import roles
-from cartography.intel.snowflake import schemas
-from cartography.intel.snowflake import secrets
-from cartography.intel.snowflake import security_integrations
-from cartography.intel.snowflake import sequences
-from cartography.intel.snowflake import services
-from cartography.intel.snowflake import session_policies
-from cartography.intel.snowflake import shares
-from cartography.intel.snowflake import stages
-from cartography.intel.snowflake import storage_integrations
-from cartography.intel.snowflake import streamlits
-from cartography.intel.snowflake import streams
-from cartography.intel.snowflake import tables
-from cartography.intel.snowflake import tags
-from cartography.intel.snowflake import tasks
-from cartography.intel.snowflake import users
-from cartography.intel.snowflake import views
-from cartography.intel.snowflake import warehouses
-from cartography.intel.snowflake.util import SnowflakeClient
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+if TYPE_CHECKING:
+    from cartography.intel.snowflake.util import SnowflakeClient
+else:
+    SnowflakeClient = lazy_callable(
+        "cartography.intel.snowflake.util", "SnowflakeClient"
+    )
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+access_tokens = lazy_import("cartography.intel.snowflake.access_tokens")
+account = lazy_import("cartography.intel.snowflake.account")
+account_grants = lazy_import("cartography.intel.snowflake.account_grants")
+account_parameters = lazy_import("cartography.intel.snowflake.account_parameters")
+account_usage = lazy_import("cartography.intel.snowflake.account_usage")
+alerts = lazy_import("cartography.intel.snowflake.alerts")
+api_integrations = lazy_import("cartography.intel.snowflake.api_integrations")
+artifact_repositories = lazy_import("cartography.intel.snowflake.artifact_repositories")
+authentication_policies = lazy_import(
+    "cartography.intel.snowflake.authentication_policies"
+)
+catalog_integrations = lazy_import("cartography.intel.snowflake.catalog_integrations")
+compute_pools = lazy_import("cartography.intel.snowflake.compute_pools")
+cortex_search_services = lazy_import(
+    "cartography.intel.snowflake.cortex_search_services"
+)
+credentials = lazy_import("cartography.intel.snowflake.credentials")
+data_policies = lazy_import("cartography.intel.snowflake.data_policies")
+database_roles = lazy_import("cartography.intel.snowflake.database_roles")
+databases = lazy_import("cartography.intel.snowflake.databases")
+dynamic_tables = lazy_import("cartography.intel.snowflake.dynamic_tables")
+event_tables = lazy_import("cartography.intel.snowflake.event_tables")
+external_access_integrations = lazy_import(
+    "cartography.intel.snowflake.external_access_integrations"
+)
+external_tables = lazy_import("cartography.intel.snowflake.external_tables")
+external_volumes = lazy_import("cartography.intel.snowflake.external_volumes")
+file_formats = lazy_import("cartography.intel.snowflake.file_formats")
+functions = lazy_import("cartography.intel.snowflake.functions")
+grants = lazy_import("cartography.intel.snowflake.grants")
+iceberg_tables = lazy_import("cartography.intel.snowflake.iceberg_tables")
+image_repositories = lazy_import("cartography.intel.snowflake.image_repositories")
+listings = lazy_import("cartography.intel.snowflake.listings")
+materialized_views = lazy_import("cartography.intel.snowflake.materialized_views")
+network_policies = lazy_import("cartography.intel.snowflake.network_policies")
+network_rules = lazy_import("cartography.intel.snowflake.network_rules")
+notebooks = lazy_import("cartography.intel.snowflake.notebooks")
+notification_integrations = lazy_import(
+    "cartography.intel.snowflake.notification_integrations"
+)
+password_policies = lazy_import("cartography.intel.snowflake.password_policies")
+pipes = lazy_import("cartography.intel.snowflake.pipes")
+policy_references = lazy_import("cartography.intel.snowflake.policy_references")
+procedures = lazy_import("cartography.intel.snowflake.procedures")
+replication_groups = lazy_import("cartography.intel.snowflake.replication_groups")
+resource_monitors = lazy_import("cartography.intel.snowflake.resource_monitors")
+roles = lazy_import("cartography.intel.snowflake.roles")
+schemas = lazy_import("cartography.intel.snowflake.schemas")
+secrets = lazy_import("cartography.intel.snowflake.secrets")
+security_integrations = lazy_import("cartography.intel.snowflake.security_integrations")
+sequences = lazy_import("cartography.intel.snowflake.sequences")
+services = lazy_import("cartography.intel.snowflake.services")
+session_policies = lazy_import("cartography.intel.snowflake.session_policies")
+shares = lazy_import("cartography.intel.snowflake.shares")
+stages = lazy_import("cartography.intel.snowflake.stages")
+storage_integrations = lazy_import("cartography.intel.snowflake.storage_integrations")
+streamlits = lazy_import("cartography.intel.snowflake.streamlits")
+streams = lazy_import("cartography.intel.snowflake.streams")
+tables = lazy_import("cartography.intel.snowflake.tables")
+tags = lazy_import("cartography.intel.snowflake.tags")
+tasks = lazy_import("cartography.intel.snowflake.tasks")
+users = lazy_import("cartography.intel.snowflake.users")
+views = lazy_import("cartography.intel.snowflake.views")
+warehouses = lazy_import("cartography.intel.snowflake.warehouses")
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +192,7 @@ _CLEANUP_ORDER = (
 )
 
 
-def _build_client(config: Config) -> SnowflakeClient:
+def _build_client(config: Config) -> "SnowflakeClient":
     """Validate the credential configuration and build the API client.
 
     A partially-configured credential is an operator mistake (a typo in an env var

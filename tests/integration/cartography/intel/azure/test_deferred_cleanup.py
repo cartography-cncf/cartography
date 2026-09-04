@@ -1,5 +1,8 @@
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
+
+import pytest
 
 import cartography.intel.azure as azure
 from cartography.config import Config
@@ -14,6 +17,25 @@ from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790
+
+
+@pytest.fixture(autouse=True)
+def logged_in_azure_cli(tmp_path, monkeypatch):
+    """Simulate an az CLI holding a logged-in profile.
+
+    start_azure_ingestion checks for one before touching the Azure SDK, so patching
+    Authenticator.authenticate_cli is not enough on its own: without this the module
+    skips itself, and these tests then assert against an empty graph. CI has no az
+    profile, a developer machine usually does, which is exactly the kind of difference
+    that makes a suite pass locally and fail in CI.
+    """
+    config_dir = tmp_path / "azure"
+    config_dir.mkdir()
+    (config_dir / "azureProfile.json").write_text(
+        json.dumps({"subscriptions": [{"id": TEST_SUBSCRIPTION_ID}]}),
+        encoding="utf-8-sig",
+    )
+    monkeypatch.setenv("AZURE_CONFIG_DIR", str(config_dir))
 
 
 def _make_config(update_tag: int) -> Config:

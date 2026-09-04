@@ -13,8 +13,8 @@ from cartography.models.aws.ec2.auto_scaling_groups import (
 )
 from cartography.models.aws.ec2.subnet_instance import EC2SubnetInstanceSchema
 from cartography.models.aws.ec2.subnets import EC2SubnetSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

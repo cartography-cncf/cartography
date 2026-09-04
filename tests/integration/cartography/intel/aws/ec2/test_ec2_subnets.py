@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2
+import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.ec2.network_interfaces
 import cartography.intel.aws.ec2.subnets
 import tests.data.aws.ec2.subnets
 from cartography.intel.aws.ec2.instances import sync_ec2_instances

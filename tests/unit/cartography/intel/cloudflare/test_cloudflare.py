@@ -4,6 +4,15 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.cloudflare
+import cartography.intel.cloudflare.accounts
+import cartography.intel.cloudflare.dnsrecords
+import cartography.intel.cloudflare.members
+import cartography.intel.cloudflare.r2buckets
+import cartography.intel.cloudflare.roles
+import cartography.intel.cloudflare.rulesets
+import cartography.intel.cloudflare.workerroutes
+import cartography.intel.cloudflare.workerscripts
+import cartography.intel.cloudflare.zones
 from cartography.config import Config
 from cartography.intel.cloudflare import start_cloudflare_ingestion
 

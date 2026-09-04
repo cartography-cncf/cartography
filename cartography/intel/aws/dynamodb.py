@@ -17,9 +17,9 @@ from cartography.models.aws.dynamodb.sse import DynamoDBSSEDescriptionSchema
 from cartography.models.aws.dynamodb.streams import DynamoDBStreamSchema
 from cartography.models.aws.dynamodb.tables import DynamoDBTableSchema
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

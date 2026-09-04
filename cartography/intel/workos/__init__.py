@@ -1,23 +1,38 @@
 import logging
+from typing import Any
 
 import neo4j
-from workos import WorkOSClient
 
-import cartography.intel.workos.api_keys
-import cartography.intel.workos.application_client_secrets
-import cartography.intel.workos.applications
-import cartography.intel.workos.directories
-import cartography.intel.workos.directory_groups
-import cartography.intel.workos.directory_users
-import cartography.intel.workos.environment
-import cartography.intel.workos.invitations
-import cartography.intel.workos.organization_domains
-import cartography.intel.workos.organization_memberships
-import cartography.intel.workos.organizations
-import cartography.intel.workos.roles
-import cartography.intel.workos.users
 from cartography.config import Config
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_namespace_all
+from cartography.util.lazy import lazy_submodule
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+WorkOSClient = lazy_callable("workos", "WorkOSClient")
+sync_api_keys = lazy_callable("cartography.intel.workos.api_keys", "sync")
+sync_application_client_secrets = lazy_callable(
+    "cartography.intel.workos.application_client_secrets", "sync"
+)
+sync_applications = lazy_callable("cartography.intel.workos.applications", "sync")
+sync_directories = lazy_callable("cartography.intel.workos.directories", "sync")
+sync_directory_groups = lazy_callable(
+    "cartography.intel.workos.directory_groups", "sync"
+)
+sync_directory_users = lazy_callable("cartography.intel.workos.directory_users", "sync")
+sync_environment = lazy_callable("cartography.intel.workos.environment", "sync")
+sync_invitations = lazy_callable("cartography.intel.workos.invitations", "sync")
+sync_organization_domains = lazy_callable(
+    "cartography.intel.workos.organization_domains", "sync"
+)
+sync_organization_memberships = lazy_callable(
+    "cartography.intel.workos.organization_memberships", "sync"
+)
+sync_organizations = lazy_callable("cartography.intel.workos.organizations", "sync")
+sync_roles = lazy_callable("cartography.intel.workos.roles", "sync")
+sync_users = lazy_callable("cartography.intel.workos.users", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +66,20 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     }
 
     # Sync environment first (local-only, creates root node)
-    cartography.intel.workos.environment.sync(
+    sync_environment(
         neo4j_session,
         common_job_parameters,
     )
 
     # Sync organizations
-    org_ids = cartography.intel.workos.organizations.sync(
+    org_ids = sync_organizations(
         neo4j_session,
         client,
         common_job_parameters,
     )
 
     # Sync organization domains (depends on organization IDs)
-    cartography.intel.workos.organization_domains.sync(
+    sync_organization_domains(
         neo4j_session,
         client,
         org_ids,
@@ -72,14 +87,14 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync Connect applications
-    application_ids = cartography.intel.workos.applications.sync(
+    application_ids = sync_applications(
         neo4j_session,
         client,
         common_job_parameters,
     )
 
     # Sync Connect application client secrets (depends on application IDs)
-    cartography.intel.workos.application_client_secrets.sync(
+    sync_application_client_secrets(
         neo4j_session,
         client,
         application_ids,
@@ -87,7 +102,7 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync API keys (per organization)
-    cartography.intel.workos.api_keys.sync(
+    sync_api_keys(
         neo4j_session,
         client,
         org_ids,
@@ -95,14 +110,14 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync users
-    cartography.intel.workos.users.sync(
+    sync_users(
         neo4j_session,
         client,
         common_job_parameters,
     )
 
     # Sync roles (must be before organization memberships)
-    cartography.intel.workos.roles.sync(
+    sync_roles(
         neo4j_session,
         client,
         org_ids,
@@ -110,7 +125,7 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync organization memberships (links users to organizations and roles)
-    cartography.intel.workos.organization_memberships.sync(
+    sync_organization_memberships(
         neo4j_session,
         client,
         org_ids,
@@ -118,21 +133,21 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync invitations (links to users and organizations)
-    cartography.intel.workos.invitations.sync(
+    sync_invitations(
         neo4j_session,
         client,
         common_job_parameters,
     )
 
     # Sync directories and get the list of IDs for directory users/groups
-    directory_ids = cartography.intel.workos.directories.sync(
+    directory_ids = sync_directories(
         neo4j_session,
         client,
         common_job_parameters,
     )
 
     # Sync directory groups (depends on directory IDs)
-    cartography.intel.workos.directory_groups.sync(
+    sync_directory_groups(
         neo4j_session,
         client,
         directory_ids,
@@ -140,7 +155,7 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync directory users (depends on directory IDs and directory groups)
-    cartography.intel.workos.directory_users.sync(
+    sync_directory_users(
         neo4j_session,
         client,
         directory_ids,
@@ -148,3 +163,16 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     logger.info("Completed WorkOS ingestion")
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.workos.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.workos import *` too.
+__all__ = lazy_namespace_all(__path__, globals())

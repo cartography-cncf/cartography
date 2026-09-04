@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2
+import cartography.intel.aws.ec2.key_pairs
 import tests.data.aws.ec2.key_pairs
 from cartography.analysis.aws.analysis import AWS_EC2_KEYPAIR_ANALYSIS_JOBS
 from cartography.intel.aws.ec2.key_pairs import sync_ec2_key_pairs

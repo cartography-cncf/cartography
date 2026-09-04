@@ -6,23 +6,47 @@ from typing import cast
 
 import neo4j
 
-import cartography.intel.github.actions
-import cartography.intel.github.codeowners
-import cartography.intel.github.commits
-import cartography.intel.github.container_image_attestations
-import cartography.intel.github.container_image_tags
-import cartography.intel.github.container_images
-import cartography.intel.github.dependabot_alerts
-import cartography.intel.github.packages
-import cartography.intel.github.personal_access_tokens
-import cartography.intel.github.repos
-import cartography.intel.github.supply_chain
-import cartography.intel.github.teams
-import cartography.intel.github.users
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
-from cartography.intel.github.app_auth import make_credential
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+from cartography.util.lazy import lazy_namespace_all
+from cartography.util.lazy import lazy_submodule
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+_repos = lazy_import("cartography.intel.github.repos")
+_users = lazy_import("cartography.intel.github.users")
+make_credential = lazy_callable("cartography.intel.github.app_auth", "make_credential")
+sync_actions = lazy_callable("cartography.intel.github.actions", "sync")
+sync_codeowners = lazy_callable("cartography.intel.github.codeowners", "sync")
+sync_container_image_attestations_container_image_attestations = lazy_callable(
+    "cartography.intel.github.container_image_attestations",
+    "sync_container_image_attestations",
+)
+sync_container_image_tags_container_image_tags = lazy_callable(
+    "cartography.intel.github.container_image_tags", "sync_container_image_tags"
+)
+sync_container_images_container_images = lazy_callable(
+    "cartography.intel.github.container_images", "sync_container_images"
+)
+sync_dependabot_alerts = lazy_callable(
+    "cartography.intel.github.dependabot_alerts", "sync"
+)
+sync_github_commits_commits = lazy_callable(
+    "cartography.intel.github.commits", "sync_github_commits"
+)
+sync_github_teams_teams = lazy_callable(
+    "cartography.intel.github.teams", "sync_github_teams"
+)
+sync_packages_packages = lazy_callable(
+    "cartography.intel.github.packages", "sync_packages"
+)
+sync_personal_access_tokens = lazy_callable(
+    "cartography.intel.github.personal_access_tokens", "sync"
+)
+sync_supply_chain = lazy_callable("cartography.intel.github.supply_chain", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +87,14 @@ def cleanup_unscoped_github_resources(
     skip_unscoped_cleanup=True should call this once after all organizations
     have been refreshed with the same update tag.
     """
-    cartography.intel.github.users.cleanup(neo4j_session, common_job_parameters)
-    cartography.intel.github.repos.cleanup_global_resources(
+    _users.cleanup(neo4j_session, common_job_parameters)
+    _repos.cleanup_global_resources(
         neo4j_session,
         common_job_parameters,
     )
 
     # DEPRECATED: one-time orphaned branch migration will be removed in v1.0.0.
-    cartography.intel.github.repos.cleanup_orphaned_github_branches(
+    _repos.cleanup_orphaned_github_branches(
         neo4j_session,
         common_job_parameters,
     )
@@ -114,42 +138,42 @@ def start_github_ingestion(
         # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
         token: Any = credential
 
-        github_users = cartography.intel.github.users.sync(
+        github_users = _users.sync(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        repo_sync_result = cartography.intel.github.repos.sync(
+        repo_sync_result = _repos.sync(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        cartography.intel.github.personal_access_tokens.sync(
+        sync_personal_access_tokens(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        cartography.intel.github.dependabot_alerts.sync(
+        sync_dependabot_alerts(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        github_teams = cartography.intel.github.teams.sync_github_teams(
+        github_teams = sync_github_teams_teams(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
         )
-        cartography.intel.github.codeowners.sync(
+        sync_codeowners(
             neo4j_session,
             common_job_parameters,
             token,
@@ -163,7 +187,7 @@ def start_github_ingestion(
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)
-        all_workflows = cartography.intel.github.actions.sync(
+        all_workflows = sync_actions(
             neo4j_session,
             common_job_parameters,
             token,
@@ -175,7 +199,7 @@ def start_github_ingestion(
         # Get repo names from the graph instead of making another API call
         repo_names = _get_repos_from_graph(neo4j_session, org_name)
 
-        cartography.intel.github.commits.sync_github_commits(
+        sync_github_commits_commits(
             neo4j_session,
             token,
             api_url,
@@ -185,7 +209,7 @@ def start_github_ingestion(
             config.github_commit_lookback_days,
         )
 
-        repos_json = cartography.intel.github.repos.get(
+        repos_json = _repos.get(
             token,
             api_url,
             org_name,
@@ -200,7 +224,7 @@ def start_github_ingestion(
         # tags, and attestations reaped. An endpoint outage or missing-scope
         # condition flips cleanup_safe to False, which disables both the
         # fetches and the downstream cleanups.
-        ghcr_result = cartography.intel.github.packages.sync_packages(
+        ghcr_result = sync_packages_packages(
             neo4j_session,
             token,
             api_url,
@@ -214,7 +238,7 @@ def start_github_ingestion(
                 _ghcr_manifest_lists,
                 ghcr_tag_rows,
                 ghcr_observed_and_skipped,
-            ) = cartography.intel.github.container_images.sync_container_images(
+            ) = sync_container_images_container_images(
                 neo4j_session,
                 token,
                 api_url,
@@ -223,14 +247,14 @@ def start_github_ingestion(
                 common_job_parameters["UPDATE_TAG"],
                 common_job_parameters,
             )
-            cartography.intel.github.container_image_tags.sync_container_image_tags(
+            sync_container_image_tags_container_image_tags(
                 neo4j_session,
                 org_name,
                 ghcr_tag_rows,
                 common_job_parameters["UPDATE_TAG"],
                 common_job_parameters,
             )
-            cartography.intel.github.container_image_attestations.sync_container_image_attestations(
+            sync_container_image_attestations_container_image_attestations(
                 neo4j_session,
                 token,
                 api_url,
@@ -242,7 +266,7 @@ def start_github_ingestion(
             )
 
         if valid_repos:
-            cartography.intel.github.supply_chain.sync(
+            sync_supply_chain(
                 neo4j_session,
                 token,
                 api_url,
@@ -260,3 +284,16 @@ def start_github_ingestion(
             neo4j_session,
             common_job_parameters,
         )
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.github.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.github import *` too.
+__all__ = lazy_namespace_all(__path__, globals())

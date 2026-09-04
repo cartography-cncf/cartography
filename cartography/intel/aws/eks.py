@@ -20,8 +20,8 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.eks.access_entry import EKSAccessEntrySchema
 from cartography.models.aws.eks.clusters import EKSClusterSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

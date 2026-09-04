@@ -3,13 +3,25 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.semgrep.dependencies import sync_dependencies
-from cartography.intel.semgrep.deployment import sync_deployment
-from cartography.intel.semgrep.findings import sync_findings
-from cartography.intel.semgrep.label_migrations import migrate_dependency_labels
-from cartography.intel.semgrep.ossfindings import sync_oss_semgrep_sast_findings
-from cartography.intel.semgrep.secrets import sync_secrets
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+migrate_dependency_labels = lazy_callable(
+    "cartography.intel.semgrep.label_migrations", "migrate_dependency_labels"
+)
+sync_dependencies = lazy_callable(
+    "cartography.intel.semgrep.dependencies", "sync_dependencies"
+)
+sync_deployment = lazy_callable(
+    "cartography.intel.semgrep.deployment", "sync_deployment"
+)
+sync_findings = lazy_callable("cartography.intel.semgrep.findings", "sync_findings")
+sync_oss_semgrep_sast_findings = lazy_callable(
+    "cartography.intel.semgrep.ossfindings", "sync_oss_semgrep_sast_findings"
+)
+sync_secrets = lazy_callable("cartography.intel.semgrep.secrets", "sync_secrets")
 
 logger = logging.getLogger(__name__)
 

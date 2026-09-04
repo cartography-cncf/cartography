@@ -4,7 +4,6 @@ import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
-from typing import Any
 from typing import Callable
 
 import neo4j.exceptions
@@ -15,6 +14,7 @@ from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
+from cartography.util.lazy import lazy_callable
 
 try:
     # Whether the driver actually swapped in the Rust codec from neo4j-rust-ext. This is
@@ -34,150 +34,143 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-class _LazyStage:
-    """Callable that defers `from cartography.intel.X import func` until first invocation.
-
-    Keeps `import cartography.sync` cheap: provider SDKs (boto3, azure-mgmt-*,
-    google-cloud-*, etc.) only load when the stage is actually run.
-    """
-
-    __slots__ = ("_module", "_attr", "_resolved")
-
-    def __init__(self, module: str, attr: str) -> None:
-        self._module = module
-        self._attr = attr
-        self._resolved: Callable[..., None] | None = None
-
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
-        if self._resolved is None:
-            self._resolved = getattr(importlib.import_module(self._module), self._attr)
-        self._resolved(*args, **kwargs)
-
-    def __repr__(self) -> str:
-        return f"_LazyStage({self._module}.{self._attr})"
-
-
 TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
-        "create-indexes": _LazyStage("cartography.intel.create_indexes", "run"),
-        "airbyte": _LazyStage("cartography.intel.airbyte", "start_airbyte_ingestion"),
-        "databricks": _LazyStage(
+        "create-indexes": lazy_callable("cartography.intel.create_indexes", "run"),
+        "airbyte": lazy_callable(
+            "cartography.intel.airbyte", "start_airbyte_ingestion"
+        ),
+        "databricks": lazy_callable(
             "cartography.intel.databricks", "start_databricks_ingestion"
         ),
-        "anthropic": _LazyStage(
+        "anthropic": lazy_callable(
             "cartography.intel.anthropic", "start_anthropic_ingestion"
         ),
-        "aws": _LazyStage("cartography.intel.aws", "start_aws_ingestion"),
-        "azure": _LazyStage("cartography.intel.azure", "start_azure_ingestion"),
-        "microsoft": _LazyStage(
+        "aws": lazy_callable("cartography.intel.aws", "start_aws_ingestion"),
+        "azure": lazy_callable("cartography.intel.azure", "start_azure_ingestion"),
+        "microsoft": lazy_callable(
             "cartography.intel.microsoft", "start_microsoft_ingestion"
         ),
-        "cloudflare": _LazyStage(
+        "cloudflare": lazy_callable(
             "cartography.intel.cloudflare", "start_cloudflare_ingestion"
         ),
-        "crowdstrike": _LazyStage(
+        "crowdstrike": lazy_callable(
             "cartography.intel.crowdstrike", "start_crowdstrike_ingestion"
         ),
-        "huntress": _LazyStage(
+        "huntress": lazy_callable(
             "cartography.intel.huntress", "start_huntress_ingestion"
         ),
-        "gcp": _LazyStage("cartography.intel.gcp", "start_gcp_ingestion"),
-        "googleworkspace": _LazyStage(
+        "gcp": lazy_callable("cartography.intel.gcp", "start_gcp_ingestion"),
+        "googleworkspace": lazy_callable(
             "cartography.intel.googleworkspace", "start_googleworkspace_ingestion"
         ),
-        "gsuite": _LazyStage("cartography.intel.gsuite", "start_gsuite_ingestion"),
-        "cve": _LazyStage("cartography.intel.cve", "start_cve_ingestion"),
-        "oci": _LazyStage("cartography.intel.oci", "start_oci_ingestion"),
-        "okta": _LazyStage("cartography.intel.okta", "start_okta_ingestion"),
-        "openai": _LazyStage("cartography.intel.openai", "start_openai_ingestion"),
-        "github": _LazyStage("cartography.intel.github", "start_github_ingestion"),
-        "gitlab": _LazyStage("cartography.intel.gitlab", "start_gitlab_ingestion"),
-        "digitalocean": _LazyStage(
+        "gsuite": lazy_callable("cartography.intel.gsuite", "start_gsuite_ingestion"),
+        "cve": lazy_callable("cartography.intel.cve", "start_cve_ingestion"),
+        "oci": lazy_callable("cartography.intel.oci", "start_oci_ingestion"),
+        "okta": lazy_callable("cartography.intel.okta", "start_okta_ingestion"),
+        "openai": lazy_callable("cartography.intel.openai", "start_openai_ingestion"),
+        "github": lazy_callable("cartography.intel.github", "start_github_ingestion"),
+        "gitlab": lazy_callable("cartography.intel.gitlab", "start_gitlab_ingestion"),
+        "digitalocean": lazy_callable(
             "cartography.intel.digitalocean", "start_digitalocean_ingestion"
         ),
-        "kandji": _LazyStage("cartography.intel.kandji", "start_kandji_ingestion"),
-        "keycloak": _LazyStage(
+        "kandji": lazy_callable("cartography.intel.kandji", "start_kandji_ingestion"),
+        "keycloak": lazy_callable(
             "cartography.intel.keycloak", "start_keycloak_ingestion"
         ),
-        "salesforce": _LazyStage(
+        "salesforce": lazy_callable(
             "cartography.intel.salesforce", "start_salesforce_ingestion"
         ),
-        "kubernetes": _LazyStage("cartography.intel.kubernetes", "start_k8s_ingestion"),
-        "jumpcloud": _LazyStage(
+        "kubernetes": lazy_callable(
+            "cartography.intel.kubernetes", "start_k8s_ingestion"
+        ),
+        "jumpcloud": lazy_callable(
             "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"
         ),
-        "lastpass": _LazyStage(
+        "lastpass": lazy_callable(
             "cartography.intel.lastpass", "start_lastpass_ingestion"
         ),
-        "bigfix": _LazyStage("cartography.intel.bigfix", "start_bigfix_ingestion"),
-        "duo": _LazyStage("cartography.intel.duo", "start_duo_ingestion"),
-        "workday": _LazyStage("cartography.intel.workday", "start_workday_ingestion"),
-        "scaleway": _LazyStage(
+        "bigfix": lazy_callable("cartography.intel.bigfix", "start_bigfix_ingestion"),
+        "duo": lazy_callable("cartography.intel.duo", "start_duo_ingestion"),
+        "workday": lazy_callable(
+            "cartography.intel.workday", "start_workday_ingestion"
+        ),
+        "scaleway": lazy_callable(
             "cartography.intel.scaleway", "start_scaleway_ingestion"
         ),
-        "semgrep": _LazyStage("cartography.intel.semgrep", "start_semgrep_ingestion"),
-        "sentry": _LazyStage("cartography.intel.sentry", "start_sentry_ingestion"),
-        "snipeit": _LazyStage("cartography.intel.snipeit", "start_snipeit_ingestion"),
-        "socketdev": _LazyStage(
+        "semgrep": lazy_callable(
+            "cartography.intel.semgrep", "start_semgrep_ingestion"
+        ),
+        "sentry": lazy_callable("cartography.intel.sentry", "start_sentry_ingestion"),
+        "snipeit": lazy_callable(
+            "cartography.intel.snipeit", "start_snipeit_ingestion"
+        ),
+        "socketdev": lazy_callable(
             "cartography.intel.socketdev", "start_socketdev_ingestion"
         ),
-        "tailscale": _LazyStage(
+        "tailscale": lazy_callable(
             "cartography.intel.tailscale", "start_tailscale_ingestion"
         ),
-        "jamf": _LazyStage("cartography.intel.jamf", "start_jamf_ingestion"),
-        "pagerduty": _LazyStage(
+        "jamf": lazy_callable("cartography.intel.jamf", "start_jamf_ingestion"),
+        "pagerduty": lazy_callable(
             "cartography.intel.pagerduty", "start_pagerduty_ingestion"
         ),
-        "bbot": _LazyStage("cartography.intel.bbot", "start_bbot_ingestion"),
-        "docker_scout": _LazyStage(
+        "bbot": lazy_callable("cartography.intel.bbot", "start_bbot_ingestion"),
+        "docker_scout": lazy_callable(
             "cartography.intel.docker_scout", "start_docker_scout_ingestion"
         ),
-        "trivy": _LazyStage("cartography.intel.trivy", "start_trivy_ingestion"),
-        "syft": _LazyStage("cartography.intel.syft", "start_syft_ingestion"),
-        "aibom": _LazyStage("cartography.intel.aibom", "start_aibom_ingestion"),
+        "trivy": lazy_callable("cartography.intel.trivy", "start_trivy_ingestion"),
+        "syft": lazy_callable("cartography.intel.syft", "start_syft_ingestion"),
+        "aibom": lazy_callable("cartography.intel.aibom", "start_aibom_ingestion"),
         # Must run after `github` so that the workflows, actions, and repositories
         # that findings attach to already exist.
-        "zizmor": _LazyStage("cartography.intel.zizmor", "start_zizmor_ingestion"),
-        "ubuntu": _LazyStage("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
-        "sentinelone": _LazyStage(
+        "zizmor": lazy_callable("cartography.intel.zizmor", "start_zizmor_ingestion"),
+        "ubuntu": lazy_callable("cartography.intel.ubuntu", "start_ubuntu_ingestion"),
+        "sentinelone": lazy_callable(
             "cartography.intel.sentinelone", "start_sentinelone_ingestion"
         ),
-        "tenable": _LazyStage("cartography.intel.tenable", "start_tenable_ingestion"),
-        "wiz": _LazyStage("cartography.intel.wiz", "start_wiz_ingestion"),
-        "orca": _LazyStage("cartography.intel.orca", "start_orca_ingestion"),
-        "cve_metadata": _LazyStage(
+        "tenable": lazy_callable(
+            "cartography.intel.tenable", "start_tenable_ingestion"
+        ),
+        "wiz": lazy_callable("cartography.intel.wiz", "start_wiz_ingestion"),
+        "orca": lazy_callable("cartography.intel.orca", "start_orca_ingestion"),
+        "cve_metadata": lazy_callable(
             "cartography.intel.cve_metadata", "start_cve_metadata_ingestion"
         ),
-        "slack": _LazyStage("cartography.intel.slack", "start_slack_ingestion"),
-        "spacelift": _LazyStage(
+        "slack": lazy_callable("cartography.intel.slack", "start_slack_ingestion"),
+        "spacelift": lazy_callable(
             "cartography.intel.spacelift", "start_spacelift_ingestion"
         ),
-        "workos": _LazyStage("cartography.intel.workos", "start_workos_ingestion"),
-        "subimage": _LazyStage(
+        "workos": lazy_callable("cartography.intel.workos", "start_workos_ingestion"),
+        "subimage": lazy_callable(
             "cartography.intel.subimage", "start_subimage_ingestion"
         ),
-        "vercel": _LazyStage("cartography.intel.vercel", "start_vercel_ingestion"),
-        "supabase": _LazyStage(
+        "vercel": lazy_callable("cartography.intel.vercel", "start_vercel_ingestion"),
+        "supabase": lazy_callable(
             "cartography.intel.supabase", "start_supabase_ingestion"
         ),
-        "railway": _LazyStage("cartography.intel.railway", "start_railway_ingestion"),
-        "netlify": _LazyStage("cartography.intel.netlify", "start_netlify_ingestion"),
-        "circleci": _LazyStage(
+        "railway": lazy_callable(
+            "cartography.intel.railway", "start_railway_ingestion"
+        ),
+        "netlify": lazy_callable(
+            "cartography.intel.netlify", "start_netlify_ingestion"
+        ),
+        "circleci": lazy_callable(
             "cartography.intel.circleci", "start_circleci_ingestion"
         ),
-        "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
-        "miradore": _LazyStage(
+        "modal": lazy_callable("cartography.intel.modal", "start_modal_ingestion"),
+        "miradore": lazy_callable(
             "cartography.intel.miradore", "start_miradore_ingestion"
         ),
         # Runs after the cloud providers so that stages, external volumes and
         # integrations can attach to the S3 / GCS / Azure resources and IAM roles
         # they point at on the first sync rather than the next one.
-        "snowflake": _LazyStage(
+        "snowflake": lazy_callable(
             "cartography.intel.snowflake", "start_snowflake_ingestion"
         ),
-        "ontology": _LazyStage("cartography.intel.ontology", "run"),
+        "ontology": lazy_callable("cartography.intel.ontology", "run"),
         # Analysis should be the last stage
-        "analysis": _LazyStage("cartography.intel.analysis", "run"),
+        "analysis": lazy_callable("cartography.intel.analysis", "run"),
     }
 )
 
@@ -389,11 +382,6 @@ class Sync:
                     e,
                 )
                 continue
-            logger.debug("Loading module: %s", intel_module_info.name)
-            intel_module = __import__(
-                f"cartography.intel.{intel_module_info.name}",
-                fromlist=[""],
-            )
             for k, v in intel_module.__dict__.items():
                 if not callable(v):
                     continue
