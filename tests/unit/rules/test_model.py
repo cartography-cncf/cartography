@@ -1,5 +1,6 @@
 import pytest
 
+from cartography.rules.spec.model import AnchorValidationCode
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import fanout_risks
 from cartography.rules.spec.model import Framework
@@ -8,6 +9,7 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
 from cartography.rules.spec.model import RESERVED_FINDING_FIELDS
 from cartography.rules.spec.model import returned_aliases
+from cartography.rules.spec.model import validate_anchor
 from cartography.sync import TOP_LEVEL_MODULES
 
 
@@ -255,8 +257,70 @@ def test_fact_rejects_identity_field_not_returned_by_query():
 def test_fact_rejects_asset_id_field_from_a_different_node():
     """The (label, id) anchor must describe one node, not two."""
     query = "MATCH (u:AWSUser) MATCH (r:AWSRole) RETURN r.arn AS user_arn"
-    with pytest.raises(ValueError, match="reads no property off"):
+    with pytest.raises(ValueError, match="exclusively off"):
         Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_fact_rejects_asset_id_field_that_also_reads_a_different_node():
+    query = (
+        "MATCH (u:AWSUser) MATCH (r:AWSRole) "
+        "RETURN coalesce(u.arn, r.arn) AS user_arn"
+    )
+    with pytest.raises(ValueError, match="exclusively off"):
+        Fact(**_fact_kwargs(cypher_query=query))
+
+
+def test_validate_anchor_accepts_id_projected_off_the_labeled_variable():
+    query = "MATCH (u:AWSUser) RETURN u.arn AS user_arn"
+    assert validate_anchor(query, "AWSUser", "user_arn") is None
+
+
+def test_validate_anchor_rejects_empty_label():
+    err = validate_anchor("MATCH (u:AWSUser) RETURN u.arn AS user_arn", "", "user_arn")
+    assert err is not None
+    assert err.code is AnchorValidationCode.EMPTY_LABEL
+
+
+def test_validate_anchor_rejects_empty_id_field():
+    err = validate_anchor("MATCH (u:AWSUser) RETURN u.arn AS user_arn", "AWSUser", None)
+    assert err is not None
+    assert err.code is AnchorValidationCode.EMPTY_ID_FIELD
+
+
+def test_validate_anchor_rejects_id_not_returned():
+    query = "MATCH (u:AWSUser) WITH u, u.arn AS user_arn RETURN u.name AS other"
+    err = validate_anchor(query, "AWSUser", "user_arn")
+    assert err is not None
+    assert err.code is AnchorValidationCode.MISSING_ID_ALIAS
+
+
+def test_validate_anchor_rejects_unbound_label():
+    query = "MATCH (u:AWSUser) RETURN u.arn AS user_arn"
+    err = validate_anchor(query, "UserAccount", "user_arn")
+    assert err is not None
+    assert err.code is AnchorValidationCode.UNBOUND_LABEL
+    assert err.asset_label == "UserAccount"
+
+
+def test_validate_anchor_rejects_id_read_off_a_different_node():
+    query = "MATCH (u:AWSUser) MATCH (r:AWSRole) RETURN r.arn AS user_arn"
+    err = validate_anchor(query, "AWSUser", "user_arn")
+    assert err is not None
+    assert err.code is AnchorValidationCode.ID_NOT_ON_LABELED_VAR
+    assert err.id_expression == "r.arn"
+    assert err.asset_vars == frozenset({"u"})
+
+
+def test_validate_anchor_rejects_id_that_also_reads_a_different_node():
+    query = (
+        "MATCH (u:AWSUser) MATCH (r:AWSRole) "
+        "RETURN coalesce(u.arn, r.arn) AS user_arn"
+    )
+    err = validate_anchor(query, "AWSUser", "user_arn")
+    assert err is not None
+    assert err.code is AnchorValidationCode.ID_NOT_ON_LABELED_VAR
+    assert err.id_expression == "coalesce(u.arn, r.arn)"
+    assert err.asset_vars == frozenset({"u"})
 
 
 def test_fact_ignores_return_inside_a_call_subquery():
