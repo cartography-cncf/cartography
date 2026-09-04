@@ -165,6 +165,7 @@ not need an issue assignment or maintainer permission before starting work.
 1. [Corelight](https://www.corelight.com/)
 1. [SubImage](https://subimage.io)
 1. [Superhuman](https://superhuman.com/)
+1. [CloudSec Network (CSN)](https://www.cloudsecnetwork.com)
 1. {Your company here} :-)
 
 If your organization uses Cartography, please file a PR and update this list. Say hi on Slack too!
