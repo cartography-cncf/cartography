@@ -1,0 +1,3091 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Modal Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Netlify" href="../netlify/index.html" /><link rel="prev" title="Modal Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/modal/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=4f8dd3c3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/modal/schema.html"/>
+  <meta property="og:title" content="Modal Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../huntress/index.html">Huntress</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/config.html">Huntress Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/schema.html">Huntress Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Modal</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">Modal Configuration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../orca/index.html">Orca Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../orca/config.html">Orca Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../orca/schema.html">Orca Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/index.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#modalapitoken">ModalApiToken</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalapp">ModalApp</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalclass">ModalClass</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalcluster">ModalCluster</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modaldict">ModalDict</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modaldomain">ModalDomain</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modaldomaindnsrecord">ModalDomainDNSRecord</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalenvironment">ModalEnvironment</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalenvironmentrole">ModalEnvironmentRole</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalfunction">ModalFunction</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalimage">ModalImage</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalimagetag">ModalImageTag</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalnetworkfilesystem">ModalNetworkFileSystem</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalproxy">ModalProxy</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalproxyip">ModalProxyIP</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalproxytoken">ModalProxyToken</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalqueue">ModalQueue</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalsandbox">ModalSandbox</a><ul>
+<li><a class="reference internal" href="#id33">Properties</a></li>
+<li><a class="reference internal" href="#id34">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalsandboxtunnel">ModalSandboxTunnel</a><ul>
+<li><a class="reference internal" href="#id35">Properties</a></li>
+<li><a class="reference internal" href="#id36">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalsecret">ModalSecret</a><ul>
+<li><a class="reference internal" href="#id37">Properties</a></li>
+<li><a class="reference internal" href="#id38">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalserviceuser">ModalServiceUser</a><ul>
+<li><a class="reference internal" href="#id39">Properties</a></li>
+<li><a class="reference internal" href="#id40">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modaltask">ModalTask</a><ul>
+<li><a class="reference internal" href="#id41">Properties</a></li>
+<li><a class="reference internal" href="#id42">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modaluser">ModalUser</a><ul>
+<li><a class="reference internal" href="#id43">Properties</a></li>
+<li><a class="reference internal" href="#id44">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalvolume">ModalVolume</a><ul>
+<li><a class="reference internal" href="#id45">Properties</a></li>
+<li><a class="reference internal" href="#id46">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalworkspace">ModalWorkspace</a><ul>
+<li><a class="reference internal" href="#id47">Properties</a></li>
+<li><a class="reference internal" href="#id48">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modalworkspacerole">ModalWorkspaceRole</a><ul>
+<li><a class="reference internal" href="#id49">Properties</a></li>
+<li><a class="reference internal" href="#id50">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Modal</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Modal Schema</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/modal/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/modal/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/modal/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/modal/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/modal/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="modal-schema">
+<h1>Modal Schema<a class="headerlink" href="#modal-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    ModalApiToken -- OWNED_BY --&gt; ModalServiceUser
+    ModalClass -- HAS_METHOD --&gt; ModalFunction
+    ModalClass -- WORKLOAD_PARENT --&gt; ModalApp
+    ModalCluster -- WORKLOAD_PARENT --&gt; ModalApp
+    ModalDomain -- HAS_RECORD --&gt; ModalDomainDNSRecord
+    ModalEnvironment -- RESOURCE --&gt; ModalApp
+    ModalEnvironment -- RESOURCE --&gt; ModalClass
+    ModalEnvironment -- RESOURCE --&gt; ModalCluster
+    ModalEnvironment -- RESOURCE --&gt; ModalDict
+    ModalEnvironment -- RESOURCE --&gt; ModalEnvironmentRole
+    ModalEnvironment -- RESOURCE --&gt; ModalFunction
+    ModalEnvironment -- RESOURCE --&gt; ModalImage
+    ModalEnvironment -- RESOURCE --&gt; ModalImageTag
+    ModalEnvironment -- RESOURCE --&gt; ModalNetworkFileSystem
+    ModalEnvironment -- RESOURCE --&gt; ModalProxy
+    ModalEnvironment -- RESOURCE --&gt; ModalProxyIP
+    ModalEnvironment -- RESOURCE --&gt; ModalQueue
+    ModalEnvironment -- RESOURCE --&gt; ModalSandbox
+    ModalEnvironment -- RESOURCE --&gt; ModalSandboxTunnel
+    ModalEnvironment -- RESOURCE --&gt; ModalSecret
+    ModalEnvironment -- RESOURCE --&gt; ModalTask
+    ModalEnvironment -- RESOURCE --&gt; ModalVolume
+    ModalFunction -- WORKLOAD_PARENT --&gt; ModalApp
+    ModalImageTag -- IMAGE --&gt; ModalImage
+    ModalProxy -- HAS_IP --&gt; ModalProxyIP
+    ModalSandbox -- HAS_IMAGE --&gt; ModalImage
+    ModalSandbox -- WORKLOAD_PARENT --&gt; ModalApp
+    ModalSandboxTunnel -- EXPOSE --&gt; ModalSandbox
+    ModalSecret -- CREATED_BY --&gt; ModalUser
+    ModalServiceUser -- CREATED_BY --&gt; ModalUser
+    ModalServiceUser -- HAS_ROLE --&gt; ModalEnvironmentRole
+    ModalTask -- MEMBER_OF --&gt; ModalCluster
+    ModalTask -- WORKLOAD_PARENT --&gt; ModalApp
+    ModalUser -- HAS_ROLE --&gt; ModalEnvironmentRole
+    ModalUser -- HAS_ROLE --&gt; ModalWorkspaceRole
+    ModalUser -- MEMBER_OF --&gt; ModalWorkspace
+    ModalVolume -- CREATED_BY --&gt; ModalUser
+    ModalWorkspace -- RESOURCE --&gt; ModalApiToken
+    ModalWorkspace -- RESOURCE --&gt; ModalDomain
+    ModalWorkspace -- RESOURCE --&gt; ModalDomainDNSRecord
+    ModalWorkspace -- RESOURCE --&gt; ModalEnvironment
+    ModalWorkspace -- RESOURCE --&gt; ModalProxyToken
+    ModalWorkspace -- RESOURCE --&gt; ModalServiceUser
+    ModalWorkspace -- RESOURCE --&gt; ModalWorkspaceRole
+    </pre><section id="modalapitoken">
+<h2>ModalApiToken<a class="headerlink" href="#modalapitoken" title="Link to this heading">#</a></h2>
+<p>Represents a Modal API token (<code class="docutils literal notranslate"><span class="pre">ak-</span></code>) belonging to a service user. Only the token id is stored; the token secret is shown once at creation and is never returned by any read API.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Token ID, e.g. <code class="docutils literal notranslate"><span class="pre">ak-4pE5t96YiNM0svmOjIet7z</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the token was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_used_at</p></td>
+<td><p></p></td>
+<td><p>When the token was last used. Modal tokens do not expire, so this is the only signal that one is dormant.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning service user.</p></td>
+</tr>
+<tr class="row-even"><td><p>token_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Same value, indexed for lookups by credential.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_last_used_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">last_used_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalApiToken)-[:OWNED_BY]-&gt;(:ModalServiceUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:ModalApiToken)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalApiToken)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalapp">
+<h2>ModalApp<a class="headerlink" href="#modalapp" title="Link to this heading">#</a></h2>
+<p>Represents a Modal app: the deployment unit that owns functions, classes, sandboxes and tasks. Enumerated from the private <code class="docutils literal notranslate"><span class="pre">AppList</span></code> RPC, since Modal exposes no public app listing. An ephemeral app (a bare <code class="docutils literal notranslate"><span class="pre">modal</span> <span class="pre">run</span></code>) has no name, only a description; the ontology <code class="docutils literal notranslate"><span class="pre">name</span></code> coalesces the two. <code class="docutils literal notranslate"><span class="pre">_ont_status</span></code> normalises <code class="docutils literal notranslate"><span class="pre">APP_STATE_*</span></code> into the shared set, where a stopped app maps to <code class="docutils literal notranslate"><span class="pre">deleting</span></code> (the same choice made for AWS ECS <code class="docutils literal notranslate"><span class="pre">INACTIVE</span></code>), because the canonical set has no <code class="docutils literal notranslate"><span class="pre">stopped</span></code>.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>App ID, e.g. <code class="docutils literal notranslate"><span class="pre">ap-7fkFcwJ6OVd57wM78ERlH1</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the app was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>App description. The only human label for an unnamed app.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>n_running_tasks</p></td>
+<td><p></p></td>
+<td><p>Number of tasks currently running.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>App name. Null for an ephemeral app.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">APP_STATE_*</span></code> value.</p></td>
+</tr>
+<tr class="row-odd"><td><p>stopped_at</p></td>
+<td><p></p></td>
+<td><p>When the app was stopped, if it was.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalApp)-[:HAS_RUNTIME_IMAGE]-&gt;(:Image)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Workload</span> <span class="pre">HAS_RUNTIME_IMAGE</span> <span class="pre">inventory</span> <span class="pre">analysis</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Workload</span> <span class="pre">HAS_RUNTIME_IMAGE</span> <span class="pre">inventory</span> <span class="pre">analysis</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalClass)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalCluster)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalFunction)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandbox)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalTask)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalclass">
+<h2>ModalClass<a class="headerlink" href="#modalclass" title="Link to this heading">#</a></h2>
+<p>Represents a Modal class, which groups methods sharing a container lifecycle. It carries no ontology label of its own: the runnable units are its methods, which are <code class="docutils literal notranslate"><span class="pre">ModalFunction</span></code> nodes. <code class="docutils literal notranslate"><span class="pre">HAS_METHOD</span></code> is best-effort: it is resolved from the <code class="docutils literal notranslate"><span class="pre">&lt;Class&gt;.</span></code> prefix of the function name, so a function whose prefix matches no known class simply has no edge.</p>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Class ID, e.g. <code class="docutils literal notranslate"><span class="pre">cs-35B2OoyjwFlvFPNjBMCrPK</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning app.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Class name.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalClass)-[:HAS_METHOD]-&gt;(:ModalFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalClass)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalClass)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalcluster">
+<h2>ModalCluster<a class="headerlink" href="#modalcluster" title="Link to this heading">#</a></h2>
+<p>Represents a Modal cluster: the group of tasks making up one multi-node job. This node deliberately carries <strong>no</strong> <code class="docutils literal notranslate"><span class="pre">ComputeCluster</span></code> ontology label. A Modal cluster is not a durable compute substrate like EKS, it is a transient task grouping inside a single app, and the label’s ontology constraints against <code class="docutils literal notranslate"><span class="pre">ComputePod</span></code> and <code class="docutils literal notranslate"><span class="pre">ComputeService</span></code> would conflict with the <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> and <code class="docutils literal notranslate"><span class="pre">WORKLOAD_PARENT</span></code> edges here.</p>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Cluster ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning app.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>started_at</p></td>
+<td><p></p></td>
+<td><p>When the cluster started.</p></td>
+</tr>
+<tr class="row-even"><td><p>task_ids</p></td>
+<td><p></p></td>
+<td><p>IDs of its member tasks. The edge itself is materialised from the task side.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalTask)-[:MEMBER_OF]-&gt;(:ModalCluster)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalCluster)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalCluster)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modaldict">
+<h2>ModalDict<a class="headerlink" href="#modaldict" title="Link to this heading">#</a></h2>
+<p>Represents a Modal Dict: a distributed key-value store scoped to an environment. Only the container is inventoried; its contents are not enumerated. It carries no ontology label. <code class="docutils literal notranslate"><span class="pre">Database</span></code> would be a stretch, since this is not a queryable datastore with its own engine, encryption or backup posture, and the ontology has no key-value-store label, so tagging it would surface it wrongly to cross-provider datastore rules.</p>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Dict ID, e.g. <code class="docutils literal notranslate"><span class="pre">di-F91whmwZVRH92mOiJgNOCT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the Dict was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Dict name.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalDict)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modaldomain">
+<h2>ModalDomain<a class="headerlink" href="#modaldomain" title="Link to this heading">#</a></h2>
+<p>Represents a custom domain attached to a Modal workspace, used to serve web endpoints on your own hostname. <strong>Workspace-scoped</strong>, not environment-scoped: the underlying API call is workspace-wide. Custom domains require a paid Modal add-on. On workspaces without it the API answers <code class="docutils literal notranslate"><span class="pre">UNIMPLEMENTED</span></code>, which Cartography treats as “no domains” rather than an error, so this node type is simply absent there. This node carries no ontology label: <code class="docutils literal notranslate"><span class="pre">DNSZone</span></code> would be wrong (a hostname is not a zone) and <code class="docutils literal notranslate"><span class="pre">Certificate</span></code> would be a one-field stub, since Modal exposes only a status with no issuer or expiry.</p>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Domain ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>certificate_status</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">CERTIFICATE_STATUS_*</span></code> value. A domain stuck <code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, or <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>/<code class="docutils literal notranslate"><span class="pre">REVOKED</span></code>, is serving without a valid certificate.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the domain was added.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain_name</p></td>
+<td><p>Yes</p></td>
+<td><p>The custom hostname.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalDomain)-[:HAS_RECORD]-&gt;(:ModalDomainDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalDomain)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modaldomaindnsrecord">
+<h2>ModalDomainDNSRecord<a class="headerlink" href="#modaldomaindnsrecord" title="Link to this heading">#</a></h2>
+<p>Represents a DNS record Modal asks you to create in order to validate a custom domain. Deliberately <strong>not</strong> labelled <code class="docutils literal notranslate"><span class="pre">DNSRecord</span></code>. These are records Modal <em>requests</em>, meaning desired configuration, not DNS state observed in the wild. Labelling them would feed the DNS record linking analysis entries that may not exist in any zone, producing phantom resolution paths.</p>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;domain_id&gt;/&lt;type&gt;/&lt;name&gt;</span></code>; Modal gives these records no id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning domain.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Record name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">DNS_RECORD_TYPE_*</span></code> value: A, TXT or CNAME.</p></td>
+</tr>
+<tr class="row-even"><td><p>value</p></td>
+<td><p></p></td>
+<td><p>Record value.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalDomain)-[:HAS_RECORD]-&gt;(:ModalDomainDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalDomainDNSRecord)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalenvironment">
+<h2>ModalEnvironment<a class="headerlink" href="#modalenvironment" title="Link to this heading">#</a></h2>
+<p>Represents a Modal environment: a namespace within a workspace. Every named object (app, secret, volume, …) belongs to exactly one environment, and every Modal listing call is keyed by environment, which makes the environment the cleanup scope for all environment-scoped Modal nodes. <code class="docutils literal notranslate"><span class="pre">ComputeNamespace</span></code> would be the closer semantic fit, but the ontology constrains <code class="docutils literal notranslate"><span class="pre">ComputeService</span></code>/<code class="docutils literal notranslate"><span class="pre">ComputePod</span></code> to <code class="docutils literal notranslate"><span class="pre">ComputeNamespace</span></code> edges to <code class="docutils literal notranslate"><span class="pre">WORKLOAD_PARENT</span></code> in both directions, which the <code class="docutils literal notranslate"><span class="pre">RESOURCE</span></code> sub-resource edge would violate. The environment name is instead exposed to the ontology as <code class="docutils literal notranslate"><span class="pre">_ont_namespace</span></code> on the workload nodes.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Environment ID, e.g. <code class="docutils literal notranslate"><span class="pre">en-C3umado26sLFrhYfZjoWjL</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the environment was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>current_concurrent_gpus</p></td>
+<td><p></p></td>
+<td><p>GPUs currently in use.</p></td>
+</tr>
+<tr class="row-odd"><td><p>current_concurrent_tasks</p></td>
+<td><p></p></td>
+<td><p>Tasks currently running.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_type</p></td>
+<td><p></p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">ENVIRONMENT_TYPE_*</span></code> value.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_default</p></td>
+<td><p></p></td>
+<td><p>Whether this is the workspace’s default environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_managed</p></td>
+<td><p></p></td>
+<td><p>Whether the environment is managed by Modal.</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_concurrent_gpus</p></td>
+<td><p></p></td>
+<td><p>Concurrency limit on GPUs.</p></td>
+</tr>
+<tr class="row-even"><td><p>max_concurrent_tasks</p></td>
+<td><p></p></td>
+<td><p>Concurrency limit on tasks.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Environment name.</p></td>
+</tr>
+<tr class="row-even"><td><p>spend_limit_reached</p></td>
+<td><p></p></td>
+<td><p>Whether the spend limit has been hit. Workloads are refused when true. Cost figures themselves are out of scope.</p></td>
+</tr>
+<tr class="row-odd"><td><p>webhook_suffix</p></td>
+<td><p>Yes</p></td>
+<td><p>Suffix appended to generated web endpoint URLs in this environment.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalApp)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalClass)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalCluster)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalDict)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalImageTag)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalNetworkFileSystem)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalProxy)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalProxyIP)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalQueue)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSandbox)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSandboxTunnel)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSecret)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalTask)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalVolume)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalEnvironment)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalenvironmentrole">
+<h2>ModalEnvironmentRole<a class="headerlink" href="#modalenvironmentrole" title="Link to this heading">#</a></h2>
+<p>Represents one of Modal’s builtin per-environment roles (<code class="docutils literal notranslate"><span class="pre">viewer</span></code>, <code class="docutils literal notranslate"><span class="pre">contributor</span></code>, <code class="docutils literal notranslate"><span class="pre">no-access</span></code>). Derived from the role enum; id is synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;environment_id&gt;/&lt;role&gt;</span></code>.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-permissionrole"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PermissionRole</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;environment_id&gt;/&lt;role&gt;</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">viewer</span></code>, <code class="docutils literal notranslate"><span class="pre">contributor</span></code> or <code class="docutils literal notranslate"><span class="pre">no-access</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>scope</p></td>
+<td><p></p></td>
+<td><p>Always <code class="docutils literal notranslate"><span class="pre">environment</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_scope</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalServiceUser)-[:HAS_ROLE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:HAS_ROLE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalfunction">
+<h2>ModalFunction<a class="headerlink" href="#modalfunction" title="Link to this heading">#</a></h2>
+<p>Represents a deployed Modal function, including web endpoints. Enumerated per app from the private <code class="docutils literal notranslate"><span class="pre">AppGetLayout</span></code> RPC. <strong>Every non-null <code class="docutils literal notranslate"><span class="pre">web_url</span></code> is reachable from the public internet.</strong> Cartography cannot tell you whether it is protected: Modal’s <code class="docutils literal notranslate"><span class="pre">requires_proxy_auth</span></code> is write-only and is not returned by any read API. Treat such endpoints as potentially unauthenticated and confirm out of band. For the same reason, a deployed function’s GPU, CPU, memory, timeout, region, cloud, mounted secrets and volumes, <code class="docutils literal notranslate"><span class="pre">block_network</span></code>, <code class="docutils literal notranslate"><span class="pre">untrusted</span></code>, proxy and schedule are <strong>absent from this node</strong>: Modal only accepts them at deploy time and never returns them. In particular this means <code class="docutils literal notranslate"><span class="pre">(:ModalFunction)-[:USES_SECRET]-&gt;(:ModalSecret)</span></code> cannot be built.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-function"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Function</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Function ID, e.g. <code class="docutils literal notranslate"><span class="pre">fu-Z8U7DHNMEog5ogYErpRIW8</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning app.</p></td>
+</tr>
+<tr class="row-even"><td><p>definition_id</p></td>
+<td><p></p></td>
+<td><p>Function definition ID, when Modal returns one.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> when the function is a web endpoint. Whether it requires auth is unknowable, since Modal’s <code class="docutils literal notranslate"><span class="pre">requires_proxy_auth</span></code> is write-only, so this is the conservative reading.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet_type</p></td>
+<td><p>Yes</p></td>
+<td><p>How it is exposed. Always <code class="docutils literal notranslate"><span class="pre">direct</span></code>, since the web URL is on the function itself.</p></td>
+</tr>
+<tr class="row-even"><td><p>function_type</p></td>
+<td><p></p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">FUNCTION_TYPE_*</span></code> value.</p></td>
+</tr>
+<tr class="row-odd"><td><p>input_plane_region</p></td>
+<td><p></p></td>
+<td><p>Region of that input plane.</p></td>
+</tr>
+<tr class="row-even"><td><p>input_plane_url</p></td>
+<td><p></p></td>
+<td><p>Input plane endpoint serving this function.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_method</p></td>
+<td><p></p></td>
+<td><p>Whether Modal reports this function as a class method.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_web_endpoint</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether the function is exposed over HTTP.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Function name. A class method is named <code class="docutils literal notranslate"><span class="pre">&lt;Class&gt;.&lt;method&gt;</span></code>, and a class service function <code class="docutils literal notranslate"><span class="pre">&lt;Class&gt;.*</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>web_url</p></td>
+<td><p>Yes</p></td>
+<td><p>Public URL if this is a web endpoint, else null. Protection status is unknowable, see above.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_deployment_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalClass)-[:HAS_METHOD]-&gt;(:ModalFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalFunction)-[:RESOLVED_IMAGE]-&gt;(:Image)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Function</span> <span class="pre">RESOLVED_IMAGE</span> <span class="pre">analysis</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalFunction)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalFunction)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalimage">
+<h2>ModalImage<a class="headerlink" href="#modalimage" title="Link to this heading">#</a></h2>
+<p>Represents a named, published Modal image. This node deliberately carries <strong>no</strong> <code class="docutils literal notranslate"><span class="pre">Image</span></code> ontology label. That label means a concrete, digest-addressed single-platform image and drives the <code class="docutils literal notranslate"><span class="pre">RESOLVED_IMAGE</span></code> / <code class="docutils literal notranslate"><span class="pre">HAS_RUNTIME_IMAGE</span></code> analysis; a Modal image id is neither a digest nor a pull URI, so tagging it would inject nodes that can never be joined against a registry image. Only <strong>named</strong> images are enumerable. Anonymous build images (the common case, such as an inline <code class="docutils literal notranslate"><span class="pre">Image.debian_slim()</span></code>) are not returned by the API and are therefore absent, which is why a sandbox’s <code class="docutils literal notranslate"><span class="pre">HAS_IMAGE</span></code> edge often does not resolve. Modal’s API lists <em>tags</em>, not images, so one image published under several tags appears several times. This node is deduplicated by image id and the tags are separate <code class="docutils literal notranslate"><span class="pre">ModalImageTag</span></code> nodes.</p>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Image ID, e.g. <code class="docutils literal notranslate"><span class="pre">im-m0JhBY9qYlH5iisTrhhftT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the image was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the image was last updated.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandbox)-[:HAS_IMAGE]-&gt;(:ModalImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalImageTag)-[:IMAGE]-&gt;(:ModalImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalImage)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalimagetag">
+<h2>ModalImageTag<a class="headerlink" href="#modalimagetag" title="Link to this heading">#</a></h2>
+<p>Represents a named pointer to a Modal image. Several tags can point at the same image, which is why they are separate nodes: keying on the image alone made every tag but the last vanish on load. This mirrors AWS ECR, GitHub GHCR, GitLab, GCP Artifact Registry and Scaleway, which all fan out one tag node per <code class="docutils literal notranslate"><span class="pre">(repository,</span> <span class="pre">tag)</span></code> pair. Deliberately <strong>not</strong> labelled with the ontology <code class="docutils literal notranslate"><span class="pre">ImageTag</span></code>, for the same reason <code class="docutils literal notranslate"><span class="pre">ModalImage</span></code> is not labelled <code class="docutils literal notranslate"><span class="pre">Image</span></code>. That pair exists so the supply-chain matchers can traverse <code class="docutils literal notranslate"><span class="pre">(:Image)&lt;-[:IMAGE]-(:ImageTag)&lt;-[:REPO_IMAGE]-(:ContainerRegistry)</span></code> and join on a digest. Modal’s tag listing returns no digest, so a labelled Modal tag would be a dangling pointer in every cross-provider image query. The structural shape is kept; only the ontology claim is withheld.</p>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;image_id&gt;:&lt;tag&gt;</span></code>; Modal gives tags no id, and exposes no registry URI to use as the repository part.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the tag was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>image_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the image it points at.</p></td>
+</tr>
+<tr class="row-even"><td><p>revision_id</p></td>
+<td><p></p></td>
+<td><p>Revision of the tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tag</p></td>
+<td><p>Yes</p></td>
+<td><p>The tag.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>When the tag was last updated.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalImageTag)-[:IMAGE]-&gt;(:ModalImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalImageTag)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalnetworkfilesystem">
+<h2>ModalNetworkFileSystem<a class="headerlink" href="#modalnetworkfilesystem" title="Link to this heading">#</a></h2>
+<p>Represents a Modal network file system: the older shared-filesystem primitive, superseded by Volume. Still inventoried because existing workspaces have them, and an unnoticed legacy share holding data is exactly what an inventory should surface.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-filestorage"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">FileStorage</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Share ID, e.g. <code class="docutils literal notranslate"><span class="pre">sv-1AsDfGhJkLzXcVbNmQwErT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cloud_provider</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">CLOUD_PROVIDER_*</span></code> value: AWS, GCP, OCI or AUTO. This names a provider, not a region, which is why it is not mapped onto the ontology <code class="docutils literal notranslate"><span class="pre">location</span></code> field.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the share was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Share name.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalNetworkFileSystem)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalproxy">
+<h2>ModalProxy<a class="headerlink" href="#modalproxy" title="Link to this heading">#</a></h2>
+<p>Represents a Modal proxy, which gives workloads a stable set of egress IPs so a third party can allowlist them. The underlying API call is workspace-wide and tags each proxy with its environment, so Cartography filters per environment during the sync. Which functions route through it is not graphable: <code class="docutils literal notranslate"><span class="pre">Function.proxy_id</span></code> is write-only, like every other deploy-time function setting.</p>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Proxy ID, e.g. <code class="docutils literal notranslate"><span class="pre">pr-7YhNjUmIkOlPaQsWdEfRgT</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the proxy was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Proxy name.</p></td>
+</tr>
+<tr class="row-even"><td><p>region</p></td>
+<td><p>Yes</p></td>
+<td><p>Region the proxy egresses from.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalProxy)-[:HAS_IP]-&gt;(:ModalProxyIP)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalProxy)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalproxyip">
+<h2>ModalProxyIP<a class="headerlink" href="#modalproxyip" title="Link to this heading">#</a></h2>
+<p>Represents one egress IP of a Modal proxy. Not promoted to the canonical ontology <code class="docutils literal notranslate"><span class="pre">PublicIP</span></code> in this version: that would mean editing the shared public IP model to add a <code class="docutils literal notranslate"><span class="pre">RESERVED_BY</span></code> relationship, which does not belong in a new-provider change. Worth a follow-up, since egress-allowlist questions are exactly what a canonical <code class="docutils literal notranslate"><span class="pre">PublicIP</span></code> is for.</p>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;proxy_id&gt;/&lt;ip_address&gt;</span></code>; Modal gives these no id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the IP was allocated.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_address</p></td>
+<td><p>Yes</p></td>
+<td><p>The egress IP.</p></td>
+</tr>
+<tr class="row-even"><td><p>proxy_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning proxy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">PROXY_IP_STATUS_*</span></code> value: CREATING, ONLINE, TERMINATED or UNHEALTHY.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalProxy)-[:HAS_IP]-&gt;(:ModalProxyIP)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalProxyIP)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalproxytoken">
+<h2>ModalProxyToken<a class="headerlink" href="#modalproxytoken" title="Link to this heading">#</a></h2>
+<p>Represents a Modal proxy auth token (<code class="docutils literal notranslate"><span class="pre">wk-</span></code>), used to authenticate to web endpoints declared with proxy auth. This is a different credential family from API tokens and the two cannot be interchanged. Cartography can enumerate proxy tokens but <strong>not</strong> which endpoints require them: <code class="docutils literal notranslate"><span class="pre">requires_proxy_auth</span></code> is write-only in Modal’s API.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Proxy token ID, e.g. <code class="docutils literal notranslate"><span class="pre">wk-5TgBnHyUjMkIoLpQaZwSxE</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the token was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>scoped</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether the token is restricted to specific environments. An unscoped token authenticates against every proxy-auth-protected endpoint in the workspace, so this is the blast-radius signal.</p></td>
+</tr>
+<tr class="row-odd"><td><p>token_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Same value, indexed.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">token_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:ModalProxyToken)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalProxyToken)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalqueue">
+<h2>ModalQueue<a class="headerlink" href="#modalqueue" title="Link to this heading">#</a></h2>
+<p>Represents a Modal Queue: a distributed FIFO queue scoped to an environment. Only the container is inventoried; its contents are not enumerated. It carries no ontology label, the ontology having no queue or messaging concept to normalise it to.</p>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Queue ID, e.g. <code class="docutils literal notranslate"><span class="pre">qu-kbM1N097wnpOSJgRjiwXvk</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the Queue was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Queue name.</p></td>
+</tr>
+<tr class="row-even"><td><p>num_partitions</p></td>
+<td><p></p></td>
+<td><p>Number of partitions, if reported.</p></td>
+</tr>
+<tr class="row-odd"><td><p>total_size</p></td>
+<td><p></p></td>
+<td><p>Current queue depth, if reported.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalQueue)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalsandbox">
+<h2>ModalSandbox<a class="headerlink" href="#modalsandbox" title="Link to this heading">#</a></h2>
+<p>Represents a running Modal sandbox: an ad-hoc container, commonly used to run untrusted or agent-generated code. Only <strong>live</strong> sandboxes are ingested; finished ones are ephemeral and would otherwise accumulate forever. Unlike functions, sandboxes <strong>do</strong> expose their resource allocation, regions and tunnels. Modal reports no state field, so <code class="docutils literal notranslate"><span class="pre">state</span></code> is derived from the task result plus readiness: <code class="docutils literal notranslate"><span class="pre">PENDING</span></code> and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> are synthetic values, the rest are raw <code class="docutils literal notranslate"><span class="pre">GENERIC_STATUS_*</span></code> values. Modal has two sandbox generations and <strong>the ordinary listing returns only v1</strong>: its docs state that “V2 sandboxes created with this method are not currently returned by <code class="docutils literal notranslate"><span class="pre">client.sandboxes.list()</span></code>”. Cartography therefore also calls the v2 listing, which is per app rather than per environment, so both generations appear. Modal reports no version field either, so <code class="docutils literal notranslate"><span class="pre">sandbox_version</span></code> is derived from the shape of the id. v2 is still opt-in at the time of writing, so most workspaces have none. A long <code class="docutils literal notranslate"><span class="pre">timeout_secs</span></code> combined with an exposed tunnel is the sharpest exposure signal on this node. its forwarded ports. <code class="docutils literal notranslate"><span class="pre">HAS_IMAGE</span></code> only resolves when the sandbox runs a <em>named</em> image, since anonymous build images are not enumerable.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-container"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Container</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id33">
+<h3>Properties<a class="headerlink" href="#id33" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Sandbox ID, e.g. <code class="docutils literal notranslate"><span class="pre">sb-iSd0kw3efjqPw0yPVelPit</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning app.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the sandbox was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>ephemeral_disk_mb</p></td>
+<td><p></p></td>
+<td><p>Ephemeral disk in MB, if set.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> when the sandbox has at least one tunnel, meaning a forwarded port is reachable from the public internet.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet_type</p></td>
+<td><p>Yes</p></td>
+<td><p>How it is exposed. Always <code class="docutils literal notranslate"><span class="pre">direct</span></code>. Whether a given tunnel terminates TLS is on <code class="docutils literal notranslate"><span class="pre">ModalSandboxTunnel.has_unencrypted_endpoint</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>gpu_type</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">GPU_TYPE_*</span></code> value, null for a CPU-only sandbox.</p></td>
+</tr>
+<tr class="row-even"><td><p>idle_timeout_secs</p></td>
+<td><p></p></td>
+<td><p>Idle timeout in seconds, if set.</p></td>
+</tr>
+<tr class="row-odd"><td><p>image_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the image it runs.</p></td>
+</tr>
+<tr class="row-even"><td><p>memory_mb</p></td>
+<td><p></p></td>
+<td><p>Requested memory in MB.</p></td>
+</tr>
+<tr class="row-odd"><td><p>memory_mb_max</p></td>
+<td><p></p></td>
+<td><p>Memory limit in MB, if set.</p></td>
+</tr>
+<tr class="row-even"><td><p>milli_cpu</p></td>
+<td><p></p></td>
+<td><p>Requested CPU in millicores.</p></td>
+</tr>
+<tr class="row-odd"><td><p>milli_cpu_max</p></td>
+<td><p></p></td>
+<td><p>CPU limit in millicores, if set.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Sandbox name, if one was given.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ready_at</p></td>
+<td><p></p></td>
+<td><p>When the sandbox became ready. Null while still starting.</p></td>
+</tr>
+<tr class="row-even"><td><p>region</p></td>
+<td><p>Yes</p></td>
+<td><p>Set only when exactly one region is pinned, so it can join the ontology’s scalar region. Null for a multi-region sandbox.</p></td>
+</tr>
+<tr class="row-odd"><td><p>regions</p></td>
+<td><p></p></td>
+<td><p>Regions the sandbox may run in.</p></td>
+</tr>
+<tr class="row-even"><td><p>sandbox_version</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">v1</span></code> or <code class="docutils literal notranslate"><span class="pre">v2</span></code>, derived from the id shape. The two are listed by different API calls and support different operations.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code>, or a raw <code class="docutils literal notranslate"><span class="pre">GENERIC_STATUS_*</span></code> value.</p></td>
+</tr>
+<tr class="row-even"><td><p>tags</p></td>
+<td><p></p></td>
+<td><p>Sandbox tags, flattened to <code class="docutils literal notranslate"><span class="pre">key=value</span></code> strings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>timeout_secs</p></td>
+<td><p></p></td>
+<td><p>Hard lifetime in seconds.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_memory</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">memory_mb</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_namespace</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">environment_name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_region</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">region</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_state</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id34">
+<h3>Relationships<a class="headerlink" href="#id34" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandboxTunnel)-[:EXPOSE]-&gt;(:ModalSandbox)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandbox)-[:HAS_IMAGE]-&gt;(:ModalImage)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandbox)-[:RESOLVED_IMAGE]-&gt;(:Image)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Container</span> <span class="pre">RESOLVED_IMAGE</span> <span class="pre">analysis</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSandbox)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandbox)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalsandboxtunnel">
+<h2>ModalSandboxTunnel<a class="headerlink" href="#modalsandboxtunnel" title="Link to this heading">#</a></h2>
+<p>Represents a forwarded port on a running sandbox, reachable from the public internet. This is the main inbound exposure surface of a Modal sandbox.</p>
+<section id="id35">
+<h3>Properties<a class="headerlink" href="#id35" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;sandbox_id&gt;/&lt;container_port&gt;</span></code>; Modal gives tunnels no id.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>container_port</p></td>
+<td><p></p></td>
+<td><p>Port inside the container.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_unencrypted_endpoint</p></td>
+<td><p>Yes</p></td>
+<td><p>Precomputed flag so cleartext exposure is directly queryable.</p></td>
+</tr>
+<tr class="row-even"><td><p>host</p></td>
+<td><p>Yes</p></td>
+<td><p>Public TLS hostname.</p></td>
+</tr>
+<tr class="row-odd"><td><p>port</p></td>
+<td><p></p></td>
+<td><p>Public TLS port.</p></td>
+</tr>
+<tr class="row-even"><td><p>sandbox_id</p></td>
+<td><p></p></td>
+<td><p>ID of the exposing sandbox.</p></td>
+</tr>
+<tr class="row-odd"><td><p>unencrypted_host</p></td>
+<td><p>Yes</p></td>
+<td><p>Set only for a tunnel opened on an unencrypted port. Traffic to it is cleartext over the public internet.</p></td>
+</tr>
+<tr class="row-even"><td><p>unencrypted_port</p></td>
+<td><p></p></td>
+<td><p>The unencrypted port, if any.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id36">
+<h3>Relationships<a class="headerlink" href="#id36" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSandboxTunnel)-[:EXPOSE]-&gt;(:ModalSandbox)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSandboxTunnel)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalsecret">
+<h2>ModalSecret<a class="headerlink" href="#modalsecret" title="Link to this heading">#</a></h2>
+<p>Represents a Modal secret. Only metadata is ingested. <strong>Modal returns no secret values through any read API</strong>, so Cartography cannot and does not store them. There is deliberately no <code class="docutils literal notranslate"><span class="pre">USES_SECRET</span></code> edge either: <code class="docutils literal notranslate"><span class="pre">Function.secret_ids</span></code> is write-only, so which apps or functions consume a given secret is not obtainable and can only be determined from source code. <code class="docutils literal notranslate"><span class="pre">last_used_at</span></code> is the single aggregate signal that a secret is still in use. <code class="docutils literal notranslate"><span class="pre">CREATED_BY</span></code> is best-effort: Modal reports the creator only as a workspace username, which Cartography resolves to a <code class="docutils literal notranslate"><span class="pre">ModalUser</span></code> id against the members of the workspace being synced. Matching on that id rather than on a display name is what keeps the edge from crossing tenant boundaries, since display names are not globally unique. Absent when the creator is no longer a member.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id37">
+<h3>Properties<a class="headerlink" href="#id37" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Secret ID, e.g. <code class="docutils literal notranslate"><span class="pre">st-poEHPwc7kwkkLwrnaVPjTn</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the secret was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_by</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace username of the creator, not an email.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_used_at</p></td>
+<td><p></p></td>
+<td><p>When the secret was last read by a workload. Null if never.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Secret name.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id38">
+<h3>Relationships<a class="headerlink" href="#id38" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSecret)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalSecret)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalserviceuser">
+<h2>ModalServiceUser<a class="headerlink" href="#modalserviceuser" title="Link to this heading">#</a></h2>
+<p>Represents a Modal service user: a machine identity that owns exactly one API token. This is the recommended identity to run Cartography under. was created by a member. <code class="docutils literal notranslate"><span class="pre">CREATED_BY</span></code> is best-effort: Modal reports the creator only as a workspace username, which the transform resolves against this workspace’s members to a <code class="docutils literal notranslate"><span class="pre">ModalUser</span></code> id. The edge is simply absent when no member matches.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-serviceaccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ServiceAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id39">
+<h3>Properties<a class="headerlink" href="#id39" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Service user ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the service user was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_by</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace username of the creator, not an email.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Service user name.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id40">
+<h3>Relationships<a class="headerlink" href="#id40" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalServiceUser)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalServiceUser)-[:HAS_ROLE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalApiToken)-[:OWNED_BY]-&gt;(:ModalServiceUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalServiceUser)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modaltask">
+<h2>ModalTask<a class="headerlink" href="#modaltask" title="Link to this heading">#</a></h2>
+<p>Represents a running Modal container task.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computepod"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputePod</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id41">
+<h3>Properties<a class="headerlink" href="#id41" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Task ID, e.g. <code class="docutils literal notranslate"><span class="pre">ta-01KYQX24W4D7NW306JQ5D98X7S</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>app_description</p></td>
+<td><p></p></td>
+<td><p>Description of the owning app.</p></td>
+</tr>
+<tr class="row-even"><td><p>app_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning app.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cluster_id</p></td>
+<td><p></p></td>
+<td><p>ID of the cluster it belongs to, if any.</p></td>
+</tr>
+<tr class="row-even"><td><p>enqueued_at</p></td>
+<td><p></p></td>
+<td><p>When the task was enqueued.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>started_at</p></td>
+<td><p></p></td>
+<td><p>When the task started running.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_namespace</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">environment_name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id42">
+<h3>Relationships<a class="headerlink" href="#id42" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalTask)-[:MEMBER_OF]-&gt;(:ModalCluster)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalTask)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalTask)-[:WORKLOAD_PARENT]-&gt;(:ModalApp)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modaluser">
+<h2>ModalUser<a class="headerlink" href="#modaluser" title="Link to this heading">#</a></h2>
+<p>Represents a Modal user account. A Modal user is a <strong>shared identity</strong>: the same person keeps the same <code class="docutils literal notranslate"><span class="pre">us-...</span></code> id across every workspace they belong to. This node therefore has <strong>no sub-resource relationship and no node relationships</strong>, following <code class="docutils literal notranslate"><span class="pre">RailwayUser</span></code> and <code class="docutils literal notranslate"><span class="pre">GitHubUser</span></code>. Marking it as owned by one workspace would let that workspace’s cleanup <code class="docutils literal notranslate"><span class="pre">DETACH</span> <span class="pre">DELETE</span></code> a person who merely left it, destroying the other workspaces’ memberships; and relationship cleanup on a schema without a sub-resource runs unscoped, which would delete other workspaces’ edges before they could refresh them. The workspace edges are MatchLinks instead, scoped to the workspace being synced. The accepted cost: a <code class="docutils literal notranslate"><span class="pre">ModalUser</span></code> node is never deleted, so someone who left every workspace lingers as a node with no <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> edge. An orphan node is a much smaller problem than destroying a live workspace’s data. Only person-level fields live here. The membership-level ones (role, join date, removal date) are per-workspace and ride on the <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> relationship. <code class="docutils literal notranslate"><span class="pre">_ont_inactive</span></code> and <code class="docutils literal notranslate"><span class="pre">_ont_lastactivity</span></code> are deliberately <strong>not</strong> mapped for the same reason: Modal reports both per membership, so mapping them would mark a user removed from one workspace as globally inactive. <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> carries the membership: <code class="docutils literal notranslate"><span class="pre">member_id</span></code>, <code class="docutils literal notranslate"><span class="pre">member_role</span></code>, <code class="docutils literal notranslate"><span class="pre">joined_at</span></code>, <code class="docutils literal notranslate"><span class="pre">last_active_at</span></code> and <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>. <code class="docutils literal notranslate"><span class="pre">member_role</span></code> is deliberately duplicated as the <code class="docutils literal notranslate"><span class="pre">HAS_ROLE</span></code> edge to a <code class="docutils literal notranslate"><span class="pre">ModalWorkspaceRole</span></code> node, which is what the cross-provider <code class="docutils literal notranslate"><span class="pre">UserAccount</span> <span class="pre">-&gt;</span> <span class="pre">PermissionRole</span></code> rules consume.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id43">
+<h3>Properties<a class="headerlink" href="#id43" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Global user ID, e.g. <code class="docutils literal notranslate"><span class="pre">us-ydIZVCWluEtzFTbpJvjHcK</span></code>. The same across every workspace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>avatar_url</p></td>
+<td><p></p></td>
+<td><p>Avatar URL.</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name, which is also the workspace username Modal uses to attribute object creation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>Member email address.</p></td>
+</tr>
+<tr class="row-even"><td><p>identity_provider_type</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IDENTITY_PROVIDER_TYPE_GITHUB</span></code>, <code class="docutils literal notranslate"><span class="pre">_OKTA</span></code> or <code class="docutils literal notranslate"><span class="pre">_GOOGLE_OAUTH</span></code>. A non-SSO provider in an SSO-managed workspace is worth alerting on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>idp_external_id</p></td>
+<td><p></p></td>
+<td><p>The user’s ID at the identity provider.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">display_name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_username</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">display_name</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id44">
+<h3>Relationships<a class="headerlink" href="#id44" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalSecret)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalServiceUser)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalVolume)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:HAS_ROLE]-&gt;(:ModalEnvironmentRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:HAS_ROLE]-&gt;(:ModalWorkspaceRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:MEMBER_OF]-&gt;(:ModalWorkspace)</span></code></p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>deleted_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>joined_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">joined_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_active_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">last_active_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>member_id</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">member_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>member_role</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">member_role</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="modalvolume">
+<h2>ModalVolume<a class="headerlink" href="#modalvolume" title="Link to this heading">#</a></h2>
+<p>Represents a Modal volume: a persistent distributed filesystem that many containers can mount at once. Which workloads mount it is <strong>not</strong> graphable: <code class="docutils literal notranslate"><span class="pre">Function.volume_mounts</span></code> is write-only, the same limitation as secrets.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-filestorage"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">FileStorage</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id45">
+<h3>Properties<a class="headerlink" href="#id45" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Volume ID, e.g. <code class="docutils literal notranslate"><span class="pre">vo-Fq2DSfh5sU2E9kQ6R9oDrj</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>When the volume was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_by</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace username of the creator.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the owning environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Volume name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p>Yes</p></td>
+<td><p>Raw <code class="docutils literal notranslate"><span class="pre">VOLUME_FS_VERSION_*</span></code> value. V1 is the older filesystem generation.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id46">
+<h3>Relationships<a class="headerlink" href="#id46" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalVolume)-[:CREATED_BY]-&gt;(:ModalUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalEnvironment)-[:RESOURCE]-&gt;(:ModalVolume)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalworkspace">
+<h2>ModalWorkspace<a class="headerlink" href="#modalworkspace" title="Link to this heading">#</a></h2>
+<p>Represents a Modal workspace, the top of the Modal hierarchy. One workspace is derived from the API token used to sync, via <code class="docutils literal notranslate"><span class="pre">TokenInfoGet</span></code>. Because a workspace is derived from the credential rather than enumerated, this node has no sub-resource relationship and is never subject to a cleanup job: deleting it globally would remove a sibling workspace ingested by a second token into the same graph.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id47">
+<h3>Properties<a class="headerlink" href="#id47" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace ID, e.g. <code class="docutils literal notranslate"><span class="pre">ac-DyLbE2VtEfgvSEhzMQAOcP</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace display name.</p></td>
+</tr>
+<tr class="row-even"><td><p>slug</p></td>
+<td><p>Yes</p></td>
+<td><p>Workspace URL slug. Web endpoint hostnames embed it.</p></td>
+</tr>
+<tr class="row-odd"><td><p>synced_with_principal_id</p></td>
+<td><p></p></td>
+<td><p>ID of the user or service user that owns the sync token.</p></td>
+</tr>
+<tr class="row-even"><td><p>synced_with_principal_name</p></td>
+<td><p></p></td>
+<td><p>Name of that principal.</p></td>
+</tr>
+<tr class="row-odd"><td><p>synced_with_principal_type</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">user</span></code> or <code class="docutils literal notranslate"><span class="pre">service_user</span></code>. Modal has no read-only token scope, so this records how privileged the sync credential was.</p></td>
+</tr>
+<tr class="row-even"><td><p>synced_with_token_expires_at</p></td>
+<td><p></p></td>
+<td><p>Token expiry, if any. Modal API tokens do not normally expire.</p></td>
+</tr>
+<tr class="row-odd"><td><p>synced_with_token_id</p></td>
+<td><p></p></td>
+<td><p>ID of the API token that performed the sync.</p></td>
+</tr>
+<tr class="row-even"><td><p>synced_with_token_name</p></td>
+<td><p></p></td>
+<td><p>Name of that token.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id48">
+<h3>Relationships<a class="headerlink" href="#id48" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:MEMBER_OF]-&gt;(:ModalWorkspace)</span></code></p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>deleted_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">deleted_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>joined_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">joined_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_active_at</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">last_active_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>member_id</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">member_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>member_role</p></td>
+<td><p>Value sourced from <code class="docutils literal notranslate"><span class="pre">member_role</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalApiToken)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalDomain)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalDomainDNSRecord)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalEnvironment)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalProxyToken)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalServiceUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalWorkspaceRole)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="modalworkspacerole">
+<h2>ModalWorkspaceRole<a class="headerlink" href="#modalworkspacerole" title="Link to this heading">#</a></h2>
+<p>Represents one of Modal’s builtin workspace roles (<code class="docutils literal notranslate"><span class="pre">member</span></code>, <code class="docutils literal notranslate"><span class="pre">manager</span></code>, <code class="docutils literal notranslate"><span class="pre">owner</span></code>). Modal has no role API object, so these nodes are derived from the role enum and their id is synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;workspace_id&gt;/&lt;role&gt;</span></code>. Modelling roles as nodes rather than as a property on the member is what lets Modal RBAC participate in cross-provider <code class="docutils literal notranslate"><span class="pre">HAS_ROLE</span></code> rules.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-permissionrole"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PermissionRole</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id49">
+<h3>Properties<a class="headerlink" href="#id49" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Synthesised as <code class="docutils literal notranslate"><span class="pre">&lt;workspace_id&gt;/&lt;role&gt;</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">member</span></code>, <code class="docutils literal notranslate"><span class="pre">manager</span></code> or <code class="docutils literal notranslate"><span class="pre">owner</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>scope</p></td>
+<td><p></p></td>
+<td><p>Always <code class="docutils literal notranslate"><span class="pre">workspace</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_scope</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Property generated by the ontology mapping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id50">
+<h3>Relationships<a class="headerlink" href="#id50" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalUser)-[:HAS_ROLE]-&gt;(:ModalWorkspaceRole)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:ModalWorkspace)-[:RESOURCE]-&gt;(:ModalWorkspaceRole)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Modal Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../netlify/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Netlify</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+      <script src="../../_static/expand-intel-modules.js?v=8f45ed9c"></script></body>
+</html>

@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Semgrep Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Semgrep Analysis" href="analysis.html" /><link rel="prev" title="Semgrep Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/semgrep/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=4f8dd3c3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/semgrep/schema.html"/>
+  <meta property="og:title" content="Semgrep Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../huntress/index.html">Huntress</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/config.html">Huntress Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/schema.html">Huntress Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../orca/index.html">Orca Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../orca/config.html">Orca Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../orca/schema.html">Orca Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../railway/index.html">Railway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../railway/config.html">Railway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../railway/schema.html">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Semgrep</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/index.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#semgrepdeployment">SemgrepDeployment</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepfindingassistant">SemgrepFindingAssistant</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepgolibrary">SemgrepGoLibrary</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepnpmlibrary">SemgrepNpmLibrary</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepsastfinding">SemgrepSASTFinding</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepscafinding">SemgrepSCAFinding</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepscalocation">SemgrepSCALocation</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#semgrepsecretsfinding">SemgrepSecretsFinding</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Semgrep</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Semgrep Schema</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/semgrep/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/semgrep/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/semgrep/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/semgrep/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/semgrep/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="semgrep-schema">
+<h1>Semgrep Schema<a class="headerlink" href="#semgrep-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepFindingAssistant
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepGoLibrary
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepNpmLibrary
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepSASTFinding
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepSCAFinding
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepSCALocation
+    SemgrepDeployment -- RESOURCE --&gt; SemgrepSecretsFinding
+    SemgrepSASTFinding -- HAS_ASSISTANT --&gt; SemgrepFindingAssistant
+    SemgrepSCAFinding -- HAS_ASSISTANT --&gt; SemgrepFindingAssistant
+    SemgrepSCAFinding -- USAGE_AT --&gt; SemgrepSCALocation
+    </pre><section id="semgrepdeployment">
+<h2>SemgrepDeployment<a class="headerlink" href="#semgrepdeployment" title="Link to this heading">#</a></h2>
+<p>A Semgrep Cloud deployment containing an organization’s security resources.</p>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique integer identifier for the deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the security organization connected to the deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>slug</p></td>
+<td><p>Yes</p></td>
+<td><p>Lowercase deployment identifier used to query the Semgrep API.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepFindingAssistant)</span></code>: Connects a Semgrep deployment to Assistant data generated for its findings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepGoLibrary)</span></code>: Connects a Semgrep deployment to one of its dependencies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepNpmLibrary)</span></code>: Connects a Semgrep deployment to one of its dependencies.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSASTFinding)</span></code>: Connects a Semgrep deployment to one of its SAST findings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSCAFinding)</span></code>: Connects a Semgrep deployment to one of its SCA findings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSCALocation)</span></code>: Connects a Semgrep deployment to one of its SCA usage locations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSecretsFinding)</span></code>: Connects a Semgrep deployment to one of its secret findings.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepfindingassistant">
+<h2>SemgrepFindingAssistant<a class="headerlink" href="#semgrepfindingassistant" title="Link to this heading">#</a></h2>
+<p>AI-generated triage, remediation, and explanation data for a finding.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier shared with the parent finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>autofix_fix_code</p></td>
+<td><p></p></td>
+<td><p>AI-generated source code fix for the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>autotriage_reason</p></td>
+<td><p></p></td>
+<td><p>Reasoning supporting the AI triage verdict.</p></td>
+</tr>
+<tr class="row-odd"><td><p>autotriage_verdict</p></td>
+<td><p></p></td>
+<td><p>AI recommendation to fix or ignore the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>component_risk</p></td>
+<td><p></p></td>
+<td><p>AI-assessed risk level of the affected component.</p></td>
+</tr>
+<tr class="row-odd"><td><p>component_tag</p></td>
+<td><p></p></td>
+<td><p>AI-generated tag describing the matched code’s purpose.</p></td>
+</tr>
+<tr class="row-even"><td><p>guidance_instructions</p></td>
+<td><p></p></td>
+<td><p>Step-by-step remediation instructions.</p></td>
+</tr>
+<tr class="row-odd"><td><p>guidance_summary</p></td>
+<td><p></p></td>
+<td><p>Short summary explaining how to remediate the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>rule_explanation</p></td>
+<td><p></p></td>
+<td><p>Detailed explanation of the rule and its security impact.</p></td>
+</tr>
+<tr class="row-odd"><td><p>rule_explanation_summary</p></td>
+<td><p></p></td>
+<td><p>Concise explanation of why the rule flagged the code.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSASTFinding)-[:HAS_ASSISTANT]-&gt;(:SemgrepFindingAssistant)</span></code>: Links a cloud SAST finding to its Semgrep Assistant analysis.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:HAS_ASSISTANT]-&gt;(:SemgrepFindingAssistant)</span></code>: Links an SCA finding to its Semgrep Assistant analysis.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepFindingAssistant)</span></code>: Connects a Semgrep deployment to Assistant data generated for its findings.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepgolibrary">
+<h2>SemgrepGoLibrary<a class="headerlink" href="#semgrepgolibrary" title="Link to this heading">#</a></h2>
+<p>A Go library dependency reported by Semgrep.</p>
+<blockquote>
+<div><p><strong>Additional Labels</strong>: This node also uses <code class="docutils literal notranslate"><span class="pre">Dependency</span></code>, <code class="docutils literal notranslate"><span class="pre">GoLibrary</span></code>, <code class="docutils literal notranslate"><span class="pre">SemgrepDependency</span></code>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Label Definitions</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Dependency</span></code>: A node participating in the shared Dependency graph interface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GoLibrary</span></code>: Compatibility label for the deprecated <code class="docutils literal notranslate"><span class="pre">GoLibrary</span></code> semgrep node label. Use <code class="docutils literal notranslate"><span class="pre">SemgrepGoLibrary</span></code> instead. Scheduled for removal in v1.0.0.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SemgrepDependency</span></code>: A semgrep node participating in the shared SemgrepDependency graph interface.</p></li>
+</ul>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Ontology Projection</strong>: <code class="docutils literal notranslate"><span class="pre">SemgrepGoLibrary</span></code> contributes data to canonical <a class="reference internal" href="../ontology/schema.html#ontology-packageversion"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PackageVersion</span></code></span></a> nodes.</p>
+</div></blockquote>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier formed from the dependency name and version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ecosystem</p></td>
+<td><p></p></td>
+<td><p>Package ecosystem reported by Semgrep.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Dependency name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>normalized_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Cross-tool package identifier used to create a canonical PackageVersion node.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Canonical package type derived from the ecosystem.</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Dependency version.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitHubRepository)-[:REQUIRES]-&gt;(:SemgrepGoLibrary)</span></code>: Links a GitHub repository to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:SemgrepGoLibrary)</span></code>: Links a GitLab project to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepGoLibrary)</span></code>: Connects a Semgrep deployment to one of its dependencies.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepnpmlibrary">
+<h2>SemgrepNpmLibrary<a class="headerlink" href="#semgrepnpmlibrary" title="Link to this heading">#</a></h2>
+<p>An npm library dependency reported by Semgrep.</p>
+<blockquote>
+<div><p><strong>Additional Labels</strong>: This node also uses <code class="docutils literal notranslate"><span class="pre">Dependency</span></code>, <code class="docutils literal notranslate"><span class="pre">NpmLibrary</span></code>, <code class="docutils literal notranslate"><span class="pre">SemgrepDependency</span></code>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Label Definitions</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Dependency</span></code>: A node participating in the shared Dependency graph interface.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">NpmLibrary</span></code>: Compatibility label for the deprecated <code class="docutils literal notranslate"><span class="pre">NpmLibrary</span></code> semgrep node label. Use <code class="docutils literal notranslate"><span class="pre">SemgrepNpmLibrary</span></code> instead. Scheduled for removal in v1.0.0.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SemgrepDependency</span></code>: A semgrep node participating in the shared SemgrepDependency graph interface.</p></li>
+</ul>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Ontology Projection</strong>: <code class="docutils literal notranslate"><span class="pre">SemgrepNpmLibrary</span></code> contributes data to canonical <a class="reference internal" href="../ontology/schema.html#ontology-packageversion"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">PackageVersion</span></code></span></a> nodes.</p>
+</div></blockquote>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier formed from the dependency name and version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ecosystem</p></td>
+<td><p></p></td>
+<td><p>Package ecosystem reported by Semgrep.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Dependency name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>normalized_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Cross-tool package identifier used to create a canonical PackageVersion node.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p></p></td>
+<td><p>Canonical package type derived from the ecosystem.</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p></p></td>
+<td><p>Dependency version.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitHubRepository)-[:REQUIRES]-&gt;(:SemgrepNpmLibrary)</span></code>: Links a GitHub repository to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:GitLabProject)-[:REQUIRES]-&gt;(:SemgrepNpmLibrary)</span></code>: Links a GitLab project to a dependency it requires.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>specifier</p></td>
+<td><p>Version specifier required by the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the manifest location declaring the dependency.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepNpmLibrary)</span></code>: Connects a Semgrep deployment to one of its dependencies.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepsastfinding">
+<h2>SemgrepSASTFinding<a class="headerlink" href="#semgrepsastfinding" title="Link to this heading">#</a></h2>
+<p>A code-level security issue reported by Semgrep Cloud or Semgrep OSS.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-securityissue"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">SecurityIssue</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique finding identifier from Semgrep Cloud or synthesized for an OSS finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Repository branch where the finding was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>categories</p></td>
+<td><p></p></td>
+<td><p>Categories associated with the finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>confidence</p></td>
+<td><p></p></td>
+<td><p>Confidence assigned to the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>cwe_names</p></td>
+<td><p></p></td>
+<td><p>CWE identifiers associated with the rule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Description of the vulnerability from the rule message.</p></td>
+</tr>
+<tr class="row-even"><td><p>end_col</p></td>
+<td><p></p></td>
+<td><p>Column where the finding ends.</p></td>
+</tr>
+<tr class="row-odd"><td><p>end_line</p></td>
+<td><p></p></td>
+<td><p>Line where the finding ends.</p></td>
+</tr>
+<tr class="row-even"><td><p>file_path</p></td>
+<td><p>Yes</p></td>
+<td><p>Path of the file where the finding was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>fix_status</p></td>
+<td><p></p></td>
+<td><p>Cloud finding fix status based on triage.</p></td>
+</tr>
+<tr class="row-even"><td><p>line_of_code_url</p></td>
+<td><p></p></td>
+<td><p>URL of the affected line of code. Available for cloud findings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>opened_at</p></td>
+<td><p></p></td>
+<td><p>UTC date and time when the cloud finding was opened.</p></td>
+</tr>
+<tr class="row-even"><td><p>owasp_names</p></td>
+<td><p></p></td>
+<td><p>OWASP category names associated with the rule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository</p></td>
+<td><p>Yes</p></td>
+<td><p>Repository path where the finding was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository_url</p></td>
+<td><p></p></td>
+<td><p>Full URL of the repository where the finding was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>risk_severity</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Semgrep</span> <span class="pre">SAST</span> <span class="pre">findings</span> <span class="pre">risk</span> <span class="pre">analysis</span> <span class="pre">based</span> <span class="pre">on</span> <span class="pre">severity</span> <span class="pre">and</span> <span class="pre">repository</span> <span class="pre">archive</span> <span class="pre">status.</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>rule_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier of the rule that triggered the finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity</p></td>
+<td><p></p></td>
+<td><p>Severity assigned to the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>start_col</p></td>
+<td><p></p></td>
+<td><p>Column where the finding starts.</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_line</p></td>
+<td><p></p></td>
+<td><p>Line where the finding starts.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p></p></td>
+<td><p>Current cloud finding state.</p></td>
+</tr>
+<tr class="row-odd"><td><p>title</p></td>
+<td><p>Yes</p></td>
+<td><p>Short title for the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>triage_status</p></td>
+<td><p></p></td>
+<td><p>Cloud finding triage status.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_first_seen</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">opened_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_severity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">severity</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_title</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">title</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSASTFinding)-[:FOUND_IN]-&gt;(:GitHubRepository)</span></code>: Links a SAST finding to the GitHub repository containing the affected code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSASTFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links a SAST finding to the GitLab project containing the affected code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSASTFinding)-[:HAS_ASSISTANT]-&gt;(:SemgrepFindingAssistant)</span></code>: Links a cloud SAST finding to its Semgrep Assistant analysis.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSASTFinding)</span></code>: Connects a Semgrep deployment to one of its SAST findings.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepscafinding">
+<h2>SemgrepSCAFinding<a class="headerlink" href="#semgrepscafinding" title="Link to this heading">#</a></h2>
+<p>A dependency vulnerability discovered by Semgrep Supply Chain.</p>
+<blockquote>
+<div><p><strong>Conditional Labels</strong>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-cve"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">CVE</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">has_cve</span></code> equals <code class="docutils literal notranslate"><span class="pre">true</span></code>. A cross-provider CVE resource in Cartography’s ontology.</p></li>
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-securityissue"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">SecurityIssue</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">has_cve</span></code> equals <code class="docutils literal notranslate"><span class="pre">false</span></code>. A cross-provider SecurityIssue resource in Cartography’s ontology.</p></li>
+</ul>
+</div></blockquote>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier for the finding from the Semgrep API.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Repository branch where the finding was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>confidence</p></td>
+<td><p></p></td>
+<td><p>Confidence assigned by Semgrep.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cve_id</p></td>
+<td><p>Yes</p></td>
+<td><p>CVE identifier associated with the vulnerability.</p></td>
+</tr>
+<tr class="row-even"><td><p>dependency</p></td>
+<td><p></p></td>
+<td><p>Affected dependency name and version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_file</p></td>
+<td><p>Yes</p></td>
+<td><p>Path of the dependency manifest containing the vulnerable package.</p></td>
+</tr>
+<tr class="row-even"><td><p>dependency_file_url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL of the dependency manifest containing the vulnerable package.</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_fix</p></td>
+<td><p></p></td>
+<td><p>Closest dependency version that fixes the vulnerability.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Description of the dependency vulnerability.</p></td>
+</tr>
+<tr class="row-odd"><td><p>fix_status</p></td>
+<td><p></p></td>
+<td><p>Fix status based on finding triage.</p></td>
+</tr>
+<tr class="row-even"><td><p>ghsa_id</p></td>
+<td><p>Yes</p></td>
+<td><p>GHSA advisory identifier when the finding is not CVE-backed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_cve</p></td>
+<td><p></p></td>
+<td><p>Whether cve_id contains a valid CVE identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>package_manager</p></td>
+<td><p></p></td>
+<td><p>Package ecosystem of the affected dependency.</p></td>
+</tr>
+<tr class="row-odd"><td><p>reachability</p></td>
+<td><p></p></td>
+<td><p>Whether the vulnerable dependency is reachable.</p></td>
+</tr>
+<tr class="row-even"><td><p>reachability_check</p></td>
+<td><p></p></td>
+<td><p>Semgrep’s determination of whether reachability was confirmed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>reachability_condition</p></td>
+<td><p></p></td>
+<td><p>Condition under which the vulnerable code is reachable.</p></td>
+</tr>
+<tr class="row-even"><td><p>reachability_risk</p></td>
+<td><p></p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Semgrep</span> <span class="pre">SCA</span> <span class="pre">findings</span> <span class="pre">reachability</span> <span class="pre">risk</span> <span class="pre">analysis</span> <span class="pre">based</span> <span class="pre">on</span> <span class="pre">likelihood</span> <span class="pre">and</span> <span class="pre">impact.</span> <span class="pre">Impact</span> <span class="pre">=</span> <span class="pre">Severity,</span> <span class="pre">Likelihood</span> <span class="pre">=</span> <span class="pre">reachability</span> <span class="pre">+</span> <span class="pre">reachability_check</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ref_urls</p></td>
+<td><p></p></td>
+<td><p>Reference URLs associated with the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository</p></td>
+<td><p>Yes</p></td>
+<td><p>Repository path where the finding was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_url</p></td>
+<td><p></p></td>
+<td><p>Full URL of the repository where the finding was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>rule_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Identifier of the rule that triggered the finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>scan_time</p></td>
+<td><p></p></td>
+<td><p>UTC date and time when the finding was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>severity</p></td>
+<td><p></p></td>
+<td><p>Severity assigned by Semgrep.</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>Yes</p></td>
+<td><p>Short title summarizing the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>transitivity</p></td>
+<td><p></p></td>
+<td><p>Whether the affected dependency is direct or transitive.</p></td>
+</tr>
+<tr class="row-odd"><td><p>triage_status</p></td>
+<td><p></p></td>
+<td><p>Current triage status of the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_base_severity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">severity</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_cve_id</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">cve_id</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_description</em></p></td>
+<td><p></p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">description</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_first_seen</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">scan_time</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_references</em></p></td>
+<td><p></p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">ref_urls</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_severity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">severity</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">triage_status</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_title</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">summary</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:AFFECTS]-&gt;(:Dependency)</span></code>: Links an SCA finding to the affected dependency observation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:AFFECTS]-&gt;(:PackageVersion)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">SemgrepSCAFinding</span> <span class="pre">AFFECTS</span> <span class="pre">PackageVersion</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:FOUND_IN]-&gt;(:GitHubRepository)</span></code>: Links an SCA finding to the GitHub repository containing the dependency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links an SCA finding to the GitLab project containing the dependency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:HAS_ASSISTANT]-&gt;(:SemgrepFindingAssistant)</span></code>: Links an SCA finding to its Semgrep Assistant analysis.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:CVE)-[:LINKED_TO]-&gt;(:SemgrepSCAFinding)</span></code>: Links a CVE to the Semgrep SCA finding that identified it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSCAFinding)</span></code>: Connects a Semgrep deployment to one of its SCA findings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:USAGE_AT]-&gt;(:SemgrepSCALocation)</span></code>: Links an SCA finding to a source location where the dependency is used.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepscalocation">
+<h2>SemgrepSCALocation<a class="headerlink" href="#semgrepscalocation" title="Link to this heading">#</a></h2>
+<p>A source location where vulnerable dependency code is used.</p>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier for the vulnerable dependency usage location.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>end_col</p></td>
+<td><p></p></td>
+<td><p>Column where the usage ends.</p></td>
+</tr>
+<tr class="row-even"><td><p>end_line</p></td>
+<td><p></p></td>
+<td><p>Line where the usage ends.</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>Yes</p></td>
+<td><p>Path of the file containing the vulnerable dependency usage.</p></td>
+</tr>
+<tr class="row-even"><td><p>start_col</p></td>
+<td><p></p></td>
+<td><p>Column where the usage starts.</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_line</p></td>
+<td><p></p></td>
+<td><p>Line where the usage starts.</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p></p></td>
+<td><p>URL of the file containing the usage.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSCALocation)</span></code>: Connects a Semgrep deployment to one of its SCA usage locations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSCAFinding)-[:USAGE_AT]-&gt;(:SemgrepSCALocation)</span></code>: Links an SCA finding to a source location where the dependency is used.</p></li>
+</ul>
+</section>
+</section>
+<section id="semgrepsecretsfinding">
+<h2>SemgrepSecretsFinding<a class="headerlink" href="#semgrepsecretsfinding" title="Link to this heading">#</a></h2>
+<p>A hardcoded secret discovered by Semgrep in source code.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-securityissue"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">SecurityIssue</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Unique identifier for the finding from the Semgrep API.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>confidence</p></td>
+<td><p></p></td>
+<td><p>Confidence assigned to the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>UTC date and time when the finding was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>finding_path</p></td>
+<td><p>Yes</p></td>
+<td><p>File path and line number where the secret was discovered.</p></td>
+</tr>
+<tr class="row-even"><td><p>finding_path_url</p></td>
+<td><p></p></td>
+<td><p>URL of the exact location where the secret was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p></p></td>
+<td><p>Semgrep mode under which the secret was detected.</p></td>
+</tr>
+<tr class="row-even"><td><p>ref</p></td>
+<td><p></p></td>
+<td><p>Branch or ref where the secret was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ref_url</p></td>
+<td><p></p></td>
+<td><p>URL of the branch or ref containing the secret.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Repository path where the secret was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_scm_type</p></td>
+<td><p></p></td>
+<td><p>Source control system hosting the repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository_url</p></td>
+<td><p></p></td>
+<td><p>Full URL of the repository where the secret was discovered.</p></td>
+</tr>
+<tr class="row-odd"><td><p>repository_visibility</p></td>
+<td><p></p></td>
+<td><p>Visibility of the repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>rule_hash_id</p></td>
+<td><p>Yes</p></td>
+<td><p>Hash identifier of the rule that triggered the finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity</p></td>
+<td><p>Yes</p></td>
+<td><p>Severity assigned to the finding.</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p>Yes</p></td>
+<td><p>Current status of the finding.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Yes</p></td>
+<td><p>Type of secret detected.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>UTC date and time when the finding was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>validation_state</p></td>
+<td><p>Yes</p></td>
+<td><p>Result of validating whether the secret is active.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_first_seen</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_severity</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">severity</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_title</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">type</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_type</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">type</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSecretsFinding)-[:FOUND_IN]-&gt;(:GitHubRepository)</span></code>: Links a secret finding to the GitHub repository containing the secret.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepSecretsFinding)-[:FOUND_IN]-&gt;(:GitLabProject)</span></code>: Links a secret finding to the GitLab project containing the secret.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:SemgrepDeployment)-[:RESOURCE]-&gt;(:SemgrepSecretsFinding)</span></code>: Connects a Semgrep deployment to one of its secret findings.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Semgrep Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="analysis.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Semgrep Analysis</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+      <script src="../../_static/expand-intel-modules.js?v=8f45ed9c"></script></body>
+</html>

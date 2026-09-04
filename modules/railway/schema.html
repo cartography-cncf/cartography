@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Railway Schema - Cartography Documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Salesforce" href="../salesforce/index.html" /><link rel="prev" title="Railway Configuration" href="config.html" />
+      <link rel="canonical" href="https://docs.cartography.dev/modules/railway/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=4f8dd3c3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://docs.cartography.dev/modules/railway/schema.html"/>
+  <meta property="og:title" content="Railway Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  <meta property="og:site_name" content="Cartography" />
+</head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="Cartography" height="28" loading="lazy" />
+      <strong>Cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cartography-metadata/schema.html">Cartography metadata schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Permission Candidates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../module-list.html">Intel Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../aibom/index.html">AIBOM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/config.html">AIBOM Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/schema.html">AIBOM Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aibom/examples.html">AIBOM Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/organizations.html">AWS Organizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/infrastructure-investigations.html">AWS Infrastructure Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/container-images.html">AWS Container Images</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/identity-access.html">AWS Identity and Access Investigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/tagging-and-labels.html">AWS Tagging and Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/architecture.html">Azure Modeling Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/queries.html">Azure Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/security.html">Azure Network Security Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bbot/index.html">BBOT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/config.html">BBOT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bbot/schema.html">Bbot Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../bigfix/schema.html">Bigfix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../circleci/index.html">CircleCI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/config.html">CircleCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../circleci/schema.html">Circleci Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/config.html">CrowdStrike Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve/schema.html">Cve Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../cve_metadata/index.html">CVE Metadata</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/config.html">CVE Metadata Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../cve_metadata/schema.html">Cve Metadata Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../databricks/index.html">Databricks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/config.html">Databricks Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/queries.html">Databricks Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../databricks/schema.html">Databricks Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/config.html">DigitalOcean Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../digitalocean/schema.html">Digitalocean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../docker_scout/index.html">Docker Scout</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/config.html">Docker Scout Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../docker_scout/schema.html">Docker Scout Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/artifact-registry.html">Artifact Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/cloud-run.html">Cloud Run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/permission-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../github/index.html">GitHub</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/queries.html">GitLab Example Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gitlab/schema.html">Gitlab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../googleworkspace/schema.html">Googleworkspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../gsuite/schema.html">Gsuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../huntress/index.html">Huntress</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/config.html">Huntress Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../huntress/schema.html">Huntress Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/config.html">Jamf Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../jumpcloud/index.html">JumpCloud</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/config.html">JumpCloud Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../jumpcloud/schema.html">Jumpcloud Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/queries.html">Kubernetes Queries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/index.html">LastPass</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/config.html">LastPass Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../microsoft/index.html">Microsoft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/config.html">Microsoft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/schema.html">Microsoft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/examples.html">Microsoft Examples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../microsoft/analysis.html">Microsoft Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../miradore/index.html">Miradore</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/config.html">Miradore Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../miradore/schema.html">Miradore Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../modal/index.html">Modal</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../modal/config.html">Modal Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../modal/schema.html">Modal Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../netlify/index.html">Netlify</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/config.html">Netlify Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../netlify/schema.html">Netlify Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../openai/schema.html">Openai Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../orca/index.html">Orca Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../orca/config.html">Orca Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../orca/schema.html">Orca Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/config.html">PagerDuty Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Railway</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="config.html">Railway Configuration</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Railway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../salesforce/index.html">Salesforce</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/config.html">Salesforce Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../salesforce/schema.html">Salesforce Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../semgrep/analysis.html">Semgrep Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sentry/index.html">Sentry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/config.html">Sentry Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../sentry/schema.html">Sentry Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snipeit/schema.html">Snipeit Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../snowflake/index.html">Snowflake</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/config.html">Snowflake Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../snowflake/schema.html">Snowflake Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../socketdev/index.html">Socket.dev</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/config.html">Socket.dev Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../socketdev/schema.html">Socket.dev Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../subimage/index.html">SubImage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/config.html">SubImage Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../subimage/schema.html">Subimage Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../supabase/index.html">Supabase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/config.html">Supabase Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../supabase/schema.html">Supabase Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../syft/index.html">Syft</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../syft/config.html">Syft Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/schema.html">Syft Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../syft/queries.html">Syft Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../tenable/index.html">Tenable</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/config.html">Tenable Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tenable/schema.html">Tenable Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ubuntu/index.html">Ubuntu Security</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/config.html">Ubuntu Security Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ubuntu/schema.html">Ubuntu Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../vercel/index.html">Vercel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/config.html">Vercel Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../vercel/schema.html">Vercel Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../wiz/index.html">Wiz</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/config.html">Wiz Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../wiz/schema.html">Wiz Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../workos/index.html">WorkOS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../workos/config.html">WorkOS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../workos/schema.html">Workos Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../zizmor/index.html">Zizmor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/config.html">Zizmor Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../zizmor/schema.html">Zizmor Schema</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/index.html">Developer docs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../dev/matchlinks.html">MatchLinks</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/index.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#railwayapitoken">RailwayApiToken</a><ul>
+<li><a class="reference internal" href="#properties">Properties</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwaycustomdomain">RailwayCustomDomain</a><ul>
+<li><a class="reference internal" href="#id1">Properties</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwaydeployment">RailwayDeployment</a><ul>
+<li><a class="reference internal" href="#id3">Properties</a></li>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwaydeploymenttrigger">RailwayDeploymentTrigger</a><ul>
+<li><a class="reference internal" href="#id5">Properties</a></li>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayenvironment">RailwayEnvironment</a><ul>
+<li><a class="reference internal" href="#id7">Properties</a></li>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayfilesystemsnapshot">RailwayFilesystemSnapshot</a><ul>
+<li><a class="reference internal" href="#id9">Properties</a></li>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayproject">RailwayProject</a><ul>
+<li><a class="reference internal" href="#id11">Properties</a></li>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayprojecttoken">RailwayProjectToken</a><ul>
+<li><a class="reference internal" href="#id13">Properties</a></li>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayservice">RailwayService</a><ul>
+<li><a class="reference internal" href="#id15">Properties</a></li>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayservicedomain">RailwayServiceDomain</a><ul>
+<li><a class="reference internal" href="#id17">Properties</a></li>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayserviceinstance">RailwayServiceInstance</a><ul>
+<li><a class="reference internal" href="#id19">Properties</a></li>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwaytcpproxy">RailwayTCPProxy</a><ul>
+<li><a class="reference internal" href="#id21">Properties</a></li>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayuser">RailwayUser</a><ul>
+<li><a class="reference internal" href="#id23">Properties</a></li>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayvariable">RailwayVariable</a><ul>
+<li><a class="reference internal" href="#id25">Properties</a></li>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayvolume">RailwayVolume</a><ul>
+<li><a class="reference internal" href="#id27">Properties</a></li>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayvolumeinstance">RailwayVolumeInstance</a><ul>
+<li><a class="reference internal" href="#id29">Properties</a></li>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#railwayworkspace">RailwayWorkspace</a><ul>
+<li><a class="reference internal" href="#id31">Properties</a></li>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../module-list.html"><span itemprop="name">Intel Modules</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Railway</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="3" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Railway Schema</strong>
+        <meta itemprop="position" content="4" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://docs.cartography.dev/_sources/modules/railway/schema.md"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://docs.cartography.dev/_sources/modules/railway/schema.md">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://docs.cartography.dev/_sources/modules/railway/schema.md" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//docs.cartography.dev/_sources/modules/railway/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//docs.cartography.dev/_sources/modules/railway/schema.md%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <!-- Generated from the data model. Do not edit manually. -->
+<section id="railway-schema">
+<h1>Railway Schema<a class="headerlink" href="#railway-schema" title="Link to this heading">#</a></h1>
+<pre  class="mermaid">
+        graph LR
+    RailwayApiToken -- OWNED_BY --&gt; RailwayUser
+    RailwayCustomDomain -- EXPOSE --&gt; RailwayServiceInstance
+    RailwayDeployment -- SCANNED_AS --&gt; RailwayFilesystemSnapshot
+    RailwayDeployment -- WORKLOAD_PARENT --&gt; RailwayServiceInstance
+    RailwayEnvironment -- HAS --&gt; RailwayServiceInstance
+    RailwayEnvironment -- HAS --&gt; RailwayVariable
+    RailwayProject -- RESOURCE --&gt; RailwayCustomDomain
+    RailwayProject -- RESOURCE --&gt; RailwayDeployment
+    RailwayProject -- RESOURCE --&gt; RailwayDeploymentTrigger
+    RailwayProject -- RESOURCE --&gt; RailwayEnvironment
+    RailwayProject -- RESOURCE --&gt; RailwayFilesystemSnapshot
+    RailwayProject -- RESOURCE --&gt; RailwayProjectToken
+    RailwayProject -- RESOURCE --&gt; RailwayService
+    RailwayProject -- RESOURCE --&gt; RailwayServiceDomain
+    RailwayProject -- RESOURCE --&gt; RailwayServiceInstance
+    RailwayProject -- RESOURCE --&gt; RailwayTCPProxy
+    RailwayProject -- RESOURCE --&gt; RailwayVariable
+    RailwayProject -- RESOURCE --&gt; RailwayVolume
+    RailwayProject -- RESOURCE --&gt; RailwayVolumeInstance
+    RailwayService -- HAS --&gt; RailwayServiceInstance
+    RailwayServiceDomain -- EXPOSE --&gt; RailwayServiceInstance
+    RailwayServiceInstance -- HAS --&gt; RailwayDeploymentTrigger
+    RailwayServiceInstance -- MOUNTS --&gt; RailwayVolumeInstance
+    RailwayServiceInstance -- USES_SECRET --&gt; RailwayVariable
+    RailwayTCPProxy -- EXPOSE --&gt; RailwayServiceInstance
+    RailwayUser -- MEMBER_OF --&gt; RailwayProject
+    RailwayUser -- MEMBER_OF --&gt; RailwayWorkspace
+    RailwayVolume -- HAS --&gt; RailwayVolumeInstance
+    RailwayWorkspace -- RESOURCE --&gt; RailwayApiToken
+    RailwayWorkspace -- RESOURCE --&gt; RailwayProject
+    RailwayWorkspace -- RESOURCE --&gt; RailwayUser
+    </pre><section id="railwayapitoken">
+<h2>RailwayApiToken<a class="headerlink" href="#railwayapitoken" title="Link to this heading">#</a></h2>
+<p>A Railway account or workspace API token represented without secret material.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="properties">
+<h3>Properties<a class="headerlink" href="#properties" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway API token.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_token</p></td>
+<td><p></p></td>
+<td><p>Redacted token prefix shown by Railway.</p></td>
+</tr>
+<tr class="row-even"><td><p>expires_at</p></td>
+<td><p>Yes</p></td>
+<td><p>Time when the token expires, or null if it does not expire.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name given to the token.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_id</p></td>
+<td><p></p></td>
+<td><p>ID of the scoped workspace, or null for an account-wide token.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_expires_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">expires_at</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayApiToken)-[:OWNED_BY]-&gt;(:RailwayUser)</span></code>: Identifies the Railway user who owns an API token.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:RailwayApiToken)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayApiToken)</span></code>: Connects a Railway workspace to an API token scoped within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwaycustomdomain">
+<h2>RailwayCustomDomain<a class="headerlink" href="#railwaycustomdomain" title="Link to this heading">#</a></h2>
+<p>A customer-owned domain configured for a Railway service.</p>
+<section id="id1">
+<h3>Properties<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway custom domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>certificate_status</p></td>
+<td><p></p></td>
+<td><p>TLS certificate provisioning status.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Fully qualified customer-owned domain name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the environment fronted by the domain.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_railway_domain</p></td>
+<td><p></p></td>
+<td><p>Whether Railway manages the domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_id</p></td>
+<td><p></p></td>
+<td><p>ID of the service fronted by the domain.</p></td>
+</tr>
+<tr class="row-even"><td><p>sync_status</p></td>
+<td><p></p></td>
+<td><p>Provisioning status of the domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>target_port</p></td>
+<td><p></p></td>
+<td><p>Port on the service to which the domain routes.</p></td>
+</tr>
+<tr class="row-even"><td><p>verification_dns_host</p></td>
+<td><p></p></td>
+<td><p>DNS host Railway expects for domain verification.</p></td>
+</tr>
+<tr class="row-odd"><td><p>verified</p></td>
+<td><p></p></td>
+<td><p>Whether DNS verification has succeeded.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayCustomDomain)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a verified custom domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayCustomDomain)</span></code>: Connects a Railway project to a custom domain that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwaydeployment">
+<h2>RailwayDeployment<a class="headerlink" href="#railwaydeployment" title="Link to this heading">#</a></h2>
+<p>A concrete deployment revision of a Railway service instance.</p>
+<blockquote>
+<div><p><strong>Conditional Labels</strong>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../ontology/schema.html#ontology-container"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Container</span></code></span></a> (ontology label) when <code class="docutils literal notranslate"><span class="pre">lifecycle</span></code> equals <code class="docutils literal notranslate"><span class="pre">current</span></code>. A cross-provider Container resource in Cartography’s ontology.</p></li>
+</ul>
+</div></blockquote>
+<section id="id3">
+<h3>Properties<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>can_redeploy</p></td>
+<td><p></p></td>
+<td><p>Whether the deployment can be redeployed.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the deployment was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the deployment environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>lifecycle</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether this deployment is the current or a historical revision.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning project.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the deployed service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_revision</p></td>
+<td><p>Yes</p></td>
+<td><p>Full source commit SHA reported for this deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>static_url</p></td>
+<td><p></p></td>
+<td><p>Stable URL associated with the deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>Yes</p></td>
+<td><p>Current deployment status.</p></td>
+</tr>
+<tr class="row-even"><td><p>status_updated_at</p></td>
+<td><p></p></td>
+<td><p>Time when the deployment status last changed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>url</p></td>
+<td><p>Yes</p></td>
+<td><p>URL associated with the deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_state</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">status</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeployment)-[:RESOLVED_IMAGE]-&gt;(:Image)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Container</span> <span class="pre">RESOLVED_IMAGE</span> <span class="pre">analysis</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayDeployment)</span></code>: Connects a Railway project to a deployment that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeployment)-[:SCANNED_AS]-&gt;(:RailwayFilesystemSnapshot)</span></code>: Identifies the filesystem snapshot used to assess a Railway deployment.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeployment)-[:WORKLOAD_PARENT]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the service instance represented by a Railway deployment revision.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwaydeploymenttrigger">
+<h2>RailwayDeploymentTrigger<a class="headerlink" href="#railwaydeploymenttrigger" title="Link to this heading">#</a></h2>
+<p>A source-control trigger that redeploys a Railway service.</p>
+<section id="id5">
+<h3>Properties<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway deployment trigger.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>branch</p></td>
+<td><p></p></td>
+<td><p>Branch that triggers a deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the environment that is redeployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider</p></td>
+<td><p>Yes</p></td>
+<td><p>Source-control provider for the trigger.</p></td>
+</tr>
+<tr class="row-even"><td><p>repository</p></td>
+<td><p>Yes</p></td>
+<td><p>Repository in owner/name form.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_id</p></td>
+<td><p></p></td>
+<td><p>ID of the service that is redeployed.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:HAS]-&gt;(:RailwayDeploymentTrigger)</span></code>: Connects a Railway service instance to the trigger that redeploys it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayDeploymentTrigger)</span></code>: Connects a Railway project to a deployment trigger that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeploymentTrigger)-[:TRACKS]-&gt;(:GitHubRepository)</span></code>: Identifies the GitHub repository and branch watched by a deployment trigger.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayenvironment">
+<h2>RailwayEnvironment<a class="headerlink" href="#railwayenvironment" title="Link to this heading">#</a></h2>
+<p>A Railway deployment environment, such as production or staging.</p>
+<section id="id7">
+<h3>Properties<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the environment was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_ephemeral</p></td>
+<td><p></p></td>
+<td><p>Whether this is a short-lived pull-request environment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the environment.</p></td>
+</tr>
+<tr class="row-even"><td><p>project_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the owning project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayEnvironment)-[:HAS]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway environment to a service instance deployed within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayEnvironment)-[:HAS]-&gt;(:RailwayVariable)</span></code>: Connects a Railway environment to a variable defined within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayEnvironment)</span></code>: Connects a Railway project to an environment that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayfilesystemsnapshot">
+<h2>RailwayFilesystemSnapshot<a class="headerlink" href="#railwayfilesystemsnapshot" title="Link to this heading">#</a></h2>
+<p>An immutable source filesystem used to assess a Railway deployment.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-filesystemsnapshot"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">FilesystemSnapshot</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id9">
+<h3>Properties<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>Cartography ID for this Railway filesystem snapshot.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deployment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the Railway deployment represented by this snapshot.</p></td>
+</tr>
+<tr class="row-even"><td><p>kind</p></td>
+<td><p>Yes</p></td>
+<td><p>Snapshot type. Currently always <code class="docutils literal notranslate"><span class="pre">source</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>root_directory</p></td>
+<td><p></p></td>
+<td><p>Repository subdirectory represented by this snapshot.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_repo</p></td>
+<td><p>Yes</p></td>
+<td><p>Source repository in owner/name form.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_revision</p></td>
+<td><p>Yes</p></td>
+<td><p>Full source commit SHA represented by this snapshot.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_kind</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">kind</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_root_directory</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">root_directory</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source_revision</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">source_revision</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:PackageVersion)-[:DEPLOYED]-&gt;(:RailwayFilesystemSnapshot)</span></code>: A canonical package version is deployed in a filesystem snapshot.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayFilesystemSnapshot)</span></code>: Connects a Railway project to a filesystem snapshot that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeployment)-[:SCANNED_AS]-&gt;(:RailwayFilesystemSnapshot)</span></code>: Identifies the filesystem snapshot used to assess a Railway deployment.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayFilesystemSnapshot)-[:SNAPSHOT_OF]-&gt;(:GitHubRepository)</span></code>: Identifies the repository revision represented by a source snapshot.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayproject">
+<h2>RailwayProject<a class="headerlink" href="#railwayproject" title="Link to this heading">#</a></h2>
+<p>A Railway project that contains environments and deployable resources.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id11">
+<h3>Properties<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the project was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>deleted_at</p></td>
+<td><p></p></td>
+<td><p>Time when the project was deleted, if applicable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p></p></td>
+<td><p>Free-text project description.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_public</p></td>
+<td><p>Yes</p></td>
+<td><p>Whether the project’s dashboard, build logs, and metrics are publicly readable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_temp_project</p></td>
+<td><p></p></td>
+<td><p>Whether this is a temporary project.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pr_deploys</p></td>
+<td><p></p></td>
+<td><p>Whether pull-request environments are enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>subscription_type</p></td>
+<td><p></p></td>
+<td><p>Billing tier of the project.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Time when the project was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>workspace_id</p></td>
+<td><p></p></td>
+<td><p>ID of the owning workspace.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayUser)-[:MEMBER_OF]-&gt;(:RailwayProject)</span></code>: Represents a Railway user’s membership and role in a project.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role granted to the user in the project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayCustomDomain)</span></code>: Connects a Railway project to a custom domain that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayDeployment)</span></code>: Connects a Railway project to a deployment that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayDeploymentTrigger)</span></code>: Connects a Railway project to a deployment trigger that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayEnvironment)</span></code>: Connects a Railway project to an environment that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayFilesystemSnapshot)</span></code>: Connects a Railway project to a filesystem snapshot that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayProjectToken)</span></code>: Connects a Railway project to a token scoped within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayService)</span></code>: Connects a Railway project to a service that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayServiceDomain)</span></code>: Connects a Railway project to a service domain that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway project to a service instance that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayTCPProxy)</span></code>: Connects a Railway project to a TCP proxy that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVariable)</span></code>: Connects a Railway project to a variable that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVolume)</span></code>: Connects a Railway project to a volume definition that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVolumeInstance)</span></code>: Connects a Railway project to a volume instance that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayProject)</span></code>: Connects a Railway workspace to a project that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayprojecttoken">
+<h2>RailwayProjectToken<a class="headerlink" href="#railwayprojecttoken" title="Link to this heading">#</a></h2>
+<p>A Railway token scoped to one project environment.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-apikey"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">APIKey</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id13">
+<h3>Properties<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway project token.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the token was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>display_token</p></td>
+<td><p></p></td>
+<td><p>Redacted token prefix shown by Railway.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the environment the token can access.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p></p></td>
+<td><p>Name given to the token.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p></p></td>
+<td><p>ID of the project to which the token is scoped.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:OWNS]-&gt;(:RailwayProjectToken)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Ontology</span> <span class="pre">-</span> <span class="pre">User</span> <span class="pre">OWNS</span> <span class="pre">APIKey</span> <span class="pre">linking</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayProjectToken)</span></code>: Connects a Railway project to a token scoped within it.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayservice">
+<h2>RailwayService<a class="headerlink" href="#railwayservice" title="Link to this heading">#</a></h2>
+<p>An environment-independent Railway service definition.</p>
+<section id="id15">
+<h3>Properties<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the service was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>icon</p></td>
+<td><p></p></td>
+<td><p>URL of the service icon.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_restricted</p></td>
+<td><p></p></td>
+<td><p>Whether the service is restricted.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the owning project.</p></td>
+</tr>
+<tr class="row-even"><td><p>template_id</p></td>
+<td><p></p></td>
+<td><p>ID of the Railway template used to create the service, if any.</p></td>
+</tr>
+<tr class="row-odd"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Time when the service was last modified.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayService)-[:HAS]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway service to one of its environment-specific instances.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayService)</span></code>: Connects a Railway project to a service that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayservicedomain">
+<h2>RailwayServiceDomain<a class="headerlink" href="#railwayservicedomain" title="Link to this heading">#</a></h2>
+<p>A Railway-provided public domain for a service.</p>
+<section id="id17">
+<h3>Properties<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway service domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the domain was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Fully qualified Railway-provided domain name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the environment fronted by the domain.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_id</p></td>
+<td><p></p></td>
+<td><p>ID of the service fronted by the domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>suffix</p></td>
+<td><p></p></td>
+<td><p>Railway domain suffix.</p></td>
+</tr>
+<tr class="row-even"><td><p>sync_status</p></td>
+<td><p></p></td>
+<td><p>Provisioning status of the domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>target_port</p></td>
+<td><p></p></td>
+<td><p>Port on the service to which the domain routes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceDomain)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a serving domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayServiceDomain)</span></code>: Connects a Railway project to a service domain that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayserviceinstance">
+<h2>RailwayServiceInstance<a class="headerlink" href="#railwayserviceinstance" title="Link to this heading">#</a></h2>
+<p>A Railway service deployed into a specific environment.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-computeservice"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">ComputeService</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id19">
+<h3>Properties<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway service instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>build_command</p></td>
+<td><p></p></td>
+<td><p>Custom build command, if configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>builder</p></td>
+<td><p></p></td>
+<td><p>Build system used by the instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the service instance was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>cron_schedule</p></td>
+<td><p></p></td>
+<td><p>Cron schedule for scheduled execution, if configured.</p></td>
+</tr>
+<tr class="row-odd"><td><p>dockerfile_path</p></td>
+<td><p></p></td>
+<td><p>Path to the custom Dockerfile, if configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the environment where the instance is deployed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet</p></td>
+<td><p>Yes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> when a Railway-generated domain, a DNS-verified custom domain or a TCP proxy is serving traffic for this instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet_type</p></td>
+<td><p>Yes</p></td>
+<td><p>How the instance is exposed: <code class="docutils literal notranslate"><span class="pre">direct</span></code> (an HTTPS domain) and/or <code class="docutils literal notranslate"><span class="pre">tcp_proxy</span></code> (a raw port with no TLS termination).</p></td>
+</tr>
+<tr class="row-odd"><td><p>healthcheck_path</p></td>
+<td><p></p></td>
+<td><p>HTTP health-check path, if configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>ipv6_egress_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether outbound IPv6 traffic is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_publicly_exposed</p></td>
+<td><p></p></td>
+<td><p>Whether the instance is reachable from the public internet. DEPRECATED: replaced by the cross-provider <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> and will be removed in v1.0.0.</p></td>
+</tr>
+<tr class="row-even"><td><p>latest_deployment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the latest deployment.</p></td>
+</tr>
+<tr class="row-odd"><td><p>latest_deployment_status</p></td>
+<td><p></p></td>
+<td><p>Status of the latest deployment.</p></td>
+</tr>
+<tr class="row-even"><td><p>num_replicas</p></td>
+<td><p></p></td>
+<td><p>Number of replicas running in the effective region.</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p>Yes</p></td>
+<td><p>Effective deployment region.</p></td>
+</tr>
+<tr class="row-even"><td><p>region_is_workspace_default</p></td>
+<td><p></p></td>
+<td><p>Whether the effective region comes from the workspace default.</p></td>
+</tr>
+<tr class="row-odd"><td><p>restart_policy_max_retries</p></td>
+<td><p></p></td>
+<td><p>Maximum restart attempts allowed by the restart policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>restart_policy_type</p></td>
+<td><p></p></td>
+<td><p>Policy governing when the instance restarts.</p></td>
+</tr>
+<tr class="row-odd"><td><p>root_directory</p></td>
+<td><p></p></td>
+<td><p>Repository subdirectory built by the service.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the parent service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the parent service.</p></td>
+</tr>
+<tr class="row-even"><td><p>sleep_application</p></td>
+<td><p></p></td>
+<td><p>Whether the application sleeps while inactive.</p></td>
+</tr>
+<tr class="row-odd"><td><p>source_image</p></td>
+<td><p>Yes</p></td>
+<td><p>Container image run by the instance, when deployed from a registry.</p></td>
+</tr>
+<tr class="row-even"><td><p>source_repo</p></td>
+<td><p>Yes</p></td>
+<td><p>Source repository in owner/name form, when deployed from git.</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_command</p></td>
+<td><p></p></td>
+<td><p>Custom start command, if configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>updated_at</p></td>
+<td><p></p></td>
+<td><p>Time when the service instance was last modified.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">service_name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_region</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">region</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_status</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">latest_deployment_status</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:DEPLOYED_FROM]-&gt;(:GitHubRepository)</span></code>: Identifies the GitHub repository used to deploy a Railway service instance.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayCustomDomain)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a verified custom domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceDomain)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a serving domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayTCPProxy)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a serving TCP proxy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:HAS]-&gt;(:RailwayDeploymentTrigger)</span></code>: Connects a Railway service instance to the trigger that redeploys it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayEnvironment)-[:HAS]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway environment to a service instance deployed within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayService)-[:HAS]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway service to one of its environment-specific instances.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:HAS_RUNTIME_IMAGE]-&gt;(:Image)</span></code>: generated by analysis job <code class="docutils literal notranslate"><span class="pre">Workload</span> <span class="pre">HAS_RUNTIME_IMAGE</span> <span class="pre">inventory</span> <span class="pre">analysis</span></code>.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Property generated by analysis job: <code class="docutils literal notranslate"><span class="pre">Workload</span> <span class="pre">HAS_RUNTIME_IMAGE</span> <span class="pre">inventory</span> <span class="pre">analysis</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:MOUNTS]-&gt;(:RailwayVolumeInstance)</span></code>: Identifies the Railway service instance that mounts a disk.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayServiceInstance)</span></code>: Connects a Railway project to a service instance that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:USES_SECRET]-&gt;(:RailwayVariable)</span></code>: Identifies a Railway service instance that consumes a service-scoped variable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayDeployment)-[:WORKLOAD_PARENT]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the service instance represented by a Railway deployment revision.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwaytcpproxy">
+<h2>RailwayTCPProxy<a class="headerlink" href="#railwaytcpproxy" title="Link to this heading">#</a></h2>
+<p>A public Railway TCP proxy forwarding traffic to a service.</p>
+<section id="id21">
+<h3>Properties<a class="headerlink" href="#id21" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway TCP proxy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>application_port</p></td>
+<td><p></p></td>
+<td><p>Service port to which the proxy forwards traffic.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the proxy was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>domain</p></td>
+<td><p>Yes</p></td>
+<td><p>Public hostname of the proxy.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the environment served by the proxy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>proxy_port</p></td>
+<td><p></p></td>
+<td><p>Public port to which clients connect.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_id</p></td>
+<td><p></p></td>
+<td><p>ID of the service behind the proxy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>sync_status</p></td>
+<td><p></p></td>
+<td><p>Provisioning status of the proxy.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayTCPProxy)-[:EXPOSE]-&gt;(:RailwayServiceInstance)</span></code>: Identifies the Railway service instance exposed by a serving TCP proxy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayTCPProxy)</span></code>: Connects a Railway project to a TCP proxy that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayuser">
+<h2>RailwayUser<a class="headerlink" href="#railwayuser" title="Link to this heading">#</a></h2>
+<p>This node label is loaded by more than one sync path:</p>
+<ul class="simple">
+<li><p>A Railway user discovered through project membership.</p></li>
+<li><p>A Railway user who is a member of a workspace.</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-useraccount"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">UserAccount</span></code></span></a>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Labels</strong>: This node also uses <code class="docutils literal notranslate"><span class="pre">RailwayPrincipal</span></code>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Additional Label Definitions</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RailwayPrincipal</span></code>: A Railway identity participating in the shared RailwayPrincipal graph interface.</p></li>
+</ul>
+</div></blockquote>
+<section id="id23">
+<h3>Properties<a class="headerlink" href="#id23" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Yes</p></td>
+<td><p>Email address of the user.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>two_factor_auth_enabled</p></td>
+<td><p></p></td>
+<td><p>Whether the user has two-factor authentication enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_email</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">email</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_fullname</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_has_mfa</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">two_factor_auth_enabled</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:RailwayUser)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayUser)-[:MEMBER_OF]-&gt;(:RailwayProject)</span></code>: Represents a Railway user’s membership and role in a project.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role granted to the user in the project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayUser)-[:MEMBER_OF]-&gt;(:RailwayWorkspace)</span></code>: Represents a Railway user’s membership and role in a workspace.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role granted to the user in the workspace.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayApiToken)-[:OWNED_BY]-&gt;(:RailwayUser)</span></code>: Identifies the Railway user who owns an API token.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayUser)</span></code>: Connects a Railway workspace to a user discovered within its scope.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayvariable">
+<h2>RailwayVariable<a class="headerlink" href="#railwayvariable" title="Link to this heading">#</a></h2>
+<p>A named Railway environment variable whose value is not ingested.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-secret"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Secret</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id25">
+<h3>Properties<a class="headerlink" href="#id25" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway variable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the variable was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>environment_id</p></td>
+<td><p></p></td>
+<td><p>ID of the environment containing the variable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_sealed</p></td>
+<td><p></p></td>
+<td><p>Whether the variable is write-only and cannot be read back.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the variable.</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_id</p></td>
+<td><p></p></td>
+<td><p>ID of the scoped service, or null for a shared variable.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_created_at</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">created_at</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayEnvironment)-[:HAS]-&gt;(:RailwayVariable)</span></code>: Connects a Railway environment to a variable defined within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVariable)</span></code>: Connects a Railway project to a variable that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:USES_SECRET]-&gt;(:RailwayVariable)</span></code>: Identifies a Railway service instance that consumes a service-scoped variable.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayvolume">
+<h2>RailwayVolume<a class="headerlink" href="#railwayvolume" title="Link to this heading">#</a></h2>
+<p>A Railway volume definition whose disks exist per environment.</p>
+<section id="id27">
+<h3>Properties<a class="headerlink" href="#id27" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway volume.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the volume was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the volume.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the owning project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayVolume)-[:HAS]-&gt;(:RailwayVolumeInstance)</span></code>: Connects a Railway volume definition to one of its environment-specific disks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVolume)</span></code>: Connects a Railway project to a volume definition that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayvolumeinstance">
+<h2>RailwayVolumeInstance<a class="headerlink" href="#railwayvolumeinstance" title="Link to this heading">#</a></h2>
+<p>A persistent Railway disk provisioned for one environment.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-blockstorage"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">BlockStorage</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id29">
+<h3>Properties<a class="headerlink" href="#id29" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway volume instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the disk was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>current_size_mb</p></td>
+<td><p></p></td>
+<td><p>Currently used space in megabytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>environment_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the environment containing the disk.</p></td>
+</tr>
+<tr class="row-even"><td><p>mount_path</p></td>
+<td><p></p></td>
+<td><p>Path where the disk is mounted in the service.</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p>Yes</p></td>
+<td><p>Region where the disk is provisioned.</p></td>
+</tr>
+<tr class="row-even"><td><p>service_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the service that mounts the disk.</p></td>
+</tr>
+<tr class="row-odd"><td><p>size_gb</p></td>
+<td><p></p></td>
+<td><p>Provisioned size in gigabytes.</p></td>
+</tr>
+<tr class="row-even"><td><p>size_mb</p></td>
+<td><p></p></td>
+<td><p>Provisioned size in megabytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>Yes</p></td>
+<td><p>Lifecycle state of the disk.</p></td>
+</tr>
+<tr class="row-even"><td><p>volume_id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the parent volume.</p></td>
+</tr>
+<tr class="row-odd"><td><p>volume_name</p></td>
+<td><p>Yes</p></td>
+<td><p>Name of the parent volume.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">volume_name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_region</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">region</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_size_gb</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">size_gb</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_state</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">state</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayVolume)-[:HAS]-&gt;(:RailwayVolumeInstance)</span></code>: Connects a Railway volume definition to one of its environment-specific disks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayServiceInstance)-[:MOUNTS]-&gt;(:RailwayVolumeInstance)</span></code>: Identifies the Railway service instance that mounts a disk.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayProject)-[:RESOURCE]-&gt;(:RailwayVolumeInstance)</span></code>: Connects a Railway project to a volume instance that it contains.</p></li>
+</ul>
+</section>
+</section>
+<section id="railwayworkspace">
+<h2>RailwayWorkspace<a class="headerlink" href="#railwayworkspace" title="Link to this heading">#</a></h2>
+<p>A Railway workspace that forms a billing, ownership, and access boundary.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node uses the ontology label <a class="reference internal" href="../ontology/schema.html#ontology-tenant"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">Tenant</span></code></span></a>.</p>
+</div></blockquote>
+<section id="id31">
+<h3>Properties<a class="headerlink" href="#id31" title="Link to this heading">#</a></h3>
+<p>Ontology-generated fields are shown in <em>italics</em>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Index</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Yes</p></td>
+<td><p>ID of the Railway workspace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p></p></td>
+<td><p>Timestamp when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Yes</p></td>
+<td><p>Timestamp of the last sync that observed this node.</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p></p></td>
+<td><p>Time when the workspace was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>has_2fa_enforcement</p></td>
+<td><p></p></td>
+<td><p>Whether the workspace requires two-factor authentication.</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_saml</p></td>
+<td><p></p></td>
+<td><p>Whether SAML single sign-on is configured.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Yes</p></td>
+<td><p>Display name of the workspace.</p></td>
+</tr>
+<tr class="row-odd"><td><p>plan</p></td>
+<td><p></p></td>
+<td><p>Billing plan for the workspace.</p></td>
+</tr>
+<tr class="row-even"><td><p>preferred_region</p></td>
+<td><p></p></td>
+<td><p>Default deployment region for new services.</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_count</p></td>
+<td><p></p></td>
+<td><p>Number of projects in the workspace.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>_ont_name</em></p></td>
+<td><p>Yes</p></td>
+<td><p>Normalized field sourced from <code class="docutils literal notranslate"><span class="pre">name</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>_ont_source</em></p></td>
+<td><p></p></td>
+<td><p>Module that populated this node’s ontology fields.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">#</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayUser)-[:MEMBER_OF]-&gt;(:RailwayWorkspace)</span></code>: Represents a Railway user’s membership and role in a workspace.</p>
+<ul>
+<li><p>Properties:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>Role granted to the user in the workspace.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayApiToken)</span></code>: Connects a Railway workspace to an API token scoped within it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayProject)</span></code>: Connects a Railway workspace to a project that it contains.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(:RailwayWorkspace)-[:RESOURCE]-&gt;(:RailwayUser)</span></code>: Connects a Railway workspace to a user discovered within its scope.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Railway Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../salesforce/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Salesforce</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://slack.cncf.io/" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=50760d75"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = "pre.mermaid {\n    /* Same as .mermaid-container > pre */\n    display: block;\n    width: 100%;\n}\n\npre.mermaid > svg {\n    /* Same as .mermaid-container > pre > svg */\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}";
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = ".mermaid-container {\n    position: relative;\n    display: flex;\n    flex-direction: row;\n    width: 100%;\n}\n\n.mermaid-container > pre {\n    display: block;\n    width: 100%;\n}\n\n.mermaid-container > pre > svg {\n    height: 500px;\n    width: 100%;\n    max-width: 100% !important;\n}\n\n.mermaid-fullscreen-btn {\n    position: absolute;\n    width: 28px;\n    height: 28px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.3);\n    border-radius: 4px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    transition: all 0.2s;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n    font-size: 14px;\n    line-height: 1;\n    padding: 0;\n    color: #333;\n}\n\n.mermaid-fullscreen-btn:hover {\n    opacity: 100% !important;\n    background: rgba(255, 255, 255, 1);\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-btn.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.3);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-btn.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal {\n    display: none;\n    position: fixed !important;\n    top: 0 !important;\n    left: 0 !important;\n    width: 95vw;\n    height: 100vh;\n    background: rgba(255, 255, 255, 0.98);\n    z-index: 9999;\n    padding: 20px;\n    overflow: auto;\n}\n\n.mermaid-fullscreen-modal.dark-theme {\n    background: rgba(0, 0, 0, 0.98);\n}\n\n.mermaid-fullscreen-modal.active {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen {\n    position: relative;\n    width: 95vw;\n    height: 90vh;\n    max-width: 95vw;\n    max-height: 90vh;\n    background: white;\n    border-radius: 8px;\n    padding: 20px;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);\n    overflow: auto;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen.dark-theme {\n    background: #1a1a1a;\n    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);\n}\n\n.mermaid-container-fullscreen pre.mermaid {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n}\n\n.mermaid-container-fullscreen .mermaid svg {\n    height: 100% !important;\n    width: 100% !important;\n    cursor: grab;\n}\n\n.mermaid-fullscreen-close {\n    position: fixed !important;\n    top: 20px !important;\n    right: 20px !important;\n    width: 40px;\n    height: 40px;\n    background: rgba(255, 255, 255, 0.95);\n    border: 1px solid rgba(0, 0, 0, 0.2);\n    border-radius: 50%;\n    cursor: pointer;\n    z-index: 10000;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n    transition: all 0.2s;\n    font-size: 24px;\n    line-height: 1;\n    color: #333;\n}\n\n.mermaid-fullscreen-close:hover {\n    background: white;\n    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);\n    transform: scale(1.1);\n}\n\n.mermaid-fullscreen-close.dark-theme {\n    background: rgba(50, 50, 50, 0.95);\n    border: 1px solid rgba(255, 255, 255, 0.2);\n    color: #e0e0e0;\n}\n\n.mermaid-fullscreen-close.dark-theme:hover {\n    background: rgba(60, 60, 60, 1);\n    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);\n}\n\n.mermaid-fullscreen-modal .mermaid-fullscreen-btn {\n    display: none !important;\n}";
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+let _lazyObserver = null;
+let _renderQueue = Promise.resolve();
+let closeModal = () => {};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) {
+        closeModal();
+    }
+});
+
+// Apply d3 zoom to each SVG. Idempotent: an SVG already wrapped is skipped,
+// so this is safe to call both for the initial batch and for diagrams that
+// render lazily once they become visible.
+const addZoomToSvgs = (svgs) => {
+    svgs.each(function() {
+        if (this.getAttribute('data-zoom-applied') === 'true') return;
+        var svg = d3.select(this);
+        svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+        var inner = svg.select("g");
+        var zoom = d3.zoom().on("zoom", function(event) {
+            inner.attr("transform", event.transform);
+        });
+        svg.call(zoom);
+        this.setAttribute('data-zoom-applied', 'true');
+    });
+};
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        // Disconnect any previous lazy rendering observer
+        if (_lazyObserver) {
+            _lazyObserver.disconnect();
+            _lazyObserver = null;
+        }
+
+        all_mermaids.forEach((el) => {
+            el.removeAttribute('data-mermaid-deferred');
+            el.removeAttribute('data-mermaid-render-failed');
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+
+        // Separate visible and hidden elements. Mermaid's layout engine measures
+        // text dimensions via the DOM, which fails for elements hidden by a parent
+        // (e.g., Reveal.js non-active slides, sphinx-design unopened tabs),
+        // producing broken SVGs. Render visible elements now, defer hidden ones.
+        const visible = [];
+        const hidden = [];
+        all_mermaids.forEach((el) => {
+            // offsetParent is null for display:none ancestors.
+            // getClientRects().length > 0 catches position:fixed elements
+            // (which also have null offsetParent but are still visible).
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+                visible.push(el);
+            } else {
+                hidden.push(el);
+                el.setAttribute('data-mermaid-deferred', 'true');
+            }
+        });
+
+        if (visible.length > 0) {
+            try {
+                await mermaid.run({ nodes: visible });
+            } catch (e) {
+                console.error("Mermaid rendering failed:", e);
+            }
+        }
+
+        // Lazily render hidden elements when they become visible.
+        // Uses a promise chain (_renderQueue) to serialize rendering,
+        // since IntersectionObserver may report multiple entries at once
+        // and mermaid.run() is not safe to call concurrently.
+        if (hidden.length > 0) {
+            if (typeof IntersectionObserver === 'undefined') {
+                console.warn("IntersectionObserver not available; hidden mermaid diagrams will not render.");
+            } else {
+                _renderQueue = Promise.resolve();
+                _lazyObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting && entry.target.getAttribute("data-processed") !== "true") {
+                            _lazyObserver.unobserve(entry.target);
+                            const el = entry.target;
+                            _renderQueue = _renderQueue.then(async () => {
+                                try {
+                                    await mermaid.run({ nodes: [el] });
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    // Apply zoom to the now-rendered diagram, matching
+                                    // the decoration visible diagrams receive.
+                                    if (false) {
+                                        addZoomToSvgs(d3.selectAll("").select(function() {
+                                            return this.querySelector("svg");
+                                        }));
+                                    }
+                                } catch (e) {
+                                    console.error("Mermaid deferred rendering failed:", e);
+                                    el.removeAttribute('data-mermaid-deferred');
+                                    el.setAttribute('data-mermaid-render-failed', 'true');
+                                }
+                            });
+                        }
+                    }
+                });
+                hidden.forEach((el) => _lazyObserver.observe(el));
+            }
+        }
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    // Exclude deferred (hidden) and render-failed elements from completion checks
+    const mermaids_active = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])");
+    const mermaids_processed = document.querySelectorAll(".mermaid:not([data-mermaid-deferred]):not([data-mermaid-render-failed])[data-processed='true']");
+
+    if (false) {
+        const mermaids_to_add_zoom = 0 === -1 ? mermaids_active.length : 0;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("").select(function() {
+                return this.querySelector("svg");
+            });
+            // Wait until every active (visible) diagram has rendered. Deferred
+            // diagrams are excluded, so a fixed d3_node_count that counts a
+            // hidden diagram no longer loops forever waiting for its SVG.
+            if(mermaids_active.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            }
+            addZoomToSvgs(svgs);
+        }
+    } else if(mermaids_active.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if (!true) return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = "\u26f6";
+        fullscreenBtn.style.opacity = "50%";
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scrollX, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.display = 'block';
+
+                if (false) {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+
+
+const load = async () => {
+    initStyles();
+
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...{"startOnLoad": false},
+                ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...{"startOnLoad": false},
+    ...{ darkMode: darkTheme, theme: darkTheme ? "dark" : "default" },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
+      <script src="../../_static/expand-intel-modules.js?v=8f45ed9c"></script></body>
+</html>
