@@ -1,0 +1,6 @@
+# Notion
+
+```{toctree}
+config
+schema
+```
