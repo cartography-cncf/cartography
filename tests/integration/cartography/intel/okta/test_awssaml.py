@@ -458,7 +458,8 @@ def test_okta_cleanup_preserves_adopted_legacy_role_relationships(neo4j_session)
         MATCH (app:OktaApplication {name: "amazon_aws"})
         MATCH (role:AWSRole {arn: $ROLE_ARN})
         MERGE (group:OktaGroup {id: $GROUP_ID})
-        SET group.name = "aws#test#myrole1#1234"
+        SET group.name = "aws#test#myrole1#1234",
+            group.lastupdated = $UPDATE_TAG
         MERGE (org)-[:RESOURCE]->(group)
         MERGE (group)-[:APPLICATION]->(app)
         MERGE (group)-[:ALLOWED_BY {lastupdated: $OLD_UPDATE_TAG}]->(role)
@@ -466,6 +467,7 @@ def test_okta_cleanup_preserves_adopted_legacy_role_relationships(neo4j_session)
         ORG_ID=org_id,
         GROUP_ID=group_id,
         ROLE_ARN=role_arn,
+        UPDATE_TAG=TEST_UPDATE_TAG,
         OLD_UPDATE_TAG=TEST_UPDATE_TAG - 1,
     )
 
