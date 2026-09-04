@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelProperties
@@ -63,7 +62,6 @@ class OktaGroupToAWSRoleHasRoleMatchLink(CartographyRelSchema):
 class OktaGroupToAWSRoleAllowedByMatchLink(CartographyRelSchema):
     """Compatibility edge for an AWS role granted to Okta group members."""
 
-    __cartography_introspection_exclude__: ClassVar[bool] = True
     source_node_label: str = "OktaGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("okta_group_id")},

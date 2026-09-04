@@ -410,17 +410,32 @@ def test_okta_cleanup_removes_unscoped_legacy_role_relationships(neo4j_session):
     org_id = "legacy-role-test-okta-org-id"
     group_id = "legacy-role-test-group"
     role_arn = "arn:aws:iam::9876:role/legacy-role-test"
+    other_org_id = "other-legacy-role-test-okta-org-id"
+    other_group_id = "other-legacy-role-test-group"
+    other_role_arn = "arn:aws:iam::9876:role/other-legacy-role-test"
     neo4j_session.run(
         """
-        MERGE (group:OktaGroup {
-            id: $GROUP_ID,
-            lastupdated: $UPDATE_TAG
-        })
-        MERGE (role:AWSRole {id: $ROLE_ARN, arn: $ROLE_ARN})
+        UNWIND $MAPPINGS AS mapping
+        MERGE (org:OktaOrganization {id: mapping.org_id})
+        MERGE (group:OktaGroup {id: mapping.group_id})
+        SET group.lastupdated = $UPDATE_TAG
+        MERGE (org)-[:RESOURCE]->(group)
+        MERGE (role:AWSRole {id: mapping.role_arn})
+        SET role.arn = mapping.role_arn
         MERGE (group)-[:ALLOWED_BY {lastupdated: $OLD_UPDATE_TAG}]->(role)
         """,
-        GROUP_ID=group_id,
-        ROLE_ARN=role_arn,
+        MAPPINGS=[
+            {
+                "org_id": org_id,
+                "group_id": group_id,
+                "role_arn": role_arn,
+            },
+            {
+                "org_id": other_org_id,
+                "group_id": other_group_id,
+                "role_arn": other_role_arn,
+            },
+        ],
         UPDATE_TAG=TEST_UPDATE_TAG,
         OLD_UPDATE_TAG=TEST_UPDATE_TAG - 1,
     )
@@ -435,29 +450,39 @@ def test_okta_cleanup_removes_unscoped_legacy_role_relationships(neo4j_session):
     )
 
     # Assert
-    relationship_count = neo4j_session.run(
+    relationship_counts = neo4j_session.run(
         """
-        MATCH (:OktaGroup {id: $GROUP_ID})-[r:ALLOWED_BY]->(:AWSRole)
-        RETURN count(r) AS count
+        UNWIND $GROUP_IDS AS group_id
+        OPTIONAL MATCH (:OktaGroup {id: group_id})-[r:ALLOWED_BY]->(:AWSRole)
+        RETURN group_id, count(r) AS count
         """,
-        GROUP_ID=group_id,
-    ).single(strict=True)["count"]
-    assert relationship_count == 0
+        GROUP_IDS=[group_id, other_group_id],
+    ).data()
+    assert {row["group_id"]: row["count"] for row in relationship_counts} == {
+        group_id: 0,
+        other_group_id: 1,
+    }
 
 
 def test_okta_cleanup_preserves_adopted_legacy_role_relationships(neo4j_session):
     # Arrange
     org_id = TEST_ORG_ID
-    group_id = "group1"
+    group_id = "legacy-adoption-group"
     role_arn = "arn:aws:iam::1234:role/myrole1"
     _setup_okta_test_data(neo4j_session)
     _setup_aws_test_data(neo4j_session)
     neo4j_session.run(
         """
-        MATCH (group:OktaGroup {id: $GROUP_ID})
+        MATCH (org:OktaOrganization {id: $ORG_ID})
+        MATCH (app:OktaApplication {name: "amazon_aws"})
         MATCH (role:AWSRole {arn: $ROLE_ARN})
+        MERGE (group:OktaGroup {id: $GROUP_ID})
+        SET group.name = "aws#test#myrole1#1234"
+        MERGE (org)-[:RESOURCE]->(group)
+        MERGE (group)-[:APPLICATION]->(app)
         MERGE (group)-[:ALLOWED_BY {lastupdated: $OLD_UPDATE_TAG}]->(role)
         """,
+        ORG_ID=org_id,
         GROUP_ID=group_id,
         ROLE_ARN=role_arn,
         OLD_UPDATE_TAG=TEST_UPDATE_TAG - 1,
