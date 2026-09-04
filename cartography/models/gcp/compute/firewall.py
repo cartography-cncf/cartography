@@ -40,6 +40,14 @@ class GCPFirewallNodeProperties(CartographyNodeProperties):
         "has_target_service_accounts",
         description="Set to True if this Firewall has target service accounts defined. This field is currently a placeholder for future functionality to add GCP IAM objects to Cartography. If True, this firewall rule will only apply to GCP instances that use the specified target service account.",
     )
+    log_logging_enabled: PropertyRef = PropertyRef(
+        "log_logging_enabled",
+        description="Whether firewall rule logging is enabled for this firewall rule.",
+    )
+    log_logging_metadata: PropertyRef = PropertyRef(
+        "log_logging_metadata",
+        description="Firewall rule logging metadata setting, such as `INCLUDE_ALL_METADATA` or `EXCLUDE_ALL_METADATA`.",
+    )
 
 
 @dataclass(frozen=True)

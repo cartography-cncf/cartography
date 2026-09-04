@@ -75,6 +75,8 @@ Grant only the roles needed for the resource types you want to sync:
 | `roles/run.viewer` | List and get Cloud Run services, jobs, and executions |
 | `roles/notebooks.viewer` | List and get Vertex AI Workbench resources |
 | `roles/serviceusage.apiKeysViewer` | List and get Google Cloud API keys |
+| `roles/logging.viewer` | List organization, folder, and project Cloud Logging sinks |
+| `roles/cloudsql.viewer` | List and get Cloud SQL instances, including database flags |
 
 Enable optional APIs on the host project according to the resources you want
 to sync:
@@ -97,6 +99,7 @@ gcloud services enable aiplatform.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable notebooks.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudasset.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable apikeys.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable logging.googleapis.com --project=YOUR_HOST_PROJECT
 ```
 
 ## Configure Cartography
@@ -154,6 +157,8 @@ skipped across all synced organizations when folder exclusions are configured.
   `roles/cloudasset.viewer`.
 - Permission relationship sync requires policy bindings to refresh
   successfully in the same run.
+- IAM audit config sync uses Resource Manager `getIamPolicy` access on
+  organizations, folders, and projects.
 
 ## References
 

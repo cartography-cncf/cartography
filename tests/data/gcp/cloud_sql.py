@@ -22,6 +22,28 @@ MOCK_INSTANCES = {
                 "dataDiskSizeGb": "100",
                 "dataDiskType": "PD_SSD",
                 "availabilityType": "REGIONAL",
+                "databaseFlags": [
+                    {
+                        "name": "cloudsql.enable_pgaudit",
+                        "value": "on",
+                    },
+                    {
+                        "name": "log_checkpoints",
+                        "value": "on",
+                    },
+                    {
+                        "name": "log_connections",
+                        "value": "on",
+                    },
+                    {
+                        "name": "log_disconnections",
+                        "value": "on",
+                    },
+                    {
+                        "name": "log_lock_waits",
+                        "value": "on",
+                    },
+                ],
                 "backupConfiguration": {
                     "enabled": True,
                     "startTime": "03:00",

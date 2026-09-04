@@ -591,6 +591,7 @@ LIST_FIREWALLS_RESPONSE = {
             "kind": "compute#firewall",
             "logConfig": {
                 "enable": True,
+                "metadata": "INCLUDE_ALL_METADATA",
             },
             "name": "custom-port-incoming",
             "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/default",

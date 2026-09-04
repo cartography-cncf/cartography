@@ -102,8 +102,26 @@ def test_sync_sql(
     )
 
     # Assert: Check all 4 new node types
-    assert check_nodes(neo4j_session, "GCPCloudSQLInstance", ["id"]) == {
-        (TEST_INSTANCE_ID,),
+    assert check_nodes(
+        neo4j_session,
+        "GCPCloudSQLInstance",
+        [
+            "id",
+            "flag_cloudsql_enable_pgaudit",
+            "flag_log_checkpoints",
+            "flag_log_connections",
+            "flag_log_disconnections",
+            "flag_log_lock_waits",
+        ],
+    ) == {
+        (
+            TEST_INSTANCE_ID,
+            "on",
+            "on",
+            "on",
+            "on",
+            "on",
+        ),
     }
     assert check_nodes(neo4j_session, "GCPCloudSQLDatabase", ["id"]) == {
         (f"{TEST_INSTANCE_ID}/databases/carto-db-1",),
