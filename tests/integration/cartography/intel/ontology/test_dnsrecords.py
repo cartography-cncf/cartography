@@ -44,7 +44,7 @@ def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
         CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
         CREATE (:KubernetesIngress {
             id: 'ingress',
-            host_names: ['app.example.com']
+            host_names: [' App.Example.COM. ']
         })
         """
     )
