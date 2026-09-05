@@ -323,7 +323,10 @@ def _build_ontology_field_statement_normalize_hostname(
     property_ref: PropertyRef,
     node_property_map: dict[str, PropertyRef],
 ) -> str | None:
-    """Canonicalize a hostname, optionally only for selected DNS record types."""
+    """Build a Cypher assignment that normalizes a hostname.
+
+    If `record_types` is set, normalize only records of those types.
+    """
     normalized_expression = f"toLower(rtrim(trim(toString({property_ref})), '.'))"
     record_types = mapping_field.extra.get("record_types")
     if record_types is not None:
