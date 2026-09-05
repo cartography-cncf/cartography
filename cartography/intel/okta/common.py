@@ -22,9 +22,43 @@ from okta.models.swa_application_settings import SwaApplicationSettings
 from okta.models.swa_application_settings_application import (
     SwaApplicationSettingsApplication,
 )
+from okta.models.user_factor import UserFactor
+from okta.models.user_factor_call import UserFactorCall
+from okta.models.user_factor_email import UserFactorEmail
+from okta.models.user_factor_push import UserFactorPush
+from okta.models.user_factor_security_question import UserFactorSecurityQuestion
+from okta.models.user_factor_signed_nonce import UserFactorSignedNonce
+from okta.models.user_factor_sms import UserFactorSMS
+from okta.models.user_factor_token import UserFactorToken
+from okta.models.user_factor_token_hardware import UserFactorTokenHardware
+from okta.models.user_factor_token_hotp import UserFactorTokenHOTP
+from okta.models.user_factor_token_software_totp import UserFactorTokenSoftwareTOTP
+from okta.models.user_factor_u2_f import UserFactorU2F
+from okta.models.user_factor_web import UserFactorWeb
+from okta.models.user_factor_web_authn import UserFactorWebAuthn
 from okta.pagination import PaginationHelper
 
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
+
+# UserFactor and every model the factorType discriminator can resolve to. Each
+# subclass owns its own copy of the inherited FieldInfo, so all of them must be
+# patched individually.
+_USER_FACTOR_MODELS = (
+    UserFactor,
+    UserFactorCall,
+    UserFactorEmail,
+    UserFactorPush,
+    UserFactorSecurityQuestion,
+    UserFactorSignedNonce,
+    UserFactorSMS,
+    UserFactorToken,
+    UserFactorTokenHardware,
+    UserFactorTokenHOTP,
+    UserFactorTokenSoftwareTOTP,
+    UserFactorU2F,
+    UserFactorWeb,
+    UserFactorWebAuthn,
+)
 
 
 def _make_fields_optional(model_cls: type[Any], *field_names: str) -> None:
@@ -33,6 +67,15 @@ def _make_fields_optional(model_cls: type[Any], *field_names: str) -> None:
         if field_info and field_info.is_required():
             field_info.default = None
             field_info.annotation = field_info.annotation | None
+    model_cls.model_rebuild(force=True)
+
+
+def _relax_enum_fields(model_cls: type[Any], *field_names: str) -> None:
+    """Retype optional enum fields as plain strings so unknown values are kept."""
+    for field_name in field_names:
+        field_info = model_cls.model_fields.get(field_name)
+        if field_info:
+            field_info.annotation = str | None
     model_cls.model_rebuild(force=True)
 
 
@@ -81,9 +124,19 @@ def _patch_okta_sdk_application_models() -> None:
         model_cls.model_rebuild(force=True)
 
 
+def _patch_okta_sdk_user_factor_models() -> None:
+    """Accept factor statuses returned by Okta but rejected by SDK 3.4.4."""
+    # Okta sets FULFILLMENT_PENDING and FULFILLMENT_ERRORED on WebAuthn
+    # preregistration factors, but UserFactorStatus only declares the seven
+    # lifecycle values, so a single such factor aborts the whole okta sync.
+    for model_cls in _USER_FACTOR_MODELS:
+        _relax_enum_fields(model_cls, "status")
+
+
 # DEPRECATED: Remove this Okta SDK 3.4.4 compatibility shim in v1.0.0 after
 # okta/okta-sdk-python#546 and #574 are released upstream.
 _patch_okta_sdk_application_models()
+_patch_okta_sdk_user_factor_models()
 
 
 class OktaApiError(RuntimeError):

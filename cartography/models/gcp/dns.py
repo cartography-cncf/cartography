@@ -103,7 +103,7 @@ class GCPRecordSetNodeProperties(CartographyNodeProperties):
     data: PropertyRef = PropertyRef("data", description="Data contained in the record.")
     target_hostnames: PropertyRef = PropertyRef(
         "target_hostnames",
-        description="Canonical target hostnames for hostname-valued records.",
+        description="Normalized CNAME target hostnames.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

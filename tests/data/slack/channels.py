@@ -86,6 +86,20 @@ SLACK_CHANNELS = {
             ],
             "num_members": 2,
         },
+        {
+            "id": "SLACKCHANNEL3",
+            "name": "private-channel",
+            "is_private": True,
+            "created": 1681184976,
+            "is_archived": False,
+            "is_general": False,
+            "is_shared": False,
+            "is_org_shared": False,
+            "topic": {"value": ""},
+            "purpose": {"value": ""},
+            "num_members": 2,
+            "creator": "SLACKUSER1",
+        },
     ],
 }
 

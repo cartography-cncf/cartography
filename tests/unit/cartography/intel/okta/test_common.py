@@ -3,12 +3,15 @@ from copy import deepcopy
 from typing import Any
 
 from okta.models.application_json_converter import ApplicationJsonConverter
+from okta.models.user_factor import UserFactor
 
 import cartography.intel.okta.common  # noqa: F401
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
 from tests.data.okta.application import SAML_APPLICATION_WITH_UNKNOWN_FEATURE
+from tests.data.okta.userfactors import SMS_FACTOR_WITH_ACTIVE_STATUS
+from tests.data.okta.userfactors import WEBAUTHN_FACTOR_WITH_FULFILLMENT_ERRORED_STATUS
 
 
 def test_saml_application_accepts_omitted_optional_booleans() -> None:
@@ -85,3 +88,23 @@ def test_openid_connect_application_accepts_omitted_grant_types() -> None:
     assert application is not None
     assert application.id == "someid"
     assert application.settings.oauth_client.grant_types is None
+
+
+def test_user_factor_accepts_fulfillment_errored_status() -> None:
+    # Act
+    factor = UserFactor.from_dict(WEBAUTHN_FACTOR_WITH_FULFILLMENT_ERRORED_STATUS)
+
+    # Assert
+    assert factor is not None
+    assert factor.id == "fwf1prereg0Xy3Zq5d7"
+    assert factor.status == "FULFILLMENT_ERRORED"
+
+
+def test_user_factor_preserves_declared_status() -> None:
+    # Act
+    factor = UserFactor.from_dict(SMS_FACTOR_WITH_ACTIVE_STATUS)
+
+    # Assert
+    assert factor is not None
+    assert factor.id == "sms1standard0Ab2Cd4"
+    assert factor.status == "ACTIVE"

@@ -14,7 +14,7 @@ Syft relationship semantics:
 
 from typing import Any
 
-SYFT_SAMPLE = {
+SYFT_SAMPLE: dict[str, Any] = {
     "artifacts": [
         {
             "id": "pkg:npm/express@4.18.2",

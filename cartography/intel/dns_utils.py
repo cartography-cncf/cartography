@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 
 def normalize_hostname(value: str | None) -> str | None:
-    """Return a canonical hostname while preserving the provider's raw value."""
+    """Return a lowercase hostname without surrounding whitespace or trailing dots."""
     if value is None:
         return None
 
@@ -12,7 +12,7 @@ def normalize_hostname(value: str | None) -> str | None:
 
 
 def normalize_hostname_values(values: Iterable[str] | None) -> list[str]:
-    """Normalize hostname values and omit empty entries."""
+    """Normalize each hostname and omit empty results."""
     if values is None:
         return []
 
@@ -20,7 +20,7 @@ def normalize_hostname_values(values: Iterable[str] | None) -> list[str]:
 
 
 def hostname_from_url(value: str | None) -> str | None:
-    """Extract and canonicalize the hostname from an absolute URL."""
+    """Return the normalized hostname from an absolute URL."""
     if value is None:
         return None
     return normalize_hostname(urlparse(value.strip()).hostname)
