@@ -206,7 +206,7 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (ing:KubernetesIngress) WHERE ing.host_names_normalized IS NOT NULL OR ing.host_names IS NOT NULL UNWIND coalesce(ing.host_names_normalized, ing.host_names) AS hostname WITH ing, hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
+            match="MATCH (ing:KubernetesIngress) WHERE ing.host_names_normalized IS NOT NULL OR ing.host_names IS NOT NULL UNWIND CASE WHEN ing.host_names_normalized IS NOT NULL THEN ing.host_names_normalized ELSE [host IN ing.host_names | toLower(rtrim(trim(toString(host)), '.'))] END AS hostname WITH ing, hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
             effects=(
                 AddRelationship(
                     "dns",
