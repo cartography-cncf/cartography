@@ -12,6 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_PLATFORM_REQUIREMENT
 from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.container_image import parse_image_uri
+from cartography.intel.dns_utils import hostname_from_url
 from cartography.intel.gcp.clients import build_cloud_run_revision_client
 from cartography.intel.gcp.clients import build_cloud_run_service_client
 from cartography.intel.gcp.cloudrun.util import build_cloud_run_resource_retry
@@ -83,6 +84,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
                 "description": service.get("description"),
                 "location": location,
                 "uri": service.get("uri"),
+                "uri_hostname": hostname_from_url(service.get("uri")),
                 "latest_ready_revision": latest_ready_revision,
                 "service_account_email": service_account_email,
                 "ingress": service.get("ingress"),

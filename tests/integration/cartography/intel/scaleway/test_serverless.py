@@ -102,6 +102,11 @@ def test_load_scaleway_serverless(
         neo4j_session, "ScalewayServerlessFunction", ["id", "exposed_internet"]
     ) == {(TEST_FUNCTION_ID, True)}
     assert check_nodes(
+        neo4j_session,
+        "ScalewayServerlessFunction",
+        ["id", "domain_name_normalized"],
+    ) == {(TEST_FUNCTION_ID, SCALEWAY_FUNCTIONS[0].domain_name.lower().rstrip("."))}
+    assert check_nodes(
         neo4j_session, "ScalewayServerlessContainerNamespace", ["id", "name"]
     ) == {(TEST_CONTAINER_NAMESPACE_ID, "demo-container-namespace")}
     assert check_nodes(
@@ -111,6 +116,11 @@ def test_load_scaleway_serverless(
     assert check_nodes(
         neo4j_session, "ScalewayServerlessContainer", ["id", "exposed_internet"]
     ) == {(TEST_CONTAINER_ID, True)}
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayServerlessContainer",
+        ["id", "domain_name_normalized"],
+    ) == {(TEST_CONTAINER_ID, SCALEWAY_CONTAINERS[0].domain_name.lower().rstrip("."))}
     assert check_nodes(
         neo4j_session,
         "ScalewayServerlessJobDefinition",

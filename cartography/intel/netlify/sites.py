@@ -6,6 +6,8 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname
+from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.netlify.util import paginated_get
 from cartography.models.netlify.site import NetlifySiteSchema
 from cartography.util import timeit
@@ -72,6 +74,15 @@ def transform_netlify_sites(sites: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "functions_dir": build_settings.get("functions_dir"),
                 "deploy_key_id": build_settings.get("deploy_key_id"),
                 "has_jwt_secret": bool(site.get("jwt_secret")),
+                "default_domain_normalized": normalize_hostname(
+                    site.get("default_domain")
+                ),
+                "custom_domain_normalized": normalize_hostname(
+                    site.get("custom_domain")
+                ),
+                "domain_aliases_normalized": normalize_hostname_values(
+                    site.get("domain_aliases")
+                ),
                 **_exposure(site),
             },
         )

@@ -231,3 +231,114 @@ def test_sync_links_dns_records_to_railway_domains(neo4j_session):
         """
     ).single()["count"]
     assert unverified_relationship_count == 0
+
+
+def test_sync_links_dns_records_to_public_service_endpoints(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:ModalSandboxTunnel {
+            id: 'tunnel', host_normalized: 'tls.modal.test',
+            unencrypted_host_normalized: 'clear.modal.test'
+        })
+        CREATE (:ModalFunction {
+            id: 'modal-function', web_hostname: 'function.modal.test'
+        })
+        CREATE (:GCPCloudRunService {
+            id: 'cloud-run', uri_hostname: 'service.run.test'
+        })
+        CREATE (:NetlifySite {
+            id: 'netlify', default_domain_normalized: 'site.netlify.test',
+            custom_domain_normalized: 'www.example.test',
+            domain_aliases_normalized: ['alias.example.test']
+        })
+        CREATE (:ScalewayServerlessContainer {
+            id: 'container', domain_name_normalized: 'container.functions.test'
+        })
+        CREATE (:ScalewayServerlessFunction {
+            id: 'scw-function', domain_name_normalized: 'function.functions.test'
+        })
+        CREATE (:ModalSandboxTunnel {id: 'null-tunnel'})
+        CREATE (:AWSEC2Instance {id: 'private-instance', publicdnsname: ''})
+        CREATE (stale_record:DNSRecord {
+            id: 'stale-service-record', _ont_target_hostname: 'gone.example.test'
+        })
+        CREATE (stale_target:NetlifySite {
+            id: 'stale-site', default_domain_normalized: 'different.example.test'
+        })
+        CREATE (stale_record)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(stale_target)
+        CREATE (:DNSRecord {id: 'empty-record', _ont_target_hostname: ''})
+        CREATE (:GCPRecordSet:DNSRecord {
+            id: 'gcp-modal-function',
+            _ont_target_hostnames: ['function.modal.test']
+        })
+        WITH 1 AS ignored
+        UNWIND [
+            ['tls', 'tls.modal.test'],
+            ['clear', 'clear.modal.test'],
+            ['modal-function', 'function.modal.test'],
+            ['cloud-run', 'service.run.test'],
+            ['netlify-default', 'site.netlify.test'],
+            ['netlify-custom', 'www.example.test'],
+            ['netlify-alias', 'alias.example.test'],
+            ['scw-container', 'container.functions.test'],
+            ['scw-function', 'function.functions.test']
+        ] AS pair
+        CREATE (:DNSRecord {id: pair[0], _ont_target_hostname: pair[1]})
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    paths = {
+        (record_id, target_label, target_id)
+        for record_id, target_label, target_id in neo4j_session.run(
+            """
+            MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(target)
+            WHERE target:ModalSandboxTunnel
+               OR target:ModalFunction
+               OR target:GCPCloudRunService
+               OR target:NetlifySite
+               OR target:ScalewayServerlessContainer
+               OR target:ScalewayServerlessFunction
+            RETURN dns.id, labels(target)[0], target.id
+            """
+        ).values()
+    }
+    assert paths == {
+        ("tls", "ModalSandboxTunnel", "tunnel"),
+        ("clear", "ModalSandboxTunnel", "tunnel"),
+        ("modal-function", "ModalFunction", "modal-function"),
+        ("gcp-modal-function", "ModalFunction", "modal-function"),
+        ("cloud-run", "GCPCloudRunService", "cloud-run"),
+        ("netlify-default", "NetlifySite", "netlify"),
+        ("netlify-custom", "NetlifySite", "netlify"),
+        ("netlify-alias", "NetlifySite", "netlify"),
+        ("scw-container", "ScalewayServerlessContainer", "container"),
+        ("scw-function", "ScalewayServerlessFunction", "scw-function"),
+    }
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'stale-service-record'})
+                  -[r:DNS_POINTS_TO]->(:NetlifySite {id: 'stale-site'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
+    )
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'empty-record'})-[r:DNS_POINTS_TO]->()
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 0
+    )

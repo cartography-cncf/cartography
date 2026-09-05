@@ -259,51 +259,93 @@ BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
 DNS_RECORD_TARGETS = (
     (
         "AWSLoadBalancerV2",
-        "dnsname",
+        "[target.dnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
         False,
     ),
     (
         "AWSLoadBalancer",
-        "dnsname",
+        "[target.dnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
         False,
     ),
     (
         "AWSCloudFrontDistribution",
-        "domain_name",
+        "[target.domain_name]",
         "AND NOT dns:GCPRecordSet",
         "",
         False,
     ),
     (
         "AWSEC2Instance",
-        "publicdnsname",
+        "[target.publicdnsname]",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
         False,
     ),
-    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", "", False),
+    ("GCPInstance", "[target.hostname]", "AND NOT dns:GCPRecordSet", "", False),
     (
         "AzureAppService",
-        "default_host_name",
+        "[target.default_host_name]",
         "AND NOT dns:GCPRecordSet",
         "",
         False,
     ),
     (
         "AzureFunctionApp",
-        "default_host_name",
+        "[target.default_host_name]",
         "AND NOT dns:GCPRecordSet",
         "",
         False,
     ),
     (
         "RailwayServiceDomain",
-        "domain_normalized",
+        "[target.domain_normalized]",
         "AND NOT dns:GCPRecordSet",
+        "",
+        True,
+    ),
+    (
+        "ModalSandboxTunnel",
+        "[target.host_normalized, target.unencrypted_host_normalized]",
+        "",
+        "",
+        True,
+    ),
+    (
+        "ModalFunction",
+        "[target.web_hostname]",
+        "",
+        "",
+        True,
+    ),
+    (
+        "GCPCloudRunService",
+        "[target.uri_hostname]",
+        "",
+        "",
+        True,
+    ),
+    (
+        "NetlifySite",
+        "[target.default_domain_normalized, target.custom_domain_normalized] + coalesce(target.domain_aliases_normalized, [])",
+        "",
+        "",
+        True,
+    ),
+    (
+        "ScalewayServerlessContainer",
+        "[target.domain_name_normalized]",
+        "",
+        "",
+        True,
+    ),
+    (
+        "ScalewayServerlessFunction",
+        "[target.domain_name_normalized]",
+        "",
         "",
         True,
     ),
@@ -321,9 +363,9 @@ DNS_RECORD_LINKING_JOBS = (
             statements=(
                 AnalysisStatement(
                     match=(
-                        f"MATCH (target:{target_label}) WHERE target.{target_property} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_target_hostname: target.{target_property}}}) WHERE true {match_filter}"
+                        f"MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH target, target_value WHERE target_value IS NOT NULL MATCH (dns:DNSRecord {{_ont_target_hostname: target_value}}) WHERE true {match_filter}"
                         if target_is_normalized
-                        else f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{target_property}, '.'))"
+                        else f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH dns, target, target_value WHERE target_value IS NOT NULL AND trim(toString(target_value)) <> '' AND toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(toString(target_value), '.'))"
                     ),
                     effects=(
                         AddRelationship(
@@ -338,9 +380,9 @@ DNS_RECORD_LINKING_JOBS = (
                 ),
                 AnalysisStatement(
                     match=(
-                        f"MATCH (dns:GCPRecordSet) WHERE dns._ont_target_hostnames IS NOT NULL UNWIND dns._ont_target_hostnames AS hostname WITH dns, hostname MATCH (target:{target_label}) WHERE hostname = target.{target_property}"
+                        f"MATCH (dns:GCPRecordSet) WHERE dns._ont_target_hostnames IS NOT NULL UNWIND dns._ont_target_hostnames AS hostname WITH dns, hostname MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH dns, hostname, target, target_value WHERE target_value IS NOT NULL AND hostname = target_value"
                         if target_is_normalized
-                        else f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{target_property}, '.'))"
+                        else f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) UNWIND {target_values_expression} AS target_value WITH dns, val, target, target_value WHERE target_value IS NOT NULL AND trim(toString(target_value)) <> '' AND toLower(rtrim(toString(val), '.')) = toLower(rtrim(toString(target_value), '.'))"
                     ),
                     effects=(
                         AddRelationship(
@@ -362,7 +404,7 @@ DNS_RECORD_LINKING_JOBS = (
                 ),
             ),
         )
-        for target_label, target_property, match_filter, cleanup_where, target_is_normalized in DNS_RECORD_TARGETS
+        for target_label, target_values_expression, match_filter, cleanup_where, target_is_normalized in DNS_RECORD_TARGETS
     )
 )
 BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(

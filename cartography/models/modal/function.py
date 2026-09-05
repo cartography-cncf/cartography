@@ -36,6 +36,11 @@ class ModalFunctionNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Public URL if this is a web endpoint, else null. Protection status is unknowable, see above.",
     )
+    web_hostname: PropertyRef = PropertyRef(
+        "web_hostname",
+        extra_index=True,
+        description="Canonical hostname extracted from the public web URL.",
+    )
     is_web_endpoint: PropertyRef = PropertyRef(
         "is_web_endpoint",
         extra_index=True,
