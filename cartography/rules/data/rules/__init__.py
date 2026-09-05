@@ -268,6 +268,12 @@ from cartography.rules.data.rules.inactive_user_active_accounts import (
 from cartography.rules.data.rules.kubernetes_control_plane_exposed import (
     kubernetes_control_plane_exposed,
 )
+from cartography.rules.data.rules.kubernetes_storage_security import (
+    kubernetes_containers_using_raw_block_persistent_storage,
+)
+from cartography.rules.data.rules.kubernetes_storage_security import (
+    kubernetes_internet_exposed_containers_with_writable_persistent_storage,
+)
 from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
     malicious_npm_dependencies_shai_hulud,
 )
@@ -373,6 +379,8 @@ RULES = {
     identity_mfa_gaps.id: identity_mfa_gaps,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
     kubernetes_control_plane_exposed.id: kubernetes_control_plane_exposed,
+    kubernetes_containers_using_raw_block_persistent_storage.id: kubernetes_containers_using_raw_block_persistent_storage,
+    kubernetes_internet_exposed_containers_with_writable_persistent_storage.id: kubernetes_internet_exposed_containers_with_writable_persistent_storage,
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
