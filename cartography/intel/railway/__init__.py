@@ -17,6 +17,7 @@ import cartography.intel.railway.serviceinstances
 import cartography.intel.railway.services
 import cartography.intel.railway.storage.volumes
 import cartography.intel.railway.variables
+from cartography.client.container_registry import AnonymousRegistryClient
 from cartography.config import Config
 from cartography.intel.railway.queries import ME_QUERY
 from cartography.intel.railway.utils import call_railway_api
@@ -111,20 +112,24 @@ def start_railway_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         logger.warning("Railway token has access to no workspaces - nothing to sync.")
         return
 
-    for workspace_id in workspace_ids:
-        logger.info("Syncing Railway workspace %s", workspace_id)
-        common_job_parameters = {
-            "UPDATE_TAG": config.update_tag,
-            "BASE_URL": base_url,
-            "WORKSPACE_ID": workspace_id,
-        }
-        _sync_workspace(
-            neo4j_session,
-            api_session,
-            common_job_parameters,
-            account_user_id,
-            config.update_tag,
-        )
+    # One registry client keeps immutable digest/config lookups cached across every
+    # workspace in this Railway sync.
+    with AnonymousRegistryClient() as registry_client:
+        for workspace_id in workspace_ids:
+            logger.info("Syncing Railway workspace %s", workspace_id)
+            common_job_parameters = {
+                "UPDATE_TAG": config.update_tag,
+                "BASE_URL": base_url,
+                "WORKSPACE_ID": workspace_id,
+            }
+            _sync_workspace(
+                neo4j_session,
+                api_session,
+                common_job_parameters,
+                account_user_id,
+                config.update_tag,
+                registry_client,
+            )
 
 
 def _sync_workspace(
@@ -133,6 +138,7 @@ def _sync_workspace(
     common_job_parameters: dict[str, Any],
     account_user_id: str | None,
     update_tag: int,
+    registry_client: AnonymousRegistryClient,
 ) -> None:
     # Ordering matters so that cross-resource matchers resolve: the workspace tenant and its
     # projects first, then the principals that tokens are owned by, then everything scoped
@@ -196,13 +202,14 @@ def _sync_workspace(
 
     # Service instances need environments and services to exist first so their HAS edges
     # resolve.
-    cartography.intel.railway.serviceinstances.sync(
+    external_images = cartography.intel.railway.serviceinstances.sync(
         neo4j_session,
         common_job_parameters,
         bundles,
         tcp_proxies_by_instance,
         workspace,
         update_tag,
+        registry_client,
     )
     cartography.intel.railway.network.domains.sync(
         neo4j_session,
@@ -222,6 +229,7 @@ def _sync_workspace(
         common_job_parameters,
         bundles,
         update_tag,
+        external_images,
     )
     cartography.intel.railway.storage.volumes.sync(
         neo4j_session,

@@ -104,10 +104,19 @@ def test_typed_analysis_jobs_do_not_declare_conflicting_cleanup_guards():
     provider-owned edges, so the guard has to be consistent across the job.
     """
     for job in _analysis_jobs():
-        guards_by_edge: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+        guards_by_edge: dict[
+            tuple[str, str, str],
+            set[tuple[str, bool, bool]],
+        ] = defaultdict(set)
         for effect in relationships_added(job):
             edge = (effect.source_label, effect.rel_label, effect.target_label)
-            guards_by_edge[edge].add(effect.cleanup_where)
+            guards_by_edge[edge].add(
+                (
+                    effect.cleanup_where,
+                    effect.cleanup_source_label,
+                    effect.cleanup_target_label,
+                ),
+            )
 
         for edge, guards in guards_by_edge.items():
             assert len(guards) == 1, (
@@ -189,6 +198,63 @@ def test_relationship_cleanup_can_keep_provider_owned_edges():
         "WITH r LIMIT $LIMIT_SIZE\n"
         "DELETE r"
     )
+
+
+def test_relationship_cleanup_can_match_endpoints_after_labels_are_removed():
+    job = AnalysisJob(
+        name="Runtime image cleanup",
+        statements=(
+            AnalysisStatement(
+                match="MATCH (runtime:Container)-[:HAS_IMAGE]->(image:Image)",
+                effects=(
+                    AddRelationship(
+                        "runtime",
+                        "RESOLVED_IMAGE",
+                        "image",
+                        source_label="Container",
+                        target_label="Image",
+                        cleanup_source_label=False,
+                        cleanup_target_label=False,
+                        cleanup_where="source:Container OR NOT source:Function",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    graph_job = to_graph_job(job)
+
+    assert graph_job.statements[1].query == (
+        "MATCH (source)-[r:RESOLVED_IMAGE]->(target)\n"
+        "WHERE r.lastupdated <> $UPDATE_TAG AND "
+        "(source:Container OR NOT source:Function)\n"
+        "WITH r LIMIT $LIMIT_SIZE\n"
+        "DELETE r"
+    )
+
+
+@pytest.mark.parametrize(
+    "effect",
+    [
+        lambda: AddRelationship(
+            "source",
+            "REL",
+            "target",
+            source_label="Source",
+            target_label="Target",
+            cleanup_source_label=False,
+        ),
+        lambda: RelationshipEffect(
+            "Source",
+            "REL",
+            "Target",
+            cleanup_target_label=False,
+        ),
+    ],
+)
+def test_unlabeled_relationship_cleanup_requires_guard(effect):
+    with pytest.raises(ValueError, match="requires a cleanup_where guard"):
+        effect()
 
 
 def test_statement_compiles_add_relationship_effect():

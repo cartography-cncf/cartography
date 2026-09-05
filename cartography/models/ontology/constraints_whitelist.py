@@ -192,6 +192,12 @@ from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
 from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.railway.deployment import (
+    RailwayDeploymentToExternalContainerImageRel,
+)
+from cartography.models.railway.serviceinstance import (
+    RailwayServiceInstanceToExternalContainerImageReferenceRel,
+)
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.scaleway.serverless.container import (
@@ -374,6 +380,10 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         AzureFunctionAppToGitLabContainerImageRel,
         AzureFunctionAppToGCPArtifactRegistryImageRel,
         AzureFunctionAppToGitHubContainerImageRel,
+        RailwayDeploymentToExternalContainerImageRel,
+        # Railway exposes configured image evidence at the ComputeService level;
+        # only its digest-pinned current deployment is eligible for RESOLVED_IMAGE.
+        RailwayServiceInstanceToExternalContainerImageReferenceRel,
         # USES_WAREHOUSE is a Snowflake service's data-plane dependency on the
         # warehouse its container code runs SQL against, not the workload's
         # scheduling parent: that is the compute pool, which the service reaches

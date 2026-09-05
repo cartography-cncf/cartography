@@ -341,6 +341,8 @@ def _(effect: AddRelationship) -> RelationshipEffect:
         LinkDirection.OUTWARD if not effect.undirected else None,
         effect.scoped_to,
         cleanup_where=effect.cleanup_where or "",
+        cleanup_source_label=effect.cleanup_source_label,
+        cleanup_target_label=effect.cleanup_target_label,
     )
 
 
@@ -428,8 +430,12 @@ def _cleanup_query(effect: AnalysisEffect, scope: ScopeById | None) -> str:
 
 @_cleanup_query.register
 def _(effect: RelationshipEffect, scope: ScopeById | None) -> str:
-    source = f"(source:{effect.source_label})"
-    target = f"(target:{effect.target_label})"
+    source = (
+        f"(source:{effect.source_label})" if effect.cleanup_source_label else "(source)"
+    )
+    target = (
+        f"(target:{effect.target_label})" if effect.cleanup_target_label else "(target)"
+    )
     rel = f"[r:{effect.rel_label}]"
     if effect.direction == LinkDirection.INWARD:
         pattern = f"{source}<-{rel}-{target}"

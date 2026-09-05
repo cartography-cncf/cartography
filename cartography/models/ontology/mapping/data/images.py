@@ -92,8 +92,26 @@ scaleway_mapping = OntologyMapping(
     ],
 )
 
+external_container_images_mapping = OntologyMapping(
+    module_name="external_container_images",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ExternalContainerImage",
+            fields=[
+                OntologyFieldMapping(ontology_field="digest", node_field="digest"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture"
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(ontology_field="variant", node_field="variant"),
+            ],
+        ),
+    ],
+)
+
 IMAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_ecr_mapping,
+    "external_container_images": external_container_images_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "gitlab": gitlab_mapping,
