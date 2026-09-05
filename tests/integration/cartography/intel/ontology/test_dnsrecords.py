@@ -4,6 +4,69 @@ TEST_UPDATE_TAG = 123456789
 LB_DNS_NAME = "mylb-1234567890.us-east-1.elb.amazonaws.com"
 
 
+def test_sync_links_canonical_dns_name_to_kubernetes_ingress(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress',
+            host_names: [' App.Example.COM. '],
+            host_names_normalized: ['app.example.com']
+        })
+        """
+    )
+
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'dns'})-[r:DNS_POINTS_TO]->
+                  (:KubernetesIngress {id: 'ingress'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 1
+    )
+
+
+def test_sync_links_dns_name_to_ingress_created_before_hostname_normalization(
+    neo4j_session,
+):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (:DNSRecord {id: 'dns', _ont_name: 'app.example.com'})
+        CREATE (:KubernetesIngress {
+            id: 'ingress',
+            host_names: [' App.Example.COM. ']
+        })
+        """
+    )
+
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        neo4j_session.run(
+            """
+            MATCH (:DNSRecord {id: 'dns'})-[r:DNS_POINTS_TO]->
+                  (:KubernetesIngress {id: 'ingress'})
+            RETURN count(r) AS count
+            """
+        ).single()["count"]
+        == 1
+    )
+
+
 def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
     """
     The route53 loader owns (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:AWSLoadBalancerV2) and stamps
@@ -72,3 +135,99 @@ def test_sync_keeps_route53_owned_dns_points_to_relationships(neo4j_session):
         lb_dns_name=LB_DNS_NAME,
     ).single()["count"]
     assert stale_count == 0
+
+
+def test_sync_links_dns_records_to_railway_domains(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (service_domain:RailwayServiceDomain {
+            id: 'service-domain',
+            domain_normalized: 'web-production.up.railway.app'
+        })
+        CREATE (custom_domain:RailwayCustomDomain {
+            id: 'custom-domain',
+            domain_normalized: 'app.example.com',
+            verified: true
+        })
+        CREATE (unverified_domain:RailwayCustomDomain {
+            id: 'unverified-domain',
+            domain_normalized: 'pending.example.com',
+            verified: false
+        })
+        CREATE (instance:RailwayServiceInstance {id: 'service-instance'})
+        CREATE (service_domain)-[:EXPOSE]->(instance)
+        CREATE (custom_domain)-[:EXPOSE]->(instance)
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'custom-domain-record',
+            _ont_name: 'app.example.com',
+            _ont_type: 'CNAME',
+            _ont_target_hostname: 'web-production.up.railway.app'
+        })
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'pending-domain-record',
+            _ont_name: 'pending.example.com',
+            _ont_type: 'CNAME',
+            _ont_target_hostname: 'pending.up.railway.app'
+        })
+        CREATE (:CloudflareDNSRecord:DNSRecord {
+            id: 'unrelated-text-record',
+            _ont_name: 'app.example.com',
+            _ont_type: 'TXT',
+            _ont_value: 'verification-token'
+        })
+        CREATE (stale:CloudflareDNSRecord:DNSRecord {
+            id: 'stale-record',
+            _ont_name: 'old.example.com',
+            _ont_target_hostname: 'old.up.railway.app'
+        })
+        CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(service_domain)
+        CREATE (stale)-[:DNS_POINTS_TO {lastupdated: $stale_tag}]->(custom_domain)
+        """,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.ontology.dnsrecords.sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    paths = {
+        (record_id, domain_label, instance_id)
+        for record_id, domain_label, instance_id in neo4j_session.run(
+            """
+            MATCH (dns:DNSRecord)-[:DNS_POINTS_TO]->(domain)-[:EXPOSE]->(instance)
+            WHERE domain:RailwayServiceDomain
+               OR domain:RailwayCustomDomain
+            RETURN dns.id AS record_id, labels(domain)[0] AS domain_label,
+                   instance.id AS instance_id
+            """
+        ).values()
+    }
+    assert paths == {
+        ("custom-domain-record", "RailwayServiceDomain", "service-instance"),
+        ("custom-domain-record", "RailwayCustomDomain", "service-instance"),
+    }
+
+    stale_relationship_count = neo4j_session.run(
+        """
+        MATCH (:DNSRecord {id: 'stale-record'})-[r:DNS_POINTS_TO]->(domain)
+        WHERE domain:RailwayServiceDomain
+           OR domain:RailwayCustomDomain
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert stale_relationship_count == 0
+
+    unverified_relationship_count = neo4j_session.run(
+        """
+        MATCH (:DNSRecord {id: 'pending-domain-record'})
+              -[r:DNS_POINTS_TO]->(:RailwayCustomDomain {id: 'unverified-domain'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert unverified_relationship_count == 0

@@ -206,7 +206,7 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     cleanup_iterationsize=1000,
     statements=(
         AnalysisStatement(
-            match="MATCH (dns:DNSRecord) WHERE dns._ont_name IS NOT NULL WITH dns MATCH (ing:KubernetesIngress) WHERE dns._ont_name IN ing.host_names",
+            match="MATCH (ing:KubernetesIngress) WHERE ing.host_names_normalized IS NOT NULL OR ing.host_names IS NOT NULL UNWIND CASE WHEN ing.host_names_normalized IS NOT NULL THEN ing.host_names_normalized ELSE [host IN ing.host_names | toLower(rtrim(trim(toString(host)), '.'))] END AS hostname WITH ing, hostname MATCH (dns:DNSRecord {_ont_name: hostname})",
             effects=(
                 AddRelationship(
                     "dns",
@@ -219,12 +219,31 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
         ),
     ),
 )
+DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN = AnalysisJob(
+    name="Ontology - DNSRecord to RailwayCustomDomain linking",
+    short_name="ontology_dnsrecords_railway_custom_domain",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="MATCH (domain:RailwayCustomDomain) WHERE domain.verified = true AND domain.domain_normalized IS NOT NULL WITH domain MATCH (dns:DNSRecord {_ont_name: domain.domain_normalized}) WHERE dns._ont_type IS NULL OR toUpper(dns._ont_type) IN ['A', 'AAAA', 'CNAME']",
+            effects=(
+                AddRelationship(
+                    "dns",
+                    "DNS_POINTS_TO",
+                    "domain",
+                    source_label="DNSRecord",
+                    target_label="RailwayCustomDomain",
+                ),
+            ),
+        ),
+    ),
+)
 BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
     name="Ontology - BbotDNSName to provider DNSRecord linking",
     short_name="ontology_bbot_dns_matches_provider",
     statements=(
         AnalysisStatement(
-            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(rtrim(bbot._ont_name, '.')) = toLower(rtrim(provider._ont_name, '.'))",
+            match="MATCH (bbot:BbotDNSName) WHERE bbot._ont_name IS NOT NULL WITH bbot MATCH (provider:DNSRecord {_ont_name: bbot._ont_name}) WHERE NOT provider:BbotDNSName",
             effects=(
                 AddRelationship(
                     "bbot",
@@ -243,26 +262,55 @@ DNS_RECORD_TARGETS = (
         "dnsname",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
+        False,
     ),
     (
         "AWSLoadBalancer",
         "dnsname",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
+        False,
     ),
-    ("AWSCloudFrontDistribution", "domain_name", "AND NOT dns:GCPRecordSet", ""),
+    (
+        "AWSCloudFrontDistribution",
+        "domain_name",
+        "AND NOT dns:GCPRecordSet",
+        "",
+        False,
+    ),
     (
         "AWSEC2Instance",
         "publicdnsname",
         "AND NOT dns:AWSDNSRecord AND NOT dns:GCPRecordSet",
         "NOT source:AWSDNSRecord",
+        False,
     ),
-    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
-    ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
+    ("GCPInstance", "hostname", "AND NOT dns:GCPRecordSet", "", False),
+    (
+        "AzureAppService",
+        "default_host_name",
+        "AND NOT dns:GCPRecordSet",
+        "",
+        False,
+    ),
+    (
+        "AzureFunctionApp",
+        "default_host_name",
+        "AND NOT dns:GCPRecordSet",
+        "",
+        False,
+    ),
+    (
+        "RailwayServiceDomain",
+        "domain_normalized",
+        "AND NOT dns:GCPRecordSet",
+        "",
+        True,
+    ),
 )
 DNS_RECORD_LINKING_JOBS = (
     DNS_RECORD_TO_KUBERNETES_INGRESS,
+    DNS_RECORD_TO_RAILWAY_CUSTOM_DOMAIN,
     BBOT_DNS_MATCHES_PROVIDER,
 ) + tuple(
     (
@@ -272,7 +320,11 @@ DNS_RECORD_LINKING_JOBS = (
             cleanup_iterationsize=1000,
             statements=(
                 AnalysisStatement(
-                    match=f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(toString(dns._ont_value)) = toLower(target.{target_property})",
+                    match=(
+                        f"MATCH (target:{target_label}) WHERE target.{target_property} IS NOT NULL WITH target MATCH (dns:DNSRecord {{_ont_target_hostname: target.{target_property}}}) WHERE true {match_filter}"
+                        if target_is_normalized
+                        else f"MATCH (dns:DNSRecord) WHERE dns._ont_value IS NOT NULL {match_filter} WITH dns MATCH (target:{target_label}) WHERE toLower(rtrim(toString(dns._ont_value), '.')) = toLower(rtrim(target.{target_property}, '.'))"
+                    ),
                     effects=(
                         AddRelationship(
                             "dns",
@@ -285,7 +337,11 @@ DNS_RECORD_LINKING_JOBS = (
                     ),
                 ),
                 AnalysisStatement(
-                    match=f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(val) = toLower(target.{target_property})",
+                    match=(
+                        f"MATCH (dns:GCPRecordSet) WHERE dns._ont_target_hostnames IS NOT NULL UNWIND dns._ont_target_hostnames AS hostname WITH dns, hostname MATCH (target:{target_label}) WHERE hostname = target.{target_property}"
+                        if target_is_normalized
+                        else f"MATCH (dns:GCPRecordSet) WHERE dns.data IS NOT NULL UNWIND dns.data AS val WITH dns, val MATCH (target:{target_label}) WHERE toLower(rtrim(val, '.')) = toLower(rtrim(target.{target_property}, '.'))"
+                    ),
                     effects=(
                         AddRelationship(
                             "dns",
@@ -306,7 +362,7 @@ DNS_RECORD_LINKING_JOBS = (
                 ),
             ),
         )
-        for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
+        for target_label, target_property, match_filter, cleanup_where, target_is_normalized in DNS_RECORD_TARGETS
     )
 )
 BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
