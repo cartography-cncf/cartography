@@ -10,6 +10,15 @@ can be wrongly deleted, so they are covered here.
 from unittest.mock import patch
 
 import cartography.intel.supabase
+import cartography.intel.supabase.advisors
+import cartography.intel.supabase.apikeys
+import cartography.intel.supabase.auth
+import cartography.intel.supabase.branches
+import cartography.intel.supabase.functions
+import cartography.intel.supabase.network
+import cartography.intel.supabase.organizations
+import cartography.intel.supabase.projects
+import cartography.intel.supabase.storage
 import tests.data.supabase.organizations
 import tests.data.supabase.projects
 from cartography.config import Config

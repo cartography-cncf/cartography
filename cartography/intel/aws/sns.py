@@ -13,9 +13,9 @@ from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sns.topic import SNSTopicSchema
 from cartography.models.aws.sns.topic_subscription import SNSTopicSubscriptionSchema
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

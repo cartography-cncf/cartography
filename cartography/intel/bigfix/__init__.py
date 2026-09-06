@@ -3,8 +3,12 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.bigfix.computers import sync
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+sync = lazy_callable("cartography.intel.bigfix.computers", "sync")
 
 logger = logging.getLogger(__name__)
 

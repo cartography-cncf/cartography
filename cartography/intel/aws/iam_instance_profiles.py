@@ -7,8 +7,8 @@ from cartography.client.core.tx import load
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 
 @timeit

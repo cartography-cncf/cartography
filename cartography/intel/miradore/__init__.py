@@ -3,14 +3,21 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.miradore import config_profiles
-from cartography.intel.miradore import devices
-from cartography.intel.miradore import locations
-from cartography.intel.miradore import organizations
-from cartography.intel.miradore import tags
-from cartography.intel.miradore import users
-from cartography.intel.miradore.util import create_miradore_api_session
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+config_profiles = lazy_import("cartography.intel.miradore.config_profiles")
+create_miradore_api_session = lazy_callable(
+    "cartography.intel.miradore.util", "create_miradore_api_session"
+)
+devices = lazy_import("cartography.intel.miradore.devices")
+locations = lazy_import("cartography.intel.miradore.locations")
+organizations = lazy_import("cartography.intel.miradore.organizations")
+tags = lazy_import("cartography.intel.miradore.tags")
+users = lazy_import("cartography.intel.miradore.users")
 
 logger = logging.getLogger(__name__)
 

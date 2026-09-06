@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2
+import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.ec2.load_balancers
 import tests.data.aws.ec2.load_balancers
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s

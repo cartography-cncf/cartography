@@ -24,8 +24,8 @@ from cartography.models.aws.identitycenter.awspermissionset import (
 )
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

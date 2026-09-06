@@ -13,8 +13,8 @@ from cartography.models.aws.ec2.launch_template_versions import (
     LaunchTemplateVersionSchema,
 )
 from cartography.models.aws.ec2.launch_templates import LaunchTemplateSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

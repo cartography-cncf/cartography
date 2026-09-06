@@ -15,8 +15,8 @@ from cartography.models.aws.ec2.vpc import AWSVpcSchema
 from cartography.models.aws.ec2.vpc_cidr import AWSIPv4CidrBlockSchema
 from cartography.models.aws.ec2.vpc_peering import AWSAccountVPCPeeringSchema
 from cartography.models.aws.ec2.vpc_peering import AWSPeeringConnectionSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

@@ -13,8 +13,8 @@ from cartography.models.aws.ec2.route_table_associations import (
 )
 from cartography.models.aws.ec2.route_tables import RouteTableSchema
 from cartography.models.aws.ec2.routes import RouteSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

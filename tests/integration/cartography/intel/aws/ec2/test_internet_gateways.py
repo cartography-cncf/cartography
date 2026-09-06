@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.internet_gateways
+import cartography.intel.aws.ec2.vpc
 from cartography.intel.aws.ec2.internet_gateways import sync_internet_gateways
 from cartography.intel.aws.ec2.vpc import sync_vpc
 from tests.data.aws.ec2.internet_gateways import TEST_INTERNET_GATEWAYS

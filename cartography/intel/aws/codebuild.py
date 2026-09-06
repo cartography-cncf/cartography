@@ -14,8 +14,8 @@ from cartography.intel.aws.util.service_regions import (
     filter_regions_to_supported_service_regions,
 )
 from cartography.models.aws.codebuild.project import CodeBuildProjectSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

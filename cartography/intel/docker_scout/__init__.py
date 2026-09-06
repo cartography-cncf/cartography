@@ -1,7 +1,7 @@
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
 
-import boto3
 from neo4j import Session
 
 from cartography.config import Config
@@ -14,9 +14,21 @@ from cartography.intel.common.report_reader_builder import (
     build_report_reader_for_source,
 )
 from cartography.intel.common.report_source import parse_report_source
-from cartography.intel.docker_scout.scanner import cleanup
-from cartography.intel.docker_scout.scanner import sync_from_file
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import boto3
+else:
+    boto3 = lazy_import("boto3")
+
+cleanup = lazy_callable("cartography.intel.docker_scout.scanner", "cleanup")
+sync_from_file = lazy_callable(
+    "cartography.intel.docker_scout.scanner", "sync_from_file"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +122,7 @@ def sync_docker_scout_from_s3(
     s3_prefix: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
 ) -> None:
     # DEPRECATED: sync_docker_scout_from_s3() will be removed in v1.0.0.
     with S3BucketReader(

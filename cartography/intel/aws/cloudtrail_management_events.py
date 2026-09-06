@@ -27,8 +27,8 @@ from cartography.models.aws.cloudtrail.management_events import (
 from cartography.models.aws.cloudtrail.management_events import (
     GitHubRepoAssumeRoleWithWebIdentityMatchLink,
 )
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

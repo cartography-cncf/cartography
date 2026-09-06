@@ -4,24 +4,49 @@ from typing import Any
 import neo4j
 import requests
 
-import cartography.intel.gitlab.branches
-import cartography.intel.gitlab.ci_config
-import cartography.intel.gitlab.ci_variables
-import cartography.intel.gitlab.container_image_attestations
-import cartography.intel.gitlab.container_images
-import cartography.intel.gitlab.container_repositories
-import cartography.intel.gitlab.container_repository_tags
-import cartography.intel.gitlab.dependencies
-import cartography.intel.gitlab.dependency_files
-import cartography.intel.gitlab.environments
-import cartography.intel.gitlab.groups
-import cartography.intel.gitlab.organizations
-import cartography.intel.gitlab.projects
-import cartography.intel.gitlab.runners
-import cartography.intel.gitlab.supply_chain
-import cartography.intel.gitlab.users
 from cartography.config import Config
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+from cartography.util.lazy import lazy_namespace_all
+from cartography.util.lazy import lazy_submodule
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+_branches = lazy_import("cartography.intel.gitlab.branches")
+_ci_config = lazy_import("cartography.intel.gitlab.ci_config")
+_ci_variables = lazy_import("cartography.intel.gitlab.ci_variables")
+_dependencies = lazy_import("cartography.intel.gitlab.dependencies")
+_dependency_files = lazy_import("cartography.intel.gitlab.dependency_files")
+_environments = lazy_import("cartography.intel.gitlab.environments")
+_groups = lazy_import("cartography.intel.gitlab.groups")
+_organizations = lazy_import("cartography.intel.gitlab.organizations")
+_projects = lazy_import("cartography.intel.gitlab.projects")
+_runners = lazy_import("cartography.intel.gitlab.runners")
+_users = lazy_import("cartography.intel.gitlab.users")
+sync_container_image_attestations_container_image_attestations = lazy_callable(
+    "cartography.intel.gitlab.container_image_attestations",
+    "sync_container_image_attestations",
+)
+sync_container_images_container_images = lazy_callable(
+    "cartography.intel.gitlab.container_images", "sync_container_images"
+)
+sync_container_repositories_container_repositories = lazy_callable(
+    "cartography.intel.gitlab.container_repositories", "sync_container_repositories"
+)
+sync_container_repository_tags_container_repository_tags = lazy_callable(
+    "cartography.intel.gitlab.container_repository_tags",
+    "sync_container_repository_tags",
+)
+get_all_container_repository_tags = lazy_callable(
+    "cartography.intel.gitlab.container_repository_tags",
+    "get_all_container_repository_tags",
+)
+group_tags_by_repository = lazy_callable(
+    "cartography.intel.gitlab.container_repository_tags",
+    "group_tags_by_repository",
+)
+sync_supply_chain = lazy_callable("cartography.intel.gitlab.supply_chain", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +83,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync the specified organization (top-level group)
     try:
-        cartography.intel.gitlab.organizations.sync_gitlab_organizations(
+        _organizations.sync_gitlab_organizations(
             neo4j_session,
             gitlab_url,
             token,
@@ -86,7 +111,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync groups (nested subgroups within this organization)
     # Returns the groups list to avoid redundant API calls
-    all_groups = cartography.intel.gitlab.groups.sync_gitlab_groups(
+    all_groups = _groups.sync_gitlab_groups(
         neo4j_session,
         gitlab_url,
         token,
@@ -96,7 +121,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync projects (within this organization and its groups)
     # Returns the projects list to avoid redundant API calls
-    all_projects = cartography.intel.gitlab.projects.sync_gitlab_projects(
+    all_projects = _projects.sync_gitlab_projects(
         neo4j_session,
         gitlab_url,
         token,
@@ -106,7 +131,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync users (members of organization and groups) with commit activity
     # Must happen after projects sync since we need projects to fetch commits
-    cartography.intel.gitlab.users.sync_gitlab_users(
+    _users.sync_gitlab_users(
         neo4j_session,
         gitlab_url,
         token,
@@ -129,7 +154,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # Each scope returns a "skipped" set when a 403 was encountered — those
     # scopes must be excluded from the cleanup phase to avoid deleting
     # previously-ingested runners that we simply could not list this time.
-    runners_skipped = cartography.intel.gitlab.runners.sync_gitlab_runners(
+    runners_skipped = _runners.sync_gitlab_runners(
         neo4j_session,
         gitlab_url,
         token,
@@ -142,16 +167,14 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # Sync CI/CD variables at group and project scopes.
     # Returns a {project_id: [variables]} map and a per-scope "skipped" set
     # (same data-loss-prevention rationale as runners above).
-    variables_by_project, variables_skipped = (
-        cartography.intel.gitlab.ci_variables.sync_gitlab_ci_variables(
-            neo4j_session,
-            gitlab_url,
-            token,
-            config.update_tag,
-            common_job_parameters,
-            all_groups,
-            all_projects,
-        )
+    variables_by_project, variables_skipped = _ci_variables.sync_gitlab_ci_variables(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_groups,
+        all_projects,
     )
 
     # Sync environments and link them to CI/CD variables that apply to them
@@ -159,23 +182,21 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # variables could not be loaded this run are forwarded as `skip_projects`
     # so we don't refresh env nodes with empty `linked_variable_ids` and let
     # cleanup wipe HAS_CI_VARIABLE edges that should still be there.
-    environments_skipped = (
-        cartography.intel.gitlab.environments.sync_gitlab_environments(
-            neo4j_session,
-            gitlab_url,
-            token,
-            config.update_tag,
-            common_job_parameters,
-            all_projects,
-            variables_by_project,
-            skip_projects=variables_skipped["projects"],
-        )
+    environments_skipped = _environments.sync_gitlab_environments(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_projects,
+        variables_by_project,
+        skip_projects=variables_skipped["projects"],
     )
 
     # Sync .gitlab-ci.yml configs (parsed pipeline summary + includes) and link
     # to project-level variables they reference. Same `skip_projects`
     # forwarding rationale as environments.
-    ci_config_skipped = cartography.intel.gitlab.ci_config.sync_gitlab_ci_config(
+    ci_config_skipped = _ci_config.sync_gitlab_ci_config(
         neo4j_session,
         gitlab_url,
         token,
@@ -191,50 +212,44 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # ========================================
 
     # Sync container repositories (includes cleanup since it's org-scoped)
-    all_container_repositories = (
-        cartography.intel.gitlab.container_repositories.sync_container_repositories(
-            neo4j_session,
-            gitlab_url,
-            token,
-            organization_id,
-            organization_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    all_container_repositories = sync_container_repositories_container_repositories(
+        neo4j_session,
+        gitlab_url,
+        token,
+        organization_id,
+        organization_id,
+        config.update_tag,
+        common_job_parameters,
     )
 
     # Resolve tags once for the whole container phase. The tag detail endpoint is
     # the only GitLab API that reports a tag's manifest digest, and it costs one
     # request per tag, so both the image sync (which needs the digests to decide
     # what to fetch) and the tag sync (which ingests them) share this one fetch.
-    all_container_tags = cartography.intel.gitlab.container_repository_tags.get_all_container_repository_tags(
+    all_container_tags = get_all_container_repository_tags(
         gitlab_url,
         token,
         all_container_repositories,
     )
-    container_tags_by_repository = (
-        cartography.intel.gitlab.container_repository_tags.group_tags_by_repository(
-            all_container_tags,
-        )
+    container_tags_by_repository = group_tags_by_repository(
+        all_container_tags,
     )
 
     # Sync container images before tags since tags have REFERENCES relationship to images
     # Returns raw manifests and manifest lists for downstream attestation sync
-    all_image_manifests, manifest_lists = (
-        cartography.intel.gitlab.container_images.sync_container_images(
-            neo4j_session,
-            gitlab_url,
-            token,
-            organization_id,
-            all_container_repositories,
-            config.update_tag,
-            common_job_parameters,
-            tags_by_repository=container_tags_by_repository,
-        )
+    all_image_manifests, manifest_lists = sync_container_images_container_images(
+        neo4j_session,
+        gitlab_url,
+        token,
+        organization_id,
+        all_container_repositories,
+        config.update_tag,
+        common_job_parameters,
+        tags_by_repository=container_tags_by_repository,
     )
 
     # Sync container repository tags (includes cleanup since it's org-scoped)
-    cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
+    sync_container_repository_tags_container_repository_tags(
         neo4j_session,
         gitlab_url,
         token,
@@ -246,7 +261,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync container image attestations (includes cleanup since it's org-scoped)
-    cartography.intel.gitlab.container_image_attestations.sync_container_image_attestations(
+    sync_container_image_attestations_container_image_attestations(
         neo4j_session,
         gitlab_url,
         token,
@@ -259,7 +274,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Sync supply chain (dockerfiles, provenance) and match to container images
     # Must happen after container images and tags are synced
-    cartography.intel.gitlab.supply_chain.sync(
+    sync_supply_chain(
         neo4j_session,
         gitlab_url,
         token,
@@ -270,7 +285,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync branches - pass projects to avoid re-fetching
-    cartography.intel.gitlab.branches.sync_gitlab_branches(
+    _branches.sync_gitlab_branches(
         neo4j_session,
         gitlab_url,
         token,
@@ -280,19 +295,17 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync dependency files - returns data to avoid duplicate API calls in dependencies sync
-    dependency_files_by_project = (
-        cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
-            neo4j_session,
-            gitlab_url,
-            token,
-            config.update_tag,
-            common_job_parameters,
-            all_projects,
-        )
+    dependency_files_by_project = _dependency_files.sync_gitlab_dependency_files(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_projects,
     )
 
     # Sync dependencies - pass pre-fetched dependency files to avoid duplicate API calls
-    cartography.intel.gitlab.dependencies.sync_gitlab_dependencies(
+    _dependencies.sync_gitlab_dependencies(
         neo4j_session,
         gitlab_url,
         token,
@@ -312,24 +325,24 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         project_id: int = project["id"]
 
         # Cleanup dependencies
-        cartography.intel.gitlab.dependencies.cleanup_dependencies(
+        _dependencies.cleanup_dependencies(
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
         # Cleanup dependency files
-        cartography.intel.gitlab.dependency_files.cleanup_dependency_files(
+        _dependency_files.cleanup_dependency_files(
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
         # Cleanup branches
-        cartography.intel.gitlab.branches.cleanup_branches(
+        _branches.cleanup_branches(
             neo4j_session, common_job_parameters, project_id, gitlab_url
         )
 
         # Cleanup project-level runners — skip if the scope returned 403,
         # otherwise we'd delete every previously-ingested runner.
         if project_id not in runners_skipped["projects"]:
-            cartography.intel.gitlab.runners.cleanup_project_runners(
+            _runners.cleanup_project_runners(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
@@ -337,22 +350,22 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # the project's config was permission-denied this sync, otherwise
         # we'd delete a previously-ingested config on transient auth fail.
         if project_id not in ci_config_skipped:
-            cartography.intel.gitlab.ci_config.cleanup_ci_includes(
+            _ci_config.cleanup_ci_includes(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
-            cartography.intel.gitlab.ci_config.cleanup_ci_configs(
+            _ci_config.cleanup_ci_configs(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
         # Cleanup environments — skip if the scope returned 403.
         if project_id not in environments_skipped:
-            cartography.intel.gitlab.environments.cleanup_environments(
+            _environments.cleanup_environments(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
         # Cleanup project-level CI/CD variables — skip if the scope returned 403.
         if project_id not in variables_skipped["projects"]:
-            cartography.intel.gitlab.ci_variables.cleanup_project_variables(
+            _ci_variables.cleanup_project_variables(
                 neo4j_session, common_job_parameters, project_id, gitlab_url
             )
 
@@ -361,39 +374,52 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     for group in all_groups:
         group_id_int = group["id"]
         if group_id_int not in runners_skipped["groups"]:
-            cartography.intel.gitlab.runners.cleanup_group_runners(
+            _runners.cleanup_group_runners(
                 neo4j_session, common_job_parameters, group_id_int, gitlab_url
             )
         if group_id_int not in variables_skipped["groups"]:
-            cartography.intel.gitlab.ci_variables.cleanup_group_variables(
+            _ci_variables.cleanup_group_variables(
                 neo4j_session, common_job_parameters, group_id_int, gitlab_url
             )
 
     # Cleanup instance-level runners (scoped to the organization).
     # Skip if the /runners/all endpoint returned 403 (admin scope missing).
     if not runners_skipped["instance"]:
-        cartography.intel.gitlab.runners.cleanup_instance_runners(
+        _runners.cleanup_instance_runners(
             neo4j_session, common_job_parameters, organization_id, gitlab_url
         )
 
     # Cleanup projects with cascade delete
-    cartography.intel.gitlab.projects.cleanup_projects(
+    _projects.cleanup_projects(
         neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup users
-    cartography.intel.gitlab.users.cleanup_users(
+    _users.cleanup_users(
         neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup groups with cascade delete
-    cartography.intel.gitlab.groups.cleanup_groups(
+    _groups.cleanup_groups(
         neo4j_session, common_job_parameters, organization_id, gitlab_url
     )
 
     # Cleanup organizations
-    cartography.intel.gitlab.organizations.cleanup_organizations(
+    _organizations.cleanup_organizations(
         neo4j_session, common_job_parameters, gitlab_url
     )
 
     logger.info(f"GitLab ingestion completed for organization {organization_id}")
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.gitlab.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.gitlab import *` too.
+__all__ = lazy_namespace_all(__path__, globals())

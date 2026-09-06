@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import cartography.intel.gcp.crm
+import cartography.intel.gcp.crm.orgs
 import tests.data.gcp.crm
 from tests.integration.util import check_nodes
 
