@@ -129,6 +129,7 @@ def _transform_firewall_rules(
             separators=(",", ":"),
             sort_keys=True,
         )
+        canonical_name = f"IpRule-{direction}-{protocol}-{rule.get('action')}-{ports}"
 
         # Use a hash of the serialized rule to create a unique ID for the rule.
         rule_hash = hashlib.sha256(serialized_rule.encode()).hexdigest()[:16]
@@ -147,6 +148,7 @@ def _transform_firewall_rules(
         transformed_rules.append(
             {
                 "id": f"{firewall_id}/{rule_hash}",
+                "canonical_name": canonical_name,
                 "firewall_id": firewall_id,
                 "direction": direction,
                 "protocol": protocol,

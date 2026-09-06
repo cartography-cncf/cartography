@@ -22,6 +22,10 @@ class DOFirewallRuleProperties(CartographyNodeProperties):
         description="Stable, deterministic identifier for the firewall rule.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    canonical_name: PropertyRef = PropertyRef(
+        "canonical_name",
+        description="Canonical name for the firewall rule, derived from its properties.",
+    )
     firewall_id: PropertyRef = PropertyRef(
         "firewall_id",
         extra_index=True,
