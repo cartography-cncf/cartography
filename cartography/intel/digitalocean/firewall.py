@@ -7,7 +7,6 @@ import neo4j
 from pydo import Client
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.digitalocean.util.pagination import get_paginated_list
 from cartography.models.digitalocean.firewall import DOFirewallSchema
@@ -137,11 +136,13 @@ def _transform_firewall_rules(
 
         for address in ip_range_raw:
             if address not in ip_range_ids:
-                ip_ranges.append({
-                    "id": address,
-                    "range": address,
-                })
-                ip_range_ids.add(address)        
+                ip_ranges.append(
+                    {
+                        "id": address,
+                        "range": address,
+                    }
+                )
+                ip_range_ids.add(address)
 
         transformed_rules.append(
             {
@@ -154,15 +155,37 @@ def _transform_firewall_rules(
                 "toport": toport,
                 "action": rule.get("action"),
                 "source_addresses": ip_range_raw if direction == "inbound" else None,
-                "destination_addresses": ip_range_raw if direction == "outbound" else None,
-                "source_tags": selectors.get("tags") if direction == "inbound" else None,
-                "destination_tags": selectors.get("tags") if direction == "outbound" else None,
-                "source_droplet_ids": selectors.get("droplet_ids") if direction == "inbound" else None,
-                "destination_droplet_ids": selectors.get("droplet_ids") if direction == "outbound" else None,
-                "source_load_balancer_uids": selectors.get("load_balancer_uids") if direction == "inbound" else None,
-                "destination_load_balancer_uids": selectors.get("load_balancer_uids") if direction == "outbound" else None,
-                "source_kubernetes_ids": selectors.get("kubernetes_ids") if direction == "inbound" else None,
-                "destination_kubernetes_ids": selectors.get("kubernetes_ids") if direction == "outbound" else None,
+                "destination_addresses": (
+                    ip_range_raw if direction == "outbound" else None
+                ),
+                "source_tags": (
+                    selectors.get("tags") if direction == "inbound" else None
+                ),
+                "destination_tags": (
+                    selectors.get("tags") if direction == "outbound" else None
+                ),
+                "source_droplet_ids": (
+                    selectors.get("droplet_ids") if direction == "inbound" else None
+                ),
+                "destination_droplet_ids": (
+                    selectors.get("droplet_ids") if direction == "outbound" else None
+                ),
+                "source_load_balancer_uids": (
+                    selectors.get("load_balancer_uids")
+                    if direction == "inbound"
+                    else None
+                ),
+                "destination_load_balancer_uids": (
+                    selectors.get("load_balancer_uids")
+                    if direction == "outbound"
+                    else None
+                ),
+                "source_kubernetes_ids": (
+                    selectors.get("kubernetes_ids") if direction == "inbound" else None
+                ),
+                "destination_kubernetes_ids": (
+                    selectors.get("kubernetes_ids") if direction == "outbound" else None
+                ),
             },
         )
 
@@ -248,6 +271,7 @@ def load_ip_ranges(
         lastupdated=update_tag,
         ACCOUNT_ID=str(account_id),
     )
+
 
 @timeit
 def cleanup(

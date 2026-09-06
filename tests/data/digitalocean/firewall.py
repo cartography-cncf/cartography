@@ -1,6 +1,5 @@
 from typing import Any
 
-
 FIREWALLS_RESPONSE: dict[str, Any] = {
     "firewalls": [
         {

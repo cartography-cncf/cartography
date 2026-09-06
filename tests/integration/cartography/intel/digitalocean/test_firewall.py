@@ -79,35 +79,32 @@ def test_sync_firewalls_with_rules(neo4j_session):
     assert check_nodes(neo4j_session, "DOFirewall", ["id", "name"]) == {
         (firewall_id, "Test Firewall"),
     }
-    assert (
-        check_nodes(
-            neo4j_session,
-            "DOFirewallRule",
-            [
-                "id",
-                "firewall_id",
-                "direction",
-                "protocol",
-                "ports",
-                "fromport",
-                "toport",
-                "action",
-            ],
+    assert check_nodes(
+        neo4j_session,
+        "DOFirewallRule",
+        [
+            "id",
+            "firewall_id",
+            "direction",
+            "protocol",
+            "ports",
+            "fromport",
+            "toport",
+            "action",
+        ],
+    ) == {
+        (
+            rule["id"],
+            firewall_id,
+            rule["direction"],
+            rule["protocol"],
+            rule["ports"],
+            rule["fromport"],
+            rule["toport"],
+            "allow",
         )
-        == {
-            (
-                rule["id"],
-                firewall_id,
-                rule["direction"],
-                rule["protocol"],
-                rule["ports"],
-                rule["fromport"],
-                rule["toport"],
-                "allow",
-            )
-            for rule in firewall_rules
-        }
-    )
+        for rule in firewall_rules
+    }
     assert check_rels(
         neo4j_session,
         "DOFirewallRule",
