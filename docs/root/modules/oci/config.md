@@ -34,6 +34,9 @@ region=us-ashburn-1
 key_file=~/.oci/oci_api_key.pem
 ```
 
+By default Cartography syncs the `DEFAULT` profile. To sync every other named
+profile in the config file as well, pass `--oci-sync-all-profiles`.
+
 ## Run Cartography
 
 ```bash

@@ -56,6 +56,10 @@ the CLI's current subscription. Service principal authentication has no
 default subscription ID and cannot sync a single subscription without
 `--azure-subscription-id`.
 
+To sync a single subscription instead, replace
+`--azure-sync-all-subscriptions` with `--azure-subscription-id
+<SUBSCRIPTION_ID>`.
+
 ## Run Cartography
 
 With the active Azure CLI session and one explicit subscription:
