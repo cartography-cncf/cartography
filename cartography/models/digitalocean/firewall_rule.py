@@ -55,14 +55,6 @@ class DOFirewallRuleProperties(CartographyNodeProperties):
         "action",
         description="Firewall action applied when the rule matches.",
     )
-    source_addresses: PropertyRef = PropertyRef(
-        "source_addresses",
-        description="Provider-scoped IP-range selector IDs for an inbound rule.",
-    )
-    destination_addresses: PropertyRef = PropertyRef(
-        "destination_addresses",
-        description="Provider-scoped IP-range selector IDs for an outbound rule.",
-    )
     source_tags: PropertyRef = PropertyRef(
         "source_tags",
         description="DigitalOcean tags selected by an inbound rule.",
@@ -70,14 +62,6 @@ class DOFirewallRuleProperties(CartographyNodeProperties):
     destination_tags: PropertyRef = PropertyRef(
         "destination_tags",
         description="DigitalOcean tags selected by an outbound rule.",
-    )
-    source_droplet_ids: PropertyRef = PropertyRef(
-        "source_droplet_ids",
-        description="Droplet IDs selected by an inbound rule.",
-    )
-    destination_droplet_ids: PropertyRef = PropertyRef(
-        "destination_droplet_ids",
-        description="Droplet IDs selected by an outbound rule.",
     )
     source_load_balancer_uids: PropertyRef = PropertyRef(
         "source_load_balancer_uids",

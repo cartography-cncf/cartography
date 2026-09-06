@@ -122,9 +122,25 @@ def test_sync_firewalls_with_rules(neo4j_session):
         "PROTECTS",
     ) == {(firewall_id, 568030246)}
 
-    assert check_nodes(neo4j_session, "DOIpRange", ["id", "range"]) == {
-        (ip_range["id"], ip_range["range"]) for ip_range in ip_ranges
+    expected_ip_ranges = {
+        (address, address)
+        for firewall in tests.data.digitalocean.firewall.FIREWALLS_RESPONSE["firewalls"]
+        for rules, selector_key in (
+            (firewall.get("inbound_rules", []), "sources"),
+            (firewall.get("outbound_rules", []), "destinations"),
+        )
+        for rule in rules
+        for address in rule.get(selector_key, {}).get("addresses", [])
     }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "DOIpRange",
+            ["id", "range"],
+        )
+        == expected_ip_ranges
+    )
+    assert len(ip_ranges) == len(expected_ip_ranges)
     assert check_rels(
         neo4j_session,
         "DOFirewallRule",
@@ -177,18 +193,25 @@ def test_sync_firewalls_with_rules(neo4j_session):
     outbound_rule = next(
         rule for rule in firewall_rules if rule["direction"] == "outbound"
     )
+    selector_property_count = neo4j_session.run(
+        "MATCH (r:DOFirewallRule) "
+        "RETURN count(r.source_addresses) AS source_addresses, "
+        "count(r.destination_addresses) AS destination_addresses, "
+        "count(r.source_droplet_ids) AS source_droplet_ids, "
+        "count(r.destination_droplet_ids) AS destination_droplet_ids",
+    ).single()
+    assert selector_property_count["source_addresses"] == 0
+    assert selector_property_count["destination_addresses"] == 0
+    assert selector_property_count["source_droplet_ids"] == 0
+    assert selector_property_count["destination_droplet_ids"] == 0
+
     result = neo4j_session.run(
         "MATCH (r:DOFirewallRule {id: $rule_id}) "
-        "RETURN r.destination_addresses AS destination_addresses, "
-        "r.destination_load_balancer_uids AS destination_load_balancer_uids, "
+        "RETURN r.destination_load_balancer_uids AS destination_load_balancer_uids, "
         "r.addresses AS deprecated_addresses, "
         "r.load_balancer_uids AS deprecated_load_balancer_uids",
         rule_id=outbound_rule["id"],
     ).single()
-    assert result["destination_addresses"] == [
-        "0.0.0.0/0",
-        "::/0",
-    ]
     assert result["destination_load_balancer_uids"] == ["test-load-balancer-uuid"]
     assert result["deprecated_addresses"] is None
     assert result["deprecated_load_balancer_uids"] is None

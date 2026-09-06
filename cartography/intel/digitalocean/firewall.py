@@ -89,12 +89,13 @@ def transform_firewalls(
             },
         )
 
+        ip_range_ids: set[str] = set()
         for direction, rules in (
             ("inbound", firewall.get("inbound_rules", [])),
             ("outbound", firewall.get("outbound_rules", [])),
         ):
             transformed_rules, transformed_ranges = _transform_firewall_rules(
-                firewall["id"], direction, rules
+                firewall["id"], direction, rules, ip_range_ids
             )
             firewall_rules.extend(transformed_rules)
             ip_ranges.extend(transformed_ranges)
@@ -106,11 +107,11 @@ def _transform_firewall_rules(
     firewall_id: str,
     direction: str,
     rules: list[dict[str, Any]],
+    ip_range_ids: set[str],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     selector_key = "sources" if direction == "inbound" else "destinations"
     transformed_rules: list[dict[str, Any]] = []
     ip_ranges: list[dict[str, Any]] = []
-    ip_range_ids: set[str] = set()
 
     for rule in rules:
         selectors = rule.get(selector_key, {})
