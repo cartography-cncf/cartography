@@ -5,6 +5,7 @@ from pydo import Client
 
 from cartography.config import Config
 from cartography.intel.digitalocean import compute
+from cartography.intel.digitalocean import firewall
 from cartography.intel.digitalocean import management
 from cartography.intel.digitalocean import platform
 from cartography.util import timeit
@@ -52,6 +53,14 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
         client,
         account_id,
         projects_resources,
+        config.update_tag,
+        common_job_parameters,
+    )
+
+    firewall.sync(
+        neo4j_session,
+        client,
+        account_id,
         config.update_tag,
         common_job_parameters,
     )
