@@ -16,16 +16,26 @@ from cartography.util import timeit
 _APP_FIELDS = (
     "Id, Name, OptionsAllowAdminApprovedUsersOnly, CreatedDate, LastModifiedDate"
 )
+_SETUP_ONLY_APP_FIELDS = (
+    "OptionsAllowAdminApprovedUsersOnly",
+    "CreatedDate",
+    "LastModifiedDate",
+)
 logger = logging.getLogger(__name__)
 
 
 def _is_access_error(exc: requests.HTTPError) -> bool:
     error_codes = get_salesforce_error_codes(exc)
-    if "INSUFFICIENT_ACCESS_OR_READONLY" in error_codes:
+    if error_codes & {"INSUFFICIENT_ACCESS", "INSUFFICIENT_ACCESS_OR_READONLY"}:
         return True
-    return "INVALID_TYPE" in error_codes and any(
-        object_name in str(exc)
-        for object_name in ("ConnectedApplication", "OAuthToken")
+    error_message = str(exc)
+    if "INVALID_TYPE" in error_codes:
+        return any(
+            object_name in error_message
+            for object_name in ("ConnectedApplication", "OAuthToken")
+        )
+    return "INVALID_FIELD" in error_codes and any(
+        field_name in error_message for field_name in _SETUP_ONLY_APP_FIELDS
     )
 
 
