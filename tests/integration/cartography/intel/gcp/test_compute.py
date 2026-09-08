@@ -1064,7 +1064,15 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
     assert check_nodes(
         neo4j_session,
         "GCPFirewall",
-        ["id", "name", "direction", "priority", "has_target_service_accounts"],
+        [
+            "id",
+            "name",
+            "direction",
+            "priority",
+            "has_target_service_accounts",
+            "log_logging_enabled",
+            "log_logging_metadata",
+        ],
     ) == {
         (
             "projects/project-abc/global/firewalls/default-allow-icmp",
@@ -1072,6 +1080,8 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
             "INGRESS",
             65534,
             False,
+            False,
+            None,
         ),
         (
             "projects/project-abc/global/firewalls/default-allow-internal",
@@ -1079,6 +1089,8 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
             "INGRESS",
             65534,
             False,
+            False,
+            None,
         ),
         (
             "projects/project-abc/global/firewalls/default-allow-rdp",
@@ -1086,6 +1098,8 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
             "INGRESS",
             65534,
             False,
+            False,
+            None,
         ),
         (
             "projects/project-abc/global/firewalls/default-allow-ssh",
@@ -1093,6 +1107,8 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
             "INGRESS",
             65534,
             False,
+            False,
+            None,
         ),
         (
             "projects/project-abc/global/firewalls/custom-port-incoming",
@@ -1100,6 +1116,8 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
             "INGRESS",
             1000,
             False,
+            True,
+            "INCLUDE_ALL_METADATA",
         ),
     }
 
