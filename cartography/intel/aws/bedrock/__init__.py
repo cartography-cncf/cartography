@@ -25,6 +25,11 @@ from . import provisioned_model_throughput
 
 logger = logging.getLogger(__name__)
 
+# The Bedrock control plane supports us-west-1, but the Bedrock Agents
+# build-time API used for agents and knowledge bases does not.
+# https://docs.aws.amazon.com/general/latest/gr/bedrock.html
+UNSUPPORTED_BEDROCK_AGENT_REGIONS = {"us-west-1"}
+
 
 @timeit
 def sync(
@@ -59,12 +64,18 @@ def sync(
             regions,
         )
     )
+    bedrock_agent_candidate_regions = [
+        region for region in regions if region not in UNSUPPORTED_BEDROCK_AGENT_REGIONS
+    ]
     bedrock_agent_regions, unsupported_bedrock_agent_regions = (
         filter_regions_to_supported_service_regions(
             boto3_session,
             "bedrock-agent",
-            regions,
+            bedrock_agent_candidate_regions,
         )
+    )
+    unsupported_bedrock_agent_regions.extend(
+        region for region in regions if region in UNSUPPORTED_BEDROCK_AGENT_REGIONS
     )
 
     if unsupported_bedrock_regions:
