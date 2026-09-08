@@ -323,6 +323,11 @@ def test_validate_anchor_rejects_id_that_also_reads_a_different_node():
     assert err.asset_vars == frozenset({"u"})
 
 
+def test_validate_anchor_ignores_dotted_string_literals_in_id_expression():
+    query = "MATCH (u:AWSUser) RETURN coalesce(u.arn, 'aws.iam.user') AS user_arn"
+    assert validate_anchor(query, "AWSUser", "user_arn") is None
+
+
 def test_fact_ignores_return_inside_a_call_subquery():
     """A nested `CALL { ... RETURN ... }` is not the fact's projection."""
     query = (

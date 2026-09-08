@@ -22,6 +22,15 @@ _ITEM_ALIAS_RE = re.compile(r"(?is)\bAS\s+(\w+)\s*$")
 _BARE_IDENTIFIER_RE = re.compile(r"^\w+$")
 # `foo.bar` / `foo .bar`: which variables an expression reads properties from.
 _PROPERTY_OWNER_RE = re.compile(r"\b(\w+)\s*\.")
+# Quoted Cypher strings, so `'aws.iam.user'` is not treated as a property owner.
+_STRING_LITERAL_RE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
+
+
+def _property_owners(expression: str) -> set[str]:
+    """Variables that ``expression`` reads a property from, ignoring string literals."""
+    stripped = _STRING_LITERAL_RE.sub("", expression)
+    return set(_PROPERTY_OWNER_RE.findall(stripped))
+
 
 # Fields the `Finding` base model owns. A fact query must not alias them: both
 # are populated by `Rule.parse_results` and a query column of the same name
@@ -183,7 +192,7 @@ def validate_anchor(
             asset_id_field=asset_id_field,
         )
     id_expression = _expression_for_alias(cypher_query, asset_id_field)
-    owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
+    owners = _property_owners(id_expression or "")
     if not owners or not owners <= asset_vars:
         return AnchorValidationError(
             code=AnchorValidationCode.ID_NOT_ON_LABELED_VAR,
