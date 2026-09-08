@@ -174,27 +174,28 @@ def sync_fixes(
     # Scoped by repo to avoid linking a fix to the wrong alert when the same
     # CVE/GHSA affects multiple repos.
     alerts_by_vuln: dict[tuple[str, str], str] = {}
-    # Collect all repo slugs that have alerts
-    repo_slugs: set[str] = set()
+    vulnerability_ids_by_repo: dict[str, set[str]] = {}
     for alert in alerts:
         alert_id = alert["id"]
         repo_slug_val = alert.get("repo_slug")
         if not repo_slug_val:
             continue
-        repo_slugs.add(repo_slug_val)
         # Index by (vuln_id, repo_slug) for each known identifier
         cve_id = alert.get("cve_id")
         if cve_id:
             alerts_by_vuln[(cve_id, repo_slug_val)] = alert_id
+            vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(cve_id)
         ghsa_id = alert.get("ghsa_id")
         if ghsa_id:
             alerts_by_vuln[(ghsa_id, repo_slug_val)] = alert_id
+            vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(ghsa_id)
         key = alert.get("key")
         if key:
             alerts_by_vuln[(key, repo_slug_val)] = alert_id
 
-    if not repo_slugs:
-        logger.info("No alerts with repository info found, skipping fixes sync")
+    if not vulnerability_ids_by_repo:
+        logger.info("No repository vulnerabilities found, skipping fixes sync")
+        cleanup(neo4j_session, common_job_parameters)
         return
 
     # Build dependency lookup: "name|version|repo_slug" -> dependency ID
@@ -207,17 +208,17 @@ def sync_fixes(
         dep_lookup[key] = dep["id"]
 
     all_fixes: list[dict[str, Any]] = []
-    for repo_slug_val in repo_slugs:
+    for repo_slug_val, vulnerability_ids in sorted(vulnerability_ids_by_repo.items()):
         logger.debug(
             "Fetching fixes for repo '%s'",
             repo_slug_val,
         )
-        # Use "*" to fetch fixes for all vulnerabilities in the repo
+        # Wildcard fix queries become expensive for repositories with many alerts.
         raw_response = get(
             api_token,
             org_slug,
             repo_slug_val,
-            "*",
+            ",".join(sorted(vulnerability_ids)),
         )
 
         fixes = transform(raw_response, alerts_by_vuln, repo_slug_val, dep_lookup)
