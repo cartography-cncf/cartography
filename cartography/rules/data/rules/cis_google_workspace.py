@@ -380,7 +380,8 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     """,
     cypher_count_query="""
     MATCH (u:GoogleWorkspaceUser)
-    WHERE coalesce(u._ont_active, true) = true
+    WHERE coalesce(u.is_admin, false) = true
+      AND coalesce(u._ont_active, true) = true
     RETURN COUNT(u) AS count
     """,
     asset_id_field="user_id",
