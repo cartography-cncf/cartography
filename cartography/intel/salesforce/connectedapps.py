@@ -3,20 +3,30 @@ from collections import defaultdict
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.salesforce.util import get_salesforce_error_codes
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
-from cartography.intel.salesforce.util import SalesforceQueryError
 from cartography.models.salesforce.connectedapp import SalesforceConnectedAppSchema
 from cartography.util import timeit
 
 _APP_FIELDS = (
     "Id, Name, OptionsAllowAdminApprovedUsersOnly, CreatedDate, LastModifiedDate"
 )
-_ACCESS_ERROR_CODES = frozenset({"INSUFFICIENT_ACCESS_OR_READONLY", "INVALID_TYPE"})
 logger = logging.getLogger(__name__)
+
+
+def _is_access_error(exc: requests.HTTPError) -> bool:
+    error_codes = get_salesforce_error_codes(exc)
+    if "INSUFFICIENT_ACCESS_OR_READONLY" in error_codes:
+        return True
+    return "INVALID_TYPE" in error_codes and any(
+        object_name in str(exc)
+        for object_name in ("ConnectedApplication", "OAuthToken")
+    )
 
 
 @timeit
@@ -28,8 +38,8 @@ def sync(
     try:
         apps = get_apps(client)
         tokens = get_oauth_tokens(client)
-    except SalesforceQueryError as exc:
-        if not exc.error_codes.intersection(_ACCESS_ERROR_CODES):
+    except requests.HTTPError as exc:
+        if not _is_access_error(exc):
             raise
         logger.warning(
             "Skipping Salesforce connected apps because the integration user "
