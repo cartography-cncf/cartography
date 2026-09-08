@@ -15,6 +15,35 @@ _TIMEOUT = (60, 60)
 # ponytail: pinned version; bump when a newer object/field is needed.
 API_VERSION = "v60.0"
 _JWT_LIFETIME_SECONDS = 300
+_MAX_ERROR_DETAIL_LENGTH = 1000
+
+
+class SalesforceQueryError(requests.HTTPError):
+    def __init__(self, response: requests.Response) -> None:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+
+        errors = payload if isinstance(payload, list) else [payload]
+        self.error_codes = frozenset(
+            error["errorCode"]
+            for error in errors
+            if isinstance(error, dict) and isinstance(error.get("errorCode"), str)
+        )
+        details = "; ".join(
+            f"{error.get('errorCode', 'UNKNOWN')}: {error.get('message', 'no message')}"
+            for error in errors
+            if isinstance(error, dict)
+        )
+        if not details:
+            details = response.text or "no response body"
+        details = details[:_MAX_ERROR_DETAIL_LENGTH]
+        super().__init__(
+            f"Salesforce query failed with HTTP {response.status_code}: {details}",
+            response=response,
+            request=response.request,
+        )
 
 
 class SalesforceClient:
@@ -36,7 +65,10 @@ class SalesforceClient:
         params: dict[str, Any] | None = {"q": soql}
         while url:
             resp = self.session.get(url, params=params, timeout=_TIMEOUT)
-            resp.raise_for_status()
+            try:
+                resp.raise_for_status()
+            except requests.HTTPError as exc:
+                raise SalesforceQueryError(resp) from exc
             body = resp.json()
             records.extend(body.get("records", []))
             # nextRecordsUrl is an absolute path on the instance host
