@@ -129,7 +129,7 @@ class SocketDevAlertNodeProperties(CartographyNodeProperties):
     )
     artifact_namespace: PropertyRef = PropertyRef(
         "artifact_namespace",
-        description="Affected package namespace or scope.",
+        description="Affected package namespace or scope from the Socket.dev artifact.namespace field.",
     )
 
 
