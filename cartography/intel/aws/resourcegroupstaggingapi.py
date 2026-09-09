@@ -43,7 +43,7 @@ def get_bucket_name_from_arn(bucket_arn: str) -> str:
     """
     Return the bucket name from an S3 bucket ARN.
     For example, for "arn:aws:s3:::bucket_name", return 'bucket_name'.
-    :param arn: The S3 bucket's full ARN
+    :param bucket_arn: The S3 bucket's full ARN
     :return: The S3 bucket's name
     """
     return bucket_arn.split(":")[-1]
@@ -53,7 +53,7 @@ def get_short_id_from_elb_arn(alb_arn: str) -> str:
     """
     Return the ELB name from the ARN
     For example, for arn:aws:elasticloadbalancing:::loadbalancer/foo", return 'foo'.
-    :param arn: The ELB's full ARN
+    :param alb_arn: The ELB's full ARN
     :return: The ELB's name
     """
     return alb_arn.split("/")[-1]
@@ -64,7 +64,7 @@ def get_short_id_from_lb2_arn(alb_arn: str) -> str:
     Return the (A|N)LB name from the ARN
     For example, for arn:aws:elasticloadbalancing:::loadbalancer/app/foo/ab123", return 'foo'.
     For example, for arn:aws:elasticloadbalancing:::loadbalancer/net/foo/ab123", return 'foo'.
-    :param arn: The (N|A)LB's full ARN
+    :param alb_arn: The (N|A)LB's full ARN
     :return: The (N|A)LB's name
     """
     return alb_arn.split("/")[-2]

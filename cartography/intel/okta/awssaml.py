@@ -247,10 +247,9 @@ def sync_okta_aws_saml(
     https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC
     If an organization does not use okta as a SAML provider for AWS the query will not return any results
     and nothing will be added to the graph
-    :param mapping_regex: session from the Neo4j server
+    :param neo4j_session: session from the Neo4j server
     :param okta_org_id: okta organization id
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :param okta_api_key: Okta api key
     :return: Nothing
     """
     logger.info("Syncing Okta SAML Integration")
