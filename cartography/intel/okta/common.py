@@ -145,10 +145,13 @@ def _patch_okta_sdk_authenticator_models() -> None:
     AuthenticatorKeyTacAllOfProvider.model_rebuild(force=True)
 
 
-# DEPRECATED: Remove these Okta SDK 3.x compatibility shims in v1.0.0 after
-# okta/okta-sdk-python#546 and #574, and the uppercase TAC provider fix, ship.
+# DEPRECATED: Remove this Okta SDK 3.4.4 compatibility shim in v1.0.0 after
+# okta/okta-sdk-python#546 and #574 are released upstream.
 _patch_okta_sdk_application_models()
 _patch_okta_sdk_user_factor_models()
+
+# DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 after
+# okta-sdk-python accepts the uppercase TAC provider type.
 _patch_okta_sdk_authenticator_models()
 
 
