@@ -23,7 +23,7 @@ def _query_error(
     ).prepare()
     response = requests.Response()
     response.status_code = 400
-    response._content = json.dumps(  # noqa: SLF001
+    response._content = json.dumps(
         [{"message": message, "errorCode": error_code}]
     ).encode()
     response.request = request
