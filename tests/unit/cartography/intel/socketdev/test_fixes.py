@@ -88,6 +88,36 @@ def test_get_bounds_rate_limit_retry_delay(mocker):
     assert sleep.call_args_list == [call(8), call(8), call(8)]
 
 
+def test_transform_matches_duplicate_vulnerability_to_its_package_alert():
+    result = fixes.transform(
+        {
+            "fixDetails": {
+                "GHSA-example": {
+                    "type": "fixFound",
+                    "value": {
+                        "fixDetails": {
+                            "fixes": [
+                                {
+                                    "purl": "pkg:npm/package-b@2.0.0",
+                                    "fixedVersion": "2.0.1",
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+        },
+        {
+            ("GHSA-example", "example-repo", "package-a", "1.0.0"): "alert-a",
+            ("GHSA-example", "example-repo", "package-b", "2.0.0"): "alert-b",
+        },
+        "example-repo",
+        {},
+    )
+
+    assert result[0]["alert_id"] == "alert-b"
+
+
 def test_sync_fixes_batches_vulnerability_ids(mocker):
     api_session = MagicMock()
     api_session.__enter__.return_value = api_session

@@ -9,6 +9,7 @@ from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import parse_purl
 from cartography.models.socketdev.fix import SocketDevFixSchema
 from cartography.util import timeit
 
@@ -17,6 +18,7 @@ _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
 _RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
 _MAX_RETRY_AFTER_SECONDS = 8
+# Keep explicit identifier queries short enough to avoid HTTP 414 responses.
 _VULNERABILITY_BATCH_SIZE = 100
 
 
@@ -45,7 +47,6 @@ def _create_session(api_token: str) -> requests.Session:
         allowed_methods=["GET"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
-        backoff_max=_MAX_RETRY_AFTER_SECONDS,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
@@ -103,7 +104,7 @@ def _build_dependency_id(
 
 def transform(
     raw_response: dict[str, Any],
-    alerts_by_vuln: dict[tuple[str, str], str],
+    alerts_by_vuln: dict[tuple[str, str, str, str], str],
     repo_slug: str,
     dep_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -112,7 +113,7 @@ def transform(
 
     Args:
         raw_response: Raw API response from the fixes endpoint.
-        alerts_by_vuln: Mapping of (vulnerability_id, repo_slug) -> alert ID.
+        alerts_by_vuln: Mapping of vulnerability, repo, package, and version to alert ID.
         repo_slug: Repository slug for dependency ID resolution.
         dep_lookup: Mapping of "name|version|repo_slug" -> dependency ID.
     """
@@ -128,14 +129,23 @@ def transform(
         fix_info = value.get("fixDetails", {})
         fix_entries = fix_info.get("fixes", [])
 
-        # Look up alert scoped to this repo to avoid cross-repo mislinks
-        alert_id = alerts_by_vuln.get((vuln_id, repo_slug))
-
         for fix_entry in fix_entries:
             purl = fix_entry.get("purl", "")
             fixed_version = fix_entry.get("fixedVersion", "")
             update_type = fix_entry.get("updateType")
             fix_id = f"{vuln_id}|{purl}|{fixed_version}"
+
+            parsed_purl = parse_purl(purl)
+            alert_id = None
+            if parsed_purl and parsed_purl["name"] and parsed_purl["version"]:
+                alert_id = alerts_by_vuln.get(
+                    (
+                        vuln_id,
+                        repo_slug,
+                        parsed_purl["name"],
+                        parsed_purl["version"],
+                    ),
+                )
 
             dependency_id = _build_dependency_id(purl, repo_slug, dep_lookup)
 
@@ -203,24 +213,30 @@ def sync_fixes(
     """
     logger.info("Starting Socket.dev fixes sync")
 
-    # Build lookup: (vulnerability_id, repo_slug) -> alert ID
-    # Scoped by repo to avoid linking a fix to the wrong alert when the same
-    # CVE/GHSA affects multiple repos.
-    alerts_by_vuln: dict[tuple[str, str], str] = {}
+    # Scope alerts by repository and package because one vulnerability can affect
+    # multiple packages and versions in the same repository.
+    alerts_by_vuln: dict[tuple[str, str, str, str], str] = {}
     vulnerability_ids_by_repo: dict[str, set[str]] = {}
     for alert in alerts:
         alert_id = alert["id"]
         repo_slug_val = alert.get("repo_slug")
         if not repo_slug_val:
             continue
-        # Index by (vuln_id, repo_slug) for each known identifier
+        artifact_name = alert.get("artifact_name")
+        artifact_version = alert.get("artifact_version")
         cve_id = alert.get("cve_id")
         if cve_id:
-            alerts_by_vuln[(cve_id, repo_slug_val)] = alert_id
+            if artifact_name and artifact_version:
+                alerts_by_vuln[
+                    (cve_id, repo_slug_val, artifact_name, artifact_version)
+                ] = alert_id
             vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(cve_id)
         ghsa_id = alert.get("ghsa_id")
         if ghsa_id:
-            alerts_by_vuln[(ghsa_id, repo_slug_val)] = alert_id
+            if artifact_name and artifact_version:
+                alerts_by_vuln[
+                    (ghsa_id, repo_slug_val, artifact_name, artifact_version)
+                ] = alert_id
             vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(ghsa_id)
     if not vulnerability_ids_by_repo:
         logger.info(
@@ -241,14 +257,12 @@ def sync_fixes(
 
     all_fixes: list[dict[str, Any]] = []
     with _create_session(api_token) as api_session:
-        for repo_slug_val, vulnerability_ids in sorted(
-            vulnerability_ids_by_repo.items(),
-        ):
+        for repo_slug_val in sorted(vulnerability_ids_by_repo):
             logger.debug(
                 "Fetching fixes for repo '%s'",
                 repo_slug_val,
             )
-            sorted_ids = sorted(vulnerability_ids)
+            sorted_ids = sorted(vulnerability_ids_by_repo[repo_slug_val])
             for offset in range(0, len(sorted_ids), _VULNERABILITY_BATCH_SIZE):
                 batch = sorted_ids[offset : offset + _VULNERABILITY_BATCH_SIZE]
                 raw_response = get(
