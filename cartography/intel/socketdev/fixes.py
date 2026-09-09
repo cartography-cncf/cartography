@@ -9,6 +9,7 @@ from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import parse_purl
 from cartography.models.socketdev.fix import SocketDevFixSchema
 from cartography.util import timeit
@@ -78,35 +79,23 @@ def get(
 def _build_dependency_id(
     purl: str,
     repo_slug: str,
-    dep_lookup: dict[str, str],
+    dep_lookup: dict[tuple[str, str], str],
 ) -> str | None:
     """
     Try to find the matching SocketDevDependency ID for a PURL.
-    The lookup is keyed by "name|version|repo_slug" to avoid cross-repo mislinks.
+    The lookup is scoped by normalized package ID and repository.
     """
-    try:
-        # Strip scheme "pkg:"
-        without_scheme = purl.split(":", 1)[1] if ":" in purl else purl
-        # Split type/name@version
-        path_part = (
-            without_scheme.split("/", 1)[1] if "/" in without_scheme else without_scheme
-        )
-        if "@" in path_part:
-            name, version = path_part.rsplit("@", 1)
-        else:
-            name = path_part
-            version = ""
-        lookup_key = f"{name}|{version}|{repo_slug}"
-        return dep_lookup.get(lookup_key)
-    except (IndexError, ValueError):
+    normalized_id = make_normalized_package_id(purl=purl)
+    if not normalized_id:
         return None
+    return dep_lookup.get((normalized_id, repo_slug))
 
 
 def transform(
     raw_response: dict[str, Any],
     alerts_by_vuln: dict[tuple[str, str, str, str | None, str, str], str],
     repo_slug: str,
-    dep_lookup: dict[str, str],
+    dep_lookup: dict[tuple[str, str], str],
 ) -> list[dict[str, Any]]:
     """
     Transform raw fix response into a flat list of dicts for ingestion.
@@ -116,7 +105,7 @@ def transform(
         alerts_by_vuln: Mapping of vulnerability, repo, package type, namespace,
             name, and version to alert ID.
         repo_slug: Repository slug for dependency ID resolution.
-        dep_lookup: Mapping of "name|version|repo_slug" -> dependency ID.
+        dep_lookup: Mapping of (normalized package ID, repo slug) -> dependency ID.
     """
     fixes = []
     fix_details = raw_response.get("fixDetails", {})
@@ -265,14 +254,14 @@ def sync_fixes(
         cleanup(neo4j_session, common_job_parameters)
         return
 
-    # Build dependency lookup: "name|version|repo_slug" -> dependency ID
-    # Scoped by repo to avoid cross-linking when identical packages exist
-    # across repos.
-    dep_lookup: dict[str, str] = {}
+    # Scope normalized packages by repo to avoid cross-linking identical packages.
+    dep_lookup: dict[tuple[str, str], str] = {}
     for dep in dependencies:
+        normalized_id = dep.get("normalized_id")
+        if not normalized_id:
+            continue
         repo = dep.get("repository", "")
-        key = f"{dep['name']}|{dep['version']}|{repo}"
-        dep_lookup[key] = dep["id"]
+        dep_lookup[(normalized_id, repo)] = dep["id"]
 
     all_fixes: list[dict[str, Any]] = []
     with _create_session(api_token) as api_session:
