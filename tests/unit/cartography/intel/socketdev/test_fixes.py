@@ -113,11 +113,14 @@ def test_sync_fixes_batches_vulnerability_ids(mocker):
         [],
     )
 
-    assert get.call_count == 3
-    assert [len(call.args[3].split(",")) for call in get.call_args_list] == [
+    batches = [call.args[3].split(",") for call in get.call_args_list]
+    assert [len(batch) for batch in batches] == [
         100,
         100,
         1,
     ]
+    assert [item for batch in batches for item in batch] == sorted(
+        alert["cve_id"] for alert in alerts
+    )
     assert all(call.args[0] is api_session for call in get.call_args_list)
     cleanup.assert_called_once()
