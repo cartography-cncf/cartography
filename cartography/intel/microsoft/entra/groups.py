@@ -135,12 +135,18 @@ async def sync_entra_groups(
     neo4j_session: neo4j.Session,
     tenant_id: str,
     client_id: str,
-    client_secret: str,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    client_certificate_path: str | None = None,
 ) -> None:
     """Sync Entra groups."""
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        client_certificate_path=client_certificate_path,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )

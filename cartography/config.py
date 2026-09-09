@@ -8,6 +8,7 @@ def _resolve_microsoft_credentials_config(
     microsoft_tenant_id: str | None,
     microsoft_client_id: str | None,
     microsoft_client_secret: str | None,
+    microsoft_client_certificate_path: str | None,
     entra_tenant_id: str | None,
     entra_client_id: str | None,
     entra_client_secret: str | None,
@@ -19,13 +20,19 @@ def _resolve_microsoft_credentials_config(
     )
     entra_values = (entra_tenant_id, entra_client_id, entra_client_secret)
 
-    has_microsoft_values = any(value is not None for value in microsoft_values)
+    # The certificate path has no legacy Entra alias, but it is still a
+    # Microsoft credential field for the mixing check below.
+    has_microsoft_values = any(
+        value is not None
+        for value in (*microsoft_values, microsoft_client_certificate_path)
+    )
     has_entra_values = any(value is not None for value in entra_values)
     if has_microsoft_values and has_entra_values:
         raise ValueError(
             "Cannot mix Microsoft credential config fields "
             "(`microsoft_tenant_id`, `microsoft_client_id`, "
-            "`microsoft_client_secret`) with deprecated Entra credential "
+            "`microsoft_client_secret`, `microsoft_client_certificate_path`) "
+            "with deprecated Entra credential "
             "config fields (`entra_tenant_id`, `entra_client_id`, "
             "`entra_client_secret`). Use the Microsoft fields instead.",
         )
@@ -142,6 +149,8 @@ class Config:
     :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_secret: str
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_client_certificate_path: str
+    :param microsoft_client_certificate_path: Path to a PEM or PKCS#12 file holding the app registration's private key and certificate, for certificate-based Service Principal Authentication instead of a client secret. Optional.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -732,6 +741,7 @@ class Config:
         microsoft_tenant_id=None,
         microsoft_client_id=None,
         microsoft_client_secret=None,
+        microsoft_client_certificate_path=None,
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
@@ -789,10 +799,12 @@ class Config:
             microsoft_tenant_id=microsoft_tenant_id,
             microsoft_client_id=microsoft_client_id,
             microsoft_client_secret=microsoft_client_secret,
+            microsoft_client_certificate_path=microsoft_client_certificate_path,
             entra_tenant_id=entra_tenant_id,
             entra_client_id=entra_client_id,
             entra_client_secret=entra_client_secret,
         )
+        self.microsoft_client_certificate_path = microsoft_client_certificate_path
         # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
         # config names. Later assignments do not propagate to microsoft_*.
         # Remove in v1.0.0.

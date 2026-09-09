@@ -23,6 +23,9 @@ def test_aws_organization_account_ids_preserves_config_positional_compatibility(
     assert parameters.index("microsoft_client_secret") > parameters.index(
         "microsoft_client_id",
     )
+    assert parameters.index("microsoft_client_certificate_path") > parameters.index(
+        "microsoft_client_secret",
+    )
 
 
 def test_bbot_source_preserves_config_positional_compatibility() -> None:
@@ -73,6 +76,30 @@ def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     assert config.entra_client_id == "client-id"
     assert config.entra_client_secret == "client-secret"
     assert "DEPRECATED" not in caplog.text
+
+
+def test_config_microsoft_certificate_path_is_stored_without_a_secret() -> None:
+    # Arrange and act
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_certificate_path="/run/secrets/app.pem",
+    )
+
+    # Assert
+    assert config.microsoft_client_certificate_path == "/run/secrets/app.pem"
+    assert config.microsoft_client_secret is None
+
+
+def test_config_rejects_certificate_path_mixed_with_entra_credentials() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="Cannot mix Microsoft credential"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_client_certificate_path="/run/secrets/app.pem",
+            entra_tenant_id="tenant-id",
+        )
 
 
 def test_config_legacy_entra_credentials_populate_microsoft_aliases(caplog) -> None:

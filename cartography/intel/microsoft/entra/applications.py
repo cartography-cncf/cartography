@@ -140,9 +140,10 @@ async def sync_entra_applications(
     neo4j_session: neo4j.Session,
     tenant_id: str,
     client_id: str,
-    client_secret: str,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    client_certificate_path: str | None = None,
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
@@ -151,11 +152,18 @@ async def sync_entra_applications(
     :param tenant_id: Entra tenant ID
     :param client_id: Azure application client ID
     :param client_secret: Azure application client secret
+    :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
+        application's private key and certificate, used instead of the secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
     """
     # Create credentials and client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        client_certificate_path=client_certificate_path,
+    )
 
     client = GraphServiceClient(
         credential,

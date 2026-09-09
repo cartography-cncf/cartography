@@ -32,8 +32,9 @@ async def sync_tenant(
     neo4j_session: neo4j.Session,
     tenant_id: str,
     client_id: str,
-    client_secret: str,
+    client_secret: str | None,
     update_tag: int,
+    client_certificate_path: str | None = None,
 ) -> None:
     """
     Sync tenant information as a prerequisite for all other Entra resource syncs.
@@ -42,9 +43,16 @@ async def sync_tenant(
     :param tenant_id: Entra tenant ID
     :param client_id: Azure application client ID
     :param client_secret: Azure application client secret
+    :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
+        application's private key and certificate, used instead of the secret
     :param update_tag: Update tag for tracking data freshness
     """
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        client_certificate_path=client_certificate_path,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -71,7 +79,8 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     tenant_id = config.microsoft_tenant_id
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
-    if not tenant_id or not client_id or not client_secret:
+    client_certificate_path = config.microsoft_client_certificate_path
+    if not tenant_id or not client_id or not (client_secret or client_certificate_path):
         logger.info(
             "Entra import is not configured - skipping this module. "
             "See docs to configure.",
@@ -91,6 +100,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_id,
             client_secret,
             config.update_tag,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run user sync
@@ -101,6 +111,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run group sync
@@ -111,6 +122,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run OU sync
@@ -121,6 +133,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run application sync
@@ -131,6 +144,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run service principals sync
@@ -141,6 +155,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run app role assignments sync
@@ -151,6 +166,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             common_job_parameters,
+            client_certificate_path=client_certificate_path,
         )
 
         # Run directory role sync (definitions + assignments).
@@ -167,6 +183,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 client_secret,
                 config.update_tag,
                 common_job_parameters,
+                client_certificate_path=client_certificate_path,
             )
         except APIError as e:
             if e.response_status_code in (401, 403):

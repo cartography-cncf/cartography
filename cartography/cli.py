@@ -261,6 +261,7 @@ def _resolve_microsoft_credential_options(
     microsoft_tenant_id: str | None,
     microsoft_client_id: str | None,
     microsoft_client_secret_env_var: str | None,
+    microsoft_client_certificate_path: str | None,
     entra_tenant_id: str | None,
     entra_client_id: str | None,
     entra_client_secret_env_var: str | None,
@@ -278,13 +279,19 @@ def _resolve_microsoft_credential_options(
     )
     entra_values = (entra_tenant_id, entra_client_id, entra_client_secret_env_var)
 
-    has_microsoft_values = any(value is not None for value in microsoft_values)
+    # The certificate path has no legacy Entra alias, but it is still a
+    # Microsoft credential flag for the mixing check below.
+    has_microsoft_values = any(
+        value is not None
+        for value in (*microsoft_values, microsoft_client_certificate_path)
+    )
     has_entra_values = any(value is not None for value in entra_values)
     if has_microsoft_values and has_entra_values:
         raise typer.BadParameter(
             "Cannot mix Microsoft credential flags "
             "(--microsoft-tenant-id, --microsoft-client-id, "
-            "--microsoft-client-secret-env-var) with deprecated Entra "
+            "--microsoft-client-secret-env-var, "
+            "--microsoft-client-certificate-path) with deprecated Entra "
             "credential flags (--entra-tenant-id, --entra-client-id, "
             "--entra-client-secret-env-var). Use the Microsoft flags instead.",
         )
@@ -768,6 +775,20 @@ class CLI:
                 typer.Option(
                     "--microsoft-client-secret-env-var",
                     help="Environment variable name containing Microsoft client secret.",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_certificate_path: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-certificate-path",
+                    help=(
+                        "Path to a PEM or PKCS#12 file holding the app registration's "
+                        "private key and certificate. Use instead of "
+                        "--microsoft-client-secret-env-var for certificate-based "
+                        "authentication."
+                    ),
                     rich_help_panel=PANEL_MICROSOFT,
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
@@ -2839,6 +2860,7 @@ class CLI:
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret_env_var=microsoft_client_secret_env_var,
+                microsoft_client_certificate_path=microsoft_client_certificate_path,
                 entra_tenant_id=entra_tenant_id,
                 entra_client_id=entra_client_id,
                 entra_client_secret_env_var=entra_client_secret_env_var,
@@ -3612,6 +3634,7 @@ class CLI:
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
+                microsoft_client_certificate_path=microsoft_client_certificate_path,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

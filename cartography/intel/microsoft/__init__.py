@@ -24,7 +24,9 @@ def start_microsoft_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     if (
         not config.microsoft_tenant_id
         or not config.microsoft_client_id
-        or not config.microsoft_client_secret
+        or not (
+            config.microsoft_client_secret or config.microsoft_client_certificate_path
+        )
     ):
         logger.info(
             "Microsoft import is not configured - skipping this module. "

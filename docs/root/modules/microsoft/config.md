@@ -6,7 +6,7 @@ Create an app registration in [App Registrations](https://portal.azure.com/#view
 
 ## Authentication
 
-Create a client secret for the app registration. Store the secret in an environment variable and note the Microsoft tenant ID and application client ID.
+Create a client secret for the app registration, or upload a certificate to it. Store a secret in an environment variable, or keep the certificate's private key and certificate together in a PEM or PKCS#12 file, and note the Microsoft tenant ID and application client ID.
 
 ## Required Permissions
 
@@ -34,6 +34,7 @@ Provide these options:
 - `--microsoft-tenant-id`: Microsoft tenant ID.
 - `--microsoft-client-id`: App registration client ID.
 - `--microsoft-client-secret-env-var`: Name of the environment variable containing the client secret.
+- `--microsoft-client-certificate-path`: Path to a PEM or PKCS#12 file holding the app registration's private key and certificate. Use this instead of `--microsoft-client-secret-env-var` for certificate-based authentication.
 
 These credentials apply to all Microsoft Graph ingestion in the `microsoft` module, including Entra ID and Intune.
 
@@ -48,6 +49,16 @@ cartography \
   --microsoft-tenant-id '<tenant-id>' \
   --microsoft-client-id '<client-id>' \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
+```
+
+Or, with a certificate on the app registration:
+
+```bash
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<tenant-id>' \
+  --microsoft-client-id '<client-id>' \
+  --microsoft-client-certificate-path /path/to/app.pem
 ```
 
 ## References
