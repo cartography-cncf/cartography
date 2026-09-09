@@ -58,3 +58,21 @@ def test_get_fetches_missing_integration_metadata(mock_session_class: Mock) -> N
             timeout=(60, 60),
         ),
     ]
+
+
+@patch("cartography.intel.socketdev.repositories.requests.Session")
+def test_get_keeps_list_record_when_detail_is_not_found(
+    mock_session_class: Mock,
+) -> None:
+    mock_session = mock_session_class.return_value
+    repository = {"id": "socket-repo", "slug": "service"}
+    list_response = Mock()
+    list_response.json.return_value = {
+        "results": [repository],
+        "nextPage": None,
+    }
+    detail_response = Mock(status_code=404)
+    mock_session.get.side_effect = [list_response, detail_response]
+
+    assert get("token", "socket-org") == [repository]
+    detail_response.raise_for_status.assert_not_called()

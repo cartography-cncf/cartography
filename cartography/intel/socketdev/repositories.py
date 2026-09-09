@@ -66,8 +66,14 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
                     ),
                     timeout=_TIMEOUT,
                 )
-                detail_response.raise_for_status()
-                repo = {**repo, **detail_response.json()}
+                if detail_response.status_code == 404:
+                    logger.warning(
+                        "Skipping Socket.dev repository identity enrichment because "
+                        "the repository detail was not found",
+                    )
+                else:
+                    detail_response.raise_for_status()
+                    repo = {**repo, **detail_response.json()}
             all_repos.append(repo)
 
         next_page = data.get("nextPage")
