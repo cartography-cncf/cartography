@@ -104,7 +104,7 @@ def _build_dependency_id(
 
 def transform(
     raw_response: dict[str, Any],
-    alerts_by_vuln: dict[tuple[str, str, str, str, str, str], str],
+    alerts_by_vuln: dict[tuple[str, str, str, str | None, str, str], str],
     repo_slug: str,
     dep_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -144,7 +144,7 @@ def transform(
                         vuln_id,
                         repo_slug,
                         parsed_purl["type"],
-                        parsed_purl["namespace"] or "",
+                        parsed_purl["namespace"],
                         parsed_purl["name"],
                         parsed_purl["version"],
                     ),
@@ -218,7 +218,7 @@ def sync_fixes(
 
     # Scope alerts by repository and full PURL identity because one vulnerability
     # can affect packages with the same name and version across ecosystems.
-    alerts_by_vuln: dict[tuple[str, str, str, str, str, str], str] = {}
+    alerts_by_vuln: dict[tuple[str, str, str, str | None, str, str], str] = {}
     vulnerability_ids_by_repo: dict[str, set[str]] = {}
     for alert in alerts:
         alert_id = alert["id"]
@@ -228,7 +228,7 @@ def sync_fixes(
         artifact_name = alert.get("artifact_name")
         artifact_version = alert.get("artifact_version")
         artifact_type = alert.get("artifact_type")
-        artifact_namespace = alert.get("artifact_namespace") or ""
+        artifact_namespace = alert.get("artifact_namespace")
         cve_id = alert.get("cve_id")
         if cve_id:
             if artifact_type and artifact_name and artifact_version:

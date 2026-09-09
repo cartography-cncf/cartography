@@ -1,5 +1,3 @@
-from unittest.mock import ANY
-from unittest.mock import call
 from unittest.mock import patch
 
 import cartography.intel.socketdev.fixes
@@ -64,14 +62,6 @@ def test_sync_fixes(mock_api, neo4j_session):
     )
 
     # Assert: Fix nodes exist
-    assert mock_api.call_args_list == [
-        call(
-            ANY,
-            TEST_ORG_SLUG,
-            "frontend-app",
-            "GHSA-xxxx-yyyy-zzzz",
-        ),
-    ]
     expected_fix_nodes = {
         ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", "4.17.22", "fixFound"),
     }

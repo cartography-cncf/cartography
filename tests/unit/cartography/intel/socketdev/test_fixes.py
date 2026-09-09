@@ -149,7 +149,7 @@ def test_sync_fixes_matches_alert_by_full_package_identity(mocker):
                 "repo_slug": "example-repo",
                 "ghsa_id": "GHSA-example",
                 "artifact_type": "npm",
-                "artifact_namespace": "",
+                "artifact_namespace": None,
                 "artifact_name": "package-b",
                 "artifact_version": "2.0.0",
             },
