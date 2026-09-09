@@ -117,7 +117,24 @@ def test_tac_authenticator_accepts_uppercase_provider_type() -> None:
         "id": "aut-tac",
         "key": "tac",
         "name": "TAC",
-        "provider": {"type": "TAC"},
+        "status": "ACTIVE",
+        "type": "security_key",
+        "provider": {
+            "type": "TAC",
+            "configuration": {
+                "minTtl": 10,
+                "maxTtl": 14400,
+                "defaultTtl": 60,
+                "length": 16,
+                "complexity": {
+                    "numbers": True,
+                    "letters": False,
+                    "specialCharacters": False,
+                },
+                "multiUseAllowed": False,
+            },
+        },
+        "_links": {},
     }
 
     # Act

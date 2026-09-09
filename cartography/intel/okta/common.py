@@ -146,7 +146,7 @@ def _patch_okta_sdk_authenticator_models() -> None:
 
 
 # DEPRECATED: Remove these Okta SDK 3.x compatibility shims in v1.0.0 after
-# the corresponding response-shape fixes are released upstream.
+# okta/okta-sdk-python#546 and #574, and the uppercase TAC provider fix, ship.
 _patch_okta_sdk_application_models()
 _patch_okta_sdk_user_factor_models()
 _patch_okta_sdk_authenticator_models()
