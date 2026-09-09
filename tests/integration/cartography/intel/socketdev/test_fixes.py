@@ -64,6 +64,11 @@ def test_sync_fixes(mock_api, neo4j_session):
     # Assert: Fix nodes exist
     expected_fix_nodes = {
         ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", "4.17.22", "fixFound"),
+        (
+            "GHSA-xxxx-yyyy-zzzz|pkg:npm/%40example/package@1.2.3|1.2.4",
+            "1.2.4",
+            "fixFound",
+        ),
     }
     assert (
         check_nodes(
@@ -78,11 +83,15 @@ def test_sync_fixes(mock_api, neo4j_session):
     result = neo4j_session.run(
         "MATCH (f:Fix:SocketDevFix) RETURN count(f) AS count",
     ).single()
-    assert result["count"] == 1
+    assert result["count"] == 2
 
     # Assert: Fix is connected to Organization
     expected_org_rels = {
         ("GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22", TEST_ORG_ID),
+        (
+            "GHSA-xxxx-yyyy-zzzz|pkg:npm/%40example/package@1.2.3|1.2.4",
+            TEST_ORG_ID,
+        ),
     }
     assert (
         check_rels(
@@ -117,6 +126,10 @@ def test_sync_fixes(mock_api, neo4j_session):
     # Assert: Dependency SHOULD_UPDATE_TO Fix
     expected_dep_rels = {
         ("dep-001", "GHSA-xxxx-yyyy-zzzz|pkg:npm/lodash@4.17.21|4.17.22"),
+        (
+            "dep-004",
+            "GHSA-xxxx-yyyy-zzzz|pkg:npm/%40example/package@1.2.3|1.2.4",
+        ),
     }
     assert (
         check_rels(

@@ -44,6 +44,23 @@ class _RateLimitedHandler(BaseHTTPRequestHandler):
         pass
 
 
+def test_build_dependency_id_matches_encoded_scoped_package():
+    # Arrange
+    dep_lookup = {
+        ("npm|@example/package|1.2.3", "frontend-app"): "dep-scoped",
+    }
+
+    # Act and assert
+    assert (
+        fixes._build_dependency_id(
+            "pkg:npm/%40example/package@1.2.3",
+            "frontend-app",
+            dep_lookup,
+        )
+        == "dep-scoped"
+    )
+
+
 def test_get_retries_transient_failure(mocker):
     _UnavailableThenSuccessHandler.attempts = 0
     server = ThreadingHTTPServer(("127.0.0.1", 0), _UnavailableThenSuccessHandler)
