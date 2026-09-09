@@ -64,6 +64,62 @@ def test_resolved_image_analysis_creates_rel_via_has_image(neo4j_session):
     ) == {("container-1", "sha256:deadbeef")}
 
 
+def test_resolved_image_analysis_removes_edges_after_semantic_labels_are_lost(
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (stale:FormerContainer {id: 'stale'})
+        CREATE (container:Container {id: 'container'})
+        CREATE (function:Function {id: 'function'})
+        CREATE (image:Image {id: 'image'})
+        CREATE (former_image:FormerImage {id: 'former-image'})
+        CREATE (stale)-[:RESOLVED_IMAGE {lastupdated: $old_tag}]->(image)
+        CREATE (container)-[:RESOLVED_IMAGE {lastupdated: $old_tag}]->(former_image)
+        CREATE (function)-[:RESOLVED_IMAGE {lastupdated: $update_tag}]->(image)
+        """,
+        old_tag=TEST_UPDATE_TAG - 1,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    _run_resolved_image_analysis(neo4j_session)
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "FormerContainer",
+            "id",
+            "Image",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "Container",
+            "id",
+            "FormerImage",
+            "id",
+            "RESOLVED_IMAGE",
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "Function",
+        "id",
+        "Image",
+        "id",
+        "RESOLVED_IMAGE",
+    ) == {("function", "image")}
+
+
 @patch("cartography.intel.gcp.cloudrun.service.get_services")
 @patch("cartography.intel.gcp.cloudrun.revision.get_revisions")
 @patch("cartography.intel.gcp.cloudrun.job.get_jobs")

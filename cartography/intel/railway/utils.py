@@ -3,8 +3,10 @@ import re
 import time
 from typing import Any
 
+import neo4j
 import requests
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -171,6 +173,34 @@ def unwrap_edges(connection: dict[str, Any]) -> list[dict[str, Any]]:
     Flatten a Relay connection into the list of its nodes.
     """
     return [edge["node"] for edge in connection["edges"]]
+
+
+def preserve_image_relationships(
+    neo4j_session: neo4j.Session,
+    unresolved_images: list[dict[str, str | None]],
+    source_label: str,
+    target_label: str,
+    update_tag: int,
+) -> None:
+    """Keep last verified image edges for references that failed to refresh."""
+    if not unresolved_images:
+        return
+    run_write_query(
+        neo4j_session,
+        f"""
+        UNWIND $unresolved_images AS unresolved
+        MATCH (:{source_label} {{id: unresolved.source_id}})
+              -[relationship:HAS_IMAGE]->(:{target_label})
+        WHERE relationship.source_reference = unresolved.source_reference
+           OR (
+               unresolved.normalized_reference IS NOT NULL
+               AND relationship.normalized_reference = unresolved.normalized_reference
+           )
+        SET relationship.lastupdated = $update_tag
+        """,
+        unresolved_images=unresolved_images,
+        update_tag=update_tag,
+    )
 
 
 def paginated_query(

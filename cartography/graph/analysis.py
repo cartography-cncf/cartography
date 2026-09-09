@@ -146,6 +146,18 @@ class AddRelationship:
     # Override to "target" when cleanup scope reaches the target, not the source.
     scoped_to: Literal["source", "target"] = "source"
     cleanup_where: str | None = None
+    # Conditional semantic labels may disappear before cleanup. Disable either
+    # label match only with a cleanup_where guard that preserves sibling owners.
+    cleanup_source_label: bool = True
+    cleanup_target_label: bool = True
+
+    def __post_init__(self) -> None:
+        if (not self.cleanup_source_label or not self.cleanup_target_label) and not (
+            self.cleanup_where or ""
+        ).strip():
+            raise ValueError(
+                "Unlabeled relationship cleanup requires a cleanup_where guard."
+            )
 
 
 @dataclass(frozen=True)
@@ -204,6 +216,16 @@ class RelationshipEffect:
     scoped_to: Literal["source", "target"] = "source"
     cleanup_before_statements: bool = False
     cleanup_where: str = ""
+    cleanup_source_label: bool = True
+    cleanup_target_label: bool = True
+
+    def __post_init__(self) -> None:
+        if (
+            not self.cleanup_source_label or not self.cleanup_target_label
+        ) and not self.cleanup_where.strip():
+            raise ValueError(
+                "Unlabeled relationship cleanup requires a cleanup_where guard."
+            )
 
 
 @dataclass(frozen=True)

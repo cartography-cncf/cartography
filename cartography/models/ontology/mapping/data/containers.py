@@ -211,23 +211,27 @@ _RAILWAY_DEPLOYMENT_STATE = {
 }
 
 # A Railway deployment is one concrete running revision of a service instance, the same
-# role GCPCloudRunServiceContainer plays for a Cloud Run service. Railway exposes no name,
-# image reference, resource limits or health probe on the deployment itself - the image
-# lives on the parent RailwayServiceInstance - so only the lifecycle state is mapped.
+# role GCPCloudRunServiceContainer plays for a Cloud Run service. The configured image is
+# copied from its parent service instance during transform; an image digest is populated
+# only when the reference itself is digest-pinned.
 railway_mapping = OntologyMapping(
     module_name="railway",
     nodes=[
         OntologyNodeMapping(
             node_label="RailwayDeployment",
             fields=[
+                OntologyFieldMapping(ontology_field="image", node_field="source_image"),
+                OntologyFieldMapping(
+                    ontology_field="image_digest", node_field="source_image_digest"
+                ),
                 OntologyFieldMapping(
                     ontology_field="state",
                     node_field="status",
                     special_handling="mapping",
                     extra={"map": _RAILWAY_DEPLOYMENT_STATE},
                 ),
-                # name / image / image_digest / cpu / memory / region / health_status:
-                # Not available on Railway's Deployment type.
+                # name / cpu / memory / region / health_status: Not available on
+                # Railway's Deployment type.
             ],
         ),
     ],

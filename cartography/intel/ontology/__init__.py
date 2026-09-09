@@ -94,7 +94,7 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
-    # Create RESOLVED_IMAGE edges from :Container to the concrete single-platform :Image they are running.
+    # Refresh RESOLVED_IMAGE edges from runtimes to concrete single-platform images.
     # Runs last so the :Container / :Image semantic labels and HAS_IMAGE edges from every provider are in place.
     for job in RESOLVED_IMAGE_JOBS:
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)

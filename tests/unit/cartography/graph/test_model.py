@@ -362,6 +362,10 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # Public/global registry data.
     "DockerScoutPublicImage",
     "DockerScoutPublicImageTag",
+    # Public registry artifacts are shared globally by digest, while references
+    # are registry locations without a tenant owner. Neither is cleanup-scoped.
+    "ExternalContainerImage",
+    "ExternalContainerImageReference",
     # GCP Artifact Registry images are a shared canonical container-image node
     # whose tenancy is set dynamically through a MatchLink
     # (`_sub_resource_label`/`_sub_resource_id` kwargs) rather than a fixed

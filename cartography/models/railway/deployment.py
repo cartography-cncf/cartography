@@ -55,6 +55,24 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
     can_redeploy: PropertyRef = PropertyRef(
         "canRedeploy", description="Whether the deployment can be redeployed."
     )
+    source_image: PropertyRef = PropertyRef(
+        "source_image",
+        description="Container image configured on the deployment's service instance.",
+    )
+    source_image_normalized: PropertyRef = PropertyRef(
+        "source_image_normalized",
+        description="Docker-normalized configured container image reference.",
+    )
+    source_image_digest: PropertyRef = PropertyRef(
+        "source_image_digest",
+        extra_index=True,
+        description="Immutable digest explicitly pinned by the service configuration, when present.",
+    )
+    resolved_source_image_digest: PropertyRef = PropertyRef(
+        "resolved_source_image_digest",
+        extra_index=True,
+        description="Verified manifest digest used for deterministic runtime image matching.",
+    )
     created_at: PropertyRef = PropertyRef(
         "createdAt", description="Time when the deployment was created."
     )
@@ -107,6 +125,36 @@ class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RailwayDeploymentToExternalContainerImageRelProperties(
+    CartographyRelProperties,
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    source_reference: PropertyRef = PropertyRef(
+        "source_image",
+        description="Digest-pinned image reference configured for this deployment.",
+    )
+    normalized_reference: PropertyRef = PropertyRef(
+        "source_image_normalized",
+        description="Docker-normalized digest-pinned image reference.",
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToExternalContainerImageRel(CartographyRelSchema):
+    """Links a current Railway deployment to an explicitly digest-pinned artifact."""
+
+    target_node_label: str = "ExternalContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resolved_source_image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToExternalContainerImageRelProperties = (
+        RailwayDeploymentToExternalContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 # A deployment is one concrete revision of a service instance, so the revision that is
 # actually running plays the Container role to the instance's ComputeService - the same split
 # GCP Cloud Run uses for Service and ServiceContainer.
@@ -129,5 +177,6 @@ class RailwayDeploymentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RailwayDeploymentToServiceInstanceRel(),
+            RailwayDeploymentToExternalContainerImageRel(),
         ],
     )
