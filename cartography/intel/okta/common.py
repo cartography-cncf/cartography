@@ -6,6 +6,9 @@ from typing import Callable
 
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
+from okta.models.authenticator_key_tac_all_of_provider import (
+    AuthenticatorKeyTacAllOfProvider,
+)
 from okta.models.bookmark_application_settings import BookmarkApplicationSettings
 from okta.models.bookmark_application_settings_application import (
     BookmarkApplicationSettingsApplication,
@@ -133,10 +136,20 @@ def _patch_okta_sdk_user_factor_models() -> None:
         _relax_enum_fields(model_cls, "status")
 
 
-# DEPRECATED: Remove this Okta SDK 3.4.4 compatibility shim in v1.0.0 after
-# okta/okta-sdk-python#546 and #574 are released upstream.
+def _patch_okta_sdk_authenticator_models() -> None:
+    """Accept the uppercase TAC provider type returned by Okta."""
+    _remove_field_validator(
+        AuthenticatorKeyTacAllOfProvider,
+        "type_validate_enum",
+    )
+    AuthenticatorKeyTacAllOfProvider.model_rebuild(force=True)
+
+
+# DEPRECATED: Remove these Okta SDK 3.x compatibility shims in v1.0.0 after
+# the corresponding response-shape fixes are released upstream.
 _patch_okta_sdk_application_models()
 _patch_okta_sdk_user_factor_models()
+_patch_okta_sdk_authenticator_models()
 
 
 class OktaApiError(RuntimeError):

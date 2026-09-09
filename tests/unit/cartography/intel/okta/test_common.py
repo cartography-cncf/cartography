@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import Any
 
 from okta.models.application_json_converter import ApplicationJsonConverter
+from okta.models.authenticator_base import AuthenticatorBase
 from okta.models.user_factor import UserFactor
 
 import cartography.intel.okta.common  # noqa: F401
@@ -108,3 +109,21 @@ def test_user_factor_preserves_declared_status() -> None:
     assert factor is not None
     assert factor.id == "sms1standard0Ab2Cd4"
     assert factor.status == "ACTIVE"
+
+
+def test_tac_authenticator_accepts_uppercase_provider_type() -> None:
+    # Arrange
+    payload = {
+        "id": "aut-tac",
+        "key": "tac",
+        "name": "TAC",
+        "provider": {"type": "TAC"},
+    }
+
+    # Act
+    authenticator = AuthenticatorBase.from_dict(payload)
+
+    # Assert
+    assert authenticator is not None
+    assert authenticator.provider is not None
+    assert authenticator.provider.type == "TAC"
