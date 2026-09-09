@@ -22,6 +22,21 @@ TEST_ORG_ID = "org-001"
 TEST_ORG_SLUG = "acme-corp"
 
 
+def test_build_dependency_id_matches_encoded_scoped_package():
+    dep_lookup = {
+        ("npm|@example/package|1.2.3", "frontend-app"): "dep-scoped",
+    }
+
+    assert (
+        cartography.intel.socketdev.fixes._build_dependency_id(
+            "pkg:npm/%40example/package@1.2.3",
+            "frontend-app",
+            dep_lookup,
+        )
+        == "dep-scoped"
+    )
+
+
 @patch.object(
     cartography.intel.socketdev.fixes,
     "get",
