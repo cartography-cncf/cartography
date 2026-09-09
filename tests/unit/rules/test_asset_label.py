@@ -13,9 +13,7 @@ produces can never be resolved by a consumer.
 import pytest
 
 from cartography.rules.data.rules import RULES
-from cartography.rules.spec.model import _expression_for_alias
-from cartography.rules.spec.model import _PROPERTY_OWNER_RE
-from cartography.rules.spec.model import _variables_bound_to_label
+from cartography.rules.spec.model import validate_anchor
 from tests.utils import all_graph_labels
 
 # Labels written by legacy handwritten Cypher rather than by a node schema, so
@@ -56,15 +54,7 @@ def test_asset_anchor_describes_one_node(rule_id, fact_id, fact):
     Enforced at construction time too; kept here so the contract is visible
     alongside the other anchor tests and reported per fact.
     """
-    asset_vars = _variables_bound_to_label(fact.cypher_query, fact.asset_label)
-    assert asset_vars, (
-        f"Rule '{rule_id}' fact '{fact_id}' declares asset_label "
-        f"'{fact.asset_label}' but its cypher_query binds no variable to it."
-    )
-    id_expression = _expression_for_alias(fact.cypher_query, fact.asset_id_field)
-    owners = set(_PROPERTY_OWNER_RE.findall(id_expression or ""))
-    assert owners & asset_vars, (
-        f"Rule '{rule_id}' fact '{fact_id}' returns asset_id_field "
-        f"'{fact.asset_id_field}' as '{id_expression}', which reads no property "
-        f"off {sorted(asset_vars)}."
-    )
+    err = validate_anchor(fact.cypher_query, fact.asset_label, fact.asset_id_field)
+    assert (
+        err is None
+    ), f"Rule '{rule_id}' fact '{fact_id}' failed validate_anchor: {err}."
