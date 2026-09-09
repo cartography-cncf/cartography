@@ -31,7 +31,7 @@ class SocketDevRepositoryNodeProperties(CartographyNodeProperties):
     fullname: PropertyRef = PropertyRef(
         "fullname",
         extra_index=True,
-        description="Full repository path including its workspace.",
+        description="Repository path including its workspace when available; otherwise the repository slug.",
     )
     description: PropertyRef = PropertyRef(
         "description",
