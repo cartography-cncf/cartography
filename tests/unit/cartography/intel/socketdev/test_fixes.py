@@ -88,7 +88,7 @@ def test_get_bounds_rate_limit_retry_delay(mocker):
     assert sleep.call_args_list == [call(8), call(8), call(8)]
 
 
-def test_sync_fixes_matches_duplicate_vulnerability_to_its_package_alert(mocker):
+def test_sync_fixes_matches_alert_by_full_package_identity(mocker):
     api_session = MagicMock()
     api_session.__enter__.return_value = api_session
     mocker.patch.object(fixes, "_create_session", return_value=api_session)
@@ -103,7 +103,11 @@ def test_sync_fixes_matches_duplicate_vulnerability_to_its_package_alert(mocker)
                         "fixDetails": {
                             "fixes": [
                                 {
-                                    "purl": "pkg:npm/package-b@2.0.0",
+                                    "purl": "pkg:npm/%40scope/package-b@2.0.0",
+                                    "fixedVersion": "2.0.1",
+                                },
+                                {
+                                    "purl": "pkg:pypi/package-b@2.0.0",
                                     "fixedVersion": "2.0.1",
                                 },
                             ],
@@ -124,16 +128,28 @@ def test_sync_fixes_matches_duplicate_vulnerability_to_its_package_alert(mocker)
         {"UPDATE_TAG": 1, "ORG_ID": "example-org"},
         [
             {
-                "id": "alert-a",
+                "id": "alert-scoped-npm",
                 "repo_slug": "example-repo",
                 "ghsa_id": "GHSA-example",
-                "artifact_name": "package-a",
-                "artifact_version": "1.0.0",
+                "artifact_type": "npm",
+                "artifact_namespace": "@scope",
+                "artifact_name": "package-b",
+                "artifact_version": "2.0.0",
             },
             {
-                "id": "alert-b",
+                "id": "alert-pypi",
                 "repo_slug": "example-repo",
                 "ghsa_id": "GHSA-example",
+                "artifact_type": "pypi",
+                "artifact_name": "package-b",
+                "artifact_version": "2.0.0",
+            },
+            {
+                "id": "alert-unscoped-npm",
+                "repo_slug": "example-repo",
+                "ghsa_id": "GHSA-example",
+                "artifact_type": "npm",
+                "artifact_namespace": "",
                 "artifact_name": "package-b",
                 "artifact_version": "2.0.0",
             },
@@ -141,7 +157,13 @@ def test_sync_fixes_matches_duplicate_vulnerability_to_its_package_alert(mocker)
         [],
     )
 
-    assert load_fixes.call_args.args[1][0]["alert_id"] == "alert-b"
+    loaded_fixes = {
+        fix["purl"]: fix["alert_id"] for fix in load_fixes.call_args.args[1]
+    }
+    assert loaded_fixes == {
+        "pkg:npm/%40scope/package-b@2.0.0": "alert-scoped-npm",
+        "pkg:pypi/package-b@2.0.0": "alert-pypi",
+    }
 
 
 def test_sync_fixes_batches_vulnerability_ids(mocker):

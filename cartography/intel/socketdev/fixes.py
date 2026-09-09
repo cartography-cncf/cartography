@@ -104,7 +104,7 @@ def _build_dependency_id(
 
 def transform(
     raw_response: dict[str, Any],
-    alerts_by_vuln: dict[tuple[str, str, str, str], str],
+    alerts_by_vuln: dict[tuple[str, str, str, str, str, str], str],
     repo_slug: str,
     dep_lookup: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -113,7 +113,8 @@ def transform(
 
     Args:
         raw_response: Raw API response from the fixes endpoint.
-        alerts_by_vuln: Mapping of vulnerability, repo, package, and version to alert ID.
+        alerts_by_vuln: Mapping of vulnerability, repo, package type, namespace,
+            name, and version to alert ID.
         repo_slug: Repository slug for dependency ID resolution.
         dep_lookup: Mapping of "name|version|repo_slug" -> dependency ID.
     """
@@ -142,6 +143,8 @@ def transform(
                     (
                         vuln_id,
                         repo_slug,
+                        parsed_purl["type"],
+                        parsed_purl["namespace"] or "",
                         parsed_purl["name"],
                         parsed_purl["version"],
                     ),
@@ -213,9 +216,9 @@ def sync_fixes(
     """
     logger.info("Starting Socket.dev fixes sync")
 
-    # Scope alerts by repository and package because one vulnerability can affect
-    # multiple packages and versions in the same repository.
-    alerts_by_vuln: dict[tuple[str, str, str, str], str] = {}
+    # Scope alerts by repository and full PURL identity because one vulnerability
+    # can affect packages with the same name and version across ecosystems.
+    alerts_by_vuln: dict[tuple[str, str, str, str, str, str], str] = {}
     vulnerability_ids_by_repo: dict[str, set[str]] = {}
     for alert in alerts:
         alert_id = alert["id"]
@@ -224,18 +227,34 @@ def sync_fixes(
             continue
         artifact_name = alert.get("artifact_name")
         artifact_version = alert.get("artifact_version")
+        artifact_type = alert.get("artifact_type")
+        artifact_namespace = alert.get("artifact_namespace") or ""
         cve_id = alert.get("cve_id")
         if cve_id:
-            if artifact_name and artifact_version:
+            if artifact_type and artifact_name and artifact_version:
                 alerts_by_vuln[
-                    (cve_id, repo_slug_val, artifact_name, artifact_version)
+                    (
+                        cve_id,
+                        repo_slug_val,
+                        artifact_type,
+                        artifact_namespace,
+                        artifact_name,
+                        artifact_version,
+                    )
                 ] = alert_id
             vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(cve_id)
         ghsa_id = alert.get("ghsa_id")
         if ghsa_id:
-            if artifact_name and artifact_version:
+            if artifact_type and artifact_name and artifact_version:
                 alerts_by_vuln[
-                    (ghsa_id, repo_slug_val, artifact_name, artifact_version)
+                    (
+                        ghsa_id,
+                        repo_slug_val,
+                        artifact_type,
+                        artifact_namespace,
+                        artifact_name,
+                        artifact_version,
+                    )
                 ] = alert_id
             vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(ghsa_id)
     if not vulnerability_ids_by_repo:
