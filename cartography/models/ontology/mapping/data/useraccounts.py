@@ -505,6 +505,25 @@ pagerduty_mapping = OntologyMapping(
         ),
     ],
 )
+opsgenie_mapping = OntologyMapping(
+    module_name="opsgenie",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OpsgenieUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="username", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="full_name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="blocked",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 jumpcloud_mapping = OntologyMapping(
     module_name="jumpcloud",
     nodes=[
@@ -892,6 +911,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "opsgenie": opsgenie_mapping,
     "workos": workos_useraccounts_mapping,
     "sentry": sentry_mapping,
     "subimage": subimage_mapping,
