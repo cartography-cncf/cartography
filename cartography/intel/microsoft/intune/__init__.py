@@ -29,7 +29,8 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     as Intune nodes relate back to Entra users, groups, and tenants.
 
     Uses the same Microsoft Graph credentials as the Entra sync
-    (config.microsoft_tenant_id / client_id / client_secret).
+    (config.microsoft_tenant_id / client_id, and either client_secret or
+    client_certificate_path).
 
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object

@@ -741,7 +741,6 @@ class Config:
         microsoft_tenant_id=None,
         microsoft_client_id=None,
         microsoft_client_secret=None,
-        microsoft_client_certificate_path=None,
         netlify_token=None,
         netlify_account_slug=None,
         netlify_base_url=None,
@@ -759,6 +758,7 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        microsoft_client_certificate_path=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

@@ -72,6 +72,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     Must run before Intune ingestion, as Intune nodes relate back to Entra
     users, groups, and tenants.
 
+    Authenticates with config.microsoft_tenant_id / client_id and either
+    client_secret or client_certificate_path.
+
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     :return: None

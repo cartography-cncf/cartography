@@ -24,7 +24,8 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     per-user license assignments).
 
     Requires the same Microsoft Graph credentials used for the main Microsoft
-    module. Needs Organization.Read.All or Directory.Read.All Graph permission
+    module (config.microsoft_tenant_id / client_id, and either client_secret
+    or client_certificate_path). Needs Organization.Read.All or Directory.Read.All Graph permission
     for subscribedSkus, and User.Read.All for per-user assigned licenses.
 
     This sync is optional: if the app registration lacks the required Graph
