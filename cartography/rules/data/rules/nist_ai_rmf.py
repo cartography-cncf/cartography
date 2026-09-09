@@ -379,23 +379,11 @@ _gw_nist_ai_admin_app_authorizations = Fact(
       )
     RETURN *
     """,
-    cypher_count_query=f"""
+    cypher_count_query="""
     MATCH (u:GoogleWorkspaceUser)-[:AUTHORIZED]->(app:ThirdPartyApp)
-    WITH
-        u,
-        app,
-        toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
-        toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE
         (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
         AND coalesce(u._ont_active, true) = true
-        AND (
-            ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
-                WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
-            )
-            OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
-            OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
-        )
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_label="ThirdPartyApp",
@@ -411,8 +399,8 @@ ai_admin_app_authorizations = Rule(
     id="ai_admin_app_authorizations",
     name="Admin Authorization of AI Apps",
     description=(
-        "Identifies privileged Google Workspace identities that have authorized "
-        "AI-related third-party applications."
+        "Identifies AI-related third-party applications authorized by active privileged "
+        "Google Workspace identities."
     ),
     output_model=NistAiAdminAuthorizationsOutput,
     facts=(_gw_nist_ai_admin_app_authorizations,),
