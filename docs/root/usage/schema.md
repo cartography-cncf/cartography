@@ -36,6 +36,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [BBOT](../modules/bbot/schema.md)
 - [Bigfix](../modules/bigfix/schema.md)
 - [Circleci](../modules/circleci/schema.md)
+- [Civo](../modules/civo/schema.md)
 - [Cloudflare](../modules/cloudflare/schema.md)
 - [Crowdstrike](../modules/crowdstrike/schema.md)
 - [Cve](../modules/cve/schema.md)
