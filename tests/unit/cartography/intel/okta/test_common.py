@@ -11,6 +11,7 @@ from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
 from tests.data.okta.application import SAML_APPLICATION_WITH_UNKNOWN_FEATURE
+from tests.data.okta.authenticators import TAC_AUTHENTICATOR
 from tests.data.okta.userfactors import SMS_FACTOR_WITH_ACTIVE_STATUS
 from tests.data.okta.userfactors import WEBAUTHN_FACTOR_WITH_FULFILLMENT_ERRORED_STATUS
 
@@ -112,30 +113,19 @@ def test_user_factor_preserves_declared_status() -> None:
 
 
 def test_tac_authenticator_accepts_uppercase_provider_type() -> None:
+    # Act
+    authenticator = AuthenticatorBase.from_dict(TAC_AUTHENTICATOR)
+
+    # Assert
+    assert authenticator is not None
+    assert authenticator.provider is not None
+    assert authenticator.provider.type == "TAC"
+
+
+def test_tac_authenticator_preserves_declared_lowercase_provider_type() -> None:
     # Arrange
-    payload = {
-        "id": "aut-tac",
-        "key": "tac",
-        "name": "TAC",
-        "status": "ACTIVE",
-        "type": "security_key",
-        "provider": {
-            "type": "TAC",
-            "configuration": {
-                "minTtl": 10,
-                "maxTtl": 14400,
-                "defaultTtl": 60,
-                "length": 16,
-                "complexity": {
-                    "numbers": True,
-                    "letters": False,
-                    "specialCharacters": False,
-                },
-                "multiUseAllowed": False,
-            },
-        },
-        "_links": {},
-    }
+    payload = deepcopy(TAC_AUTHENTICATOR)
+    payload["provider"]["type"] = "tac"
 
     # Act
     authenticator = AuthenticatorBase.from_dict(payload)
@@ -143,4 +133,4 @@ def test_tac_authenticator_accepts_uppercase_provider_type() -> None:
     # Assert
     assert authenticator is not None
     assert authenticator.provider is not None
-    assert authenticator.provider.type == "TAC"
+    assert authenticator.provider.type == "tac"

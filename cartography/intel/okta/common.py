@@ -151,7 +151,7 @@ _patch_okta_sdk_application_models()
 _patch_okta_sdk_user_factor_models()
 
 # DEPRECATED: Remove this Okta SDK 3.x compatibility shim in v1.0.0 after
-# okta-sdk-python accepts the uppercase TAC provider type.
+# okta/okta-sdk-python#579 is released upstream.
 _patch_okta_sdk_authenticator_models()
 
 
