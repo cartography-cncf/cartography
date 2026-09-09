@@ -29,7 +29,7 @@ def test_sync_alerts(mock_api, neo4j_session):
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
 
-    repos = transform_repos(REPOSITORIES_RESPONSE["results"], TEST_ORG_SLUG)
+    repos = transform_repos(REPOSITORIES_RESPONSE["results"])
     load_repositories(neo4j_session, repos, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     common_job_parameters = {
@@ -81,8 +81,8 @@ def test_sync_alerts(mock_api, neo4j_session):
 
     # Assert: Alerts are connected to Repositories
     expected_repo_rels = {
-        ("alert-001", "acme-corp/frontend-app"),
-        ("alert-002", "acme-corp/backend-api"),
+        ("alert-001", "frontend-app"),
+        ("alert-002", "example/backend-api"),
     }
     assert (
         check_rels(

@@ -27,10 +27,27 @@ def test_sync_repositories(mock_api, neo4j_session):
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
     neo4j_session.run(
         """
-        CREATE (:GitHubRepository:CodeRepository {
-            id: 'https://github.com/acme-corp/frontend-app',
-            _ont_fullname: 'acme-corp/frontend-app'
-        })
+        UNWIND [
+            {
+                id: 'https://github.com/example/frontend-app',
+                name: 'frontend-app',
+                fullname: 'example/frontend-app'
+            },
+            {
+                id: 'https://github.com/example/backend-api',
+                name: 'backend-api',
+                fullname: 'example/backend-api'
+            },
+            {
+                id: 'https://github.com/another-example/backend-api',
+                name: 'backend-api',
+                fullname: 'another-example/backend-api'
+            }
+        ] AS repo
+        CREATE (code_repo:GitHubRepository:CodeRepository)
+        SET code_repo.id = repo.id,
+            code_repo._ont_name = repo.name,
+            code_repo._ont_fullname = repo.fullname
         """,
     )
 
@@ -60,8 +77,8 @@ def test_sync_repositories(mock_api, neo4j_session):
 
     # Assert: Repositories exist with fullname
     expected_repo_nodes = {
-        ("repo-001", "frontend-app", "acme-corp/frontend-app"),
-        ("repo-002", "backend-api", "acme-corp/backend-api"),
+        ("repo-001", "frontend-app", "frontend-app"),
+        ("repo-002", "backend-api", "example/backend-api"),
     }
     assert (
         check_nodes(neo4j_session, "SocketDevRepository", ["id", "slug", "fullname"])
@@ -96,5 +113,39 @@ def test_sync_repositories(mock_api, neo4j_session):
         "MONITORS",
         rel_direction_right=True,
     ) == {
-        ("repo-001", "https://github.com/acme-corp/frontend-app"),
+        ("repo-001", "https://github.com/example/frontend-app"),
+        ("repo-002", "https://github.com/example/backend-api"),
+    }
+
+    # Act: Make the previously unique slug ambiguous and sync again
+    neo4j_session.run(
+        """
+        CREATE (:GitHubRepository:CodeRepository {
+            id: 'https://github.com/another-example/frontend-app',
+            _ont_name: 'frontend-app',
+            _ont_fullname: 'another-example/frontend-app'
+        })
+        """,
+    )
+    next_update_tag = TEST_UPDATE_TAG + 1
+    common_job_parameters["UPDATE_TAG"] = next_update_tag
+    cartography.intel.socketdev.repositories.sync_repositories(
+        neo4j_session,
+        "fake-token",
+        TEST_ORG_SLUG,
+        next_update_tag,
+        common_job_parameters,
+    )
+
+    # Assert: Ambiguous slug matches are removed, while exact matches remain
+    assert check_rels(
+        neo4j_session,
+        "SocketDevRepository",
+        "id",
+        "GitHubRepository",
+        "id",
+        "MONITORS",
+        rel_direction_right=True,
+    ) == {
+        ("repo-002", "https://github.com/example/backend-api"),
     }

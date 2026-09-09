@@ -21,6 +21,7 @@ REPOSITORIES_RESPONSE = {
             "archived": False,
             "default_branch": "main",
             "homepage": None,
+            "workspace": "example",
             "created_at": "2024-02-20T16:45:00Z",
             "updated_at": "2024-06-10T09:15:00Z",
         },

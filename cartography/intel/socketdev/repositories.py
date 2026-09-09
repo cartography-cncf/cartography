@@ -5,6 +5,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.socketdev.repository import SocketDevRepositorySchema
 from cartography.util import timeit
@@ -52,10 +53,7 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
     return all_repos
 
 
-def transform(
-    raw_repos: list[dict[str, Any]],
-    org_slug: str,
-) -> list[dict[str, Any]]:
+def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform raw repository data for ingestion.
     """
@@ -67,7 +65,7 @@ def transform(
             default_branch = default_branch.get("name")
 
         # Build fullname from workspace/slug for ontology matching
-        workspace = repo.get("workspace") or org_slug
+        workspace = repo.get("workspace")
         slug = repo.get("slug")
         fullname = f"{workspace}/{slug}" if workspace and slug else slug
 
@@ -106,6 +104,33 @@ def load_repositories(
 
 
 @timeit
+def link_repositories_by_unique_slug(
+    neo4j_session: neo4j.Session,
+    org_id: str,
+    update_tag: int,
+) -> None:
+    """Link by slug only when the code-repository match is unambiguous."""
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:SocketDevOrganization {id: $ORG_ID})-[:RESOURCE]->(socket_repo:SocketDevRepository)
+        WHERE socket_repo.lastupdated = $UPDATE_TAG
+        AND NOT (socket_repo)-[:MONITORS {lastupdated: $UPDATE_TAG}]->(:CodeRepository)
+        MATCH (code_repo:CodeRepository)
+        WHERE code_repo._ont_name = socket_repo.slug
+        WITH socket_repo, collect(DISTINCT code_repo) AS candidates
+        WHERE size(candidates) = 1
+        WITH socket_repo, candidates[0] AS code_repo
+        MERGE (socket_repo)-[monitor:MONITORS]->(code_repo)
+        ON CREATE SET monitor.firstseen = timestamp()
+        SET monitor.lastupdated = $UPDATE_TAG
+        """,
+        ORG_ID=org_id,
+        UPDATE_TAG=update_tag,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -129,8 +154,9 @@ def sync_repositories(
     """
     logger.info("Starting Socket.dev repositories sync")
     raw_repos = get(api_token, org_slug)
-    repositories = transform(raw_repos, org_slug)
+    repositories = transform(raw_repos)
     org_id = common_job_parameters["ORG_ID"]
     load_repositories(neo4j_session, repositories, org_id, update_tag)
+    link_repositories_by_unique_slug(neo4j_session, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Socket.dev repositories sync")

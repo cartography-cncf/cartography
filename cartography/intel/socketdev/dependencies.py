@@ -62,9 +62,8 @@ def transform(raw_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for dep in raw_deps:
         name = dep["name"]
         version = dep["version"]
-        # repository is "workspace/slug" (e.g. "goodenoughlabs/infra").
-        # Preserve the full path for graph identity and derive the slug separately
-        # for API-scoped operations like fixes.
+        # repository may be "workspace/slug" or just "slug".
+        # Preserve the source value and derive the slug for API-scoped operations.
         raw_repository = dep["repository"]
         repository_slug = (
             raw_repository.rsplit("/", 1)[-1]

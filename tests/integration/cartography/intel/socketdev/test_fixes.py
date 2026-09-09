@@ -35,7 +35,7 @@ def test_sync_fixes(mock_api, neo4j_session):
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
 
-    repos = transform_repos(REPOSITORIES_RESPONSE["results"], TEST_ORG_SLUG)
+    repos = transform_repos(REPOSITORIES_RESPONSE["results"])
     load_repositories(neo4j_session, repos, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     deps = transform_deps(DEPENDENCIES_RESPONSE["rows"])
