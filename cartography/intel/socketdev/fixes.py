@@ -45,7 +45,7 @@ def _create_session(api_token: str) -> requests.Session:
         allowed_methods=["GET"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
-        backoff_max=8,
+        backoff_max=_MAX_RETRY_AFTER_SECONDS,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
