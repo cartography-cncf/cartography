@@ -52,6 +52,11 @@ class AIBOMSourceNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Top-level report status.",
     )
+    agentic_status: PropertyRef = PropertyRef(
+        "agentic_status",
+        extra_index=True,
+        description="Agentic review status reported by the analyzer.",
+    )
     report_schema_version: PropertyRef = PropertyRef(
         "report_schema_version",
         extra_index=True,

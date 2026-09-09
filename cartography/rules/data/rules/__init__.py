@@ -277,6 +277,7 @@ from cartography.rules.data.rules.nist_ai_rmf import ai_provider_api_key_hygiene
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_inventory
 from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitive_scopes
 from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
+from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_runtime_inventory
 from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.data.rules.object_storage_public import object_storage_public
 from cartography.rules.data.rules.policy_administration_privileges import (
@@ -394,6 +395,7 @@ RULES = {
     ai_third_party_app_inventory.id: ai_third_party_app_inventory,
     ai_third_party_app_sensitive_scopes.id: ai_third_party_app_sensitive_scopes,
     ai_admin_app_authorizations.id: ai_admin_app_authorizations,
+    aibom_agent_runtime_inventory.id: aibom_agent_runtime_inventory,
     aibom_agent_inventory.id: aibom_agent_inventory,
     aibom_coverage_gaps.id: aibom_coverage_gaps,
     ai_provider_api_key_hygiene.id: ai_provider_api_key_hygiene,

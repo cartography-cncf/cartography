@@ -6,10 +6,11 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 import cartography.intel.aws.ecr
-import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_report_reader
 from cartography.intel.common.object_store import LocalReportReader
 from cartography.intel.common.object_store import ReportRef
+
+import tests.data.aws.ecr
 from tests.data.aibom.aibom_sample import AIBOM_REPORT
 from tests.data.aibom.aibom_sample import build_repo_anchored_report
 from tests.data.aibom.aibom_sample import TEST_GITHUB_REPO_URL
@@ -167,6 +168,13 @@ def test_sync_aibom_happy_path(
         ["source_key"],
     ) == {
         (TEST_SOURCE_KEY,),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        ["agentic_status"],
+    ) == {
+        ("partial_budgeted",),
     }
 
     component_nodes = check_nodes(

@@ -723,7 +723,9 @@ WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
                 ":Container on a single node with no intermediate WORKLOAD_PARENT hop. "
                 "Exposure is the OR of the service-level signal (svc.exposed_internet, "
                 "where GCP writes Cloud Run ingress exposure) and any running replica's "
-                "signal (rt.exposed_internet, where AWS ECS / Kubernetes write it). "
+                "signal (rt.exposed_internet, where AWS ECS / Kubernetes write it). If "
+                "neither level has evaluated exposure, the edge keeps it unknown rather "
+                "than treating missing evidence as proof that the workload is internal. "
                 "The active-state filter accepts both 'running' (AWS ECS RUNNING, "
                 "Kubernetes running, Azure Running, GCP Cloud Run) and 'ready' (Scaleway "
                 "serverless ContainerStatus.READY) because _ont_state carries the raw "
@@ -734,8 +736,13 @@ WORKLOAD_HAS_RUNTIME_IMAGE = AnalysisJob(
             MATCH (svc:ComputeService)<-[:WORKLOAD_PARENT*0..6]-(rt)-[:RESOLVED_IMAGE]->(img:Image)
             WHERE (rt:Container OR rt:Function)
               AND (NOT rt:Container OR toLower(rt._ont_state) IN ['running', 'ready'])
-            WITH svc, img, collect(coalesce(rt.exposed_internet, false)) AS rt_flags
-            WITH svc, img, (coalesce(svc.exposed_internet, false) OR true IN rt_flags) AS exposed
+            WITH svc, img, collect(rt.exposed_internet) AS rt_flags
+            WITH svc, img,
+                CASE
+                    WHEN svc.exposed_internet = true OR true IN rt_flags THEN true
+                    WHEN svc.exposed_internet = false OR false IN rt_flags THEN false
+                    ELSE null
+                END AS exposed
             """,
             effects=(
                 AddRelationship(

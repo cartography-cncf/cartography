@@ -4,9 +4,7 @@ from typing import Any
 import tests.data.aws.ecr
 
 TEST_REPOSITORY_URI = "205930638578.dkr.ecr.us-east-1.amazonaws.com/subimage-backend"
-TEST_SOURCE_KEY = (
-    f"{TEST_REPOSITORY_URI}" f"@{tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST}"
-)
+TEST_SOURCE_KEY = f"{TEST_REPOSITORY_URI}@{tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST}"
 TEST_IMAGE_URI = "205930638578.dkr.ecr.us-east-1.amazonaws.com/subimage-backend:latest"
 TEST_DIGEST_BASED_IMAGE_URI = TEST_SOURCE_KEY
 TEST_SINGLE_PLATFORM_IMAGE_URI = TEST_IMAGE_URI
@@ -41,6 +39,7 @@ AIBOM_REPORT = {
             "sources_analyzed": 1,
             "sources_with_errors": 0,
             "status": "completed",
+            "agentic_status": "partial_budgeted",
             "report_schema_version": "2",
         },
         "sources": {
@@ -243,8 +242,7 @@ AIBOM_REPORT = {
                             "agentic_hint": "",
                             "model_name": None,
                             "embedding_model": None,
-                            "description": "4 known vulnerabilities in litellm "
-                            "1.83.0",
+                            "description": "4 known vulnerabilities in litellm 1.83.0",
                             "text": None,
                             "transport": None,
                             "config_source": None,
@@ -994,8 +992,7 @@ AIBOM_REPORT = {
                     "line_number": 394,
                     "decision_annotation": {
                         "decision": "flagged",
-                        "justification": "Hardcoded AI API key detected in "
-                        "source code",
+                        "justification": "Hardcoded AI API key detected in source code",
                         "evidence_kinds": ["code_context"],
                         "evidence_locations": [
                             {
@@ -1018,8 +1015,7 @@ AIBOM_REPORT = {
                     "line_number": 10,
                     "decision_annotation": {
                         "decision": "flagged",
-                        "justification": "Hardcoded AI API key detected in "
-                        "source code",
+                        "justification": "Hardcoded AI API key detected in source code",
                         "evidence_kinds": ["code_context"],
                         "evidence_locations": [
                             {
@@ -1042,8 +1038,7 @@ AIBOM_REPORT = {
                     "line_number": 13,
                     "decision_annotation": {
                         "decision": "flagged",
-                        "justification": "Hardcoded AI API key detected in "
-                        "source code",
+                        "justification": "Hardcoded AI API key detected in source code",
                         "evidence_kinds": ["code_context"],
                         "evidence_locations": [
                             {

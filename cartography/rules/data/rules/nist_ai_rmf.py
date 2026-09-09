@@ -578,6 +578,113 @@ aibom_agent_inventory = Rule(
     ),
 )
 
+
+# =============================================================================
+# NIST AI RMF: Runtime inventory of deployed AI agents
+# Main node: AIBOMComponent (AIAgent)
+# =============================================================================
+class NistAiAgentRuntimeInventoryOutput(Finding):
+    agent_name: str | None = None
+    workload_name: str | None = None
+    workload_id: str | None = None
+    ontology_source: str | None = None
+    image_uri: str | None = None
+    manifest_digest: str | None = None
+    agent_component_id: str | None = None
+    agent_logical_id: str | None = None
+    agent_framework: str | None = None
+    agent_file_path: str | None = None
+    agent_line_number: int | None = None
+
+
+_aibom_nist_ai_agent_runtime_inventory = Fact(
+    id="aibom_nist_ai_agent_runtime_inventory",
+    name="Deployed AI agents running in a workload",
+    description=(
+        "Inventories AI agents whose scanned image is running on a workload, one row "
+        "per logical agent and workload. Narrows the AIBOM inventory to what is actually "
+        "deployed, and names the workload so its tenant, cluster, region, and "
+        "internet reachability can be read from the graph around it."
+    ),
+    cypher_query="""
+    MATCH (source:AIBOMSource)-[:HAS_COMPONENT]->(agent:AIAgent)
+    MATCH (source)-[:SCANNED_IMAGE]->(img:Image)<-[:HAS_RUNTIME_IMAGE]-(svc:ComputeService)
+    // Aggregate over the images rather than grouping by the image node: a digest is not
+    // unique across registries, so an image pushed to both ECR and GHCR is two :Image
+    // nodes sharing one _ont_digest, and grouping would report the agent once per registry.
+    WITH
+        coalesce(agent.logical_id, agent.id) AS agent_logical_id,
+        svc,
+        min(agent.id) AS representative_agent_id
+    MATCH (representative_source:AIBOMSource)-[:HAS_COMPONENT]->
+        (representative_agent:AIAgent {id: representative_agent_id})
+    MATCH (representative_source)-[:SCANNED_IMAGE]->(representative_image:Image)
+        <-[:HAS_RUNTIME_IMAGE]-(svc)
+    WITH
+        agent_logical_id,
+        svc,
+        representative_agent,
+        min(representative_source.image_uri) AS image_uri,
+        min(representative_image._ont_digest) AS manifest_digest
+    RETURN DISTINCT
+        coalesce(
+            representative_agent.name,
+            representative_agent.logical_id,
+            representative_agent.id
+        ) AS agent_name,
+        coalesce(svc._ont_name, svc.name, svc.id) AS workload_name,
+        svc.id AS workload_id,
+        svc._ont_source AS ontology_source,
+        image_uri,
+        manifest_digest,
+        representative_agent.id AS agent_component_id,
+        agent_logical_id AS agent_logical_id,
+        representative_agent.framework AS agent_framework,
+        representative_agent.file_path AS agent_file_path,
+        representative_agent.line_number AS agent_line_number
+    ORDER BY agent_name, workload_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(source:AIBOMSource)-[:HAS_COMPONENT]->(agent:AIAgent)
+    MATCH p1=(source)-[:SCANNED_IMAGE]->(img:Image)<-[:HAS_RUNTIME_IMAGE]-(svc:ComputeService)
+    OPTIONAL MATCH p2=(:Tenant)-[:RESOURCE]->(svc)
+    OPTIONAL MATCH p3=(svc)-[:WORKLOAD_PARENT]->(:ComputeCluster)
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:Image)
+    MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
+    RETURN COUNT(DISTINCT coalesce(agent.logical_id, agent.id)) AS count
+    """,
+    asset_label="AIAgent",
+    asset_id_field="agent_component_id",
+    identity_fields=("agent_logical_id", "workload_id"),
+    module=Module.AIBOM,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+aibom_agent_runtime_inventory = Rule(
+    id="aibom_agent_runtime_inventory",
+    name="AI Agents Running In A Workload",
+    description=(
+        "Inventories which deployed AI agents are actually running and on what, so "
+        "agent placement is anchored to a workload whose tenant, cluster, and "
+        "internet reachability the graph already records."
+    ),
+    output_model=NistAiAgentRuntimeInventoryOutput,
+    facts=(_aibom_nist_ai_agent_runtime_inventory,),
+    tags=("ai", "inventory"),
+    version="0.1.0",
+    references=NIST_REFERENCES,
+    frameworks=(
+        nist_ai_rmf("MAP 1"),
+        nist_ai_rmf("GOVERN 1"),
+        iso27001_annex_a("5.9"),
+        iso27001_annex_a("5.21"),
+        soc2_tsc("CC6.1"),
+    ),
+)
+
 # =============================================================================
 # TODO: NIST AI RMF GOVERN 1: Partial subcategory coverage
 # Missing datamodel or evidence: GOVERN 1.1, 1.2, 1.3, 1.4, 1.5, 1.7 beyond current inventory-oriented coverage of GOVERN 1.6
@@ -597,6 +704,7 @@ class NistAiAibomCoverageGapOutput(Finding):
     scanner_version: str | None = None
     source_status: str | None = None
     analysis_status: str | None = None
+    agentic_status: str | None = None
     image_matched: bool | None = None
     total_components: int | None = None
     gap_reason: str | None = None
@@ -618,6 +726,9 @@ _aibom_nist_ai_coverage_gaps = Fact(
             WHEN toLower(coalesce(source.source_status, 'completed')) <> 'completed' THEN 'incomplete_source'
             WHEN source.analysis_status IS NOT NULL
                  AND toLower(source.analysis_status) <> 'completed' THEN 'analysis_not_completed'
+            WHEN source.agentic_status IS NOT NULL
+                 AND toLower(source.agentic_status) <> 'completed' THEN 'agentic_review_incomplete'
+            WHEN coalesce(source.pending_agent_review, 0) > 0 THEN 'agentic_review_pending'
             ELSE NULL
         END AS gap_reason
     WHERE gap_reason IS NOT NULL
@@ -630,6 +741,7 @@ _aibom_nist_ai_coverage_gaps = Fact(
         source.scanner_version AS scanner_version,
         source.source_status AS source_status,
         source.analysis_status AS analysis_status,
+        source.agentic_status AS agentic_status,
         source.image_matched AS image_matched,
         source.total_components AS total_components,
         gap_reason
@@ -644,11 +756,28 @@ _aibom_nist_ai_coverage_gaps = Fact(
             source.analysis_status IS NOT NULL
             AND toLower(source.analysis_status) <> 'completed'
         )
+        OR (
+            source.agentic_status IS NOT NULL
+            AND toLower(source.agentic_status) <> 'completed'
+        )
+        OR coalesce(source.pending_agent_review, 0) > 0
     OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:Image)
     RETURN source, p
     """,
     cypher_count_query="""
     MATCH (source:AIBOMSource)
+    WHERE
+        coalesce(source.image_matched, false) = false
+        OR toLower(coalesce(source.source_status, 'completed')) <> 'completed'
+        OR (
+            source.analysis_status IS NOT NULL
+            AND toLower(source.analysis_status) <> 'completed'
+        )
+        OR (
+            source.agentic_status IS NOT NULL
+            AND toLower(source.agentic_status) <> 'completed'
+        )
+        OR coalesce(source.pending_agent_review, 0) > 0
     RETURN COUNT(source) AS count
     """,
     asset_label="AIBOMSource",
