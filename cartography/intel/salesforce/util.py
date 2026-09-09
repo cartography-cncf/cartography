@@ -15,6 +15,48 @@ _TIMEOUT = (60, 60)
 # ponytail: pinned version; bump when a newer object/field is needed.
 API_VERSION = "v60.0"
 _JWT_LIFETIME_SECONDS = 300
+_MAX_ERROR_DETAIL_LENGTH = 1000
+
+
+def _salesforce_errors(response: requests.Response) -> list[dict[str, Any]]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return []
+    raw_errors = payload if isinstance(payload, list) else [payload]
+    return [
+        error
+        for error in raw_errors
+        if isinstance(error, dict) and ("errorCode" in error or "message" in error)
+    ]
+
+
+def get_salesforce_error_codes(error: requests.HTTPError) -> frozenset[str]:
+    if error.response is None:
+        return frozenset()
+    return frozenset(
+        item["errorCode"]
+        for item in _salesforce_errors(error.response)
+        if isinstance(item.get("errorCode"), str)
+    )
+
+
+def get_salesforce_error_messages(error: requests.HTTPError) -> tuple[str, ...]:
+    if error.response is None:
+        return ()
+    return tuple(
+        item["message"]
+        for item in _salesforce_errors(error.response)
+        if isinstance(item.get("message"), str)
+    )
+
+
+def _error_details(response: requests.Response) -> str:
+    details = "; ".join(
+        f"{error.get('errorCode', 'UNKNOWN')}: {error.get('message', 'no message')}"
+        for error in _salesforce_errors(response)
+    )
+    return (details or response.text or "no response body")[:_MAX_ERROR_DETAIL_LENGTH]
 
 
 class SalesforceClient:
@@ -36,7 +78,14 @@ class SalesforceClient:
         params: dict[str, Any] | None = {"q": soql}
         while url:
             resp = self.session.get(url, params=params, timeout=_TIMEOUT)
-            resp.raise_for_status()
+            try:
+                resp.raise_for_status()
+            except requests.HTTPError as exc:
+                raise requests.HTTPError(
+                    f"{exc}; Salesforce response: {_error_details(resp)}",
+                    response=resp,
+                    request=resp.request,
+                ) from exc
             body = resp.json()
             records.extend(body.get("records", []))
             # nextRecordsUrl is an absolute path on the instance host
