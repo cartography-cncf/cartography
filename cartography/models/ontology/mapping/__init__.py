@@ -4,6 +4,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.labels import AI_MODEL
+from cartography.models.ontology.labels import API_GATEWAY
 from cartography.models.ontology.labels import API_KEY
 from cartography.models.ontology.labels import BLOCK_STORAGE
 from cartography.models.ontology.labels import CERTIFICATE
@@ -42,6 +43,9 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 from cartography.models.ontology.labels import USER_GROUP
 from cartography.models.ontology.labels import VIRTUAL_NETWORK
 from cartography.models.ontology.mapping.data.aimodels import AIMODELS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.apigateways import (
+    APIGATEWAYS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.blockstorage import (
     BLOCK_STORAGE_ONTOLOGY_MAPPING,
@@ -159,6 +163,7 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
     "aimodels": AIMODELS_ONTOLOGY_MAPPING,
+    "apigateways": APIGATEWAYS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
     "blockstorage": BLOCK_STORAGE_ONTOLOGY_MAPPING,
     "cicdpipelines": CICDPIPELINES_ONTOLOGY_MAPPING,
@@ -203,6 +208,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 # normalized `_ont_*` properties while staying invisible to `MATCH (n:<Label>)` queries.
 SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
     "aimodels": AI_MODEL,
+    "apigateways": API_GATEWAY,
     "apikeys": API_KEY,
     "blockstorage": BLOCK_STORAGE,
     "certificates": CERTIFICATE,
