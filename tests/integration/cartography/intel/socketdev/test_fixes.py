@@ -23,6 +23,17 @@ TEST_ORG_ID = "org-001"
 TEST_ORG_SLUG = "acme-corp"
 
 
+def test_fixes_session_retries_transient_failures():
+    session = cartography.intel.socketdev.fixes._create_session()
+    retries = session.get_adapter("https://").max_retries
+
+    assert retries.total == 3
+    assert retries.read == 3
+    assert retries.status == 3
+    assert retries.status_forcelist == (408, 429, 500, 502, 503, 504)
+    session.close()
+
+
 @patch.object(
     cartography.intel.socketdev.fixes,
     "get",

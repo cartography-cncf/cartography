@@ -3,6 +3,8 @@ from typing import Any
 
 import neo4j
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -12,6 +14,24 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
+_RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
+
+
+def _create_session() -> requests.Session:
+    session = requests.Session()
+    retry_policy = Retry(
+        total=3,
+        connect=3,
+        read=3,
+        status=3,
+        other=0,
+        allowed_methods=["GET"],
+        status_forcelist=_RETRY_STATUS_CODES,
+        backoff_factor=1,
+        respect_retry_after_header=True,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    return session
 
 
 @timeit
@@ -25,7 +45,7 @@ def get(
     Fetch fixes for the given vulnerabilities in a repository.
     Returns the raw API response dict containing fixDetails.
     """
-    response = requests.get(
+    response = _create_session().get(
         f"{_BASE_URL}/orgs/{org_slug}/fixes",
         headers={
             "Authorization": f"Bearer {api_token}",
