@@ -124,3 +124,39 @@ def test_sync_fixes_batches_vulnerability_ids(mocker):
     )
     assert all(call.args[0] is api_session for call in get.call_args_list)
     cleanup.assert_called_once()
+
+
+def test_sync_fixes_skips_load_and_cleanup_when_a_batch_fails(mocker):
+    api_session = MagicMock()
+    api_session.__enter__.return_value = api_session
+    mocker.patch.object(fixes, "_create_session", return_value=api_session)
+    get = mocker.patch.object(
+        fixes,
+        "get",
+        side_effect=[{"fixDetails": {}}, requests.RequestException("failed")],
+    )
+    load_fixes = mocker.patch.object(fixes, "load_fixes")
+    cleanup = mocker.patch.object(fixes, "cleanup")
+    alerts = [
+        {
+            "id": f"alert-{index}",
+            "repo_slug": "example-repo",
+            "cve_id": f"CVE-2026-{index:04d}",
+        }
+        for index in range(101)
+    ]
+
+    with pytest.raises(requests.RequestException):
+        fixes.sync_fixes(
+            MagicMock(),
+            "test-token",
+            "example-org",
+            1,
+            {"UPDATE_TAG": 1, "ORG_ID": "example-org"},
+            alerts,
+            [],
+        )
+
+    assert get.call_count == 2
+    load_fixes.assert_not_called()
+    cleanup.assert_not_called()
