@@ -59,8 +59,8 @@ def sync(
             raise
         logger.warning(
             "Skipping Salesforce connected apps because required objects or setup "
-            "fields are unavailable to the integration user: %s",
-            exc,
+            "fields are unavailable to the integration user; preserving previously "
+            "synced connected app data",
         )
         return
     apps = transform(apps, tokens)

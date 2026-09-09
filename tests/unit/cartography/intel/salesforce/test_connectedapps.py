@@ -31,11 +31,7 @@ def _query_error(
     try:
         response.raise_for_status()
     except requests.HTTPError as exc:
-        return requests.HTTPError(
-            f"{exc}; Salesforce response: {error_code}: {message}",
-            response=response,
-            request=request,
-        )
+        return exc
     raise AssertionError("400 response did not raise")
 
 
@@ -83,13 +79,19 @@ def test_sync_skips_cleanup_when_connected_apps_are_inaccessible(
 
 @patch.object(connectedapps, "cleanup")
 @patch.object(connectedapps, "load_connected_apps")
-def test_sync_skips_when_connected_app_setup_fields_are_hidden(mock_load, mock_cleanup):
+def test_sync_skips_when_connected_app_setup_fields_are_hidden(
+    mock_load, mock_cleanup, caplog
+):
     # Arrange
     client = MagicMock()
     client.query_all.side_effect = _query_error(
         "INVALID_FIELD",
+        "\nSELECT Id, Name, OptionsAllowAdminApprovedUsersOnly\n"
+        "                 ^\n"
+        "ERROR at Row:1:Column:18\n"
         "No such column 'OptionsAllowAdminApprovedUsersOnly' on entity "
-        "'ConnectedApplication'.",
+        "'ConnectedApplication'. If you are attempting to use a custom field, "
+        "be sure to append the '__c' after the custom field name.",
     )
 
     # Act
@@ -102,6 +104,8 @@ def test_sync_skips_when_connected_app_setup_fields_are_hidden(mock_load, mock_c
     # Assert
     mock_load.assert_not_called()
     mock_cleanup.assert_not_called()
+    assert "preserving previously synced connected app data" in caplog.text
+    assert "example.my.salesforce.com" not in caplog.text
 
 
 @patch.object(connectedapps, "cleanup")
@@ -139,6 +143,10 @@ def test_sync_skips_entire_stage_when_oauth_tokens_are_inaccessible(
         _query_error(
             "INVALID_FIELD",
             "No such column 'UnexpectedField' on entity 'ConnectedApplication'.",
+        ),
+        _query_error(
+            "INVALID_TYPE",
+            "sObject type 'UnexpectedObject' is not supported.",
         ),
         _unstructured_error(),
     ],
