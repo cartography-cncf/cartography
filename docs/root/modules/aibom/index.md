@@ -27,20 +27,45 @@ from component type, name, location, framework, model, storage, and skill
 metadata. Use it to correlate equivalent components without merging their
 source-specific detections.
 
-The component `category` controls additional graph labels:
+The component `component_type` controls additional graph labels:
 
 - `agent` produces `AIAgent`.
-- `model` produces the ontology label `AIModel`.
+- `model` produces `AIModelReference`.
 - `tool` produces `AITool`.
 - `memory` produces `AIMemory`.
 - `embedding` produces `AIEmbedding`.
 - `prompt` produces `AIPrompt`.
 
+`AIModelReference` rather than `AIModel` because an AIBOM model component is a
+reference to a model found while scanning an artifact, not a model resource that
+exists in a provider account. `AIModel` is written by Bedrock, Vertex, and
+SageMaker for real resources, so counting that label would otherwise mix an
+account's model inventory with strings appearing in source code. Model components
+still carry `AIModel` as a compatibility label until its removal version.
+
+AIBOM reports emit more component types than the six above, and more relationship
+types than the graph models. Anything else loads as a bare `AIBOMComponent` with
+its report fields intact, and skipped relationship types are reported in one
+warning per sync naming each type and how many edges were dropped. Type-specific
+metadata stays serialized in `metadata_json` until those types receive dedicated
+first-class models; the keys vary by `component_type`, so read it in the client
+rather than trying to index into it in Cypher.
+
 Report-defined component relationships are loaded when both endpoints resolve
-within the same source. Category-specific metadata remains serialized in
-`metadata_json` until those categories receive dedicated first-class models.
-Workflow-like context is preserved through component evidence and metadata
-rather than separate workflow nodes.
+within the same source. Workflow-like context is preserved through component
+evidence and metadata rather than separate workflow nodes.
+
+## Evidence
+
+A component carries its location three ways, which are related but not
+interchangeable:
+
+- `file_path` and `line_number` are where the component itself was detected.
+- `component_primary_evidence` and its start and end lines are the first
+  evidence location the report's decision annotation cites.
+- `evidence_files` is every file the detection was seen in, and `evidence_count`
+  is how many places. `file_path` and `component_primary_evidence` name one of
+  these; `evidence_files` is the full set.
 
 ## Target linking behavior
 

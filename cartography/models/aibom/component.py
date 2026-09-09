@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 
-from cartography.models.aibom.extra_labels import AI_AGENT
-from cartography.models.aibom.extra_labels import AI_EMBEDDING
-from cartography.models.aibom.extra_labels import AI_MEMORY
-from cartography.models.aibom.extra_labels import AI_PROMPT
-from cartography.models.aibom.extra_labels import AI_TOOL
+from cartography.models.aibom.extra_labels import LEGACY_AI_MODEL
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -15,7 +11,12 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import AI_MODEL
+from cartography.models.ontology.labels import AI_AGENT
+from cartography.models.ontology.labels import AI_EMBEDDING
+from cartography.models.ontology.labels import AI_MEMORY
+from cartography.models.ontology.labels import AI_MODEL_REFERENCE
+from cartography.models.ontology.labels import AI_PROMPT
+from cartography.models.ontology.labels import AI_TOOL
 
 
 @dataclass(frozen=True)
@@ -31,15 +32,13 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
         description="Stable cross-source fingerprint for equivalent components.",
     )
     name: PropertyRef = PropertyRef("name", description="Detected component name.")
-    category: PropertyRef = PropertyRef(
-        "category",
-        extra_index=True,
-        description="Normalized component category used for grouping and filtering.",
-    )
     component_type: PropertyRef = PropertyRef(
         "component_type",
         extra_index=True,
-        description="AIBOM component type from the report.",
+        description=(
+            "AIBOM component type from the report, and the value that decides the "
+            "component's semantic label: agent, model, tool, memory, embedding, or prompt."
+        ),
     )
     instance_id: PropertyRef = PropertyRef(
         "instance_id",
@@ -55,11 +54,11 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
     )
     model_name: PropertyRef = PropertyRef(
         "model_name",
-        description="Model name when the component identifies a concrete model.",
+        description="Model name. Set on model components, and on other types that name a concrete model.",
     )
     embedding_model: PropertyRef = PropertyRef(
         "embedding_model",
-        description="Embedding model metadata when present.",
+        description="Embedding model metadata. Set on embedding components.",
     )
     framework: PropertyRef = PropertyRef(
         "framework",
@@ -100,23 +99,23 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
     )
     transport: PropertyRef = PropertyRef(
         "transport",
-        description="Transport metadata when present.",
+        description="Transport metadata. Set on tool components, such as an MCP server's transport.",
     )
     config_source: PropertyRef = PropertyRef(
         "config_source",
-        description="Configuration source metadata when present.",
+        description="Configuration source metadata. Set on components detected from a config file.",
     )
     storage_uri: PropertyRef = PropertyRef(
         "storage_uri",
-        description="Storage URI when present.",
+        description="Storage URI. Set on memory and embedding components.",
     )
     dataset_source: PropertyRef = PropertyRef(
         "dataset_source",
-        description="Dataset source metadata when present.",
+        description="Dataset source metadata. Set on embedding and memory components.",
     )
     skill_format: PropertyRef = PropertyRef(
         "skill_format",
-        description="Skill format metadata when present.",
+        description="Skill format metadata. Set on tool components.",
     )
     sdk_version: PropertyRef = PropertyRef(
         "sdk_version",
@@ -124,11 +123,11 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
     )
     kb_concept: PropertyRef = PropertyRef(
         "kb_concept",
-        description="Knowledge-base concept metadata when present.",
+        description="Knowledge-base concept metadata. Set on components detected by knowledge-base enrichment.",
     )
     kb_label: PropertyRef = PropertyRef(
         "kb_label",
-        description="Knowledge-base label metadata when present.",
+        description="Knowledge-base label metadata. Set on components detected by knowledge-base enrichment.",
     )
     component_primary_evidence: PropertyRef = PropertyRef(
         "component_primary_evidence",
@@ -150,11 +149,30 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
         "decision_justification",
         description="Justification from the component decision annotation.",
     )
-    # Preserve category-specific metadata until we decide whether component types
-    # should split into dedicated node models with their own first-class fields.
+    evidence_count: PropertyRef = PropertyRef(
+        "evidence_count",
+        description="How many places in the artifact the detection was seen.",
+    )
+    evidence_files: PropertyRef = PropertyRef(
+        "evidence_files",
+        description=(
+            "Every file the detection was seen in. `file_path` and "
+            "`component_primary_evidence` name one of these; this is the full set."
+        ),
+    )
+    # Type-specific metadata stays serialized until component types split into
+    # dedicated node models with their own first-class fields. Anything promoted out
+    # of here becomes queryable, so promote a key once it is worth filtering on
+    # rather than adding every key a report can emit.
     metadata_json: PropertyRef = PropertyRef(
         "metadata_json",
-        description="Serialized category-specific component metadata.",
+        description=(
+            "Serialized type-specific component metadata that has no first-class "
+            "property yet. Keys vary by component_type: a secret component carries "
+            "secret_source and redacted, a package component carries ecosystem and "
+            "vulnerabilities, a model component carries model_provider and "
+            "context_length. Read it in the client; it is a string, not a map."
+        ),
     )
     manifest_digests: PropertyRef = PropertyRef(
         "manifest_digests",
@@ -267,6 +285,66 @@ class AIBOMComponentExposesToolRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AIBOMComponentUsesLlmRel(CartographyRelSchema):
+    """Links a component to a model it uses, where the report typed the edge as an LLM."""
+
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("uses_llm_component_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LLM"
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentUsesMemoryRel(CartographyRelSchema):
+    """Links a component to a memory store it uses."""
+
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("uses_memory_component_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_MEMORY"
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentUsesEmbeddingRel(CartographyRelSchema):
+    """Links a component to an embedding it uses."""
+
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("uses_embedding_component_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_EMBEDDING"
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AIBOMComponentUsesAgentRel(CartographyRelSchema):
+    """Links an agent to another agent it invokes or delegates to."""
+
+    target_node_label: str = "AIBOMComponent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("uses_agent_component_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_AGENT"
+    properties: AIBOMComponentToComponentRelProperties = (
+        AIBOMComponentToComponentRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AIBOMComponentCustomRel(CartographyRelSchema):
     """Preserves a custom component relationship emitted by an AIBOM report."""
 
@@ -289,12 +367,13 @@ class AIBOMComponentSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
-            AI_AGENT.when(category="agent"),
-            AI_MODEL.when(category="model"),
-            AI_TOOL.when(category="tool"),
-            AI_MEMORY.when(category="memory"),
-            AI_EMBEDDING.when(category="embedding"),
-            AI_PROMPT.when(category="prompt"),
+            AI_AGENT.when(component_type="agent"),
+            AI_MODEL_REFERENCE.when(component_type="model"),
+            LEGACY_AI_MODEL.when(component_type="model"),
+            AI_TOOL.when(component_type="tool"),
+            AI_MEMORY.when(component_type="memory"),
+            AI_EMBEDDING.when(component_type="embedding"),
+            AI_PROMPT.when(component_type="prompt"),
         ],
     )
     properties: AIBOMComponentNodeProperties = AIBOMComponentNodeProperties()
@@ -304,8 +383,12 @@ class AIBOMComponentSchema(CartographyNodeSchema):
             AIBOMComponentDetectedInGitHubRel(),
             AIBOMComponentDetectedInGitLabRel(),
             AIBOMComponentUsesModelRel(),
+            AIBOMComponentUsesLlmRel(),
             AIBOMComponentUsesToolRel(),
             AIBOMComponentExposesToolRel(),
+            AIBOMComponentUsesMemoryRel(),
+            AIBOMComponentUsesEmbeddingRel(),
+            AIBOMComponentUsesAgentRel(),
             AIBOMComponentCustomRel(),
         ],
     )

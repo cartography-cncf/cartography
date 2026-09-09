@@ -234,8 +234,40 @@ def test_sync_aibom_happy_path(
         rel_direction_right=True,
     ) == {
         (TEST_SOURCE_KEY, "Agent"),
+        (TEST_SOURCE_KEY, "QueryAgent"),
     }
 
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "AIModelReference",
+        "name",
+        "USES_MODEL",
+        rel_direction_right=True,
+    ) == {
+        ("Agent", "gpt-5.2"),
+    }
+
+    # AIMemory and AIEmbedding components were reachable only from their source
+    # before USES_MEMORY and USES_EMBEDDING were modelled, so an agent's memory and
+    # embedding counts were structurally always zero.
+    for target_label, rel_label, target_name in (
+        ("AIMemory", "USES_MEMORY", "conversation_buffer"),
+        ("AIEmbedding", "USES_EMBEDDING", "text-embedding-3-large"),
+        ("AIAgent", "USES_AGENT", "QueryAgent"),
+    ):
+        assert check_rels(
+            neo4j_session,
+            "AIAgent",
+            "name",
+            target_label,
+            "name",
+            rel_label,
+            rel_direction_right=True,
+        ) == {("Agent", target_name)}
+
+    # AIModel stays on the node as a compatibility alias until its removal version.
     assert check_rels(
         neo4j_session,
         "AIAgent",

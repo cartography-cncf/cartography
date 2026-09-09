@@ -1,15 +1,24 @@
 import hashlib
 import json
 import logging
+from collections import Counter
 from typing import Any
 from typing import cast
 
 logger = logging.getLogger(__name__)
 
+# AIBOM reports emit more relationship types than this. A type is added here once
+# its endpoints carry a semantic label, so the edge reaches something a query can
+# name; the rest are counted and reported in one warning per sync rather than
+# dropped silently. See docs/root/modules/aibom/index.md.
 _RELATIONSHIP_TARGET_FIELD_BY_TYPE = {
     "USES_MODEL": "uses_model_component_ids",
+    "USES_LLM": "uses_llm_component_ids",
     "USES_TOOL": "uses_tool_component_ids",
     "EXPOSES_TOOL": "exposes_tool_component_ids",
+    "USES_MEMORY": "uses_memory_component_ids",
+    "USES_EMBEDDING": "uses_embedding_component_ids",
+    "USES_AGENT": "uses_agent_component_ids",
     "CUSTOM": "custom_component_ids",
 }
 
@@ -41,6 +50,13 @@ def _as_str(value: Any) -> str | None:
         if cleaned:
             return cleaned
     return None
+
+
+def _as_str_list(value: Any) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    cleaned = [item for item in (_as_str(entry) for entry in value) if item]
+    return sorted(set(cleaned)) or None
 
 
 def _json_dumps(value: Any) -> str | None:
@@ -122,7 +138,6 @@ def _build_component_payload(
         "id": _build_component_id(source_key, component),
         "logical_id": _build_component_logical_id(component),
         "name": _as_str(component.get("name")),
-        "category": normalized_component_type,
         "component_type": normalized_component_type,
         "instance_id": _as_str(component.get("instance_id")),
         "file_path": _as_str(component.get("file_path")),
@@ -151,14 +166,13 @@ def _build_component_payload(
         "component_primary_evidence_end_line": component_primary_evidence_end_line,
         "decision": _as_str(decision_annotation.get("decision")),
         "decision_justification": _as_str(decision_annotation.get("justification")),
+        "evidence_count": component_metadata.get("evidence_count"),
+        "evidence_files": _as_str_list(component_metadata.get("evidence_files")),
         "metadata_json": _json_dumps(component_metadata),
         "manifest_digests": manifest_digests,
         "github_repo_urls": repo_uris,
         "gitlab_project_urls": repo_uris,
-        "uses_model_component_ids": [],
-        "uses_tool_component_ids": [],
-        "exposes_tool_component_ids": [],
-        "custom_component_ids": [],
+        **{field: [] for field in _RELATIONSHIP_TARGET_FIELD_BY_TYPE.values()},
     }
 
 
@@ -466,6 +480,7 @@ def transform_aibom_component_payloads(
         component_records,
     )
     relationship_records = _parse_aibom_relationship_records(document)
+    unmodelled_relationship_counts: Counter[str] = Counter()
 
     for relationship_record in relationship_records:
         source_key = relationship_record["source_key"]
@@ -496,10 +511,7 @@ def transform_aibom_component_payloads(
 
         target_field = _RELATIONSHIP_TARGET_FIELD_BY_TYPE.get(relationship_type)
         if target_field is None:
-            logger.info(
-                "Skipping unsupported AIBOM relationship type %s",
-                relationship_type,
-            )
+            unmodelled_relationship_counts[relationship_type] += 1
             continue
 
         resolved_component_ids = _resolve_relationship_component_ids(
@@ -521,5 +533,16 @@ def transform_aibom_component_payloads(
         target_component_ids = cast(list[str], source_component_payload[target_field])
         if target_component_id not in target_component_ids:
             target_component_ids.append(target_component_id)
+
+    if unmodelled_relationship_counts:
+        # One line per sync rather than per edge: a report can carry thousands of
+        # these, and the useful signal is which types are being lost and how many.
+        logger.warning(
+            "AIBOM relationship types not yet modelled in the graph were skipped: %s",
+            ", ".join(
+                f"{name}={count}"
+                for name, count in sorted(unmodelled_relationship_counts.items())
+            ),
+        )
 
     return list(component_payloads_by_id.values())

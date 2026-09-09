@@ -244,6 +244,12 @@ SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
 
 
 SEMANTIC_LABELS_WITHOUT_NORMALIZED_FIELDS: tuple[str, ...] = (
+    "AIAgent",
+    "AIEmbedding",
+    "AIMemory",
+    "AIModelReference",
+    "AIPrompt",
+    "AITool",
     "ImageAttestation",
     "ImageLayer",
     "ImageManifestList",

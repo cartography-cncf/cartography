@@ -1,9 +1,54 @@
 from cartography.models.core.nodes import ExtraNodeLabel
 from cartography.models.core.nodes import LabelKind
 
+AI_AGENT = ExtraNodeLabel(
+    label="AIAgent",
+    description="A cross-provider AIAgent resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+AI_EMBEDDING = ExtraNodeLabel(
+    label="AIEmbedding",
+    description="A cross-provider AIEmbedding resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+AI_MEMORY = ExtraNodeLabel(
+    label="AIMemory",
+    description="A cross-provider AIMemory resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
 AI_MODEL = ExtraNodeLabel(
     label="AIModel",
     description="A cross-provider AIModel resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+AI_MODEL_REFERENCE = ExtraNodeLabel(
+    label="AIModelReference",
+    description=(
+        "A reference to a model found by scanning an artifact, rather than a model "
+        "resource that exists in a provider account."
+    ),
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+AI_PROMPT = ExtraNodeLabel(
+    label="AIPrompt",
+    description="A cross-provider AIPrompt resource in Cartography's ontology.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
+AI_TOOL = ExtraNodeLabel(
+    label="AITool",
+    description="A cross-provider AITool resource in Cartography's ontology.",
     kind=LabelKind.ONTOLOGY,
 )
 
