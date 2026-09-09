@@ -81,8 +81,8 @@ def test_sync_alerts(mock_api, neo4j_session):
 
     # Assert: Alerts are connected to Repositories
     expected_repo_rels = {
-        ("alert-001", "frontend-app"),
-        ("alert-002", "example/backend-api"),
+        ("alert-001", "acme-corp/frontend-app"),
+        ("alert-002", "acme-corp/backend-api"),
     }
     assert (
         check_rels(

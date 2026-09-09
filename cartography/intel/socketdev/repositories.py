@@ -3,9 +3,10 @@ from typing import Any
 
 import neo4j
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.socketdev.repository import SocketDevRepositorySchema
 from cartography.util import timeit
@@ -14,6 +15,12 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
 _PAGE_SIZE = 100
+_RETRY_POLICY = Retry(
+    total=5,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["GET"],
+)
 
 
 @timeit
@@ -24,14 +31,18 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
     """
     all_repos: list[dict[str, Any]] = []
     page = 1
+    api_session = requests.Session()
+    api_session.mount("https://", HTTPAdapter(max_retries=_RETRY_POLICY))
+    api_session.headers.update(
+        {
+            "Authorization": f"Bearer {api_token}",
+            "Accept": "application/json",
+        },
+    )
 
     while True:
-        response = requests.get(
+        response = api_session.get(
             f"{_BASE_URL}/orgs/{org_slug}/repos",
-            headers={
-                "Authorization": f"Bearer {api_token}",
-                "Accept": "application/json",
-            },
             params={
                 "per_page": _PAGE_SIZE,
                 "page": page,
@@ -42,7 +53,22 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
         data = response.json()
 
         results = data.get("results", [])
-        all_repos.extend(results)
+        for repo in results:
+            # Some Socket deployments omit this key from list responses. An explicit
+            # null means the repository has no GitHub integration.
+            if "integration_meta" not in repo and repo.get("slug"):
+                detail_response = api_session.get(
+                    f"{_BASE_URL}/orgs/{org_slug}/repos/{repo['slug']}",
+                    params=(
+                        {"workspace": repo["workspace"]}
+                        if "workspace" in repo
+                        else None
+                    ),
+                    timeout=_TIMEOUT,
+                )
+                detail_response.raise_for_status()
+                repo = {**repo, **detail_response.json()}
+            all_repos.append(repo)
 
         next_page = data.get("nextPage")
         if not next_page or not results:
@@ -64,10 +90,20 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if isinstance(default_branch, dict):
             default_branch = default_branch.get("name")
 
-        # Build fullname from workspace/slug for ontology matching
+        # Keep Socket's repository identity for alert and dependency relationships.
         workspace = repo.get("workspace")
         slug = repo.get("slug")
         fullname = f"{workspace}/{slug}" if workspace and slug else slug
+
+        integration_meta = repo.get("integration_meta") or {}
+        integration_value = integration_meta.get("value") or {}
+        github_owner = integration_value.get("installation_login")
+        github_repo = integration_value.get("repo_name")
+        repository_url = (
+            f"https://github.com/{github_owner}/{github_repo}"
+            if integration_meta.get("type") == "github" and github_owner and github_repo
+            else None
+        )
 
         repos.append(
             {
@@ -75,6 +111,7 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "name": repo.get("name"),
                 "slug": slug,
                 "fullname": fullname,
+                "repository_url": repository_url,
                 "description": repo.get("description"),
                 "visibility": repo.get("visibility"),
                 "archived": repo.get("archived"),
@@ -100,33 +137,6 @@ def load_repositories(
         repositories,
         lastupdated=update_tag,
         ORG_ID=org_id,
-    )
-
-
-@timeit
-def link_repositories_by_unique_slug(
-    neo4j_session: neo4j.Session,
-    org_id: str,
-    update_tag: int,
-) -> None:
-    """Link by slug only when the code-repository match is unambiguous."""
-    run_write_query(
-        neo4j_session,
-        """
-        MATCH (:SocketDevOrganization {id: $ORG_ID})-[:RESOURCE]->(socket_repo:SocketDevRepository)
-        WHERE socket_repo.lastupdated = $UPDATE_TAG
-        AND NOT (socket_repo)-[:MONITORS {lastupdated: $UPDATE_TAG}]->(:CodeRepository)
-        MATCH (code_repo:CodeRepository)
-        WHERE code_repo._ont_name = socket_repo.slug
-        WITH socket_repo, collect(DISTINCT code_repo) AS candidates
-        WHERE size(candidates) = 1
-        WITH socket_repo, candidates[0] AS code_repo
-        MERGE (socket_repo)-[monitor:MONITORS]->(code_repo)
-        ON CREATE SET monitor.firstseen = timestamp()
-        SET monitor.lastupdated = $UPDATE_TAG
-        """,
-        ORG_ID=org_id,
-        UPDATE_TAG=update_tag,
     )
 
 
@@ -157,6 +167,5 @@ def sync_repositories(
     repositories = transform(raw_repos)
     org_id = common_job_parameters["ORG_ID"]
     load_repositories(neo4j_session, repositories, org_id, update_tag)
-    link_repositories_by_unique_slug(neo4j_session, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Socket.dev repositories sync")

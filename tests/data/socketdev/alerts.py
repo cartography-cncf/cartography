@@ -35,7 +35,7 @@ ALERTS_RESPONSE = {
                     "reachability": {"type": "reachable", "analysisType": "full-scan"},
                     "licenseViolation": None,
                     "repository": {
-                        "fullName": "frontend-app",
+                        "fullName": "acme-corp/frontend-app",
                         "id": "repo-001",
                         "slug": "frontend-app",
                         "workspace": "acme-corp",
@@ -73,7 +73,7 @@ ALERTS_RESPONSE = {
                     "reachability": {"type": "direct_dependency"},
                     "licenseViolation": None,
                     "repository": {
-                        "fullName": "example/backend-api",
+                        "fullName": "acme-corp/backend-api",
                         "id": "repo-002",
                         "slug": "backend-api",
                         "workspace": "acme-corp",

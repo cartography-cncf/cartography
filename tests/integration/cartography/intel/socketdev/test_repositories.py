@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import cartography.intel.socketdev.repositories
 import tests.data.socketdev.repositories
+from cartography.intel.github.repos import load_github_repos
 from cartography.intel.socketdev.organizations import load_organizations
 from cartography.intel.socketdev.organizations import transform as transform_orgs
 from tests.data.socketdev.organizations import ORGANIZATIONS_RESPONSE
@@ -25,30 +26,23 @@ def test_sync_repositories(mock_api, neo4j_session):
     # Arrange: Load the organization first (repos need it for the sub_resource_relationship)
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
-    neo4j_session.run(
-        """
-        UNWIND [
+    load_github_repos(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        [
             {
-                id: 'https://github.com/example/frontend-app',
-                name: 'frontend-app',
-                fullname: 'example/frontend-app'
+                "id": "https://github.com/example/worker",
+                "name": "worker",
+                "fullname": "example/worker",
+                "url": "https://github.com/example/worker",
             },
             {
-                id: 'https://github.com/example/backend-api',
-                name: 'backend-api',
-                fullname: 'example/backend-api'
+                "id": "https://github.com/another-example/worker",
+                "name": "worker",
+                "fullname": "another-example/worker",
+                "url": "https://github.com/another-example/worker",
             },
-            {
-                id: 'https://github.com/another-example/backend-api',
-                name: 'backend-api',
-                fullname: 'another-example/backend-api'
-            }
-        ] AS repo
-        CREATE (code_repo:GitHubRepository:CodeRepository)
-        SET code_repo.id = repo.id,
-            code_repo._ont_name = repo.name,
-            code_repo._ont_fullname = repo.fullname
-        """,
+        ],
     )
 
     common_job_parameters = {
@@ -75,13 +69,23 @@ def test_sync_repositories(mock_api, neo4j_session):
         == expected_org_nodes
     )
 
-    # Assert: Repositories exist with fullname
+    # Assert: Repositories preserve Socket identity and GitHub integration identity
     expected_repo_nodes = {
-        ("repo-001", "frontend-app", "frontend-app"),
-        ("repo-002", "backend-api", "example/backend-api"),
+        (
+            "repo-001",
+            "frontend-app",
+            "acme-corp/frontend-app",
+            None,
+        ),
+        ("repo-002", "backend-api", "acme-corp/backend-api", None),
+        ("repo-003", "worker", "worker", "https://github.com/example/worker"),
     }
     assert (
-        check_nodes(neo4j_session, "SocketDevRepository", ["id", "slug", "fullname"])
+        check_nodes(
+            neo4j_session,
+            "SocketDevRepository",
+            ["id", "slug", "fullname", "repository_url"],
+        )
         == expected_repo_nodes
     )
 
@@ -89,6 +93,7 @@ def test_sync_repositories(mock_api, neo4j_session):
     expected_rels = {
         ("repo-001", TEST_ORG_ID),
         ("repo-002", TEST_ORG_ID),
+        ("repo-003", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -113,20 +118,18 @@ def test_sync_repositories(mock_api, neo4j_session):
         "MONITORS",
         rel_direction_right=True,
     ) == {
-        ("repo-001", "https://github.com/example/frontend-app"),
-        ("repo-002", "https://github.com/example/backend-api"),
+        ("repo-003", "https://github.com/example/worker"),
     }
 
-    # Act: Make the previously unique slug ambiguous and sync again
-    neo4j_session.run(
-        """
-        CREATE (:GitHubRepository:CodeRepository {
-            id: 'https://github.com/another-example/frontend-app',
-            _ont_name: 'frontend-app',
-            _ont_fullname: 'another-example/frontend-app'
-        })
-        """,
-    )
+    # Act: Remove the source identity and sync again
+    refreshed_repositories = tests.data.socketdev.repositories.REPOSITORIES_RESPONSE[
+        "results"
+    ]
+    mock_api.return_value = [
+        refreshed_repositories[0],
+        refreshed_repositories[1],
+        {**refreshed_repositories[2], "integration_meta": None},
+    ]
     next_update_tag = TEST_UPDATE_TAG + 1
     common_job_parameters["UPDATE_TAG"] = next_update_tag
     cartography.intel.socketdev.repositories.sync_repositories(
@@ -137,15 +140,16 @@ def test_sync_repositories(mock_api, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert: Ambiguous slug matches are removed, while exact matches remain
-    assert check_rels(
-        neo4j_session,
-        "SocketDevRepository",
-        "id",
-        "GitHubRepository",
-        "id",
-        "MONITORS",
-        rel_direction_right=True,
-    ) == {
-        ("repo-002", "https://github.com/example/backend-api"),
-    }
+    # Assert: The stale relationship is removed
+    assert (
+        check_rels(
+            neo4j_session,
+            "SocketDevRepository",
+            "id",
+            "GitHubRepository",
+            "id",
+            "MONITORS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
