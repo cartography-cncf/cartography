@@ -166,6 +166,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.circleci", "start_circleci_ingestion"
         ),
         "modal": _LazyStage("cartography.intel.modal", "start_modal_ingestion"),
+        "runpod": _LazyStage("cartography.intel.runpod", "start_runpod_ingestion"),
         "miradore": _LazyStage(
             "cartography.intel.miradore", "start_miradore_ingestion"
         ),
