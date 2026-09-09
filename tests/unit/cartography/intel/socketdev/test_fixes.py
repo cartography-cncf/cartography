@@ -64,7 +64,7 @@ def test_get_retries_transient_failure(mocker):
     assert _UnavailableThenSuccessHandler.attempts == 2
 
 
-def test_get_does_not_retry_rate_limit(mocker):
+def test_get_bounds_rate_limit_retry_delay(mocker):
     _RateLimitedHandler.attempts = 0
     server = ThreadingHTTPServer(("127.0.0.1", 0), _RateLimitedHandler)
     thread = Thread(target=server.serve_forever, daemon=True)
@@ -72,9 +72,10 @@ def test_get_does_not_retry_rate_limit(mocker):
     session = fixes._create_session("test-token")
     session.mount("http://", session.adapters["https://"])
     mocker.patch.object(fixes, "_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+    sleep = mocker.patch("urllib3.util.retry.time.sleep")
 
     try:
-        with pytest.raises(requests.HTTPError):
+        with pytest.raises(requests.RequestException):
             fixes.get(session, "example-org", "example-repo", "CVE-2026-0001")
     finally:
         session.close()
@@ -82,7 +83,9 @@ def test_get_does_not_retry_rate_limit(mocker):
         server.server_close()
         thread.join()
 
-    assert _RateLimitedHandler.attempts == 1
+    assert _RateLimitedHandler.attempts == 4
+    assert sleep.call_count > 0
+    assert all(call.args[0] <= 8 for call in sleep.call_args_list)
 
 
 def test_sync_fixes_batches_vulnerability_ids(mocker):

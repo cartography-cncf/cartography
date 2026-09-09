@@ -14,7 +14,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
-_RETRY_STATUS_CODES = (408, 500, 502, 503, 504)
+_RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
 _VULNERABILITY_BATCH_SIZE = 100
 
 
@@ -35,6 +35,7 @@ def _create_session(api_token: str) -> requests.Session:
         allowed_methods=["GET"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
+        backoff_max=8,
         respect_retry_after_header=False,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
