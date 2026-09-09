@@ -1,3 +1,4 @@
+from unittest.mock import ANY
 from unittest.mock import call
 from unittest.mock import patch
 
@@ -21,17 +22,6 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = "org-001"
 TEST_ORG_SLUG = "acme-corp"
-
-
-def test_fixes_session_retries_transient_failures():
-    session = cartography.intel.socketdev.fixes._create_session()
-    retries = session.get_adapter("https://").max_retries
-
-    assert retries.total == 3
-    assert retries.read == 3
-    assert retries.status == 3
-    assert retries.status_forcelist == (408, 429, 500, 502, 503, 504)
-    session.close()
 
 
 @patch.object(
@@ -76,7 +66,7 @@ def test_sync_fixes(mock_api, neo4j_session):
     # Assert: Fix nodes exist
     assert mock_api.call_args_list == [
         call(
-            "fake-token",
+            ANY,
             TEST_ORG_SLUG,
             "frontend-app",
             "GHSA-xxxx-yyyy-zzzz",

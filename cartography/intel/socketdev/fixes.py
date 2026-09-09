@@ -14,11 +14,18 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
-_RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
+_RETRY_STATUS_CODES = (408, 500, 502, 503, 504)
+_VULNERABILITY_BATCH_SIZE = 100
 
 
-def _create_session() -> requests.Session:
+def _create_session(api_token: str) -> requests.Session:
     session = requests.Session()
+    session.headers.update(
+        {
+            "Authorization": f"Bearer {api_token}",
+            "Accept": "application/json",
+        },
+    )
     retry_policy = Retry(
         total=3,
         connect=3,
@@ -28,7 +35,7 @@ def _create_session() -> requests.Session:
         allowed_methods=["GET"],
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
-        respect_retry_after_header=True,
+        respect_retry_after_header=False,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
@@ -36,7 +43,7 @@ def _create_session() -> requests.Session:
 
 @timeit
 def get(
-    api_token: str,
+    api_session: requests.Session,
     org_slug: str,
     repo_slug: str,
     vulnerability_ids: str,
@@ -45,12 +52,8 @@ def get(
     Fetch fixes for the given vulnerabilities in a repository.
     Returns the raw API response dict containing fixDetails.
     """
-    response = _create_session().get(
+    response = api_session.get(
         f"{_BASE_URL}/orgs/{org_slug}/fixes",
-        headers={
-            "Authorization": f"Bearer {api_token}",
-            "Accept": "application/json",
-        },
         params={
             "repo_slug": repo_slug,
             "vulnerability_ids": vulnerability_ids,
@@ -209,12 +212,11 @@ def sync_fixes(
         if ghsa_id:
             alerts_by_vuln[(ghsa_id, repo_slug_val)] = alert_id
             vulnerability_ids_by_repo.setdefault(repo_slug_val, set()).add(ghsa_id)
-        key = alert.get("key")
-        if key:
-            alerts_by_vuln[(key, repo_slug_val)] = alert_id
-
     if not vulnerability_ids_by_repo:
-        logger.info("No repository vulnerabilities found, skipping fixes sync")
+        logger.info(
+            "No repository alerts with CVE or GHSA identifiers found; "
+            "cleaning up stale fixes",
+        )
         cleanup(neo4j_session, common_job_parameters)
         return
 
@@ -228,21 +230,28 @@ def sync_fixes(
         dep_lookup[key] = dep["id"]
 
     all_fixes: list[dict[str, Any]] = []
-    for repo_slug_val, vulnerability_ids in sorted(vulnerability_ids_by_repo.items()):
-        logger.debug(
-            "Fetching fixes for repo '%s'",
-            repo_slug_val,
-        )
-        # Wildcard fix queries become expensive for repositories with many alerts.
-        raw_response = get(
-            api_token,
-            org_slug,
-            repo_slug_val,
-            ",".join(sorted(vulnerability_ids)),
-        )
+    with _create_session(api_token) as api_session:
+        for repo_slug_val, vulnerability_ids in sorted(
+            vulnerability_ids_by_repo.items(),
+        ):
+            logger.debug(
+                "Fetching fixes for repo '%s'",
+                repo_slug_val,
+            )
+            sorted_ids = sorted(vulnerability_ids)
+            for offset in range(0, len(sorted_ids), _VULNERABILITY_BATCH_SIZE):
+                batch = sorted_ids[offset : offset + _VULNERABILITY_BATCH_SIZE]
+                raw_response = get(
+                    api_session,
+                    org_slug,
+                    repo_slug_val,
+                    ",".join(batch),
+                )
 
-        fixes = transform(raw_response, alerts_by_vuln, repo_slug_val, dep_lookup)
-        all_fixes.extend(fixes)
+                fixes = transform(
+                    raw_response, alerts_by_vuln, repo_slug_val, dep_lookup
+                )
+                all_fixes.extend(fixes)
 
     if all_fixes:
         org_id = common_job_parameters["ORG_ID"]

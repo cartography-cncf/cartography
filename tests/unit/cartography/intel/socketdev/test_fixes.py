@@ -1,0 +1,120 @@
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
+from threading import Thread
+from unittest.mock import MagicMock
+
+import pytest
+import requests
+
+import cartography.intel.socketdev.fixes as fixes
+
+
+class _UnavailableThenSuccessHandler(BaseHTTPRequestHandler):
+    attempts = 0
+
+    def do_GET(self) -> None:
+        type(self).attempts += 1
+        if self.attempts == 1:
+            self.send_response(503)
+            self.end_headers()
+            return
+
+        body = b'{"fixDetails": {}}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+class _RateLimitedHandler(BaseHTTPRequestHandler):
+    attempts = 0
+
+    def do_GET(self) -> None:
+        type(self).attempts += 1
+        self.send_response(429)
+        self.send_header("Retry-After", "3600")
+        self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+def test_get_retries_transient_failure(mocker):
+    _UnavailableThenSuccessHandler.attempts = 0
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _UnavailableThenSuccessHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    session = fixes._create_session("test-token")
+    session.mount("http://", session.adapters["https://"])
+    mocker.patch.object(fixes, "_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+
+    try:
+        result = fixes.get(session, "example-org", "example-repo", "CVE-2026-0001")
+    finally:
+        session.close()
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    assert result == {"fixDetails": {}}
+    assert _UnavailableThenSuccessHandler.attempts == 2
+
+
+def test_get_does_not_retry_rate_limit(mocker):
+    _RateLimitedHandler.attempts = 0
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _RateLimitedHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    session = fixes._create_session("test-token")
+    session.mount("http://", session.adapters["https://"])
+    mocker.patch.object(fixes, "_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+
+    try:
+        with pytest.raises(requests.HTTPError):
+            fixes.get(session, "example-org", "example-repo", "CVE-2026-0001")
+    finally:
+        session.close()
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    assert _RateLimitedHandler.attempts == 1
+
+
+def test_sync_fixes_batches_vulnerability_ids(mocker):
+    api_session = MagicMock()
+    api_session.__enter__.return_value = api_session
+    mocker.patch.object(fixes, "_create_session", return_value=api_session)
+    get = mocker.patch.object(fixes, "get", return_value={"fixDetails": {}})
+    cleanup = mocker.patch.object(fixes, "cleanup")
+    alerts = [
+        {
+            "id": f"alert-{index}",
+            "repo_slug": "example-repo",
+            "cve_id": f"CVE-2026-{index:04d}",
+        }
+        for index in range(201)
+    ]
+
+    fixes.sync_fixes(
+        MagicMock(),
+        "test-token",
+        "example-org",
+        1,
+        {"UPDATE_TAG": 1, "ORG_ID": "example-org"},
+        alerts,
+        [],
+    )
+
+    assert get.call_count == 3
+    assert [len(call.args[3].split(",")) for call in get.call_args_list] == [
+        100,
+        100,
+        1,
+    ]
+    assert all(call.args[0] is api_session for call in get.call_args_list)
+    cleanup.assert_called_once()
