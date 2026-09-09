@@ -67,6 +67,25 @@ def test_load_cloudflare_dnsrecords(mock_cloudflare, mock_api, neo4j_session):
         )
         == expected_nodes
     )
+    assert (
+        {
+            tuple(row)
+            for row in neo4j_session.run(
+                """
+            MATCH (record:CloudflareDNSRecord)
+            RETURN record.id, record._ont_name, record._ont_target_hostname
+            """
+            ).values()
+        }
+        == {
+            ("2b534a38-8658-48c0-8d6d-f9277d689c75", "simpson.corp", None),
+            (
+                "922f7919-e12b-4f46-800f-74b433724d29",
+                "www.simpson.corp",
+                "simpson.corp",
+            ),
+        }
+    )
 
     # Assert DNSRecords are connected with Account (the tenant)
     expected_account_rels = {
