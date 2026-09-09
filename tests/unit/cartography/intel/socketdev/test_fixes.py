@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from threading import Thread
+from unittest.mock import call
 from unittest.mock import MagicMock
 
 import pytest
@@ -84,8 +85,7 @@ def test_get_bounds_rate_limit_retry_delay(mocker):
         thread.join()
 
     assert _RateLimitedHandler.attempts == 4
-    assert sleep.call_count > 0
-    assert all(call.args[0] <= 8 for call in sleep.call_args_list)
+    assert sleep.call_args_list == [call(8), call(8), call(8)]
 
 
 def test_sync_fixes_batches_vulnerability_ids(mocker):

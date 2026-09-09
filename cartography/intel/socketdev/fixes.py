@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 import requests
 from requests.adapters import HTTPAdapter
+from urllib3.response import BaseHTTPResponse
 from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
@@ -15,7 +16,16 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
 _RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
+_MAX_RETRY_AFTER_SECONDS = 8
 _VULNERABILITY_BATCH_SIZE = 100
+
+
+class _CappedRetry(Retry):
+    def get_retry_after(self, response: BaseHTTPResponse) -> float | None:
+        retry_after = super().get_retry_after(response)
+        if retry_after is None:
+            return None
+        return min(retry_after, _MAX_RETRY_AFTER_SECONDS)
 
 
 def _create_session(api_token: str) -> requests.Session:
@@ -26,7 +36,7 @@ def _create_session(api_token: str) -> requests.Session:
             "Accept": "application/json",
         },
     )
-    retry_policy = Retry(
+    retry_policy = _CappedRetry(
         total=3,
         connect=3,
         read=3,
@@ -36,7 +46,6 @@ def _create_session(api_token: str) -> requests.Session:
         status_forcelist=_RETRY_STATUS_CODES,
         backoff_factor=1,
         backoff_max=8,
-        respect_retry_after_header=False,
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
