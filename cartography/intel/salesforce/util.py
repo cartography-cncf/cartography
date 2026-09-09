@@ -41,6 +41,16 @@ def get_salesforce_error_codes(error: requests.HTTPError) -> frozenset[str]:
     )
 
 
+def get_salesforce_error_messages(error: requests.HTTPError) -> tuple[str, ...]:
+    if error.response is None:
+        return ()
+    return tuple(
+        item["message"]
+        for item in _salesforce_errors(error.response)
+        if isinstance(item.get("message"), str)
+    )
+
+
 def _error_details(response: requests.Response) -> str:
     details = "; ".join(
         f"{error.get('errorCode', 'UNKNOWN')}: {error.get('message', 'no message')}"

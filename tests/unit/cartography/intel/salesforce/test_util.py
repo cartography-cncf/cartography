@@ -8,6 +8,7 @@ import requests
 
 from cartography.intel.salesforce.util import get_salesforce_client
 from cartography.intel.salesforce.util import get_salesforce_error_codes
+from cartography.intel.salesforce.util import get_salesforce_error_messages
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 
@@ -119,6 +120,9 @@ def test_query_all_includes_salesforce_error_details():
     with pytest.raises(requests.HTTPError, match="INVALID_TYPE") as exc_info:
         client.query_all("SELECT Id FROM ConnectedApplication")
     assert get_salesforce_error_codes(exc_info.value) == {"INVALID_TYPE"}
+    assert get_salesforce_error_messages(exc_info.value) == (
+        "sObject type 'ConnectedApplication' is not supported.",
+    )
 
 
 def test_query_all_preserves_nonstandard_error_details():
@@ -144,3 +148,4 @@ def test_query_all_preserves_nonstandard_error_details():
         client.query_all("SELECT Id FROM User")
     assert "https://example.my.salesforce.com/query" in str(exc_info.value)
     assert not get_salesforce_error_codes(exc_info.value)
+    assert not get_salesforce_error_messages(exc_info.value)

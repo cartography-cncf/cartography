@@ -8,6 +8,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.salesforce.util import get_salesforce_error_codes
+from cartography.intel.salesforce.util import get_salesforce_error_messages
 from cartography.intel.salesforce.util import parse_sf_datetime
 from cartography.intel.salesforce.util import SalesforceClient
 from cartography.models.salesforce.connectedapp import SalesforceConnectedAppSchema
@@ -28,14 +29,17 @@ def _is_access_error(exc: requests.HTTPError) -> bool:
     error_codes = get_salesforce_error_codes(exc)
     if error_codes & {"INSUFFICIENT_ACCESS", "INSUFFICIENT_ACCESS_OR_READONLY"}:
         return True
-    error_message = str(exc)
+    error_messages = get_salesforce_error_messages(exc)
     if "INVALID_TYPE" in error_codes:
         return any(
-            object_name in error_message
+            f"sObject type '{object_name}' is not supported." in message
+            for message in error_messages
             for object_name in ("ConnectedApplication", "OAuthToken")
         )
     return "INVALID_FIELD" in error_codes and any(
-        field_name in error_message for field_name in _SETUP_ONLY_APP_FIELDS
+        f"No such column '{field_name}' on entity 'ConnectedApplication'." in message
+        for message in error_messages
+        for field_name in _SETUP_ONLY_APP_FIELDS
     )
 
 
@@ -45,6 +49,8 @@ def sync(
     client: SalesforceClient,
     common_job_parameters: dict[str, Any],
 ) -> None:
+    # Keep apps and tokens as one snapshot: cleanup after a partial token fetch would
+    # delete valid AUTHORIZED relationships from the last complete sync.
     try:
         apps = get_apps(client)
         tokens = get_oauth_tokens(client)
@@ -52,8 +58,8 @@ def sync(
         if not _is_access_error(exc):
             raise
         logger.warning(
-            "Skipping Salesforce connected apps because the integration user "
-            "cannot access ConnectedApplication or OAuthToken: %s",
+            "Skipping Salesforce connected apps because required objects or setup "
+            "fields are unavailable to the integration user: %s",
             exc,
         )
         return
