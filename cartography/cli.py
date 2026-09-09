@@ -64,6 +64,7 @@ PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
+PANEL_OPSGENIE = "Opsgenie Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
 PANEL_DUO = "Duo Options"
@@ -131,6 +132,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "opsgenie": PANEL_OPSGENIE,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
@@ -1242,6 +1244,37 @@ class CLI:
                     hidden=PANEL_PAGERDUTY not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Opsgenie Options
+            # =================================================================
+            opsgenie_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--opsgenie-api-key-env-var",
+                    help="Environment variable name containing the Opsgenie API key.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = None,
+            opsgenie_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--opsgenie-api-url",
+                    help="Opsgenie API base URL.",
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = "https://api.opsgenie.com",
+            opsgenie_request_timeout: Annotated[
+                int,
+                typer.Option(
+                    "--opsgenie-request-timeout",
+                    help="Timeout in seconds for Opsgenie API requests.",
+                    min=1,
+                    rich_help_panel=PANEL_OPSGENIE,
+                    hidden=PANEL_OPSGENIE not in visible_panels,
+                ),
+            ] = 60,
             # =================================================================
             # GSuite Options
             # =================================================================
@@ -2989,6 +3022,14 @@ class CLI:
                 )
                 pagerduty_api_key = os.environ.get(pagerduty_api_key_env_var)
 
+            opsgenie_api_key = None
+            if opsgenie_api_key_env_var:
+                logger.debug(
+                    "Reading API key for Opsgenie from environment variable %s",
+                    opsgenie_api_key_env_var,
+                )
+                opsgenie_api_key = os.environ.get(opsgenie_api_key_env_var)
+
             # Read CrowdStrike credentials
             crowdstrike_client_id = None
             if crowdstrike_client_id_env_var:
@@ -3658,6 +3699,9 @@ class CLI:
                 statsd_port=statsd_port,
                 pagerduty_api_key=pagerduty_api_key,
                 pagerduty_request_timeout=pagerduty_request_timeout,
+                opsgenie_api_key=opsgenie_api_key,
+                opsgenie_api_url=opsgenie_api_url,
+                opsgenie_request_timeout=opsgenie_request_timeout,
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
