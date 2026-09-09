@@ -231,13 +231,23 @@ def test_scaleway_cockpit_cleanup_preserves_skipped_projects(_mock_get, neo4j_se
 
     # Assert: the successfully enumerated project is refreshed, while stale Cockpit
     # data under the skipped project is preserved for a future successful sync.
-    assert (TEST_DATA_SOURCE_ID, "demo-metrics") in check_nodes(
+    assert check_nodes(
         neo4j_session,
         "ScalewayCockpitDataSource",
         ["id", "name"],
-    )
-    assert (TEST_SKIPPED_DATA_SOURCE_ID, "stale-skipped-project-source") in check_nodes(
+    ) == {
+        (TEST_DATA_SOURCE_ID, "demo-metrics"),
+        (TEST_SKIPPED_DATA_SOURCE_ID, "stale-skipped-project-source"),
+    }
+    assert check_rels(
         neo4j_session,
         "ScalewayCockpitDataSource",
-        ["id", "name"],
-    )
+        "id",
+        "ScalewayProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (TEST_DATA_SOURCE_ID, TEST_PROJECT_ID),
+        (TEST_SKIPPED_DATA_SOURCE_ID, TEST_SKIPPED_PROJECT_ID),
+    }
