@@ -88,9 +88,14 @@ def test_get_bounds_rate_limit_retry_delay(mocker):
     assert sleep.call_args_list == [call(8), call(8), call(8)]
 
 
-def test_transform_matches_duplicate_vulnerability_to_its_package_alert():
-    result = fixes.transform(
-        {
+def test_sync_fixes_matches_duplicate_vulnerability_to_its_package_alert(mocker):
+    api_session = MagicMock()
+    api_session.__enter__.return_value = api_session
+    mocker.patch.object(fixes, "_create_session", return_value=api_session)
+    mocker.patch.object(
+        fixes,
+        "get",
+        return_value={
             "fixDetails": {
                 "GHSA-example": {
                     "type": "fixFound",
@@ -107,15 +112,36 @@ def test_transform_matches_duplicate_vulnerability_to_its_package_alert():
                 },
             },
         },
-        {
-            ("GHSA-example", "example-repo", "package-a", "1.0.0"): "alert-a",
-            ("GHSA-example", "example-repo", "package-b", "2.0.0"): "alert-b",
-        },
+    )
+    load_fixes = mocker.patch.object(fixes, "load_fixes")
+    mocker.patch.object(fixes, "cleanup")
+
+    fixes.sync_fixes(
+        MagicMock(),
+        "test-token",
         "example-repo",
-        {},
+        1,
+        {"UPDATE_TAG": 1, "ORG_ID": "example-org"},
+        [
+            {
+                "id": "alert-a",
+                "repo_slug": "example-repo",
+                "ghsa_id": "GHSA-example",
+                "artifact_name": "package-a",
+                "artifact_version": "1.0.0",
+            },
+            {
+                "id": "alert-b",
+                "repo_slug": "example-repo",
+                "ghsa_id": "GHSA-example",
+                "artifact_name": "package-b",
+                "artifact_version": "2.0.0",
+            },
+        ],
+        [],
     )
 
-    assert result[0]["alert_id"] == "alert-b"
+    assert load_fixes.call_args.args[1][0]["alert_id"] == "alert-b"
 
 
 def test_sync_fixes_batches_vulnerability_ids(mocker):
