@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import hostname_from_url
 from cartography.intel.modal.util import get_app_layout
 from cartography.intel.modal.util import MODAL_API_ERRORS
 from cartography.intel.modal.util import ModalClient
@@ -108,6 +109,7 @@ def transform(
             {
                 **function,
                 "class_id": class_id,
+                "web_hostname": hostname_from_url(function.get("web_url")),
                 "environment_name": environment_name,
                 "exposed_internet": exposed,
                 "exposed_internet_type": ["direct"] if exposed else None,

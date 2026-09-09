@@ -292,6 +292,22 @@ CLEANUP_CASES = [
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
         id="ontology_dnsrecords_to_railway_service_domain",
     ),
+    *[
+        pytest.param(
+            RelationshipEffect("DNSRecord", "DNS_POINTS_TO", label),
+            None,
+            _rel_cleanup("DNSRecord", "DNS_POINTS_TO", label),
+            id=f"ontology_dnsrecords_to_{label.lower()}",
+        )
+        for label in (
+            "ModalSandboxTunnel",
+            "ModalFunction",
+            "GCPCloudRunService",
+            "NetlifySite",
+            "ScalewayServerlessContainer",
+            "ScalewayServerlessFunction",
+        )
+    ],
     pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),
         ENTRA,

@@ -44,6 +44,11 @@ class ScalewayServerlessFunctionProperties(CartographyNodeProperties):
     domain_name: PropertyRef = PropertyRef(
         "domain_name", extra_index=True, description="Auto-assigned invocation domain."
     )
+    domain_name_normalized: PropertyRef = PropertyRef(
+        "domain_name_normalized",
+        extra_index=True,
+        description="Canonical auto-assigned invocation hostname.",
+    )
     # `enabled` allows plain HTTP; `redirected` forces HTTPS.
     http_option: PropertyRef = PropertyRef(
         "http_option",
