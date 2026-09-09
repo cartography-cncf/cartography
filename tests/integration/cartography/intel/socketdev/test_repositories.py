@@ -25,6 +25,14 @@ def test_sync_repositories(mock_api, neo4j_session):
     # Arrange: Load the organization first (repos need it for the sub_resource_relationship)
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        CREATE (:GitHubRepository:CodeRepository {
+            id: 'https://github.com/acme-corp/frontend-app',
+            _ont_fullname: 'acme-corp/frontend-app'
+        })
+        """,
+    )
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -77,3 +85,16 @@ def test_sync_repositories(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+    # Assert: Socket.dev repositories monitor matching code repositories
+    assert check_rels(
+        neo4j_session,
+        "SocketDevRepository",
+        "id",
+        "GitHubRepository",
+        "id",
+        "MONITORS",
+        rel_direction_right=True,
+    ) == {
+        ("repo-001", "https://github.com/acme-corp/frontend-app"),
+    }

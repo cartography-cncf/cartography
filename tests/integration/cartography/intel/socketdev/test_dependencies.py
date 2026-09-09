@@ -29,7 +29,7 @@ def test_sync_dependencies(mock_api, neo4j_session):
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
 
-    repos = transform_repos(REPOSITORIES_RESPONSE["results"])
+    repos = transform_repos(REPOSITORIES_RESPONSE["results"], TEST_ORG_SLUG)
     load_repositories(neo4j_session, repos, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     common_job_parameters = {
@@ -47,19 +47,33 @@ def test_sync_dependencies(mock_api, neo4j_session):
     )
 
     # Assert: Dependencies exist
-    expected_dep_nodes = {
-        ("dep-001", "lodash", "npm"),
-        ("dep-002", "express", "npm"),
-        ("dep-003", "requests", "pypi"),
+    assert check_nodes(
+        neo4j_session,
+        "SocketDevDependency",
+        ["id", "name", "ecosystem", "repo_slug", "repo_fullname"],
+    ) == {
+        (
+            "dep-001",
+            "lodash",
+            "npm",
+            "frontend-app",
+            "acme-corp/frontend-app",
+        ),
+        (
+            "dep-002",
+            "express",
+            "npm",
+            "backend-api",
+            "acme-corp/backend-api",
+        ),
+        (
+            "dep-003",
+            "requests",
+            "pypi",
+            "backend-api",
+            "acme-corp/backend-api",
+        ),
     }
-    assert (
-        check_nodes(
-            neo4j_session,
-            "SocketDevDependency",
-            ["id", "name", "ecosystem"],
-        )
-        == expected_dep_nodes
-    )
 
     # Assert: Dependencies are connected to Organization
     expected_org_rels = {

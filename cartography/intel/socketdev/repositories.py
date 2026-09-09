@@ -52,7 +52,10 @@ def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
     return all_repos
 
 
-def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform(
+    raw_repos: list[dict[str, Any]],
+    org_slug: str,
+) -> list[dict[str, Any]]:
     """
     Transform raw repository data for ingestion.
     """
@@ -64,7 +67,7 @@ def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
             default_branch = default_branch.get("name")
 
         # Build fullname from workspace/slug for ontology matching
-        workspace = repo.get("workspace")
+        workspace = repo.get("workspace") or org_slug
         slug = repo.get("slug")
         fullname = f"{workspace}/{slug}" if workspace and slug else slug
 
@@ -126,7 +129,7 @@ def sync_repositories(
     """
     logger.info("Starting Socket.dev repositories sync")
     raw_repos = get(api_token, org_slug)
-    repositories = transform(raw_repos)
+    repositories = transform(raw_repos, org_slug)
     org_id = common_job_parameters["ORG_ID"]
     load_repositories(neo4j_session, repositories, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)

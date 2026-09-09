@@ -29,7 +29,7 @@ def test_sync_alerts(mock_api, neo4j_session):
     orgs = transform_orgs(ORGANIZATIONS_RESPONSE)
     load_organizations(neo4j_session, orgs, TEST_UPDATE_TAG)
 
-    repos = transform_repos(REPOSITORIES_RESPONSE["results"])
+    repos = transform_repos(REPOSITORIES_RESPONSE["results"], TEST_ORG_SLUG)
     load_repositories(neo4j_session, repos, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     common_job_parameters = {
