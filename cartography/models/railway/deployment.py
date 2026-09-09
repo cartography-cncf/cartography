@@ -32,6 +32,16 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Full source commit SHA reported for this deployment.",
     )
+    source_image: PropertyRef = PropertyRef(
+        "source_image",
+        extra_index=True,
+        description="Container image reference reported for this deployment.",
+    )
+    image_digest: PropertyRef = PropertyRef(
+        "image_digest",
+        extra_index=True,
+        description="Immutable image digest reported or configured for this deployment.",
+    )
     status_updated_at: PropertyRef = PropertyRef(
         "statusUpdatedAt", description="Time when the deployment status last changed."
     )
@@ -107,6 +117,71 @@ class RailwayDeploymentToServiceInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RailwayDeploymentToImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToECRImageRel(CartographyRelSchema):
+    """Links a Railway deployment to an Amazon ECR image by immutable digest."""
+
+    target_node_label: str = "AWSECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToImageRelProperties = (
+        RailwayDeploymentToImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGitLabImageRel(CartographyRelSchema):
+    """Links a Railway deployment to a GitLab registry image by immutable digest."""
+
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToImageRelProperties = (
+        RailwayDeploymentToImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGCPArtifactRegistryImageRel(CartographyRelSchema):
+    """Links a Railway deployment to a GCP Artifact Registry image by immutable digest."""
+
+    target_node_label: str = "GCPArtifactRegistryImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToImageRelProperties = (
+        RailwayDeploymentToImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class RailwayDeploymentToGitHubImageRel(CartographyRelSchema):
+    """Links a Railway deployment to a GitHub registry image by immutable digest."""
+
+    target_node_label: str = "GitHubContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: RailwayDeploymentToImageRelProperties = (
+        RailwayDeploymentToImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 # A deployment is one concrete revision of a service instance, so the revision that is
 # actually running plays the Container role to the instance's ComputeService - the same split
 # GCP Cloud Run uses for Service and ServiceContainer.
@@ -129,5 +204,9 @@ class RailwayDeploymentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RailwayDeploymentToServiceInstanceRel(),
+            RailwayDeploymentToECRImageRel(),
+            RailwayDeploymentToGitLabImageRel(),
+            RailwayDeploymentToGCPArtifactRegistryImageRel(),
+            RailwayDeploymentToGitHubImageRel(),
         ],
     )
