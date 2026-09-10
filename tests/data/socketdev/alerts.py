@@ -83,7 +83,7 @@ ALERTS_RESPONSE = {
                     "branch": {"name": "main", "type": None},
                     "artifact": {
                         "type": "npm",
-                        "namespace": "",
+                        "namespace": "@example",
                         "name": "evil-package",
                         "version": "1.0.0",
                     },

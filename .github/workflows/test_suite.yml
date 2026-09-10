@@ -7,6 +7,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 # Explicitly grant the `secrets.GITHUB_TOKEN` no permissions.
 permissions: {}
 

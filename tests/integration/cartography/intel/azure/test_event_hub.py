@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -17,11 +18,14 @@ def create_mock_sdk_object(data_dict):
     Creates a MagicMock that simulates an Azure SDK object.
     It has a .as_dict() method and also has attributes for each key.
     """
+    # The transforms normalize the payload in place, so hand out a copy to keep the
+    # shared fixtures pristine for other tests.
+    payload = copy.deepcopy(data_dict)
     mock = MagicMock()
-    mock.as_dict.return_value = data_dict
+    mock.as_dict.return_value = payload
 
     # Add attributes to the mock
-    for key, value in data_dict.items():
+    for key, value in payload.items():
         setattr(mock, key, value)
     return mock
 
@@ -73,16 +77,35 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert Namespaces
+    # Assert Namespaces. Every property is asserted, not just the identifiers: the
+    # fields under the ARM `properties` block are the ones a wrong SDK shape silently
+    # drops.
     namespace_id = MOCK_NAMESPACES[0]["id"]
     expected_ns_nodes = {
         (
             namespace_id,
             "my-test-ns",
+            "eastus",
+            "Standard",
+            "Standard",
+            "Succeeded",
+            True,
+            10,
         ),
     }
     actual_ns_nodes = check_nodes(
-        neo4j_session, "AzureEventHubsNamespace", ["id", "name"]
+        neo4j_session,
+        "AzureEventHubsNamespace",
+        [
+            "id",
+            "name",
+            "location",
+            "sku_name",
+            "sku_tier",
+            "provisioning_state",
+            "is_auto_inflate_enabled",
+            "maximum_throughput_units",
+        ],
     )
     assert actual_ns_nodes == expected_ns_nodes
 
@@ -105,8 +128,12 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
     # Assert Event Hubs
     event_hub_id = MOCK_EVENT_HUBS[0]["id"]
 
-    expected_eh_nodes = {(event_hub_id, "my-test-eh")}
-    actual_eh_nodes = check_nodes(neo4j_session, "AzureEventHub", ["id", "name"])
+    expected_eh_nodes = {(event_hub_id, "my-test-eh", "Active", 4, 7)}
+    actual_eh_nodes = check_nodes(
+        neo4j_session,
+        "AzureEventHub",
+        ["id", "name", "status", "partition_count", "message_retention_in_days"],
+    )
     assert actual_eh_nodes == expected_eh_nodes
 
     # Test relationship: (Namespace)-[:CONTAINS]->(EventHub)
