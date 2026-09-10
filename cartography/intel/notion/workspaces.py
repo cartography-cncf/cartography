@@ -7,8 +7,10 @@ from cartography.client.core.tx import load
 from cartography.intel.notion.util import NOTION_API_BASE_URL
 from cartography.intel.notion.util import REQUEST_TIMEOUT
 from cartography.models.notion.workspace import NotionWorkspaceSchema
+from cartography.util import timeit
 
 
+@timeit
 def get(api_session: requests.Session) -> dict[str, Any]:
     response = api_session.get(
         f"{NOTION_API_BASE_URL}/users/me",
@@ -22,6 +24,8 @@ def get(api_session: requests.Session) -> dict[str, Any]:
 
 
 def transform(token_user: dict[str, Any]) -> dict[str, Any]:
+    if token_user.get("object") != "user":
+        raise ValueError("Notion current bot response has an unexpected object type")
     if token_user.get("type") != "bot":
         raise ValueError(
             "Notion personal access tokens cannot list workspace users; "
@@ -39,16 +43,19 @@ def transform(token_user: dict[str, Any]) -> dict[str, Any]:
     workspace_name = bot.get("workspace_name")
     if not isinstance(workspace_id, str) or not workspace_id:
         raise ValueError("Notion current bot response is missing a workspace id")
-    if workspace_name is not None and not isinstance(workspace_name, str):
+    if workspace_name is not None and (
+        not isinstance(workspace_name, str) or not workspace_name
+    ):
         raise ValueError("Notion current bot workspace name must be a string or null")
 
     return {
         "id": workspace_id,
-        "name": workspace_name,
+        "name": workspace_name or workspace_id,
         "token_bot_notion_user_id": notion_bot_id,
     }
 
 
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     workspace: dict[str, Any],

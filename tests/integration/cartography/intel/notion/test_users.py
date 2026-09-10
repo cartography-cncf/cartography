@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 import cartography.intel.notion.users
 import cartography.intel.notion.workspaces
 from tests.data.notion.users import TOKEN_USER
@@ -13,6 +15,9 @@ TEST_UPDATE_TAG = 123456789
 def _response(results):
     response = MagicMock()
     response.json.return_value = {
+        "object": "list",
+        "type": "user",
+        "user": {},
         "results": results,
         "has_more": False,
         "next_cursor": None,
@@ -145,4 +150,39 @@ def test_cleanup_is_scoped_to_workspace(neo4j_session):
         ("workspace-1/bot-1",),
         ("workspace-2/bot-1",),
         ("workspace-2/bot-2",),
+    }
+
+
+def test_malformed_response_does_not_trigger_cleanup(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _sync(neo4j_session, "workspace-1", "One", USERS, TEST_UPDATE_TAG)
+    token_user = {
+        **TOKEN_USER,
+        "bot": {
+            **TOKEN_USER["bot"],
+            "workspace_id": "workspace-1",
+            "workspace_name": "One",
+        },
+    }
+    workspace = cartography.intel.notion.workspaces.transform(token_user)
+    workspace["token_user"] = token_user
+    api_session = MagicMock()
+    api_session.get.return_value = MagicMock()
+    api_session.get.return_value.json.return_value = {
+        "results": [],
+        "has_more": False,
+    }
+
+    with pytest.raises(ValueError, match="unexpected object type"):
+        cartography.intel.notion.users.sync(
+            neo4j_session,
+            api_session,
+            workspace,
+            TEST_UPDATE_TAG + 1,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "WORKSPACE_ID": "workspace-1"},
+        )
+
+    assert check_nodes(neo4j_session, "NotionUser", ["id"]) == {
+        ("workspace-1/person-1",),
+        ("workspace-1/person-2",),
     }

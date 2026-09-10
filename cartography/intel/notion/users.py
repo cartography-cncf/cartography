@@ -15,8 +15,9 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get(api_session: requests.Session) -> list[dict[str, Any]]:
-    return get_paginated(api_session, "users")
+    return get_paginated(api_session, "users", "user")
 
 
 def transform(
@@ -34,6 +35,8 @@ def transform(
     users_by_id[token_user_id] = token_user
 
     for user in users_by_id.values():
+        if user.get("object") != "user":
+            raise ValueError("Notion user response has an unexpected object type")
         notion_user_id = user.get("id")
         user_type = user.get("type")
         if not isinstance(notion_user_id, str) or not notion_user_id:
@@ -76,6 +79,10 @@ def transform(
             owner_notion_user_id = (
                 owner_user.get("id") if owner_type == "user" else None
             )
+            if owner_type == "user" and (
+                not isinstance(owner_notion_user_id, str) or not owner_notion_user_id
+            ):
+                raise ValueError("Notion bot user owner is missing a valid id")
             bots.append(
                 {
                     "id": scoped_id(workspace_id, notion_user_id),
@@ -145,5 +152,10 @@ def sync(
     raw_users = get(api_session)
     people, bots = transform(raw_users, workspace_id, workspace["token_user"])
     load_users(neo4j_session, people, bots, workspace_id, update_tag)
+    logger.info(
+        "Loaded %d Notion users and %d Notion bot connections",
+        len(people),
+        len(bots),
+    )
     cleanup(neo4j_session, common_job_parameters)
     logger.info("Completed Notion identity sync")

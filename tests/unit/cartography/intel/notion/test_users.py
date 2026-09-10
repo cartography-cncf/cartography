@@ -35,7 +35,7 @@ def test_transform_splits_people_and_bots():
 
 def test_transform_rejects_unknown_user_type():
     # Arrange
-    users = [{"id": "unknown-1", "type": "alien"}]
+    users = [{"object": "user", "id": "unknown-1", "type": "alien"}]
 
     # Act and assert
     with pytest.raises(ValueError, match="Unsupported Notion user type"):
@@ -45,7 +45,7 @@ def test_transform_rejects_unknown_user_type():
 def test_transform_requires_id_and_type():
     # Act and assert
     with pytest.raises(ValueError, match="valid id"):
-        transform([{"type": "person"}], "workspace-1", TOKEN_USER)
+        transform([{"object": "user", "type": "person"}], "workspace-1", TOKEN_USER)
 
 
 @pytest.mark.parametrize(
@@ -54,6 +54,13 @@ def test_transform_requires_id_and_type():
         {"id": "person-1", "type": "person", "person": []},
         {"id": "bot-malformed", "type": "bot", "bot": []},
         {"id": "bot-malformed", "type": "bot", "bot": {"owner": []}},
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": {"type": "user", "user": {"id": ""}}},
+        },
+        {"object": "page", "id": "person-1", "type": "person"},
     ],
 )
 def test_transform_rejects_malformed_user_details(user):

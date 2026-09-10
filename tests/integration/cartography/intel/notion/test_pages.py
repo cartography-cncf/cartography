@@ -22,6 +22,17 @@ def _response(payload, status_code=200):
     return response
 
 
+def _search_payload(results, has_more=False, next_cursor=None):
+    return {
+        "object": "list",
+        "type": "page_or_data_source",
+        "page_or_data_source": {},
+        "results": results,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+    }
+
+
 def _seed_workspace_and_users(neo4j_session):
     workspace = cartography.intel.notion.workspaces.transform(TOKEN_USER)
     workspace["token_user"] = TOKEN_USER
@@ -32,7 +43,14 @@ def _seed_workspace_and_users(neo4j_session):
     )
     api_session = MagicMock()
     api_session.get.return_value = _response(
-        {"results": USERS, "has_more": False, "next_cursor": None},
+        {
+            "object": "list",
+            "type": "user",
+            "user": {},
+            "results": USERS,
+            "has_more": False,
+            "next_cursor": None,
+        },
     )
     cartography.intel.notion.users.sync(
         neo4j_session,
@@ -49,7 +67,7 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
     _seed_workspace_and_users(neo4j_session)
     api_session = MagicMock()
     api_session.post.return_value = _response(
-        {"results": [PUBLIC_PAGE], "has_more": False, "next_cursor": None},
+        _search_payload([PUBLIC_PAGE]),
     )
 
     # Act
@@ -100,7 +118,7 @@ def test_sync_deletes_only_confirmed_unpublished_pages(neo4j_session):
     _seed_workspace_and_users(neo4j_session)
     first_session = MagicMock()
     first_session.post.return_value = _response(
-        {"results": [PUBLIC_PAGE], "has_more": False, "next_cursor": None},
+        _search_payload([PUBLIC_PAGE]),
     )
     cartography.intel.notion.pages.sync(
         neo4j_session,
@@ -111,7 +129,7 @@ def test_sync_deletes_only_confirmed_unpublished_pages(neo4j_session):
     unpublished_page = {**PUBLIC_PAGE, "public_url": None}
     second_session = MagicMock()
     second_session.post.return_value = _response(
-        {"results": [unpublished_page], "has_more": False, "next_cursor": None},
+        _search_payload([unpublished_page]),
     )
 
     # Act
@@ -132,7 +150,7 @@ def test_sync_preserves_page_omitted_from_non_authoritative_search(neo4j_session
     _seed_workspace_and_users(neo4j_session)
     first_session = MagicMock()
     first_session.post.return_value = _response(
-        {"results": [PUBLIC_PAGE], "has_more": False, "next_cursor": None},
+        _search_payload([PUBLIC_PAGE]),
     )
     cartography.intel.notion.pages.sync(
         neo4j_session,
@@ -142,7 +160,7 @@ def test_sync_preserves_page_omitted_from_non_authoritative_search(neo4j_session
     )
     second_session = MagicMock()
     second_session.post.return_value = _response(
-        {"results": [], "has_more": False, "next_cursor": None},
+        _search_payload([]),
     )
 
     # Act
@@ -168,7 +186,7 @@ def test_sync_preserves_page_when_search_pagination_fails(neo4j_session):
     _seed_workspace_and_users(neo4j_session)
     first_session = MagicMock()
     first_session.post.return_value = _response(
-        {"results": [PUBLIC_PAGE], "has_more": False, "next_cursor": None},
+        _search_payload([PUBLIC_PAGE]),
     )
     cartography.intel.notion.pages.sync(
         neo4j_session,
@@ -177,8 +195,9 @@ def test_sync_preserves_page_when_search_pagination_fails(neo4j_session):
         TEST_UPDATE_TAG,
     )
     failed_session = MagicMock()
+    unpublished_page = {**PUBLIC_PAGE, "public_url": None}
     failed_session.post.return_value = _response(
-        {"results": [], "has_more": True, "next_cursor": None},
+        _search_payload([unpublished_page], True, None),
     )
 
     # Act and assert

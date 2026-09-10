@@ -29,6 +29,17 @@ def test_transform_discovers_workspace_from_token_bot():
     }
 
 
+def test_transform_uses_workspace_id_when_public_connection_omits_name():
+    token_user = {
+        **TOKEN_USER,
+        "bot": {**TOKEN_USER["bot"], "workspace_name": None},
+    }
+
+    result = transform(token_user)
+
+    assert result["name"] == "workspace-1"
+
+
 def test_transform_rejects_personal_access_token_user():
     # Arrange
     token_user = {"object": "user", "id": "person-1", "type": "person"}

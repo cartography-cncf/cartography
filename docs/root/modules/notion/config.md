@@ -10,8 +10,9 @@ Personal access tokens are not supported because Notion does not allow them to
 list workspace users.
 
 Store tokens in a secret manager or environment variable; base64 encoding the
-module config does not encrypt it. Cartography discovers the workspace ID and
-name from each connection token.
+module config does not encrypt it. Cartography discovers the workspace ID and,
+when Notion exposes it, the workspace name from each connection token. Public
+connections may use the stable workspace ID as the tenant name.
 
 ## Required Permissions
 
@@ -61,7 +62,9 @@ scoped by the workspace ID returned by Notion, so the same identity can safely
 appear in more than one workspace.
 
 Set `sync_public_pages` to `true` only when the connection has Read content and
-the additional search cost is acceptable. The sync stores page metadata such as
+the additional search cost is acceptable. Search responses are processed in
+bounded batches so high-cardinality workspaces do not require retaining every
+page object in memory. The sync stores page metadata such as
 title, URL, public URL, timestamps, parent ID, and creator. It never stores page
 body or comment content.
 

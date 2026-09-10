@@ -1,6 +1,7 @@
 import base64
 import binascii
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -81,6 +82,7 @@ def create_api_session(api_token: str) -> requests.Session:
 def get_paginated(
     api_session: requests.Session,
     endpoint: str,
+    expected_type: str,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     next_cursor: str | None = None
@@ -96,24 +98,15 @@ def get_paginated(
             timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, dict):
-            raise ValueError("Notion paginated response must be a JSON object")
-
-        page_results = payload.get("results")
-        has_more = payload.get("has_more")
-        if not isinstance(page_results, list) or not all(
-            isinstance(item, dict) for item in page_results
-        ):
-            raise ValueError("Notion paginated response must contain object results")
-        if not isinstance(has_more, bool):
-            raise ValueError("Notion paginated response must contain boolean has_more")
+        page_results, has_more, next_cursor_value = _validate_paginated_payload(
+            response.json(),
+            expected_type,
+        )
         results.extend(page_results)
 
         if not has_more:
             return results
 
-        next_cursor_value = payload.get("next_cursor")
         if not isinstance(next_cursor_value, str) or not next_cursor_value:
             raise ValueError("Notion paginated response is missing next_cursor")
         if next_cursor_value in seen_cursors:
@@ -126,12 +119,34 @@ def scoped_id(workspace_id: str, notion_id: str) -> str:
     return f"{workspace_id}/{notion_id}"
 
 
+def _validate_paginated_payload(
+    payload: Any,
+    expected_type: str,
+) -> tuple[list[dict[str, Any]], bool, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Notion paginated response must be a JSON object")
+    if payload.get("object") != "list" or payload.get("type") != expected_type:
+        raise ValueError("Notion paginated response has an unexpected object type")
+    if not isinstance(payload.get(expected_type), dict):
+        raise ValueError("Notion paginated response is missing type metadata")
+
+    page_results = payload.get("results")
+    has_more = payload.get("has_more")
+    if not isinstance(page_results, list) or not all(
+        isinstance(item, dict) for item in page_results
+    ):
+        raise ValueError("Notion paginated response must contain object results")
+    if not isinstance(has_more, bool):
+        raise ValueError("Notion paginated response must contain boolean has_more")
+    return page_results, has_more, payload.get("next_cursor")
+
+
 def post_paginated(
     api_session: requests.Session,
     endpoint: str,
     body: dict[str, Any],
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
+    expected_type: str,
+) -> Iterator[list[dict[str, Any]]]:
     next_cursor: str | None = None
     seen_cursors: set[str] = set()
 
@@ -145,24 +160,15 @@ def post_paginated(
             timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, dict):
-            raise ValueError("Notion paginated response must be a JSON object")
-
-        page_results = payload.get("results")
-        has_more = payload.get("has_more")
-        if not isinstance(page_results, list) or not all(
-            isinstance(item, dict) for item in page_results
-        ):
-            raise ValueError("Notion paginated response must contain object results")
-        if not isinstance(has_more, bool):
-            raise ValueError("Notion paginated response must contain boolean has_more")
-        results.extend(page_results)
+        page_results, has_more, next_cursor_value = _validate_paginated_payload(
+            response.json(),
+            expected_type,
+        )
+        yield page_results
 
         if not has_more:
-            return results
+            return
 
-        next_cursor_value = payload.get("next_cursor")
         if not isinstance(next_cursor_value, str) or not next_cursor_value:
             raise ValueError("Notion paginated response is missing next_cursor")
         if next_cursor_value in seen_cursors:

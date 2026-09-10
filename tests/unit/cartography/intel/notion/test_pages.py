@@ -10,7 +10,6 @@ def test_transform_keeps_only_public_page_metadata():
     public_pages, unpublished_page_ids = transform(
         [PUBLIC_PAGE, PRIVATE_PAGE],
         "workspace-1",
-        {"page-private"},
     )
 
     # Assert
@@ -35,17 +34,16 @@ def test_transform_keeps_only_public_page_metadata():
     assert unpublished_page_ids == ["workspace-1/page-private"]
 
 
-def test_transform_does_not_delete_new_private_pages():
+def test_transform_records_explicitly_unpublished_pages():
     # Act
     public_pages, unpublished_page_ids = transform(
         [PRIVATE_PAGE],
         "workspace-1",
-        set(),
     )
 
     # Assert
     assert public_pages == []
-    assert unpublished_page_ids == []
+    assert unpublished_page_ids == ["workspace-1/page-private"]
 
 
 @pytest.mark.parametrize(
@@ -53,13 +51,16 @@ def test_transform_does_not_delete_new_private_pages():
     [
         {**PUBLIC_PAGE, "object": "database"},
         {**PUBLIC_PAGE, "id": None},
+        {key: value for key, value in PUBLIC_PAGE.items() if key != "public_url"},
         {**PUBLIC_PAGE, "public_url": []},
         {**PUBLIC_PAGE, "created_by": []},
+        {**PUBLIC_PAGE, "created_by": {"object": "user", "id": ""}},
         {**PUBLIC_PAGE, "parent": []},
         {**PUBLIC_PAGE, "properties": []},
+        {**PUBLIC_PAGE, "is_locked": None},
     ],
 )
 def test_transform_rejects_malformed_pages(page):
     # Act and assert
     with pytest.raises(ValueError):
-        transform([page], "workspace-1", set())
+        transform([page], "workspace-1")

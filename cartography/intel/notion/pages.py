@@ -1,11 +1,13 @@
+import json
 import logging
+import tempfile
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.intel.notion.util import post_paginated
 from cartography.intel.notion.util import scoped_id
@@ -15,37 +17,15 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def get_existing_page_ids(
-    neo4j_session: neo4j.Session,
-    workspace_id: str,
-) -> list[str]:
-    query = """
-    MATCH (:NotionWorkspace {id: $WORKSPACE_ID})-[:RESOURCE]->(p:NotionPage)
-    RETURN p.notion_page_id
-    """
-    return [
-        str(page_id)
-        for page_id in neo4j_session.execute_read(
-            read_list_of_values_tx,
-            query,
-            WORKSPACE_ID=workspace_id,
-        )
-    ]
-
-
 def get(
     api_session: requests.Session,
-) -> list[dict[str, Any]]:
-    search_results = post_paginated(
+) -> Iterator[list[dict[str, Any]]]:
+    return post_paginated(
         api_session,
         "search",
         {"filter": {"property": "object", "value": "page"}},
+        "page_or_data_source",
     )
-    for page in search_results:
-        notion_page_id = page.get("id")
-        if not isinstance(notion_page_id, str) or not notion_page_id:
-            raise ValueError("Notion search page is missing a valid id")
-    return search_results
 
 
 def _get_title(properties: dict[str, Any]) -> str | None:
@@ -66,7 +46,6 @@ def _get_title(properties: dict[str, Any]) -> str | None:
 def transform(
     pages: list[dict[str, Any]],
     workspace_id: str,
-    existing_page_ids: set[str],
 ) -> tuple[list[dict[str, Any]], list[str]]:
     public_pages: list[dict[str, Any]] = []
     unpublished_page_ids: list[str] = []
@@ -75,17 +54,33 @@ def transform(
         if page.get("object") != "page":
             raise ValueError("Notion page search returned a non-page object")
         notion_page_id = page.get("id")
-        public_url = page.get("public_url")
         if not isinstance(notion_page_id, str) or not notion_page_id:
             raise ValueError("Notion page response is missing a valid id")
-        if public_url is None:
-            if notion_page_id in existing_page_ids:
-                unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))
-            continue
-        if not isinstance(public_url, str) or not public_url:
+        if "public_url" not in page:
+            raise ValueError("Notion page response is missing public_url")
+        public_url = page["public_url"]
+        if public_url is not None and (
+            not isinstance(public_url, str) or not public_url
+        ):
             raise ValueError(
                 "Notion page public_url must be a non-empty string or null"
             )
+
+        created_time = page.get("created_time")
+        last_edited_time = page.get("last_edited_time")
+        url = page.get("url")
+        in_trash = page.get("in_trash")
+        is_locked = page.get("is_locked")
+        if not isinstance(created_time, str) or not created_time:
+            raise ValueError("Notion page response is missing created_time")
+        if not isinstance(last_edited_time, str) or not last_edited_time:
+            raise ValueError("Notion page response is missing last_edited_time")
+        if not isinstance(url, str) or not url:
+            raise ValueError("Notion page response is missing a valid url")
+        if not isinstance(in_trash, bool):
+            raise ValueError("Notion page response is missing boolean in_trash")
+        if not isinstance(is_locked, bool):
+            raise ValueError("Notion page response is missing boolean is_locked")
 
         created_by = page.get("created_by")
         parent = page.get("parent")
@@ -97,27 +92,34 @@ def transform(
         if not isinstance(properties, dict):
             raise ValueError("Notion page response must contain a properties object")
         created_by_notion_user_id = created_by.get("id")
-        if not isinstance(created_by_notion_user_id, str):
+        if (
+            not isinstance(created_by_notion_user_id, str)
+            or not created_by_notion_user_id
+        ):
             raise ValueError("Notion page creator is missing a valid id")
         parent_type = parent.get("type")
-        if not isinstance(parent_type, str):
+        if not isinstance(parent_type, str) or not parent_type:
             raise ValueError("Notion page parent is missing a valid type")
         parent_notion_id = parent.get(parent_type)
         if not isinstance(parent_notion_id, str):
             parent_notion_id = None
+
+        if public_url is None:
+            unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))
+            continue
 
         public_pages.append(
             {
                 "id": scoped_id(workspace_id, notion_page_id),
                 "notion_page_id": notion_page_id,
                 "title": _get_title(properties),
-                "url": page.get("url"),
+                "url": url,
                 "public_url": public_url,
                 "is_public": True,
-                "created_time": page.get("created_time"),
-                "last_edited_time": page.get("last_edited_time"),
-                "in_trash": page.get("in_trash"),
-                "is_locked": page.get("is_locked"),
+                "created_time": created_time,
+                "last_edited_time": last_edited_time,
+                "in_trash": in_trash,
+                "is_locked": is_locked,
                 "parent_type": parent_type,
                 "parent_notion_id": parent_notion_id,
                 "created_by_notion_user_id": created_by_notion_user_id,
@@ -171,16 +173,31 @@ def sync(
     update_tag: int,
 ) -> None:
     logger.info("Starting Notion public page sync")
-    existing_page_ids = set(get_existing_page_ids(neo4j_session, workspace_id))
-    # Search is not authoritative, so absence must never drive cleanup. It is also
-    # important not to re-fetch every missing page because that creates an
-    # unbounded request-per-page fallback for large workspaces.
-    raw_pages = get(api_session)
-    public_pages, unpublished_page_ids = transform(
-        raw_pages,
-        workspace_id,
-        existing_page_ids,
+    public_page_count = 0
+    unpublished_page_count = 0
+    # Search is non-authoritative, so only explicit null public URLs drive cleanup.
+    # Keep those destructive updates staged until every response page is valid.
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_deletes:
+        for raw_pages in get(api_session):
+            public_pages, unpublished_page_ids = transform(raw_pages, workspace_id)
+            load_pages(neo4j_session, public_pages, workspace_id, update_tag)
+            public_page_count += len(public_pages)
+            unpublished_page_count += len(unpublished_page_ids)
+            for page_id in unpublished_page_ids:
+                staged_deletes.write(json.dumps(page_id))
+                staged_deletes.write("\n")
+
+        staged_deletes.seek(0)
+        delete_batch: list[str] = []
+        for line in staged_deletes:
+            delete_batch.append(json.loads(line))
+            if len(delete_batch) == 10_000:
+                delete_confirmed_unpublished_pages(neo4j_session, delete_batch)
+                delete_batch = []
+        delete_confirmed_unpublished_pages(neo4j_session, delete_batch)
+    logger.info(
+        "Loaded %d public Notion pages and observed %d unpublished pages",
+        public_page_count,
+        unpublished_page_count,
     )
-    load_pages(neo4j_session, public_pages, workspace_id, update_tag)
-    delete_confirmed_unpublished_pages(neo4j_session, unpublished_page_ids)
     logger.info("Completed Notion public page sync")

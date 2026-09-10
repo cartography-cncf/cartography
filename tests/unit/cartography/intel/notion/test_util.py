@@ -76,6 +76,17 @@ def _response(payload):
     return response
 
 
+def _list_payload(result_type, results, has_more=False, next_cursor=None):
+    return {
+        "object": "list",
+        "type": result_type,
+        result_type: {},
+        "results": results,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+    }
+
+
 def test_create_api_session_configures_version_and_bounded_read_retries():
     # Act
     session = create_api_session("secret-token")
@@ -94,12 +105,12 @@ def test_get_paginated_reads_every_page():
     # Arrange
     session = MagicMock()
     session.get.side_effect = [
-        _response({"results": [{"id": "one"}], "has_more": True, "next_cursor": "c2"}),
-        _response({"results": [{"id": "two"}], "has_more": False, "next_cursor": None}),
+        _response(_list_payload("user", [{"id": "one"}], True, "c2")),
+        _response(_list_payload("user", [{"id": "two"}])),
     ]
 
     # Act
-    result = get_paginated(session, "users")
+    result = get_paginated(session, "users", "user")
 
     # Assert
     assert result == [{"id": "one"}, {"id": "two"}]
@@ -110,16 +121,16 @@ def test_post_paginated_reads_every_page_without_mutating_body():
     # Arrange
     session = MagicMock()
     session.post.side_effect = [
-        _response({"results": [{"id": "one"}], "has_more": True, "next_cursor": "c2"}),
-        _response({"results": [{"id": "two"}], "has_more": False, "next_cursor": None}),
+        _response(_list_payload("page_or_data_source", [{"id": "one"}], True, "c2")),
+        _response(_list_payload("page_or_data_source", [{"id": "two"}])),
     ]
     body = {"filter": {"property": "object", "value": "page"}}
 
     # Act
-    result = post_paginated(session, "search", body)
+    result = list(post_paginated(session, "search", body, "page_or_data_source"))
 
     # Assert
-    assert result == [{"id": "one"}, {"id": "two"}]
+    assert result == [[{"id": "one"}], [{"id": "two"}]]
     assert body == {"filter": {"property": "object", "value": "page"}}
     assert session.post.call_args_list[1].kwargs["json"]["start_cursor"] == "c2"
 
@@ -129,11 +140,12 @@ def test_post_paginated_reads_every_page_without_mutating_body():
     [
         [[{"id": "not-an-object"}]],
         [{"results": {}, "has_more": False}],
-        [{"results": [], "has_more": "false"}],
-        [{"results": [], "has_more": True, "next_cursor": None}],
+        [_list_payload("user", {}, False)],
+        [_list_payload("user", [], "false")],
+        [_list_payload("user", [], True, None)],
         [
-            {"results": [], "has_more": True, "next_cursor": "same"},
-            {"results": [], "has_more": True, "next_cursor": "same"},
+            _list_payload("user", [], True, "same"),
+            _list_payload("user", [], True, "same"),
         ],
     ],
 )
@@ -144,7 +156,7 @@ def test_get_paginated_rejects_malformed_or_nonprogressing_responses(payloads):
 
     # Act and assert
     with pytest.raises(ValueError):
-        get_paginated(session, "users")
+        get_paginated(session, "users", "user")
 
 
 @pytest.mark.parametrize(
@@ -152,11 +164,12 @@ def test_get_paginated_rejects_malformed_or_nonprogressing_responses(payloads):
     [
         [[{"id": "not-an-object"}]],
         [{"results": {}, "has_more": False}],
-        [{"results": [], "has_more": "false"}],
-        [{"results": [], "has_more": True, "next_cursor": None}],
+        [_list_payload("page_or_data_source", {}, False)],
+        [_list_payload("page_or_data_source", [], "false")],
+        [_list_payload("page_or_data_source", [], True, None)],
         [
-            {"results": [], "has_more": True, "next_cursor": "same"},
-            {"results": [], "has_more": True, "next_cursor": "same"},
+            _list_payload("page_or_data_source", [], True, "same"),
+            _list_payload("page_or_data_source", [], True, "same"),
         ],
     ],
 )
@@ -167,4 +180,4 @@ def test_post_paginated_rejects_malformed_or_nonprogressing_responses(payloads):
 
     # Act and assert
     with pytest.raises(ValueError):
-        post_paginated(session, "search", {})
+        list(post_paginated(session, "search", {}, "page_or_data_source"))
