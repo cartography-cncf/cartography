@@ -176,16 +176,25 @@ def sync(
     public_page_count = 0
     unpublished_page_count = 0
     # Search is non-authoritative, so only explicit null public URLs drive cleanup.
-    # Keep those destructive updates staged until every response page is valid.
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_deletes:
+    # Keep graph updates staged until every response page is valid.
+    with (
+        tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_pages,
+        tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_deletes,
+    ):
         for raw_pages in get(api_session):
             public_pages, unpublished_page_ids = transform(raw_pages, workspace_id)
-            load_pages(neo4j_session, public_pages, workspace_id, update_tag)
             public_page_count += len(public_pages)
             unpublished_page_count += len(unpublished_page_ids)
+            if public_pages:
+                staged_pages.write(json.dumps(public_pages))
+                staged_pages.write("\n")
             for page_id in unpublished_page_ids:
                 staged_deletes.write(json.dumps(page_id))
                 staged_deletes.write("\n")
+
+        staged_pages.seek(0)
+        for line in staged_pages:
+            load_pages(neo4j_session, json.loads(line), workspace_id, update_tag)
 
         staged_deletes.seek(0)
         delete_batch: list[str] = []

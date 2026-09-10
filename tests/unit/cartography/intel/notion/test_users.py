@@ -51,19 +51,32 @@ def test_transform_requires_id_and_type():
 @pytest.mark.parametrize(
     "user",
     [
-        {"id": "person-1", "type": "person", "person": []},
-        {"id": "bot-malformed", "type": "bot", "bot": []},
-        {"id": "bot-malformed", "type": "bot", "bot": {"owner": []}},
+        {"object": "user", "id": "person-1", "type": "person", "person": []},
+        {"object": "user", "id": "bot-malformed", "type": "bot", "bot": []},
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": []},
+        },
         {
             "object": "user",
             "id": "bot-malformed",
             "type": "bot",
             "bot": {"owner": {"type": "user", "user": {"id": ""}}},
         },
-        {"object": "page", "id": "person-1", "type": "person"},
     ],
 )
 def test_transform_rejects_malformed_user_details(user):
     # Act and assert
     with pytest.raises(ValueError):
         transform([user], "workspace-1", TOKEN_USER)
+
+
+def test_transform_rejects_wrong_object_type():
+    with pytest.raises(ValueError, match="unexpected object type"):
+        transform(
+            [{"object": "page", "id": "person-1", "type": "person"}],
+            "workspace-1",
+            TOKEN_USER,
+        )

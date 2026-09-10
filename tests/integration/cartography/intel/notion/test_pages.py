@@ -196,9 +196,16 @@ def test_sync_preserves_page_when_search_pagination_fails(neo4j_session):
     )
     failed_session = MagicMock()
     unpublished_page = {**PUBLIC_PAGE, "public_url": None}
-    failed_session.post.return_value = _response(
-        _search_payload([unpublished_page], True, None),
-    )
+    new_public_page = {
+        **PUBLIC_PAGE,
+        "id": "page-new",
+        "url": "https://www.notion.so/page-new",
+        "public_url": "https://example.notion.site/page-new",
+    }
+    failed_session.post.side_effect = [
+        _response(_search_payload([unpublished_page, new_public_page], True, "c2")),
+        _response({"results": [], "has_more": False}),
+    ]
 
     # Act and assert
     with pytest.raises(ValueError):
