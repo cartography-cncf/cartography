@@ -139,10 +139,12 @@ def cleanup_applications(
 async def sync_entra_applications(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
@@ -153,9 +155,15 @@ async def sync_entra_applications(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup
     """
     # Create credentials and client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
 
     client = GraphServiceClient(
         credential,
@@ -189,7 +197,8 @@ async def sync_entra_applications(
         load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
         apps_batch.clear()
         transformed_apps.clear()
-    cleanup_applications(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_applications(neo4j_session, common_job_parameters)
     logger.info(f"Completed syncing {total_app_count} applications")
     # Final garbage collection
     gc.collect()

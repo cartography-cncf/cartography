@@ -885,7 +885,7 @@ doc = [
 [package.metadata]
 requires-dist = [
     { name = "aioboto3", specifier = ">=15.0.0" },
-    { name = "azure-identity", specifier = ">=1.5.0" },
+    { name = "azure-identity", specifier = ">=1.12.0" },
     { name = "azure-keyvault-certificates", specifier = ">=4.0.0" },
     { name = "azure-keyvault-keys", specifier = ">=4.0.0" },
     { name = "azure-keyvault-secrets", specifier = ">=4.0.0" },

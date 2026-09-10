@@ -174,10 +174,12 @@ def cleanup_service_principals(
 async def sync_service_principals(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra service principals to the graph.
@@ -188,9 +190,15 @@ async def sync_service_principals(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup and analysis
     """
     # Create credentials and client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
 
     client = GraphServiceClient(
         credential,
@@ -229,6 +237,9 @@ async def sync_service_principals(
         )
         service_principals_batch.clear()
         transformed_service_principals.clear()
+
+    if delegated_auth:
+        return
 
     cleanup_service_principals(neo4j_session, common_job_parameters)
 

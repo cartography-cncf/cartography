@@ -221,10 +221,12 @@ def cleanup(
 async def sync_entra_users(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra users and tenant information
@@ -234,10 +236,16 @@ async def sync_entra_users(
     :param client_secret: Entra application client secret
     :param update_tag: Timestamp used to determine data freshness
     :param common_job_parameters: dict of other job parameters to carry to sub-jobs
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup
     :return: None
     """
     # Initialize Graph client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -261,4 +269,5 @@ async def sync_entra_users(
         transformed_users = list(transform_users(users_batch))
         load_users(neo4j_session, transformed_users, tenant_id, update_tag)
 
-    cleanup(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup(neo4j_session, common_job_parameters)
