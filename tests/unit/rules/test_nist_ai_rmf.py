@@ -23,6 +23,7 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": "0.2.1",
         "ai_third_party_app_inventory": "0.1.1",
         "ai_third_party_app_sensitive_scopes": "0.1.1",
+        "ai_admin_app_authorizations": "0.1.1",
         "aibom_agent_inventory": "0.1.1",
     }
     for rule_id, rule_obj in expected_rules.items():
@@ -179,6 +180,17 @@ def test_ai_admin_app_authorizations_include_delegated_admins():
     assert "u.is_delegated_admin" in fact.cypher_query
     assert "u.is_delegated_admin" in fact.cypher_visual_query
     assert "u.is_delegated_admin" in fact.cypher_count_query
+
+
+def test_ai_admin_app_authorizations_exclude_inactive_accounts():
+    fact = ai_admin_app_authorizations.get_fact_by_id(
+        "gw_nist_ai_admin_app_authorizations"
+    )
+    active_filter = "coalesce(u._ont_active, true) = true"
+
+    assert active_filter in fact.cypher_query
+    assert active_filter in fact.cypher_visual_query
+    assert active_filter in fact.cypher_count_query
 
 
 def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
