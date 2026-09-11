@@ -31,6 +31,10 @@ class ScalewayPrivateNetworkProperties(CartographyNodeProperties):
         "default_route_propagation_enabled",
         description="True if the default route is propagated.",
     )
+    has_object_storage_private_access: PropertyRef = PropertyRef(
+        "has_object_storage_private_access",
+        description="True if the Private Network is enabled for Object Storage private access.",
+    )
     created_at: PropertyRef = PropertyRef(
         "created_at", description="Private Network creation date."
     )

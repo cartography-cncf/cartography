@@ -32,6 +32,14 @@ class ScalewayVpcProperties(CartographyNodeProperties):
         "custom_routes_propagation_enabled",
         description="True if custom routes are propagated.",
     )
+    transitivity_enabled: PropertyRef = PropertyRef(
+        "transitivity_enabled",
+        description="True if the VPC allows packets from peered VPCs to transit through it.",
+    )
+    object_storage_private_access_enabled: PropertyRef = PropertyRef(
+        "object_storage_private_access_enabled",
+        description="True if Object Storage private access is enabled for the VPC.",
+    )
     created_at: PropertyRef = PropertyRef(
         "created_at", description="VPC creation date."
     )

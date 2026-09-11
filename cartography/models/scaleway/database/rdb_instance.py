@@ -32,6 +32,13 @@ class ScalewayRdbInstanceProperties(CartographyNodeProperties):
         "is_ha_cluster",
         description="True if the instance runs in high-availability mode.",
     )
+    high_availability_mode: PropertyRef = PropertyRef(
+        "high_availability_mode",
+        description=(
+            "High-availability topology of the instance (`disabled`, `single_zone`, "
+            "`multiple_zone`). Refines `is_ha_cluster`, which only says whether HA is on."
+        ),
+    )
     encryption_at_rest_enabled: PropertyRef = PropertyRef(
         "encryption_at_rest_enabled",
         description="True if encryption at rest is enabled.",

@@ -99,6 +99,8 @@ SCALEWAY_GROUPS = [
         managed=False,
         created_at=datetime(2025, 3, 20, 11, 13, 35, 109782, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 11, 13, 35, 109782, tzinfo=tzutc()),
+        all_users=False,
+        all_applications=False,
     )
 ]
 

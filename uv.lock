@@ -3733,28 +3733,28 @@ wheels = [
 
 [[package]]
 name = "scaleway"
-version = "2.11.0"
+version = "2.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "scaleway-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/74/f43e1577ac3d819ce861018fd81729a31a00bdeb8717e993d00229121ee1/scaleway-2.11.0.tar.gz", hash = "sha256:f3a48253c44814c704edf2f3c7235eb2996085d54d2e08a459871358ec309dfb", size = 779782, upload-time = "2026-04-02T13:50:40.411Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/67/9cc8aa4465408206ed5153c27e110e4249c6563fd8a834c19fd772e1e2b4/scaleway-2.12.0.tar.gz", hash = "sha256:25d4fcd8ef00ec6ea1fd581ca84c4d5d5cc2558d0b493c476c5651e130d76ffa", size = 758340, upload-time = "2026-09-02T19:46:47.721Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/08/3d4f4aabc475fc8f616d66dc3e98eac792f233d2dc383a0ab3a56a75dd80/scaleway-2.11.0-py3-none-any.whl", hash = "sha256:8c4b3ca3f4ff74f0f8b89f630a528bd8850a13586a417290190d74e7a3aba002", size = 954634, upload-time = "2026-04-02T13:50:41.657Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/69/09aa0b3c096f49a62dbf6692bd51937c0bae578a7f48aafa6662660758b0/scaleway-2.12.0-py3-none-any.whl", hash = "sha256:d9148af0d60a37353750917640aa2e500c1b4d9d3a577f4fedea201825bdc39b", size = 918420, upload-time = "2026-09-02T19:46:49.254Z" },
 ]
 
 [[package]]
 name = "scaleway-core"
-version = "2.11.0"
+version = "2.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/a2/e8962b08519b03b5d7c80d2946ba4caf1ff2ab603165e2d31f7819a794d0/scaleway_core-2.11.0.tar.gz", hash = "sha256:b86bb472032e039b7aab3b115aee952c62e39e360ead9c49e9b58589b125e43a", size = 27208, upload-time = "2026-04-02T13:48:53.274Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/3a/5368271c808d117f6097c72fccfc8724e82142cfdcca3663bdafe9cab01c/scaleway_core-2.12.0.tar.gz", hash = "sha256:654c35630b9213152b5c9b522a74f86e7c01b8c97f154dc8c372f7d1579fde4d", size = 27213, upload-time = "2026-09-02T16:18:04.15Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/0e/78b11333185b5fbf5f6fc4b26afacb3740c0e748f6b4e0c01451ebeb972e/scaleway_core-2.11.0-py3-none-any.whl", hash = "sha256:a204e33641b07f39e21d4e7bfbd3be3ce125cde1b884975abf8aaa0ac62129af", size = 33423, upload-time = "2026-04-02T13:48:54.331Z" },
+    { url = "https://files.pythonhosted.org/packages/90/d4/1e8e6c8f527a287e225a1992a91fd9e99fb34ef32ee1402cec2031048160/scaleway_core-2.12.0-py3-none-any.whl", hash = "sha256:b93b4d05115dbcd242bd042fddaaf89c081d3bb3dfc23f125521f894e8ab7ece", size = 33418, upload-time = "2026-09-02T16:18:04.928Z" },
 ]
 
 [[package]]
