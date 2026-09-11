@@ -108,9 +108,13 @@ def test_config_microsoft_certificate_password_is_stored_beside_the_path() -> No
     assert config.microsoft_client_certificate_password == "pfx-password"
 
 
-def test_config_rejects_certificate_password_without_a_certificate_path() -> None:
-    # Stored on its own the password would leave the Microsoft modules skipped
-    # as unconfigured; refuse it at construction like the CLI does.
+@pytest.mark.parametrize("password", ["pfx-password", ""])
+def test_config_rejects_certificate_password_without_a_certificate_path(
+    password: str,
+) -> None:
+    # Stored on its own the password (even an empty one) would leave the
+    # Microsoft modules skipped as unconfigured; refuse it at construction
+    # like the CLI does.
     with pytest.raises(
         ValueError, match="requires `microsoft_client_certificate_path`"
     ):
@@ -118,7 +122,7 @@ def test_config_rejects_certificate_password_without_a_certificate_path() -> Non
             neo4j_uri="bolt://localhost:7687",
             microsoft_tenant_id="tenant-id",
             microsoft_client_id="client-id",
-            microsoft_client_certificate_password="pfx-password",
+            microsoft_client_certificate_password=password,
         )
 
 
