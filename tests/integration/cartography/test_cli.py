@@ -204,6 +204,29 @@ def test_cli_microsoft_certificate_password_is_read_from_the_environment():
     assert config.microsoft_client_secret is None
 
 
+def test_cli_rejects_certificate_password_without_a_certificate_path():
+    # A password on its own would be dropped and the modules skipped as
+    # unconfigured; refuse it up front instead.
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--microsoft-client-id",
+            "client-id",
+            "--microsoft-client-certificate-password-env-var",
+            "MS_CERT_PASSWORD",
+        ],
+    )
+
+    assert exit_code == 1
+    sync.run.assert_not_called()
+
+
 def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
     # Arrange
     sync = unittest.mock.MagicMock()

@@ -2904,7 +2904,17 @@ class CLI:
                     microsoft_client_secret_env_var
                 )
 
-            # Read the Microsoft certificate password, for an encrypted file
+            # Read the Microsoft certificate password, for an encrypted file. A
+            # password without a certificate would otherwise be dropped silently
+            # and the Microsoft modules skipped as unconfigured.
+            if (
+                microsoft_client_certificate_password_env_var
+                and not microsoft_client_certificate_path
+            ):
+                raise typer.BadParameter(
+                    "--microsoft-client-certificate-password-env-var requires "
+                    "--microsoft-client-certificate-path.",
+                )
             microsoft_client_certificate_password = None
             if (
                 microsoft_client_certificate_path
