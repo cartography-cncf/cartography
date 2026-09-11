@@ -43,7 +43,10 @@ def _resolve_microsoft_credentials_config(
             "`entra_client_secret`). Use the Microsoft fields instead.",
         )
 
-    if microsoft_client_certificate_password and not microsoft_client_certificate_path:
+    if (
+        microsoft_client_certificate_password is not None
+        and not microsoft_client_certificate_path
+    ):
         # A password on its own would be stored and the Microsoft modules then
         # skipped as unconfigured; the CLI refuses the same pair before it gets here.
         raise ValueError(
