@@ -109,9 +109,7 @@ def test_config_microsoft_certificate_password_is_stored_beside_the_path() -> No
 
 
 @pytest.mark.parametrize("password", ["pfx-password", ""])
-def test_config_rejects_certificate_password_without_a_certificate_path(
-    password: str,
-) -> None:
+def test_config_rejects_certificate_password_without_a_certificate_path(password):
     # Stored on its own the password (even an empty one) would leave the
     # Microsoft modules skipped as unconfigured; refuse it at construction
     # like the CLI does.

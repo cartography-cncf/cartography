@@ -40,14 +40,14 @@ def make_credential(
         registered application's private key and certificate (PKCS#12 needs
         azure-identity >= 1.7.0, which pyproject pins)
     :param client_certificate_password: Password protecting the private key in
-        that file, for an encrypted PEM or PFX export. Omit for an unencrypted
-        file.
+        that file, for an encrypted PEM or PFX export (an empty string is a
+        password too: some PFX exports carry one). Omit for an unencrypted file.
     :return: A credential the Graph clients can authenticate with
     :raises ValueError: if neither a client secret nor a certificate is given
     """
     if client_certificate_path:
         kwargs: dict[str, str] = {}
-        if client_certificate_password:
+        if client_certificate_password is not None:
             kwargs["password"] = client_certificate_password
         return CertificateCredential(
             tenant_id=tenant_id,

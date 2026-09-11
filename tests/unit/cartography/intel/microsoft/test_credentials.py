@@ -66,7 +66,8 @@ def test_make_credential_forwards_the_certificate_password_only_when_given(
     mock_certificate_credential,
 ) -> None:
     # An encrypted PFX or PEM needs its password; the unencrypted call shape
-    # (no password kwarg at all) is what the test above pins.
+    # (no password kwarg at all) is what the test above pins. An EMPTY password
+    # is still a password (some PFX exports carry one) and is forwarded as such.
     credentials.make_credential(
         "tenant-id",
         "client-id",
@@ -80,6 +81,15 @@ def test_make_credential_forwards_the_certificate_password_only_when_given(
         certificate_path="/run/secrets/app.pfx",
         password="pfx-password",
     )
+
+    mock_certificate_credential.reset_mock()
+    credentials.make_credential(
+        "tenant-id",
+        "client-id",
+        client_certificate_path="/run/secrets/app.pfx",
+        client_certificate_password="",
+    )
+    assert mock_certificate_credential.call_args.kwargs["password"] == ""
 
 
 def test_make_credential_certificate_path_returns_certificate_credential(
