@@ -25,6 +25,9 @@ class ScalewayProjectNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef(
         "description", description="Project description"
     )
+    status: PropertyRef = PropertyRef(
+        "status", description="Project status (`active`, `deleting`)."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
