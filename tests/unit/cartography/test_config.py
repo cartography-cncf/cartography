@@ -23,6 +23,12 @@ def test_aws_organization_account_ids_preserves_config_positional_compatibility(
     assert parameters.index("microsoft_client_secret") > parameters.index(
         "microsoft_client_id",
     )
+    assert parameters.index("microsoft_client_certificate_path") > parameters.index(
+        "microsoft_client_secret",
+    )
+    assert parameters.index("microsoft_client_certificate_password") > parameters.index(
+        "microsoft_client_certificate_path"
+    )
 
 
 def test_bbot_source_preserves_config_positional_compatibility() -> None:
@@ -73,6 +79,68 @@ def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     assert config.entra_client_id == "client-id"
     assert config.entra_client_secret == "client-secret"
     assert "DEPRECATED" not in caplog.text
+
+
+def test_config_microsoft_certificate_path_is_stored_without_a_secret() -> None:
+    # Arrange and act
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_certificate_path="/run/secrets/app.pem",
+    )
+
+    # Assert
+    assert config.microsoft_client_certificate_path == "/run/secrets/app.pem"
+    assert config.microsoft_client_certificate_password is None
+    assert config.microsoft_client_secret is None
+
+
+def test_config_microsoft_certificate_password_is_stored_beside_the_path() -> None:
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_client_id="client-id",
+        microsoft_client_certificate_path="/run/secrets/app.pfx",
+        microsoft_client_certificate_password="pfx-password",
+    )
+
+    assert config.microsoft_client_certificate_password == "pfx-password"
+
+
+@pytest.mark.parametrize("password", ["pfx-password", ""])
+def test_config_rejects_certificate_password_without_a_certificate_path(password):
+    # Stored on its own the password (even an empty one) would leave the
+    # Microsoft modules skipped as unconfigured; refuse it at construction
+    # like the CLI does.
+    with pytest.raises(
+        ValueError, match="requires `microsoft_client_certificate_path`"
+    ):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            microsoft_client_id="client-id",
+            microsoft_client_certificate_password=password,
+        )
+
+
+def test_config_rejects_certificate_password_mixed_with_entra_credentials() -> None:
+    with pytest.raises(ValueError, match="Cannot mix Microsoft credential"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_client_certificate_password="pfx-password",
+            entra_tenant_id="tenant-id",
+        )
+
+
+def test_config_rejects_certificate_path_mixed_with_entra_credentials() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="Cannot mix Microsoft credential"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_client_certificate_path="/run/secrets/app.pem",
+            entra_tenant_id="tenant-id",
+        )
 
 
 def test_config_legacy_entra_credentials_populate_microsoft_aliases(caplog) -> None:
