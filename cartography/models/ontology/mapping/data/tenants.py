@@ -82,6 +82,21 @@ airbyte_mapping = OntologyMapping(
 
 # Anthropic: No field to map in AnthropicOrganization (minimal properties)
 
+# Opsgenie
+opsgenie_mapping = OntologyMapping(
+    module_name="opsgenie",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OpsgenieAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 # AWS
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -824,6 +839,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "keycloak": keycloak_mapping,
     "salesforce": salesforce_mapping,
     "okta": okta_mapping,
+    "opsgenie": opsgenie_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
