@@ -110,13 +110,19 @@ After GitHub and your identity provider have synced, the ontology module can
 link organization members to existing canonical `User` nodes using email-shaped
 NameIDs. Matching ignores surrounding whitespace and letter case, requires a
 single canonical user across the account's organization identities, and skips
-conflicts with email-based links refreshed in the same ontology run. For
+conflicts with GitHub public or organization verified-domain email links. The
+ontology sync populates an indexed `User.normalized_email` for this match while
+preserving the original primary email and canonical user ID. For
 example, configure `--ontology-users-source okta` to use Okta as the source of
 canonical users. SAML ingestion does not create canonical users on its own.
 
 Unavailable providers and denied access preserve prior identity data. A complete
-empty identity list removes stale identities for that organization. Other API
-errors fail the snapshot before any identity writes or cleanup. Refreshing the
+empty identity list removes stale identities for that organization. Transient
+transport failures, GraphQL timeouts, and rate limits retry the same page up to
+five attempts. HTTP rate-limit delays honor GitHub's retry/reset headers; a wait
+longer than five minutes fails the snapshot instead of retrying early. GraphQL
+rate-limit errors wait one minute between attempts. Unrecovered API errors fail
+the snapshot before any identity writes or cleanup. Refreshing the
 ontology removes links that no longer have an identity basis; SAML and existing
 GitHub email linking share the same relationship cleanup.
 

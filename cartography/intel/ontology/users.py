@@ -25,7 +25,7 @@ def sync(
     data = get_source_nodes_from_graph(neo4j_session, source_of_truth, "users")
     load_users(
         neo4j_session,
-        data,
+        transform_users(data),
         update_tag,
     )
     # Derive `_ont_has_mfa` and `_ont_active` on AWSUser from related
@@ -39,6 +39,16 @@ def sync(
     for job in USER_LINKING_JOBS:
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
+
+
+def transform_users(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            **user,
+            "normalized_email": (user.get("email") or "").strip().lower() or None,
+        }
+        for user in data
+    ]
 
 
 @timeit

@@ -1,5 +1,6 @@
 import json
 from copy import deepcopy
+from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -102,8 +103,9 @@ def test_get_distinguishes_absence_from_denied_access(mock_post, response, expec
         {"type": "RATE_LIMITED", "message": "API rate limit exceeded"},
     ],
 )
+@patch("cartography.intel.github.external_identities.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
-def test_get_rejects_partial_graphql_results(mock_post, error):
+def test_get_rejects_partial_graphql_results(mock_post, mock_sleep, error):
     # Arrange
     response = page(IDENTITIES)
     response["errors"] = [error]
@@ -112,6 +114,8 @@ def test_get_rejects_partial_graphql_results(mock_post, error):
     # Act and assert
     with pytest.raises(RuntimeError, match="query failed"):
         get_external_identities("test-token", API_URL, ORG)
+    assert mock_post.call_count == 5
+    assert mock_sleep.call_count == 4
 
 
 @patch("cartography.intel.github.util.requests.post")
@@ -135,3 +139,131 @@ def test_get_rejects_nonadvancing_pagination(mock_post):
     with pytest.raises(RuntimeError, match="did not advance"):
         get_external_identities("test-token", API_URL, ORG)
     assert mock_post.call_count == 2
+
+
+def _http_response(status, headers=None, payload=None):
+    response = requests.Response()
+    response.status_code = status
+    response.headers.update(headers or {})
+    response._content = json.dumps(payload or {}).encode()
+    return response
+
+
+@pytest.mark.parametrize(
+    "failure,delay",
+    [
+        *[(_http_response(status), 2) for status in (408, 500, 502, 503, 504)],
+        (_http_response(429, {"retry-after": "7"}), 7),
+        (_http_response(403, {"retry-after": "8"}), 8),
+        (_http_response(403, payload={"message": "secondary rate limit"}), 60),
+        (requests.Timeout(), 2),
+        (requests.ConnectionError(), 2),
+        (requests.exceptions.ChunkedEncodingError(), 2),
+    ],
+)
+@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_retries_transport_failure_on_same_page(
+    mock_post, mock_sleep, failure, delay
+):
+    # Arrange
+    mock_post.side_effect = [
+        _http_response(
+            200, payload=page(IDENTITIES[:2], has_next_page=True, cursor="cursor-1")
+        ),
+        failure,
+        _http_response(200, payload=page(IDENTITIES[2:])),
+    ]
+
+    # Act
+    result = get_external_identities("test-token", API_URL, ORG)
+
+    # Assert
+    assert result == (IDENTITIES, ORG_URL)
+    assert [
+        json.loads(c.kwargs["json"]["variables"])["cursor"]
+        for c in mock_post.call_args_list
+    ] == [None, "cursor-1", "cursor-1"]
+    mock_sleep.assert_called_once_with(delay)
+
+
+@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_recovers_partial_graphql_page_without_duplicate_records(
+    mock_post, mock_sleep
+):
+    # Arrange
+    limited = page(IDENTITIES[:1])
+    limited["errors"] = [{"type": "RATE_LIMITED", "message": "API rate limit exceeded"}]
+    timed_out = page(IDENTITIES[:1])
+    timed_out["errors"] = [{"message": "timedout"}]
+    mock_post.side_effect = [
+        _http_response(200, payload=limited),
+        _http_response(
+            200, payload=page(IDENTITIES[:2], has_next_page=True, cursor="cursor-1")
+        ),
+        _http_response(200, payload=timed_out),
+        _http_response(200, payload=page(IDENTITIES[2:])),
+    ]
+
+    # Act
+    result = get_external_identities("test-token", API_URL, ORG)
+
+    # Assert
+    assert result == (IDENTITIES, ORG_URL)
+    assert mock_sleep.call_args_list == [call(60), call(2)]
+    assert [
+        json.loads(c.kwargs["json"]["variables"])["cursor"]
+        for c in mock_post.call_args_list
+    ] == [None, None, "cursor-1", "cursor-1"]
+
+
+@pytest.mark.parametrize(
+    "status,headers", [(401, {}), (403, {}), (404, {}), (429, {"retry-after": "301"})]
+)
+@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_does_not_retry_permanent_failure_or_exceed_wait_budget(
+    mock_post, mock_sleep, status, headers
+):
+    # Arrange
+    mock_post.return_value = _http_response(status, headers)
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError):
+        get_external_identities("test-token", API_URL, ORG)
+    mock_post.assert_called_once()
+    mock_sleep.assert_not_called()
+
+
+@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_bounds_transport_attempts(mock_post, mock_sleep):
+    # Arrange
+    mock_post.return_value = _http_response(503)
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError):
+        get_external_identities("test-token", API_URL, ORG)
+    assert mock_post.call_count == 5
+    assert mock_sleep.call_args_list == [call(2), call(4), call(8), call(16)]
+
+
+@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_does_not_retry_unknown_graphql_errors(mock_post, mock_sleep):
+    # Arrange
+    mock_post.return_value = _http_response(
+        200,
+        payload={
+            "errors": [
+                {"type": "NOT_FOUND", "message": "Could not resolve organization"}
+            ]
+        },
+    )
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="query failed"):
+        get_external_identities("test-token", API_URL, ORG)
+    mock_post.assert_called_once()
+    mock_sleep.assert_not_called()

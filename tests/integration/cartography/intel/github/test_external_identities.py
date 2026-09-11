@@ -233,8 +233,9 @@ def test_denied_snapshot_preserves_existing_identities(
     }
 
 
+@patch("cartography.intel.github.external_identities.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
-def test_partial_error_does_not_write_or_cleanup(mock_post, neo4j_session):
+def test_partial_error_does_not_write_or_cleanup(mock_post, mock_sleep, neo4j_session):
     # Arrange
     mock_post.return_value.json.return_value = page(IDENTITIES)
     _sync(neo4j_session)
@@ -245,11 +246,17 @@ def test_partial_error_does_not_write_or_cleanup(mock_post, neo4j_session):
             "path": ["organization", "samlIdentityProvider", "externalIdentities"],
         }
     ]
-    mock_post.return_value.json.return_value = response
+    mock_post.reset_mock()
+    mock_post.side_effect = [
+        Mock(json=lambda: page([IDENTITIES[0]], has_next_page=True, cursor="cursor-1")),
+        *[Mock(json=lambda: response) for _ in range(5)],
+    ]
 
     # Act and assert
     with pytest.raises(RuntimeError, match="query failed"):
         _sync(neo4j_session, 200)
+    assert mock_post.call_count == 6
+    assert mock_sleep.call_count == 4
     assert len(check_nodes(neo4j_session, "GitHubExternalIdentity", ["id"])) == 4
     assert check_nodes(neo4j_session, "GitHubExternalIdentity", ["lastupdated"]) == {
         (100,)
@@ -262,6 +269,7 @@ def test_partial_error_does_not_write_or_cleanup(mock_post, neo4j_session):
         "ambiguous",
         "ambiguous_email",
         "conflicting_public_email",
+        "conflicting_verified_email",
         "nonmember",
         "opaque_nameid",
     ],
@@ -288,6 +296,10 @@ def test_ontology_rejects_unreliable_matches(mock_post, neo4j_session, case):
         neo4j_session.run(
             "MATCH (g:GitHubUser {username: 'example-alice'}) SET g.email = 'bob@example.com'"
         )
+    elif case == "conflicting_verified_email":
+        neo4j_session.run(
+            "MATCH (g:GitHubUser {username: 'example-alice'}) SET g.organization_verified_domain_emails = ['bob@example.com']"
+        )
     elif case == "nonmember":
         neo4j_session.run(
             "MATCH (:GitHubUser {username: 'example-alice'})-[r:MEMBER_OF]->(:GitHubOrganization) DELETE r"
@@ -302,7 +314,7 @@ def test_ontology_rejects_unreliable_matches(mock_post, neo4j_session, case):
 
     # Assert
     expected = {("carol@example.com", "example-carol")}
-    if case == "conflicting_public_email":
+    if case in {"conflicting_public_email", "conflicting_verified_email"}:
         expected.add(("bob@example.com", "example-alice"))
     assert _github_links(neo4j_session) == expected
     assert len(check_nodes(neo4j_session, "GitHubExternalIdentity", ["id"])) == len(
@@ -361,3 +373,68 @@ def test_unlinked_identity_removes_old_account_relationship(mock_post, neo4j_ses
         == set()
     )
     assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
+
+
+@patch("cartography.intel.github.util.requests.post")
+def test_ontology_backfills_normalized_email_without_changing_identity(
+    mock_post, neo4j_session
+):
+    # Arrange
+    primary_email = " Alice@Example.com "
+    _load_okta_users(
+        neo4j_session,
+        [{"id": "okta-alice", "email": primary_email}],
+        {"UPDATE_TAG": 100, "OKTA_ORG_ID": "example.okta.com"},
+    )
+    neo4j_session.run(
+        "CREATE (:User {id: $email, email: $email, firstseen: 50, lastupdated: 50})",
+        email=primary_email,
+    )
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+    _sync(neo4j_session)
+
+    # Act
+    _ontology(neo4j_session)
+
+    # Assert
+    assert neo4j_session.run(
+        "MATCH (u:User {id: $email}) RETURN u.email AS email, u.normalized_email AS normalized, u.firstseen AS firstseen",
+        email=primary_email,
+    ).single().data() == {
+        "email": primary_email,
+        "normalized": "alice@example.com",
+        "firstseen": 50,
+    }
+    assert _github_links(neo4j_session) == {
+        (primary_email, "example-alice"),
+        ("carol@example.com", "example-carol"),
+    }
+
+
+@pytest.mark.parametrize("property", ["email", "organization_verified_domain_emails"])
+@patch("cartography.intel.github.util.requests.post")
+def test_withdrawn_native_email_no_longer_blocks_saml(
+    mock_post, neo4j_session, property
+):
+    # Arrange
+    value = "bob@example.com" if property == "email" else ["bob@example.com"]
+    neo4j_session.run(
+        f"MATCH (g:GitHubUser {{username: 'example-alice'}}) SET g.{property} = $value",
+        value=value,
+    )
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+    _sync(neo4j_session)
+    _ontology(neo4j_session)
+    assert ("bob@example.com", "example-alice") in _github_links(neo4j_session)
+    neo4j_session.run(
+        f"MATCH (g:GitHubUser {{username: 'example-alice'}}) REMOVE g.{property}"
+    )
+
+    # Act
+    _ontology(neo4j_session, 200)
+
+    # Assert
+    assert _github_links(neo4j_session) == {
+        ("alice@example.com", "example-alice"),
+        ("carol@example.com", "example-carol"),
+    }
