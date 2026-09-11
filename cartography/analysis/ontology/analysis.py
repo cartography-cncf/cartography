@@ -582,6 +582,30 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
                 ),
             ),
         ),
+        AnalysisStatement(
+            match=(
+                "MATCH (g:GitHubUser)-[:MEMBER_OF]->(org:GitHubOrganization)"
+                "-[:RESOURCE]->(identity:GitHubExternalIdentity)<-[:HAS_IDENTITY]-(g) "
+                "MATCH (u:User) "
+                "WHERE u.email CONTAINS '@' "
+                "AND toLower(trim(u.email)) = toLower(trim(identity.saml_name_id)) "
+                "WITH g, collect(DISTINCT u) AS candidates "
+                "WHERE size(candidates) = 1 "
+                "WITH g, candidates[0] AS u "
+                "WHERE NOT EXISTS { "
+                "MATCH (other:User)-[existing:HAS_ACCOUNT]->(g) "
+                "WHERE other <> u AND existing.lastupdated = $UPDATE_TAG }"
+            ),
+            effects=(
+                AddRelationship(
+                    "u",
+                    "HAS_ACCOUNT",
+                    "g",
+                    source_label="User",
+                    target_label="GitHubUser",
+                ),
+            ),
+        ),
     ),
 )
 USER_OWNS_API_KEY = AnalysisJob(

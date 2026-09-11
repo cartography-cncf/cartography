@@ -52,11 +52,13 @@ from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
 @patch("cartography.intel.github.repos.sync")
+@patch("cartography.intel.github.external_identities.sync")
 @patch("cartography.intel.github.users.sync")
 @patch("cartography.intel.github.make_credential", side_effect=["token-1", "token-2"])
 def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_make_credential: Mock,
     mock_users_sync: Mock,
+    mock_external_identities_sync: Mock,
     mock_repos_sync: Mock,
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
@@ -127,6 +129,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     neo4j_session = Mock()
     start_github_ingestion(neo4j_session, config)
 
+    assert mock_external_identities_sync.call_count == 2
     assert mock_users_sync.call_count == 2
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
@@ -196,11 +199,13 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
 @patch("cartography.intel.github.dependabot_alerts.sync")
 @patch("cartography.intel.github.personal_access_tokens.sync")
 @patch("cartography.intel.github.repos.sync")
+@patch("cartography.intel.github.external_identities.sync")
 @patch("cartography.intel.github.users.sync")
 @patch("cartography.intel.github.make_credential", return_value="token-1")
 def test_start_github_ingestion_can_skip_unscoped_cleanup(
     mock_make_credential: Mock,
     mock_users_sync: Mock,
+    mock_external_identities_sync: Mock,
     mock_repos_sync: Mock,
     mock_personal_access_tokens_sync: Mock,
     mock_dependabot_alerts_sync: Mock,
@@ -250,6 +255,13 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
     start_github_ingestion(neo4j_session, config, skip_unscoped_cleanup=True)
 
     mock_make_credential.assert_called_once_with(github_config["organization"][0])
+    mock_external_identities_sync.assert_called_once_with(
+        neo4j_session,
+        {"UPDATE_TAG": config.update_tag},
+        "token-1",
+        "https://api.github.com/graphql",
+        "org-1",
+    )
     mock_users_sync.assert_called_once()
     mock_repos_sync.assert_called_once()
     mock_personal_access_tokens_sync.assert_called_once()
