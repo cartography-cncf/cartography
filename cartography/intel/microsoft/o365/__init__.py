@@ -38,6 +38,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
     client_certificate_path = config.microsoft_client_certificate_path
+    client_certificate_password = config.microsoft_client_certificate_password
     if not tenant_id or not client_id or not (client_secret or client_certificate_path):
         logger.info(
             "O365 import is not configured - skipping this module. "
@@ -56,6 +57,7 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_id,
             client_secret,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
         o365_client = create_graph_service_client(credential)
 

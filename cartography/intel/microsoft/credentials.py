@@ -24,6 +24,7 @@ def make_credential(
     client_secret: str | None = None,
     *,
     client_certificate_path: str | None = None,
+    client_certificate_password: str | None = None,
 ) -> TokenCredential:
     """
     Build the credential used to authenticate against Microsoft Graph.
@@ -36,15 +37,23 @@ def make_credential(
     :param client_id: Application (client) ID of the registered application
     :param client_secret: Client secret of the registered application
     :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
-        registered application's private key and certificate
+        registered application's private key and certificate (PKCS#12 needs
+        azure-identity >= 1.7.0, which pyproject pins)
+    :param client_certificate_password: Password protecting the private key in
+        that file, for an encrypted PEM or PFX export. Omit for an unencrypted
+        file.
     :return: A credential the Graph clients can authenticate with
     :raises ValueError: if neither a client secret nor a certificate is given
     """
     if client_certificate_path:
+        kwargs: dict[str, str] = {}
+        if client_certificate_password:
+            kwargs["password"] = client_certificate_password
         return CertificateCredential(
             tenant_id=tenant_id,
             client_id=client_id,
             certificate_path=client_certificate_path,
+            **kwargs,
         )
     if client_secret:
         return ClientSecretCredential(

@@ -262,6 +262,7 @@ def _resolve_microsoft_credential_options(
     microsoft_client_id: str | None,
     microsoft_client_secret_env_var: str | None,
     microsoft_client_certificate_path: str | None,
+    microsoft_client_certificate_password_env_var: str | None,
     entra_tenant_id: str | None,
     entra_client_id: str | None,
     entra_client_secret_env_var: str | None,
@@ -279,11 +280,15 @@ def _resolve_microsoft_credential_options(
     )
     entra_values = (entra_tenant_id, entra_client_id, entra_client_secret_env_var)
 
-    # The certificate path has no legacy Entra alias, but it is still a
-    # Microsoft credential flag for the mixing check below.
+    # The certificate path and password have no legacy Entra alias, but they
+    # are still Microsoft credential flags for the mixing check below.
     has_microsoft_values = any(
         value is not None
-        for value in (*microsoft_values, microsoft_client_certificate_path)
+        for value in (
+            *microsoft_values,
+            microsoft_client_certificate_path,
+            microsoft_client_certificate_password_env_var,
+        )
     )
     has_entra_values = any(value is not None for value in entra_values)
     if has_microsoft_values and has_entra_values:
@@ -291,7 +296,8 @@ def _resolve_microsoft_credential_options(
             "Cannot mix Microsoft credential flags "
             "(--microsoft-tenant-id, --microsoft-client-id, "
             "--microsoft-client-secret-env-var, "
-            "--microsoft-client-certificate-path) with deprecated Entra "
+            "--microsoft-client-certificate-path, "
+            "--microsoft-client-certificate-password-env-var) with deprecated Entra "
             "credential flags (--entra-tenant-id, --entra-client-id, "
             "--entra-client-secret-env-var). Use the Microsoft flags instead.",
         )
@@ -788,6 +794,20 @@ class CLI:
                         "private key and certificate. Use instead of "
                         "--microsoft-client-secret-env-var for certificate-based "
                         "authentication."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
+            microsoft_client_certificate_password_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-client-certificate-password-env-var",
+                    help=(
+                        "Environment variable name containing the password that "
+                        "protects the private key in "
+                        "--microsoft-client-certificate-path. Omit for an "
+                        "unencrypted certificate file."
                     ),
                     rich_help_panel=PANEL_MICROSOFT,
                     hidden=PANEL_MICROSOFT not in visible_panels,
@@ -2861,6 +2881,9 @@ class CLI:
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret_env_var=microsoft_client_secret_env_var,
                 microsoft_client_certificate_path=microsoft_client_certificate_path,
+                microsoft_client_certificate_password_env_var=(
+                    microsoft_client_certificate_password_env_var
+                ),
                 entra_tenant_id=entra_tenant_id,
                 entra_client_id=entra_client_id,
                 entra_client_secret_env_var=entra_client_secret_env_var,
@@ -2879,6 +2902,21 @@ class CLI:
                 )
                 microsoft_client_secret = os.environ.get(
                     microsoft_client_secret_env_var
+                )
+
+            # Read the Microsoft certificate password, for an encrypted file
+            microsoft_client_certificate_password = None
+            if (
+                microsoft_client_certificate_path
+                and microsoft_client_certificate_password_env_var
+            ):
+                logger.debug(
+                    "Reading certificate password for Microsoft from environment "
+                    "variable %s",
+                    microsoft_client_certificate_password_env_var,
+                )
+                microsoft_client_certificate_password = os.environ.get(
+                    microsoft_client_certificate_password_env_var
                 )
 
             # Read Okta API key
@@ -3635,6 +3673,9 @@ class CLI:
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
                 microsoft_client_certificate_path=microsoft_client_certificate_path,
+                microsoft_client_certificate_password=(
+                    microsoft_client_certificate_password
+                ),
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

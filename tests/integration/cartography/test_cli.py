@@ -170,6 +170,37 @@ def test_cli_microsoft_certificate_path_sets_config():
     assert config.microsoft_tenant_id == "tenant-id"
     assert config.microsoft_client_id == "client-id"
     assert config.microsoft_client_certificate_path == "/run/secrets/app.pem"
+    assert config.microsoft_client_certificate_password is None
+    assert config.microsoft_client_secret is None
+
+
+def test_cli_microsoft_certificate_password_is_read_from_the_environment():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    with unittest.mock.patch.dict(os.environ, {"MS_CERT_PASSWORD": "pfx-password"}):
+        cli.main(
+            [
+                "--neo4j-uri",
+                settings.get("NEO4J_URL"),
+                "--microsoft-tenant-id",
+                "tenant-id",
+                "--microsoft-client-id",
+                "client-id",
+                "--microsoft-client-certificate-path",
+                "/run/secrets/app.pfx",
+                "--microsoft-client-certificate-password-env-var",
+                "MS_CERT_PASSWORD",
+            ],
+        )
+
+    # Assert: the value, never the variable name, reaches the config
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.microsoft_client_certificate_path == "/run/secrets/app.pfx"
+    assert config.microsoft_client_certificate_password == "pfx-password"
     assert config.microsoft_client_secret is None
 
 
@@ -250,6 +281,10 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(
     assert get_args(annotations["microsoft_client_id"])[1].hidden is False
     assert get_args(annotations["microsoft_client_secret_env_var"])[1].hidden is False
     assert get_args(annotations["microsoft_client_certificate_path"])[1].hidden is False
+    assert (
+        get_args(annotations["microsoft_client_certificate_password_env_var"])[1].hidden
+        is False
+    )
     assert get_args(annotations["entra_tenant_id"])[1].hidden is True
     assert get_args(annotations["entra_client_id"])[1].hidden is True
     assert get_args(annotations["entra_client_secret_env_var"])[1].hidden is True
@@ -266,6 +301,7 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(
     assert "--microsoft-client-id" in help_output
     assert "--microsoft-client-secret-env-var" in help_output
     assert "--microsoft-client-certificate-path" in help_output
+    assert "--microsoft-client-certificate-password-env-var" in help_output
     assert "--entra-tenant-id" not in help_output
     assert "--entra-client-id" not in help_output
     assert "--entra-client-secret-env-var" not in help_output

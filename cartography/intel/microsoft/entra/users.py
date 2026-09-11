@@ -226,6 +226,7 @@ async def sync_entra_users(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client_certificate_path: str | None = None,
+    client_certificate_password: str | None = None,
 ) -> None:
     """
     Sync Entra users and tenant information
@@ -235,6 +236,8 @@ async def sync_entra_users(
     :param client_secret: Entra application client secret
     :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
         application's private key and certificate, used instead of the secret
+    :param client_certificate_password: Password protecting the private key in
+        that file, when the file is encrypted
     :param update_tag: Timestamp used to determine data freshness
     :param common_job_parameters: dict of other job parameters to carry to sub-jobs
     :return: None
@@ -245,6 +248,7 @@ async def sync_entra_users(
         client_id,
         client_secret,
         client_certificate_path=client_certificate_path,
+        client_certificate_password=client_certificate_password,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]

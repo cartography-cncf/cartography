@@ -35,6 +35,7 @@ async def sync_tenant(
     client_secret: str | None,
     update_tag: int,
     client_certificate_path: str | None = None,
+    client_certificate_password: str | None = None,
 ) -> None:
     """
     Sync tenant information as a prerequisite for all other Entra resource syncs.
@@ -45,6 +46,8 @@ async def sync_tenant(
     :param client_secret: Azure application client secret
     :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
         application's private key and certificate, used instead of the secret
+    :param client_certificate_password: Password protecting the private key in
+        that file, when the file is encrypted
     :param update_tag: Update tag for tracking data freshness
     """
     credential = credentials.make_credential(
@@ -52,6 +55,7 @@ async def sync_tenant(
         client_id,
         client_secret,
         client_certificate_path=client_certificate_path,
+        client_certificate_password=client_certificate_password,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
@@ -73,7 +77,8 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     users, groups, and tenants.
 
     Authenticates with config.microsoft_tenant_id / client_id and either
-    client_secret or client_certificate_path.
+    client_secret or client_certificate_path (plus client_certificate_password
+    when the certificate file is encrypted).
 
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
@@ -83,6 +88,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
     client_certificate_path = config.microsoft_client_certificate_path
+    client_certificate_password = config.microsoft_client_certificate_password
     if not tenant_id or not client_id or not (client_secret or client_certificate_path):
         logger.info(
             "Entra import is not configured - skipping this module. "
@@ -104,6 +110,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run user sync
@@ -115,6 +122,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run group sync
@@ -126,6 +134,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run OU sync
@@ -137,6 +146,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run application sync
@@ -148,6 +158,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run service principals sync
@@ -159,6 +170,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run app role assignments sync
@@ -170,6 +182,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
         )
 
         # Run directory role sync (definitions + assignments).
@@ -187,6 +200,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
                 client_certificate_path=client_certificate_path,
+                client_certificate_password=client_certificate_password,
             )
         except APIError as e:
             if e.response_status_code in (401, 403):

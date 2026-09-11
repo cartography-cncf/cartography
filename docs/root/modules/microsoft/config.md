@@ -6,7 +6,7 @@ Create an app registration in [App Registrations](https://portal.azure.com/#view
 
 ## Authentication
 
-Create a client secret for the app registration, or upload a certificate to it. Store a secret in an environment variable, or keep the certificate's private key and certificate together in a PEM or PKCS#12 file, and note the Microsoft tenant ID and application client ID.
+Create a client secret for the app registration, or upload a certificate to it. Store a secret in an environment variable, or keep the certificate's private key and certificate together in a PEM or PKCS#12 file, and note the Microsoft tenant ID and application client ID. An encrypted file (a password-protected PFX export, or a PEM with an encrypted private key) is supported when the password is provided through an environment variable; PKCS#12 needs `azure-identity` 1.7.0 or later, which cartography requires.
 
 ## Required Permissions
 
@@ -35,6 +35,7 @@ Provide these options:
 - `--microsoft-client-id`: App registration client ID.
 - `--microsoft-client-secret-env-var`: Name of the environment variable containing the client secret.
 - `--microsoft-client-certificate-path`: Path to a PEM or PKCS#12 file holding the app registration's private key and certificate. Use this instead of `--microsoft-client-secret-env-var` for certificate-based authentication.
+- `--microsoft-client-certificate-password-env-var`: Name of the environment variable containing the password that protects the private key in that file. Omit for an unencrypted file.
 
 These credentials apply to all Microsoft Graph ingestion in the `microsoft` module, including Entra ID and Intune.
 
@@ -59,6 +60,18 @@ cartography \
   --microsoft-tenant-id '<tenant-id>' \
   --microsoft-client-id '<client-id>' \
   --microsoft-client-certificate-path /path/to/app.pem
+```
+
+For an encrypted certificate file, add the password's environment variable:
+
+```bash
+export MICROSOFT_CERT_PASSWORD='<certificate-password>'
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<tenant-id>' \
+  --microsoft-client-id '<client-id>' \
+  --microsoft-client-certificate-path /path/to/app.pfx \
+  --microsoft-client-certificate-password-env-var MICROSOFT_CERT_PASSWORD
 ```
 
 ## References

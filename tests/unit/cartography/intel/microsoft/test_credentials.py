@@ -61,6 +61,27 @@ def test_make_credential_with_certificate_path_builds_certificate_credential(
     assert credential is mock_certificate_credential.return_value
 
 
+@patch("cartography.intel.microsoft.credentials.CertificateCredential")
+def test_make_credential_forwards_the_certificate_password_only_when_given(
+    mock_certificate_credential,
+) -> None:
+    # An encrypted PFX or PEM needs its password; the unencrypted call shape
+    # (no password kwarg at all) is what the test above pins.
+    credentials.make_credential(
+        "tenant-id",
+        "client-id",
+        client_certificate_path="/run/secrets/app.pfx",
+        client_certificate_password="pfx-password",
+    )
+
+    mock_certificate_credential.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        certificate_path="/run/secrets/app.pfx",
+        password="pfx-password",
+    )
+
+
 def test_make_credential_certificate_path_returns_certificate_credential(
     tmp_path,
 ) -> None:

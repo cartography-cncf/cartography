@@ -100,6 +100,7 @@ async def sync_entra_ous(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client_certificate_path: str | None = None,
+    client_certificate_password: str | None = None,
 ) -> None:
     """
     Sync Entra OUs
@@ -110,6 +111,7 @@ async def sync_entra_ous(
         client_id,
         client_secret,
         client_certificate_path=client_certificate_path,
+        client_certificate_password=client_certificate_password,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]

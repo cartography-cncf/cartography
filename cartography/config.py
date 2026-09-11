@@ -9,6 +9,7 @@ def _resolve_microsoft_credentials_config(
     microsoft_client_id: str | None,
     microsoft_client_secret: str | None,
     microsoft_client_certificate_path: str | None,
+    microsoft_client_certificate_password: str | None,
     entra_tenant_id: str | None,
     entra_client_id: str | None,
     entra_client_secret: str | None,
@@ -20,18 +21,23 @@ def _resolve_microsoft_credentials_config(
     )
     entra_values = (entra_tenant_id, entra_client_id, entra_client_secret)
 
-    # The certificate path has no legacy Entra alias, but it is still a
-    # Microsoft credential field for the mixing check below.
+    # The certificate path and password have no legacy Entra alias, but they
+    # are still Microsoft credential fields for the mixing check below.
     has_microsoft_values = any(
         value is not None
-        for value in (*microsoft_values, microsoft_client_certificate_path)
+        for value in (
+            *microsoft_values,
+            microsoft_client_certificate_path,
+            microsoft_client_certificate_password,
+        )
     )
     has_entra_values = any(value is not None for value in entra_values)
     if has_microsoft_values and has_entra_values:
         raise ValueError(
             "Cannot mix Microsoft credential config fields "
             "(`microsoft_tenant_id`, `microsoft_client_id`, "
-            "`microsoft_client_secret`, `microsoft_client_certificate_path`) "
+            "`microsoft_client_secret`, `microsoft_client_certificate_path`, "
+            "`microsoft_client_certificate_password`) "
             "with deprecated Entra credential "
             "config fields (`entra_tenant_id`, `entra_client_id`, "
             "`entra_client_secret`). Use the Microsoft fields instead.",
@@ -151,6 +157,8 @@ class Config:
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_certificate_path: str
     :param microsoft_client_certificate_path: Path to a PEM or PKCS#12 file holding the app registration's private key and certificate, for certificate-based Service Principal Authentication instead of a client secret. Optional.
+    :type microsoft_client_certificate_password: str
+    :param microsoft_client_certificate_password: Password protecting the private key in microsoft_client_certificate_path, for an encrypted PEM or PFX file. Optional; omit for an unencrypted file.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -759,6 +767,7 @@ class Config:
         orca_api_endpoint=None,
         orca_api_token=None,
         microsoft_client_certificate_path=None,
+        microsoft_client_certificate_password=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -800,11 +809,15 @@ class Config:
             microsoft_client_id=microsoft_client_id,
             microsoft_client_secret=microsoft_client_secret,
             microsoft_client_certificate_path=microsoft_client_certificate_path,
+            microsoft_client_certificate_password=microsoft_client_certificate_password,
             entra_tenant_id=entra_tenant_id,
             entra_client_id=entra_client_id,
             entra_client_secret=entra_client_secret,
         )
         self.microsoft_client_certificate_path = microsoft_client_certificate_path
+        self.microsoft_client_certificate_password = (
+            microsoft_client_certificate_password
+        )
         # DEPRECATED: constructor-time compatibility snapshots for legacy Entra
         # config names. Later assignments do not propagate to microsoft_*.
         # Remove in v1.0.0.

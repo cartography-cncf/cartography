@@ -149,6 +149,7 @@ async def sync_entra_directory_roles(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client_certificate_path: str | None = None,
+    client_certificate_password: str | None = None,
 ) -> None:
     """
     Sync Entra directory role definitions and role assignments to the graph.
@@ -159,6 +160,8 @@ async def sync_entra_directory_roles(
     :param client_secret: Azure application client secret
     :param client_certificate_path: Path to a PEM or PKCS#12 file holding the
         application's private key and certificate, used instead of the secret
+    :param client_certificate_password: Password protecting the private key in
+        that file, when the file is encrypted
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
     """
@@ -167,6 +170,7 @@ async def sync_entra_directory_roles(
         client_id,
         client_secret,
         client_certificate_path=client_certificate_path,
+        client_certificate_password=client_certificate_password,
     )
     client = GraphServiceClient(
         credential,
