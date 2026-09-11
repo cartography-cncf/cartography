@@ -21,6 +21,10 @@ class GitHubExternalIdentityNodeProperties(CartographyNodeProperties):
         "saml_name_id",
         description="SAML NameID supplied by the organization's identity provider; not necessarily an email address.",
     )
+    saml_name_id_normalized: PropertyRef = PropertyRef(
+        "saml_name_id_normalized",
+        description="Trimmed, lowercase SAML NameID for canonical email matching; the original value remains in saml_name_id.",
+    )
 
 
 @dataclass(frozen=True)

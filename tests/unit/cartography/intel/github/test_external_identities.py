@@ -9,6 +9,7 @@ import requests
 
 from cartography.intel.github.external_identities import get_external_identities
 from cartography.intel.github.external_identities import transform_external_identities
+from cartography.intel.ontology.users import transform_users
 from tests.data.github.external_identities import API_URL
 from tests.data.github.external_identities import FORBIDDEN
 from tests.data.github.external_identities import IDENTITIES
@@ -31,21 +32,25 @@ def test_transform_preserves_nameid_and_nullable_fields():
         {
             "id": f"{ORG_URL}|E_example_alice",
             "saml_name_id": " Alice@Example.com ",
+            "saml_name_id_normalized": "alice@example.com",
             "user_url": "https://github.com/example-alice",
         },
         {
             "id": f"{ORG_URL}|E_example_bob",
             "saml_name_id": "opaque-id-123",
+            "saml_name_id_normalized": "opaque-id-123",
             "user_url": "https://github.com/example-bob",
         },
         {
             "id": f"{ORG_URL}|E_example_unlinked",
             "saml_name_id": "unlinked@example.com",
+            "saml_name_id_normalized": "unlinked@example.com",
             "user_url": None,
         },
         {
             "id": f"{ORG_URL}|E_example_without_saml",
             "saml_name_id": None,
+            "saml_name_id_normalized": None,
             "user_url": "https://github.com/example-carol",
         },
     ]
@@ -267,3 +272,33 @@ def test_get_does_not_retry_unknown_graphql_errors(mock_post, mock_sleep):
         get_external_identities("test-token", API_URL, ORG)
     mock_post.assert_called_once()
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (" Alice@Example.com ", "alice@example.com"),
+        ("\tAlice@Example.com\n", "alice@example.com"),
+        ("\u00a0Alice@Example.com\u00a0", "alice@example.com"),
+        ("\u202fAlice@Example.com\u202f", "alice@example.com"),
+        ("\u0085Alice@Example.com\u0085", "alice@example.com"),
+        ("\u0130@Example.com", "i\u0307@example.com"),
+        (None, None),
+        ("", None),
+        (" \u00a0\u202f\u0085", None),
+    ],
+)
+def test_identity_sources_share_normalization_policy(value, expected):
+    # Arrange
+    identity = deepcopy(IDENTITIES[0])
+    identity["samlIdentity"]["nameId"] = value
+
+    # Act
+    github = transform_external_identities([identity], ORG_URL)[0]
+    canonical = transform_users([{"email": value}])[0]
+
+    # Assert
+    assert github["saml_name_id_normalized"] == expected
+    assert canonical["normalized_email"] == expected
+    assert github["saml_name_id"] == canonical["email"] == value
+    assert identity["samlIdentity"]["nameId"] == value

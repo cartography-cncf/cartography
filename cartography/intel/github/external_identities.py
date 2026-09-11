@@ -7,6 +7,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import normalize_email_for_matching
 from cartography.intel.github.util import _extract_error_message
 from cartography.intel.github.util import _get_retry_sleep_seconds_for_http_error
 from cartography.intel.github.util import _TRANSIENT_STATUS_CODES
@@ -151,6 +152,9 @@ def transform_external_identities(
         {
             "id": f"{org_url}|{identity['id']}",
             "saml_name_id": (identity.get("samlIdentity") or {}).get("nameId"),
+            "saml_name_id_normalized": normalize_email_for_matching(
+                (identity.get("samlIdentity") or {}).get("nameId")
+            ),
             "user_url": (identity.get("user") or {}).get("url"),
         }
         for identity in identities

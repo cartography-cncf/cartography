@@ -7,6 +7,7 @@ from cartography.analysis.ontology.analysis import AWS_USER_PROJECTION
 from cartography.analysis.ontology.analysis import USER_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import normalize_email_for_matching
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.models.ontology.user import UserSchema
 from cartography.util import run_typed_analysis_job
@@ -45,7 +46,7 @@ def transform_users(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             **user,
-            "normalized_email": (user.get("email") or "").strip().lower() or None,
+            "normalized_email": normalize_email_for_matching(user.get("email")),
         }
         for user in data
     ]

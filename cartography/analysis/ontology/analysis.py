@@ -586,7 +586,7 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
             match=(
                 "MATCH (g:GitHubUser)-[:MEMBER_OF]->(org:GitHubOrganization)"
                 "-[:RESOURCE]->(identity:GitHubExternalIdentity)<-[:HAS_IDENTITY]-(g) "
-                "MATCH (u:User {normalized_email: toLower(trim(identity.saml_name_id))}) "
+                "MATCH (u:User {normalized_email: identity.saml_name_id_normalized}) "
                 "WHERE u.normalized_email CONTAINS '@' "
                 "WITH g, collect(DISTINCT u) AS candidates "
                 "WHERE size(candidates) = 1 "

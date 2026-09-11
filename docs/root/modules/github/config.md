@@ -111,8 +111,10 @@ link organization members to existing canonical `User` nodes using email-shaped
 NameIDs. Matching ignores surrounding whitespace and letter case, requires a
 single canonical user across the account's organization identities, and skips
 conflicts with GitHub public or organization verified-domain email links. The
-ontology sync populates an indexed `User.normalized_email` for this match while
-preserving the original primary email and canonical user ID. For
+GitHub and ontology syncs use the same Python normalization for
+`GitHubExternalIdentity.saml_name_id_normalized` and the indexed
+`User.normalized_email`, including Unicode whitespace. The join compares these
+stored values, preserving the raw NameID, primary email, and canonical user ID. For
 example, configure `--ontology-users-source okta` to use Okta as the source of
 canonical users. SAML ingestion does not create canonical users on its own.
 

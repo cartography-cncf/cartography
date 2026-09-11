@@ -375,12 +375,14 @@ def test_unlinked_identity_removes_old_account_relationship(mock_post, neo4j_ses
     assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
 
 
+@pytest.mark.parametrize("whitespace", [" ", "\u00a0", "\u202f", "\u0085"])
 @patch("cartography.intel.github.util.requests.post")
 def test_ontology_backfills_normalized_email_without_changing_identity(
-    mock_post, neo4j_session
+    mock_post, neo4j_session, whitespace
 ):
     # Arrange
-    primary_email = " Alice@Example.com "
+    primary_email = f"{whitespace}Alice@Example.com{whitespace}"
+    saml_name_id = f"{whitespace} ALICE@EXAMPLE.COM {whitespace}"
     _load_okta_users(
         neo4j_session,
         [{"id": "okta-alice", "email": primary_email}],
@@ -390,13 +392,25 @@ def test_ontology_backfills_normalized_email_without_changing_identity(
         "CREATE (:User {id: $email, email: $email, firstseen: 50, lastupdated: 50})",
         email=primary_email,
     )
-    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
-    _sync(neo4j_session)
+    neo4j_session.run(
+        "CREATE (:GitHubExternalIdentity {id: $id, saml_name_id: $name_id, firstseen: 50, lastupdated: 50})",
+        id=f"{ORG_URL}|E_example_alice",
+        name_id=saml_name_id,
+    )
+    identity = deepcopy(IDENTITIES[0])
+    identity["samlIdentity"]["nameId"] = saml_name_id
+    mock_post.return_value.json.return_value = page([identity])
 
     # Act
+    _sync(neo4j_session)
     _ontology(neo4j_session)
 
     # Assert
+    assert check_nodes(
+        neo4j_session,
+        "GitHubExternalIdentity",
+        ["saml_name_id", "saml_name_id_normalized", "firstseen"],
+    ) == {(saml_name_id, "alice@example.com", 50)}
     assert neo4j_session.run(
         "MATCH (u:User {id: $email}) RETURN u.email AS email, u.normalized_email AS normalized, u.firstseen AS firstseen",
         email=primary_email,
@@ -438,3 +452,30 @@ def test_withdrawn_native_email_no_longer_blocks_saml(
         ("alice@example.com", "example-alice"),
         ("carol@example.com", "example-carol"),
     }
+
+
+@pytest.mark.parametrize("name_id", [None, "", " \u00a0\u202f"])
+@patch("cartography.intel.github.util.requests.post")
+def test_empty_nameid_clears_normalized_key_and_account_link(
+    mock_post, neo4j_session, name_id
+):
+    # Arrange
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+    _sync(neo4j_session)
+    _ontology(neo4j_session)
+    assert ("alice@example.com", "example-alice") in _github_links(neo4j_session)
+    identity = deepcopy(IDENTITIES[0])
+    identity["samlIdentity"]["nameId"] = name_id
+    mock_post.return_value.json.return_value = page([identity])
+
+    # Act
+    _sync(neo4j_session, 200)
+    _ontology(neo4j_session, 200)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "GitHubExternalIdentity",
+        ["saml_name_id", "saml_name_id_normalized"],
+    ) == {(name_id, None)}
+    assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
