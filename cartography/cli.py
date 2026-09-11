@@ -258,6 +258,7 @@ def _resolve_report_source_option(
 
 def _resolve_microsoft_credential_options(
     *,
+    microsoft_delegated_auth: bool,
     microsoft_tenant_id: str | None,
     microsoft_client_id: str | None,
     microsoft_client_secret_env_var: str | None,
@@ -280,6 +281,19 @@ def _resolve_microsoft_credential_options(
 
     has_microsoft_values = any(value is not None for value in microsoft_values)
     has_entra_values = any(value is not None for value in entra_values)
+    client_credentials = (
+        microsoft_client_id,
+        microsoft_client_secret_env_var,
+        entra_client_id,
+        entra_client_secret_env_var,
+    )
+    if microsoft_delegated_auth and any(
+        value is not None for value in client_credentials
+    ):
+        raise typer.BadParameter(
+            "--microsoft-delegated-auth cannot be combined with a Microsoft "
+            "client ID or client secret.",
+        )
     if has_microsoft_values and has_entra_values:
         raise typer.BadParameter(
             "Cannot mix Microsoft credential flags "
@@ -772,6 +786,18 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = None,
+            microsoft_delegated_auth: Annotated[
+                bool,
+                typer.Option(
+                    "--microsoft-delegated-auth",
+                    help=(
+                        "EXPERIMENTAL: use the current Azure CLI user for a "
+                        "best-effort Entra-only sync. Prefer application authentication."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = False,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -2836,6 +2862,7 @@ class CLI:
                 microsoft_client_id,
                 microsoft_client_secret_env_var,
             ) = _resolve_microsoft_credential_options(
+                microsoft_delegated_auth=microsoft_delegated_auth,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret_env_var=microsoft_client_secret_env_var,
@@ -3612,6 +3639,7 @@ class CLI:
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
+                microsoft_delegated_auth=microsoft_delegated_auth,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
