@@ -1,13 +1,13 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import neo4j
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.socketdev.util import _create_session
 from cartography.models.socketdev.repository import SocketDevRepositorySchema
 from cartography.util import timeit
 
@@ -15,74 +15,115 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
 _PAGE_SIZE = 100
-_RETRY_POLICY = Retry(
-    total=5,
-    backoff_factor=1,
-    status_forcelist=[429, 500, 502, 503, 504],
-    allowed_methods=["GET"],
-)
+_MAX_ENRICHMENT_WORKERS = 8
+
+
+def _fetch_integration_meta(
+    api_session: requests.Session,
+    org_slug: str,
+    repo: dict[str, Any],
+) -> tuple[bool, dict[str, Any] | None]:
+    response = api_session.get(
+        f"{_BASE_URL}/orgs/{org_slug}/repos/{repo['slug']}",
+        params={"workspace": repo["workspace"]} if repo.get("workspace") else None,
+        timeout=_TIMEOUT,
+    )
+    if 400 <= response.status_code < 500:
+        logger.warning(
+            "Skipping Socket.dev repository identity enrichment for org '%s', "
+            "repository '%s' after HTTP %d",
+            org_slug,
+            repo["slug"],
+            response.status_code,
+        )
+        return False, None
+    response.raise_for_status()
+    return True, response.json().get("integration_meta")
+
+
+def _enrich_missing_integration_meta(
+    api_token: str,
+    org_slug: str,
+    repositories: list[dict[str, Any]],
+) -> set[str]:
+    # Socket list responses may omit this field. Keep explicit null as the
+    # provider-reported absence of an integration.
+    candidates = [
+        repo
+        for repo in repositories
+        if "integration_meta" not in repo and repo.get("slug")
+    ]
+    if not candidates:
+        return set()
+
+    worker_count = min(_MAX_ENRICHMENT_WORKERS, len(candidates))
+    logger.info(
+        "Enriching GitHub identity for %d Socket.dev repositories with %d workers",
+        len(candidates),
+        worker_count,
+    )
+
+    batches = [candidates[index::worker_count] for index in range(worker_count)]
+
+    def enrich_batch(batch: list[dict[str, Any]]) -> set[str]:
+        incomplete_repository_ids = set()
+        with _create_session(api_token) as api_session:
+            for repo in batch:
+                fetched, integration_meta = _fetch_integration_meta(
+                    api_session,
+                    org_slug,
+                    repo,
+                )
+                if fetched:
+                    repo["integration_meta"] = integration_meta
+                else:
+                    incomplete_repository_ids.add(repo["id"])
+        return incomplete_repository_ids
+
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        incomplete_batches = list(executor.map(enrich_batch, batches))
+    return set().union(*incomplete_batches)
 
 
 @timeit
-def get(api_token: str, org_slug: str) -> list[dict[str, Any]]:
+def get(api_token: str, org_slug: str) -> tuple[list[dict[str, Any]], set[str]]:
     """
     Fetch all repositories for the given Socket.dev organization.
     Handles pagination automatically.
+
+    Returns the repositories and the IDs whose identity enrichment was incomplete.
     """
     all_repos: list[dict[str, Any]] = []
     page = 1
-    api_session = requests.Session()
-    api_session.mount("https://", HTTPAdapter(max_retries=_RETRY_POLICY))
-    api_session.headers.update(
-        {
-            "Authorization": f"Bearer {api_token}",
-            "Accept": "application/json",
-        },
+    with _create_session(api_token) as api_session:
+        while True:
+            response = api_session.get(
+                f"{_BASE_URL}/orgs/{org_slug}/repos",
+                params={
+                    "per_page": _PAGE_SIZE,
+                    "page": page,
+                },
+                timeout=_TIMEOUT,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            results = data.get("results", [])
+            all_repos.extend(results)
+
+            next_page = data.get("nextPage")
+            if not next_page or not results:
+                break
+            page = next_page
+
+    incomplete_repository_ids = _enrich_missing_integration_meta(
+        api_token,
+        org_slug,
+        all_repos,
     )
 
-    while True:
-        response = api_session.get(
-            f"{_BASE_URL}/orgs/{org_slug}/repos",
-            params={
-                "per_page": _PAGE_SIZE,
-                "page": page,
-            },
-            timeout=_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        results = data.get("results", [])
-        for repo in results:
-            # Some Socket deployments omit this key from list responses. An explicit
-            # null means the repository has no GitHub integration.
-            if "integration_meta" not in repo and repo.get("slug"):
-                detail_response = api_session.get(
-                    f"{_BASE_URL}/orgs/{org_slug}/repos/{repo['slug']}",
-                    params=(
-                        {"workspace": repo["workspace"]}
-                        if "workspace" in repo
-                        else None
-                    ),
-                    timeout=_TIMEOUT,
-                )
-                if detail_response.status_code == 404:
-                    logger.warning(
-                        "Skipping Socket.dev repository identity enrichment because "
-                        "the repository detail was not found",
-                    )
-                else:
-                    detail_response.raise_for_status()
-                    repo = {**repo, **detail_response.json()}
-            all_repos.append(repo)
-
-        next_page = data.get("nextPage")
-        if not next_page or not results:
-            break
-        page = next_page
-
     logger.debug("Fetched %d Socket.dev repositories", len(all_repos))
-    return all_repos
+    return all_repos, incomplete_repository_ids
 
 
 def transform(raw_repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -169,9 +210,18 @@ def sync_repositories(
     Sync Socket.dev repositories for the given organization.
     """
     logger.info("Starting Socket.dev repositories sync")
-    raw_repos = get(api_token, org_slug)
-    repositories = transform(raw_repos)
+    raw_repos, incomplete_repository_ids = get(api_token, org_slug)
+    repositories = transform(
+        [repo for repo in raw_repos if repo["id"] not in incomplete_repository_ids],
+    )
     org_id = common_job_parameters["ORG_ID"]
     load_repositories(neo4j_session, repositories, org_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if not incomplete_repository_ids:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Socket.dev repository cleanup for org '%s' because "
+            "repository identity enrichment was incomplete",
+            org_slug,
+        )
     logger.info("Completed Socket.dev repositories sync")

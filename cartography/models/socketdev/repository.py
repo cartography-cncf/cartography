@@ -35,7 +35,7 @@ class SocketDevRepositoryNodeProperties(CartographyNodeProperties):
     )
     repository_url: PropertyRef = PropertyRef(
         "repository_url",
-        description="GitHub repository URL from Socket.dev integration metadata.",
+        description="GitHub.com repository URL from Socket.dev integration metadata.",
     )
     description: PropertyRef = PropertyRef(
         "description",

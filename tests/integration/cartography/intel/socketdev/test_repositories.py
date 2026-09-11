@@ -17,7 +17,10 @@ TEST_ORG_SLUG = "acme-corp"
 @patch.object(
     cartography.intel.socketdev.repositories,
     "get",
-    return_value=tests.data.socketdev.repositories.REPOSITORIES_RESPONSE["results"],
+    return_value=(
+        tests.data.socketdev.repositories.REPOSITORIES_RESPONSE["results"],
+        set(),
+    ),
 )
 def test_sync_repositories(mock_api, neo4j_session):
     """
@@ -31,16 +34,22 @@ def test_sync_repositories(mock_api, neo4j_session):
         TEST_UPDATE_TAG,
         [
             {
-                "id": "https://github.com/example/worker",
-                "name": "worker",
-                "fullname": "example/worker",
-                "url": "https://github.com/example/worker",
+                "id": "https://github.com/Example/Worker",
+                "name": "Worker",
+                "fullname": "Example/Worker",
+                "url": "https://github.com/Example/Worker",
             },
             {
                 "id": "https://github.com/another-example/worker",
                 "name": "worker",
                 "fullname": "another-example/worker",
                 "url": "https://github.com/another-example/worker",
+            },
+            {
+                "id": "https://github.com/example/service",
+                "name": "service",
+                "fullname": "example/service",
+                "url": "https://github.com/example/service",
             },
         ],
     )
@@ -78,7 +87,18 @@ def test_sync_repositories(mock_api, neo4j_session):
             None,
         ),
         ("repo-002", "backend-api", "acme-corp/backend-api", None),
-        ("repo-003", "worker", "worker", "https://github.com/example/worker"),
+        (
+            "repo-003",
+            "worker",
+            "acme-corp/worker",
+            "https://github.com/Example/Worker",
+        ),
+        (
+            "repo-004",
+            "service",
+            "service",
+            "https://github.com/example/service",
+        ),
     }
     assert (
         check_nodes(
@@ -94,6 +114,7 @@ def test_sync_repositories(mock_api, neo4j_session):
         ("repo-001", TEST_ORG_ID),
         ("repo-002", TEST_ORG_ID),
         ("repo-003", TEST_ORG_ID),
+        ("repo-004", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -108,7 +129,7 @@ def test_sync_repositories(mock_api, neo4j_session):
         == expected_rels
     )
 
-    # Assert: Socket.dev repositories monitor matching code repositories
+    # Assert: mixed-case GitHub identities are preserved for exact URL matching.
     assert check_rels(
         neo4j_session,
         "SocketDevRepository",
@@ -118,18 +139,21 @@ def test_sync_repositories(mock_api, neo4j_session):
         "MONITORS",
         rel_direction_right=True,
     ) == {
-        ("repo-003", "https://github.com/example/worker"),
+        ("repo-003", "https://github.com/Example/Worker"),
+        ("repo-004", "https://github.com/example/service"),
     }
 
-    # Act: Remove the source identity and sync again
+    # Act: Lose the source identity during an incomplete sync
     refreshed_repositories = tests.data.socketdev.repositories.REPOSITORIES_RESPONSE[
         "results"
     ]
-    mock_api.return_value = [
+    repositories_without_identity = [
         refreshed_repositories[0],
         refreshed_repositories[1],
         {**refreshed_repositories[2], "integration_meta": None},
+        refreshed_repositories[3],
     ]
+    mock_api.return_value = (repositories_without_identity, {"repo-003"})
     next_update_tag = TEST_UPDATE_TAG + 1
     common_job_parameters["UPDATE_TAG"] = next_update_tag
     cartography.intel.socketdev.repositories.sync_repositories(
@@ -140,16 +164,48 @@ def test_sync_repositories(mock_api, neo4j_session):
         common_job_parameters,
     )
 
-    # Assert: The stale relationship is removed
-    assert (
-        check_rels(
-            neo4j_session,
-            "SocketDevRepository",
-            "id",
-            "GitHubRepository",
-            "id",
-            "MONITORS",
-            rel_direction_right=True,
-        )
-        == set()
+    # Assert: Incomplete collection preserves the previous relationship
+    assert check_rels(
+        neo4j_session,
+        "SocketDevRepository",
+        "id",
+        "GitHubRepository",
+        "id",
+        "MONITORS",
+        rel_direction_right=True,
+    ) == {
+        ("repo-003", "https://github.com/Example/Worker"),
+        ("repo-004", "https://github.com/example/service"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "SocketDevRepository",
+        ["id", "repository_url"],
+    ) >= {
+        ("repo-003", "https://github.com/Example/Worker"),
+    }
+
+    # Act: Confirm the identity is absent in a complete sync
+    final_update_tag = next_update_tag + 1
+    common_job_parameters["UPDATE_TAG"] = final_update_tag
+    mock_api.return_value = (repositories_without_identity, set())
+    cartography.intel.socketdev.repositories.sync_repositories(
+        neo4j_session,
+        "fake-token",
+        TEST_ORG_SLUG,
+        final_update_tag,
+        common_job_parameters,
     )
+
+    # Assert: The stale relationship is removed
+    assert check_rels(
+        neo4j_session,
+        "SocketDevRepository",
+        "id",
+        "GitHubRepository",
+        "id",
+        "MONITORS",
+        rel_direction_right=True,
+    ) == {
+        ("repo-004", "https://github.com/example/service"),
+    }

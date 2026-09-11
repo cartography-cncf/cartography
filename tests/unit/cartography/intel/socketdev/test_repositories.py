@@ -1,13 +1,19 @@
 from unittest.mock import call
 from unittest.mock import Mock
-from unittest.mock import patch
 
-from cartography.intel.socketdev.repositories import get
+import cartography.intel.socketdev.repositories as repositories
 
 
-@patch("cartography.intel.socketdev.repositories.requests.Session")
-def test_get_fetches_missing_integration_metadata(mock_session_class: Mock) -> None:
-    mock_session = mock_session_class.return_value
+def test_get_fetches_missing_integration_metadata(mocker) -> None:
+    list_session = mocker.MagicMock()
+    detail_session = mocker.MagicMock()
+    mocker.patch.object(
+        repositories,
+        "_create_session",
+        side_effect=[list_session, detail_session],
+    )
+    list_session.__enter__.return_value = list_session
+    detail_session.__enter__.return_value = detail_session
     list_response = Mock()
     missing_metadata = {
         "id": "socket-repo",
@@ -27,9 +33,9 @@ def test_get_fetches_missing_integration_metadata(mock_session_class: Mock) -> N
         "nextPage": None,
     }
     detail_response = Mock()
+    detail_response.status_code = 200
     detail_response.json.return_value = {
-        "id": "socket-repo",
-        "slug": "service",
+        "workspace": None,
         "integration_meta": {
             "type": "github",
             "value": {
@@ -38,41 +44,66 @@ def test_get_fetches_missing_integration_metadata(mock_session_class: Mock) -> N
             },
         },
     }
-    mock_session.get.side_effect = [list_response, detail_response]
+    list_session.get.return_value = list_response
+    detail_session.get.return_value = detail_response
 
-    repositories = get("token", "socket-org")
+    result, incomplete_repository_ids = repositories.get("token", "socket-org")
 
-    assert repositories == [
-        {**missing_metadata, **detail_response.json.return_value},
+    assert result == [
+        {
+            **missing_metadata,
+            "integration_meta": detail_response.json.return_value["integration_meta"],
+        },
         existing_metadata,
     ]
-    assert mock_session.get.call_args_list == [
-        call(
-            "https://api.socket.dev/v0/orgs/socket-org/repos",
-            params={"per_page": 100, "page": 1},
-            timeout=(60, 60),
-        ),
-        call(
-            "https://api.socket.dev/v0/orgs/socket-org/repos/service",
-            params={"workspace": "example"},
-            timeout=(60, 60),
-        ),
-    ]
+    assert incomplete_repository_ids == set()
+    list_session.get.assert_called_once_with(
+        "https://api.socket.dev/v0/orgs/socket-org/repos",
+        params={"per_page": 100, "page": 1},
+        timeout=(60, 60),
+    )
+    detail_session.get.assert_called_once_with(
+        "https://api.socket.dev/v0/orgs/socket-org/repos/service",
+        params={"workspace": "example"},
+        timeout=(60, 60),
+    )
+    list_session.__exit__.assert_called_once()
+    detail_session.__exit__.assert_called_once()
 
 
-@patch("cartography.intel.socketdev.repositories.requests.Session")
-def test_get_keeps_list_record_when_detail_is_not_found(
-    mock_session_class: Mock,
-) -> None:
-    mock_session = mock_session_class.return_value
-    repository = {"id": "socket-repo", "slug": "service"}
+def test_get_keeps_list_record_when_detail_is_forbidden(mocker) -> None:
+    list_session = mocker.MagicMock()
+    detail_session = mocker.MagicMock()
+    mocker.patch.object(
+        repositories,
+        "_create_session",
+        side_effect=[list_session, detail_session],
+    )
+    list_session.__enter__.return_value = list_session
+    detail_session.__enter__.return_value = detail_session
+    repository = {
+        "id": "socket-repo",
+        "slug": "service",
+        "workspace": "",
+    }
     list_response = Mock()
     list_response.json.return_value = {
         "results": [repository],
         "nextPage": None,
     }
-    detail_response = Mock(status_code=404)
-    mock_session.get.side_effect = [list_response, detail_response]
+    detail_response = Mock(status_code=403)
+    list_session.get.return_value = list_response
+    detail_session.get.return_value = detail_response
 
-    assert get("token", "socket-org") == [repository]
+    result, incomplete_repository_ids = repositories.get("token", "socket-org")
+
+    assert result == [repository]
+    assert incomplete_repository_ids == {"socket-repo"}
+    assert detail_session.get.call_args_list[0] == call(
+        "https://api.socket.dev/v0/orgs/socket-org/repos/service",
+        params=None,
+        timeout=(60, 60),
+    )
     detail_response.raise_for_status.assert_not_called()
+    list_session.__exit__.assert_called_once()
+    detail_session.__exit__.assert_called_once()
