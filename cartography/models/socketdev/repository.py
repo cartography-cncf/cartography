@@ -31,7 +31,11 @@ class SocketDevRepositoryNodeProperties(CartographyNodeProperties):
     fullname: PropertyRef = PropertyRef(
         "fullname",
         extra_index=True,
-        description="Full repository path including its workspace.",
+        description="Repository path including its workspace when available; otherwise the repository slug.",
+    )
+    repository_url: PropertyRef = PropertyRef(
+        "repository_url",
+        description="GitHub.com repository URL from Socket.dev integration metadata.",
     )
     description: PropertyRef = PropertyRef(
         "description",
@@ -96,7 +100,7 @@ class SocketDevRepoToCodeRepoRel(CartographyRelSchema):
 
     target_node_label: str = "CodeRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"_ont_fullname": PropertyRef("fullname")},
+        {"_ont_url": PropertyRef("repository_url")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MONITORS"
