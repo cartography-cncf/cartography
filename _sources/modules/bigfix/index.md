@@ -1,0 +1,6 @@
+# BigFix
+
+```{toctree}
+config
+schema
+```

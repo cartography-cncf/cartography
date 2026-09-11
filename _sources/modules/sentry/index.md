@@ -1,0 +1,6 @@
+# Sentry
+
+```{toctree}
+config
+schema
+```

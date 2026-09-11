@@ -1,0 +1,6 @@
+# Modal
+
+```{toctree}
+config
+schema
+```

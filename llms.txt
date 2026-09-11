@@ -1,0 +1,35 @@
+# Cartography
+
+> Cartography is an open-source Python tool that consolidates cloud and SaaS infrastructure assets and their relationships into a Neo4j graph.
+
+Use these resources to install Cartography, configure integrations, query the graph, develop new modules, and understand Cartography's data model.
+
+## Start here
+
+- [Documentation home](https://docs.cartography.dev/): Overview of Cartography and its use cases.
+- [Installation](https://docs.cartography.dev/install.html): Install and run Cartography with Docker or Python.
+- [Usage](https://docs.cartography.dev/usage/index.html): Querying, rules, drift detection, and operational guides.
+- [Command-line interface](https://docs.cartography.dev/usage/cli.html): CLI commands and configuration options.
+- [Cartography schema](https://docs.cartography.dev/usage/schema.html): Nodes, relationships, and graph conventions.
+
+## Integrations
+
+- [Amazon Web Services](https://docs.cartography.dev/modules/aws/index.html): AWS configuration and schema.
+- [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html): GCP configuration and schema.
+- [Microsoft Azure](https://docs.cartography.dev/modules/azure/index.html): Azure configuration and schema.
+- [GitHub](https://docs.cartography.dev/modules/github/index.html): GitHub configuration and schema.
+- [Kubernetes](https://docs.cartography.dev/modules/kubernetes/index.html): Kubernetes configuration and schema.
+- [All integrations](https://docs.cartography.dev/module-list.html): Complete list of supported intel modules.
+
+## Development
+
+- [Developer guide](https://docs.cartography.dev/dev/developer-guide.html): Set up a development environment and contribute.
+- [Write an intel module](https://docs.cartography.dev/dev/writing-intel-modules.html): Build a new data ingestion module.
+- [Write an analysis job](https://docs.cartography.dev/dev/writing-analysis-jobs.html): Add graph enrichment and analysis.
+- [Source code](https://github.com/cartography-cncf/cartography): Cartography's GitHub repository.
+
+## Optional
+
+- [Community](https://cartography.dev/community): Community meetings, Slack, and commercial support.
+- [GitHub discussions](https://github.com/cartography-cncf/cartography/discussions): Questions and project discussions.
+- [CNCF project page](https://www.cncf.io/projects/cartography/): Cartography's Cloud Native Computing Foundation listing.
