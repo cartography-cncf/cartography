@@ -108,6 +108,12 @@ def test_load_apigateway_stages(neo4j_session):
 
 
 def test_load_apigateway_stages_relationships(neo4j_session):
+    web_acl_arn = tests.data.aws.apigateway.GET_STAGES[0]["webAclArn"]
+    neo4j_session.run(
+        "MERGE (:AWSWAFWebACL {arn: $arn})",
+        arn=web_acl_arn,
+    )
+
     # Load Test REST API
     data_rest_api = tests.data.aws.apigateway.GET_REST_APIS
     cartography.intel.aws.apigateway.load_apigateway_rest_apis(
@@ -148,6 +154,18 @@ def test_load_apigateway_stages_relationships(neo4j_session):
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
+    assert check_rels(
+        neo4j_session,
+        "AWSWAFWebACL",
+        "arn",
+        "AWSAPIGatewayStage",
+        "id",
+        "PROTECTS",
+        rel_direction_right=True,
+    ) == {
+        (web_acl_arn, "arn:aws:apigateway:::test-001/Cartography-testing-infra"),
+        (web_acl_arn, "arn:aws:apigateway:::test-002/Cartography-testing-unit"),
+    }
 
 
 def test_load_apigateway_certificates(neo4j_session):

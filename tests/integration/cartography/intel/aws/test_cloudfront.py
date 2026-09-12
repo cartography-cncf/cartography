@@ -128,6 +128,11 @@ def test_sync_cloudfront_with_lambda(mock_get_distributions, neo4j_session):
     _cleanup_cloudfront(neo4j_session)
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    web_acl_arn = test_data.CLOUDFRONT_DISTRIBUTIONS_WITH_LAMBDA[0]["WebACLId"]
+    neo4j_session.run(
+        "MERGE (:AWSWAFWebACL {arn: $arn})",
+        arn=web_acl_arn,
+    )
 
     # Pre-create Lambda function nodes to test relationships
     neo4j_session.run(
@@ -175,6 +180,20 @@ def test_sync_cloudfront_with_lambda(mock_get_distributions, neo4j_session):
         f"arn:aws:cloudfront::{TEST_ACCOUNT_ID}:distribution/E7F8G9H0I1J2K3",
         f"arn:aws:lambda:us-east-1:{TEST_ACCOUNT_ID}:function:response-headers:2",
     ) in rels
+    assert check_rels(
+        neo4j_session,
+        "AWSWAFWebACL",
+        "arn",
+        "AWSCloudFrontDistribution",
+        "arn",
+        "PROTECTS",
+        rel_direction_right=True,
+    ) == {
+        (
+            web_acl_arn,
+            f"arn:aws:cloudfront::{TEST_ACCOUNT_ID}:distribution/E7F8G9H0I1J2K3",
+        ),
+    }
 
 
 @patch.object(

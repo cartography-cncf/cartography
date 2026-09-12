@@ -91,6 +91,10 @@ hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
   `ecr:DescribePullThroughCacheRules`.
 - AWS Glue connection ingestion requires `glue:GetConnections`, which
   `SecurityAudit` does not include.
+- AWS WAFv2 web ACL, rule, logging, and supported resource-association ingestion
+  uses the `wafv2:GetWebACL`, `wafv2:ListWebACLs`,
+  `wafv2:ListLoggingConfigurations`, and `wafv2:ListResourcesForWebACL`
+  permissions included in `SecurityAudit`.
 
 ## Configure Cartography
 

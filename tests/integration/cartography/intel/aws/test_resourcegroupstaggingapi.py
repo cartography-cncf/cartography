@@ -157,3 +157,46 @@ def test_sync_tags_scopes_to_correct_region(neo4j_session):
         (LOAD_BALANCERS_US_EAST_1[0]["id"], "env:prod"),
         (LOAD_BALANCERS_US_WEST_2[0]["id"], "env:staging"),
     }
+
+
+def test_cleanup_removes_stale_waf_tags(neo4j_session):
+    # Arrange
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (account:AWSAccount {id: $account_id})
+        MERGE (account)-[:RESOURCE]->(acl:AWSWAFWebACL {id: 'acl-1'})
+        MERGE (tag:AWSTag {id: 'env:test'})
+        MERGE (acl)-[r:TAGGED]->(tag)
+        SET tag.lastupdated = $old_update_tag,
+            r.lastupdated = $old_update_tag
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        old_update_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    rgta.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSWAFWebACL",
+            "id",
+            "AWSTag",
+            "id",
+            "TAGGED",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert (
+        neo4j_session.run(
+            "MATCH (tag:AWSTag {id: 'env:test'}) RETURN count(tag) AS count",
+        ).single()["count"]
+        == 0
+    )
