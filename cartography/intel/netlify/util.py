@@ -21,6 +21,37 @@ _MAX_PAGES = 1000
 _RATE_LIMIT_WARN_THRESHOLD = 25
 
 
+# MongoDB extended JSON wrappers Netlify sends instead of the bare scalar. Netlify's API is
+# Mongo-backed and leaks the raw BSON encoding on some fields, so an id can arrive as
+# `{"$oid": "..."}` and a timestamp as `{"$date": "..."}`.
+_EXTENDED_JSON_KEYS = frozenset(
+    {"$oid", "$date", "$numberInt", "$numberLong", "$numberDouble"},
+)
+
+
+def unwrap_extended_json(value: Any) -> Any:
+    """
+    Reduce a MongoDB extended JSON wrapper to the scalar it wraps, leaving anything else alone.
+
+    Neo4j only stores primitives and arrays of primitives, so a wrapped value fails the whole
+    write batch rather than just its own property: `Property values can only be of primitive
+    types or arrays thereof. Encountered: Map{$oid -> String(...)}`.
+
+    Observed on `invite_id` in the team members payload for an outstanding invitation, where the
+    same list also reports plain-string ids. The wrapper is the API's serialisation leaking
+    through rather than a property of that one field, so it is applied to a payload's values as a
+    whole instead of to a named field.
+
+    :param value: A value straight off a Netlify response.
+    :return: The unwrapped scalar for a recognised wrapper, otherwise the value unchanged.
+    """
+    if isinstance(value, dict) and len(value) == 1:
+        ((key, wrapped),) = value.items()
+        if key in _EXTENDED_JSON_KEYS and isinstance(wrapped, (str, int, float, bool)):
+            return wrapped
+    return value
+
+
 class NetlifyPaginationError(Exception):
     """
     Netlify advertised another page but did not give a usable URL to reach it.

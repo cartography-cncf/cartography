@@ -23,12 +23,10 @@ _STANDARD_RELATIONSHIP_PROPERTIES = frozenset({"firstseen", "lastupdated"})
 
 # Modules with no declarative data model, so their schema page is still hand-written and
 # committed. Removing one from this set must be paired with deleting its committed page.
-# - okta: legacy sync writing raw Cypher, it declares no CartographyNodeSchema.
 # - _cartography-metadata: written by the sync runner rather than by an intel module.
 MANUAL_SCHEMA_MODULES = frozenset(
     {
         "_cartography-metadata",
-        "okta",
     }
 )
 

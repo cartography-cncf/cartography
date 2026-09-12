@@ -31,7 +31,6 @@ OLD_FORMAT_NODES = [
     "OktaApplication",
     "OktaGroup",
     "OktaOrganization",
-    "OktaAdministrationRole",
     "AWSAccount",
     "GitHubRepository",
 ]

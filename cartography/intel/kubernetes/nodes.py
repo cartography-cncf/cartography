@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -7,6 +8,8 @@ from kubernetes.client.models import V1Node
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.kubernetes.util import format_resource_quantities
+from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.nodes import KubernetesNodeSchema
@@ -37,12 +40,22 @@ def transform_nodes(nodes: list[V1Node], cluster_name: str) -> list[dict[str, An
     for node in nodes:
         ni = node.status.node_info if node.status else None
         provider_id = getattr(getattr(node, "spec", None), "provider_id", None)
+        labels = node.metadata.labels or {}
+        capacity = node.status.capacity if node.status else None
+        allocatable = node.status.allocatable if node.status else None
         transformed.append(
             {
                 "id": f"{cluster_name}/{node.metadata.name}",
                 "name": node.metadata.name,
                 "provider_id": provider_id,
                 "instance_id": _ec2_instance_id_from_provider_id(provider_id),
+                "labels": json.dumps(labels, sort_keys=True),
+                "capacity": format_resource_quantities(capacity),
+                "allocatable": format_resource_quantities(allocatable),
+                "gpu_capacity": get_gpu_quantity(capacity),
+                "gpu_allocatable": get_gpu_quantity(allocatable),
+                "gpu_product": labels.get("nvidia.com/gpu.product")
+                or labels.get("cloud.google.com/gke-accelerator"),
                 "architecture": getattr(ni, "architecture", None),
                 "architecture_normalized": normalize_architecture(
                     getattr(ni, "architecture", None),

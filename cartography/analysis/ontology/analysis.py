@@ -616,7 +616,7 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)-[:APPLICATION]->(a:ThirdPartyApp)",
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:MEMBER_OF]->(:OktaGroup)-[:APPLICATION]->(a:ThirdPartyApp)",
             effects=(
                 AddRelationship(
                     "u",

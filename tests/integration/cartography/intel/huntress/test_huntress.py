@@ -181,7 +181,7 @@ def test_sync_huntress(
         (6002, "marge@springfield.example.com", "Marge Simpson"),
     }
 
-    # Assert: roles are synthesised per scope, so the same label granted on the account
+    # Assert: roles are synthesized per scope, so the same label granted on the account
     # and on an organization stays two distinct grants
     assert check_nodes(neo4j_session, "HuntressRole", ["id", "name", "scope"]) == {
         ("account/1000/Admin", "Admin", "account"),

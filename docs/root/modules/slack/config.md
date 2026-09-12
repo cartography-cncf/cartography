@@ -20,6 +20,15 @@ Add these bot scopes:
 - `users:read`
 - `users:read.email`
 
+Cartography requests both public and private channels. Slack only returns private
+channels that the app has been added to, so invite the app to each private
+channel you want to ingest. Slack grants `groups:read` when the app is installed;
+after adding the scope to an existing app, reinstall it to grant the scope to the
+bot token. Without `groups:read`, Cartography logs a warning and syncs only
+public channels. Discovering every private channel without joining it requires
+Slack Enterprise Grid and the Admin Conversations API, which this module does
+not currently support.
+
 ## Configure Cartography
 
 Use `--slack-token-env-var` to provide the name of the environment variable containing the bot token.

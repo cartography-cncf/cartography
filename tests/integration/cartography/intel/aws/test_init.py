@@ -1,5 +1,4 @@
 import inspect
-import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -9,6 +8,7 @@ from unittest import mock
 import botocore.exceptions
 import neo4j
 from moto import mock_aws
+from pytest import mark
 from pytest import raises
 
 import cartography.config
@@ -26,6 +26,10 @@ TEST_ACCOUNTS = {
 TEST_REGIONS = ["us-east-1", "us-west-2"]
 TEST_UPDATE_TAG = 123456789
 GRAPH_JOB_PARAMETERS = {"UPDATE_TAG": TEST_UPDATE_TAG}
+PUBLIC_SSM_JOB_PARAMETERS = {
+    **GRAPH_JOB_PARAMETERS,
+    "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
+}
 
 # https://stackoverflow.com/a/56687648 - Allows us to test the RESOURCE_FUNCTIONS table.
 AWS_RESOURCE_FUNCTIONS_STUB: Dict[str, Callable] = {
@@ -51,7 +55,7 @@ def test_sync_shared_public_ssm_parameters_unions_profile_regions(
         ["us-east-1", "us-west-2"],
         ["us-west-2", "eu-west-1"],
     ]
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    common_job_parameters = PUBLIC_SSM_JOB_PARAMETERS.copy()
 
     # Act
     cartography.intel.aws._sync_shared_public_ssm_parameters(
@@ -103,7 +107,7 @@ def test_sync_shared_public_ssm_parameters_best_effort_skips_profile_setup_failu
         mock.MagicMock(),
         {"broken": "111111111111", "working": "222222222222"},
         ["ssm"],
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        PUBLIC_SSM_JOB_PARAMETERS.copy(),
         configured_regions=None,
         aws_best_effort_mode=True,
     )
@@ -130,7 +134,7 @@ def test_sync_shared_public_ssm_parameters_fails_loudly_on_profile_setup_error(
             mock.MagicMock(),
             {"broken": "111111111111"},
             ["ssm"],
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            PUBLIC_SSM_JOB_PARAMETERS.copy(),
             configured_regions=None,
             aws_best_effort_mode=False,
         )
@@ -152,12 +156,51 @@ def test_sync_shared_public_ssm_parameters_does_not_mask_unexpected_errors(
             mock.MagicMock(),
             {"default": "111111111111"},
             ["ssm"],
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            PUBLIC_SSM_JOB_PARAMETERS.copy(),
             configured_regions=["us-east-1"],
             aws_best_effort_mode=True,
         )
 
     mock_sync_public_parameters.assert_called_once()
+
+
+@mock.patch.object(cartography.intel.aws.ssm_intel, "sync_public_parameters")
+@mock.patch.object(cartography.intel.aws, "_autodiscover_account_regions")
+@mock.patch.object(cartography.intel.aws, "_get_boto3_session_for_profile")
+@mark.parametrize("allowlist", [None, "", ","])
+def test_sync_shared_public_ssm_parameters_skips_aws_calls_when_disabled(
+    mock_get_session,
+    mock_autodiscover_regions,
+    mock_sync_public_parameters,
+    neo4j_session,
+    allowlist,
+):
+    # Arrange
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "aws_ssm_public_parameter_prefix_allowlist": allowlist,
+    }
+
+    # Act
+    cartography.intel.aws._sync_shared_public_ssm_parameters(
+        neo4j_session,
+        mock.MagicMock(),
+        {"default": "111111111111"},
+        ["ssm"],
+        common_job_parameters,
+        configured_regions=None,
+        aws_best_effort_mode=False,
+    )
+
+    # Assert
+    mock_get_session.assert_not_called()
+    mock_autodiscover_regions.assert_not_called()
+    mock_sync_public_parameters.assert_called_once_with(
+        neo4j_session,
+        {},
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
 
 def make_aws_sync_test_kwargs(
@@ -811,8 +854,10 @@ def test_start_aws_ingestion(
     mock_boto3,
     mock_aioboto3,
     neo4j_session,
+    monkeypatch,
 ):
     # Arrange
+    monkeypatch.delenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST", raising=False)
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -837,22 +882,17 @@ def test_start_aws_ingestion(
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
             "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
             "aws_tagging_api_cleanup_batch": test_config.aws_tagging_api_cleanup_batch,
-            "aws_ssm_public_parameter_prefix_allowlist": (
-                cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
-            ),
+            "aws_ssm_public_parameter_prefix_allowlist": "",
         },
     )
     mock_sync_shared_public_ssm_parameters.assert_called_once()
     shared_call_args = mock_sync_shared_public_ssm_parameters.call_args.args
     assert shared_call_args[0] is neo4j_session
     assert shared_call_args[3] == list(RESOURCE_FUNCTIONS.keys())
-    assert shared_call_args[4]["aws_ssm_public_parameter_prefix_allowlist"] == (
-        cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
-    )
+    assert shared_call_args[4]["aws_ssm_public_parameter_prefix_allowlist"] == ""
     assert shared_call_args[6] == test_config.aws_best_effort_mode
 
 
-@mock.patch.dict(os.environ, {}, clear=False)
 @mock.patch("cartography.intel.aws.aioboto3.Session")
 @mock.patch("cartography.intel.aws.boto3.Session")
 @mock.patch("cartography.intel.aws.organizations")
@@ -863,7 +903,7 @@ def test_start_aws_ingestion(
     return_value=None,
 )
 @mock.patch.object(cartography.intel.aws, "_perform_aws_analysis", return_value=None)
-def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
+def test_start_aws_ingestion_uses_public_ssm_allowlist_from_environment(
     mock_perform_analysis,
     mock_sync_shared_public_ssm_parameters,
     mock_sync_multiple,
@@ -871,7 +911,12 @@ def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
     mock_boto3,
     mock_aioboto3,
     neo4j_session,
+    monkeypatch,
 ):
+    monkeypatch.setenv(
+        "AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST",
+        "/aws/service/bottlerocket/",
+    )
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -884,7 +929,7 @@ def test_start_aws_ingestion_defaults_public_ssm_allowlist_when_unset(
     common_job_parameters = mock_perform_analysis.call_args.args[2]
     assert (
         common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"]
-        == cartography.intel.aws.ssm_intel.DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST
+        == "/aws/service/bottlerocket/"
     )
 
 

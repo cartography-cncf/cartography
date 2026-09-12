@@ -64,6 +64,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Okta](../modules/okta/schema.md)
 - [Ontology](../modules/ontology/schema.md)
 - [Openai](../modules/openai/schema.md)
+- [Orca Security](../modules/orca/schema.md)
 - [Pagerduty](../modules/pagerduty/schema.md)
 - [Railway](../modules/railway/schema.md)
 - [Salesforce](../modules/salesforce/schema.md)

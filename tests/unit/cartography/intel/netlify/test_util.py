@@ -8,6 +8,7 @@ from cartography.intel.netlify.util import get_one
 from cartography.intel.netlify.util import NetlifyPaginationError
 from cartography.intel.netlify.util import NetlifyPlanGatedError
 from cartography.intel.netlify.util import paginated_get
+from cartography.intel.netlify.util import unwrap_extended_json
 
 _URL = "https://api.netlify.com/api/v1/example-team/sites"
 
@@ -260,3 +261,26 @@ def test_get_one_raises_when_the_body_is_not_an_object():
 
     with pytest.raises(ValueError, match="Expected a JSON object"):
         get_one(session, _URL)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ({"$oid": "6a99a33f1815565afdc2d4be"}, "6a99a33f1815565afdc2d4be"),
+        ({"$date": "2026-07-30T15:32:17.370Z"}, "2026-07-30T15:32:17.370Z"),
+        ({"$numberLong": 12}, 12),
+        # Left alone: a real object, a wrapper we do not know, and plain scalars.
+        ({"google": "alice@example.com"}, {"google": "alice@example.com"}),
+        ({"$unknown": "x"}, {"$unknown": "x"}),
+        ({"$oid": {"nested": "x"}}, {"$oid": {"nested": "x"}}),
+        ({"$oid": "a", "$date": "b"}, {"$oid": "a", "$date": "b"}),
+        ("plain-string-id", "plain-string-id"),
+        (None, None),
+    ],
+)
+def test_unwrap_extended_json(value, expected):
+    """
+    Netlify leaks MongoDB's extended JSON on some fields, and Neo4j refuses a map as a property
+    value, so the wrapper has to be reduced to its scalar before the payload reaches a load.
+    """
+    assert unwrap_extended_json(value) == expected

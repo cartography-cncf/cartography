@@ -218,26 +218,29 @@ oci_mapping = OntologyMapping(
 okta_mapping = OntologyMapping(
     module_name="okta",
     nodes=[
-        OntologyNodeMapping(
-            node_label="OktaAdministrationRole",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="label", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="type",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "builtin"},
-                ),
-                OntologyFieldMapping(
-                    ontology_field="scope",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "org"},
-                ),
-            ],
-        ),
+        *[
+            OntologyNodeMapping(
+                node_label=node_label,
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="label", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="type",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "builtin"},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="scope",
+                        node_field="",
+                        special_handling="static_value",
+                        extra={"value": "org"},
+                    ),
+                ],
+            )
+            for node_label in ("OktaUserRole", "OktaGroupRole")
+        ],
     ],
 )
 

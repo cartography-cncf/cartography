@@ -791,6 +791,22 @@ miradore_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: The regional API URL is not the organization's domain.
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
@@ -814,6 +830,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentinelone": sentinelone_mapping,
     "jumpcloud": jumpcloud_mapping,
     "miradore": miradore_mapping,
+    "orca": orca_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,

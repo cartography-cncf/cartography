@@ -63,6 +63,31 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="EC2 instance id parsed from `provider_id` for EKS nodes (e.g. `i-0123456789abcdef0`); null for non-AWS providers.",
     )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Node metadata labels stored as a JSON-encoded object.",
+    )
+    capacity: PropertyRef = PropertyRef(
+        "capacity",
+        description="Node resource capacity from `status.capacity`, stored as a JSON-encoded object.",
+    )
+    allocatable: PropertyRef = PropertyRef(
+        "allocatable",
+        description="Node allocatable resources from `status.allocatable`, stored as a JSON-encoded object.",
+    )
+    gpu_capacity: PropertyRef = PropertyRef(
+        "gpu_capacity",
+        description="Total GPU scheduling-unit capacity across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    gpu_allocatable: PropertyRef = PropertyRef(
+        "gpu_allocatable",
+        description="Total allocatable GPU scheduling units across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
+    )
+    gpu_product: PropertyRef = PropertyRef(
+        "gpu_product",
+        extra_index=True,
+        description="GPU product reported by the standard NVIDIA GPU Feature Discovery or GKE accelerator label.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
