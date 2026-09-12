@@ -1,5 +1,6 @@
 import json
 import logging
+from ipaddress import ip_address
 from typing import Any
 
 import neo4j
@@ -19,6 +20,16 @@ from cartography.models.kubernetes.pods import KubernetesPodSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _host_ip_uses_node_addresses(host_ip: str | None) -> bool:
+    if not host_ip:
+        return True
+    try:
+        address = ip_address(host_ip)
+    except ValueError:
+        return False
+    return address.is_unspecified
 
 
 def _claim_id(cluster_name: str, namespace: str, claim_name: str) -> str:
@@ -59,6 +70,9 @@ def _extract_pod_containers(
             "added_capabilities": [],
             "dropped_capabilities": [],
             "host_ports": [],
+            "host_port_keys": [],
+            "node_address_host_port_keys": [],
+            "host_port_bindings": "[]",
             "container_ports": json.dumps([]),
             "container_port_numbers": [],
             "container_port_keys": [],
@@ -171,6 +185,34 @@ def _extract_pod_containers(
         if ports:
             containers[container.name]["host_ports"] = sorted(
                 [port.host_port for port in ports if port.host_port is not None]
+            )
+            host_port_bindings = [
+                {
+                    "name": port.name,
+                    "protocol": port.protocol or "TCP",
+                    "container_port": port.container_port,
+                    "host_port": port.host_port,
+                    "host_ip": getattr(port, "host_ip", None),
+                }
+                for port in ports
+                if port.host_port is not None
+            ]
+            containers[container.name]["host_port_bindings"] = json.dumps(
+                host_port_bindings,
+                sort_keys=True,
+            )
+            containers[container.name]["host_port_keys"] = sorted(
+                {
+                    f"{binding['protocol']}/{binding['host_port']}"
+                    for binding in host_port_bindings
+                }
+            )
+            containers[container.name]["node_address_host_port_keys"] = sorted(
+                {
+                    f"{binding['protocol']}/{binding['host_port']}"
+                    for binding in host_port_bindings
+                    if _host_ip_uses_node_addresses(binding["host_ip"])
+                }
             )
 
             # The containerPorts a container *declares* (as opposed to the

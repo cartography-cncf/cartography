@@ -18,6 +18,10 @@ RAW_NODES = [
             provider_id="aws:///us-east-1a/i-0123456789abcdef0",
         ),
         status=SimpleNamespace(
+            addresses=[
+                SimpleNamespace(type="InternalIP", address="10.0.0.10"),
+                SimpleNamespace(type="ExternalIP", address="8.8.8.8"),
+            ],
             capacity={"cpu": "128", "memory": "2Ti", "nvidia.com/gpu": "8"},
             allocatable={
                 "cpu": "127",
@@ -38,6 +42,9 @@ RAW_NODES = [
         metadata=SimpleNamespace(name="my-arm-node", labels={}),
         spec=SimpleNamespace(provider_id=None),
         status=SimpleNamespace(
+            addresses=[
+                SimpleNamespace(type="InternalIP", address="10.0.0.11"),
+            ],
             capacity={"cpu": "4", "memory": "16Gi"},
             allocatable={"cpu": "3900m", "memory": "15Gi"},
             node_info=SimpleNamespace(
@@ -91,6 +98,9 @@ KUBERNETES_NODE_DATA = [
         "labels": '{"nvidia.com/gpu.present": "true", "nvidia.com/gpu.product": "NVIDIA-H200"}',
         "capacity": '{"cpu": "128", "memory": "2Ti", "nvidia.com/gpu": "8"}',
         "allocatable": '{"cpu": "127", "memory": "1900Gi", "nvidia.com/gpu": "8"}',
+        "addresses": '[{"address": "10.0.0.10", "type": "InternalIP"}, {"address": "8.8.8.8", "type": "ExternalIP"}]',
+        "external_ip_addresses": ["8.8.8.8"],
+        "global_external_ip_addresses": ["8.8.8.8"],
         "gpu_capacity": 8,
         "gpu_allocatable": 8,
         "gpu_product": "NVIDIA-H200",
@@ -110,6 +120,9 @@ KUBERNETES_NODE_DATA = [
         "labels": "{}",
         "capacity": '{"cpu": "4", "memory": "16Gi"}',
         "allocatable": '{"cpu": "3900m", "memory": "15Gi"}',
+        "addresses": '[{"address": "10.0.0.11", "type": "InternalIP"}]',
+        "external_ip_addresses": [],
+        "global_external_ip_addresses": [],
         "gpu_capacity": None,
         "gpu_allocatable": None,
         "gpu_product": None,
