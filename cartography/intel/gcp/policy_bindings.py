@@ -374,6 +374,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 wif_pools: set[str] = set()
                 domains: set[str] = set()
                 is_public = False
+                has_gke_member = False
                 for member in members:
                     # GCP encodes the "anyone on the internet" principals as
                     # plain identifiers without a "type:" prefix. They never
@@ -393,6 +394,13 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     if ":" not in member:
                         continue
                     member_type, identifier = member.split(":", 1)
+                    if (
+                        member_type == "serviceAccount"
+                        and ".svc.id.goog[" in identifier
+                        and identifier.endswith("]")
+                    ):
+                        has_gke_member = True
+                        continue
                     if member_type in ("user", "serviceAccount", "group"):
                         # Store only the email part
                         filtered_members.append(identifier)
@@ -409,6 +417,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     and not is_public
                     and not wif_pools
                     and not domains
+                    and not has_gke_member
                 ):
                     continue
 
@@ -423,6 +432,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 key = (resource, role, condition_expression)
 
                 if key in bindings:
+                    bindings[key]["raw_members"] = sorted(
+                        set(bindings[key]["raw_members"]) | set(members)
+                    )
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
                     bindings[key]["members"] = sorted(existing_members)
@@ -455,6 +467,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "resource": resource,
                         "resource_type": resource_type,
                         "members": sorted(filtered_members),
+                        "raw_members": sorted(set(members)),
                         "wif_pools": sorted(wif_pools),
                         "domains": sorted(domains),
                         "is_public": is_public,
@@ -538,9 +551,13 @@ def _claim_inherited_bindings_for_graph(
 def make_policy_binding_applies_to_matchlink(
     target_node_label: str,
     owner_label: str,
+    target_property: str = "id",
 ) -> GCPPolicyBindingAppliesToMatchLink:
     return GCPPolicyBindingAppliesToMatchLink(
         target_node_label=target_node_label,
+        target_node_matcher=make_target_node_matcher(
+            {target_property: PropertyRef("target_id")}
+        ),
         source_node_sub_resource=MatchLinkSubResource(
             target_node_label=owner_label,
             target_node_matcher=make_target_node_matcher(
@@ -550,6 +567,38 @@ def make_policy_binding_applies_to_matchlink(
             rel_label="RESOURCE",
         ),
     )
+
+
+def _load_applies_to_links(
+    session: neo4j.Session,
+    bindings: list[dict[str, Any]],
+    owner_label: str,
+    owner_id: str,
+    update_tag: int,
+) -> None:
+    for target_label, links in _group_applies_to_links(bindings).items():
+        # CAI SearchAllIamPolicies identifies service accounts by email, while
+        # other IAM responses use uniqueId. Both must resolve to the same node.
+        groups: dict[str, list[dict[str, str]]] = {}
+        for link in links:
+            key = (
+                "email"
+                if target_label == "GCPServiceAccount" and "@" in link["target_id"]
+                else "id"
+            )
+            groups.setdefault(key, []).append(link)
+        for key, rows in groups.items():
+            load_matchlinks(
+                session,
+                make_policy_binding_applies_to_matchlink(
+                    target_label, owner_label, key
+                ),
+                rows,
+                batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
+                lastupdated=update_tag,
+                _sub_resource_label=owner_label,
+                _sub_resource_id=owner_id,
+            )
 
 
 @timeit
@@ -568,16 +617,9 @@ def load_bindings(
         PROJECT_ID=project_id,
     )
 
-    for target_label, links in _group_applies_to_links(bindings).items():
-        load_matchlinks(
-            neo4j_session,
-            make_policy_binding_applies_to_matchlink(target_label, "GCPProject"),
-            links,
-            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
-            lastupdated=update_tag,
-            _sub_resource_label="GCPProject",
-            _sub_resource_id=project_id,
-        )
+    _load_applies_to_links(
+        neo4j_session, bindings, "GCPProject", project_id, update_tag
+    )
 
 
 def _load_organization_bindings(
@@ -595,16 +637,9 @@ def _load_organization_bindings(
         ORG_RESOURCE_NAME=org_resource_name,
     )
 
-    for target_label, links in _group_applies_to_links(bindings).items():
-        load_matchlinks(
-            neo4j_session,
-            make_policy_binding_applies_to_matchlink(target_label, "GCPOrganization"),
-            links,
-            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
-            lastupdated=update_tag,
-            _sub_resource_label="GCPOrganization",
-            _sub_resource_id=org_resource_name,
-        )
+    _load_applies_to_links(
+        neo4j_session, bindings, "GCPOrganization", org_resource_name, update_tag
+    )
 
 
 def _load_folder_bindings(
@@ -622,16 +657,7 @@ def _load_folder_bindings(
         FOLDER_ID=folder_id,
     )
 
-    for target_label, links in _group_applies_to_links(bindings).items():
-        load_matchlinks(
-            neo4j_session,
-            make_policy_binding_applies_to_matchlink(target_label, "GCPFolder"),
-            links,
-            batch_size=GCP_POLICY_BINDINGS_GRAPH_BATCH_SIZE,
-            lastupdated=update_tag,
-            _sub_resource_label="GCPFolder",
-            _sub_resource_id=folder_id,
-        )
+    _load_applies_to_links(neo4j_session, bindings, "GCPFolder", folder_id, update_tag)
 
 
 @timeit

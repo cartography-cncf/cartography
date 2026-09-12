@@ -32,7 +32,7 @@ GCP_GKE_ASSET_EXPOSURE = AnalysisJob(
     short_name="gcp_gke_asset_exposure",
     statements=(
         AnalysisStatement(
-            match="MATCH (cluster:GKECluster) WHERE cluster.private_nodes = false OR cluster.private_endpoint_enabled = false OR cluster.master_authorized_networks = false",
+            match="MATCH (cluster:GKECluster) WHERE cluster.control_plane_public_access = true OR (cluster.control_plane_public_access IS NULL AND (cluster.private_nodes = false OR cluster.private_endpoint_enabled = false OR cluster.master_authorized_networks = false))",
             effects=(
                 SetProperty("cluster", "exposed_internet", True, label="GKECluster"),
             ),

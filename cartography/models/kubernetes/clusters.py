@@ -33,6 +33,26 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Identifier for the cluster fetched from the kubeconfig context. For EKS clusters this should be the `arn`.",
     )
+    service_account_issuer: PropertyRef = PropertyRef(
+        "service_account_issuer",
+        description="Kubernetes ServiceAccount OIDC issuer read from the authenticated API server. This is distinct from external user OIDC login.",
+    )
+    service_account_jwks_uri: PropertyRef = PropertyRef(
+        "service_account_jwks_uri",
+        description="Public signing-key discovery URI advertised by the API server; not fetched by Cartography.",
+    )
+    gke_resource_name: PropertyRef = PropertyRef(
+        "gke_resource_name",
+        extra_index=True,
+        description="Verified GKE resource name, including project, location, and cluster name.",
+    )
+    gke_uid: PropertyRef = PropertyRef(
+        "gke_uid", description="GKE cloud cluster unique identifier."
+    )
+    workload_pool: PropertyRef = PropertyRef(
+        "workload_pool",
+        description="GKE workload identity pool configured on the cluster.",
+    )
     version: PropertyRef = PropertyRef(
         "git_version",
         description="Git version of the Kubernetes cluster (e.g. v1.27.3).",
@@ -85,7 +105,7 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
     )
     kubeconfig_tls_configuration_status: PropertyRef = PropertyRef(
         "kubeconfig_tls_configuration_status",
-        description="Derived kubeconfig TLS posture (`valid_config`, `insecure_skip_tls`, `missing_ca_material`, `unknown`).",
+        description="Derived kubeconfig TLS posture (`valid_config`, `insecure_skip_tls`, `missing_ca_material`, `public_ca`, `unknown`).",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

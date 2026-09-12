@@ -13,6 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesGatewayNodeProperties(CartographyNodeProperties):
+    load_balancer_listeners: PropertyRef = PropertyRef(
+        "load_balancer_listeners",
+        description="Declared frontend protocol and port pairs, e.g. TCP:80, used to disambiguate shared load balancer IPs.",
+    )
+    load_balancer_ips: PropertyRef = PropertyRef(
+        "load_balancer_ips",
+        description="Assigned IP addresses from the Kubernetes load balancer status, not requested spec addresses.",
+    )
     id: PropertyRef = PropertyRef("uid", description="UID of the Gateway.")
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Name of the Gateway."

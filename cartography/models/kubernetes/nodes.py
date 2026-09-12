@@ -63,6 +63,14 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="EC2 instance id parsed from `provider_id` for EKS nodes (e.g. `i-0123456789abcdef0`); null for non-AWS providers.",
     )
+    gcp_instance_id: PropertyRef = PropertyRef(
+        "gcp_instance_id",
+        description="Canonical Compute Engine resource ID parsed from the node providerID. Autopilot VMs may not be visible in Compute inventory.",
+    )
+    gke_node_pool: PropertyRef = PropertyRef(
+        "gke_node_pool",
+        description="GKE node pool name from the cloud.google.com/gke-nodepool label.",
+    )
     labels: PropertyRef = PropertyRef(
         "labels",
         description="Node metadata labels stored as a JSON-encoded object.",
@@ -135,6 +143,16 @@ class KubernetesNodeToEC2InstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesNodeToGCPInstanceRel(KubernetesNodeToEC2InstanceRel):
+    """Links a Kubernetes node to an inventoried Compute Engine VM by providerID."""
+
+    target_node_label: str = "GCPInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("gcp_instance_id")}
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesNodeSchema(CartographyNodeSchema):
     "A worker node registered with a Kubernetes cluster."
 
@@ -146,5 +164,6 @@ class KubernetesNodeSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesNodeToEC2InstanceRel(),
+            KubernetesNodeToGCPInstanceRel(),
         ]
     )
