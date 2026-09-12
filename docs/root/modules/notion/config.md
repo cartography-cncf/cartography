@@ -5,15 +5,18 @@ Notion personal access token (PAT) is not a connection token and will not work.
 
 ## Authentication
 
-For a manual Cartography deployment, create an internal Notion connection:
+For a manual Cartography deployment, create a workspace-scoped connection:
 
-1. In Notion, open **Settings**, select **Connections**, and choose **Develop
-   your own connections**.
-2. In the Creator dashboard, select **Internal connections** and create a
-   connection for the workspace.
-3. On its **Configuration** tab, enable **Read user information including email
+1. In Notion, open **Developer tools** and select **Connections**.
+2. Select **New connection**, enter a name, choose **Access token**, and select
+   **Create connection**. Do not choose **OAuth** for a manual deployment.
+3. On the **Configuration** tab, select **Read user information including email
    addresses**.
-4. Copy its **Installation access token** into Cartography's `api_token` field.
+4. Disable **Update content** and **Insert content**, which may be enabled by
+   default. Leave comment and agent capabilities disabled.
+5. Disable **Read content** unless you plan to enable `sync_public_pages`.
+6. Copy the **Access token** from the **Integration token** section into
+   Cartography's `api_token` field.
 
 Do not create a personal access token. PATs act as one user and Notion does not
 allow them to call the List all users endpoint required by this module.
@@ -77,13 +80,13 @@ scoped by the workspace ID returned by Notion, so the same identity can safely
 appear in more than one workspace.
 
 Set `sync_public_pages` to `true` only when the connection has Read content and
-the additional search cost is acceptable. Grant the connection access to the
-desired root pages from its **Content access** tab; access is inherited by their
-children. Search responses are processed in
-bounded batches so high-cardinality workspaces do not require retaining every
-page object in memory. The sync stores page metadata such as
-title, URL, public URL, timestamps, parent ID, and creator. It never stores page
-body or comment content.
+the additional search cost is acceptable. On the connection's **Content
+access** tab, select **Add pages & databases** and choose the desired roots.
+Access is inherited by their children. Search responses are processed in bounded
+batches so high-cardinality workspaces do not require retaining every page
+object in memory. The sync stores page metadata such as title, URL, public URL,
+timestamps, parent ID, and creator. It never stores page body or comment
+content.
 
 ## Run Cartography
 
