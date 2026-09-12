@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_image import parse_image_uri
 from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import unwrap_edges
 from cartography.models.railway.deployment import RailwayDeploymentSchema
@@ -16,6 +17,17 @@ from cartography.models.railway.filesystem_snapshot import (
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_image_digest(value: Any) -> str | None:
+    # Cartography's canonical registry image nodes currently use SHA-256 identities. Do not
+    # accept another OCI algorithm until those node schemas and matchers support it too.
+    if not isinstance(value, str):
+        return None
+    digest = value.strip()
+    if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+        return None
+    return digest.lower()
 
 
 @timeit
@@ -52,8 +64,11 @@ def transform(
         }
 
         current_instances: dict[str, dict[str, Any]] = {}
+        latest_deployment_ids: set[str] = set()
         for instance in iter_service_instances(bundle):
             latest_deployment = instance.get("latestDeployment") or {}
+            if latest_deployment.get("id"):
+                latest_deployment_ids.add(latest_deployment["id"])
             current_deployments = list(instance.get("activeDeployments") or [])
             if latest_deployment.get("status") == "SLEEPING":
                 current_deployments.append(latest_deployment)
@@ -66,7 +81,37 @@ def transform(
         project_snapshots: list[dict[str, Any]] = []
         project_triggers: list[dict[str, Any]] = []
         for deployment in project_deployments_by_id.values():
+            current_instance = current_instances.get(deployment["id"])
+            source = (current_instance or {}).get("source") or {}
             meta = deployment.get("meta")
+            meta_image = meta.get("image") if isinstance(meta, dict) else None
+            configured_image, source_pinned_digest = parse_image_uri(
+                source.get("image"),
+            )
+            source_image = configured_image
+            meta_pinned_digest = None
+            # ServiceSource is the service instance's current configuration, not immutable
+            # deployment provenance. It is only safe as a fallback for the latest deployment
+            # when that deployment did not report a different image reference of its own.
+            source_fallback_digest = (
+                source_pinned_digest
+                if deployment["id"] in latest_deployment_ids and not meta_image
+                else None
+            )
+            if isinstance(meta_image, str) and meta_image.strip():
+                source_image, meta_pinned_digest = parse_image_uri(meta_image)
+            reported_digest = (
+                meta.get("imageDigest") if isinstance(meta, dict) else None
+            )
+            image_digest = (
+                _normalize_image_digest(
+                    reported_digest,
+                )
+                or _normalize_image_digest(
+                    meta_pinned_digest,
+                )
+                or _normalize_image_digest(source_fallback_digest)
+            )
             commit_hash = meta.get("commitHash") if isinstance(meta, dict) else None
             source_revision = (
                 commit_hash.lower()
@@ -78,12 +123,13 @@ def transform(
                 {
                     **deployment,
                     "source_revision": source_revision,
+                    "source_image": source_image,
+                    "image_digest": image_digest,
                     "lifecycle": (
                         "current" if deployment["id"] in current_ids else "historical"
                     ),
                 },
             )
-            current_instance = current_instances.get(deployment["id"])
             source_repo = meta.get("repo") if isinstance(meta, dict) else None
             root_directory = (
                 meta.get("rootDirectory") if isinstance(meta, dict) else None
