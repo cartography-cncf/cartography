@@ -140,3 +140,72 @@ def test_refresh_layer_closures_rejects_invalid_batch_size():
             456,
             batch_size=0,
         )
+
+
+@pytest.mark.parametrize("count", [0, 1, 500, 501, 1201])
+def test_get_complete_layer_digests_bounds_queries_and_combines_results(count):
+    # Arrange
+    digests = [f"sha256:{index:04}" for index in range(count)]
+    cached = set(digests[::3])
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.side_effect = lambda _, query, **params: [
+        digest for digest in params["digests"] if digest in cached
+    ]
+
+    # Act
+    result = get_complete_layer_digests(
+        neo4j_session,
+        TEST_SHAPE,
+        iter(digests + digests),
+        {"id": "tenant-1"},
+    )
+
+    # Assert
+    assert result == cached
+    calls = neo4j_session.execute_read.call_args_list
+    assert len(calls) == (count + 499) // 500
+    assert all(0 < len(call.kwargs["digests"]) <= 500 for call in calls)
+    assert [digest for call in calls for digest in call.kwargs["digests"]] == digests
+    assert all(call.kwargs["scope_id"] == "tenant-1" for call in calls)
+
+
+def test_get_complete_layer_digests_preserves_whole_scope_lookup():
+    # Arrange
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = ["sha256:cached"]
+
+    # Act
+    result = get_complete_layer_digests(
+        neo4j_session, TEST_SHAPE, None, {"id": "tenant-1"}
+    )
+
+    # Assert
+    assert result == {"sha256:cached"}
+    neo4j_session.execute_read.assert_called_once()
+    assert neo4j_session.execute_read.call_args.kwargs == {"scope_id": "tenant-1"}
+    assert "$digests" not in neo4j_session.execute_read.call_args.args[1]
+
+
+def test_get_complete_layer_digests_propagates_later_batch_failure():
+    # Arrange
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.side_effect = [["sha256:cached"], RuntimeError("failed")]
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="failed"):
+        get_complete_layer_digests(
+            neo4j_session,
+            TEST_SHAPE,
+            ["sha256:cached", "sha256:other"],
+            {"id": "tenant-1"},
+            batch_size=1,
+        )
+
+
+@pytest.mark.parametrize("batch_size", [0, -1])
+def test_get_complete_layer_digests_rejects_invalid_batch_size(batch_size):
+    # Act and assert
+    with pytest.raises(ValueError, match="batch_size"):
+        get_complete_layer_digests(
+            MagicMock(), TEST_SHAPE, [], {"id": "tenant-1"}, batch_size=batch_size
+        )
