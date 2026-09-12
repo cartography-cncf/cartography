@@ -53,6 +53,27 @@ IP correlation is an exact, graph-wide match; recycled addresses can correlate
 stale Kubernetes status with an unrelated load balancer, so treat IP-only paths
 as evidence to verify rather than proof of exposure.
 
+## Inspect port-attributed container exposure
+
+Find containers whose declared protocol and port match a current EndpointSlice
+port for an internet-exposed Service:
+
+```cypher
+MATCH (service:KubernetesService {exposed_internet: true})
+  <-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
+  -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(container:KubernetesContainer)
+WHERE slice.lastupdated = $UPDATE_TAG
+  AND any(port_key IN slice.port_keys
+          WHERE port_key IN container.container_port_keys)
+RETURN service.namespace, service.name, pod.name, container.name,
+       [port_key IN slice.port_keys
+        WHERE port_key IN container.container_port_keys] AS matching_ports
+ORDER BY service.namespace, service.name, pod.name, container.name;
+```
+
+An absent result doesn't prove that a process is unreachable. Kubernetes doesn't
+require containers to declare the ports on which their processes listen.
+
 ## Inspect kubeconfig TLS posture
 
 Use the TLS posture fields on each cluster to find kubeconfig contexts that skip

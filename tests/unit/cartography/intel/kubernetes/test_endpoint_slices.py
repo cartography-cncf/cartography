@@ -23,6 +23,7 @@ def test_transform_endpoint_slices_uses_ready_pod_targets():
     assert endpoint_slice["service_qualified_name"] == f"{NAMESPACE}/{SERVICE_NAME}"
     assert endpoint_slice["ready_pod_ids"] == [KUBERNETES_PODS_DATA[0]["uid"]]
     assert endpoint_slice["port_numbers"] == [8080]
+    assert endpoint_slice["port_keys"] == ["TCP/8080"]
     assert service_pod_ids_by_qualified_name([endpoint_slice]) == {
         f"{NAMESPACE}/{SERVICE_NAME}": [KUBERNETES_PODS_DATA[0]["uid"]]
     }
@@ -35,6 +36,15 @@ def test_transform_endpoint_slice_without_service_label():
     [endpoint_slice] = transform_endpoint_slices(raw)
 
     assert endpoint_slice["service_qualified_name"] is None
+
+
+def test_transform_endpoint_slice_defaults_protocol_to_tcp():
+    raw = deepcopy(KUBERNETES_ENDPOINT_SLICES_RAW)
+    raw[0].ports[0].protocol = None
+
+    [endpoint_slice] = transform_endpoint_slices(raw)
+
+    assert endpoint_slice["port_keys"] == ["TCP/8080"]
 
 
 @pytest.mark.parametrize("status", [401, 403, 404, 500])

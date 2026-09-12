@@ -31,6 +31,7 @@ KUBERNETES_CONTAINER_DATA = [
             ]
         ),
         "container_port_numbers": [8080],
+        "container_port_keys": ["TCP/8080"],
     },
     {
         "name": "my-service-pod-container",
@@ -51,6 +52,7 @@ KUBERNETES_CONTAINER_DATA = [
         "host_ports": [],
         "container_ports": json.dumps([]),
         "container_port_numbers": [],
+        "container_port_keys": [],
     },
 ]
 
