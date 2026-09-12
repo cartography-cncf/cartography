@@ -91,6 +91,12 @@ class OktaUserTypeToOktaUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class OktaUserTypeSchema(CartographyNodeSchema):
+    """An Okta user type.
+
+    The Okta SDK currently exposes only the ID returned by the list-user-types API.
+    See https://github.com/okta/okta-sdk-python/issues/535.
+    """
+
     label: str = "OktaUserType"
     properties: OktaUserTypeNodeProperties = OktaUserTypeNodeProperties()
     sub_resource_relationship: OktaUserTypeToOktaOrganizationRel = (

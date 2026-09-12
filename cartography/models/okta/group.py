@@ -183,6 +183,8 @@ class OktaGroupToOktaUserRel(CartographyRelSchema):
 # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
 @dataclass(frozen=True)
 class OktaGroupToOktaUserDeprecatedRel(CartographyRelSchema):
+    """Deprecated Okta group membership; use `MEMBER_OF`. Will be removed in v1.0.0."""
+
     # (:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

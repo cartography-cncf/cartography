@@ -25,4 +25,14 @@ cartography \
 
 For an Okta preview environment or another region, set `--okta-base-domain`. The default is `okta.com`.
 
-When Okta administers AWS as a [SAML provider](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), Cartography matches Okta groups to the AWS roles they control. If your group names do not use the standard `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` pattern from [Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), provide your pattern with `--okta-saml-role-regex`.
+When Okta maps groups directly to AWS IAM roles as a
+[SAML provider](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC),
+Cartography derives the role from each group name. If your group names do not
+use the standard `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` pattern
+from [Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC),
+provide your pattern with `--okta-saml-role-regex`.
+
+This option controls `OktaGroup` to `AWSRole` mapping for directly federated IAM
+roles and AWS Identity Center `AWSReservedSSO` roles. It does not control
+SCIM-provisioned users, groups, or account assignments; the AWS module imports
+that data.

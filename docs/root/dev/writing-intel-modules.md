@@ -93,12 +93,14 @@ indirection. Prefer tables for permissions or when documenting three or more
 configuration options. Distinguish required permissions from optional
 permissions and explain any graceful degradation.
 
-Put module purpose, feature inventories, architecture, broad ingestion
-behavior, and ontology integration in `index.md`. Put Cypher investigations in
-`queries.md` or `examples.md`, and put post-ingestion analysis behavior in
-`analysis.md`. Node, relationship, and property documentation belongs in model
-docstrings and `PropertyRef.description`, which Sphinx uses to generate
-`schema.md`.
+Keep `index.md` limited to one H1 title and its `toctree`. Put module purpose,
+feature inventories, architecture, broad ingestion behavior, and ontology
+integration in `overview.md` or another focused child page. Put Cypher
+investigations in `queries.md` or `examples.md`, and put post-ingestion analysis
+behavior in `analysis.md`. Link to one authoritative location instead of
+repeating guidance across pages. Node, relationship, and property documentation
+belongs in model docstrings and `PropertyRef.description`, which Sphinx uses to
+generate `schema.md`.
 
 ## Sync = Get, Transform, Load, Cleanup
 
