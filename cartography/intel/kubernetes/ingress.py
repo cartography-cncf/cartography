@@ -11,6 +11,7 @@ from kubernetes.client.models import V1IngressRule
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
@@ -148,6 +149,7 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                     _format_ingress_backend(item.spec.default_backend)
                 ),
                 "host_names": host_names,
+                "host_names_normalized": normalize_hostname_values(host_names),
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,

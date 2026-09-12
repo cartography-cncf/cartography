@@ -4,12 +4,61 @@ from cartography.graph.querybuilder import (
     _build_ontology_field_statement_invert_boolean,
 )
 from cartography.graph.querybuilder import _build_ontology_field_statement_mapping
+from cartography.graph.querybuilder import (
+    _build_ontology_field_statement_normalize_hostname,
+)
 from cartography.graph.querybuilder import _build_ontology_field_statement_or_boolean
 from cartography.graph.querybuilder import _build_ontology_field_statement_static_value
 from cartography.graph.querybuilder import _build_ontology_field_statement_to_boolean
 from cartography.graph.querybuilder import _escape_cypher_string
 from cartography.models.core.common import PropertyRef
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+
+
+def test_build_ontology_field_statement_normalize_hostname():
+    mapping_field = OntologyFieldMapping(
+        ontology_field="name",
+        node_field="name",
+        special_handling="normalize_hostname",
+    )
+
+    result = _build_ontology_field_statement_normalize_hostname(
+        mapping_field,
+        PropertyRef("name"),
+        {"name": PropertyRef("name")},
+    )
+
+    assert result == (
+        "i._ont_name = CASE "
+        "WHEN item.name IS NULL OR toLower(rtrim(trim(toString(item.name)), '.')) = '' "
+        "THEN null ELSE toLower(rtrim(trim(toString(item.name)), '.')) END"
+    )
+
+
+def test_build_ontology_field_statement_normalize_hostname_by_record_type():
+    mapping_field = OntologyFieldMapping(
+        ontology_field="target_hostname",
+        node_field="value",
+        special_handling="normalize_hostname",
+        extra={"record_types": ["CNAME", "ALIAS"]},
+    )
+
+    result = _build_ontology_field_statement_normalize_hostname(
+        mapping_field,
+        PropertyRef("value"),
+        {"value": PropertyRef("value"), "type": PropertyRef("type")},
+    )
+
+    normalized = "toLower(rtrim(trim(toString(item.value)), '.'))"
+    conditional = (
+        "CASE WHEN toUpper(toString(item.type)) IN ['CNAME', 'ALIAS'] "
+        f"THEN {normalized} ELSE null END"
+    )
+    assert result == (
+        "i._ont_target_hostname = CASE "
+        f"WHEN item.value IS NULL OR {conditional} = '' "
+        f"THEN null ELSE {conditional} END"
+    )
 
 
 def test_build_ontology_field_statement_invert_boolean():
