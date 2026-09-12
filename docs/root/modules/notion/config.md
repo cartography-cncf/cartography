@@ -1,13 +1,28 @@
 # Notion Configuration
 
-Configure at least one Notion connection token before running this module.
+Configure at least one Notion connection token before running this module. A
+Notion personal access token (PAT) is not a connection token and will not work.
 
 ## Authentication
 
-Create an internal Notion connection with the **Read user information including
-email addresses** capability. Public OAuth connection tokens are also supported.
-Personal access tokens are not supported because Notion does not allow them to
-list workspace users.
+For a manual Cartography deployment, create an internal Notion connection:
+
+1. In Notion, open **Settings**, select **Connections**, and choose **Develop
+   your own connections**.
+2. In the Creator dashboard, select **Internal connections** and create a
+   connection for the workspace.
+3. On its **Configuration** tab, enable **Read user information including email
+   addresses**.
+4. Copy its **Installation access token** into Cartography's `api_token` field.
+
+Do not create a personal access token. PATs act as one user and Notion does not
+allow them to call the List all users endpoint required by this module.
+
+For a hosted, multi-workspace deployment, use a public OAuth connection instead.
+Configure the same user-information capability before users authorize it, then
+store each valid OAuth access token in the corresponding workspace entry. The
+hosting service is responsible for the OAuth flow, secure token storage, and
+token refresh; Cartography does not perform OAuth authorization itself.
 
 Store tokens in a secret manager or environment variable; base64 encoding the
 module config does not encrypt it. Cartography discovers the workspace ID and,
@@ -62,7 +77,9 @@ scoped by the workspace ID returned by Notion, so the same identity can safely
 appear in more than one workspace.
 
 Set `sync_public_pages` to `true` only when the connection has Read content and
-the additional search cost is acceptable. Search responses are processed in
+the additional search cost is acceptable. Grant the connection access to the
+desired root pages from its **Content access** tab; access is inherited by their
+children. Search responses are processed in
 bounded batches so high-cardinality workspaces do not require retaining every
 page object in memory. The sync stores page metadata such as
 title, URL, public URL, timestamps, parent ID, and creator. It never stores page
@@ -90,6 +107,8 @@ cartography \
 
 - [Notion list users API](https://developers.notion.com/reference/get-users)
 - [Notion retrieve token bot API](https://developers.notion.com/reference/get-self)
+- [Notion internal connections](https://developers.notion.com/guides/get-started/internal-connections)
+- [Notion public connections](https://developers.notion.com/guides/get-started/public-connections)
 - [Notion personal access token limitations](https://developers.notion.com/guides/get-started/personal-access-tokens)
 - [Notion search limitations](https://developers.notion.com/reference/search-optimizations-and-limitations)
 - [Notion user object](https://developers.notion.com/reference/user)
