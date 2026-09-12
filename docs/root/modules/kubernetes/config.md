@@ -287,7 +287,9 @@ the same graph, provided GCP inventory is available before Kubernetes enrichment
   Named identities and namespace sets intentionally span clusters in the same pool.
 - `ANNOTATED_SERVICE_ACCOUNT` records the GSA annotation. A
   `WORKLOAD_IDENTITY_BINDING` additionally requires a matching **unconditional**
-  `roles/iam.workloadIdentityUser` binding applying to that GSA. Conditional grants
+  `roles/iam.workloadIdentityUser` binding attached directly to that GSA. Inherited
+  project/folder/organization grants remain visible as policy paths but are not
+  expanded into impersonation edges. Conditional grants
   remain traversable through policy nodes; CEL conditions are not evaluated.
   Previous annotation-only `WORKLOAD_IDENTITY_BINDING` edges are removed after a successful Kubernetes RBAC sync. Queries relying on the old
   annotation semantics should migrate to `ANNOTATED_SERVICE_ACCOUNT`.

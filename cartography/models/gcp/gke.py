@@ -109,7 +109,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     )
     endpoint: PropertyRef = PropertyRef(
         "endpoint",
-        description="The IP address of the cluster's master endpoint. The endpoint can be accessed from the internet at https://username:password@endpoint/.",
+        description="Legacy master endpoint IP address. Address presence alone does not imply that IP access is enabled.",
     )
     initial_version: PropertyRef = PropertyRef(
         "initial_version", description="The initial Kubernetes version for the cluster."
@@ -151,7 +151,7 @@ class GCPGKEClusterNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="Set to `True` if at least among `private_nodes`, `private_endpoint_enabled`, or `master_authorized_networks` are disabled.",
+        description="Set to true when the control plane has an enabled authenticated DNS or public IP endpoint. IAM and network restrictions still apply. Older snapshots use the legacy exposure heuristic.",
     )  # Populated by the GCP_GKE_ASSET_EXPOSURE analysis job.
     private_nodes: PropertyRef = PropertyRef(
         "private_nodes",
