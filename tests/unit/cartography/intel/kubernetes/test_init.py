@@ -6,6 +6,12 @@ import cartography.intel.kubernetes as kubernetes
 def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
     cluster_arn = "arn:aws:eks:us-east-1:111122223333:cluster/example-eks-cluster"
     captured = {}
+    endpoint_slice_data = [
+        {
+            "service_qualified_name": "default/web",
+            "ready_pod_ids": ["pod-uid"],
+        }
+    ]
 
     class DummyClient:
         name = "dummy-context"
@@ -15,6 +21,12 @@ def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
         captured["region"] = args[3]
         captured["cluster_id"] = args[5]
         captured["cluster_name"] = args[6]
+
+    def _capture_sync_services(*args, **kwargs):
+        captured["service_pod_ids"] = args[5]
+
+    def _capture_sync_endpoint_slices(*args, **kwargs):
+        captured["endpoint_slices"] = args[1]
 
     monkeypatch.setattr(kubernetes, "get_k8s_clients", lambda _: [DummyClient()])
     monkeypatch.setattr(
@@ -35,7 +47,15 @@ def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
     monkeypatch.setattr(kubernetes, "sync_storage", lambda *args, **kwargs: None)
     monkeypatch.setattr(kubernetes, "sync_pods", lambda *args, **kwargs: [])
     monkeypatch.setattr(kubernetes, "sync_secrets", lambda *args, **kwargs: None)
-    monkeypatch.setattr(kubernetes, "sync_services", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        kubernetes,
+        "get_endpoint_slice_data",
+        lambda *args, **kwargs: endpoint_slice_data,
+    )
+    monkeypatch.setattr(
+        kubernetes, "sync_endpoint_slices", _capture_sync_endpoint_slices
+    )
+    monkeypatch.setattr(kubernetes, "sync_services", _capture_sync_services)
     monkeypatch.setattr(
         kubernetes, "sync_network_policies", lambda *args, **kwargs: None
     )
@@ -58,3 +78,5 @@ def test_start_k8s_ingestion_uses_external_id_for_eks_region(monkeypatch):
     assert captured["region"] == "us-east-1"
     assert captured["cluster_id"] == "11111111-2222-4333-8444-555555555555"
     assert captured["cluster_name"] == cluster_arn
+    assert captured["service_pod_ids"] == {"default/web": ["pod-uid"]}
+    assert captured["endpoint_slices"] == endpoint_slice_data
