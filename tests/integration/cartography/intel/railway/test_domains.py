@@ -77,9 +77,14 @@ def test_load_railway_service_domains(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayServiceDomain",
-        ["id", "domain", "suffix"],
+        ["id", "domain", "domain_normalized", "suffix"],
     ) == {
-        (SERVICE_DOMAIN_ID, "web-production-abcde.up.railway.app", "up.railway.app"),
+        (
+            SERVICE_DOMAIN_ID,
+            "web-production-abcde.up.railway.app",
+            "web-production-abcde.up.railway.app",
+            "up.railway.app",
+        ),
     }
     # EXPOSE points from the entrypoint to the asset it puts at risk.
     assert check_rels(
@@ -111,11 +116,26 @@ def test_load_railway_custom_domains_flattens_status(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "RailwayCustomDomain",
-        ["id", "domain", "verified", "certificate_status", "verification_dns_host"],
+        [
+            "id",
+            "domain",
+            "domain_normalized",
+            "verified",
+            "certificate_status",
+            "verification_dns_host",
+        ],
     ) == {
-        (VERIFIED_CUSTOM_DOMAIN_ID, "app.example.com", True, "ISSUED", None),
+        (
+            VERIFIED_CUSTOM_DOMAIN_ID,
+            "app.example.com",
+            "app.example.com",
+            True,
+            "ISSUED",
+            None,
+        ),
         (
             UNVERIFIED_CUSTOM_DOMAIN_ID,
+            "staging.example.com",
             "staging.example.com",
             False,
             "PENDING",

@@ -209,6 +209,12 @@ CLEANUP_CASES = [
         id="ontology_dnsrecords_to_kubernetes_ingress",
     ),
     pytest.param(
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayCustomDomain"),
+        None,
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayCustomDomain"),
+        id="ontology_dnsrecords_to_railway_custom_domain",
+    ),
+    pytest.param(
         RelationshipEffect(
             "DNSRecord",
             "DNS_POINTS_TO",
@@ -279,6 +285,12 @@ CLEANUP_CASES = [
         None,
         _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "AzureFunctionApp"),
         id="ontology_dnsrecords_to_azure_function",
+    ),
+    pytest.param(
+        RelationshipEffect("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
+        None,
+        _rel_cleanup("DNSRecord", "DNS_POINTS_TO", "RailwayServiceDomain"),
+        id="ontology_dnsrecords_to_railway_service_domain",
     ),
     pytest.param(
         PropertyEffect("EntraApplication", ("_ont_enabled",)),
