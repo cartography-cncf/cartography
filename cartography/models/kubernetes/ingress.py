@@ -13,6 +13,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesIngressNodeProperties(CartographyNodeProperties):
+    load_balancer_ips: PropertyRef = PropertyRef(
+        "load_balancer_ips",
+        description="Assigned IP addresses from the Kubernetes load balancer status, not requested spec addresses.",
+    )
     id: PropertyRef = PropertyRef("uid", description="UID of the Kubernetes Ingress.")
     name: PropertyRef = PropertyRef(
         "name", description="Name of the Kubernetes Ingress."

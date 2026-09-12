@@ -1,4 +1,6 @@
 import logging
+from contextlib import contextmanager
+from typing import Iterator
 
 import boto3
 from neo4j import Session
@@ -6,9 +8,11 @@ from neo4j import Session
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
+from cartography.intel.kubernetes import gke_auth
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.gateway_api import sync_gateway_api
+from cartography.intel.kubernetes.gke import sync as sync_gke
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
 from cartography.intel.kubernetes.networkpolicies import sync_network_policies
@@ -19,6 +23,7 @@ from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.storage import sync_storage
 from cartography.intel.kubernetes.util import get_k8s_clients
+from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.workloads import sync_workloads
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
@@ -37,19 +42,43 @@ def get_region_from_arn(arn: str) -> str:
     return parts[3]
 
 
+@contextmanager
+def _gke_client(resource: str, config: Config) -> Iterator[K8sClient]:
+    credentials = gke_auth.get_credentials(config.gke_impersonate_service_account)
+    cluster = gke_auth.get_cluster(resource, credentials)
+    with gke_auth.connect(cluster, credentials, config.gke_endpoint) as client:
+        yield client
+
+
+def _clients(config: Config) -> Iterator[K8sClient]:
+    if config.k8s_kubeconfig:
+        for client in get_k8s_clients(config.k8s_kubeconfig):
+            if config.managed_kubernetes == "gke":
+                credentials = gke_auth.get_credentials(
+                    config.gke_impersonate_service_account
+                )
+                client.gke_cluster = gke_auth.get_cluster(
+                    client.external_id or "", credentials
+                )
+            yield client
+    for resource in getattr(config, "gke_clusters", None) or []:
+        with _gke_client(resource, config) as client:
+            yield client
+
+
 @timeit
 def start_k8s_ingestion(session: Session, config: Config) -> None:
     if not config.update_tag:
         logger.error("Cartography update tag not provided.")
         return
 
-    if not config.k8s_kubeconfig:
-        logger.error("Kubernetes kubeconfig not provided.")
+    if not config.k8s_kubeconfig and not getattr(config, "gke_clusters", None):
+        logger.error("Provide a Kubernetes kubeconfig or --gke-cluster.")
         return
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    for client in get_k8s_clients(config.k8s_kubeconfig):
+    for client in _clients(config):
         logger.info(f"Syncing data for k8s cluster {client.name}...")
         try:
             cluster_info = sync_kubernetes_cluster(
@@ -121,8 +150,20 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
-            sync_gateway_api(session, client, config.update_tag, common_job_parameters)
+            gateway_complete = sync_gateway_api(
+                session, client, config.update_tag, common_job_parameters
+            )
             sync_ingress(session, client, config.update_tag, common_job_parameters)
+
+            gke_cluster = getattr(client, "gke_cluster", None)
+            if isinstance(gke_cluster, dict):
+                sync_gke(
+                    session,
+                    gke_cluster,
+                    cluster_info["id"],
+                    config.update_tag,
+                    gateway_complete=gateway_complete is not False,
+                )
 
             for job in K8S_COMPUTE_ASSET_EXPOSURE_JOBS:
                 run_typed_analysis_job(job, session, common_job_parameters)

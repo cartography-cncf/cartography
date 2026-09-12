@@ -1,3 +1,4 @@
+import json
 import logging
 from itertools import chain
 from typing import Any
@@ -12,6 +13,7 @@ from kubernetes.client import V1RoleBinding
 from kubernetes.client import V1ServiceAccount
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
@@ -37,31 +39,37 @@ GKE_WORKLOAD_IDENTITY_ANNOTATION = "iam.gke.io/gcp-service-account"
 @timeit
 def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
 
-    return k8s_paginate(k8s_client.core.list_service_account_for_all_namespaces)
+    return k8s_paginate(
+        k8s_client.core.list_service_account_for_all_namespaces, raise_on_error=True
+    )
 
 
 @timeit
 def get_roles(k8s_client: K8sClient) -> List[V1Role]:
 
-    return k8s_paginate(k8s_client.rbac.list_role_for_all_namespaces)
+    return k8s_paginate(
+        k8s_client.rbac.list_role_for_all_namespaces, raise_on_error=True
+    )
 
 
 @timeit
 def get_role_bindings(k8s_client: K8sClient) -> List[V1RoleBinding]:
 
-    return k8s_paginate(k8s_client.rbac.list_role_binding_for_all_namespaces)
+    return k8s_paginate(
+        k8s_client.rbac.list_role_binding_for_all_namespaces, raise_on_error=True
+    )
 
 
 @timeit
 def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
 
-    return k8s_paginate(k8s_client.rbac.list_cluster_role)
+    return k8s_paginate(k8s_client.rbac.list_cluster_role, raise_on_error=True)
 
 
 @timeit
 def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
 
-    return k8s_paginate(k8s_client.rbac.list_cluster_role_binding)
+    return k8s_paginate(k8s_client.rbac.list_cluster_role_binding, raise_on_error=True)
 
 
 def transform_service_accounts(
@@ -125,6 +133,9 @@ def transform_roles(roles: List[V1Role], cluster_name: str) -> List[Dict[str, An
                 "uid": role.metadata.uid,
                 "creation_timestamp": get_epoch(role.metadata.creation_timestamp),
                 "resource_version": role.metadata.resource_version,
+                "rules": json.dumps(
+                    [r.to_dict() for r in role.rules or []], sort_keys=True
+                ),
                 "api_groups": sorted(
                     all_api_groups
                 ),  # sorts to keep consistent ordering and converts to list to appease neo4j
@@ -219,6 +230,9 @@ def transform_cluster_roles(
                     cluster_role.metadata.creation_timestamp
                 ),
                 "resource_version": cluster_role.metadata.resource_version,
+                "rules": json.dumps(
+                    [r.to_dict() for r in cluster_role.rules or []], sort_keys=True
+                ),
                 "api_groups": sorted(
                     all_api_groups
                 ),  # sorts to keep consistent ordering and converts to list to appease neo4j
@@ -599,4 +613,11 @@ def sync_kubernetes_rbac(
         cluster_name=cluster_name,
     )
 
+    # DEPRECATED: pre-v1.0.0 annotation-only edges did not prove IAM authorization.
+    # Annotation evidence is loaded first; verified GKE edges have their own scope marker.
+    run_write_query(
+        session,
+        "MATCH (:KubernetesCluster {id: $id})-[:RESOURCE]->(:KubernetesServiceAccount)-[r:WORKLOAD_IDENTITY_BINDING]->(:GCPServiceAccount) WHERE r._sub_resource_id IS NULL DELETE r",
+        id=cluster_id,
+    )
     cleanup(session, common_job_parameters)
