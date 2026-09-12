@@ -90,7 +90,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer.",
+        description="`True` when this pod is targeted by a service reached from a correlated internet-facing cloud load balancer.",
     )  # Populated by the Kubernetes compute exposure analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
