@@ -81,7 +81,13 @@ K8S_CONTAINER_ASSET_EXPOSURE = AnalysisJob(
     scope=ScopeById("KubernetesCluster", "CLUSTER_ID", scope_on="pod"),
     statements=(
         AnalysisStatement(
-            match="MATCH (pod:KubernetesPod{exposed_internet: true})-[:CONTAINS]->(c:KubernetesContainer)",
+            match="""
+            MATCH (svc:KubernetesService {exposed_internet: true})
+              <-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
+              -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)
+            WHERE any(port_key IN slice.port_keys WHERE port_key IN c.container_port_keys)
+            """,
+            incremental_on="slice",
             effects=(
                 SetProperty("c", "exposed_internet", True, label="KubernetesContainer"),
                 AddToSet(
@@ -168,7 +174,14 @@ K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
     ),
     statements=(
         AnalysisStatement(
-            match=f"MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE {INTERNET_FACING_LOAD_BALANCER} MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            match=f"""
+            MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer)
+            WHERE {INTERNET_FACING_LOAD_BALANCER}
+            MATCH (svc)<-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
+              -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)
+            WHERE any(port_key IN slice.port_keys WHERE port_key IN c.container_port_keys)
+            """,
+            incremental_on="slice",
             effects=(
                 AddRelationship(
                     "lb",
@@ -182,7 +195,15 @@ K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match=f"MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE {INTERNET_FACING_LOAD_BALANCER} MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            match=f"""
+            MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer)
+            WHERE {INTERNET_FACING_LOAD_BALANCER}
+            MATCH (ing)-[:TARGETS]->(svc:KubernetesService)
+              <-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
+              -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)
+            WHERE any(port_key IN slice.port_keys WHERE port_key IN c.container_port_keys)
+            """,
+            incremental_on="slice",
             effects=(
                 AddRelationship(
                     "lb",
@@ -203,9 +224,13 @@ K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
             match=f"""
             MATCH (gw:KubernetesGateway {{programmed: true}})-[:USES_LOAD_BALANCER]->(lb:LoadBalancer)
             WHERE {INTERNET_FACING_LOAD_BALANCER}
-            MATCH (gw)-[:ROUTES]->(route:KubernetesHTTPRoute)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)
+            MATCH (gw)-[:ROUTES]->(route:KubernetesHTTPRoute)-[:TARGETS]->(svc:KubernetesService)
+              <-[:FOR_SERVICE]-(slice:KubernetesEndpointSlice)
+              -[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)
             WHERE gw.qualified_name IN route.accepted_parent_gateway_qualified_names
+              AND any(port_key IN slice.port_keys WHERE port_key IN c.container_port_keys)
             """,
+            incremental_on="slice",
             effects=(
                 AddRelationship(
                     "lb",

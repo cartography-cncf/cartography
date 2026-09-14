@@ -15,6 +15,7 @@ def build_exposure_test_data() -> dict:
     pod_lb_id = f"pod-lb-{case_id}"
     pod_ing_id = f"pod-ing-{case_id}"
     cont_lb_id = f"cont-lb-{case_id}"
+    cont_lb_mismatch_id = f"cont-lb-mismatch-{case_id}"
     cont_ing_id = f"cont-ing-{case_id}"
 
     svc_lb_id = f"svc-lb-{case_id}"
@@ -94,6 +95,25 @@ def build_exposure_test_data() -> dict:
             "cpu_request": "100m",
             "memory_limit": "256Mi",
             "cpu_limit": "500m",
+            "container_port_keys": ["TCP/8080"],
+        },
+        {
+            "uid": cont_lb_mismatch_id,
+            "name": "metrics",
+            "image": "example/metrics:latest",
+            "namespace": "default",
+            "pod_id": pod_lb_id,
+            "image_pull_policy": "Always",
+            "status_image_id": "img-3",
+            "status_image_sha": "sha256:3",
+            "status_ready": True,
+            "status_started": True,
+            "status_state": "running",
+            "memory_request": "64Mi",
+            "cpu_request": "50m",
+            "memory_limit": "128Mi",
+            "cpu_limit": "250m",
+            "container_port_keys": ["UDP/8080"],
         },
         {
             "uid": cont_ing_id,
@@ -111,6 +131,7 @@ def build_exposure_test_data() -> dict:
             "cpu_request": "100m",
             "memory_limit": "256Mi",
             "cpu_limit": "500m",
+            "container_port_keys": ["TCP/8080"],
         },
     ]
 
@@ -236,6 +257,7 @@ def build_exposure_test_data() -> dict:
         "pod_lb_id": pod_lb_id,
         "pod_ing_id": pod_ing_id,
         "cont_lb_id": cont_lb_id,
+        "cont_lb_mismatch_id": cont_lb_mismatch_id,
         "cont_ing_id": cont_ing_id,
         "svc_lb_id": svc_lb_id,
         "svc_ing_id": svc_ing_id,
