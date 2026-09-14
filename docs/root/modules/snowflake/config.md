@@ -194,6 +194,38 @@ role and grant cleanup rather than risk deleting roles it merely could not see.
 Previously collected roles are retained, but coverage may be incomplete and stale
 roles are not removed.
 
+### Native App access
+
+Installed Native Apps expose access through application roles defined by their
+provider. Database metadata grants do not replace these roles, and account-wide
+inherited grants do not extend into Native App containers.
+
+For each app whose exposed objects you want to inventory, have the application
+owner inspect its roles and grant the narrowest suitable one. If `EXAMPLE_APP`
+defines a `VIEWER` role, inspect it before granting it:
+
+```sql
+SHOW APPLICATION ROLES IN APPLICATION EXAMPLE_APP;
+SHOW GRANTS TO APPLICATION ROLE EXAMPLE_APP.VIEWER;
+```
+
+`VIEWER` is an app-defined name, not a standard metadata-only permission. Review
+the provider's role documentation, including inherited privileges and whether it
+allows reading data or executing procedures. If those permissions are appropriate:
+
+```sql
+GRANT APPLICATION ROLE EXAMPLE_APP.VIEWER TO ROLE CARTOGRAPHY_RO;
+```
+
+[GRANT APPLICATION ROLE](https://docs.snowflake.com/en/sql-reference/sql/grant-application-role)
+has no `ALL` or `FUTURE` variant. Repeat this review when installing an app or
+when its roles change. Keep the `IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE`
+grant above for `ACCOUNT_USAGE`; do not assume a `SNOWFLAKE.VIEWER` role exists.
+
+Cartography does not currently model application roles or their privilege paths.
+Granting an app role may improve exposed-object visibility, but does not provide
+complete application-role coverage in the graph.
+
 ### Inherited grants (public preview)
 
 Snowflake's [inherited grants](https://docs.snowflake.com/en/user-guide/inherited-grants-using)
