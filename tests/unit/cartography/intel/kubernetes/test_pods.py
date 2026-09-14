@@ -269,6 +269,7 @@ def test_transform_pods_extracts_container_ports():
                             protocol="UDP",
                             name="dns",
                             host_port=30053,
+                            host_ip=None,
                         ),
                         # SCTP and protocol-less ports are retained in the raw
                         # spec but excluded from the flat TCP/UDP number list.
@@ -277,6 +278,14 @@ def test_transform_pods_extracts_container_ports():
                             protocol="SCTP",
                             name="sctp",
                             host_port=None,
+                            host_ip=None,
+                        ),
+                        SimpleNamespace(
+                            container_port=8443,
+                            protocol="TCP",
+                            name="private-admin",
+                            host_port=30443,
+                            host_ip="10.0.0.10",
                         ),
                     ],
                 ),
@@ -291,13 +300,21 @@ def test_transform_pods_extracts_container_ports():
     transformed = transform_pods([pod], "my-cluster-1")
     container = transformed[0]["containers"][0]
 
-    assert container["container_port_numbers"] == [53, 8080]
-    assert container["container_port_keys"] == ["SCTP/9000", "TCP/8080", "UDP/53"]
-    assert container["host_ports"] == [30053]
+    assert container["container_port_numbers"] == [53, 8080, 8443]
+    assert container["container_port_keys"] == [
+        "SCTP/9000",
+        "TCP/8080",
+        "TCP/8443",
+        "UDP/53",
+    ]
+    assert container["host_ports"] == [30053, 30443]
+    assert container["host_port_keys"] == ["TCP/30443", "UDP/30053"]
+    assert container["node_address_host_port_keys"] == ["UDP/30053"]
     assert json.loads(container["container_ports"]) == [
         {"container_port": 8080, "protocol": "TCP", "name": "http"},
         {"container_port": 53, "protocol": "UDP", "name": "dns"},
         {"container_port": 9000, "protocol": "SCTP", "name": "sctp"},
+        {"container_port": 8443, "protocol": "TCP", "name": "private-admin"},
     ]
 
 

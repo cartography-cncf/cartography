@@ -90,6 +90,10 @@ def test_sync_nodes_and_runs_on(neo4j_session, monkeypatch):
         ("my-node", 8, 8, "NVIDIA-H200"),
         ("my-arm-node", None, None, None),
     }
+    assert neo4j_session.run(
+        "MATCH (node:KubernetesNode {name: 'my-node'}) "
+        "RETURN node.global_external_ip_addresses AS addresses"
+    ).single()["addresses"] == ["8.8.8.8"]
 
     # Assert: pod is linked to its scheduled node
     assert check_rels(

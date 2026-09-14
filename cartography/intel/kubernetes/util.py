@@ -25,16 +25,21 @@ from kubernetes.config.kube_config import KubeConfigMerger
 logger = logging.getLogger(__name__)
 
 
-def normalize_global_ip_addresses(values: list[str]) -> list[str]:
+def normalize_ip_addresses(values: list[str]) -> list[str]:
     normalized: set[str] = set()
     for value in values:
         try:
             address = ip_address(value)
         except ValueError:
             continue
-        if address.is_global:
-            normalized.add(address.compressed)
+        normalized.add(address.compressed)
     return sorted(normalized)
+
+
+def normalize_global_ip_addresses(values: list[str]) -> list[str]:
+    return [
+        value for value in normalize_ip_addresses(values) if ip_address(value).is_global
+    ]
 
 
 def format_resource_quantities(resources: dict[str, Any] | None) -> str:

@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -236,6 +237,17 @@ def test_load_pod_containers(neo4j_session, _create_test_cluster):
         )
         == expected_pull_policies
     )
+    host_port_surface = neo4j_session.run(
+        """
+        MATCH (container:KubernetesContainer {name: 'my-pod-container'})
+        RETURN container.host_port_keys AS host_port_keys,
+               container.node_address_host_port_keys AS node_address_keys,
+               container.host_port_bindings AS bindings
+        """
+    ).single()
+    assert host_port_surface["host_port_keys"] == ["TCP/30080"]
+    assert host_port_surface["node_address_keys"] == ["TCP/30080"]
+    assert json.loads(host_port_surface["bindings"])[0]["host_port"] == 30080
 
 
 def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):

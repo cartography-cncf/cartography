@@ -194,6 +194,21 @@ def test_load_services_with_aws_loadbalancer_relationship(
     # Assert: Expect that the service was loaded
     expected_nodes = {("my-lb-service",)}
     assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == expected_nodes
+    service_surface = neo4j_session.run(
+        """
+        MATCH (service:KubernetesService {name: 'my-lb-service'})
+        RETURN service.port_keys AS port_keys,
+               service.node_port_keys AS node_port_keys,
+               service.global_external_ip_addresses AS external_ips,
+               service.external_traffic_policy AS traffic_policy
+        """
+    ).single()
+    assert service_surface == {
+        "port_keys": ["TCP/443"],
+        "node_port_keys": ["TCP/30443"],
+        "external_ips": ["8.8.8.8"],
+        "traffic_policy": "Local",
+    }
 
     # Assert: Expect USES_LOAD_BALANCER relationship exists
     # AWS_TEST_LB_DNS_NAME is derived from LOAD_BALANCER_DATA to keep tests in sync

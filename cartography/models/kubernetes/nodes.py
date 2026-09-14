@@ -75,6 +75,18 @@ class KubernetesNodeNodeProperties(CartographyNodeProperties):
         "allocatable",
         description="Node allocatable resources from `status.allocatable`, stored as a JSON-encoded object.",
     )
+    addresses: PropertyRef = PropertyRef(
+        "addresses",
+        description="Node addresses from `status.addresses` as a JSON-encoded list of type and address pairs.",
+    )
+    external_ip_addresses: PropertyRef = PropertyRef(
+        "external_ip_addresses",
+        description="Canonical addresses reported with type `ExternalIP` in node status.",
+    )
+    global_external_ip_addresses: PropertyRef = PropertyRef(
+        "global_external_ip_addresses",
+        description="Globally routable node `ExternalIP` addresses; firewall and node-proxy reachability require independent validation.",
+    )
     gpu_capacity: PropertyRef = PropertyRef(
         "gpu_capacity",
         description="Total GPU scheduling-unit capacity across full-GPU, NVIDIA MIG, and Intel GPU resource keys; heterogeneous units are not normalized to physical GPUs.",
