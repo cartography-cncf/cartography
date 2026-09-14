@@ -194,15 +194,15 @@ def sync(
                 update_tag,
             )
 
-            user_pools = get_user_pools(boto3_session, region)
-            transformed_user_pools = transform_user_pools(user_pools, region)
+        user_pools = get_user_pools(boto3_session, region)
+        transformed_user_pools = transform_user_pools(user_pools, region)
 
-            load_user_pools(
-                neo4j_session,
-                transformed_user_pools,
-                region,
-                current_aws_account_id,
-                update_tag,
-            )
+        load_user_pools(
+            neo4j_session,
+            transformed_user_pools,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
 
     cleanup(neo4j_session, common_job_parameters)

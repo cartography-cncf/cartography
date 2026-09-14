@@ -47,6 +47,7 @@ from . import ses
 from . import sns
 from . import sqs
 from . import ssm
+from . import waf
 from .ec2.auto_scaling_groups import sync_ec2_auto_scaling_groups
 from .ec2.elastic_ip_addresses import sync_elastic_ip_addresses
 from .ec2.images import sync_ec2_images
@@ -135,6 +136,11 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # nodes exist when CAN_EXEC edges are evaluated.
         "cloudformation": cloudformation.sync,
         "permission_relationships": permission_relationships.sync,
+        # Cognito pools and load balancers must exist before WAF creates PROTECTS
+        # relationships. WAF must exist before API Gateway and CloudFront create
+        # their PROTECTS relationships from their own association fields.
+        "cognito": cognito.sync,
+        "waf": waf.sync,
         "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
         "apigateway": apigateway.sync,
         "apigatewayv2": apigatewayv2.sync,
@@ -161,7 +167,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "eks": eks.sync,
         "guardduty": guardduty.sync,
         "codebuild": codebuild.sync,
-        "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
         # These resources feed final AWS analysis jobs and have no remaining

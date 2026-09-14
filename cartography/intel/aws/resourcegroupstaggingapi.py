@@ -87,7 +87,11 @@ def get_resource_type_from_arn(arn: str) -> str:
         return service
 
     resource = parts[5]
-    if service == "elasticloadbalancing" and resource.startswith("loadbalancer/"):
+    if service == "wafv2":
+        # WAFv2 ARNs include their scope before the resource type:
+        # regional/webacl/... or global/webacl/....
+        resource_type = resource.split("/", 2)[1]
+    elif service == "elasticloadbalancing" and resource.startswith("loadbalancer/"):
         segments = resource.split("/")
         if len(segments) > 2 and segments[1] in {"app", "net"}:
             resource_type = f"{segments[0]}/{segments[1]}"
@@ -328,6 +332,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "AWSInternetGateway": (
         "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
     ),
+    "AWSWAFWebACL": "(:AWSWAFWebACL)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
 }
 
 

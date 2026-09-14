@@ -51,6 +51,12 @@ def test_get_resource_type_from_arn():
     assert "elasticloadbalancing:loadbalancer/app" == rgta.get_resource_type_from_arn(
         "arn:aws:elasticloadbalancing:us-east-1:1234:loadbalancer/app/foo/123"
     )
+    assert "wafv2:webacl" == rgta.get_resource_type_from_arn(
+        "arn:aws:wafv2:us-east-1:1234:global/webacl/foo/123"
+    )
+    assert "wafv2:webacl" == rgta.get_resource_type_from_arn(
+        "arn:aws:wafv2:us-west-2:1234:regional/webacl/foo/123"
+    )
 
 
 def test_group_tag_data_by_resource_type():
@@ -237,3 +243,6 @@ def test_every_declared_arn_parser_resolves():
     assert set(rgta.TAG_RESOURCE_TYPE_MAPPINGS) == {
         resource.resource_type for resource in AWS_TAGGABLE_RESOURCES
     }
+    assert {
+        resource.label for resource in AWS_TAGGABLE_RESOURCES
+    } <= rgta._RESOURCE_CLEANUP_PATHS.keys()

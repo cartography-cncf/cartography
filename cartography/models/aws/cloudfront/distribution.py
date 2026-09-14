@@ -225,6 +225,26 @@ class CloudFrontDistributionToLambdaRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class WAFWebACLToCloudFrontDistributionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class WAFWebACLToCloudFrontDistributionRel(CartographyRelSchema):
+    """Indicates that an AWS WAFv2 web ACL protects the distribution."""
+
+    target_node_label: str = "AWSWAFWebACL"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("WebACLId")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PROTECTS"
+    properties: WAFWebACLToCloudFrontDistributionRelProperties = (
+        WAFWebACLToCloudFrontDistributionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CloudFrontDistributionSchema(CartographyNodeSchema):
     """Representation of an AWS [CloudFront Distribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_DistributionSummary.html).
 
@@ -247,5 +267,6 @@ class CloudFrontDistributionSchema(CartographyNodeSchema):
             CloudFrontDistributionToS3BucketRel(),
             CloudFrontDistributionToACMCertificateRel(),
             CloudFrontDistributionToLambdaRel(),
+            WAFWebACLToCloudFrontDistributionRel(),
         ],
     )

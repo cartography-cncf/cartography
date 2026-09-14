@@ -162,6 +162,11 @@ def _sync_one_account(
         "s3": ["kms"],
         "rds": ["kms"],
         "efs": ["kms"],
+        # WAF creates PROTECTS edges to resources already present in the graph.
+        "waf": ["ec2:load_balancer_v2", "cognito"],
+        # These modules create PROTECTS edges from an existing WAF web ACL.
+        "apigateway": ["waf"],
+        "cloudfront": ["waf"],
         # `route53` creates DNS_POINTS_TO edges by matching already-existing target nodes,
         # so selecting it without these produces zero such edges, and cleanup_route53 then
         # deletes the ones a previous run had created. AWSESDomain is deliberately absent:

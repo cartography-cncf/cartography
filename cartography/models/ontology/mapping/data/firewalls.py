@@ -25,6 +25,15 @@ aws_mapping = OntologyMapping(
                 # rule nodes instead.
             ],
         ),
+        OntologyNodeMapping(
+            node_label="AWSWAFWebACL",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # direction: Not applicable (web ACLs inspect inbound HTTP requests)
+            ],
+        ),
     ],
 )
 

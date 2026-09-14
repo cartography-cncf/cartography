@@ -87,6 +87,26 @@ class APIGatewayStageToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class WAFWebACLToAPIGatewayStageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class WAFWebACLToAPIGatewayStageRel(CartographyRelSchema):
+    """Indicates that an AWS WAF web ACL protects the API Gateway stage."""
+
+    target_node_label: str = "AWSWAFWebACL"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("webAclArn")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PROTECTS"
+    properties: WAFWebACLToAPIGatewayStageRelProperties = (
+        WAFWebACLToAPIGatewayStageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
     """Representation of an AWS [API Gateway Stage](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-stages.html)."""
 
@@ -98,5 +118,8 @@ class APIGatewayStageSchema(CartographyNodeSchema):
         APIGatewayStageToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [APIGatewayStageToRestAPIRel()],
+        [
+            APIGatewayStageToRestAPIRel(),
+            WAFWebACLToAPIGatewayStageRel(),
+        ],
     )

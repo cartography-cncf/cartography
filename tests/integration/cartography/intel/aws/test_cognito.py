@@ -125,3 +125,39 @@ def test_sync_cognito(
         (TEST_ACCOUNT_ID, "us-east-1_abc123"),
         (TEST_ACCOUNT_ID, "us-west-2_xyz789"),
     }
+
+
+@patch.object(
+    cartography.intel.aws.cognito,
+    "get_identity_pools",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cognito,
+    "get_user_pools",
+    return_value=GET_COGNITO_USER_POOLS,
+)
+def test_sync_cognito_user_pools_without_identity_pools(
+    _mock_get_user_pools,
+    _mock_get_identity_pools,
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n:AWSCognitoUserPool) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSCognitoUserPool", ["id"]) == {
+        ("us-east-1_abc123",),
+        ("us-west-2_xyz789",),
+    }

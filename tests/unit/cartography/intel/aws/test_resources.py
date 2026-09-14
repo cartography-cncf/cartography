@@ -52,3 +52,18 @@ def test_analysis_dependency_sets_include_all_required_producers():
     # Assert
     assert actual_dependencies == expected_dependencies
     assert "ec2:autoscalinggroup" in AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP_DEPS
+
+
+def test_waf_sync_order_satisfies_protected_resource_relationships():
+    # Arrange
+    resource_order = list(RESOURCE_FUNCTIONS)
+
+    # Act
+    waf_index = resource_order.index("waf")
+
+    # Assert
+    assert resource_order.index("ec2:load_balancer_v2") < waf_index
+    assert resource_order.index("cognito") < waf_index
+    assert waf_index < resource_order.index("resourcegroupstaggingapi")
+    assert waf_index < resource_order.index("apigateway")
+    assert waf_index < resource_order.index("cloudfront")
