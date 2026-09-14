@@ -9,6 +9,9 @@ KUBERNETES_GATEWAYS_DATA = [
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "qualified_name": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
         "gateway_class_name": "nginx",
+        "programmed": True,
+        "load_balancer_dns_names": ["gateway.example.net"],
+        "load_balancer_ip_addresses": ["8.8.8.8"],
         "creation_timestamp": 1633587666,
         "deletion_timestamp": None,
         "attached_route_qualified_names": [
@@ -33,6 +36,9 @@ KUBERNETES_HTTP_ROUTES_DATA = [
         "parent_gateway_qualified_names": [
             f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
         ],
+        "accepted_parent_gateway_qualified_names": [
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/public-gateway",
+        ],
     },
 ]
 
@@ -44,10 +50,29 @@ KUBERNETES_GATEWAYS_RAW = [
             "name": "public-gateway",
             "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
             "uid": "gw-uid-001-abcd-1234",
+            "generation": 2,
             "creationTimestamp": "2021-10-07T06:21:06+00:00",
         },
         "spec": {
             "gatewayClassName": "nginx",
+        },
+        "status": {
+            "addresses": [
+                {"type": "Hostname", "value": "Gateway.Example.NET"},
+                {"value": "8.8.8.8"},
+            ],
+            "conditions": [
+                {
+                    "type": "Accepted",
+                    "status": "True",
+                    "observedGeneration": 2,
+                },
+                {
+                    "type": "Programmed",
+                    "status": "True",
+                    "observedGeneration": 2,
+                },
+            ],
         },
     },
 ]
@@ -60,6 +85,7 @@ KUBERNETES_HTTP_ROUTES_RAW = [
             "name": "frontend-route",
             "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
             "uid": "hr-uid-001-abcd-1234",
+            "generation": 3,
             "creationTimestamp": "2021-10-07T06:21:40+00:00",
         },
         "spec": {
@@ -77,6 +103,21 @@ KUBERNETES_HTTP_ROUTES_RAW = [
                     ],
                 },
             ],
+        },
+        "status": {
+            "parents": [
+                {
+                    "parentRef": {"name": "public-gateway"},
+                    "controllerName": "example.net/gateway-controller",
+                    "conditions": [
+                        {
+                            "type": "Accepted",
+                            "status": "True",
+                            "observedGeneration": 3,
+                        }
+                    ],
+                }
+            ]
         },
     },
 ]

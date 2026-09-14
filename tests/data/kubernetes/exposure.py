@@ -118,6 +118,7 @@ def build_exposure_test_data() -> dict:
         {
             "uid": svc_lb_id,
             "name": f"my-lb-svc-{case_id}",
+            "qualified_name": f"default/my-lb-svc-{case_id}",
             "creation_timestamp": 1633581666,
             "deletion_timestamp": None,
             "namespace": "default",
@@ -132,6 +133,7 @@ def build_exposure_test_data() -> dict:
         {
             "uid": svc_ing_id,
             "name": f"my-clusterip-svc-{case_id}",
+            "qualified_name": f"default/my-clusterip-svc-{case_id}",
             "creation_timestamp": 1633581666,
             "deletion_timestamp": None,
             "namespace": "default",

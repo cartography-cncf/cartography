@@ -3,6 +3,7 @@ from kubernetes.client.exceptions import ApiException
 
 from cartography.intel.kubernetes.util import get_gpu_quantity
 from cartography.intel.kubernetes.util import k8s_paginate
+from cartography.intel.kubernetes.util import normalize_global_ip_addresses
 
 
 def _raiser(status: int):
@@ -48,3 +49,17 @@ def test_get_gpu_quantity_sums_extended_gpu_resources():
         == 19
     )
     assert get_gpu_quantity({"example.com/gpu": "not-a-number"}) is None
+
+
+def test_normalize_global_ip_addresses_filters_non_global_values():
+    assert normalize_global_ip_addresses(
+        [
+            "8.8.8.8",
+            "8.8.8.8",
+            "2001:4860:4860:0:0:0:0:8888",
+            "10.0.0.1",
+            "127.0.0.1",
+            "fe80::1",
+            "not-an-ip",
+        ]
+    ) == ["2001:4860:4860::8888", "8.8.8.8"]
