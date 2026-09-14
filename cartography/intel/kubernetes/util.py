@@ -14,6 +14,7 @@ from kubernetes.client import AppsV1Api
 from kubernetes.client import BatchV1Api
 from kubernetes.client import CoreV1Api
 from kubernetes.client import CustomObjectsApi
+from kubernetes.client import DiscoveryV1Api
 from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
 from kubernetes.client import StorageV1Api
@@ -102,6 +103,21 @@ class K8NetworkingApiClient(NetworkingV1Api):
 
 
 class K8CustomObjectsApiClient(CustomObjectsApi):
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: ApiClient | None = None,
+    ) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
+        super().__init__(api_client=api_client)
+
+
+class K8DiscoveryApiClient(DiscoveryV1Api):
     def __init__(
         self,
         name: str,
@@ -206,6 +222,7 @@ class K8sClient:
         self.version = K8VersionApiClient(self.name, self.config_file)
         self.rbac = K8RbacApiClient(self.name, self.config_file)
         self.custom = K8CustomObjectsApiClient(self.name, self.config_file)
+        self.discovery = K8DiscoveryApiClient(self.name, self.config_file)
         self.apps = K8AppsApiClient(self.name, self.config_file)
         self.batch = K8BatchApiClient(self.name, self.config_file)
         self.storage = K8StorageApiClient(self.name, self.config_file)

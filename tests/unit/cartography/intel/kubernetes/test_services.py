@@ -98,3 +98,42 @@ def test_transform_services_lowercases_load_balancer_dns_names():
     assert transformed["load_balancer_dns_names"] == [
         "my-nlb-1234567890.us-east-1.elb.amazonaws.com"
     ]
+
+
+def test_transform_services_prefers_endpoint_slice_backends():
+    service = V1Service(
+        metadata=V1ObjectMeta(
+            uid="service-3",
+            name="selectorless",
+            namespace="default",
+        ),
+        spec=V1ServiceSpec(
+            type="ClusterIP",
+            selector={"app": "selectorless"},
+            cluster_ip="10.0.0.3",
+            ports=[],
+        ),
+        status=V1ServiceStatus(),
+    )
+
+    [transformed] = transform_services(
+        [service],
+        all_pods=[],
+        endpoint_slice_pod_ids={"default/selectorless": ["pod-uid"]},
+    )
+
+    assert transformed["pod_ids"] == ["pod-uid"]
+
+    [without_ready_backends] = transform_services(
+        [service],
+        all_pods=[
+            {
+                "namespace": "default",
+                "labels": json.dumps({"app": "selectorless"}),
+                "uid": "selector-match",
+            }
+        ],
+        endpoint_slice_pod_ids={},
+    )
+
+    assert without_ready_backends["pod_ids"] == []
