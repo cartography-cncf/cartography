@@ -234,6 +234,12 @@ class Config:
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
     :param pagerduty_request_timeout: Seconds to timeout for pagerduty session requests. Optional
+    :type: opsgenie_api_key: str
+    :param opsgenie_api_key: API authentication key for Opsgenie. Optional.
+    :type: opsgenie_api_url: str
+    :param opsgenie_api_url: Opsgenie API base URL. Optional.
+    :type: opsgenie_request_timeout: int
+    :param opsgenie_request_timeout: Seconds to timeout for Opsgenie API requests. Optional.
     :type: nist_cve_url: str
     :param nist_cve_url: NIST CVE data provider base URI, e.g. https://nvd.nist.gov/feeds/json/cve/1.1. Optional.
     :type: gsuite_auth_method: str
@@ -749,6 +755,9 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        opsgenie_api_key=None,
+        opsgenie_api_url="https://api.opsgenie.com",
+        opsgenie_request_timeout=60,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1030,3 +1039,6 @@ class Config:
         self.snowflake_databases = snowflake_databases
         self.orca_api_endpoint = orca_api_endpoint
         self.orca_api_token = orca_api_token
+        self.opsgenie_api_key = opsgenie_api_key
+        self.opsgenie_api_url = opsgenie_api_url
+        self.opsgenie_request_timeout = opsgenie_request_timeout

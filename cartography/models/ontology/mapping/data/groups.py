@@ -246,6 +246,26 @@ pagerduty_mapping = OntologyMapping(
     ],
 )
 
+# Opsgenie
+opsgenie_mapping = OntologyMapping(
+    module_name="opsgenie",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OpsgenieTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+            ],
+        ),
+    ],
+)
+
 # Sentry
 sentry_mapping = OntologyMapping(
     module_name="sentry",
@@ -404,6 +424,7 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "oci": oci_mapping,
     "okta": okta_mapping,
     "pagerduty": pagerduty_mapping,
+    "opsgenie": opsgenie_mapping,
     "scaleway": scaleway_mapping,
     "sentry": sentry_mapping,
     "slack": slack_mapping,

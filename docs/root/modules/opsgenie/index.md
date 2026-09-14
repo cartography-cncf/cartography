@@ -1,0 +1,6 @@
+# Opsgenie
+
+```{toctree}
+config
+schema
+```
