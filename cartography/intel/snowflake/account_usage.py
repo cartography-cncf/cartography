@@ -58,9 +58,10 @@ FROM snowflake.account_usage.roles
 WHERE deleted_on IS NULL
 """
 
+# Preview accounts expose IS_INHERITED; selecting it explicitly would fail on
+# accounts without that column. Keep optional grant metadata when it is available.
 _GRANTS_TO_ROLES_QUERY = """
-SELECT privilege, granted_on, name, table_catalog, table_schema, granted_to,
-       grantee_name, grant_option, granted_by, created_on
+SELECT *
 FROM snowflake.account_usage.grants_to_roles
 WHERE deleted_on IS NULL
 """
@@ -176,6 +177,10 @@ def split_grants(
     grants_of_by_role: dict[str, list[dict[str, Any]]] = {}
 
     for row in grants_to_roles:
+        # Inherited grants target a container's object type, not a named object.
+        # The caller reports incomplete coverage and suppresses grant cleanup.
+        if to_bool(row.get("is_inherited")):
+            continue
         raw_grantee = to_text(row.get("grantee_name"))
         privilege = to_text(row.get("privilege"))
         granted_on = to_text(row.get("granted_on"))

@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.snowflake.account_usage
 import cartography.intel.snowflake.database_roles
 import cartography.intel.snowflake.grants
@@ -66,6 +68,123 @@ def _clear_grant_edges(neo4j_session) -> None:
     neo4j_session.run(
         "MATCH ()-[r:HAS_ROLE|INCLUDES|HAS_PRIVILEGE]->() DELETE r",
     )
+
+
+@pytest.mark.parametrize("is_inherited", ["true", True])
+def test_inherited_grants_preserve_edges_until_coverage_is_complete(
+    neo4j_session, caplog, is_inherited
+):
+    # Arrange
+    _clear_grant_edges(neo4j_session)
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+    ordinary_grants = [
+        row
+        for row in SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
+        if row["granted_on"] in {"DATABASE", "TABLE"}
+    ]
+    client = build_test_client()
+    client.run_sql.side_effect = [ordinary_grants, []]
+    parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID}
+
+    # Act
+    complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], parameters
+    )
+
+    # Assert
+    assert complete is True
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeTable",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
+
+    # Arrange: the table's direct grant has been replaced by a container grant.
+    remaining_grants = [
+        {**row, "is_inherited": "false"}
+        for row in ordinary_grants
+        if row["granted_on"] == "DATABASE"
+    ]
+    inherited_grant = {
+        "privilege": "SELECT",
+        "granted_on": "TABLE",
+        "name": "",
+        "granted_to": "ACCOUNT ROLE",
+        "grantee_name": "SAFETY_INSPECTOR",
+        "is_inherited": is_inherited,
+        "inherited_from": "ACCOUNT",
+        "inherited_from_database": None,
+        "inherited_from_schema": None,
+    }
+    client.run_sql.side_effect = [remaining_grants + [inherited_grant], []]
+    parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
+
+    # Act
+    complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], parameters
+    )
+    if complete:
+        cartography.intel.snowflake.grants.cleanup(
+            neo4j_session, SNOWFLAKE_ACCOUNT_ID, parameters["UPDATE_TAG"]
+        )
+
+    # Assert
+    assert complete is False
+    assert "1 inherited grants" in caplog.text
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeTable",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
+    refreshed = neo4j_session.run(
+        "MATCH (:SnowflakeRole {name: 'SAFETY_INSPECTOR'})"
+        "-[r:HAS_PRIVILEGE]->(:SnowflakeDatabase {name: 'SPRINGFIELD_DB'}) "
+        "RETURN r.lastupdated AS tag"
+    ).single()
+    assert refreshed["tag"] == TEST_UPDATE_TAG + 1
+
+    # Arrange: after the inherited grant is revoked, stale edges can be removed.
+    client.run_sql.side_effect = [remaining_grants, []]
+    parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 2}
+
+    # Act
+    complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], parameters
+    )
+    if complete:
+        cartography.intel.snowflake.grants.cleanup(
+            neo4j_session, SNOWFLAKE_ACCOUNT_ID, parameters["UPDATE_TAG"]
+        )
+
+    # Assert
+    assert complete is True
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnowflakeRole",
+            "name",
+            "SnowflakeTable",
+            "name",
+            "HAS_PRIVILEGE",
+        )
+        == set()
+    )
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeDatabase",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {("SAFETY_INSPECTOR", "SPRINGFIELD_DB")}
 
 
 def test_sync_snowflake_roles(neo4j_session):

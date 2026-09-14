@@ -20,6 +20,7 @@ import requests
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake import account_usage
+from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -496,7 +497,17 @@ def sync(
         grants_by_role, grants_of_by_role = account_usage.split_grants(
             grants_to_roles, grants_to_users
         )
-        complete = True
+        inherited_count = sum(
+            to_bool(row.get("is_inherited")) is True for row in grants_to_roles
+        )
+        complete = inherited_count == 0
+        if inherited_count:
+            logger.warning(
+                "Snowflake ACCOUNT_USAGE reported %d inherited grants. "
+                "Container-scoped inherited privileges are not yet modeled; "
+                "grant coverage is incomplete and grant cleanup will be skipped.",
+                inherited_count,
+            )
         logger.info(
             "Read %d Snowflake grant rows and %d role assignment rows from "
             "ACCOUNT_USAGE for account %s.",

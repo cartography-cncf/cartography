@@ -150,16 +150,38 @@ GRANT USAGE ON WAREHOUSE CARTOGRAPHY_WH TO ROLE CARTOGRAPHY_RO;
 GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE CARTOGRAPHY_RO;
 -- Account-level metadata: warehouses, resource monitors, parameters.
 GRANT MONITOR ON ACCOUNT TO ROLE CARTOGRAPHY_RO;
--- Walk the data hierarchy.
-GRANT USAGE ON ALL DATABASES IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
-GRANT USAGE ON ALL SCHEMAS IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
-GRANT REFERENCES ON ALL TABLES IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
-GRANT USAGE ON FUTURE SCHEMAS IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
-GRANT REFERENCES ON FUTURE TABLES IN ACCOUNT TO ROLE CARTOGRAPHY_RO;
 ```
 
-This set is entirely read-only. With it, Cartography reads roles, database roles,
-the role hierarchy and every grant from `SNOWFLAKE.ACCOUNT_USAGE`
+Grant metadata access separately for each database to inventory. Replace
+`EXAMPLE_DB` with its name and repeat this block when onboarding a new database.
+Ordinary grants do not support `ALL DATABASES IN ACCOUNT`, or account-scoped
+`ALL` / `FUTURE` schema and table grants.
+
+```sql
+USE ROLE ACCOUNTADMIN;
+GRANT USAGE ON DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT USAGE ON FUTURE SCHEMAS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+```
+
+`REFERENCES` allows inspecting table and view metadata without granting `SELECT`
+on their contents. These grants are a baseline for databases, schemas, tables,
+and views; other object types can require additional privileges. A successful
+sync does not prove that every object is visible to the collector role.
+
+[Schema-level future grants override database-level future grants](https://docs.snowflake.com/en/sql-reference/sql/grant-privilege#future-grants-on-database-or-schema-objects),
+even when they target a different role. For each schema with its own future table
+or view grants, also grant `REFERENCES ON FUTURE TABLES IN SCHEMA
+EXAMPLE_DB.EXAMPLE_SCHEMA` or `REFERENCES ON FUTURE VIEWS IN SCHEMA
+EXAMPLE_DB.EXAMPLE_SCHEMA` to `CARTOGRAPHY_RO`, respectively. Review this when adding
+schemas or changing future grants.
+
+The ordinary permission set above is read-only. With it, Cartography reads roles,
+database roles, the role hierarchy and object grants from `SNOWFLAKE.ACCOUNT_USAGE`
 (`ROLES`, `GRANTS_TO_ROLES` and `GRANTS_TO_USERS`), which lags real time by up to
 two hours but requires no privilege that can modify anything.
 
@@ -169,7 +191,27 @@ collector's own role can see, and a partial answer is indistinguishable from a
 complete one, so without the `ACCOUNT_USAGE` views Cartography cannot establish
 that it saw every role. It then keeps the data it has and skips role, database
 role and grant cleanup rather than risk deleting roles it merely could not see.
-The graph stays correct, but stale roles are never removed.
+Previously collected roles are retained, but coverage may be incomplete and stale
+roles are not removed.
+
+### Inherited grants (public preview)
+
+Snowflake's [inherited grants](https://docs.snowflake.com/en/user-guide/inherited-grants-using)
+support account-wide scope and cover both existing and future objects. For
+example, `GRANT INHERITED REFERENCES ON ALL TABLES IN ACCOUNT TO ROLE
+CARTOGRAPHY_RO` is different from the unsupported ordinary account-wide grant.
+
+They are not required for this setup. Enabling them requires the
+[public-preview opt-in](https://docs.snowflake.com/en/user-guide/inherited-grants-intro);
+`SYSTEM$ENABLE_PREVIEW_ACCESS()` enables preview access for the whole account,
+not just the collector. Inherited grants apply to each specified object type:
+a grant on tables does not also cover views or dynamic tables.
+
+Cartography does not yet model inherited grants in the privilege graph. Use the
+ordinary grants above for the documented setup; do not treat successful object
+access through inherited grants as evidence of complete privilege mapping. When
+`ACCOUNT_USAGE` reports inherited grants, Cartography logs incomplete grant
+coverage and skips grant cleanup, preserving previously collected edges.
 
 ## Optional Permissions
 
@@ -184,8 +226,10 @@ path it used. It falls back to the per-role object API only when those views are
 unreadable; that path costs two requests per role and, as above, cannot establish
 completeness, so the affected cleanups are skipped. Without `ORGADMIN`, only the
 connected account is synced. Without `MODIFY PROGRAMMATIC AUTHENTICATION METHODS`
-on a user, that user's programmatic access tokens are not listed. Every surface Snowflake refuses is skipped along with
-its cleanup, so a missing privilege never deletes previously collected data.
+on a user, that user's programmatic access tokens are not listed. Surfaces with
+detected permission failures have their cleanup skipped. A
+successful listing can still omit objects the role cannot see; it is not proof
+of complete account-wide visibility.
 
 ## Configure Cartography
 
@@ -241,6 +285,27 @@ On accounts with very many schemas, restrict the walk with
 `--snowflake-databases`. The `SNOWFLAKE` and `SNOWFLAKE_SAMPLE_DATA` databases
 and databases created from an inbound share are skipped automatically: they are
 provider-managed and enumerating them is slow and usually unauthorized.
+
+## Verify access
+
+Run these checks as the collector role, with secondary roles disabled so an
+administrator's other roles cannot mask missing grants:
+
+```sql
+USE ROLE CARTOGRAPHY_RO;
+USE SECONDARY ROLES NONE;
+USE WAREHOUSE CARTOGRAPHY_WH;
+SELECT COUNT(*) FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES WHERE DELETED_ON IS NULL;
+SHOW SCHEMAS IN DATABASE EXAMPLE_DB;
+SHOW TABLES IN DATABASE EXAMPLE_DB;
+SHOW VIEWS IN DATABASE EXAMPLE_DB;
+```
+
+Compare the listings with objects an administrator knows exist, including newly
+created objects and schemas with their own future grants. An empty result alone
+does not distinguish an empty database from insufficient visibility. Finally,
+run the collector with its own credential and inspect the sync warnings; SQL
+checks alone do not validate the REST object endpoints.
 
 ## Troubleshooting
 
