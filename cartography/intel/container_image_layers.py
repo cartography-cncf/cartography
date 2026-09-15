@@ -189,18 +189,21 @@ def get_complete_layer_digests(
       {relationship_predicate}
     RETURN img.{shape.image_digest_property}
     """
-    # Large IN lists can exhaust Neo4j's heap even when no layers are cached.
-    digest_batches: Iterable[list[str] | None]
     if unique_digests is None:
-        digest_batches = [None]
-    else:
-        digest_batches = batch(unique_digests, size=batch_size)
-    complete_digests: set[str] = set()
-    for digest_batch in digest_batches:
         values = neo4j_session.execute_read(
             read_list_of_values_tx,
             query,
-            **({"digests": digest_batch} if digest_batch is not None else {}),
+            **parameters,
+        )
+        return {str(value) for value in values if value}
+
+    # Large IN lists can exhaust Neo4j's heap even when no layers are cached.
+    complete_digests: set[str] = set()
+    for digest_batch in batch(unique_digests, size=batch_size):
+        values = neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            digests=digest_batch,
             **parameters,
         )
         complete_digests.update(str(value) for value in values if value)
