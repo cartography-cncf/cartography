@@ -121,10 +121,13 @@ canonical users. SAML ingestion does not create canonical users on its own.
 Unavailable providers and denied access preserve prior identity data. A complete
 empty identity list removes stale identities for that organization. Transient
 transport failures, GraphQL timeouts, and rate limits retry the same page up to
-five attempts. HTTP rate-limit delays honor GitHub's retry/reset headers; a wait
-longer than five minutes fails the snapshot instead of retrying early. GraphQL
-rate-limit errors wait one minute between attempts. Unrecovered API errors fail
-the snapshot before any identity writes or cleanup. Refreshing the
+five attempts. Each attempt checks the GraphQL budget on the configured GitHub
+instance and waits for its reset when necessary. HTTP rate-limit delays honor
+GitHub's retry/reset headers, including resets more than five minutes away.
+Secondary limits without a reset start with a one-minute wait and back off
+exponentially. Unrecovered API errors log a warning and skip identity writes and
+cleanup, allowing other GitHub resources and organizations to sync. Graph write
+and cleanup errors still propagate. Refreshing the
 ontology removes links that no longer have an identity basis; SAML and existing
 GitHub email linking share the same relationship cleanup.
 

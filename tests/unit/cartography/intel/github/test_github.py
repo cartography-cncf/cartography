@@ -14,6 +14,10 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 import cartography.intel.github.packages
+from cartography.intel.github.external_identities import ExternalIdentitySnapshotError
+from cartography.intel.github.external_identities import (
+    sync as sync_external_identities,
+)
 from cartography.intel.github.repos import GitHubRepoSyncResult
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
@@ -24,6 +28,11 @@ from cartography.intel.github.util import is_github_dotcom_api_url
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
 
+@pytest.mark.parametrize(
+    "identity_failure",
+    [None, HTTPError("unavailable"), ExternalIdentitySnapshotError("incomplete")],
+)
+@typing.no_type_check
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
 @patch("cartography.intel.github.users.cleanup")
@@ -76,6 +85,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
+    identity_failure,
 ) -> None:
     github_config = {
         "organization": [
@@ -127,7 +137,13 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     from cartography.intel.github import start_github_ingestion
 
     neo4j_session = Mock()
-    start_github_ingestion(neo4j_session, config)
+    if identity_failure is not None:
+        mock_external_identities_sync.side_effect = sync_external_identities
+    with patch(
+        "cartography.intel.github.external_identities.get_external_identities",
+        side_effect=identity_failure,
+    ):
+        start_github_ingestion(neo4j_session, config)
 
     assert mock_external_identities_sync.call_count == 2
     assert mock_users_sync.call_count == 2
@@ -599,6 +615,16 @@ def test_fetch_all_rest_api_pages_retries_connection_errors(
     mock_sleep.assert_called_once_with(2)
 
 
+@pytest.mark.parametrize(
+    "api_url,rate_url",
+    [
+        ("https://api.github.com/graphql", "https://api.github.com/rate_limit"),
+        (
+            "https://github.example.com/api/graphql",
+            "https://github.example.com/api/v3/rate_limit",
+        ),
+    ],
+)
 @typing.no_type_check
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.datetime")
@@ -607,6 +633,8 @@ def test_handle_rate_limit_sleep(
     mock_requests_get: Mock,
     mock_datetime: Mock,
     mock_sleep: Mock,
+    api_url,
+    rate_url,
 ) -> None:
     """
     Ensure we sleep to avoid the rate limit
@@ -647,7 +675,7 @@ def test_handle_rate_limit_sleep(
     ]
 
     # Act
-    handle_rate_limit_sleep("my-token")
+    handle_rate_limit_sleep("my-token", api_url)
     # Assert
     mock_datetime.now.assert_not_called()
     mock_sleep.assert_not_called()
@@ -657,7 +685,36 @@ def test_handle_rate_limit_sleep(
     mock_sleep.reset_mock()
 
     # Act
-    handle_rate_limit_sleep("my-token")
+    handle_rate_limit_sleep("my-token", api_url)
     # Assert
     mock_datetime.now.assert_called_once_with(tz.utc)
     mock_sleep.assert_called_once_with(expected_sleep_seconds)
+    mock_requests_get.assert_called_with(
+        rate_url, headers={"Authorization": "Bearer my-token"}, timeout=(60, 60)
+    )
+
+
+@pytest.mark.parametrize("status", [401, 403, 404])
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_fetch_all_does_not_retry_permanent_http_errors(
+    mock_post, mock_sleep, mock_gate, status
+):
+    # Arrange
+    response = Response()
+    response.status_code = status
+    response._content = b'{"message": "Access denied"}'
+    mock_post.return_value = response
+
+    # Act and assert
+    with pytest.raises(HTTPError):
+        fetch_all(
+            "test-token",
+            "https://api.github.com/graphql",
+            "example-org",
+            "query",
+            "repositories",
+        )
+    mock_post.assert_called_once()
+    mock_sleep.assert_not_called()

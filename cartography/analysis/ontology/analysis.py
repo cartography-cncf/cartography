@@ -37,6 +37,9 @@ AWS_USER_PROJECTION = AnalysisJob(
         ),
     ),
 )
+# TODO: Normalize CrowdStrike and Jamf source emails during ingestion before
+# moving their device ownership joins to User.normalized_email; test Unicode
+# whitespace consistently on both sides and cleanup across update tags.
 DEVICE_OWNS_LINKING = AnalysisJob(
     name="Ontology - Devices OWNS relationship linking",
     short_name="ontology_devices_linking",

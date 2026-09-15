@@ -1,5 +1,8 @@
 import json
 from copy import deepcopy
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -8,6 +11,7 @@ import pytest
 import requests
 
 from cartography.intel.github.external_identities import get_external_identities
+from cartography.intel.github.external_identities import sync
 from cartography.intel.github.external_identities import transform_external_identities
 from cartography.intel.ontology.users import transform_users
 from tests.data.github.external_identities import API_URL
@@ -17,6 +21,16 @@ from tests.data.github.external_identities import NO_SAML_PROVIDER
 from tests.data.github.external_identities import ORG
 from tests.data.github.external_identities import ORG_URL
 from tests.data.github.external_identities import page
+from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
+
+
+@pytest.fixture(autouse=True)
+def available_rate_limit():
+    response = deepcopy(RATE_LIMIT_RESPONSE_JSON)
+    response["resources"]["graphql"]["remaining"] = 5000
+    with patch("cartography.intel.github.util.requests.get") as mock_get:
+        mock_get.return_value.json.return_value = response
+        yield mock_get
 
 
 def test_transform_preserves_nameid_and_nullable_fields():
@@ -159,6 +173,7 @@ def _http_response(status, headers=None, payload=None):
     [
         *[(_http_response(status), 2) for status in (408, 500, 502, 503, 504)],
         (_http_response(429, {"retry-after": "7"}), 7),
+        (_http_response(429, {"retry-after": "301"}), 301),
         (_http_response(403, {"retry-after": "8"}), 8),
         (_http_response(403, payload={"message": "secondary rate limit"}), 60),
         (requests.Timeout(), 2),
@@ -223,14 +238,10 @@ def test_get_recovers_partial_graphql_page_without_duplicate_records(
     ] == [None, None, "cursor-1", "cursor-1"]
 
 
-@pytest.mark.parametrize(
-    "status,headers", [(401, {}), (403, {}), (404, {}), (429, {"retry-after": "301"})]
-)
+@pytest.mark.parametrize("status,headers", [(401, {}), (403, {}), (404, {})])
 @patch("cartography.intel.github.external_identities.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
-def test_get_does_not_retry_permanent_failure_or_exceed_wait_budget(
-    mock_post, mock_sleep, status, headers
-):
+def test_get_does_not_retry_permanent_failure(mock_post, mock_sleep, status, headers):
     # Arrange
     mock_post.return_value = _http_response(status, headers)
 
@@ -302,3 +313,69 @@ def test_identity_sources_share_normalization_policy(value, expected):
     assert canonical["normalized_email"] == expected
     assert github["saml_name_id"] == canonical["email"] == value
     assert identity["samlIdentity"]["nameId"] == value
+
+
+@pytest.mark.parametrize("graphql_error", [False, True])
+@patch("cartography.intel.github.util.datetime")
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_get_waits_for_primary_reset(
+    mock_post, mock_sleep, mock_datetime, available_rate_limit, graphql_error
+):
+    # Arrange
+    now = datetime(2040, 1, 1, tzinfo=timezone.utc)
+    mock_datetime.now.return_value = now
+    mock_datetime.fromtimestamp = datetime.fromtimestamp
+    reset = int((now + timedelta(minutes=47)).timestamp())
+    if graphql_error:
+        failure = _http_response(200, payload={"errors": [{"type": "RATE_LIMITED"}]})
+        healthy = deepcopy(available_rate_limit.return_value.json.return_value)
+        exhausted = deepcopy(healthy)
+        exhausted["resources"]["graphql"].update(remaining=0, reset=reset)
+        available_rate_limit.side_effect = [
+            _http_response(200, payload=healthy),
+            _http_response(200, payload=exhausted),
+        ]
+    else:
+        failure = _http_response(
+            403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": str(reset)}
+        )
+    mock_post.side_effect = [failure, _http_response(200, payload=page(IDENTITIES))]
+
+    # Act
+    result = get_external_identities("test-token", API_URL, ORG)
+
+    # Assert
+    assert result == (IDENTITIES, ORG_URL)
+    assert available_rate_limit.call_count == 2
+    assert mock_sleep.call_args_list == (
+        [call(60), call(48 * 60)] if graphql_error else [call(48 * 60)]
+    )
+    assert mock_post.call_args_list[0] == mock_post.call_args_list[1]
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.post")
+def test_secondary_rate_limit_backs_off_exponentially(mock_post, mock_sleep):
+    # Arrange
+    mock_post.return_value = _http_response(
+        403, payload={"message": "secondary rate limit"}
+    )
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError):
+        get_external_identities("test-token", API_URL, ORG)
+    assert mock_sleep.call_args_list == [call(60), call(120), call(240), call(480)]
+    assert mock_post.call_count == 5
+
+
+@patch("cartography.intel.github.external_identities.load")
+@patch("cartography.intel.github.util.requests.post")
+def test_sync_does_not_swallow_graph_write_failure(mock_post, mock_load):
+    # Arrange
+    mock_post.return_value = _http_response(200, payload=page(IDENTITIES))
+    mock_load.side_effect = RuntimeError("database unavailable")
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        sync(Mock(), {"UPDATE_TAG": 100}, "test-token", API_URL, ORG)

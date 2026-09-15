@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
+import requests
 
 from cartography.intel.github import external_identities
 from cartography.intel.github.users import load_organization
@@ -19,8 +20,18 @@ from tests.data.github.external_identities import NO_SAML_PROVIDER
 from tests.data.github.external_identities import ORG
 from tests.data.github.external_identities import ORG_URL
 from tests.data.github.external_identities import page
+from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
+
+@pytest.fixture(autouse=True)
+def available_rate_limit():
+    response = deepcopy(RATE_LIMIT_RESPONSE_JSON)
+    response["resources"]["graphql"]["remaining"] = 5000
+    with patch("cartography.intel.github.util.requests.get") as mock_get:
+        mock_get.return_value.json.return_value = response
+        yield mock_get
 
 
 def _seed_org(session, org_url=ORG_URL):
@@ -233,12 +244,17 @@ def test_denied_snapshot_preserves_existing_identities(
     }
 
 
+@pytest.mark.parametrize("http_failure", [False, True])
 @patch("cartography.intel.github.external_identities.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
-def test_partial_error_does_not_write_or_cleanup(mock_post, mock_sleep, neo4j_session):
+def test_partial_error_does_not_write_or_cleanup(
+    mock_post, mock_sleep, neo4j_session, http_failure, caplog
+):
     # Arrange
     mock_post.return_value.json.return_value = page(IDENTITIES)
     _sync(neo4j_session)
+    _ontology(neo4j_session)
+    original_links = _github_links(neo4j_session)
     response = page([IDENTITIES[0]])
     response["errors"] = [
         {
@@ -246,15 +262,23 @@ def test_partial_error_does_not_write_or_cleanup(mock_post, mock_sleep, neo4j_se
             "path": ["organization", "samlIdentityProvider", "externalIdentities"],
         }
     ]
+    failure = Mock(json=lambda: response)
+    if http_failure:
+        failure = requests.Response()
+        failure.status_code = 503
     mock_post.reset_mock()
     mock_post.side_effect = [
         Mock(json=lambda: page([IDENTITIES[0]], has_next_page=True, cursor="cursor-1")),
-        *[Mock(json=lambda: response) for _ in range(5)],
+        *[failure for _ in range(5)],
     ]
 
-    # Act and assert
-    with pytest.raises(RuntimeError, match="query failed"):
-        _sync(neo4j_session, 200)
+    # Act
+    _sync(neo4j_session, 200)
+    _ontology(neo4j_session, 200)
+
+    # Assert
+    assert "preserving previously synced identities" in caplog.text
+    assert _github_links(neo4j_session) == original_links
     assert mock_post.call_count == 6
     assert mock_sleep.call_count == 4
     assert len(check_nodes(neo4j_session, "GitHubExternalIdentity", ["id"])) == 4

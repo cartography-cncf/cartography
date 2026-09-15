@@ -339,7 +339,7 @@ def _fetch_manifest_page(
     """
     for attempt in range(retries):
         try:
-            handle_rate_limit_sleep(token)
+            handle_rate_limit_sleep(token, api_url)
             resp = fetch_page(
                 token,
                 api_url,
