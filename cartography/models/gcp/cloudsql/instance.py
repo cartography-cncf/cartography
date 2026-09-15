@@ -105,6 +105,26 @@ class GCPSqlInstanceProperties(CartographyNodeProperties):
         "database_flags",
         description="Configured database flags encoded as JSON name-value entries.",
     )
+    flag_cloudsql_enable_pgaudit: PropertyRef = PropertyRef(
+        "flag_cloudsql_enable_pgaudit",
+        description="Value of the Cloud SQL `cloudsql.enable_pgaudit` database flag, when configured.",
+    )
+    flag_log_checkpoints: PropertyRef = PropertyRef(
+        "flag_log_checkpoints",
+        description="Value of the Cloud SQL `log_checkpoints` database flag, when configured.",
+    )
+    flag_log_connections: PropertyRef = PropertyRef(
+        "flag_log_connections",
+        description="Value of the Cloud SQL `log_connections` database flag, when configured.",
+    )
+    flag_log_disconnections: PropertyRef = PropertyRef(
+        "flag_log_disconnections",
+        description="Value of the Cloud SQL `log_disconnections` database flag, when configured.",
+    )
+    flag_log_lock_waits: PropertyRef = PropertyRef(
+        "flag_log_lock_waits",
+        description="Value of the Cloud SQL `log_lock_waits` database flag, when configured.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

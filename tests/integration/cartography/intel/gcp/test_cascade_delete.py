@@ -13,10 +13,12 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
+import cartography.intel.gcp.audit_config
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
 import cartography.intel.gcp.iam
+import cartography.intel.gcp.log_sink
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
@@ -287,6 +289,16 @@ class TestCascadeDeleteIntegration:
         "get_gcp_credentials",
     )
     @patch.object(
+        cartography.intel.gcp.audit_config,
+        "sync_gcp_audit_configs",
+        return_value=None,
+    )
+    @patch.object(
+        cartography.intel.gcp.log_sink,
+        "sync_gcp_log_sinks",
+        return_value=None,
+    )
+    @patch.object(
         cartography.intel.gcp,
         "_sync_project_resources",
         return_value=SKIPPED_PROJECT_RESOURCES_RESULT,
@@ -321,6 +333,8 @@ class TestCascadeDeleteIntegration:
         mock_get_folders,
         mock_get_projects,
         mock_sync_resources,
+        mock_sync_log_sinks,
+        mock_sync_audit_configs,
         mock_get_creds,
         neo4j_session,
     ):

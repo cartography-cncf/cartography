@@ -3,10 +3,10 @@
 Cartography supports ingesting Google Cloud Platform resources, including:
 
 - **Cloud Resource Manager**: Organizations, Folders, Projects
-- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels
+- **Compute**: Instances, VPCs, Subnets, Firewalls, Forwarding Rules, Network Interfaces, SSL Policies, Target HTTPS Proxies, Target SSL Proxies, VPC Peerings, VPN Gateways, VPN Tunnels, Cloud Routers, Cloud NAT configs
 - **Storage**: Buckets
 - **DNS**: Zones, Record Sets
-- **IAM**: Service Accounts, Roles, Policy Bindings
+- **IAM**: Service Accounts, Roles, Policy Bindings, Audit Configs
 - **Bigtable**: Instances, Clusters, Tables, App Profiles, Backups
 - **Google Kubernetes Engine (GKE)**: Clusters
 - **Vertex AI**: Models, Endpoints, Deployed Models, Workbench Instances, Training Pipelines, Feature Groups, Datasets
@@ -14,6 +14,7 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 - **BigQuery**: Datasets, Tables, Routines, Connections
 - **Secret Manager**: Secrets, Secret Versions
 - **Cloud Run**: Services, Revisions, Jobs, Executions
+- **Cloud Logging**: Organization, Folder, and Project sinks
 
 ## VPC peerings and VPN tunnels
 
