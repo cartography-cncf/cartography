@@ -20,6 +20,16 @@ class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
         description="A partial resource URI representing this Forwarding Rule.",
     )
     partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the load balancing scheme is external. `False` otherwise.",
+    )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the GCP_COMPUTE_FORWARDING_RULE_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ip_address: PropertyRef = PropertyRef(
         "ip_address", description="IP address that this Forwarding Rule serves."
@@ -129,6 +139,58 @@ class GCPForwardingRuleToVpcRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPForwardingRuleToTargetHttpsProxyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetHttpsProxyRel(CartographyRelSchema):
+    """
+    Matches on the existing `target` property, which transform_gcp_forwarding_rules()
+    already parses to a partial URI. A rule whose target isn't a targetHttpsProxies
+    resource simply won't match anything here.
+    """
+
+    target_node_label: str = "GCPTargetHttpsProxy"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("target"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: GCPForwardingRuleToTargetHttpsProxyRelProperties = (
+        GCPForwardingRuleToTargetHttpsProxyRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetSslProxyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPForwardingRuleToTargetSslProxyRel(CartographyRelSchema):
+    """Same matching approach as GCPForwardingRuleToTargetHttpsProxyRel, for targetSslProxies."""
+
+    target_node_label: str = "GCPTargetSslProxy"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("target"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: GCPForwardingRuleToTargetSslProxyRelProperties = (
+        GCPForwardingRuleToTargetSslProxyRelProperties()
+    )
+
+
+# `target` (already parsed to a partial URI) can point at any load-balancer target
+# collection -- targetHttpsProxies, targetSslProxies, targetPools, etc. Both proxy
+# relationships below are declared on every variant regardless of network/subnetwork
+# wiring; only the one whose collection actually matches `target` produces an edge.
+@dataclass(frozen=True)
 class GCPForwardingRuleSchema(CartographyNodeSchema):
     """A Google Cloud forwarding rule that directs traffic to a load balancer target."""
 
@@ -137,6 +199,12 @@ class GCPForwardingRuleSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LOAD_BALANCER])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
+        ]
     )
 
 
@@ -154,6 +222,8 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPForwardingRuleToSubnetRel(),
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
         ]
     )
 
@@ -171,5 +241,7 @@ class GCPForwardingRuleWithVpcSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GCPForwardingRuleToVpcRel(),
+            GCPForwardingRuleToTargetHttpsProxyRel(),
+            GCPForwardingRuleToTargetSslProxyRel(),
         ]
     )

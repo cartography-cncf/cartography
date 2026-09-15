@@ -100,7 +100,16 @@ def transform_clusters(
                 node.cluster_id,
             )
             continue
-        nodes_by_project.setdefault(project_id, []).append(scaleway_obj_to_dict(node))
+        formatted_node = scaleway_obj_to_dict(node)
+        # A node holding a public address of its own is reachable. Node-level firewalling is
+        # not modelled, so this is reachability of the host, not of a particular port.
+        exposed = (
+            formatted_node.get("public_ip_v4") is not None
+            or formatted_node.get("public_ip_v6") is not None
+        )
+        formatted_node["exposed_internet"] = exposed
+        formatted_node["exposed_internet_type"] = ["direct"] if exposed else None
+        nodes_by_project.setdefault(project_id, []).append(formatted_node)
 
     return clusters_by_project, pools_by_project, nodes_by_project
 

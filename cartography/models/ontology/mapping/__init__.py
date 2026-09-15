@@ -22,6 +22,7 @@ from cartography.models.ontology.labels import DNS_RECORD
 from cartography.models.ontology.labels import DNS_ZONE
 from cartography.models.ontology.labels import ENCRYPTION_KEY
 from cartography.models.ontology.labels import FILE_STORAGE
+from cartography.models.ontology.labels import FILESYSTEM_SNAPSHOT
 from cartography.models.ontology.labels import FUNCTION
 from cartography.models.ontology.labels import IDENTITY_PROVIDER
 from cartography.models.ontology.labels import IMAGE
@@ -87,6 +88,9 @@ from cartography.models.ontology.mapping.data.encryptionkeys import (
 )
 from cartography.models.ontology.mapping.data.file_storage import (
     FILE_STORAGE_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.filesystem_snapshots import (
+    FILESYSTEM_SNAPSHOTS_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.firewalls import (
     FIREWALLS_ONTOLOGY_MAPPING,
@@ -171,6 +175,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "dnszones": DNSZONES_ONTOLOGY_MAPPING,
     "encryptionkeys": ENCRYPTIONKEYS_ONTOLOGY_MAPPING,
     "filestorage": FILE_STORAGE_ONTOLOGY_MAPPING,
+    "filesystemsnapshots": FILESYSTEM_SNAPSHOTS_ONTOLOGY_MAPPING,
     "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "groups": GROUPS_ONTOLOGY_MAPPING,
@@ -216,6 +221,7 @@ SEMANTIC_LABEL_BY_CATEGORY: dict[str, ExtraNodeLabel] = {
     "dnszones": DNS_ZONE,
     "encryptionkeys": ENCRYPTION_KEY,
     "filestorage": FILE_STORAGE,
+    "filesystemsnapshots": FILESYSTEM_SNAPSHOT,
     "firewalls": NETWORK_ACCESS_CONTROL,
     "functions": FUNCTION,
     "groups": USER_GROUP,

@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -370,7 +371,7 @@ def test_private_ssm_sync_does_not_load_public_parameters(
 @patch.object(
     cartography.intel.aws.ssm,
     "get_public_ssm_parameters_by_path",
-    return_value=tests.data.aws.ssm.PUBLIC_SSM_PARAMETERS_DATA,
+    return_value=deepcopy(tests.data.aws.ssm.PUBLIC_SSM_PARAMETERS_DATA),
 )
 def test_load_shared_public_ssm_parameters(
     mock_get_public_ssm_parameters_by_path,
@@ -452,3 +453,48 @@ def test_load_shared_public_ssm_parameters(
         TEST_REGION,
         ["/aws/service/bottlerocket/"],
     )
+
+
+@patch.object(
+    cartography.intel.aws.ssm,
+    "get_public_ssm_parameters_by_path",
+    return_value=deepcopy(tests.data.aws.ssm.PUBLIC_SSM_PARAMETERS_DATA),
+)
+def test_empty_public_ssm_allowlist_removes_existing_parameters(
+    mock_get_public_ssm_parameters_by_path,
+    neo4j_session,
+):
+    # Arrange
+    neo4j_session.run("MATCH (n:AWSPublicSSMParameter) DETACH DELETE n")
+    mock_boto3_session = MagicMock()
+    common_params = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "aws_ssm_public_parameter_prefix_allowlist": "/aws/service/bottlerocket/",
+    }
+
+    # Act
+    cartography.intel.aws.ssm.sync_public_parameters(
+        neo4j_session,
+        {TEST_REGION: [mock_boto3_session]},
+        TEST_UPDATE_TAG,
+        common_params,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSPublicSSMParameter", ["id"])
+
+    # Act
+    next_update_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.aws.ssm.sync_public_parameters(
+        neo4j_session,
+        {},
+        next_update_tag,
+        {
+            "UPDATE_TAG": next_update_tag,
+            "aws_ssm_public_parameter_prefix_allowlist": "",
+        },
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSPublicSSMParameter", ["id"]) == set()
+    mock_get_public_ssm_parameters_by_path.assert_called_once()

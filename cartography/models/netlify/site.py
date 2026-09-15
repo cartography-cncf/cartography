@@ -86,6 +86,16 @@ class NetlifySiteNodeProperties(CartographyNodeProperties):
     )
     # Access controls on the deployed site. The password itself is never ingested; Netlify
     # already exposes only the `has_password` boolean.
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the site is served and no access gate covers it. Only a gate whose context is `all` counts, since a context-scoped one leaves production open.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the site is served at its own URL.",
+    )
     has_password: PropertyRef = PropertyRef(
         "has_password",
         description="Whether the site is behind a password. The password itself is never returned by the API.",
@@ -103,6 +113,10 @@ class NetlifySiteNodeProperties(CartographyNodeProperties):
     account_sso_login: PropertyRef = PropertyRef(
         "account_sso_login",
         description="Whether the team-level SSO requirement applies to this site.",
+    )
+    account_sso_login_context: PropertyRef = PropertyRef(
+        "account_sso_login_context",
+        description="Which deploy contexts the team-level SSO requirement applies to.",
     )
     # JWT-based role gating for Netlify Identity. `jwt_secret` is a secret and is dropped;
     # `has_jwt_secret` records only whether one is configured.

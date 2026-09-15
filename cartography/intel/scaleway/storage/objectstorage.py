@@ -179,6 +179,10 @@ def transform_buckets(
             # both sources were unreadable (so "unknown" is not reported as safe).
             "public": _combine_public(acl_public, anonymous_access),
         }
+        # exposed_internet is the cross-provider name for the same verdict, so it inherits
+        # the tri-state: an unreadable ACL and policy leave it null rather than false.
+        formatted["exposed_internet"] = formatted["public"]
+        formatted["exposed_internet_type"] = ["direct"] if formatted["public"] else None
         result.setdefault(project_id, []).append(formatted)
     return result
 

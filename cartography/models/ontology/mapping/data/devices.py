@@ -46,6 +46,28 @@ crowdstrike_mapping = OntologyMapping(
         ),
     ],
 )
+huntress_mapping = OntologyMapping(
+    module_name="huntress",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="HuntressAgent",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_build_version"
+                ),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+                # model and manufacturer: the agent survey reports neither.
+            ],
+        ),
+    ],
+)
 duo_mapping = OntologyMapping(
     module_name="duo",
     nodes=[
@@ -317,6 +339,7 @@ miradore_mapping = OntologyMapping(
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
+    "huntress": huntress_mapping,
     "duo": duo_mapping,
     "microsoft": entra_mapping,
     "googleworkspace": googleworkspace_mapping,

@@ -112,3 +112,43 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
 
     assert response.status_code == 200
     assert token_calls == [False, True]
+
+
+def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
+    # Arrange: a HEAD probe must reach the registry as HEAD, including on the
+    # post-401 retry, so a digest can be resolved without a body transfer.
+    methods = []
+    responses = iter(
+        [
+            _make_response(401),
+            _make_response(200, {}),
+        ],
+    )
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.util.get_registry_token",
+        lambda *args, **kwargs: "jwt-token",
+    )
+
+    def _request(method, *args, **kwargs):
+        methods.append(method)
+        return next(responses)
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.util.requests.request",
+        _request,
+    )
+
+    # Act
+    response = fetch_registry_manifest(
+        "https://gitlab.example.com",
+        "https://registry.example.com",
+        "group/project",
+        "latest",
+        "pat",
+        method="HEAD",
+    )
+
+    # Assert
+    assert response.status_code == 200
+    assert methods == ["HEAD", "HEAD"]

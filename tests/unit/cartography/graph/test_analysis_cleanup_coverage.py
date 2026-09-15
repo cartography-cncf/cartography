@@ -523,6 +523,20 @@ CLEANUP_CASES = [
         id="k8s_lb_container_exposure",
     ),
     pytest.param(
+        PropertyEffect(
+            "ScalewayInstance", ("exposed_internet", "exposed_internet_type")
+        ),
+        None,
+        _prop_cleanup("ScalewayInstance", "exposed_internet", "exposed_internet_type"),
+        id="scaleway_instance_exposure",
+    ),
+    pytest.param(
+        RelationshipEffect("ScalewayLoadBalancer", "EXPOSE", "ScalewayInstance"),
+        None,
+        _rel_cleanup("ScalewayLoadBalancer", "EXPOSE", "ScalewayInstance"),
+        id="scaleway_lb_expose_edges",
+    ),
+    pytest.param(
         PropertyEffect("SemgrepSASTFinding", ("risk_severity",)),
         SEMGREP,
         _prop_cleanup("SemgrepSASTFinding", "risk_severity", scope=SEMGREP),

@@ -69,6 +69,19 @@ class TrivyPackageToOntologyImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyPackageToFilesystemSnapshotRel(CartographyRelSchema):
+    """Links a Trivy package to the filesystem snapshots where it is installed."""
+
+    target_node_label: str = "FilesystemSnapshot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FilesystemSnapshotIds", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyPackageToFindingRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -90,7 +103,7 @@ class TrivyPackageToFindingRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TrivyPackageSchema(CartographyNodeSchema):
-    """A package detected by Trivy in a container image."""
+    """A package detected by Trivy in a scan target."""
 
     label: str = "TrivyPackage"
     scoped_cleanup: bool = False
@@ -98,6 +111,7 @@ class TrivyPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TrivyPackageToOntologyImageRel(),
+            TrivyPackageToFilesystemSnapshotRel(),
             TrivyPackageToFindingRel(),
         ],
     )

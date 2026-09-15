@@ -43,6 +43,16 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
         "ingress",
         description="The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `ingress` is `INGRESS_TRAFFIC_ALL`. `False` when ingress is internal-only or none.",
+    )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Populated by the GCP_COMPUTE_CLOUDRUN_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

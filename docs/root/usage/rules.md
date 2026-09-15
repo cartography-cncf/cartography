@@ -577,7 +577,20 @@ _aws_user_direct_policies = Fact(
 Guidelines:
 
 - Every field in `identity_fields` must exist on the rule's output model and be returned by the
-  fact's `cypher_query` (a unit test enforces this).
+  fact's `cypher_query`. `Fact.__post_init__` and a unit test enforce this.
+- An identity must be **sufficient**, not merely present: two rows of the same fact must never
+  share one identity. The shape that breaks this is a query that fans out over a to-many hop while
+  the identity omits the fan-out column, so one asset yields several findings with one identity.
+  A consumer keying findings on `(rule.id, fact.id, identity)` cannot represent that: it drops a
+  finding or rejects the batch, and the rule silently reports nothing for the asset. Depending on
+  what the extra rows mean, either fold the fan-out column into `identity_fields` (a GCP instance
+  with an external IP on two NICs is two findings, so `("instance_id", "external_ip")`), or collapse
+  the fan-out in the query with an aggregate (`collect`, `min`) or `RETURN DISTINCT` when the extra
+  rows carry nothing new. `tests/unit/rules/test_identity_uniqueness.py` detects this statically and
+  names both fixes when it fails.
+- Never key on a property the ingest path leaves nullable. An identity field built from a
+  soft-mapped value (`"arn": f.get("Arn")`) is null for every record the provider omits it on, so
+  all of them collide on one empty identity. Prefer the property that backs the node's own `id`.
 - Downstream lifecycle tracking should build its storage identity from `rule.id` + `fact.id` +
   the `identity_fields` values, so multi-fact rules cannot collide.
 - For shared ontology labels (`:UserAccount`, `:DeviceInstance`, `:Tenant`, ...) a node id is only

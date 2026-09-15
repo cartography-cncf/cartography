@@ -51,6 +51,16 @@ class ScalewayObjectStorageBucketNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Combined public-exposure signal: `acl_public` OR `anonymous_access`; null when both sources were unreadable.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `public` is true. Left unset when `public` is null, meaning neither the ACL nor the policy could be read.",
+    )  # Set in transform(), see cartography/intel/scaleway/storage/objectstorage.py
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Set in transform(), see cartography/intel/scaleway/storage/objectstorage.py
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

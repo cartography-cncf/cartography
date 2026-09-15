@@ -134,6 +134,13 @@ FILE_STORAGE = ExtraNodeLabel(
 )
 
 
+FILESYSTEM_SNAPSHOT = ExtraNodeLabel(
+    label="FilesystemSnapshot",
+    description="An immutable filesystem view used as a software scan target.",
+    kind=LabelKind.ONTOLOGY,
+)
+
+
 FUNCTION = ExtraNodeLabel(
     label="Function",
     description="A cross-provider Function resource in Cartography's ontology.",

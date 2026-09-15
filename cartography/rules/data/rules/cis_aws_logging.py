@@ -234,8 +234,14 @@ _aws_cloudtrail_bucket_access_logging_disabled = Fact(
         "captures requests against audit logs themselves."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
+    MATCH (trail:AWSCloudTrailTrail)-[:LOGS_TO]->(bucket:AWSS3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
+    // Report the bucket's own account, not the trail's: a bucket can receive logs
+    // from trails in several accounts (an org trail plus a member trail), which would
+    // otherwise return one row per logging account for the same bucket. OPTIONAL so a
+    // bucket in an unsynced account still reports. The predicate stays above this
+    // clause: a WHERE after an OPTIONAL MATCH filters the match, not the rows.
+    OPTIONAL MATCH (a:AWSAccount)-[:RESOURCE]->(bucket)
     RETURN
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
@@ -272,7 +278,7 @@ aws_cloudtrail_s3_bucket_access_logging = Rule(
     output_model=CloudTrailBucketAccessLoggingOutput,
     facts=(_aws_cloudtrail_bucket_access_logging_disabled,),
     tags=("logging", "cloudtrail", "s3", "stride:repudiation"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("4.4"),

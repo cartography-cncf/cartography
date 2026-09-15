@@ -92,6 +92,20 @@ _PAGE_INFO = """
     }
 """
 
+_DEPLOYMENT_FIELDS = """
+    id
+    meta
+    status
+    statusUpdatedAt
+    createdAt
+    projectId
+    environmentId
+    serviceId
+    url
+    staticUrl
+    canRedeploy
+"""
+
 _SERVICE_INSTANCE_FIELDS = """
     id
     serviceId
@@ -99,10 +113,10 @@ _SERVICE_INSTANCE_FIELDS = """
     environmentId
     createdAt
     updatedAt
-    source {
+    source {{
       image
       repo
-    }
+    }}
     builder
     buildCommand
     startCommand
@@ -116,46 +130,38 @@ _SERVICE_INSTANCE_FIELDS = """
     restartPolicyType
     restartPolicyMaxRetries
     ipv6EgressEnabled
-    latestDeployment {
-      id
-      status
-    }
-    domains {
-      serviceDomains {
+    activeDeployments {{
+      {}
+    }}
+    latestDeployment {{
+      {}
+    }}
+    domains {{
+      serviceDomains {{
         id
         domain
         suffix
         targetPort
         syncStatus
         createdAt
-      }
-      customDomains {
+      }}
+      customDomains {{
         id
         domain
         targetPort
         isRailwayDomain
         syncStatus
-        status {
+        status {{
           verified
           certificateStatus
           verificationDnsHost
-        }
-      }
-    }
-"""
-
-_DEPLOYMENT_FIELDS = """
-    id
-    status
-    statusUpdatedAt
-    createdAt
-    projectId
-    environmentId
-    serviceId
-    url
-    staticUrl
-    canRedeploy
-"""
+        }}
+      }}
+    }}
+""".format(
+    _DEPLOYMENT_FIELDS,
+    _DEPLOYMENT_FIELDS,
+)
 
 _VOLUME_INSTANCE_FIELDS = """
     id

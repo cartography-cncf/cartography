@@ -7,6 +7,7 @@ import pytest
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _fetch_manifest_page
 from cartography.intel.github.repos import _get_repo_dep_manifests
 from cartography.intel.github.repos import _get_repo_rulesets_by_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
@@ -16,6 +17,7 @@ from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import _transform_rulesets
+from cartography.intel.github.repos import DependencyGraphForbiddenError
 from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
 from cartography.intel.github.repos import reconcile_dependency_version_conflicts
 from cartography.intel.github.repos import transform
@@ -614,6 +616,238 @@ def test_get_dep_manifests_for_repos_marks_request_exception_unsafe_for_cleanup(
         "test-repo",
     )
     assert "Skipped dependency manifests for 1 of 1 repos" in caplog.text
+
+
+def test_fetch_manifest_page_retries_resolver_timeout_without_paying_backoff(caplog):
+    """
+    The first request for a manifest position primes GitHub's lazily-computed
+    dependency graph and the retry hits a warm result, so the first retry must not
+    sleep. Across a large org that first sleep is the bulk of the retry overhead.
+    """
+    # Arrange
+    timeout_page = {
+        "data": {"organization": {"repository": {"dependencyGraphManifests": None}}},
+        "errors": [{"message": "timedout"}],
+    }
+    success_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {"endCursor": None, "hasNextPage": False},
+                        "nodes": [],
+                    },
+                },
+            },
+        },
+    }
+
+    with (
+        patch.object(
+            cartography.intel.github.repos,
+            "fetch_page",
+            side_effect=[timeout_page, success_page],
+        ),
+        patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep"),
+        patch.object(cartography.intel.github.repos.time, "sleep") as mock_sleep,
+    ):
+        # Act
+        resp = _fetch_manifest_page(
+            "token",
+            "https://api.github.com/graphql",
+            "test-org",
+            "test-repo",
+            None,
+        )
+
+    # Assert
+    assert resp == success_page
+    mock_sleep.assert_not_called()
+
+
+def test_fetch_manifest_page_does_not_retry_forbidden():
+    # Arrange
+    forbidden_page = {
+        "data": {"organization": {"repository": {"dependencyGraphManifests": None}}},
+        "errors": [
+            {
+                "type": "FORBIDDEN",
+                "message": "Although you appear to have the correct authorization "
+                "credentials, the `test-org` organization has an IP allow list enabled.",
+            },
+        ],
+    }
+
+    with (
+        patch.object(
+            cartography.intel.github.repos,
+            "fetch_page",
+            return_value=forbidden_page,
+        ) as mock_fetch_page,
+        patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep"),
+        patch.object(cartography.intel.github.repos.time, "sleep") as mock_sleep,
+    ):
+        # Act + Assert
+        with pytest.raises(DependencyGraphForbiddenError, match="IP allow list"):
+            _fetch_manifest_page(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+                None,
+            )
+
+    mock_fetch_page.assert_called_once()
+    mock_sleep.assert_not_called()
+
+
+def test_get_repo_dep_manifests_marks_errors_on_usable_page_unsafe_for_cleanup(
+    caplog,
+):
+    """
+    GitHub can refuse or time out a nested field while still returning a usable
+    page, which yields a manifest whose dependencies are silently missing. Keep the
+    partial data but never let cleanup delete what we could not read.
+    """
+    # Arrange
+    partial_page = {
+        "data": {
+            "organization": {
+                "repository": {
+                    "dependencyGraphManifests": {
+                        "pageInfo": {"endCursor": None, "hasNextPage": False},
+                        "nodes": [
+                            {
+                                "blobPath": "/package.json",
+                                "dependencies": {
+                                    "pageInfo": {
+                                        "endCursor": None,
+                                        "hasNextPage": False,
+                                    },
+                                    "nodes": [],
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+        "errors": [
+            {
+                "type": "FORBIDDEN",
+                "message": "Resource not accessible by integration",
+                "path": ["organization", "repository", "dependencyGraphManifests"],
+            },
+        ],
+    }
+
+    with patch.object(
+        cartography.intel.github.repos,
+        "_fetch_manifest_page",
+        return_value=partial_page,
+    ):
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = _get_repo_dep_manifests(
+                "token",
+                "https://api.github.com/graphql",
+                "test-org",
+                "test-repo",
+            )
+
+    # Assert: the partial manifest is kept, but cleanup must not run.
+    assert result == [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    assert cleanup_safe is False
+    assert "the page may be incomplete" in caplog.text
+
+
+def test_get_dep_manifests_for_repos_keeps_going_after_repo_scoped_forbidden(caplog):
+    """
+    The dependency graph is enabled per repository and token permissions can differ
+    per repo, so one refusal must not cost the following repos their dependencies.
+    """
+    # Arrange
+    manifests = [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    repos = [
+        {"name": "repo-a", "url": "https://github.com/test-org/repo-a"},
+        {"name": "repo-b", "url": "https://github.com/test-org/repo-b"},
+        {"name": "repo-c", "url": "https://github.com/test-org/repo-c"},
+    ]
+    with patch.object(
+        cartography.intel.github.repos,
+        "_get_repo_dep_manifests",
+        side_effect=[
+            (manifests, True),
+            DependencyGraphForbiddenError("Resource not accessible by integration"),
+            (manifests, True),
+        ],
+    ) as mock_get_repo_dep_manifests:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = (
+                cartography.intel.github.repos._get_dep_manifests_for_repos(
+                    repos,
+                    "test-org",
+                    "https://api.github.com/graphql",
+                    "token",
+                )
+            )
+
+    # Assert
+    assert mock_get_repo_dep_manifests.call_count == 3
+    assert result == {
+        "https://github.com/test-org/repo-a": {"nodes": manifests},
+        "https://github.com/test-org/repo-c": {"nodes": manifests},
+    }
+    # We could not read repo-b, so its manifests must not be cleaned up.
+    assert cleanup_safe is False
+    assert (
+        "refused the dependency graph for 1 of 3 repos in org test-org" in caplog.text
+    )
+    assert "not attempted" not in caplog.text
+
+
+def test_get_dep_manifests_for_repos_stops_the_org_on_ip_allow_list_forbidden(caplog):
+    """
+    An org-wide IP allow list refuses every repo identically, so walking the rest of
+    the batch only spends a GraphQL request per repo to be refused again.
+    """
+    # Arrange
+    manifests = [{"blobPath": "/package.json", "dependencies": {"nodes": []}}]
+    repos = [
+        {"name": "repo-a", "url": "https://github.com/test-org/repo-a"},
+        {"name": "repo-b", "url": "https://github.com/test-org/repo-b"},
+        {"name": "repo-c", "url": "https://github.com/test-org/repo-c"},
+    ]
+    with patch.object(
+        cartography.intel.github.repos,
+        "_get_repo_dep_manifests",
+        side_effect=[
+            (manifests, True),
+            DependencyGraphForbiddenError(
+                "Although you appear to have the correct authorization credentials, "
+                "the `test-org` organization has an IP allow list enabled, and "
+                "203.0.113.1 is not permitted to access this resource.",
+            ),
+        ],
+    ) as mock_get_repo_dep_manifests:
+        # Act
+        with caplog.at_level(logging.WARNING, logger="cartography.intel.github.repos"):
+            result, cleanup_safe = (
+                cartography.intel.github.repos._get_dep_manifests_for_repos(
+                    repos,
+                    "test-org",
+                    "https://api.github.com/graphql",
+                    "token",
+                )
+            )
+
+    # Assert
+    assert mock_get_repo_dep_manifests.call_count == 2
+    assert result == {"https://github.com/test-org/repo-a": {"nodes": manifests}}
+    assert cleanup_safe is False
+    assert "the remaining 1 of 3 repos in this batch were not attempted" in caplog.text
+    assert "Skipped dependency manifests" not in caplog.text
 
 
 def test_enrich_dependencies_with_lockfile_versions():

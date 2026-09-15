@@ -39,6 +39,10 @@ def test_load_scaleway_elastic_metal(_mock_get, neo4j_session):
     )
 
     # Assert
+    # Bare metal has no managed firewall, so a public address means exposed.
+    assert check_nodes(
+        neo4j_session, "ScalewayElasticMetalServer", ["id", "exposed_internet"]
+    ) == {("11111111-1111-1111-1111-111111111111", True)}
     assert check_nodes(neo4j_session, "ScalewayElasticMetalServer", ["id", "name"]) == {
         ("11111111-1111-1111-1111-111111111111", "em-demo"),
     }
@@ -77,6 +81,9 @@ def test_load_scaleway_apple_silicon(_mock_get, neo4j_session):
     )
 
     # Assert
+    assert check_nodes(
+        neo4j_session, "ScalewayAppleSiliconServer", ["id", "exposed_internet"]
+    ) == {("22222222-2222-2222-2222-222222222222", True)}
     assert check_nodes(neo4j_session, "ScalewayAppleSiliconServer", ["id", "name"]) == {
         ("22222222-2222-2222-2222-222222222222", "mac-demo"),
     }
@@ -115,6 +122,9 @@ def test_load_scaleway_dedibox(_mock_get, neo4j_session):
     )
 
     # Assert (id is stringified from the numeric Dedibox identifier)
+    assert check_nodes(
+        neo4j_session, "ScalewayDediboxServer", ["id", "exposed_internet"]
+    ) == {("12345", True)}
     assert check_nodes(neo4j_session, "ScalewayDediboxServer", ["id", "hostname"]) == {
         ("12345", "dedibox-demo"),
     }

@@ -36,12 +36,12 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
         "ClusterEndpointPublic",
         extra_index=True,
         description="Indicates whether the Amazon EKS public API server endpoint is enabled",
-    )  # Populated from sync input and read by aws_eks_asset_exposure.json.
+    )  # Populated from sync input and read by the AWS_EKS_ASSET_EXPOSURE analysis job.
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
         description="Set to True if the EKS Cluster public API server endpoint is enabled",
-    )  # Populated by aws_eks_asset_exposure.json.
+    )  # Populated by the AWS_EKS_ASSET_EXPOSURE analysis job.
     rolearn: PropertyRef = PropertyRef(
         "roleArn",
         description="The ARN of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API",

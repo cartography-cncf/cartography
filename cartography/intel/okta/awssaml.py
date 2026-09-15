@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 # Okta intel module - AWS SAML
 import logging
 import re
 from collections import namedtuple
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import neo4j
 
@@ -48,7 +47,7 @@ def transform_okta_group_to_aws_role(
     group_id: str,
     group_name: str,
     mapping_regex: str,
-) -> Optional[Dict]:
+) -> dict | None:
     account_role = _parse_okta_group_name(group_name, mapping_regex)
     if account_role:
         role_arn = (
@@ -62,7 +61,7 @@ def transform_okta_group_to_aws_role(
 def query_for_okta_to_aws_role_mapping(
     neo4j_session: neo4j.Session,
     mapping_regex: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Query the graph for all groups associated with the amazon_aws application and map them to AWSRoles
     :param neo4j_session: session from the Neo4j server
@@ -73,7 +72,7 @@ def query_for_okta_to_aws_role_mapping(
         "RETURN group.id AS group_id, group.name AS group_name"
     )
 
-    group_to_role_mapping: List[Dict] = []
+    group_to_role_mapping: list[dict] = []
     results = neo4j_session.execute_read(read_list_of_dicts_tx, query)
 
     for res in results:
@@ -98,7 +97,7 @@ def query_for_okta_to_aws_role_mapping(
 @timeit
 def _load_okta_group_to_aws_roles(
     neo4j_session: neo4j.Session,
-    group_to_role: List[Dict],
+    group_to_role: list[dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -122,30 +121,6 @@ def _load_okta_group_to_aws_roles(
         neo4j_session,
         ingest_statement,
         GROUP_TO_ROLE=group_to_role,
-        okta_update_tag=okta_update_tag,
-    )
-
-
-@timeit
-def _load_human_can_assume_role(
-    neo4j_session: neo4j.Session,
-    okta_update_tag: int,
-) -> None:
-    """
-    Add the CAN_ASSUME_ROLE relationship between Humans and the AWSRoles they can assume
-    :param neo4j_session: session with the Neo4j server
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :return: Nothing
-    """
-    ingest_statement = """
-    MATCH (role:AWSRole)<-[:ALLOWED_BY]-(:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)-[:IDENTITY_OKTA]-(human:Human)
-    MERGE (human)-[r:CAN_ASSUME_ROLE]->(role)
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_statement,
         okta_update_tag=okta_update_tag,
     )
 
@@ -286,7 +261,6 @@ def sync_okta_aws_saml(
         mapping_regex,
     )
     _load_okta_group_to_aws_roles(neo4j_session, group_to_role_mapping, okta_update_tag)
-    _load_human_can_assume_role(neo4j_session, okta_update_tag)
 
     sso_okta_groups = get_awssso_okta_groups(neo4j_session, okta_org_id)
     group_to_ssorole_mapping = query_for_okta_to_awssso_role_mapping(

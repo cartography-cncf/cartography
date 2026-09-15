@@ -12,6 +12,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.aws.label_migrations import (
     migrate_legacy_public_ssm_parameter_label,
 )
@@ -25,10 +26,6 @@ from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_PUBLIC_PARAMETER_PREFIX_ALLOWLIST = (
-    "/aws/service/bottlerocket/,/aws/service/eks/optimized-ami/"
-)
 
 
 def _normalize_allowlisted_prefixes(raw_prefixes: str | None) -> list[str]:
@@ -53,6 +50,16 @@ def _minimize_allowlisted_prefixes(prefixes: Iterable[str]) -> list[str]:
             continue
         minimized_prefixes.append(prefix)
     return minimized_prefixes
+
+
+def get_public_parameter_prefixes(
+    common_job_parameters: Dict[str, Any],
+) -> list[str]:
+    return _minimize_allowlisted_prefixes(
+        _normalize_allowlisted_prefixes(
+            common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
+        ),
+    )
 
 
 @timeit
@@ -305,9 +312,17 @@ def cleanup_public_ssm_parameters(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(
-        PublicSSMParameterSchema(),
-        common_job_parameters,
+    GraphStatement(
+        """
+        MATCH (n:AWSPublicSSMParameter)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        parameters=common_job_parameters,
+        iterative=True,
+        iterationsize=10000,
+        parent_job_name="AWSPublicSSMParameter",
     ).run(neo4j_session)
 
 
@@ -369,11 +384,7 @@ def sync_public_parameters(
     cleanup_allowed: bool = True,
 ) -> None:
     migrate_legacy_public_ssm_parameter_label(neo4j_session)
-    allowlist_prefixes = _minimize_allowlisted_prefixes(
-        _normalize_allowlisted_prefixes(
-            common_job_parameters.get("aws_ssm_public_parameter_prefix_allowlist"),
-        )
-    )
+    allowlist_prefixes = get_public_parameter_prefixes(common_job_parameters)
     if not allowlist_prefixes:
         logger.info(
             "Skipping AWS-managed public SSM parameter sync because the allowlist is empty."

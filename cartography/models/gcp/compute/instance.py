@@ -20,6 +20,16 @@ class GCPInstanceNodeProperties(CartographyNodeProperties):
         "partial_uri",
         description="The partial resource URI representing this instance. Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}`.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the instance has a public access config reachable through an allowing firewall rule, or sits behind an exposed load balancer. `False` otherwise.",
+    )  # Populated by the GCP_COMPUTE_INSTANCE_EXPOSURE analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How the instance is exposed: `direct` and/or `gcp_lb`.",
+    )  # Populated by the GCP_COMPUTE_INSTANCE_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     self_link: PropertyRef = PropertyRef(
         "selfLink",

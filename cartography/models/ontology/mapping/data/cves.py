@@ -30,6 +30,17 @@ _INSPECTOR_SEVERITY = {
     "INFORMATIONAL": "info",
 }
 
+# Orca's VulnerabilityV2 query emits uppercase CVSS severity names. Include
+# lowercase variants so normalized results remain stable across API casing.
+_ORCA_CVSS_SEVERITY = {
+    **_CVSS_SEVERITY,
+    "none": "info",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
 # GitHub GraphQL severity (uppercase API + lowercase fixture variants)
 _GITHUB_SEVERITY = {
     "LOW": "low",
@@ -50,6 +61,13 @@ _S1_SEVERITY = {
     "Medium": "medium",
     "High": "high",
     "Critical": "critical",
+}
+
+# Tenable finding state
+_TENABLE_VULN_STATUS = {
+    "OPEN": "open",
+    "REOPENED": "open",
+    "FIXED": "fixed",
 }
 
 # NVD vulnStatus -> resolution state. NVD's values are analysis-workflow states; all
@@ -381,6 +399,33 @@ sentinelone_mapping = OntologyMapping(
     ],
 )
 
+tenable_mapping = OntologyMapping(
+    module_name="tenable",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="TenableFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="cve_id",
+                    node_field="cve_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="severity",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="vuln_status",
+                    node_field="state",
+                    special_handling="mapping",
+                    extra={"map": _TENABLE_VULN_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
+
 # SemgrepSCAFinding is a hybrid finding: it carries :CVE when CVE-backed and
 # :SecurityIssue when advisory-only (see cartography/models/semgrep/findings.py).
 # The semantic-label resolver returns a single mapping per primary label regardless
@@ -503,6 +548,46 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaVulnerabilityFinding",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="cve_id",
+                    node_field="cve_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="description",
+                    node_field="description",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="references",
+                    node_field="references",
+                    indexed=False,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="vector_string",
+                    node_field="vector_string",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_score",
+                    node_field="base_score",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="base_severity",
+                    node_field="base_severity",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_CVSS_SEVERITY},
+                ),
+            ],
+        ),
+    ],
+)
+
 CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cve": cve_mapping,
     "trivy": trivy_mapping,
@@ -510,7 +595,9 @@ CVES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "crowdstrike": crowdstrike_mapping,
     "github": github_mapping,
     "sentinelone": sentinelone_mapping,
+    "tenable": tenable_mapping,
     "semgrep": semgrep_mapping,
     "aws": aws_inspector_mapping,
     "wiz": wiz_mapping,
+    "orca": orca_mapping,
 }

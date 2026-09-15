@@ -92,6 +92,23 @@ class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
 
 
 # Cleanup-only relationship.
+# Created by the devices linking query (walking OBSERVED_AS -> HuntressAgent <- AFFECTS),
+# not by load(DeviceSchema()). Kept on the schema so GraphJob cleanup removes stale edges.
+# (:HuntressIncidentReport)-[:AFFECTS]->(:Device)
+@dataclass(frozen=True)
+class DeviceAffectedByHuntressIncidentReportRel(CartographyRelSchema):
+    """Links a Huntress incident report to the canonical device it affects."""
+
+    target_node_label: str = "HuntressIncidentReport"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_finding_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# Cleanup-only relationship.
 # Created by the devices linking query (walking OBSERVED_AS -> CrowdstrikeHost ->
 # CrowdstrikeSpotlightVulnerability -> CrowdstrikeFinding), not by load(DeviceSchema()).
 # (:CrowdstrikeFinding)-[:AFFECTS]->(:Device)
@@ -196,6 +213,20 @@ class DeviceToS1AgentBySerialRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:HuntressAgent) via serial_number
+@dataclass(frozen=True)
+class DeviceToHuntressAgentBySerialRel(CartographyRelSchema):
+    """Links a canonical device to its Huntress agent, matched on serial number."""
+
+    target_node_label: str = "HuntressAgent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice) via serial_number
 @dataclass(frozen=True)
 class DeviceToIntuneManagedDeviceBySerialRel(CartographyRelSchema):
@@ -255,6 +286,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceOwnedByUserRel(),
             DeviceAffectedByS1AppFindingRel(),
             DeviceAffectedByCrowdstrikeFindingRel(),
+            DeviceAffectedByHuntressIncidentReportRel(),
             DeviceToJumpCloudSystemRel(),
             # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),
@@ -263,6 +295,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToTailscaleDeviceBySerialRel(),
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
             DeviceToS1AgentBySerialRel(),
+            DeviceToHuntressAgentBySerialRel(),
             DeviceToIntuneManagedDeviceBySerialRel(),
             DeviceToJamfComputerBySerialRel(),
             DeviceToJamfMobileDeviceBySerialRel(),
@@ -438,6 +471,24 @@ class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:HuntressAgent) via hostname
+@dataclass(frozen=True)
+class DeviceToHuntressAgentHostnameMatchLink(CartographyRelSchema):
+    """Links a canonical device to its Huntress agent, matched on hostname when no serial number is available."""
+
+    target_node_label: str = "HuntressAgent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:IntuneManagedDevice) via hostname
 @dataclass(frozen=True)
 class DeviceToIntuneManagedDeviceHostnameMatchLink(CartographyRelSchema):
@@ -498,6 +549,7 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
     ),
     ("S1Agent", "computer_name", DeviceToS1AgentHostnameMatchLink()),
+    ("HuntressAgent", "hostname", DeviceToHuntressAgentHostnameMatchLink()),
     ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
     ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
     (

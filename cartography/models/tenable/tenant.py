@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import TENANT
 
 
 @dataclass(frozen=True)
@@ -19,3 +21,4 @@ class TenableTenantSchema(CartographyNodeSchema):
 
     label: str = "TenableTenant"
     properties: TenableTenantNodeProperties = TenableTenantNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

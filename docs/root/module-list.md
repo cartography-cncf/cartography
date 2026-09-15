@@ -27,6 +27,7 @@ modules/github/index
 modules/gitlab/index
 modules/googleworkspace/index
 modules/gsuite/index
+modules/huntress/index
 modules/jamf/index
 modules/jumpcloud/index
 modules/kandji/index
@@ -41,6 +42,7 @@ modules/oci/index
 modules/okta/index
 modules/ontology/index
 modules/openai/index
+modules/orca/index
 modules/pagerduty/index
 modules/railway/index
 modules/salesforce/index
@@ -64,4 +66,5 @@ modules/vercel/index
 modules/wiz/index
 modules/workday/index
 modules/workos/index
+modules/zizmor/index
 ```

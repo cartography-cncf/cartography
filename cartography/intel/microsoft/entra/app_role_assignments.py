@@ -3,7 +3,6 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.app_role_assignment_collection_response import (
@@ -14,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.applications import (
     APP_ROLE_ASSIGNMENTS_PAGE_SIZE,
 )
@@ -262,11 +262,7 @@ async def sync_app_role_assignments(
     :param common_job_parameters: Common job parameters for cleanup
     """
     # Create credentials and client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
 
     client = GraphServiceClient(
         credential,

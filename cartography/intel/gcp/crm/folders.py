@@ -52,16 +52,19 @@ def get_default_apps_script_folder_names(folders: List[Dict]) -> set[str]:
 def get_gcp_folders(
     org_resource_name: str,
     credentials: Optional[GoogleCredentials] = None,
+    excluded_folder_ids: Optional[set[str]] = None,
 ) -> List[Dict]:
     """
     Return a list of all descendant GCP folders under the specified organization by traversing the folder tree.
 
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    :param credentials: GCP credentials.
+    :param excluded_folder_ids: Set of folder IDs to exclude from ingestion (subtree pruning).
     :return: List of folder dicts with 'name' field containing full resource names (e.g., "folders/123456")
     """
+    excluded = excluded_folder_ids or set()
     results: List[Dict] = []
     client = resourcemanager_v3.FoldersClient(credentials=credentials)
-    # BFS over folders starting at the org root
     queue: List[str] = [org_resource_name]
     seen: set[str] = set()
     while queue:
@@ -71,6 +74,13 @@ def get_gcp_folders(
         seen.add(parent)
 
         for folder in client.list_folders(parent=parent):
+            folder_id = folder.name.split("/")[-1] if folder.name else ""
+            if folder_id in excluded:
+                logger.debug(
+                    "Excluding GCP folder %s and its subtree from ingestion.",
+                    folder.name,
+                )
+                continue
             results.append(
                 {
                     "name": folder.name,
@@ -136,13 +146,19 @@ def sync_gcp_folders(
     common_job_parameters: Dict,
     org_resource_name: str,
     credentials: Optional[GoogleCredentials] = None,
+    excluded_folder_ids: Optional[set[str]] = None,
 ) -> List[Dict]:
     """
     Get GCP folder data using the CRM v2 resource object and load the data to Neo4j.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    :param excluded_folder_ids: Set of folder IDs to exclude from ingestion.
     :return: List of folders synced
     """
     logger.debug("Syncing GCP folders")
-    folders = get_gcp_folders(org_resource_name, credentials=credentials)
+    folders = get_gcp_folders(
+        org_resource_name,
+        credentials=credentials,
+        excluded_folder_ids=excluded_folder_ids,
+    )
     load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_resource_name)
     return folders

@@ -165,9 +165,14 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
     response.raise_for_status()
     response_json = response.json()
     if "errors" in response_json:
-        logger.warning(
-            f'call_github_api() response has errors, please investigate. Raw response: {response_json["errors"]}; '
-            f"continuing sync.",
+        # Severity belongs to the caller: a caller with a retry path (see
+        # `fetch_all()` and `_fetch_manifest_page()`) recovers from most of these,
+        # and warning here would bury the one line that does warrant investigation
+        # under hundreds of recovered ones. Callers with no retry path warn
+        # themselves.
+        logger.debug(
+            "call_github_api() response has errors: %s",
+            response_json["errors"],
         )
     return response_json  # type: ignore
 
@@ -344,6 +349,18 @@ def fetch_all(
 
         # Successful non-null resource; reset null-resource retry counter.
         null_resource_retry = 0
+
+        # The page is usable, so nothing above retries it. Any errors GitHub still
+        # reported are therefore terminal for this page and may mean it is
+        # incomplete, so surface them here rather than in call_github_api().
+        if resp.get("errors"):
+            logger.warning(
+                "GitHub returned errors alongside a usable page of resource `%s` for org `%s`; "
+                "the page may be incomplete. Errors: %s",
+                resource_type,
+                organization,
+                resp["errors"],
+            )
 
         # Allow for paginating both nodes and edges fields of the GitHub GQL structure.
         data.nodes.extend(resource.get("nodes", []))

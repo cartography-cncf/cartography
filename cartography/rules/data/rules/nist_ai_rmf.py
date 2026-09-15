@@ -331,7 +331,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     id="gw_nist_ai_admin_app_authorizations",
     name="Google Workspace admins authorizing AI-related apps",
     description=(
-        "Finds Google Workspace administrator accounts that have authorized "
+        "Finds active Google Workspace administrator accounts that have authorized "
         "AI-related third-party apps."
     ),
     cypher_query=f"""
@@ -343,6 +343,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
+      AND coalesce(u._ont_active, true) = true
       AND (
             ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
                 WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
@@ -368,6 +369,7 @@ _gw_nist_ai_admin_app_authorizations = Fact(
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
+      AND coalesce(u._ont_active, true) = true
       AND (
             ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
                 WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
@@ -377,22 +379,11 @@ _gw_nist_ai_admin_app_authorizations = Fact(
       )
     RETURN *
     """,
-    cypher_count_query=f"""
+    cypher_count_query="""
     MATCH (u:GoogleWorkspaceUser)-[:AUTHORIZED]->(app:ThirdPartyApp)
-    WITH
-        u,
-        app,
-        toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
-        toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE
         (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
-        AND (
-            ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
-                WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
-            )
-            OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
-            OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
-        )
+        AND coalesce(u._ont_active, true) = true
     RETURN COUNT(DISTINCT app) AS count
     """,
     asset_label="ThirdPartyApp",
@@ -408,13 +399,13 @@ ai_admin_app_authorizations = Rule(
     id="ai_admin_app_authorizations",
     name="Admin Authorization of AI Apps",
     description=(
-        "Identifies privileged Google Workspace identities that have authorized "
-        "AI-related third-party applications."
+        "Identifies AI-related third-party applications authorized by active privileged "
+        "Google Workspace identities."
     ),
     output_model=NistAiAdminAuthorizationsOutput,
     facts=(_gw_nist_ai_admin_app_authorizations,),
     tags=("ai", "identity", "privileged_access", "compliance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("GOVERN 5"),
@@ -484,15 +475,24 @@ _aibom_nist_ai_agent_inventory = Fact(
     cypher_query="""
     MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:Image)
     MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
-    WITH DISTINCT source, img, agent
+    // Aggregate the digest rather than grouping by the image node: a digest is not
+    // unique across registries, so an image pushed to both ECR and GHCR is two :Image
+    // nodes sharing one _ont_digest, and grouping would report every agent of that
+    // AIBOM once per registry.
+    WITH source, agent, min(img._ont_digest) AS manifest_digest
     OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModel)
-    WITH source, img, agent, collect(DISTINCT model.name) AS model_names
+    WITH source, manifest_digest, agent, collect(DISTINCT model.name) AS model_names
     OPTIONAL MATCH (agent)-[:USES_TOOL]->(tool:AITool)
-    WITH source, img, agent, model_names, collect(DISTINCT tool.name) AS tool_names
+    WITH
+        source,
+        manifest_digest,
+        agent,
+        model_names,
+        collect(DISTINCT tool.name) AS tool_names
     OPTIONAL MATCH (agent)-[:USES_MEMORY]->(memory:AIMemory)
     WITH
         source,
-        img,
+        manifest_digest,
         agent,
         model_names,
         tool_names,
@@ -500,7 +500,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     OPTIONAL MATCH (agent)-[:USES_PROMPT]->(prompt:AIPrompt)
     WITH
         source,
-        img,
+        manifest_digest,
         agent,
         model_names,
         tool_names,
@@ -509,7 +509,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)
     WITH
         source,
-        img,
+        manifest_digest,
         agent,
         model_names,
         tool_names,
@@ -520,7 +520,7 @@ _aibom_nist_ai_agent_inventory = Fact(
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
-        img._ont_digest AS manifest_digest,
+        manifest_digest,
         source.scanner_name AS scanner_name,
         source.scanner_version AS scanner_version,
         agent.id AS agent_component_id,
@@ -573,7 +573,7 @@ aibom_agent_inventory = Rule(
     output_model=NistAiAibomAgentInventoryOutput,
     facts=(_aibom_nist_ai_agent_inventory,),
     tags=("ai", "inventory", "software_supply_chain", "compliance"),
-    version="0.1.0",
+    version="0.1.1",
     references=NIST_REFERENCES,
     frameworks=(
         nist_ai_rmf("MAP 1"),

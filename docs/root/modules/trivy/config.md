@@ -4,8 +4,8 @@
 
 Install Trivy by following the [official Trivy installation
 guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/).
-Populate the graph with the registry resources that you want to scan before
-running the Trivy module. For AWS ECR:
+Populate the graph with the image or filesystem snapshot resources that you want
+to scan before running the Trivy module. For AWS ECR:
 
 ```bash
 cartography --selected-modules aws --aws-requested-syncs ecr
@@ -13,6 +13,16 @@ cartography --selected-modules aws --aws-requested-syncs ecr
 
 Trivy scans ECR repository images, while Cartography attaches findings to
 their underlying `AWSECRImage` nodes.
+
+For a source filesystem snapshot, check out the exact commit while retaining
+the repository's Git metadata, then run:
+
+```bash
+trivy fs --format json --scanners vuln --list-all-pkgs /path/to/repository
+```
+
+Cartography uses `Metadata.RepoURL` and the full SHA in `Metadata.Commit` to
+match the report to every `FilesystemSnapshot` for that repository revision.
 
 ## Required Permissions
 
@@ -49,8 +59,9 @@ cartography --selected-modules trivy --trivy-source /path/to/trivy-results
 
 ### Generate Input Artifacts
 
-Scan images with Trivy and put the JSON results in a local directory or
-supported object store. Cartography requires these Trivy arguments:
+Scan images or checked-out repositories with Trivy and put the JSON results in
+a local directory or supported object store. Cartography requires these Trivy
+arguments:
 
 - `--format json`: Cartography only accepts JSON, including the useful
   `fixed_version` field.
@@ -70,9 +81,9 @@ Optional Trivy arguments include:
 
 ### Input Format
 
-JSON files can use any naming convention. Cartography determines which image a
-scan belongs to from the scan content, not the filename. You can use an object
-prefix to organize cloud results. For example:
+JSON files can use any naming convention. Cartography determines which scan
+target a report belongs to from the scan content, not the filename. You can use
+an object prefix to organize cloud results. For example:
 
 - `s3://my-bucket/trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json`
 - `s3://my-bucket/trivy-scans/scan-12345.json`
@@ -81,6 +92,10 @@ Cartography supports scans identified by tag URIs such as `repo:tag` and digest
 URIs such as `repo@sha256:abc123...`. Digest-qualified URIs support
 multi-architecture images where each platform has its own digest. Cartography
 matches scans to canonical images using the digest in `Metadata.RepoDigests`.
+
+Filesystem reports must use `ArtifactType` `filesystem` or `repository` and
+include `Metadata.RepoURL` plus a 40-character `Metadata.Commit`. Reports without
+an exact graph match are skipped.
 
 ## Advanced Configuration
 

@@ -54,6 +54,16 @@ class SupabaseDatabaseNodeProperties(CartographyNodeProperties):
     db_allowed_cidrs_v6: PropertyRef = PropertyRef(
         "db_allowed_cidrs_v6", description="IPv6 CIDRs allowed to reach the database"
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the allowed-CIDR lists leave the Postgres endpoint reachable from anywhere, either by being empty or by listing `0.0.0.0/0` or `::/0`.",
+    )
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`, since the endpoint is on the database itself.",
+    )
     pitr_enabled: PropertyRef = PropertyRef(
         "pitr_enabled", description="Whether point-in-time recovery is enabled"
     )

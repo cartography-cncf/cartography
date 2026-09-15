@@ -27,6 +27,11 @@ class RailwayDeploymentNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Whether this deployment is the current or a historical revision.",
     )
+    source_revision: PropertyRef = PropertyRef(
+        "source_revision",
+        extra_index=True,
+        description="Full source commit SHA reported for this deployment.",
+    )
     status_updated_at: PropertyRef = PropertyRef(
         "statusUpdatedAt", description="Time when the deployment status last changed."
     )

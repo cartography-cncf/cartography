@@ -6,11 +6,13 @@ test: test_lint test_unit test_integration
 test_lint:
 	uv run --frozen pre-commit run --all-files --show-diff-on-failure
 
+# `sysmon` is coverage's sys.monitoring backend (Python 3.12+). It measures the same
+# statements as the default trace-function backend but costs noticeably less.
 test_unit:
-	uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/unit
+	COVERAGE_CORE=sysmon uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/unit
 
 test_integration:
-	uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/integration
+	COVERAGE_CORE=sysmon uv run --frozen pytest -vvv $(PYTEST_COV_FLAGS) tests/integration
 
 test_coverage:
 	rm -f .coverage .coverage.unit .coverage.integration coverage.xml

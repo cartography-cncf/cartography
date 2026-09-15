@@ -103,6 +103,12 @@ _duo_phone_posture_gaps = Fact(
     cypher_query="""
     MATCH (phone:DuoPhone)
     OPTIONAL MATCH (user:DuoUser)-[:HAS_DUO_PHONE]->(phone)
+    WITH phone, coalesce(user.email, user.username) AS user_label
+    ORDER BY user_label
+    // A Duo phone can be enrolled by several users. The finding is about the device,
+    // so collapse them to one deterministic label: keeping the fan-out would emit one
+    // duplicate finding per user for the same (device_id, issue).
+    WITH phone, head(collect(user_label)) AS user
     WITH phone, user,
         [
             issue IN [
@@ -116,7 +122,7 @@ _duo_phone_posture_gaps = Fact(
         'duo' AS provider,
         phone.id AS device_id,
         coalesce(phone.name, phone.model, phone.id) AS device_name,
-        coalesce(user.email, user.username) AS user,
+        user,
         phone.platform AS platform,
         issue[0] AS issue,
         issue[1] AS current_value
@@ -301,12 +307,17 @@ _duo_phone_malware_protection_gaps = Fact(
     MATCH (device:DuoPhone)
     WHERE device.tampered = true
     OPTIONAL MATCH (user:DuoUser)-[:HAS_DUO_PHONE]->(device)
+    WITH device, coalesce(user.email, user.username) AS user_label
+    ORDER BY user_label
+    // See _duo_phone_posture_gaps: a phone can be enrolled by several users, so keep
+    // one deterministic label rather than one finding per user.
+    WITH device, head(collect(user_label)) AS user
     RETURN
         'duo' AS provider,
         device.id AS device_id,
         device.id AS stable_device_id,
         coalesce(device.name, device.model, device.id) AS device_name,
-        coalesce(user.email, user.username) AS user,
+        user,
         device.platform AS platform,
         'device_tampered' AS issue,
         toString(device.tampered) AS current_value
@@ -726,7 +737,7 @@ device_security_posture_gaps = Rule(
         _tailscale_device_posture_gaps,
     ),
     tags=("device", "endpoint", "encryption", "compliance", "stride:tampering"),
-    version="0.3.0",
+    version="0.3.1",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.9"),
@@ -752,7 +763,7 @@ device_malware_protection_gaps = Rule(
         _tailscale_device_malware_protection_gaps,
     ),
     tags=("device", "endpoint", "malware", "edr", "stride:tampering"),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.8"),

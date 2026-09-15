@@ -48,25 +48,32 @@ def iter_service_instances(
     return instances
 
 
-def _is_publicly_exposed(
+def _exposure_types(
     instance: dict[str, Any],
     tcp_proxies: list[dict[str, Any]],
-) -> bool:
+) -> list[str]:
     """
-    True when at least one entry point is actually serving traffic right now.
+    Which kinds of entry point are actually serving traffic right now.
 
     Merely having a domain or proxy object is not exposure: Railway keeps them around in
     CREATING, DELETING and DELETED states. is_live_entrypoint() also rejects a custom domain
     that has not passed DNS verification, since it does not resolve. This must stay in step
     with the EXPOSE edges, which are gated on the same predicate.
+
+    A TCP proxy is reported separately from the HTTPS domains because it publishes a raw port
+    with no TLS termination, which is a materially different exposure.
     """
     domains = instance.get("domains") or {}
-    entrypoints = [
+    http_entrypoints = [
         *(domains.get("serviceDomains") or []),
         *(domains.get("customDomains") or []),
-        *tcp_proxies,
     ]
-    return any(is_live_entrypoint(entrypoint) for entrypoint in entrypoints)
+    types = []
+    if any(is_live_entrypoint(entrypoint) for entrypoint in http_entrypoints):
+        types.append("direct")
+    if any(is_live_entrypoint(proxy) for proxy in tcp_proxies):
+        types.append("tcp_proxy")
+    return types
 
 
 def transform(
@@ -87,6 +94,7 @@ def transform(
             source = instance.get("source") or {}
             latest_deployment = instance.get("latestDeployment") or {}
             tcp_proxies = tcp_proxies_by_instance.get(instance["id"], [])
+            exposure_types = _exposure_types(instance, tcp_proxies)
             transformed.append(
                 {
                     **instance,
@@ -96,7 +104,10 @@ def transform(
                     "latest_deployment_status": latest_deployment.get("status"),
                     "region": instance.get("region") or default_region,
                     "region_is_workspace_default": not instance.get("region"),
-                    "is_publicly_exposed": _is_publicly_exposed(instance, tcp_proxies),
+                    "exposed_internet": bool(exposure_types),
+                    "exposed_internet_type": exposure_types or None,
+                    # DEPRECATED: kept in step with exposed_internet until v1.0.0.
+                    "is_publicly_exposed": bool(exposure_types),
                 },
             )
         by_project[project_id] = transformed

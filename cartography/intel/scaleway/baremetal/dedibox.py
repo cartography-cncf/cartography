@@ -79,6 +79,12 @@ def transform_servers(servers: list[ServerSummary]) -> list[dict[str, Any]]:
             if ip.get("address")
         ]
         formatted["public_ip"] = formatted["ips"][0] if formatted["ips"] else None
+        # Bare metal has no managed security-group layer, so holding a public address is
+        # the whole signal.
+        formatted["exposed_internet"] = formatted["public_ip"] is not None
+        formatted["exposed_internet_type"] = (
+            ["direct"] if formatted["public_ip"] else None
+        )
         result.append(formatted)
     return result
 

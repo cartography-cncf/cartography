@@ -59,6 +59,8 @@ def transform_buckets(
             "bucket_id": bucket["id"],
             "name": bucket["name"],
             "public": bucket.get("public"),
+            "exposed_internet": bool(bucket.get("public")),
+            "exposed_internet_type": ["direct"] if bucket.get("public") else None,
             "owner": bucket.get("owner"),
             "created_at": iso_to_datetime(bucket.get("created_at")),
             "updated_at": iso_to_datetime(bucket.get("updated_at")),

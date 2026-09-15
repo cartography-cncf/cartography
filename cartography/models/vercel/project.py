@@ -62,6 +62,16 @@ class VercelProjectNodeProperties(CartographyNodeProperties):
         "skewProtectionMaxAge",
         description="Maximum deployment age retained for skew protection.",
     )
+    # Deployment protection. Only the deploymentType of each method is kept: the
+    # passwordProtection object also carries the password itself, which is never ingested.
+    sso_protection_deployment_type: PropertyRef = PropertyRef(
+        "sso_protection_deployment_type",
+        description="Which deployments Vercel Authentication covers: `all`, `preview`, `prod_deployment_urls_and_all_previews`, or null when it is off.",
+    )
+    password_protection_deployment_type: PropertyRef = PropertyRef(
+        "password_protection_deployment_type",
+        description="Which deployments password protection covers: `all`, `preview`, `prod_deployment_urls_and_all_previews`, or null when it is off. The password itself is never ingested.",
+    )
 
 
 @dataclass(frozen=True)

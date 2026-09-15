@@ -2,11 +2,11 @@ import asyncio
 import logging
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
 )
@@ -44,11 +44,7 @@ async def sync_tenant(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     """
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )

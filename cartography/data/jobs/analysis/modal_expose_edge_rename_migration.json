@@ -1,0 +1,11 @@
+{
+  "name": "Modal EXPOSES to EXPOSE edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions created (ModalSandbox)-[:EXPOSES]->(ModalSandboxTunnel); the schema now creates (ModalSandboxTunnel)-[:EXPOSE]->(ModalSandbox), so that EXPOSE always runs from the internet-facing entrypoint to the asset it puts at risk and is traversable across providers. Nothing creates EXPOSES any more, so deleting the label outright is unambiguous; the replacement edge is recreated by the loader on every sync. Without this, generated cleanup only matches the new label and orientation, so the legacy edges would linger and the graph would hold both. Restricted to sandboxes this run actually refreshed, because _run deliberately skips an environment whose fetch failed rather than treating it as empty: a sandbox that was not reloaded keeps its existing edge until its own environment syncs cleanly. Remove in v1.0.0.",
+      "query": "MATCH (sb:ModalSandbox)-[r:EXPOSES]->(:ModalSandboxTunnel) WHERE sb.lastupdated = $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

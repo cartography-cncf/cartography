@@ -5,12 +5,12 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.ou import EntraOUSchema
 from cartography.util import timeit
@@ -104,11 +104,7 @@ async def sync_entra_ous(
     Sync Entra OUs
     """
     # Initialize Graph client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )

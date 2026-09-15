@@ -45,7 +45,10 @@ _gcp_instance_internet_exposed = Fact(
           AND coalesce(rule.toport, rule.fromport, 0) >= managed_port
         )
       )
-    RETURN
+    // DISTINCT because the pattern fans out over NICs, access configs and IP rules:
+    // an instance exposed on two NICs through the same firewall, or by two rules
+    // covering the same port, would otherwise repeat one identity.
+    RETURN DISTINCT
         project.id AS account_id,
         project.id AS account,
         instance.id AS instance_id,
@@ -417,7 +420,7 @@ compute_instance_exposed = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="0.2.0",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("8.20"),
         soc2_tsc("CC6.6"),

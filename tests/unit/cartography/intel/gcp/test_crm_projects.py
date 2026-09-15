@@ -149,3 +149,47 @@ def test_get_gcp_projects_skips_default_apps_script_parent_only():
         "business-project",
         "standard-apps-script-project",
     }
+
+
+def test_get_gcp_projects_excludes_org_root_projects_when_enabled():
+    folders = [
+        {
+            "name": "folders/business",
+            "parent": "organizations/123456789012",
+            "displayName": "business-unit",
+            "lifecycleState": "ACTIVE",
+        },
+    ]
+    mock_client = MagicMock()
+    projects_by_parent = {
+        "folders/business": [
+            SimpleNamespace(
+                name="projects/1002",
+                project_id="business-project",
+                display_name="Business Project",
+                state=SimpleNamespace(name="ACTIVE"),
+                parent="folders/business",
+            ),
+        ],
+    }
+    mock_client.list_projects.side_effect = lambda *, parent: projects_by_parent[parent]
+
+    with patch(
+        "cartography.intel.gcp.crm.projects.resourcemanager_v3.ProjectsClient",
+        return_value=mock_client,
+    ):
+        projects = get_gcp_projects(
+            "organizations/123456789012",
+            folders,
+            exclude_org_root_projects=True,
+        )
+
+    assert {
+        listed_parent.kwargs["parent"]
+        for listed_parent in mock_client.list_projects.call_args_list
+    } == {"folders/business"}
+    assert (
+        call(parent="organizations/123456789012")
+        not in mock_client.list_projects.call_args_list
+    )
+    assert {project["projectId"] for project in projects} == {"business-project"}

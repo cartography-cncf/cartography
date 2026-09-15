@@ -187,6 +187,7 @@ from cartography.models.kubernetes.statefulsets import (
 from cartography.models.kubernetes.users import KubernetesUserToAWSRoleRel
 from cartography.models.oci.group import OCIGroupToOCIUserRel
 from cartography.models.oci.policy import OCIPolicyToGroupRefRel
+from cartography.models.okta.group import OktaGroupToOktaUserDeprecatedRel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
@@ -218,6 +219,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         ECSTaskToECSClusterRel,
         KubernetesContainerToKubernetesPodRel,
         KubernetesPodToKubernetesNamespaceRel,
+        # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
+        OktaGroupToOktaUserDeprecatedRel,
         # Kubernetes models its cluster as the tenant, so the pod's, namespace's,
         # and workload controllers' sub_resource_relationship uses RESOURCE on a
         # pair that the ontology also constrains as WORKLOAD_PARENT. Whitelisted
@@ -338,8 +341,8 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # HAS_IMAGE is the raw ingest-time (:Container|:Function)->(:Image)
         # reference, matched by runtime digest at load time and possibly pointing
         # at a manifest list. The canonical RESOLVED_IMAGE edge is derived from it
-        # by resolved_image_analysis.json (resolving manifest lists to the concrete
-        # single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
+        # by the RESOLVED_IMAGE_JOBS analysis jobs (resolving manifest lists to the
+        # concrete single-platform image). Both coexist, so HAS_IMAGE is whitelisted as a
         # distinct semantic rather than a violation of RESOLVED_IMAGE.
         KubernetesContainerToECRImageRel,
         KubernetesContainerToGitLabContainerImageRel,

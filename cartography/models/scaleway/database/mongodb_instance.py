@@ -41,6 +41,16 @@ class ScalewayMongoDBInstanceProperties(CartographyNodeProperties):
         "is_public",
         description="True if the instance exposes a publicly reachable endpoint.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when `is_public` is true, meaning a publicly reachable endpoint is provisioned.",
+    )  # Set in transform(), see cartography/intel/scaleway/databases/mongodb.py
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Set in transform(), see cartography/intel/scaleway/databases/mongodb.py
     public_endpoint_dns: PropertyRef = PropertyRef(
         "public_endpoint_dns", description="DNS record for the public endpoint, if any."
     )

@@ -22,6 +22,16 @@ class ScalewayAppleSiliconServerProperties(CartographyNodeProperties):
     tags: PropertyRef = PropertyRef("tags", description="Tags attached to the server.")
     status: PropertyRef = PropertyRef("status", description="Status of the server.")
     ip: PropertyRef = PropertyRef("ip", description="Public IP address of the server.")
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when the server holds a public IP. Bare metal has no managed firewall in front of it.",
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/apple_silicon.py
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How it is exposed. Always `direct`.",
+    )  # Set in transform(), see cartography/intel/scaleway/baremetal/apple_silicon.py
     vpc_status: PropertyRef = PropertyRef(
         "vpc_status", description="Private network status of the server."
     )

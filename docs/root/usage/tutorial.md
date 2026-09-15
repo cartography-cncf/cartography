@@ -155,6 +155,45 @@ Cartography adds custom attributes to nodes and relationships to point out secur
 
 - `exposed_internet` indicates whether the asset is accessible to the public internet.
 
+#### The exposure contract
+
+Any module that computes internet exposure must follow the same contract, so that a
+cross-provider query means the same thing everywhere.
+
+- `exposed_internet` is a boolean. `True` means the asset is reachable from the public
+  internet. A module should also run a final pass setting it to `False` on the assets it
+  evaluated but did not find exposed, so that `WHERE n.exposed_internet = false` is
+  answerable and not confused with "never evaluated".
+- `exposed_internet_type` is a list of strings recording *how* the asset is exposed. Values
+  in use today: `direct` (the asset itself has a public address or an open ingress rule),
+  `lb`, `elb`, `elbv2`, `gcp_lb` (reached through a load balancer of that kind), `pat`
+  (reached through a Scaleway Public Gateway port-address-translation rule), and `tcp_proxy`
+  (a raw port published with no TLS termination, as Railway does). Append with
+  `AddToSet` rather than overwriting, since an asset can be exposed several ways at once.
+- The `EXPOSE` relationship always runs **from the internet-facing frontend to the asset it
+  puts at risk**, never the reverse: `(:AWSLoadBalancerV2)-[:EXPOSE]->(:AWSEC2Instance)`. The
+  frontend is the means of exposure; the target is what is at risk. This direction is enforced
+  for ontology-labelled endpoints by `ONTOLOGY_REL_CONSTRAINTS`. An optional `exposure_type`
+  property on the edge records the path (`via_lb_only`, `gcp_lb`).
+- Declare both properties on the node schema with `extra_index=True` and a description
+  explaining the derivation, so they are indexed and appear in the generated schema docs.
+
+Exposure is normally computed by a typed analysis job, because it depends on paths across
+several node types. When the signal is entirely local to one API response, computing it in
+`transform()` is fine and preferred: `cartography.intel.aws.apigateway` and
+`cartography.intel.aws.elasticsearch` both do this.
+
+Note that "the internet" is not a node. It is modelled as the `0.0.0.0/0` range:
+`(:AWSIpRange {range: '0.0.0.0/0'})`, `(:GCPIpRange {id: '0.0.0.0/0'})`, or on Azure a
+`source_address_prefix` of `*`, `Internet` or `0.0.0.0/0`.
+
+#### Per-resource derivations
+
+Modules writing `exposed_internet` today: AWS, GCP, Azure, Kubernetes, Scaleway,
+Railway, Modal, Netlify, Supabase, Cloudflare and Vercel. AWS and
+Kubernetes do not yet run the explicit `False` pass described above, so on those providers a
+missing property means "not found exposed" rather than a stored `false`.
+
 	- **Elastic Load Balancers**: The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`, and the load balancer has an attached source security group with rules allowing `0.0.0.0/0` ingress on ports or port ranges matching listeners on the load balancer. This scheme indicates that the load balancer has a public DNS name that resolves to a public IP address.
 
 	- **Application Load Balancers**: The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`, and the load balancer has an attached security group with rules allowing `0.0.0.0/0` ingress on ports or port ranges matching listeners on the load balancer. This scheme indicates that the load balancer has a public DNS name that resolves to a public IP address.
@@ -167,7 +206,23 @@ Cartography adds custom attributes to nodes and relationships to point out secur
 
 		- The instance is connected to a TargetGroup which is attached to a Listener on an Application Load Balancer (elbv2) that has its own `exposed_internet` flag set to `True`.
 
-	- **ElasticSearch domain**: `exposed_internet` is set to `True` if the ElasticSearch domain has a policy applied to it that makes it internet-accessible. This policy determination is made by using the [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse) library. The code for this augmentation is implemented at `cartography.intel.aws.elasticsearch._process_access_policy()`.
+	- **ElasticSearch domain**: `exposed_internet` is set to `True` if the ElasticSearch domain has a policy applied to it that makes it internet-accessible. This policy determination is made by using the [policyuniverse](https://github.com/Netflix-Skunkworks/policyuniverse) library. The code for this augmentation is implemented at `cartography.intel.aws.elasticsearch._is_internet_exposed()`.
+
+	- **API Gateway REST APIs**: `exposed_internet` is set to `True` when the API's endpoint configuration type is `EDGE` or `REGIONAL`, both of which are publicly resolvable. Computed in `transform()` at `cartography.intel.aws.apigateway`.
+
+	- **EKS / GKE clusters**: `exposed_internet` is set to `True` when the cluster's control plane endpoint has public access enabled. AKS is not covered: `AzureKubernetesCluster` stores `api_server_public_access` but no job turns it into a verdict, and the ontology's `_ont_control_plane_public_access` is what the `kubernetes_control_plane_exposed` rule reads for it instead.
+
+	- **GCP instances**: `exposed_internet` is set to `True` when the instance has an access config granting it an external IP, or when it is reached through an exposed forwarding rule. GCP firewall deny rules are evaluated by priority, so a higher-priority deny suppresses a lower-priority allow.
+
+	- **GCP forwarding rules**: `exposed_internet` is set to `True` when the rule's load balancing scheme is external.
+
+	- **Cloud Run services**: `exposed_internet` is set to `True` when ingress is `INGRESS_TRAFFIC_ALL`, and to `False` for `INGRESS_TRAFFIC_INTERNAL_ONLY` and `INGRESS_TRAFFIC_NONE`.
+
+	- **Azure virtual machines**: `exposed_internet` is set to `True` when a network interface on the VM is associated with a public IP address, or when the VM sits behind an Azure load balancer that is itself exposed.
+
+	- **Azure load balancers and container groups**: `exposed_internet` is set to `True` when the resource has a public frontend IP configuration.
+
+	- **Kubernetes services, pods and containers**: `exposed_internet` is set to `True` on a service fronted by an internet-facing load balancer, then propagated down to the pods the service targets and to the containers inside those pods. Note this currently only recognises AWS load balancers.
 
 - `anonymous_access` indicates whether the asset allows access without needing to specify an identity.
 

@@ -39,7 +39,7 @@ def get(
         "last_found": since_epoch,
         "state": _FINDING_EXPORT_STATES,
     }
-    logger.info(
+    logger.debug(
         "Findings export from %s (last_found >= %d)",
         base_url,
         since_epoch,
@@ -56,19 +56,18 @@ def get(
 def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for finding in raw_findings:
-        asset = finding.get("asset") or {}
-        plugin = finding.get("plugin") or {}
+        asset = finding["asset"]
+        plugin = finding["plugin"]
         port_info = finding.get("port") or {}
 
-        asset_uuid = asset.get("uuid")
-        finding_id = finding.get("finding_id")
-        plugin_id = plugin.get("id")
-
+        asset_uuid = asset["uuid"]
+        finding_id = finding["finding_id"]
+        plugin_id = plugin["id"]
         if not asset_uuid or not finding_id or plugin_id is None:
-            logger.warning(
-                "Skipping finding with missing asset_uuid, finding_id, or plugin_id"
+            raise ValueError(
+                "Tenable finding requires non-empty asset.uuid and finding_id, "
+                "and a non-null plugin.id"
             )
-            continue
 
         cve_ids: list[str] = plugin.get("cve") or []
 
@@ -247,3 +246,4 @@ def sync(
     scans = transform_scans(raw_findings)
     load_findings(neo4j_session, findings, plugins, scans, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    logger.info("Completed Tenable finding sync for tenant %s", tenant_id)

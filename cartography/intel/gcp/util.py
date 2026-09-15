@@ -28,7 +28,16 @@ GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
 GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
-    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+    {
+        "forbidden",
+        "insufficientPermissions",
+        "IAM_PERMISSION_DENIED",
+        # A VPC Service Controls perimeter denies the request with this specific
+        # reason rather than an IAM-style one. It still means "you can't read this
+        # resource" from the sync's perspective, so it should be skippable the same
+        # way any other permission-denied reason is, instead of crashing the sync.
+        "vpcServiceControls",
+    }
 )
 GCP_QUOTA_EXCEEDED_REASONS = frozenset(
     {
@@ -41,6 +50,13 @@ GCP_QUOTA_EXCEEDED_REASONS = frozenset(
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
+
+# `aggregatedList` reports an empty scope with this warning code. It is benign: it
+# means "nothing here", not "we could not read this scope".
+GCP_SCOPE_NO_RESULTS_WARNING = "NO_RESULTS_ON_PAGE"
+# Error categories that mean "this identity cannot read this collection", as opposed
+# to a failure that should abort the whole project sync.
+GCP_EXPECTED_SKIP_CATEGORIES = ("api_disabled", "billing_disabled", "forbidden")
 
 
 def _get_gcp_http_error_status(e: HttpError) -> int | None:
@@ -525,3 +541,46 @@ def is_gcp_http_error_category(
         and category == "transient"
         and _get_gcp_http_error_status(e) == 403
     )
+
+
+def aggregated_response_cleanup_safe(response: Any) -> bool:
+    """
+    Return whether every scope in an `aggregatedList` response was fully readable.
+
+    `returnPartialSuccess=True` makes GCP answer with the scopes it could read and a
+    per-scope warning for the ones it could not. Cleanup must be skipped in that case:
+    the response is not a complete replacement set, so deleting everything that was not
+    just refreshed would drop resources that still exist.
+    """
+    for scoped_list in response.get("items", {}).values():
+        warning = scoped_list.get("warning")
+        if warning and warning.get("code") != GCP_SCOPE_NO_RESULTS_WARNING:
+            return False
+    return True
+
+
+def merge_aggregated_scope_items(
+    items: dict[str, dict],
+    response: Any,
+    resource_key: str,
+) -> None:
+    """
+    Merge one page of an `aggregatedList` response into `items`, keyed by scope.
+
+    A scope can span several pages, so `resource_key` lists are appended rather than
+    replaced. A real per-scope warning is kept in preference to the benign
+    `NO_RESULTS_ON_PAGE` one, so an unreadable scope stays visible to
+    `aggregated_response_cleanup_safe()` no matter which page reported it.
+    """
+    for scope, scoped_list in response.get("items", {}).items():
+        target_scoped_list = items.setdefault(scope, {})
+        target_scoped_list.setdefault(resource_key, []).extend(
+            scoped_list.get(resource_key, [])
+        )
+        warning = scoped_list.get("warning")
+        existing_warning = target_scoped_list.get("warning")
+        if warning and (
+            not existing_warning
+            or existing_warning.get("code") == GCP_SCOPE_NO_RESULTS_WARNING
+        ):
+            target_scoped_list["warning"] = warning

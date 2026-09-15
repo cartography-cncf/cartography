@@ -4,7 +4,6 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
@@ -12,6 +11,7 @@ from msgraph.generated.models.group import Group
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.intel.microsoft.entra.utils import (
     get_paginated_values_with_expired_page_retry,
@@ -140,9 +140,7 @@ async def sync_entra_groups(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """Sync Entra groups."""
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
-    )
+    credential = credentials.make_credential(tenant_id, client_id, client_secret)
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )

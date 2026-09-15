@@ -24,6 +24,8 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (ont_img:Image {id: 'ont-img-abc123'})
         SET ont_img._ont_digest = 'sha256:abc123'
         MERGE (p)-[:DEPLOYED]->(ont_img)
+        MERGE (snapshot:FilesystemSnapshot {id: 'filesystem-snapshot-1'})
+        MERGE (p)-[:DEPLOYED]->(snapshot)
         MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-00001'})
         SET f.name = 'CVE-2024-00001'
         MERGE (f)-[:AFFECTS]->(p)
@@ -178,6 +180,16 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_trivy_rels == expected_trivy_rels
+
+    assert check_rels(
+        neo4j_session,
+        "PackageVersion",
+        "id",
+        "FilesystemSnapshot",
+        "id",
+        "DEPLOYED",
+        rel_direction_right=True,
+    ) == {("npm|express|4.18.2", "filesystem-snapshot-1")}
 
     # Assert - Check DETECTED_AS relationships to SyftPackage
     expected_syft_rels = {

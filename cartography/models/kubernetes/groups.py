@@ -60,14 +60,14 @@ class KubernetesGroupToAWSUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
-    """Links an Okta group to the Kubernetes group it maps to."""
+    """Links an Okta group to the Kubernetes group its members join."""
 
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("name")}
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "MAPS_TO"
+    rel_label: str = "MEMBER_OF"
     properties: KubernetesGroupToOktaGroupRelProperties = (
         KubernetesGroupToOktaGroupRelProperties()
     )

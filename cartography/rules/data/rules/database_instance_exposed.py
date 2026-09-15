@@ -304,6 +304,103 @@ _scaleway_mongodb_public_access = Fact(
 )
 
 
+# These three Scaleway data services carry the same single is_public flag as the managed
+# databases above, and their transforms now derive exposed_internet from it.
+_scaleway_datawarehouse_public_access = Fact(
+    id="scaleway_datawarehouse_public_access",
+    name="Internet-Accessible Scaleway Data Warehouse Attack Surface",
+    description=(
+        "Scaleway Data Warehouse (ClickHouse) deployments exposing a public "
+        "endpoint, reachable from the internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayDataWarehouseDeployment)
+    WHERE db.is_public = true
+    RETURN
+        db.id AS id,
+        db.name AS host,
+        'clickhouse' AS engine,
+        db.region AS region
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayDataWarehouseDeployment)
+    WHERE db.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (db:ScalewayDataWarehouseDeployment)
+    RETURN COUNT(db) AS count
+    """,
+    asset_label="ScalewayDataWarehouseDeployment",
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+_scaleway_serverless_sql_public_access = Fact(
+    id="scaleway_serverless_sql_public_access",
+    name="Internet-Accessible Scaleway Serverless SQL Attack Surface",
+    description=(
+        "Scaleway Serverless SQL databases reachable over their public "
+        "connection endpoint."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayServerlessSQLDatabase)
+    WHERE db.is_public = true
+    RETURN
+        db.id AS id,
+        db.endpoint AS host,
+        'postgres' AS engine,
+        db.region AS region
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(db:ScalewayServerlessSQLDatabase)
+    WHERE db.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (db:ScalewayServerlessSQLDatabase)
+    RETURN COUNT(db) AS count
+    """,
+    asset_label="ScalewayServerlessSQLDatabase",
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+_scaleway_searchdb_public_access = Fact(
+    id="scaleway_searchdb_public_access",
+    name="Internet-Accessible Scaleway Search Database Attack Surface",
+    description=(
+        "Scaleway Search (OpenSearch) deployments exposing a public endpoint, "
+        "reachable from the internet."
+    ),
+    cypher_query="""
+    MATCH (prj:ScalewayProject)-[:RESOURCE]->(db:ScalewaySearchDeployment)
+    WHERE db.is_public = true
+    RETURN
+        db.id AS id,
+        db.name AS host,
+        'opensearch' AS engine,
+        db.region AS region
+    """,
+    cypher_visual_query="""
+    MATCH p=(prj:ScalewayProject)-[:RESOURCE]->(db:ScalewaySearchDeployment)
+    WHERE db.is_public = true
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (db:ScalewaySearchDeployment)
+    RETURN COUNT(db) AS count
+    """,
+    asset_label="ScalewaySearchDeployment",
+    asset_id_field="id",
+    identity_fields=("id",),
+    module=Module.SCALEWAY,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
 # Rule
 class DatabaseInstanceExposed(Finding):
     host: str | None = None
@@ -327,6 +424,9 @@ database_instance_exposed = Rule(
         _scaleway_rdb_public_access,
         _scaleway_redis_public_access,
         _scaleway_mongodb_public_access,
+        _scaleway_datawarehouse_public_access,
+        _scaleway_serverless_sql_public_access,
+        _scaleway_searchdb_public_access,
     ),
     tags=(
         "infrastructure",

@@ -65,6 +65,10 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
         "host_path_volume_paths",
         description="List of host filesystem paths mounted via `hostPath` pod volumes. Derived from `pod.spec.volumes[].host_path.path`.",
     )
+    persistent_volume_claim_names: PropertyRef = PropertyRef(
+        "persistent_volume_claim_names",
+        description="Names of PersistentVolumeClaims referenced by pod volumes.",
+    )
     labels: PropertyRef = PropertyRef(
         "labels",
         description="Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string.",
@@ -88,6 +92,11 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer.",
     )  # Populated by the Kubernetes compute exposure analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="How the pod is exposed. Always `lb`.",
+    )  # Populated by the K8S_POD_ASSET_EXPOSURE analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -467,6 +476,26 @@ class KubernetesPodToServiceAccountRunsAsRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPodToPersistentVolumeClaimRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesPodToPersistentVolumeClaimRel(CartographyRelSchema):
+    """Links a pod to a PersistentVolumeClaim referenced by one of its volumes."""
+
+    target_node_label: str = "KubernetesPersistentVolumeClaim"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("persistent_volume_claim_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REFERENCES"
+    properties: KubernetesPodToPersistentVolumeClaimRelProperties = (
+        KubernetesPodToPersistentVolumeClaimRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     "A Kubernetes pod and its workload security configuration."
 
@@ -488,6 +517,7 @@ class KubernetesPodSchema(CartographyNodeSchema):
             KubernetesPodToKubernetesNodeRel(),
             KubernetesPodToServiceAccountRel(),
             KubernetesPodToServiceAccountRunsAsRel(),
+            KubernetesPodToPersistentVolumeClaimRel(),
             KubernetesPodToSecretVolumeRel(),
             KubernetesPodToSecretEnvRel(),
             KubernetesPodToSecretVolumeUsesSecretRel(),

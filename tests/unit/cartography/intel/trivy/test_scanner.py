@@ -6,11 +6,62 @@ import pytest
 
 from cartography.intel.common.object_store import ObjectStoreError
 from cartography.intel.common.object_store import ReportRef
+from cartography.intel.trivy import _prepare_trivy_data
 from cartography.intel.trivy import sync_trivy_from_report_reader
 from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
+from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.intel.trivy.scanner import transform_scan_results
+
+
+def test_prepare_trivy_data_rejects_non_exact_filesystem_revision():
+    # Arrange
+    revision = "0123456789abcdef0123456789abcdef01234567"
+    trivy_data = {
+        "ArtifactType": "repository",
+        "Metadata": {
+            "RepoURL": "https://github.com/acme/api",
+            "Commit": "main",
+        },
+    }
+
+    # Act
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris=set(),
+        digest_aliases={},
+        filesystem_targets={("acme/api", revision, None): ["snapshot-1"]},
+        source="repository.json",
+    )
+
+    # Assert
+    assert prepared is None
+
+
+def test_prepare_trivy_data_matches_filesystem_root_directory():
+    revision = "0123456789abcdef0123456789abcdef01234567"
+    trivy_data = {
+        "ArtifactType": "repository",
+        "Metadata": {
+            "RepoURL": "https://github.com/acme/api",
+            "Commit": revision,
+            "RootDirectory": "services/api",
+        },
+    }
+
+    prepared = _prepare_trivy_data(
+        trivy_data,
+        image_uris=set(),
+        digest_aliases={},
+        filesystem_targets={
+            ("acme/api", revision, "services/api"): ["snapshot-api"],
+            ("acme/api", revision, "services/web"): ["snapshot-web"],
+        },
+        source="repository.json",
+    )
+
+    assert prepared == (trivy_data, None, ["snapshot-api"])
 
 
 @patch("boto3.Session")
@@ -622,6 +673,115 @@ def test_sync_trivy_skips_cleanup_when_no_reports_match_graph(
 
     mock_sync_single_image.assert_not_called()
     mock_cleanup.assert_not_called()
+
+
+@patch("cartography.intel.trivy.sync_single_filesystem_snapshot")
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_filesystem_scan_targets")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_filesystem_only_reports_preserve_existing_image_scan_data(
+    mock_get_targets_and_aliases,
+    mock_get_filesystem_targets,
+    mock_cleanup,
+    mock_sync_filesystem,
+):
+    revision = "a" * 40
+    mock_get_targets_and_aliases.return_value = ({"registry.example/app:latest"}, {})
+    mock_get_filesystem_targets.return_value = {
+        ("owner/repo", revision, None): ["snapshot-1"]
+    }
+    reader = MagicMock()
+    reader.source_uri = "memory://trivy"
+    reader.list_reports.return_value = [
+        ReportRef(uri="memory://filesystem.json", name="filesystem.json")
+    ]
+    reader.read_bytes.return_value = json.dumps(
+        {
+            "ArtifactType": "repository",
+            "Metadata": {
+                "RepoURL": "https://github.com/owner/repo",
+                "Commit": revision,
+            },
+            "Results": [],
+        }
+    ).encode()
+
+    neo4j_session = MagicMock()
+    with patch(
+        "cartography.intel.trivy.cleanup_filesystem_snapshot_relationships"
+    ) as mock_filesystem_cleanup:
+        sync_trivy_from_report_reader(
+            neo4j_session=neo4j_session,
+            reader=reader,
+            update_tag=123,
+            common_job_parameters={"UPDATE_TAG": 123},
+        )
+
+    mock_sync_filesystem.assert_called_once()
+    mock_cleanup.assert_not_called()
+    mock_filesystem_cleanup.assert_called_once_with(neo4j_session, 123)
+
+
+@patch("cartography.intel.trivy.sync_single_image")
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy._get_filesystem_scan_targets")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+def test_image_only_reports_preserve_existing_filesystem_scan_data(
+    mock_get_targets_and_aliases,
+    mock_get_filesystem_targets,
+    mock_cleanup,
+    mock_sync_image,
+):
+    # Arrange
+    image_uri = "registry.example/app:latest"
+    mock_get_targets_and_aliases.return_value = ({image_uri}, {})
+    mock_get_filesystem_targets.return_value = {
+        ("owner/repo", "a" * 40, None): ["snapshot-1"]
+    }
+    reader = MagicMock()
+    reader.source_uri = "memory://trivy"
+    reader.list_reports.return_value = [
+        ReportRef(uri="memory://image.json", name="image.json")
+    ]
+    reader.read_bytes.return_value = json.dumps(
+        {
+            "ArtifactName": image_uri,
+            "Metadata": {"RepoTags": [image_uri]},
+            "Results": [],
+        }
+    ).encode()
+    neo4j_session = MagicMock()
+
+    # Act
+    with patch(
+        "cartography.intel.trivy.cleanup_image_relationships"
+    ) as mock_image_cleanup:
+        sync_trivy_from_report_reader(
+            neo4j_session=neo4j_session,
+            reader=reader,
+            update_tag=123,
+            common_job_parameters={"UPDATE_TAG": 123},
+        )
+
+    # Assert
+    mock_sync_image.assert_called_once()
+    mock_cleanup.assert_not_called()
+    mock_image_cleanup.assert_called_once_with(neo4j_session, 123)
+
+
+@patch("cartography.intel.trivy.scanner._sync_scan_results")
+def test_filesystem_scan_accepts_null_results(mock_sync_scan_results):
+    mock_sync_scan_results.return_value = 0
+
+    sync_single_filesystem_snapshot(
+        MagicMock(),
+        {"ArtifactType": "repository", "Results": None},
+        ["snapshot-1"],
+        "memory://clean.json",
+        123,
+    )
+
+    assert mock_sync_scan_results.call_args.args[1] == []
 
 
 def test_transform_scan_results_only_sets_cve_id_for_cves():

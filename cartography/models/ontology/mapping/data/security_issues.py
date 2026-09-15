@@ -113,6 +113,29 @@ _WIZ_STATUS = {
     "REJECTED": "ignored",
 }
 
+# Orca alert severity and workflow status. Unknown severities intentionally stay
+# unmapped rather than being presented as informational findings.
+_ORCA_ALERT_SEVERITY = {
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low",
+    "CRITICAL": "critical",
+    "HIGH": "high",
+    "MEDIUM": "medium",
+    "LOW": "low",
+}
+_ORCA_ALERT_STATUS = {
+    "open": "open",
+    "in_progress": "open",
+    "close": "fixed",
+    "dismiss": "ignored",
+    "OPEN": "open",
+    "IN_PROGRESS": "open",
+    "CLOSE": "fixed",
+    "DISMISS": "ignored",
+}
+
 aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
@@ -373,6 +396,40 @@ wiz_mapping = OntologyMapping(
     ],
 )
 
+orca_mapping = OntologyMapping(
+    module_name="orca",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OrcaAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_ALERT_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="alert_type",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _ORCA_ALERT_STATUS},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen",
+                    node_field="created_at",
+                ),
+            ],
+        ),
+    ],
+)
+
 azure_mapping = OntologyMapping(
     module_name="azure",
     nodes=[
@@ -420,12 +477,69 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+# Huntress incident report severity. Huntress has no informational or medium band.
+_HUNTRESS_INCIDENT_SEVERITY = {
+    "low": "low",
+    "high": "high",
+    "critical": "critical",
+}
+
+# Huntress incident report `status`. The full set comes from the endpoint's filter enum,
+# which is wider than the three values the field description lists. The generated CASE
+# has no ELSE, so an unenumerated value would normalize to null.
+_HUNTRESS_INCIDENT_STATUS = {
+    # Delivered to the customer and still actionable.
+    "sent": "open",
+    # Huntress is applying remediations; the incident is not resolved yet.
+    "auto_remediating": "open",
+    "closed": "fixed",
+    "dismissed": "ignored",
+    "partner_dismissed": "ignored",
+    "deleting": "ignored",
+}
+
+huntress_mapping = OntologyMapping(
+    module_name="huntress",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="HuntressIncidentReport",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="subject", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={"map": _HUNTRESS_INCIDENT_SEVERITY},
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _HUNTRESS_INCIDENT_STATUS},
+                ),
+                # first_seen: left unmapped. An incident report carries no detection or
+                # creation timestamp; the only candidate, `sent_at`, is when a SOC
+                # analyst notified the customer, which is strictly later than first
+                # observation. Mapping it would skew any cross-provider finding-age
+                # query, so the raw value stays on `sent_at` alone.
+                # The `type` field is left unmapped: `indicator_types` is a list of the
+                # threat indicators found, so it does not reduce to the single
+                # categorical value the canonical field carries.
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bbot": bbot_mapping,
+    "huntress": huntress_mapping,
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,
     "wiz": wiz_mapping,
+    "orca": orca_mapping,
     "azure": azure_mapping,
     "supabase": supabase_mapping,
 }

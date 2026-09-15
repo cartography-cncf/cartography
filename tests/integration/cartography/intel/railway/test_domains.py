@@ -81,16 +81,17 @@ def test_load_railway_service_domains(neo4j_session):
     ) == {
         (SERVICE_DOMAIN_ID, "web-production-abcde.up.railway.app", "up.railway.app"),
     }
+    # EXPOSE points from the entrypoint to the asset it puts at risk.
     assert check_rels(
         neo4j_session,
-        "RailwayServiceInstance",
-        "id",
         "RailwayServiceDomain",
+        "id",
+        "RailwayServiceInstance",
         "id",
         "EXPOSE",
         rel_direction_right=True,
     ) == {
-        (WEB_INSTANCE_ID, SERVICE_DOMAIN_ID),
+        (SERVICE_DOMAIN_ID, WEB_INSTANCE_ID),
     }
 
 
@@ -126,14 +127,14 @@ def test_load_railway_custom_domains_flattens_status(neo4j_session):
     # so no EXPOSE edge: exposure traversals must agree with is_publicly_exposed.
     assert check_rels(
         neo4j_session,
-        "RailwayServiceInstance",
-        "id",
         "RailwayCustomDomain",
+        "id",
+        "RailwayServiceInstance",
         "id",
         "EXPOSE",
         rel_direction_right=True,
     ) == {
-        (WEB_INSTANCE_ID, VERIFIED_CUSTOM_DOMAIN_ID),
+        (VERIFIED_CUSTOM_DOMAIN_ID, WEB_INSTANCE_ID),
     }
 
     # The unverified domain is still ingested and still records which instance it is meant
@@ -172,15 +173,15 @@ def test_load_railway_tcp_proxies(neo4j_session):
     # Assert each proxy maps back to the right instance via its (service, environment) pair
     assert check_rels(
         neo4j_session,
-        "RailwayServiceInstance",
-        "id",
         "RailwayTCPProxy",
+        "id",
+        "RailwayServiceInstance",
         "id",
         "EXPOSE",
         rel_direction_right=True,
     ) == {
-        (WEB_INSTANCE_ID, WEB_PROXY_ID),
-        (POSTGRES_INSTANCE_ID, POSTGRES_PROXY_ID),
+        (WEB_PROXY_ID, WEB_INSTANCE_ID),
+        (POSTGRES_PROXY_ID, POSTGRES_INSTANCE_ID),
     }
 
     # And to their project tenant

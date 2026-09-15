@@ -20,7 +20,11 @@ class PackageVersionNodeProperties(CartographyNodeProperties):
         description="Normalized identifier for this specific package version.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", description="Package name.")
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="Package name.",
+    )
     version: PropertyRef = PropertyRef("version", description="Package version.")
     type: PropertyRef = PropertyRef(
         "type",
@@ -135,6 +139,19 @@ class PackageVersionToOntologyImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class PackageVersionToFilesystemSnapshotRel(CartographyRelSchema):
+    """A canonical package version is deployed in a filesystem snapshot."""
+
+    target_node_label: str = "FilesystemSnapshot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_unused_cleanup_matcher")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: PackageVersionToNodeRelProperties = PackageVersionToNodeRelProperties()
+
+
+@dataclass(frozen=True)
 class PackageVersionToTrivyFixRel(CartographyRelSchema):
     """A canonical package version should be updated to an available Trivy fix."""
 
@@ -192,6 +209,7 @@ class PackageVersionSchema(CartographyNodeSchema):
             PackageVersionToGitHubDependencyRel(),
             PackageVersionToSemgrepDependencyRel(),
             PackageVersionToOntologyImageRel(),
+            PackageVersionToFilesystemSnapshotRel(),
             PackageVersionToTrivyFixRel(),
             PackageVersionToPackageVersionDependsOnRel(),
             TrivyImageFindingToPackageVersionRel(),

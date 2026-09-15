@@ -96,6 +96,11 @@ def transform_edge_functions(
             "status": fn["status"],
             "version": fn["version"],
             "verify_jwt": fn.get("verify_jwt"),
+            # verify_jwt False means the function is invokable without a project JWT.
+            "exposed_internet": fn.get("verify_jwt") is False,
+            "exposed_internet_type": (
+                ["direct"] if fn.get("verify_jwt") is False else None
+            ),
             "import_map": fn.get("import_map"),
             "entrypoint_path": fn.get("entrypoint_path"),
             "import_map_path": fn.get("import_map_path"),

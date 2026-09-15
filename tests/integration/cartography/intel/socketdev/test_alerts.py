@@ -109,3 +109,15 @@ def test_sync_alerts(mock_api, neo4j_session):
     assert result["cvss_score"] == 9.8
     assert result["is_kev"] is True
     assert result["epss_score"] == 0.85
+
+    result = neo4j_session.run(
+        "MATCH (a:SocketDevAlert {id: 'alert-001'}) "
+        "RETURN a.artifact_namespace AS artifact_namespace",
+    ).single()
+    assert result["artifact_namespace"] is None
+
+    result = neo4j_session.run(
+        "MATCH (a:SocketDevAlert {id: 'alert-002'}) "
+        "RETURN a.artifact_namespace AS artifact_namespace",
+    ).single()
+    assert result["artifact_namespace"] == "@example"

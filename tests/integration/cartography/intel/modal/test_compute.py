@@ -186,6 +186,15 @@ def test_load_modal_functions_and_classes(neo4j_session):
     _sync_functions(neo4j_session, apps)
 
     # Assert
+    # A web endpoint is reachable; whether it requires auth is unknowable from the API.
+    assert check_nodes(
+        neo4j_session, "ModalFunction", ["name", "exposed_internet"]
+    ) == {
+        ("plain_function", False),
+        ("web_endpoint", True),
+        ("Worker.*", False),
+        ("GhostClass.run", False),
+    }
     assert check_nodes(
         neo4j_session, "ModalFunction", ["name", "web_url", "is_web_endpoint"]
     ) == {
@@ -327,6 +336,12 @@ def test_load_modal_sandboxes_and_tunnels(neo4j_session):
     _sync_sandboxes(neo4j_session)
 
     # Assert
+    # A tunnel is a forwarded port reachable from the internet; the finished sandbox has none.
+    assert check_nodes(neo4j_session, "ModalSandbox", ["id", "exposed_internet"]) == {
+        (fx.TEST_SANDBOX_ID, True),
+        ("sb-JeuHHabrBlXBhVE3eHSTn5", True),
+        ("sb-3FinishedSandboxXXXXXX", False),
+    }
     assert check_nodes(
         neo4j_session, "ModalSandbox", ["id", "state", "memory_mb", "region"]
     ) == {
@@ -349,16 +364,17 @@ def test_load_modal_sandboxes_and_tunnels(neo4j_session):
         (fx.TEST_SANDBOX_ID, fx.TEST_IMAGE_ID),
         ("sb-3FinishedSandboxXXXXXX", fx.TEST_IMAGE_ID),
     }
+    # EXPOSE points from the entrypoint to the asset it puts at risk.
     assert check_rels(
         neo4j_session,
-        "ModalSandbox",
-        "id",
         "ModalSandboxTunnel",
         "id",
-        "EXPOSES",
+        "ModalSandbox",
+        "id",
+        "EXPOSE",
     ) == {
-        (fx.TEST_SANDBOX_ID, f"{fx.TEST_SANDBOX_ID}/8080"),
-        ("sb-JeuHHabrBlXBhVE3eHSTn5", "sb-JeuHHabrBlXBhVE3eHSTn5/9000"),
+        (f"{fx.TEST_SANDBOX_ID}/8080", fx.TEST_SANDBOX_ID),
+        ("sb-JeuHHabrBlXBhVE3eHSTn5/9000", "sb-JeuHHabrBlXBhVE3eHSTn5"),
     }
 
 

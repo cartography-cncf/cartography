@@ -10,8 +10,10 @@ from typing import Any
 from urllib.parse import urlparse
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.helpers import batch
 from cartography.intel.container_image_layers import ContainerImageLayerGraphShape
@@ -117,6 +119,49 @@ def _get_manifest(
     return manifest
 
 
+def _get_manifest_digest(
+    gitlab_url: str,
+    registry_url: str,
+    repository_name: str,
+    reference: str,
+    token: str,
+) -> str | None:
+    """
+    Resolve the manifest digest for a reference with a HEAD request.
+
+    The OCI distribution spec requires HEAD on /v2/<name>/manifests/<reference>
+    to return the same Docker-Content-Digest header as GET, so this learns the
+    digest without transferring or parsing a manifest body.
+
+    Returns None when the reference is gone (404), the registry omits the
+    header, or the probe fails outright, leaving the caller to fall back to a
+    full manifest fetch.
+    """
+    try:
+        response = fetch_registry_manifest(
+            gitlab_url,
+            registry_url,
+            repository_name,
+            reference,
+            token,
+            accept_header=MANIFEST_ACCEPT_HEADER,
+            method="HEAD",
+        )
+    except requests.exceptions.RequestException as e:
+        logger.debug(
+            "HEAD digest probe failed for %s:%s: %s. Falling back to a full manifest fetch.",
+            repository_name,
+            reference,
+            e,
+        )
+        return None
+
+    if response.status_code != 200:
+        return None
+
+    return response.headers.get("Docker-Content-Digest")
+
+
 def get_container_images(
     gitlab_url: str,
     token: str,
@@ -125,12 +170,21 @@ def get_container_images(
     skip_digests: set[str] | None = None,
     observed_and_skipped: set[str] | None = None,
     skipped_attestation_manifests: list[dict[str, Any]] | None = None,
+    tags_by_repository: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Fetch container image manifests for all repositories via the Registry V2 API.
 
-    For each repository, fetches tags and then retrieves the manifest for each tag.
-    Returns raw manifest data for transformation, plus manifest lists for attestation discovery.
+    For each repository, resolves each tag to a manifest digest and then fetches
+    the manifests that are not already known. Returns raw manifest data for
+    transformation, plus manifest lists for attestation discovery.
+
+    ``tags_by_repository`` maps a repository location to the tag records resolved
+    by the tag sync, which already carry the manifest ``digest``. Passing it lets
+    both dedup checks run before any registry request, so an already-enriched
+    digest costs zero HTTP. Without it this falls back to the tag list endpoint,
+    which reports names only, and resolves digests with HEAD probes when there is
+    something to skip against.
 
     Deduplication is scoped per repository to ensure complete attestation discovery.
     If the same digest appears in multiple repositories, each will be processed separately.
@@ -166,17 +220,63 @@ def get_container_images(
         if repository_name not in seen_digests:
             seen_digests[repository_name] = set()
 
-        # Fetch tags for this repository
-        tags = get_paginated(
-            gitlab_url,
-            token,
-            f"/api/v4/projects/{project_id}/registry/repositories/{repository_id}/tags",
-        )
+        # Prefer tag records resolved by the tag sync: they already carry the
+        # manifest digest, so both dedup checks below cost no HTTP at all. Fall
+        # back to the tag list endpoint, which reports names only.
+        if tags_by_repository is not None:
+            tags = tags_by_repository.get(location, [])
+        else:
+            tags = get_paginated(
+                gitlab_url,
+                token,
+                f"/api/v4/projects/{project_id}/registry/repositories/{repository_id}/tags",
+            )
 
         for tag in tags:
             tag_name = tag.get("name")
             if not tag_name:
                 continue
+
+            # Resolve the digest before spending a manifest GET. Without this the
+            # dedup below can only run on the response of the fetch it is meant
+            # to avoid, so every tag costs a full manifest body on every run.
+            known_digest = tag.get("digest")
+            if not known_digest and skip_digests:
+                # No digest on the tag record. A HEAD returns it in
+                # Docker-Content-Digest without a body, which is only worth a
+                # round trip when there are digests to skip against - on a first
+                # run skip_digests is empty and a HEAD would be pure overhead.
+                known_digest = _get_manifest_digest(
+                    gitlab_url, registry_url, repository_name, tag_name, token
+                )
+
+            if known_digest:
+                if known_digest in seen_digests[repository_name]:
+                    # Another tag in this repository already resolved to this
+                    # digest (e.g. "latest" and "v1.0.0" on one image).
+                    continue
+                if known_digest in skip_digests:
+                    # Cross-run dedup: a previous sync already enriched this
+                    # image and its layer closure. Record it so the caller
+                    # refreshes lastupdated and cleanup leaves it alone, and
+                    # keep it in the attestation discovery set - which only
+                    # needs these three keys.
+                    #
+                    # Only single images reach here. skip_digests comes from
+                    # get_complete_layer_digests, which requires layer_diff_ids
+                    # to be set, and manifest lists have no layers, so a
+                    # manifest list is never skipped and its children are always
+                    # walked.
+                    seen_digests[repository_name].add(known_digest)
+                    observed_and_skipped.add(str(known_digest))
+                    skipped_attestation_manifests.append(
+                        {
+                            "_digest": known_digest,
+                            "_registry_url": registry_url,
+                            "_repository_name": repository_name,
+                        }
+                    )
+                    continue
 
             manifest = _get_manifest(
                 gitlab_url, registry_url, repository_name, tag_name, token
@@ -186,7 +286,8 @@ def get_container_images(
             if manifest is None:
                 continue
 
-            # Deduplicate by digest within this repository (multiple tags can point to same image)
+            # Re-check against the digest the registry actually served: the tag
+            # may have moved since its digest was resolved above.
             digest = manifest.get("_digest")
             if not digest or digest in seen_digests[repository_name]:
                 continue
@@ -194,6 +295,10 @@ def get_container_images(
 
             media_type = manifest.get("mediaType")
             is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
+            # Manifest lists are deliberately excluded from the skip: they carry
+            # no layers, so get_complete_layer_digests never reports one as
+            # complete, and short-circuiting here would drop the child walk that
+            # discovers their platform images.
             if not is_manifest_list and digest in skip_digests:
                 observed_and_skipped.add(digest)
                 skipped_attestation_manifests.append(manifest)
@@ -571,6 +676,42 @@ def cleanup_container_image_layers(
     ).run(neo4j_session)
 
 
+def _get_manifest_list_digests(
+    neo4j_session: neo4j.Session,
+    org_id: int,
+    gitlab_url: str,
+    digests: set[str],
+) -> set[str]:
+    """
+    Return the subset of ``digests`` the graph records as manifest lists.
+
+    Callers use this to keep manifest lists out of the skip set. A manifest list
+    carries no layers of its own, so it should never be reported as having a
+    complete layer closure, but skipping one would drop the child walk that
+    discovers its platform images. Enforcing that here keeps the guarantee local
+    to this module instead of resting on how the shared layer-closure query
+    happens to treat images without layers.
+    """
+    if not digests:
+        return set()
+
+    query = """
+    MATCH (org:GitLabOrganization {id: $org_id, gitlab_url: $gitlab_url})
+          -[:RESOURCE]->(img:GitLabContainerImage)
+    WHERE img.digest IN $digests
+      AND (img.type = 'manifest_list' OR img.child_image_digests IS NOT NULL)
+    RETURN img.digest
+    """
+    values = neo4j_session.execute_read(
+        read_list_of_values_tx,
+        query,
+        digests=sorted(digests),
+        org_id=org_id,
+        gitlab_url=gitlab_url,
+    )
+    return {str(value) for value in values if value}
+
+
 @timeit
 def sync_container_images(
     neo4j_session: neo4j.Session,
@@ -580,12 +721,16 @@ def sync_container_images(
     repositories: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    tags_by_repository: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Sync GitLab container images for an organization.
 
     Returns attestation-discovery manifests and manifest lists. Cached images
     remain in the discovery set without being sent through image/layer transforms.
+
+    ``tags_by_repository`` is the tag-sync output grouped by repository location;
+    see get_container_images for how it removes the per-tag manifest fetch.
     """
     all_raw_manifests: list[dict[str, Any]] = []
     all_attestation_manifests: list[dict[str, Any]] = []
@@ -596,10 +741,24 @@ def sync_container_images(
         None,
         {"id": org_id, "gitlab_url": gitlab_url},
     )
+    manifest_list_digests = _get_manifest_list_digests(
+        neo4j_session,
+        org_id,
+        gitlab_url,
+        complete_digests,
+    )
+    if manifest_list_digests:
+        logger.warning(
+            "Excluding %d manifest list digest(s) from the GitLab image skip set: "
+            "skipping a manifest list would drop its platform images.",
+            len(manifest_list_digests),
+        )
+        complete_digests -= manifest_list_digests
+
     observed_and_skipped: set[str] = set()
     if complete_digests:
         logger.info(
-            "Skipping config fetches for %d already-enriched GitLab digests",
+            "Skipping manifest/config fetches for %d already-enriched GitLab digests",
             len(complete_digests),
         )
     total_repositories = len(repositories)
@@ -625,6 +784,7 @@ def sync_container_images(
             skip_digests=complete_digests,
             observed_and_skipped=observed_and_skipped,
             skipped_attestation_manifests=skipped_attestation_manifests,
+            tags_by_repository=tags_by_repository,
         )
         all_raw_manifests.extend(raw_manifests)
         all_attestation_manifests.extend(raw_manifests)

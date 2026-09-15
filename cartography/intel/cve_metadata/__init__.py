@@ -29,6 +29,14 @@ stat_handler = get_stats_client(__name__)
 CVE_METADATA_FEED_ID = "CVE_METADATA"
 ALL_SOURCES = {"nvd", "epss"}
 
+# Each CVEMetadata row fans out to every node carrying the :CVE label with the same cve_id
+# (the deprecated CVE node plus AWSInspectorFinding / SemgrepSCAFinding / TrivyImageFinding /
+# ...), and all of those ENRICHES MERGEs land in one transaction. Yearly batches alone stay
+# under the 10000-row default, so without this a whole CVE year is one transaction: on a large
+# container-scanning graph a ~2400-row transaction exhausted a 3.5 GiB
+# dbms.memory.transaction.total.max pool.
+CVE_METADATA_BATCH_SIZE = 500
+
 
 def _get_cve_feed_year(cve_id: str) -> str | None:
     parts = cve_id.split("-")
@@ -100,6 +108,7 @@ def load_cve_metadata(
         neo4j_session,
         CVEMetadataSchema(),
         data,
+        batch_size=CVE_METADATA_BATCH_SIZE,
         lastupdated=update_tag,
         FEED_ID=CVE_METADATA_FEED_ID,
     )

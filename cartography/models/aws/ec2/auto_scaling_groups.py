@@ -86,6 +86,16 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
         "Status",
         description="The current state of the group when the DeleteAutoScalingGroup operation is in progress.",
     )
+    exposed_internet: PropertyRef = PropertyRef(
+        "exposed_internet",
+        extra_index=True,
+        description="`True` when at least one member EC2 instance is exposed. `False` otherwise.",
+    )  # Populated by the AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP analysis job.
+    exposed_internet_type: PropertyRef = PropertyRef(
+        "exposed_internet_type",
+        extra_index=True,
+        description="The paths by which member instances are exposed, inherited from them.",
+    )  # Populated by the AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP analysis job.
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

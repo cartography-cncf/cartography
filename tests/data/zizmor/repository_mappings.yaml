@@ -1,0 +1,14 @@
+repositories:
+  - owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://github.com/simpsoncorp/sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/zizmor/zizmor_report.json"
+  - owner: "different-org"
+    repo: "different-repo"
+    url: "https://github.com/different-org/different-repo"
+    branch: "main"
+    reports:
+      - "tests/data/zizmor/zizmor_report.json"
+      - "tests/data/zizmor/does_not_exist.json"

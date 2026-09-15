@@ -95,6 +95,19 @@ scaleway_mapping = OntologyMapping(
                 ),
             ],
         ),
+        OntologyNodeMapping(
+            node_label="ScalewayWebHosting",
+            fields=[
+                OntologyFieldMapping(ontology_field="name", node_field="domain"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _SCALEWAY_SERVICE_STATUS},
+                ),
+            ],
+        ),
     ],
 )
 

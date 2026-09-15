@@ -1,0 +1,7 @@
+repositories:
+  - owner: "simpsoncorp"
+    repo: "sample_repo"
+    url: "https://github.com/simpsoncorp/sample_repo"
+    branch: "main"
+    reports:
+      - "tests/data/zizmor/zizmor_report_stdin.json"
