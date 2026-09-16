@@ -956,6 +956,7 @@ def test_load_emits_metrics_and_logs(
     mock_node_schema = MagicMock()
     mock_node_schema.label = "TestNode"
     mock_build_query.return_value = "UNWIND ..."
+    mock_load_graph_data.return_value = 3
 
     test_data = [{"id": "1"}, {"id": "2"}, {"id": "3"}]
 
@@ -992,6 +993,8 @@ def test_load_no_metrics_for_empty_data(
     # Verify no metric was emitted (function returns early for empty data)
     mock_stat_handler.incr.assert_not_called()
     mock_logger.info.assert_not_called()
+    mock_ensure_indexes.assert_not_called()
+    mock_load_graph_data.assert_not_called()
 
 
 @patch("cartography.client.core.tx.load_graph_data")
@@ -1016,6 +1019,7 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_rel_schema.source_node_label = "AWSEC2Instance"
     mock_rel_schema.target_node_label = "AWSVpc"
     mock_build_query.return_value = "UNWIND ..."
+    mock_load_graph_data.return_value = 2
 
     test_data = [
         {"source_id": "1", "target_id": "a"},
@@ -1077,3 +1081,122 @@ def test_load_matchlinks_no_metrics_for_empty_data(
     # Verify no metric was emitted (function returns early for empty data)
     mock_stat_handler.incr.assert_not_called()
     mock_logger.info.assert_not_called()
+    mock_ensure_indexes.assert_not_called()
+    mock_load_graph_data.assert_not_called()
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes")
+@patch("cartography.client.core.tx.build_ingestion_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_accepts_generator(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load() should stream a generator without calling len()."""
+    from cartography.client.core.tx import load
+
+    mock_session = MagicMock()
+    mock_node_schema = MagicMock()
+    mock_node_schema.label = "TestNode"
+    mock_build_query.return_value = "UNWIND ..."
+    mock_load_graph_data.return_value = 3
+
+    test_data = ({"id": str(i)} for i in range(3))
+
+    load(mock_session, mock_node_schema, test_data, lastupdated=12345)
+
+    mock_ensure_indexes.assert_called_once()
+    passed = mock_load_graph_data.call_args.args[2]
+    assert list(passed) == [{"id": "0"}, {"id": "1"}, {"id": "2"}]
+    mock_stat_handler.incr.assert_called_once_with("node.testnode.loaded", 3)
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes")
+@patch("cartography.client.core.tx.build_ingestion_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_no_metrics_for_empty_generator(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load() should treat an empty generator like an empty list."""
+    from cartography.client.core.tx import load
+
+    mock_session = MagicMock()
+    mock_node_schema = MagicMock()
+    mock_node_schema.label = "TestNode"
+
+    load(mock_session, mock_node_schema, iter(()), lastupdated=12345)
+
+    mock_stat_handler.incr.assert_not_called()
+    mock_logger.info.assert_not_called()
+    mock_ensure_indexes.assert_not_called()
+    mock_load_graph_data.assert_not_called()
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
+@patch("cartography.client.core.tx.build_matchlink_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_matchlinks_accepts_generator(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load_matchlinks() should stream a generator without calling len()."""
+    from cartography.client.core.tx import load_matchlinks
+
+    mock_session = MagicMock()
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.rel_label = "CONNECTED_TO"
+    mock_rel_schema.source_node_label = "AWSEC2Instance"
+    mock_rel_schema.target_node_label = "AWSVpc"
+    mock_build_query.return_value = "UNWIND ..."
+    mock_load_graph_data.return_value = 2
+
+    test_data = (
+        {"source_id": "1", "target_id": "a"},
+        {"source_id": "2", "target_id": "b"},
+    )
+
+    load_matchlinks(
+        mock_session,
+        mock_rel_schema,
+        (row for row in test_data),
+        lastupdated=12345,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id="123456",
+    )
+
+    passed = mock_load_graph_data.call_args.args[2]
+    assert list(passed) == list(test_data)
+    mock_stat_handler.incr.assert_called_once_with(
+        "relationship.awsec2instance.connected_to.awsvpc.loaded",
+        2,
+    )
+
+
+@patch("cartography.client.core.tx.execute_write_with_retry")
+def test_load_graph_data_counts_generator_items(mock_execute):
+    """load_graph_data() should count items while batching a generator."""
+    from cartography.client.core.tx import load_graph_data
+
+    mock_session = MagicMock()
+    data = ({"id": str(i)} for i in range(5))
+
+    count = load_graph_data(mock_session, "UNWIND ...", data, batch_size=2)
+
+    assert count == 5
+    assert mock_execute.call_count == 3
