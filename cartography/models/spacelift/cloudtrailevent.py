@@ -44,8 +44,8 @@ class CloudTrailSpaceliftEventNodeProperties(CartographyNodeProperties):
         "error_code",
         description=(
             "AWS error code returned by the API call, such as `AccessDenied`. Null when "
-            "the call succeeded; a non-null value means the call did not change the "
-            "instances it references."
+            "the call succeeded; a non-null value means CloudTrail recorded an error "
+            "for the call."
         ),
     )
     error_message: PropertyRef = PropertyRef(
