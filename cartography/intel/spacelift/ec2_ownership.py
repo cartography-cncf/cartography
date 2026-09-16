@@ -199,6 +199,11 @@ def transform_ec2_ownership(
             "event_name": record.get("eventname"),
             "aws_account": record.get("account"),
             "aws_region": record.get("awsregion"),
+            # Failed calls are still CloudTrail facts, so we keep the event and record
+            # the error instead of dropping it. Consumers that only care about actual
+            # mutations filter on error_code being null.
+            "error_code": record.get("errorcode"),
+            "error_message": record.get("errormessage"),
         }
         events.append(event)
 
