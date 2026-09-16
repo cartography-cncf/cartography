@@ -9,6 +9,7 @@ import requests
 from cartography.intel.github import external_identities
 from cartography.intel.github.users import load_organization
 from cartography.intel.github.users import load_users
+from cartography.intel.github.users import transform_users as transform_github_users
 from cartography.intel.okta.users import _load_okta_users
 from cartography.intel.ontology.users import sync as sync_ontology_users
 from cartography.models.github.orgs import GitHubOrganizationSchema
@@ -34,26 +35,26 @@ def available_rate_limit():
         yield mock_get
 
 
-def _seed_org(session, org_url=ORG_URL):
+def _seed_org(session, org_url=ORG_URL, alice_fields=None):
     org = {"url": org_url, "login": org_url.rsplit("/", 1)[1]}
     load_organization(session, GitHubOrganizationSchema(), [org], 100)
-    load_users(
-        session,
-        GitHubOrganizationUserSchema(),
-        [
-            {
+    edges = [
+        {
+            "node": {
                 "url": f"https://github.com/example-{name}",
                 "login": f"example-{name}",
-                "MEMBER_OF": org_url,
                 "organizationVerifiedDomainEmails": (
                     ["carol@example.com"] if name == "carol" else []
                 ),
-            }
-            for name in ("alice", "bob", "carol")
-        ],
-        org,
-        100,
-    )
+                **((alice_fields or {}) if name == "alice" else {}),
+            },
+            "hasTwoFactorEnabled": True,
+            "role": "MEMBER",
+        }
+        for name in ("alice", "bob", "carol")
+    ]
+    members, _ = transform_github_users(edges, [], org)
+    load_users(session, GitHubOrganizationUserSchema(), members, org, 100)
 
 
 @pytest.fixture(autouse=True)
@@ -245,7 +246,7 @@ def test_denied_snapshot_preserves_existing_identities(
 
 
 @pytest.mark.parametrize("http_failure", [False, True])
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_partial_error_does_not_write_or_cleanup(
     mock_post, mock_sleep, neo4j_session, http_failure, caplog
@@ -317,12 +318,11 @@ def test_ontology_rejects_unreliable_matches(mock_post, neo4j_session, case):
             {"UPDATE_TAG": 100, "OKTA_ORG_ID": "example.okta.com"},
         )
     elif case == "conflicting_public_email":
-        neo4j_session.run(
-            "MATCH (g:GitHubUser {username: 'example-alice'}) SET g.email = 'bob@example.com'"
-        )
+        _seed_org(neo4j_session, alice_fields={"email": "bob@example.com"})
     elif case == "conflicting_verified_email":
-        neo4j_session.run(
-            "MATCH (g:GitHubUser {username: 'example-alice'}) SET g.organization_verified_domain_emails = ['bob@example.com']"
+        _seed_org(
+            neo4j_session,
+            alice_fields={"organizationVerifiedDomainEmails": ["bob@example.com"]},
         )
     elif case == "nonmember":
         neo4j_session.run(
@@ -503,3 +503,93 @@ def test_empty_nameid_clears_normalized_key_and_account_link(
         ["saml_name_id", "saml_name_id_normalized"],
     ) == {(name_id, None)}
     assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
+
+
+@pytest.mark.parametrize("field", ["email", "organizationVerifiedDomainEmails"])
+@pytest.mark.parametrize(
+    "email", ["bob@example.com", "\u0085BOB@Example.com\u00a0", "unmodeled@example.com"]
+)
+@patch("cartography.intel.github.util.requests.post")
+def test_saml_conflict_does_not_require_an_existing_email_link(
+    mock_post, neo4j_session, field, email
+):
+    # Arrange
+    _load_okta_users(
+        neo4j_session,
+        [{"id": "okta-bob", "email": "Bob@Example.com"}],
+        {"UPDATE_TAG": 100, "OKTA_ORG_ID": "example.okta.com"},
+    )
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+    _sync(neo4j_session)
+    _ontology(neo4j_session)
+    assert ("alice@example.com", "example-alice") in _github_links(neo4j_session)
+    _seed_org(
+        neo4j_session, alice_fields={field: email if field == "email" else [email]}
+    )
+
+    # Act
+    _ontology(neo4j_session, 200)
+
+    # Assert
+    assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
+    assert check_nodes(neo4j_session, "GitHubExternalIdentity", ["id"]) == {
+        (f"{ORG_URL}|E_example_alice",)
+    }
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {
+            "email": "\u0085ALICE@Example.com\u00a0",
+            "organizationVerifiedDomainEmails": [" ALICE@example.com "],
+        },
+        {"email": " ", "organizationVerifiedDomainEmails": []},
+        {"email": None, "organizationVerifiedDomainEmails": None},
+    ],
+)
+@patch("cartography.intel.github.util.requests.post")
+def test_saml_accepts_matching_or_absent_email_evidence(
+    mock_post, neo4j_session, fields
+):
+    # Arrange
+    _seed_org(neo4j_session, alice_fields=fields)
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+
+    # Act
+    _sync(neo4j_session)
+    _ontology(neo4j_session)
+
+    # Assert
+    assert _github_links(neo4j_session) == {
+        ("alice@example.com", "example-alice"),
+        ("carol@example.com", "example-carol"),
+    }
+
+
+@patch("cartography.intel.github.util.requests.post")
+def test_legacy_github_users_require_resync_before_saml_linking(
+    mock_post, neo4j_session
+):
+    # Arrange
+    mock_post.return_value.json.return_value = page(IDENTITIES[:1])
+    _sync(neo4j_session)
+    neo4j_session.run("MATCH (g:GitHubUser) REMOVE g.normalized_emails")
+
+    # Act
+    _ontology(neo4j_session)
+
+    # Assert
+    assert _github_links(neo4j_session) == {("carol@example.com", "example-carol")}
+
+    # Arrange
+    _seed_org(neo4j_session)
+
+    # Act
+    _ontology(neo4j_session, 200)
+
+    # Assert
+    assert _github_links(neo4j_session) == {
+        ("alice@example.com", "example-alice"),
+        ("carol@example.com", "example-carol"),
+    }

@@ -13,6 +13,7 @@ import requests
 from cartography.intel.github.external_identities import get_external_identities
 from cartography.intel.github.external_identities import sync
 from cartography.intel.github.external_identities import transform_external_identities
+from cartography.intel.github.users import transform_users as transform_github_users
 from cartography.intel.ontology.users import transform_users
 from tests.data.github.external_identities import API_URL
 from tests.data.github.external_identities import FORBIDDEN
@@ -22,6 +23,12 @@ from tests.data.github.external_identities import ORG
 from tests.data.github.external_identities import ORG_URL
 from tests.data.github.external_identities import page
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
+
+
+@pytest.fixture(autouse=True)
+def deterministic_jitter():
+    with patch("cartography.intel.github.util.random.random", return_value=0):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +129,7 @@ def test_get_distinguishes_absence_from_denied_access(mock_post, response, expec
         {"type": "RATE_LIMITED", "message": "API rate limit exceeded"},
     ],
 )
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_rejects_partial_graphql_results(mock_post, mock_sleep, error):
     # Arrange
@@ -181,7 +188,7 @@ def _http_response(status, headers=None, payload=None):
         (requests.exceptions.ChunkedEncodingError(), 2),
     ],
 )
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_retries_transport_failure_on_same_page(
     mock_post, mock_sleep, failure, delay
@@ -207,7 +214,7 @@ def test_get_retries_transport_failure_on_same_page(
     mock_sleep.assert_called_once_with(delay)
 
 
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_recovers_partial_graphql_page_without_duplicate_records(
     mock_post, mock_sleep
@@ -239,7 +246,7 @@ def test_get_recovers_partial_graphql_page_without_duplicate_records(
 
 
 @pytest.mark.parametrize("status,headers", [(401, {}), (403, {}), (404, {})])
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_does_not_retry_permanent_failure(mock_post, mock_sleep, status, headers):
     # Arrange
@@ -252,7 +259,7 @@ def test_get_does_not_retry_permanent_failure(mock_post, mock_sleep, status, hea
     mock_sleep.assert_not_called()
 
 
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_bounds_transport_attempts(mock_post, mock_sleep):
     # Arrange
@@ -265,7 +272,7 @@ def test_get_bounds_transport_attempts(mock_post, mock_sleep):
     assert mock_sleep.call_args_list == [call(2), call(4), call(8), call(16)]
 
 
-@patch("cartography.intel.github.external_identities.time.sleep")
+@patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.requests.post")
 def test_get_does_not_retry_unknown_graphql_errors(mock_post, mock_sleep):
     # Arrange
@@ -307,8 +314,35 @@ def test_identity_sources_share_normalization_policy(value, expected):
     # Act
     github = transform_external_identities([identity], ORG_URL)[0]
     canonical = transform_users([{"email": value}])[0]
+    members, owners = transform_github_users(
+        [
+            {
+                "node": {
+                    "url": "member",
+                    "email": value,
+                    "organizationVerifiedDomainEmails": [value],
+                },
+                "role": "MEMBER",
+                "hasTwoFactorEnabled": True,
+            }
+        ],
+        [
+            {
+                "node": {
+                    "url": "owner",
+                    "email": value,
+                    "organizationVerifiedDomainEmails": [value],
+                },
+                "organizationRole": "UNAFFILIATED",
+            }
+        ],
+        {"url": ORG_URL},
+    )
 
     # Assert
+    for user in members + owners:
+        assert user["normalized_emails"] == ([expected] if expected else [])
+        assert user["organizationVerifiedDomainEmails"] == [value]
     assert github["saml_name_id_normalized"] == expected
     assert canonical["normalized_email"] == expected
     assert github["saml_name_id"] == canonical["email"] == value

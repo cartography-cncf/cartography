@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 
 import neo4j
@@ -8,9 +7,10 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.helpers import normalize_email_for_matching
-from cartography.intel.github.util import _get_retry_sleep_seconds_for_http_error
 from cartography.intel.github.util import fetch_page
+from cartography.intel.github.util import get_retry_sleep_seconds_for_http_error
 from cartography.intel.github.util import handle_rate_limit_sleep
+from cartography.intel.github.util import sleep_with_jitter
 from cartography.models.github.external_identities import GitHubExternalIdentitySchema
 from cartography.util import timeit
 
@@ -52,7 +52,7 @@ def _fetch_identity_page(
                 token, api_url, organization, EXTERNAL_IDENTITIES_QUERY, cursor
             )
         except requests.HTTPError as error:
-            retry_delay = _get_retry_sleep_seconds_for_http_error(error, attempt + 1)
+            retry_delay = get_retry_sleep_seconds_for_http_error(error, attempt + 1)
             if retry_delay is None or attempt + 1 == _MAX_PAGE_ATTEMPTS:
                 raise
             delay = retry_delay
@@ -86,8 +86,8 @@ def _fetch_identity_page(
             attempt + 2,
             _MAX_PAGE_ATTEMPTS,
         )
-        time.sleep(delay)
-    raise AssertionError("Unreachable: final attempt returns or raises")
+        sleep_with_jitter(delay)
+    raise RuntimeError("Unreachable: final attempt returns or raises")
 
 
 def get_external_identities(

@@ -649,7 +649,7 @@ def test_fetch_manifest_page_retries_resolver_timeout_without_paying_backoff(cap
             side_effect=[timeout_page, success_page],
         ),
         patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep"),
-        patch.object(cartography.intel.github.repos.time, "sleep") as mock_sleep,
+        patch("cartography.intel.github.util.time.sleep") as mock_sleep,
     ):
         # Act
         resp = _fetch_manifest_page(
@@ -685,7 +685,7 @@ def test_fetch_manifest_page_does_not_retry_forbidden():
             return_value=forbidden_page,
         ) as mock_fetch_page,
         patch.object(cartography.intel.github.repos, "handle_rate_limit_sleep"),
-        patch.object(cartography.intel.github.repos.time, "sleep") as mock_sleep,
+        patch("cartography.intel.github.util.time.sleep") as mock_sleep,
     ):
         # Act + Assert
         with pytest.raises(DependencyGraphForbiddenError, match="IP allow list"):

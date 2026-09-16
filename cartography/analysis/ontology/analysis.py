@@ -594,10 +594,8 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
                 "WITH g, collect(DISTINCT u) AS candidates "
                 "WHERE size(candidates) = 1 "
                 "WITH g, candidates[0] AS u "
-                "WHERE NOT EXISTS { "
-                "MATCH (other:User)-[:HAS_ACCOUNT]->(g) "
-                "WHERE other <> u AND (other.email = g.email "
-                "OR other.email IN g.organization_verified_domain_emails) }"
+                "WHERE g.normalized_emails IS NOT NULL "
+                "AND all(email IN g.normalized_emails WHERE email = u.normalized_email)"
             ),
             effects=(
                 AddRelationship(

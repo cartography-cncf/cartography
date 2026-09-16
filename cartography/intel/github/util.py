@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import random
 import time
 from datetime import datetime
 from datetime import timedelta
@@ -32,6 +33,19 @@ _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
 # HTTP status codes that are safe to retry with exponential backoff
 _TRANSIENT_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
+
+
+# Add up to +25% so concurrent retries do not hit GitHub in lockstep.
+_RETRY_JITTER_RATIO = 0.25
+
+
+def sleep_with_jitter(delay: float) -> None:
+    """
+    Sleep for `delay` seconds plus jitter. A delay of 0 skips the sleep entirely.
+    """
+    if delay <= 0:
+        return
+    time.sleep(delay * (1 + random.random() * _RETRY_JITTER_RATIO))
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -80,7 +94,7 @@ def _get_rate_limit_reset_sleep_seconds(response: requests.Response) -> int | No
     return max(0, int(sleep_duration.total_seconds()))
 
 
-def _get_retry_sleep_seconds_for_http_error(
+def get_retry_sleep_seconds_for_http_error(
     err: requests.exceptions.HTTPError,
     retry: int,
 ) -> int | None:
@@ -123,9 +137,7 @@ def _get_retry_sleep_seconds_for_http_error(
     return None
 
 
-def handle_rate_limit_sleep(
-    token: Any, api_url: str = "https://api.github.com/graphql"
-) -> None:
+def handle_rate_limit_sleep(token: Any, api_url: str) -> None:
     """Wait for the configured instance's GraphQL budget to reset when low."""
     response = requests.get(
         f"{rest_api_base_url(api_url)}/rate_limit",
@@ -293,7 +305,7 @@ def fetch_all(
         elif retry > 0:
             sleep_seconds = 2**retry
             if isinstance(exc, requests.exceptions.HTTPError):
-                retry_delay = _get_retry_sleep_seconds_for_http_error(exc, retry)
+                retry_delay = get_retry_sleep_seconds_for_http_error(exc, retry)
                 if retry_delay is None:
                     raise exc
                 sleep_seconds = retry_delay
@@ -316,7 +328,7 @@ def fetch_all(
                     sleep_seconds,
                     message,
                 )
-            time.sleep(sleep_seconds)
+            sleep_with_jitter(sleep_seconds)
             continue
 
         if "data" not in resp:
@@ -356,7 +368,7 @@ def fetch_all(
                 null_resource_retry,
                 retries,
             )
-            time.sleep(2**null_resource_retry)
+            sleep_with_jitter(2**null_resource_retry)
             continue
 
         # Successful non-null resource; reset null-resource retry counter.

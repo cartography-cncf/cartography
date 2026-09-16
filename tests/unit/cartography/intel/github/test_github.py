@@ -1,6 +1,7 @@
 import json
 import typing
 from base64 import b64encode
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -15,9 +16,6 @@ from requests.exceptions import HTTPError
 
 import cartography.intel.github.packages
 from cartography.intel.github.external_identities import ExternalIdentitySnapshotError
-from cartography.intel.github.external_identities import (
-    sync as sync_external_identities,
-)
 from cartography.intel.github.repos import GitHubRepoSyncResult
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import fetch_all
@@ -25,14 +23,16 @@ from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import is_github_dotcom_api_url
+from cartography.intel.github.util import sleep_with_jitter
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
 
-@pytest.mark.parametrize(
-    "identity_failure",
-    [None, HTTPError("unavailable"), ExternalIdentitySnapshotError("incomplete")],
-)
-@typing.no_type_check
+@pytest.fixture(autouse=True)
+def deterministic_jitter():
+    with patch("cartography.intel.github.util.random.random", return_value=0):
+        yield
+
+
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
 @patch("cartography.intel.github.users.cleanup")
@@ -85,7 +85,6 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
-    identity_failure,
 ) -> None:
     github_config = {
         "organization": [
@@ -137,13 +136,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     from cartography.intel.github import start_github_ingestion
 
     neo4j_session = Mock()
-    if identity_failure is not None:
-        mock_external_identities_sync.side_effect = sync_external_identities
-    with patch(
-        "cartography.intel.github.external_identities.get_external_identities",
-        side_effect=identity_failure,
-    ):
-        start_github_ingestion(neo4j_session, config)
+    start_github_ingestion(neo4j_session, config)
 
     assert mock_external_identities_sync.call_count == 2
     assert mock_users_sync.call_count == 2
@@ -718,3 +711,102 @@ def test_fetch_all_does_not_retry_permanent_http_errors(
         )
     mock_post.assert_called_once()
     mock_sleep.assert_not_called()
+
+
+def test_identity_failure_does_not_stop_later_resources_or_organizations() -> None:
+    # Arrange
+    from cartography.intel.github import start_github_ingestion
+
+    config = Mock(
+        github_config=b64encode(
+            json.dumps(
+                {
+                    "organization": [
+                        {
+                            "name": name,
+                            "url": "https://api.github.com/graphql",
+                            "token": "test-token",
+                        }
+                        for name in ("org-1", "org-2")
+                    ]
+                }
+            ).encode()
+        ).decode(),
+        update_tag=123,
+        github_commit_lookback_days=7,
+    )
+    identity_failure: Exception
+    for identity_failure in (
+        HTTPError("unavailable"),
+        ExternalIdentitySnapshotError("incomplete"),
+    ):
+        with ExitStack() as stack:
+            later_stages = {}
+            for name in (
+                "users.sync",
+                "repos.sync",
+                "personal_access_tokens.sync",
+                "dependabot_alerts.sync",
+                "teams.sync_github_teams",
+                "codeowners.sync",
+                "actions.sync",
+                "commits.sync_github_commits",
+                "repos.get",
+                "_get_repos_from_graph",
+                "packages.sync_packages",
+                "cleanup_unscoped_github_resources",
+            ):
+                later_stages[name] = stack.enter_context(
+                    patch(f"cartography.intel.github.{name}", return_value=[])
+                )
+            later_stages["repos.sync"].return_value = GitHubRepoSyncResult([], [], True)
+            later_stages["packages.sync_packages"].return_value = (
+                cartography.intel.github.packages.ContainerPackagesFetchResult(
+                    [], False
+                )
+            )
+            fetch = stack.enter_context(
+                patch(
+                    "cartography.intel.github.external_identities.get_external_identities",
+                    side_effect=identity_failure,
+                )
+            )
+            stack.enter_context(
+                patch(
+                    "cartography.intel.github.make_credential",
+                    return_value="test-token",
+                )
+            )
+
+            # Act
+            start_github_ingestion(Mock(), config)
+
+            # Assert
+            assert [c.args[-1] for c in fetch.call_args_list] == ["org-1", "org-2"]
+            for name in (
+                "repos.sync",
+                "personal_access_tokens.sync",
+                "dependabot_alerts.sync",
+                "teams.sync_github_teams",
+                "actions.sync",
+            ):
+                assert [c.args[4] for c in later_stages[name].call_args_list] == [
+                    "org-1",
+                    "org-2",
+                ]
+            assert later_stages["codeowners.sync"].call_count == 2
+            assert later_stages["commits.sync_github_commits"].call_count == 2
+
+
+@pytest.mark.parametrize("delay", [0, 2, 60, 2880])
+@patch("cartography.intel.github.util.random.random", return_value=0.5)
+@patch("cartography.intel.github.util.time.sleep")
+def test_retry_jitter_never_shortens_provider_wait(mock_sleep, mock_random, delay):
+    # Act
+    sleep_with_jitter(delay)
+
+    # Assert
+    if delay == 0:
+        mock_sleep.assert_not_called()
+    else:
+        mock_sleep.assert_called_once_with(delay * 1.125)
