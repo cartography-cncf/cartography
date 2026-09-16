@@ -20,7 +20,6 @@ import requests
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.snowflake import account_usage
-from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -383,14 +382,27 @@ def cleanup(
     neo4j_session: neo4j.Session,
     account_id: str,
     update_tag: int,
+    *,
+    object_grants_complete: bool,
+    role_assignments_complete: bool,
 ) -> None:
-    GraphJob.from_matchlink(
-        SnowflakeGrantMatchLink(), "SnowflakeAccount", account_id, update_tag
-    ).run(neo4j_session)
-    for matchlink in _ROLE_EDGE_MATCHLINKS.values():
+    if object_grants_complete:
         GraphJob.from_matchlink(
-            matchlink, "SnowflakeAccount", account_id, update_tag
+            SnowflakeGrantMatchLink(), "SnowflakeAccount", account_id, update_tag
         ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping Snowflake object grant cleanup: coverage is incomplete."
+        )
+    if role_assignments_complete:
+        for matchlink in _ROLE_EDGE_MATCHLINKS.values():
+            GraphJob.from_matchlink(
+                matchlink, "SnowflakeAccount", account_id, update_tag
+            ).run(neo4j_session)
+    else:
+        logger.warning(
+            "Skipping Snowflake role assignment cleanup: coverage is incomplete."
+        )
 
 
 @timeit
@@ -467,21 +479,20 @@ def sync(
     database_roles: list[dict[str, Any]],
     common_job_parameters: dict,
     use_account_usage: bool = True,
-) -> bool:
+) -> tuple[bool, bool]:
     """Materialise every grant, role assignment and role-hierarchy edge.
 
     Runs last, after every principal and grantable object is in the graph, so the
     edges resolve on the first pass.
 
-    Two queries against ``ACCOUNT_USAGE`` replace the per-role REST walk when the
+    Two grant queries and one column check replace the per-role REST walk when the
     views are readable. That is both complete, because the views are account-wide
     rather than visibility-filtered, and dramatically cheaper: the REST path issues
     two requests per role, which on a large account is thousands of paginated calls.
 
-    Returns whether the grant graph is known to be complete. On the REST path a role
-    the collector cannot see produces no rows and no error, so completeness cannot be
-    established and the caller skips grant cleanup rather than deleting edges that are
-    still valid.
+    Returns completeness for object grants and role assignments, respectively.
+    On the REST path a role the collector cannot see produces no rows and no error,
+    so the caller skips both cleanup paths rather than deleting still-valid edges.
     """
     account_id = client.account_id
     database_role_names = {role["qualified_name"] for role in database_roles}
@@ -494,18 +505,16 @@ def sync(
     )
 
     if grants_to_roles is not None and grants_to_users is not None:
-        grants_by_role, grants_of_by_role = account_usage.split_grants(
+        grants_by_role, grants_of_by_role, inherited_count = account_usage.split_grants(
             grants_to_roles, grants_to_users
         )
-        inherited_count = sum(
-            to_bool(row.get("is_inherited")) is True for row in grants_to_roles
-        )
-        complete = inherited_count == 0
+        object_grants_complete = inherited_count == 0
+        role_assignments_complete = True
         if inherited_count:
             logger.warning(
                 "Snowflake ACCOUNT_USAGE reported %d inherited grants. "
                 "Container-scoped inherited privileges are not yet modeled; "
-                "grant coverage is incomplete and grant cleanup will be skipped.",
+                "object grant coverage is incomplete and object grant cleanup will be skipped.",
                 inherited_count,
             )
         logger.info(
@@ -516,9 +525,7 @@ def sync(
             account_id,
         )
     else:
-        grants_by_role, grants_of_by_role, complete = _walk_rest(
-            client, roles, database_roles
-        )
+        grants_by_role, grants_of_by_role, _ = _walk_rest(client, roles, database_roles)
         logger.warning(
             "Reading Snowflake grants through the per-role object API because "
             "ACCOUNT_USAGE is not readable. This only sees grants visible to the "
@@ -527,7 +534,7 @@ def sync(
         )
         # A partial REST walk cannot be told apart from a complete one, so it never
         # claims completeness even when every request happened to succeed.
-        complete = False
+        object_grants_complete = role_assignments_complete = False
 
     grants, unmodelled = transform_grants(
         grants_by_role, database_role_names, account_id
@@ -552,9 +559,4 @@ def sync(
         neo4j_session, role_edges, account_id, common_job_parameters["UPDATE_TAG"]
     )
 
-    if not complete:
-        logger.warning(
-            "The Snowflake grant graph is not known to be complete; skipping grant "
-            "cleanup so still-valid edges are not deleted.",
-        )
-    return complete
+    return object_grants_complete, role_assignments_complete

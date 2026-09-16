@@ -23,6 +23,8 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 from urllib.parse import quote
+from urllib.parse import urljoin
+from urllib.parse import urlsplit
 
 import jwt
 import requests
@@ -223,7 +225,9 @@ def sf_path_segment(name: str) -> str:
 
     REST path parameters resolve SQL identifiers, so case-sensitive names need
     identifier quoting before URL encoding. Escaping slashes keeps the entire
-    identifier in one path segment.
+    identifier in one path segment. Verified against schema and network-rule
+    listings; Snowflake's REST Identifier contract requires these quotes:
+    https://github.com/snowflakedb/snowflake-rest-api-specs/blob/main/specifications/common.yaml
     """
     return quote(sf_fqn(name), safe="")
 
@@ -502,9 +506,34 @@ class SnowflakeClient:
 
     def _absolute(self, url: str) -> str:
         """Resolve a possibly-relative API URL against the account host."""
-        if url.startswith("http://") or url.startswith("https://"):
-            return url
-        return f"{self.host}{url}"
+        resolved = urljoin(f"{self.host}/", url)
+        target = urlsplit(resolved)
+        origin = urlsplit(self.host)
+        default_ports = {"http": 80, "https": 443}
+        if (
+            (
+                target.scheme,
+                target.hostname,
+                (
+                    target.port
+                    if target.port is not None
+                    else default_ports.get(target.scheme)
+                ),
+            )
+            != (
+                origin.scheme,
+                origin.hostname,
+                (
+                    origin.port
+                    if origin.port is not None
+                    else default_ports.get(origin.scheme)
+                ),
+            )
+            or target.username is not None
+            or target.password is not None
+        ):
+            raise ValueError("Snowflake API URL must use the configured account origin")
+        return resolved
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         """GET one object endpoint and return the parsed JSON body."""

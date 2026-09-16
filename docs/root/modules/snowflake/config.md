@@ -166,11 +166,21 @@ GRANT REFERENCES ON ALL TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON FUTURE TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON ALL VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON FUTURE VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL MATERIALIZED VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE MATERIALIZED VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL EXTERNAL TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE EXTERNAL TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL ICEBERG TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE ICEBERG TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT MONITOR ON ALL DYNAMIC TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT MONITOR ON FUTURE DYNAMIC TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 ```
 
 `REFERENCES` allows inspecting table and view metadata without granting `SELECT`
-on their contents. These grants are a baseline for databases, schemas, tables,
-and views; other object types can require additional privileges. A successful
+on their contents. Dynamic tables instead use
+[`MONITOR`](https://docs.snowflake.com/en/user-guide/dynamic-tables/privileges#grant-monitor-to-view-metadata)
+for read-only metadata access; they do not support `REFERENCES`. Other object
+types can require additional privileges. A successful
 sync does not prove that every object is visible to the collector role.
 
 [Schema-level future grants override database-level future grants](https://docs.snowflake.com/en/sql-reference/sql/grant-privilege#future-grants-on-database-or-schema-objects),
@@ -178,7 +188,9 @@ even when they target a different role. For each schema with its own future tabl
 or view grants, also grant `REFERENCES ON FUTURE TABLES IN SCHEMA
 EXAMPLE_DB.EXAMPLE_SCHEMA` or `REFERENCES ON FUTURE VIEWS IN SCHEMA
 EXAMPLE_DB.EXAMPLE_SCHEMA` to `CARTOGRAPHY_RO`, respectively. Review this when adding
-schemas or changing future grants.
+schemas or changing future grants. Apply the same rule to materialized views,
+external tables, Iceberg tables, and dynamic tables, using the corresponding
+object type and privilege above.
 
 The ordinary permission set above is read-only. With it, Cartography reads roles,
 database roles, the role hierarchy and object grants from `SNOWFLAKE.ACCOUNT_USAGE`

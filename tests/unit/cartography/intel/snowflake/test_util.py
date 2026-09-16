@@ -576,3 +576,78 @@ def test_is_sql_unavailable_distinguishes_gating_from_failure():
     assert is_sql_unavailable(SnowflakeSqlError("Unsupported feature 'X'."))
     assert is_sql_unavailable(SnowflakeSqlError("Insufficient privileges to operate"))
     assert not is_sql_unavailable(SnowflakeSqlError("Syntax error at line 1"))
+
+
+@pytest.mark.parametrize("source", ["location", "body", "pagination"])
+def test_response_urls_cannot_send_credentials_to_another_origin(source):
+    # Arrange
+    received = []
+
+    class Destination(_SqlHandler):
+        def do_GET(self):
+            received.append(self.headers.get("Authorization"))
+            _respond_json(self, [])
+
+    destination = _serve(Destination)
+    target = f"http://127.0.0.1:{destination.server_port}/api/v2/results/other"
+
+    class Origin(_SqlHandler):
+        def do_GET(self):
+            if source == "pagination":
+                _respond_json(self, [], Link=f'<{target}>; rel="next"')
+            elif source == "location":
+                _respond_json(self, {}, status=202, Location=target)
+            else:
+                _respond_json(self, {"statementStatusUrl": target}, status=202)
+
+    origin = _serve(Origin)
+    client = _build_client(origin.server_port)
+    try:
+        # Act and assert
+        with pytest.raises(ValueError, match="configured account origin"):
+            client.list_all("/api/v2/roles")
+        assert received == []
+    finally:
+        client._session.close()
+        _shutdown(origin)
+        _shutdown(destination)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "https://other.example/api/v2/results/1",
+        "//other.example/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com.other.example/results/1",
+        "http://myorg-myacct.snowflakecomputing.com/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com:444/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com:0/api/v2/results/1",
+        "https://user@myorg-myacct.snowflakecomputing.com/api/v2/results/1",
+    ],
+)
+def test_api_url_rejects_origin_changes(target):
+    # Arrange
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="configured account origin"):
+        client._absolute(target)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "/api/v2/results/%22Mixed%2FCase%22?page=2",
+        "https://myorg-myacct.snowflakecomputing.com/api/v2/results/%22Mixed%2FCase%22?page=2",
+        "https://myorg-myacct.snowflakecomputing.com:443/api/v2/results/%22Mixed%2FCase%22?page=2",
+    ],
+)
+def test_api_url_preserves_same_origin_encoded_paths(target):
+    # Arrange
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act
+    resolved = client._absolute(target)
+
+    # Assert
+    assert resolved.endswith("/api/v2/results/%22Mixed%2FCase%22?page=2")

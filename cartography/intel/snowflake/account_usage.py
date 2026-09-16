@@ -58,10 +58,9 @@ FROM snowflake.account_usage.roles
 WHERE deleted_on IS NULL
 """
 
-# Preview accounts expose IS_INHERITED; selecting it explicitly would fail on
-# accounts without that column. Keep optional grant metadata when it is available.
 _GRANTS_TO_ROLES_QUERY = """
-SELECT *
+SELECT privilege, granted_on, name, table_catalog, table_schema, granted_to,
+       grantee_name, grant_option, granted_by, created_on{optional_columns}
 FROM snowflake.account_usage.grants_to_roles
 WHERE deleted_on IS NULL
 """
@@ -101,7 +100,26 @@ def get_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
 @timeit
 def get_grants_to_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
     """Every live grant to a role, or None when ACCOUNT_USAGE is unreadable."""
-    return _run(client, _GRANTS_TO_ROLES_QUERY, "grants from ACCOUNT_USAGE")
+    columns = _run(
+        client,
+        "SHOW COLUMNS IN VIEW snowflake.account_usage.grants_to_roles",
+        "grant columns from ACCOUNT_USAGE",
+    )
+    if columns is None:
+        return None
+    if not columns:
+        warn_unavailable(
+            "grants from ACCOUNT_USAGE", "grant view columns are not visible"
+        )
+        return None
+    has_inherited = any(
+        (to_text(column.get("column_name")) or "").upper() == "IS_INHERITED"
+        for column in columns
+    )
+    statement = _GRANTS_TO_ROLES_QUERY.format(
+        optional_columns=", is_inherited" if has_inherited else ""
+    )
+    return _run(client, statement, "grants from ACCOUNT_USAGE")
 
 
 @timeit
@@ -155,10 +173,10 @@ def split_roles(
 def split_grants(
     grants_to_roles: list[dict[str, Any]],
     grants_to_users: list[dict[str, Any]],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]], int]:
     """Reshape the two grant views into the REST-shaped structures grants.py expects.
 
-    Returns ``(grants_by_role, grants_of_by_role)``:
+    Returns ``(grants_by_role, grants_of_by_role, inherited_count)``:
 
     - ``grants_by_role`` maps a grantee to the privileges it holds, one row per
       privilege, matching ``SHOW GRANTS TO ROLE``. ``grants.transform_grants`` then
@@ -176,10 +194,12 @@ def split_grants(
     grants_by_role: dict[str, list[dict[str, Any]]] = {}
     grants_of_by_role: dict[str, list[dict[str, Any]]] = {}
 
+    inherited_count = 0
     for row in grants_to_roles:
         # Inherited grants target a container's object type, not a named object.
-        # The caller reports incomplete coverage and suppresses grant cleanup.
+        # The caller suppresses object-grant cleanup but can still clean role assignments.
         if to_bool(row.get("is_inherited")):
+            inherited_count += 1
             continue
         raw_grantee = to_text(row.get("grantee_name"))
         privilege = to_text(row.get("privilege"))
@@ -243,7 +263,7 @@ def split_grants(
             },
         )
 
-    return grants_by_role, grants_of_by_role
+    return grants_by_role, grants_of_by_role, inherited_count
 
 
 def _granted_role_name(row: dict[str, Any], granted_on: str, name: str) -> str:
