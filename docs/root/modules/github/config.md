@@ -110,8 +110,9 @@ After GitHub and your identity provider have synced, the ontology module can
 link organization members to existing canonical `User` nodes using email-shaped
 NameIDs. Matching ignores surrounding whitespace and letter case, requires a
 single canonical user across the account's organization identities, and skips
-accounts whose nonempty public or organization verified-domain emails disagree
-with the SAML candidate, even when no email-based account link exists. These
+accounts whose public or organization verified-domain emails identify a different
+canonical user, even when no email-based account link exists. A personal email
+or alias without a competing canonical owner does not contradict the SAML link. These
 emails are normalized during ingestion into `GitHubUser.normalized_emails`;
 raw email properties are preserved. Existing GitHub users need a GitHub resync
 before SAML linking uses this conflict check. The GitHub and ontology syncs use

@@ -506,9 +506,7 @@ def test_empty_nameid_clears_normalized_key_and_account_link(
 
 
 @pytest.mark.parametrize("field", ["email", "organizationVerifiedDomainEmails"])
-@pytest.mark.parametrize(
-    "email", ["bob@example.com", "\u0085BOB@Example.com\u00a0", "unmodeled@example.com"]
-)
+@pytest.mark.parametrize("email", ["bob@example.com", "\u0085BOB@Example.com\u00a0"])
 @patch("cartography.intel.github.util.requests.post")
 def test_saml_conflict_does_not_require_an_existing_email_link(
     mock_post, neo4j_session, field, email
@@ -544,12 +542,16 @@ def test_saml_conflict_does_not_require_an_existing_email_link(
             "email": "\u0085ALICE@Example.com\u00a0",
             "organizationVerifiedDomainEmails": [" ALICE@example.com "],
         },
+        {
+            "email": "personal@example.net",
+            "organizationVerifiedDomainEmails": ["alice@alias.example.com"],
+        },
         {"email": " ", "organizationVerifiedDomainEmails": []},
         {"email": None, "organizationVerifiedDomainEmails": None},
     ],
 )
 @patch("cartography.intel.github.util.requests.post")
-def test_saml_accepts_matching_or_absent_email_evidence(
+def test_saml_accepts_matching_absent_or_unowned_email_evidence(
     mock_post, neo4j_session, fields
 ):
     # Arrange
