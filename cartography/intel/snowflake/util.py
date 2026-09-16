@@ -202,7 +202,7 @@ def _quote_identifier(part: str) -> str:
     is_bare_identifier = (part[:1].isalpha() or part[:1] == "_") and part.replace(
         "_", "A"
     ).replace("$", "A").isalnum()
-    if is_bare_identifier and part.isupper():
+    if part.isascii() and is_bare_identifier and part.isupper():
         return part
     return '"' + part.replace('"', '""') + '"'
 
@@ -219,19 +219,13 @@ def sf_fqn(*parts: str) -> str:
 
 
 def sf_path_segment(name: str) -> str:
-    """Percent-encode a Snowflake object name for use as one REST path segment.
+    """Preserve a stored object's name as one REST identifier path segment.
 
-    A quoted Snowflake identifier may legally contain characters that are
-    structural in a URL, so a name like ``my/db`` or ``prod?1`` interpolated raw
-    would address a different endpoint than intended. Every character outside the
-    unreserved set is escaped, including ``/``, so the name always stays a single
-    segment.
-
-    Deliberately not ``sf_fqn``: the REST path wants the *raw* Snowflake name,
-    not the dotted quoted form. ``sf_fqn`` would embed literal double quotes,
-    which Snowflake answers with a 404 for any database that needs quoting.
+    REST path parameters resolve SQL identifiers, so case-sensitive names need
+    identifier quoting before URL encoding. Escaping slashes keeps the entire
+    identifier in one path segment.
     """
-    return quote(name, safe="")
+    return quote(sf_fqn(name), safe="")
 
 
 def untag_image_path(reference: str | None) -> str | None:

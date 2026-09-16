@@ -14,6 +14,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from cartography.intel.snowflake.network_rules import get_schema_network_rules
 from cartography.intel.snowflake.util import account_host
 from cartography.intel.snowflake.util import hyphenated_account_id
 from cartography.intel.snowflake.util import is_sql_unavailable
@@ -385,22 +386,71 @@ def test_sf_fqn_quotes_only_non_uppercase_identifiers():
     assert sf_fqn("PROD", 'we"ird') == 'PROD."we""ird"'
     # Snowflake requires quoting an identifier that does not start with a letter.
     assert sf_fqn("PROD", "1DB") == 'PROD."1DB"'
+    assert sf_fqn("PROD", "CAFÉ") == 'PROD."CAFÉ"'
     with pytest.raises(ValueError):
         sf_fqn("PROD", "")
 
 
-def test_sf_path_segment_escapes_url_significant_characters():
-    # A plain identifier is left alone, so the common case produces a readable URL.
-    assert sf_path_segment("PROD") == "PROD"
-    assert sf_path_segment("MY_DB$1") == "MY_DB%241"
-    # A quoted Snowflake name may contain characters that are structural in a URL.
-    # Each has to be escaped, or the request addresses a different endpoint.
-    assert sf_path_segment("my/db") == "my%2Fdb"
-    assert sf_path_segment("prod?1") == "prod%3F1"
-    assert sf_path_segment("a b") == "a%20b"
-    assert sf_path_segment("d#1") == "d%231"
-    # Not the dotted quoted form: the REST path wants the raw name.
-    assert sf_path_segment("sales") == "sales"
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("PROD", "PROD"),
+        ("MY_DB$1", "MY_DB%241"),
+        ("example_schema", "%22example_schema%22"),
+        ("ExampleSchema", "%22ExampleSchema%22"),
+        ("my/db", "%22my%2Fdb%22"),
+        ("prod?1", "%22prod%3F1%22"),
+        ("a b", "%22a%20b%22"),
+        ("d#1", "%22d%231%22"),
+        ("a.b", "%22a.b%22"),
+        ('a"b', "%22a%22%22b%22"),
+        ("a%2Fb", "%22a%252Fb%22"),
+        ("1DB", "%221DB%22"),
+        ("CAFÉ", "%22CAF%C3%89%22"),
+    ],
+)
+def test_sf_path_segment_preserves_identifier(name, expected):
+    # Act
+    result = sf_path_segment(name)
+
+    # Assert
+    assert result == expected
+
+
+def test_network_rules_request_preserves_case_and_encoded_pagination():
+    # Arrange
+    requested_paths = []
+    first_path = (
+        "/api/v2/databases/%22ExampleDB%22/schemas/%22example_schema%22/network-rules"
+    )
+    next_path = first_path + "?fromName=a%2Fb"
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requested_paths.append(self.path)
+            if self.path == first_path:
+                _respond_json(
+                    self, [{"name": "RULE_ONE"}], Link=f'<{next_path}>; rel="next"'
+                )
+            elif self.path == next_path:
+                _respond_json(self, [{"name": "RULE_TWO"}])
+            else:
+                self.send_error(404)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act
+        result = get_schema_network_rules(client, "ExampleDB", "example_schema")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert result == [{"name": "RULE_ONE"}, {"name": "RULE_TWO"}]
+    assert requested_paths == [first_path, next_path]
 
 
 def test_hyphenated_account_id_accepts_either_input_form():
