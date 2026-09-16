@@ -1,12 +1,17 @@
+import asyncio
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_base import AuthenticatorBase
 from okta.models.user_factor import UserFactor
 
 import cartography.intel.okta.common  # noqa: F401
+from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
@@ -134,3 +139,63 @@ def test_tac_authenticator_preserves_declared_lowercase_provider_type() -> None:
     assert authenticator is not None
     assert authenticator.provider is not None
     assert authenticator.provider.type == "tac"
+
+
+def _okta_response(next_cursor: str | None) -> SimpleNamespace:
+    """Build a response whose Link header mimics the Okta API's cursor paging."""
+    links = ['<https://example.okta.com/api/v1/users?limit=200>; rel="self"']
+    if next_cursor is not None:
+        links.append(
+            f"<https://example.okta.com/api/v1/users?after={next_cursor}&limit=200>;"
+            ' rel="next"'
+        )
+    return SimpleNamespace(headers={"link": ", ".join(links)})
+
+
+def test_collect_paginated_returns_the_final_page() -> None:
+    # Arrange
+    # The last page carries items but no `next` link, so a reader that stops
+    # before collecting it would silently drop the final page of results.
+    pages = [
+        (["u1", "u2"], _okta_response("CURSOR2"), None),
+        (["u3"], _okta_response(None), None),
+    ]
+    requested_cursors: list[str | None] = []
+
+    async def fake_list(limit: int | None = None, after: str | None = None) -> Any:
+        requested_cursors.append(after)
+        return pages[len(requested_cursors) - 1]
+
+    # Act
+    items = asyncio.run(collect_paginated(fake_list, limit=200))
+
+    # Assert
+    assert items == ["u1", "u2", "u3"]
+    assert requested_cursors == [None, "CURSOR2"]
+
+
+def test_collect_paginated_stops_on_a_page_without_a_next_cursor() -> None:
+    # Arrange
+    calls = 0
+
+    async def fake_list(limit: int | None = None, after: str | None = None) -> Any:
+        nonlocal calls
+        calls += 1
+        return (["only"], _okta_response(None), None)
+
+    # Act
+    items = asyncio.run(collect_paginated(fake_list, limit=200))
+
+    # Assert
+    assert items == ["only"]
+    assert calls == 1
+
+
+def test_collect_paginated_raises_on_an_api_error() -> None:
+    # Arrange
+    async def fake_list(limit: int | None = None, after: str | None = None) -> Any:
+        return (None, None, SimpleNamespace(error_code="E0000007"))
+
+    # Act and assert
+    with pytest.raises(OktaApiError):
+        asyncio.run(collect_paginated(fake_list, limit=200))
