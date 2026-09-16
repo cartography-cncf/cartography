@@ -803,4 +803,9 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
         "name",
         "HAS_PRIVILEGE",
     )
-    assert bool(remaining_privileges) == (has_inherited or not account_grants_complete)
+    expected_privileges = (
+        {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
+        if has_inherited or not account_grants_complete
+        else set()
+    )
+    assert remaining_privileges == expected_privileges

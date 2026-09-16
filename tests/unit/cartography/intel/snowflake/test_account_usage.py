@@ -68,13 +68,25 @@ def test_grant_query_projects_only_supported_columns(mocker, has_inherited):
     )
     statement = client.run_sql.call_args.args[0].lower()
     projection = statement.split("from", 1)[0]
-    assert (
-        "is_inherited" in projection
-        if has_inherited
-        else "is_inherited" not in projection
-    )
-    assert "*" not in projection
-    assert "deleted_on" not in projection
+    projected_columns = {
+        column.strip()
+        for column in projection.strip().removeprefix("select").split(",")
+    }
+    expected_columns = {
+        "privilege",
+        "granted_on",
+        "name",
+        "table_catalog",
+        "table_schema",
+        "granted_to",
+        "grantee_name",
+        "grant_option",
+        "granted_by",
+        "created_on",
+    }
+    if has_inherited:
+        expected_columns.add("is_inherited")
+    assert projected_columns == expected_columns
     assert "where deleted_on is null" in statement
 
 
