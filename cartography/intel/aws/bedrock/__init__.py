@@ -123,10 +123,13 @@ def sync(
     )
 
     # Sync knowledge bases (before agents, since agents can reference KBs)
+    # Melbourne's ListKnowledgeBases endpoint returns InternalServerException,
+    # while ListAgents succeeds. Keep this exclusion specific to knowledge bases.
+    # https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
     knowledge_bases.sync(
         neo4j_session,
         boto3_session,
-        bedrock_agent_regions,
+        [region for region in bedrock_agent_regions if region != "ap-southeast-4"],
         current_aws_account_id,
         update_tag,
         common_job_parameters,

@@ -119,6 +119,7 @@ def transform(raw_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "artifact_name": _flatten_field(artifact.get("name")),
                 "artifact_version": _flatten_field(artifact.get("version")),
                 "artifact_type": _flatten_field(artifact.get("type")),
+                "artifact_namespace": _flatten_field(artifact.get("namespace")) or None,
             },
         )
     return alerts

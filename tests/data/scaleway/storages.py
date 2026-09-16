@@ -116,6 +116,7 @@ SCALEWAY_FILESYSTEMS = [
         organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
         tags=["demo"],
         number_of_attachments=1,
+        filesystem_type_id="fs-type-00000000-0000-0000-0000-000000000001",
         region="fr-par",
         created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
