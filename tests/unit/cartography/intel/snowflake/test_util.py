@@ -54,9 +54,11 @@ def _shutdown(server: ThreadingHTTPServer) -> None:
     server._thread.join()  # type: ignore[attr-defined]
 
 
-def _respond_json(handler: BaseHTTPRequestHandler, payload: object, **headers: str):
+def _respond_json(
+    handler: BaseHTTPRequestHandler, payload: object, status: int = 200, **headers: str
+):
     body = json.dumps(payload).encode()
-    handler.send_response(200)
+    handler.send_response(status)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     for name, value in headers.items():
@@ -224,6 +226,60 @@ def test_run_sql_returns_all_partitions_keyed_by_lowercase_column():
         {"name": "ROLE_ONE", "created_on": "1751412460.000"},
         {"name": "ROLE_TWO", "created_on": "1751412461.000"},
     ]
+
+
+def test_run_sql_polls_statement_status_url_and_reads_all_partitions(mocker):
+    # Arrange
+    requested = []
+    status_url = "/api/v2/statements/handle-sql"
+
+    class Handler(_SqlHandler):
+        def do_POST(self):
+            requested.append(("POST", self.path))
+            _respond_json(self, {"statementStatusUrl": status_url}, status=202)
+
+        def do_GET(self):
+            requested.append(("GET", self.path))
+            if "partition=" in self.path:
+                super().do_GET()
+            elif len(requested) == 2:
+                _respond_json(self, {"statementStatusUrl": status_url}, status=202)
+            else:
+                super().do_POST()
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    mocker.patch("cartography.intel.snowflake.util.time.sleep")
+    try:
+        # Act
+        rows = client.run_sql("SHOW ROLES")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert rows == [
+        {"name": "ROLE_ONE", "created_on": "1751412460.000"},
+        {"name": "ROLE_TWO", "created_on": "1751412461.000"},
+    ]
+    assert requested[0][0] == "POST"
+    assert requested[1:] == [
+        ("GET", status_url),
+        ("GET", status_url),
+        ("GET", status_url + "?partition=1"),
+    ]
+
+
+@pytest.mark.parametrize("body", [b"{}", b"[]", b"not json"])
+def test_async_response_without_polling_url_fails(body):
+    # Arrange
+    response = requests.Response()
+    response.status_code = 202
+    response._content = body
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act and assert
+    with pytest.raises(SnowflakeSqlError, match="cannot poll"):
+        client._await_async(response)
 
 
 def test_run_sql_surfaces_snowflake_error_message():

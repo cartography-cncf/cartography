@@ -42,8 +42,8 @@ _RETRYABLE_STATUS_CODES = (429, 500, 502, 503, 504)
 _JWT_LIFETIME = timedelta(minutes=59)
 _JWT_RENEW_MARGIN = timedelta(minutes=5)
 
-# A request that runs longer than roughly 45 seconds returns 202 + Location
-# instead of a body. Poll that URL until it resolves.
+# Long-running requests return 202 with a polling URL in the Location header
+# (object API) or the statementStatusUrl JSON field (SQL API).
 _ASYNC_POLL_INTERVAL_SECONDS = 2
 _ASYNC_POLL_MAX_SECONDS = 900
 
@@ -465,7 +465,7 @@ class SnowflakeClient:
         return response
 
     def _await_async(self, response: requests.Response) -> requests.Response:
-        """Poll a 202 response's ``Location`` until the result is ready.
+        """Poll an object or SQL API 202 response until the result is ready.
 
         Snowflake answers 202 for any request that outlives its synchronous
         budget (roughly 45 seconds), on both the object and SQL surfaces. The
@@ -474,9 +474,17 @@ class SnowflakeClient:
         """
         location = response.headers.get("Location")
         if not location:
+            try:
+                body = response.json()
+            except ValueError:
+                body = {}
+            location = (
+                body.get("statementStatusUrl") if isinstance(body, dict) else None
+            )
+        if not location:
             raise SnowflakeSqlError(
-                "Snowflake returned 202 without a Location header; cannot poll "
-                "for the result.",
+                "Snowflake returned 202 without a Location header or "
+                "statementStatusUrl; cannot poll for the result.",
             )
         url = self._absolute(location)
         deadline = time.monotonic() + _ASYNC_POLL_MAX_SECONDS
