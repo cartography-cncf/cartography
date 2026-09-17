@@ -718,19 +718,14 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     assert check_nodes(
         neo4j_session, "SnowflakeInheritedGrant", ["object_type", "privilege"]
     ) == {("TABLE", "SELECT"), ("VIEW", "SELECT")}
-    assert (
-        len(
-            check_rels(
-                neo4j_session,
-                "SnowflakeRole",
-                "name",
-                "SnowflakeInheritedGrant",
-                "id",
-                "HAS_INHERITED_GRANT",
-            )
-        )
-        == 2
-    )
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeInheritedGrant",
+        "object_type",
+        "HAS_INHERITED_GRANT",
+    ) == {("SAFETY_INSPECTOR", "TABLE"), ("SAFETY_INSPECTOR", "VIEW")}
     target_id = {
         "ACCOUNT": SNOWFLAKE_ACCOUNT_ID,
         "DATABASE": f"{SNOWFLAKE_ACCOUNT_ID}/database/SPRINGFIELD_DB",
