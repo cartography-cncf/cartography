@@ -63,13 +63,6 @@ _S1_SEVERITY = {
     "Critical": "critical",
 }
 
-# Tenable finding state
-_TENABLE_VULN_STATUS = {
-    "OPEN": "open",
-    "REOPENED": "open",
-    "FIXED": "fixed",
-}
-
 # NVD vulnStatus -> resolution state. NVD's values are analysis-workflow states; all
 # non-rejected ones mean the record is live, so they collapse to "open".
 _NVD_VULN_STATUS = {
@@ -399,26 +392,20 @@ sentinelone_mapping = OntologyMapping(
     ],
 )
 
+# Tenable's vulnerability export names CVEs as bare identifier strings on a plugin
+# and supplies no per-CVE metadata, so :TenableCve carries identity only. Severity
+# and state describe a detection rather than a CVE and stay on :TenableFinding,
+# reachable from the CVE over :HAS_CVE.
 tenable_mapping = OntologyMapping(
     module_name="tenable",
     nodes=[
         OntologyNodeMapping(
-            node_label="TenableFinding",
+            node_label="TenableCve",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="cve_id",
                     node_field="cve_id",
                     required=True,
-                ),
-                OntologyFieldMapping(
-                    ontology_field="base_severity",
-                    node_field="severity",
-                ),
-                OntologyFieldMapping(
-                    ontology_field="vuln_status",
-                    node_field="state",
-                    special_handling="mapping",
-                    extra={"map": _TENABLE_VULN_STATUS},
                 ),
             ],
         ),
