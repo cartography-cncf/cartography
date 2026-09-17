@@ -1,6 +1,7 @@
 import base64
 import binascii
 import json
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -12,6 +13,8 @@ from urllib3 import Retry
 NOTION_API_BASE_URL = "https://api.notion.com/v1"
 NOTION_API_VERSION = "2026-03-11"
 REQUEST_TIMEOUT = (60, 60)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -166,6 +169,34 @@ def _validate_paginated_payload(
     return page_results, has_more, payload.get("next_cursor")
 
 
+def _warn_if_incomplete(payload: dict[str, Any], endpoint: str) -> None:
+    request_status = payload.get("request_status")
+    if request_status is None:
+        return
+    request_status = require_object(
+        request_status,
+        "Notion paginated response request_status",
+    )
+    status_type = require_nonempty_string(
+        request_status.get("type"),
+        "Notion paginated response request_status type",
+    )
+    if status_type == "complete":
+        return
+    if status_type != "incomplete":
+        raise ValueError("Notion paginated response has an unknown request status")
+    reason = optional_string(
+        request_status.get("incomplete_reason"),
+        "Notion paginated response incomplete_reason",
+    )
+    logger.warning(
+        "Notion %s returned an incomplete result set%s; objects omitted by the "
+        "provider will be preserved",
+        endpoint,
+        f" ({reason})" if reason else "",
+    )
+
+
 def post_paginated(
     api_session: requests.Session,
     endpoint: str,
@@ -185,10 +216,12 @@ def post_paginated(
             timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
+        payload = require_object(response.json(), "Notion paginated response")
         page_results, has_more, next_cursor_value = _validate_paginated_payload(
-            response.json(),
+            payload,
             expected_type,
         )
+        _warn_if_incomplete(payload, endpoint)
         yield page_results
 
         if not has_more:

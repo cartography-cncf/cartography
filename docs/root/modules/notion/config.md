@@ -84,9 +84,10 @@ the additional search cost is acceptable. On the connection's **Content
 access** tab, select **Add pages & databases** and choose the desired roots.
 Access is inherited by their children. Search responses are processed in bounded
 batches so high-cardinality workspaces do not require retaining every page
-object in memory. The sync stores page metadata such as title, URL, public URL,
-timestamps, parent ID, and creator. It never stores page body or comment
-content.
+object in memory. If Notion reports that its server-side result limit made a
+search incomplete, Cartography logs a warning and preserves existing pages that
+were omitted. The sync stores page metadata such as title, URL, public URL,
+timestamps, parent ID, and creator. It never stores page body or comment content.
 
 ## Run Cartography
 

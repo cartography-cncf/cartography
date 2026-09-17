@@ -135,6 +135,24 @@ def test_post_paginated_reads_every_page_without_mutating_body():
     assert session.post.call_args_list[1].kwargs["json"]["start_cursor"] == "c2"
 
 
+def test_post_paginated_warns_when_notion_caps_results(caplog):
+    # Arrange
+    session = MagicMock()
+    payload = _list_payload("page_or_data_source", [{"id": "one"}])
+    payload["request_status"] = {
+        "type": "incomplete",
+        "incomplete_reason": "query_result_limit_reached",
+    }
+    session.post.return_value = _response(payload)
+
+    # Act
+    result = list(post_paginated(session, "search", {}, "page_or_data_source"))
+
+    # Assert
+    assert result == [[{"id": "one"}]]
+    assert "incomplete result set (query_result_limit_reached)" in caplog.text
+
+
 @pytest.mark.parametrize(
     "payloads",
     [
@@ -166,6 +184,12 @@ def test_get_paginated_rejects_malformed_or_nonprogressing_responses(payloads):
         [{"results": {}, "has_more": False}],
         [_list_payload("page_or_data_source", {}, False)],
         [_list_payload("page_or_data_source", [], "false")],
+        [
+            {
+                **_list_payload("page_or_data_source", []),
+                "request_status": {"type": "unknown"},
+            },
+        ],
         [_list_payload("page_or_data_source", [], True, None)],
         [
             _list_payload("page_or_data_source", [], True, "same"),
