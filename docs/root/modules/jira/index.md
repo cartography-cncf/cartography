@@ -9,6 +9,10 @@ Visible email addresses can link these accounts to canonical users with
 `--selected-modules jira,ontology --ontology-users-source jira`. Hidden email
 addresses are left absent; the module does not infer them from names.
 `JiraTenant` carries the `Tenant` ontology label.
+Atlassian's inactive, corrupted deleted-user records with account ID `unknown`
+are omitted. References to these tombstones remain unlinked; their permission
+grant facts are retained. Missing identifiers or unavailable user profiles
+still abort the snapshot.
 
 ## Access facts and coverage
 

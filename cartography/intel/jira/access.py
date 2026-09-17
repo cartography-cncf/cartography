@@ -79,6 +79,18 @@ def resource_id(tenant_id: str, kind: str, *parts: Any) -> str:
     return ":".join([tenant_id, kind, *(quote(str(p), safe="") for p in parts)])
 
 
+def _is_deleted_user(user: dict[str, Any]) -> bool:
+    # Jira documents "unknown" as a corrupted deleted-user tombstone. An
+    # unavailable/current profile must still fail rather than permit cleanup.
+    if user["accountId"] != "unknown":
+        return False
+    if user.get("active") is not False:
+        raise ValueError(
+            "Jira returned an unavailable user without a stable identifier"
+        )
+    return True
+
+
 @timeit
 def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
     groups = {g["groupId"]: g for g in raw["groups"]}
@@ -88,10 +100,12 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             # A concurrent group change makes this snapshot unsafe to clean up.
             admin_types[group["groupId"]].append(access)
     group_names = {g["name"]: g["groupId"] for g in groups.values()}
-    users = {u["accountId"]: dict(u) for u in raw["users"]}
+    users = {u["accountId"]: dict(u) for u in raw["users"] if not _is_deleted_user(u)}
     user_groups: dict[str, list[str]] = {}
     for group_id, members in raw["memberships"].items():
         for user in members:
+            if _is_deleted_user(user):
+                continue
             account_id = user["accountId"]
             users.setdefault(account_id, {}).update(user)
             user_groups.setdefault(account_id, []).append(
@@ -103,6 +117,8 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
     for project in raw["projects"]:
         project_id = resource_id(tenant_id, "project", project["id"])
         lead = project.get("lead")
+        if lead is not None and _is_deleted_user(lead):
+            lead = None
         if lead:
             users.setdefault(lead["accountId"], {}).update(lead)
         scheme_id = project.get("permission_scheme_id")
@@ -127,6 +143,8 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             for actor in role["actors"]:
                 if actor["type"] == "atlassian-user-role-actor":
                     account_id = actor["actorUser"]["accountId"]
+                    if account_id == "unknown":
+                        continue
                     users.setdefault(
                         account_id,
                         {
@@ -163,7 +181,7 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             holder_type = holder["type"]
             value = holder.get("value") or holder.get("parameter")
             user_id = group_id = role_id = None
-            if holder_type == "user":
+            if holder_type == "user" and value != "unknown":
                 users.setdefault(value, {"accountId": value})
                 user_id = resource_id(tenant_id, "user", value)
             elif holder_type == "group":

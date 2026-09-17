@@ -205,3 +205,70 @@ def test_renamed_group_resolves_by_stable_id_and_empty_group_stays_conditional()
     assert data["grants"][1]["group_id"] == resource_id(CLOUD_ID, "group", "group-2")
     assert data["grants"][-1]["group_id"] is None
     assert data["users"][1]["email"] is None
+
+
+@pytest.mark.parametrize(
+    "user",
+    [
+        {},
+        {"accountId": ""},
+        {"accountId": None},
+        {"accountId": "unknown"},
+        {"accountId": "unknown", "active": True},
+    ],
+)
+@pytest.mark.parametrize("source", ["users", "membership", "lead"])
+def test_unavailable_user_profiles_remain_fatal(user, source):
+    # Arrange
+    raw = {
+        "groups": [],
+        "admin_groups": {},
+        "users": [],
+        "memberships": {},
+        "projects": [],
+        "roles": {"1": []},
+        "schemes": {},
+        "info": {"baseUrl": "https://example.atlassian.net"},
+    }
+    if source == "users":
+        raw["users"] = [user]
+    elif source == "membership":
+        raw["memberships"] = {"group-1": [user]}
+    else:
+        raw["projects"] = [{"id": "1", "key": "EX", "name": "Example", "lead": user}]
+    # Act and assert
+    with pytest.raises((KeyError, ValueError)):
+        transform(raw, CLOUD_ID)
+
+
+@pytest.mark.parametrize("reference", [{}, {"accountId": ""}, {"accountId": None}])
+@pytest.mark.parametrize("source", ["role", "grant"])
+def test_missing_user_references_remain_fatal(reference, source):
+    # Arrange
+    actors = []
+    grants = []
+    if source == "role":
+        actors.append({"type": "atlassian-user-role-actor", "actorUser": reference})
+    else:
+        grants.append(
+            {
+                "id": 1,
+                "permission": "BROWSE_PROJECTS",
+                "holder": {"type": "user", "parameter": reference.get("accountId")},
+            }
+        )
+    raw = {
+        "groups": [],
+        "admin_groups": {},
+        "users": [],
+        "memberships": {},
+        "projects": [
+            {"id": "1", "key": "EX", "name": "Example", "permission_scheme_id": "1"}
+        ],
+        "roles": {"1": [{"id": 10, "name": "Example role", "actors": actors}]},
+        "schemes": {"1": {"permissions": grants}},
+        "info": {"baseUrl": "https://example.atlassian.net"},
+    }
+    # Act and assert
+    with pytest.raises((KeyError, ValueError)):
+        transform(raw, CLOUD_ID)

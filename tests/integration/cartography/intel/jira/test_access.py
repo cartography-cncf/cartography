@@ -229,3 +229,87 @@ def test_late_api_failure_preserves_entire_previous_snapshot(neo4j_session):
         ).single()["count"]
         == 0
     )
+
+
+def test_deleted_user_tombstones_leave_references_unlinked(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    client, state = api_client()
+    sync(neo4j_session, client, 1)
+    tombstone = {"accountId": "unknown", "active": False, "displayName": "Former user"}
+    state["users"].append(tombstone)
+    state["memberships"]["group-1"].append(tombstone)
+    state["projects"][0]["lead"] = tombstone
+    state["responses"]["project/100/role/10"]["actors"].append(
+        {"type": "atlassian-user-role-actor", "actorUser": {"accountId": "unknown"}}
+    )
+    state["responses"]["permissionscheme/500"]["permissions"][2]["holder"][
+        "parameter"
+    ] = "unknown"
+    state["responses"]["permissionscheme/500"]["permissions"].extend(
+        [
+            {
+                "id": 5,
+                "permission": "BROWSE_PROJECTS",
+                "holder": {"type": "user", "parameter": "user-1"},
+            },
+            {
+                "id": 6,
+                "permission": "ADMINISTER_PROJECTS",
+                "holder": {"type": "projectLead"},
+            },
+        ]
+    )
+    # Act
+    sync(neo4j_session, client, 2)
+    # Assert
+    assert check_nodes(neo4j_session, "JiraUser", ["account_id", "lastupdated"]) == {
+        ("user-1", 2),
+        ("user-2", 2),
+    }
+    assert check_nodes(neo4j_session, "JiraProject", ["project_id", "lastupdated"]) == {
+        ("100", 2),
+        ("200", 2),
+    }
+    assert check_rels(
+        neo4j_session,
+        "JiraUser",
+        "account_id",
+        "JiraGroup",
+        "group_id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {("user-1", "group-1"), ("user-1", "group-2"), ("user-2", "group-1")}
+    assert check_rels(
+        neo4j_session,
+        "JiraUser",
+        "account_id",
+        "JiraProjectRole",
+        "role_id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {("user-1", "10")}
+    assert (
+        check_rels(
+            neo4j_session,
+            "JiraUser",
+            "account_id",
+            "JiraProject",
+            "project_id",
+            "LEADS",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert check_nodes(neo4j_session, "JiraPermissionGrant", ["grant_id"]) == {
+        (str(i),) for i in range(1, 7)
+    }
+    assert check_rels(
+        neo4j_session,
+        "JiraUser",
+        "account_id",
+        "JiraPermissionGrant",
+        "grant_id",
+        "HAS_PERMISSION",
+        rel_direction_right=True,
+    ) == {("user-1", "5")}
