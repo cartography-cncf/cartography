@@ -121,19 +121,28 @@ def get_grants_to_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
             detail = cause.response.json()
         except ValueError:
             raise error
-        if (
-            not isinstance(detail, dict)
-            or str(detail.get("code")).zfill(6) != "000904"
-            or not re.search(
-                r"invalid identifier 'IS_INHERITED'",
-                str(detail.get("message", "")),
-                re.IGNORECASE,
-            )
-        ):
+        if not isinstance(detail, dict) or str(detail.get("code")).zfill(6) != "000904":
             raise
+        missing = re.search(
+            r"invalid identifier '(IS_INHERITED|INHERITED_FROM)'",
+            str(detail.get("message", "")),
+            re.IGNORECASE,
+        )
+        if not missing:
+            raise
+        if missing[1].upper() == "IS_INHERITED":
+            optional = ""
+        else:
+            # Some preview accounts expose the source account instead of a scope enum.
+            optional = """, is_inherited,
+                CASE WHEN inherited_from_schema IS NOT NULL THEN 'SCHEMA'
+                     WHEN inherited_from_database IS NOT NULL THEN 'DATABASE'
+                     WHEN inherited_from_account IS NOT NULL THEN 'ACCOUNT'
+                END AS inherited_from,
+                inherited_from_database, inherited_from_schema"""
     return _run(
         client,
-        _GRANTS_TO_ROLES_QUERY.format(optional_columns=""),
+        _GRANTS_TO_ROLES_QUERY.format(optional_columns=optional),
         "grants from ACCOUNT_USAGE",
     )
 

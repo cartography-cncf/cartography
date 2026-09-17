@@ -143,6 +143,47 @@ def test_unreadable_grant_view_still_reports_incomplete(mocker):
     assert client.run_sql.call_count == 1
 
 
+def test_grant_query_supports_source_account_preview_layout(mocker):
+    # Arrange
+    client = mocker.Mock()
+    rows = [{"is_inherited": True, "inherited_from": "ACCOUNT"}]
+    client.run_sql.side_effect = [
+        _sql_error("SQL compilation error: invalid identifier 'INHERITED_FROM'"),
+        rows,
+    ]
+
+    # Act
+    result = get_grants_to_roles(client)
+
+    # Assert
+    assert result == rows
+    assert client.run_sql.call_count == 2
+    statement = " ".join(client.run_sql.call_args.args[0].lower().split())
+    assert "is_inherited," in statement
+    assert (
+        "case when inherited_from_schema is not null then 'schema' "
+        "when inherited_from_database is not null then 'database' "
+        "when inherited_from_account is not null then 'account' "
+        "end as inherited_from" in statement
+    )
+    assert "inherited_from_database, inherited_from_schema from" in statement
+    assert "*" not in statement
+
+
+def test_missing_preview_scope_columns_does_not_drop_inheritance(mocker):
+    # Arrange
+    client = mocker.Mock()
+    client.run_sql.side_effect = [
+        _sql_error("invalid identifier 'INHERITED_FROM'"),
+        _sql_error("invalid identifier 'INHERITED_FROM_ACCOUNT'"),
+    ]
+
+    # Act and assert
+    with pytest.raises(SnowflakeSqlError):
+        get_grants_to_roles(client)
+    assert client.run_sql.call_count == 2
+
+
 @pytest.mark.parametrize("kind", ["ROLE", "DATABASE_ROLE"])
 def test_inherited_flag_does_not_drop_role_hierarchy(kind):
     # Arrange
