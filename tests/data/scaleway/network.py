@@ -25,6 +25,8 @@ SCALEWAY_VPCS = [
         private_network_count=1,
         routing_enabled=True,
         custom_routes_propagation_enabled=False,
+        transitivity_enabled=False,
+        object_storage_private_access_enabled=False,
         created_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
     )
@@ -41,6 +43,7 @@ SCALEWAY_PRIVATE_NETWORKS = [
         vpc_id=TEST_VPC_ID,
         dhcp_enabled=True,
         default_route_propagation_enabled=True,
+        has_object_storage_private_access=False,
         created_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         subnets=[
@@ -50,6 +53,7 @@ SCALEWAY_PRIVATE_NETWORKS = [
                 project_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
                 private_network_id=TEST_PRIVATE_NETWORK_ID,
                 vpc_id=TEST_VPC_ID,
+                region="fr-par",
                 created_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
                 updated_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
             ),
