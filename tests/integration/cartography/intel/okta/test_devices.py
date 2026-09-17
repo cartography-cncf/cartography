@@ -1,11 +1,14 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from okta.models.device_list import DeviceList
 
 import cartography.intel.okta.devices
 import cartography.intel.ontology.devices
+from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.devices import DEVICES
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -162,3 +165,62 @@ def test_okta_device_ontology_links(mock_get_devices, neo4j_session) -> None:
         "OWNS",
         rel_direction_right=True,
     ) == {("alice@example.com", "SERIAL-001")}
+
+
+@patch.object(
+    cartography.intel.okta.devices,
+    "_get_okta_devices",
+    new_callable=AsyncMock,
+)
+def test_sync_okta_devices_skips_insufficient_permissions(
+    mock_get_devices, neo4j_session
+) -> None:
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    mock_get_devices.side_effect = OktaApiError(
+        "list_devices",
+        SimpleNamespace(error_code="E0000006"),
+    )
+    neo4j_session.run(
+        """
+        MERGE (org:OktaOrganization {id: $org_id})
+        SET org.lastupdated = $update_tag
+        MERGE (org)-[:RESOURCE]->(stale:OktaDevice {id: 'stale-device'})
+        SET stale.lastupdated = 1
+        """,
+        org_id=TEST_ORG_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.okta.devices.sync_okta_devices(
+        MagicMock(),
+        neo4j_session,
+        _common_job_parameters(),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OktaDevice", ["id"]) == {("stale-device",)}
+
+
+@patch.object(
+    cartography.intel.okta.devices,
+    "_get_okta_devices",
+    new_callable=AsyncMock,
+)
+def test_sync_okta_devices_reraises_other_api_errors(
+    mock_get_devices, neo4j_session
+) -> None:
+    # Arrange
+    mock_get_devices.side_effect = OktaApiError(
+        "list_devices",
+        SimpleNamespace(error_code="E0000007"),
+    )
+
+    # Act and assert
+    with pytest.raises(OktaApiError):
+        cartography.intel.okta.devices.sync_okta_devices(
+            MagicMock(),
+            neo4j_session,
+            _common_job_parameters(),
+        )

@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.device import OktaDeviceSchema
 from cartography.models.okta.device import OktaUserOwnsDeviceRel
 from cartography.util import timeit
@@ -156,7 +157,17 @@ def sync_okta_devices(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Syncing Okta devices")
-    raw_devices = asyncio.run(_get_okta_devices(okta_client))
+    try:
+        raw_devices = asyncio.run(_get_okta_devices(okta_client))
+    except OktaApiError as exc:
+        # Device listing requires okta.devices.read. Existing tokens often lack
+        # it; skip this sub-sync so the rest of Okta ingestion still runs.
+        if exc.error_code == "E0000006":
+            logger.warning(
+                "Unable to sync Okta devices - api token needs okta.devices.read",
+            )
+            return
+        raise
     devices, user_relationships = _transform_okta_devices(raw_devices)
     _load_okta_devices(neo4j_session, devices, common_job_parameters)
     _load_okta_user_device_relationships(
