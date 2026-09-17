@@ -59,6 +59,7 @@ def test_zoom_preserves_existing_positional_config_arguments() -> None:
     # Arrange: construct the positional argument list available before Zoom.
     parameters = inspect.signature(Config).parameters
     names = [name for name in parameters if not name.startswith("zoom_")]
+    names = names[: names.index("orca_api_token") + 1]
     args = [parameters[name].default for name in names]
     args[0] = "bolt://localhost:7687"
     args[names.index("jumpcloud_api_key")] = "legacy-api-key"
