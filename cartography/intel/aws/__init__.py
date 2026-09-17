@@ -10,10 +10,8 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Mapping
+from typing import TYPE_CHECKING
 
-import aioboto3
-import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP
@@ -27,11 +25,6 @@ from cartography.analysis.aws.analysis import AWS_LAMBDA_ECR
 from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
-from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
-from cartography.intel.aws.util.botocore_config import create_boto3_client
-from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
-from cartography.intel.aws.util.common import parse_and_validate_aws_regions
-from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
@@ -39,11 +32,40 @@ from cartography.util import run_cleanup_job
 from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
 
-from . import ec2
-from . import organizations
-from . import ssm as ssm_intel
-from .resources import RESOURCE_FUNCTIONS
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    import aioboto3
+    import boto3
+
+    from cartography.intel.aws import organizations
+else:
+    aioboto3 = lazy_import("aioboto3")
+    boto3 = lazy_import("boto3")
+    organizations = lazy_import("cartography.intel.aws.organizations")
+
+aws_resources = lazy_import("cartography.intel.aws.resources")
+botocore_exceptions = lazy_import("botocore.exceptions")
+create_boto3_client = lazy_callable(
+    "cartography.intel.aws.util.botocore_config", "create_boto3_client"
+)
+ec2 = lazy_import("cartography.intel.aws.ec2")
+migrate_legacy_aws_labels = lazy_callable(
+    "cartography.intel.aws.label_migrations", "migrate_legacy_aws_labels"
+)
+parse_and_validate_aws_account_ids = lazy_callable(
+    "cartography.intel.aws.util.common", "parse_and_validate_aws_account_ids"
+)
+parse_and_validate_aws_regions = lazy_callable(
+    "cartography.intel.aws.util.common", "parse_and_validate_aws_regions"
+)
+parse_and_validate_aws_requested_syncs = lazy_callable(
+    "cartography.intel.aws.util.common", "parse_and_validate_aws_requested_syncs"
+)
+ssm_intel = lazy_import("cartography.intel.aws.ssm")
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
@@ -55,7 +77,7 @@ class AWSOrganizationDiscoveryCandidate:
     account_id: str
     organization_id: str | None = None
     management_account_id: str | None = None
-    result: organizations.AWSOrganizationSyncResult | None = None
+    result: "organizations.AWSOrganizationSyncResult | None" = None
 
 
 # DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
@@ -83,7 +105,7 @@ def _normalize_requested_syncs(aws_requested_syncs: Iterable[str]) -> list[str]:
 
 def _build_aws_sync_kwargs(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: "boto3.session.Session",
     regions: List[str],
     current_aws_account_id: str,
     sync_tag: int,
@@ -101,15 +123,18 @@ def _build_aws_sync_kwargs(
 
 def _sync_one_account(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
-    aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
-    aioboto3_session: aioboto3.Session | None = None,
-    aioboto3_session_factory: Callable[[], aioboto3.Session] | None = None,
+    aws_requested_syncs: Iterable[str] | None = None,
+    aioboto3_session: "aioboto3.Session | None" = None,
+    aioboto3_session_factory: Callable[[], "aioboto3.Session"] | None = None,
 ) -> None:
+    if aws_requested_syncs is None:
+        aws_requested_syncs = aws_resources.RESOURCE_FUNCTIONS.keys()
+
     migrate_legacy_aws_labels(neo4j_session, current_aws_account_id)
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
@@ -129,7 +154,7 @@ def _sync_one_account(
 
     # Validate that all requested syncs exist
     requested_syncs_set = set(aws_requested_syncs)
-    invalid_syncs = requested_syncs_set - set(RESOURCE_FUNCTIONS.keys())
+    invalid_syncs = requested_syncs_set - set(aws_resources.RESOURCE_FUNCTIONS.keys())
     if invalid_syncs:
         raise ValueError(
             f"AWS sync function(s) {invalid_syncs} were specified but do not exist. Did you misspell them?",
@@ -187,7 +212,7 @@ def _sync_one_account(
 
     # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
     # Skip modules not in the user's requested list
-    for func_name in RESOURCE_FUNCTIONS:
+    for func_name in aws_resources.RESOURCE_FUNCTIONS:
         if func_name not in requested_syncs_set:
             continue
         # Skip permission relationships and tags for now because they rely on data already being in the graph
@@ -197,7 +222,7 @@ def _sync_one_account(
                 aioboto3_session_factory = aioboto3_session_factory or aioboto3.Session
                 aioboto3_session = aioboto3_session_factory()
 
-            RESOURCE_FUNCTIONS[func_name](
+            aws_resources.RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,
                 aioboto3_session,
                 regions,
@@ -209,15 +234,15 @@ def _sync_one_account(
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
         else:
-            RESOURCE_FUNCTIONS[func_name](**sync_args)
+            aws_resources.RESOURCE_FUNCTIONS[func_name](**sync_args)
 
     # MAP IAM permissions
     if "permission_relationships" in aws_requested_syncs:
-        RESOURCE_FUNCTIONS["permission_relationships"](**sync_args)
+        aws_resources.RESOURCE_FUNCTIONS["permission_relationships"](**sync_args)
 
     # AWS Tags - Must always be last.
     if "resourcegroupstaggingapi" in aws_requested_syncs:
-        RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
+        aws_resources.RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
     run_typed_analysis_and_ensure_deps(
         AWS_EC2_IAM_INSTANCE_PROFILE,
@@ -253,13 +278,13 @@ def _sync_one_account(
 
 
 def _autodiscover_account_regions(
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
     account_id: str,
 ) -> List[str]:
     regions: List[str] = []
     try:
         regions = ec2.get_ec2_regions(boto3_session)
-    except botocore.exceptions.ClientError as e:
+    except botocore_exceptions.ClientError as e:
         logger.debug("Error occurred getting EC2 regions.", exc_info=True)
         logger.error(
             (
@@ -284,9 +309,9 @@ def _resolve_aws_ssm_public_parameter_prefix_allowlist(
 
 
 def _get_boto3_session_for_profile(
-    default_boto3_session: boto3.Session,
+    default_boto3_session: "boto3.Session",
     profile_name: str | None,
-) -> boto3.Session:
+) -> "boto3.Session":
     if profile_name in {None, "default"}:
         return default_boto3_session
     return boto3.Session(profile_name=profile_name)
@@ -294,7 +319,7 @@ def _get_boto3_session_for_profile(
 
 def _sync_shared_public_ssm_parameters(
     neo4j_session: neo4j.Session,
-    default_boto3_session: boto3.Session,
+    default_boto3_session: "boto3.Session",
     aws_accounts: Mapping[str, str],
     requested_syncs: List[str],
     common_job_parameters: Dict[str, Any],
@@ -313,7 +338,7 @@ def _sync_shared_public_ssm_parameters(
         )
         return
 
-    region_session_candidates: dict[str, list[boto3.Session]] = {}
+    region_session_candidates: dict[str, list["boto3.Session"]] = {}
     all_profiles_prepared = True
     for profile_name, account_id in aws_accounts.items():
         try:
@@ -325,7 +350,10 @@ def _sync_shared_public_ssm_parameters(
                 boto3_session,
                 account_id,
             )
-        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError):
+        except (
+            botocore_exceptions.BotoCoreError,
+            botocore_exceptions.ClientError,
+        ):
             if not aws_best_effort_mode:
                 raise
             logger.warning(
@@ -349,11 +377,11 @@ def _sync_shared_public_ssm_parameters(
 
 def _sync_aws_organization_for_account(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.Session,
+    boto3_session: "boto3.Session",
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
-) -> organizations.AWSOrganizationSyncResult:
+) -> "organizations.AWSOrganizationSyncResult":
     logger.info("Trying to sync AWS Organizations hierarchy.")
     try:
         client = create_boto3_client(boto3_session, "organizations")
@@ -364,7 +392,7 @@ def _sync_aws_organization_for_account(
             sync_tag,
             common_job_parameters,
         )
-    except botocore.exceptions.ClientError as e:
+    except botocore_exceptions.ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
         if error_code == "AWSOrganizationsNotInUseException":
             logger.info(
@@ -406,7 +434,7 @@ def _discover_aws_organization_candidate(
         client = create_boto3_client(boto3_session, "organizations")
         response = client.describe_organization()
         organization = response["Organization"]
-    except botocore.exceptions.ClientError as e:
+    except botocore_exceptions.ClientError as e:
         result = organizations.get_aws_organization_sync_result_from_client_error(
             account_id,
             e,
@@ -473,7 +501,7 @@ def _discover_aws_organization_candidates(
 def _group_aws_organization_candidates(
     candidates: Iterable[AWSOrganizationDiscoveryCandidate],
 ) -> tuple[
-    list[organizations.AWSOrganizationSyncResult],
+    "list[organizations.AWSOrganizationSyncResult]",
     dict[str, list[AWSOrganizationDiscoveryCandidate]],
 ]:
     results: list[organizations.AWSOrganizationSyncResult] = []
@@ -496,7 +524,7 @@ def _sync_aws_organization_candidate_groups(
     sync_tag: int,
     common_job_parameters: Dict[str, Any],
     use_explicit_profile: bool,
-) -> list[organizations.AWSOrganizationSyncResult]:
+) -> "list[organizations.AWSOrganizationSyncResult]":
     results: list[organizations.AWSOrganizationSyncResult] = []
     for organization_id, organization_candidates in candidates_by_organization.items():
         organization_candidates.sort(
@@ -537,7 +565,7 @@ def _sync_explicit_aws_organization_accounts(
     common_job_parameters: Dict[str, Any],
     organization_account_ids: Iterable[str],
     use_explicit_profile: bool = False,
-) -> list[organizations.AWSOrganizationSyncResult]:
+) -> "list[organizations.AWSOrganizationSyncResult]":
     account_ids = set(organization_account_ids)
     candidate_accounts = {
         profile_name: account_id
@@ -578,7 +606,7 @@ def _sync_aws_organizations_for_accounts(
     common_job_parameters: Dict[str, Any],
     organization_account_ids: Iterable[str] | None = None,
     use_explicit_profile: bool = False,
-) -> list[organizations.AWSOrganizationSyncResult]:
+) -> "list[organizations.AWSOrganizationSyncResult]":
     """
     Discover AWS Organizations before per-account resource sync.
 
@@ -824,12 +852,6 @@ def _perform_aws_analysis(
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    aws_ssm_public_parameter_prefix_allowlist = (
-        _resolve_aws_ssm_public_parameter_prefix_allowlist(
-            config.aws_ssm_public_parameter_prefix_allowlist,
-            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
-        )
-    )
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
@@ -837,11 +859,10 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
-        "aws_ssm_public_parameter_prefix_allowlist": aws_ssm_public_parameter_prefix_allowlist,
     }
     try:
         boto3_session = boto3.Session()
-    except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
+    except (botocore_exceptions.BotoCoreError, botocore_exceptions.ClientError) as e:
         logger.debug("Error occurred calling boto3.Session().", exc_info=True)
         logger.error(
             (
@@ -874,7 +895,17 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             ),
         )
 
-    requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
+    # Resolved here rather than at the top of the function because falling back to the
+    # default reaches into cartography.intel.aws.ssm, and a run with no AWS credentials
+    # should not import it.
+    common_job_parameters["aws_ssm_public_parameter_prefix_allowlist"] = (
+        _resolve_aws_ssm_public_parameter_prefix_allowlist(
+            config.aws_ssm_public_parameter_prefix_allowlist,
+            os.getenv("AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST"),
+        )
+    )
+
+    requested_syncs: List[str] = list(aws_resources.RESOURCE_FUNCTIONS.keys())
     if config.aws_requested_syncs:
         requested_syncs = parse_and_validate_aws_requested_syncs(
             config.aws_requested_syncs,

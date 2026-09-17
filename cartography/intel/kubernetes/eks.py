@@ -15,8 +15,8 @@ from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.groups import KubernetesGroupSchema
 from cartography.models.kubernetes.oidc import KubernetesOIDCProviderSchema
 from cartography.models.kubernetes.users import KubernetesUserSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 

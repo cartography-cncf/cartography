@@ -14,10 +14,10 @@ from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
-from cartography.util import aws_handle_regions
 from cartography.util import timeit
-from cartography.util import to_asynchronous
-from cartography.util import to_synchronous
+from cartography.util.aws import aws_handle_regions
+from cartography.util.aws import to_asynchronous
+from cartography.util.aws import to_synchronous
 
 logger = logging.getLogger(__name__)
 

@@ -2,6 +2,13 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography
+import cartography.intel.aws.ec2.network_acls
+import cartography.intel.aws.ec2.route_tables
+import cartography.intel.aws.ec2.security_groups
+import cartography.intel.aws.ec2.subnets
+import cartography.intel.aws.ec2.vpc
+import cartography.intel.aws.ec2.vpc_peerings
+import cartography.intel.aws.redshift
 from cartography.intel.aws.ec2.network_acls import sync_network_acls
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from cartography.intel.aws.ec2.security_groups import sync_ec2_security_groupinfo

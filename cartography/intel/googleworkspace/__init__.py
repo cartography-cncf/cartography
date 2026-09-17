@@ -3,24 +3,32 @@ import json
 import logging
 import os
 from collections import namedtuple
+from typing import TYPE_CHECKING
 
-import googleapiclient.discovery
 import neo4j
-from google.auth import default
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.transport.requests import Request
-from google.oauth2 import credentials
-from google.oauth2 import service_account
-from google.oauth2.credentials import Credentials as OAuth2Credentials
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from cartography.config import Config
-from cartography.intel.googleworkspace import devices
-from cartography.intel.googleworkspace import groups
-from cartography.intel.googleworkspace import oauth_apps
-from cartography.intel.googleworkspace import tenant
-from cartography.intel.googleworkspace import users
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+if TYPE_CHECKING:
+    from google.oauth2.credentials import Credentials as OAuth2Credentials
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+default = lazy_callable("google.auth", "default")
+google_auth_exceptions = lazy_import("google.auth.exceptions")
+discovery = lazy_import("googleapiclient.discovery")
+credentials = lazy_import("google.oauth2.credentials")
+service_account = lazy_import("google.oauth2.service_account")
+Request = lazy_callable("google.auth.transport.requests", "Request")
+devices = lazy_import("cartography.intel.googleworkspace.devices")
+groups = lazy_import("cartography.intel.googleworkspace.groups")
+oauth_apps = lazy_import("cartography.intel.googleworkspace.oauth_apps")
+tenant = lazy_import("cartography.intel.googleworkspace.tenant")
+users = lazy_import("cartography.intel.googleworkspace.users")
 
 OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
@@ -36,7 +44,7 @@ Resources = namedtuple("Resources", ["admin", "cloudidentity"])
 
 
 def _initialize_resources(
-    creds: OAuth2Credentials | ServiceAccountCredentials,
+    creds: "OAuth2Credentials | ServiceAccountCredentials",
 ) -> Resources:
     """
     Create namedtuple of all resource objects necessary for Google API data gathering.
@@ -45,13 +53,13 @@ def _initialize_resources(
     """
 
     return Resources(
-        googleapiclient.discovery.build(
+        discovery.build(
             "admin",
             "directory_v1",
             credentials=creds,
             cache_discovery=False,
         ),
-        googleapiclient.discovery.build(
+        discovery.build(
             "cloudidentity",
             "v1",
             credentials=creds,
@@ -75,7 +83,7 @@ def start_googleworkspace_ingestion(
         "UPDATE_TAG": config.update_tag,
     }
 
-    creds: OAuth2Credentials | ServiceAccountCredentials
+    creds: "OAuth2Credentials | ServiceAccountCredentials"
     if config.googleworkspace_auth_method == "delegated":  # Legacy delegated method
         if config.googleworkspace_config is None or not os.path.isfile(
             config.googleworkspace_config
@@ -97,7 +105,7 @@ def start_googleworkspace_ingestion(
             )
             creds = creds.with_subject(os.environ.get("GOOGLE_DELEGATED_ADMIN"))
 
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize Google Workspace creds. If you don't have Google Workspace data or don't want to load "
@@ -128,7 +136,7 @@ def start_googleworkspace_ingestion(
                 scopes=oauth_scopes,
             )
             creds.refresh(Request())
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize Google Workspace creds. If you don't have Google Workspace data or don't want to load "
@@ -145,7 +153,7 @@ def start_googleworkspace_ingestion(
         )
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize Google Workspace creds using default credentials. If you don't have Google Workspace data or "
