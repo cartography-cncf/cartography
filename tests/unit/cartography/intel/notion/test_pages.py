@@ -56,7 +56,11 @@ def test_transform_records_explicitly_unpublished_pages():
         {**PUBLIC_PAGE, "created_by": []},
         {**PUBLIC_PAGE, "created_by": {"object": "user", "id": ""}},
         {**PUBLIC_PAGE, "parent": []},
+        {**PUBLIC_PAGE, "parent": {"type": "page_id", "page_id": []}},
         {**PUBLIC_PAGE, "properties": []},
+        {**PUBLIC_PAGE, "created_time": []},
+        {**PUBLIC_PAGE, "url": []},
+        {**PUBLIC_PAGE, "in_trash": None},
         {**PUBLIC_PAGE, "is_locked": None},
     ],
 )

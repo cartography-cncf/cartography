@@ -20,6 +20,32 @@ class NotionWorkspaceConfig:
     sync_public_pages: bool
 
 
+def require_object(value: Any, field: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{field} must be an object")
+    return value
+
+
+def require_nonempty_string(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a non-empty string")
+    return value
+
+
+def optional_string(value: Any, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string or null")
+    return value
+
+
+def require_boolean(value: Any, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be a boolean")
+    return value
+
+
 def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
     try:
         decoded = base64.b64decode(encoded_config, validate=True).decode("utf-8")
@@ -27,8 +53,7 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
     except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("Notion config must be valid base64-encoded JSON") from error
 
-    if not isinstance(config, dict):
-        raise ValueError("Notion config must be a JSON object")
+    config = require_object(config, "Notion config")
     workspaces = config.get("workspaces")
     if not isinstance(workspaces, list) or not workspaces:
         raise ValueError("Notion config must contain a non-empty workspaces list")
@@ -36,23 +61,21 @@ def parse_config(encoded_config: str) -> list[NotionWorkspaceConfig]:
     parsed: list[NotionWorkspaceConfig] = []
     seen_tokens: set[str] = set()
     for workspace in workspaces:
-        if not isinstance(workspace, dict):
-            raise ValueError("Each Notion workspace config must be a JSON object")
-        api_token = workspace.get("api_token")
-        if not isinstance(api_token, str) or not api_token.strip():
-            raise ValueError(
-                "Notion workspace config field 'api_token' must be a non-empty string"
-            )
+        workspace = require_object(workspace, "Notion workspace config")
+        api_token = require_nonempty_string(
+            workspace.get("api_token"),
+            "Notion workspace config field 'api_token'",
+        )
         api_token = api_token.strip()
         if api_token in seen_tokens:
             raise ValueError("Notion config contains a duplicate API token")
         seen_tokens.add(api_token)
 
         sync_public_pages = workspace.get("sync_public_pages", False)
-        if not isinstance(sync_public_pages, bool):
-            raise ValueError(
-                "Notion workspace config field 'sync_public_pages' must be a boolean"
-            )
+        sync_public_pages = require_boolean(
+            sync_public_pages,
+            "Notion workspace config field 'sync_public_pages'",
+        )
         parsed.append(NotionWorkspaceConfig(api_token, sync_public_pages))
 
     return parsed
@@ -107,8 +130,10 @@ def get_paginated(
         if not has_more:
             return results
 
-        if not isinstance(next_cursor_value, str) or not next_cursor_value:
-            raise ValueError("Notion paginated response is missing next_cursor")
+        next_cursor_value = require_nonempty_string(
+            next_cursor_value,
+            "Notion paginated response next_cursor",
+        )
         if next_cursor_value in seen_cursors:
             raise ValueError("Notion pagination returned a repeated cursor")
         seen_cursors.add(next_cursor_value)
@@ -123,12 +148,13 @@ def _validate_paginated_payload(
     payload: Any,
     expected_type: str,
 ) -> tuple[list[dict[str, Any]], bool, Any]:
-    if not isinstance(payload, dict):
-        raise ValueError("Notion paginated response must be a JSON object")
+    payload = require_object(payload, "Notion paginated response")
     if payload.get("object") != "list" or payload.get("type") != expected_type:
         raise ValueError("Notion paginated response has an unexpected object type")
-    if not isinstance(payload.get(expected_type), dict):
-        raise ValueError("Notion paginated response is missing type metadata")
+    require_object(
+        payload.get(expected_type),
+        "Notion paginated response type metadata",
+    )
 
     page_results = payload.get("results")
     has_more = payload.get("has_more")
@@ -136,8 +162,7 @@ def _validate_paginated_payload(
         isinstance(item, dict) for item in page_results
     ):
         raise ValueError("Notion paginated response must contain object results")
-    if not isinstance(has_more, bool):
-        raise ValueError("Notion paginated response must contain boolean has_more")
+    has_more = require_boolean(has_more, "Notion paginated response has_more")
     return page_results, has_more, payload.get("next_cursor")
 
 
@@ -169,8 +194,10 @@ def post_paginated(
         if not has_more:
             return
 
-        if not isinstance(next_cursor_value, str) or not next_cursor_value:
-            raise ValueError("Notion paginated response is missing next_cursor")
+        next_cursor_value = require_nonempty_string(
+            next_cursor_value,
+            "Notion paginated response next_cursor",
+        )
         if next_cursor_value in seen_cursors:
             raise ValueError("Notion pagination returned a repeated cursor")
         seen_cursors.add(next_cursor_value)

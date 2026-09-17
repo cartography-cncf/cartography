@@ -44,8 +44,10 @@ def test_transform_rejects_unknown_user_type():
 
 def test_transform_requires_id_and_type():
     # Act and assert
-    with pytest.raises(ValueError, match="valid id"):
+    with pytest.raises(ValueError, match="Notion user id"):
         transform([{"object": "user", "type": "person"}], "workspace-1", TOKEN_USER)
+    with pytest.raises(ValueError, match="Notion user type"):
+        transform([{"object": "user", "id": "person-1"}], "workspace-1", TOKEN_USER)
 
 
 @pytest.mark.parametrize(
@@ -64,6 +66,24 @@ def test_transform_requires_id_and_type():
             "id": "bot-malformed",
             "type": "bot",
             "bot": {"owner": {"type": "user", "user": {"id": ""}}},
+        },
+        {
+            "object": "user",
+            "id": "person-malformed",
+            "type": "person",
+            "name": [],
+        },
+        {
+            "object": "user",
+            "id": "person-malformed",
+            "type": "person",
+            "person": {"email": []},
+        },
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": {"type": []}},
         },
     ],
 )

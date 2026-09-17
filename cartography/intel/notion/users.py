@@ -7,6 +7,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.notion.util import get_paginated
+from cartography.intel.notion.util import optional_string
+from cartography.intel.notion.util import require_nonempty_string
+from cartography.intel.notion.util import require_object
 from cartography.intel.notion.util import scoped_id
 from cartography.models.notion.bot import NotionBotSchema
 from cartography.models.notion.user import NotionUserSchema
@@ -28,34 +31,37 @@ def transform(
     people: list[dict[str, Any]] = []
     bots: list[dict[str, Any]] = []
 
-    token_user_id = token_user.get("id")
-    if not isinstance(token_user_id, str) or not token_user_id:
-        raise ValueError("Notion current bot response is missing a valid id")
+    token_user_id = require_nonempty_string(
+        token_user.get("id"),
+        "Notion current bot id",
+    )
     users_by_id = {user.get("id"): user for user in users}
     users_by_id[token_user_id] = token_user
 
     for user in users_by_id.values():
         if user.get("object") != "user":
             raise ValueError("Notion user response has an unexpected object type")
-        notion_user_id = user.get("id")
-        user_type = user.get("type")
-        if not isinstance(notion_user_id, str) or not notion_user_id:
-            raise ValueError("Notion user response is missing a valid id")
-        if not isinstance(user_type, str) or not user_type:
-            raise ValueError("Notion user response is missing a valid type")
+        notion_user_id = require_nonempty_string(
+            user.get("id"),
+            "Notion user id",
+        )
+        user_type = require_nonempty_string(
+            user.get("type"),
+            "Notion user type",
+        )
+        name = optional_string(user.get("name"), "Notion user name")
         if user_type == "person":
             person = user.get("person")
             if person is None:
                 person = {}
-            if not isinstance(person, dict):
-                raise ValueError("Notion person response must contain an object")
-            email = person.get("email")
+            person = require_object(person, "Notion person details")
+            email = optional_string(person.get("email"), "Notion person email")
             people.append(
                 {
                     "id": scoped_id(workspace_id, notion_user_id),
                     "notion_user_id": notion_user_id,
-                    "name": user.get("name"),
-                    "email": email.lower() if isinstance(email, str) else None,
+                    "name": name,
+                    "email": email.lower() if email is not None else None,
                     "is_workspace_member": True,
                 },
             )
@@ -63,31 +69,32 @@ def transform(
             bot = user.get("bot")
             if bot is None:
                 bot = {}
-            if not isinstance(bot, dict):
-                raise ValueError("Notion bot response must contain an object")
+            bot = require_object(bot, "Notion bot details")
             owner = bot.get("owner")
             if owner is None:
                 owner = {}
-            if not isinstance(owner, dict):
-                raise ValueError("Notion bot owner must be an object")
-            owner_type = owner.get("type")
+            owner = require_object(owner, "Notion bot owner")
+            owner_type = optional_string(
+                owner.get("type"),
+                "Notion bot owner type",
+            )
             owner_user = owner.get("user")
             if owner_user is None:
                 owner_user = {}
-            if not isinstance(owner_user, dict):
-                raise ValueError("Notion bot user owner must be an object")
+            owner_user = require_object(owner_user, "Notion bot user owner")
             owner_notion_user_id = (
                 owner_user.get("id") if owner_type == "user" else None
             )
-            if owner_type == "user" and (
-                not isinstance(owner_notion_user_id, str) or not owner_notion_user_id
-            ):
-                raise ValueError("Notion bot user owner is missing a valid id")
+            if owner_type == "user":
+                owner_notion_user_id = require_nonempty_string(
+                    owner_notion_user_id,
+                    "Notion bot user owner id",
+                )
             bots.append(
                 {
                     "id": scoped_id(workspace_id, notion_user_id),
                     "notion_user_id": notion_user_id,
-                    "name": user.get("name"),
+                    "name": name,
                     "is_token_bot": notion_user_id == token_user_id,
                     "owner_type": owner_type,
                     "owner_notion_user_id": owner_notion_user_id,

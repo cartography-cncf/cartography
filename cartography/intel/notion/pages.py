@@ -9,7 +9,11 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.intel.notion.util import optional_string
 from cartography.intel.notion.util import post_paginated
+from cartography.intel.notion.util import require_boolean
+from cartography.intel.notion.util import require_nonempty_string
+from cartography.intel.notion.util import require_object
 from cartography.intel.notion.util import scoped_id
 from cartography.models.notion.page import NotionPageSchema
 from cartography.util import timeit
@@ -53,56 +57,53 @@ def transform(
     for page in pages:
         if page.get("object") != "page":
             raise ValueError("Notion page search returned a non-page object")
-        notion_page_id = page.get("id")
-        if not isinstance(notion_page_id, str) or not notion_page_id:
-            raise ValueError("Notion page response is missing a valid id")
+        notion_page_id = require_nonempty_string(
+            page.get("id"),
+            "Notion page id",
+        )
         if "public_url" not in page:
             raise ValueError("Notion page response is missing public_url")
-        public_url = page["public_url"]
-        if public_url is not None and (
-            not isinstance(public_url, str) or not public_url
-        ):
-            raise ValueError(
-                "Notion page public_url must be a non-empty string or null"
+        public_url = optional_string(page["public_url"], "Notion page public_url")
+        if public_url is not None:
+            public_url = require_nonempty_string(
+                public_url,
+                "Notion page public_url",
             )
 
-        created_time = page.get("created_time")
-        last_edited_time = page.get("last_edited_time")
-        url = page.get("url")
-        in_trash = page.get("in_trash")
-        is_locked = page.get("is_locked")
-        if not isinstance(created_time, str) or not created_time:
-            raise ValueError("Notion page response is missing created_time")
-        if not isinstance(last_edited_time, str) or not last_edited_time:
-            raise ValueError("Notion page response is missing last_edited_time")
-        if not isinstance(url, str) or not url:
-            raise ValueError("Notion page response is missing a valid url")
-        if not isinstance(in_trash, bool):
-            raise ValueError("Notion page response is missing boolean in_trash")
-        if not isinstance(is_locked, bool):
-            raise ValueError("Notion page response is missing boolean is_locked")
+        created_time = require_nonempty_string(
+            page.get("created_time"),
+            "Notion page created_time",
+        )
+        last_edited_time = require_nonempty_string(
+            page.get("last_edited_time"),
+            "Notion page last_edited_time",
+        )
+        url = require_nonempty_string(page.get("url"), "Notion page url")
+        in_trash = require_boolean(page.get("in_trash"), "Notion page in_trash")
+        is_locked = require_boolean(page.get("is_locked"), "Notion page is_locked")
 
-        created_by = page.get("created_by")
-        parent = page.get("parent")
-        properties = page.get("properties")
-        if not isinstance(created_by, dict):
-            raise ValueError("Notion page response must contain a created_by object")
-        if not isinstance(parent, dict):
-            raise ValueError("Notion page response must contain a parent object")
-        if not isinstance(properties, dict):
-            raise ValueError("Notion page response must contain a properties object")
-        created_by_notion_user_id = created_by.get("id")
-        if (
-            not isinstance(created_by_notion_user_id, str)
-            or not created_by_notion_user_id
-        ):
-            raise ValueError("Notion page creator is missing a valid id")
-        parent_type = parent.get("type")
-        if not isinstance(parent_type, str) or not parent_type:
-            raise ValueError("Notion page parent is missing a valid type")
+        created_by = require_object(
+            page.get("created_by"),
+            "Notion page created_by",
+        )
+        parent = require_object(page.get("parent"), "Notion page parent")
+        properties = require_object(page.get("properties"), "Notion page properties")
+        created_by_notion_user_id = require_nonempty_string(
+            created_by.get("id"),
+            "Notion page creator id",
+        )
+        parent_type = require_nonempty_string(
+            parent.get("type"),
+            "Notion page parent type",
+        )
         parent_notion_id = parent.get(parent_type)
-        if not isinstance(parent_notion_id, str):
+        if parent_type == "workspace":
             parent_notion_id = None
+        else:
+            parent_notion_id = require_nonempty_string(
+                parent_notion_id,
+                "Notion page parent id",
+            )
 
         if public_url is None:
             unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))

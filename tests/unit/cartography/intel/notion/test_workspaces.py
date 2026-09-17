@@ -13,7 +13,7 @@ def test_get_current_bot_validates_response_shape():
     api_session.get.return_value.json.return_value = []
 
     # Act and assert
-    with pytest.raises(ValueError, match="JSON object"):
+    with pytest.raises(ValueError, match="Notion current-user response"):
         get(api_session)
 
 
