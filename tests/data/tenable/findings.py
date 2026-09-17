@@ -11,6 +11,13 @@ PLUGIN_ID_1 = 156641  # SharePoint — has CVEs
 PLUGIN_ID_2 = 50344  # Missing CSP header — no CVEs
 PLUGIN_ID_3 = 19506  # Nessus scan info — no CVEs
 
+CVE_ID_1 = "CVE-2022-21837"
+CVE_ID_2 = "CVE-2022-21840"
+CVE_ID_3 = "CVE-2022-21842"
+PLUGIN_1_CVES = [CVE_ID_1, CVE_ID_2, CVE_ID_3]
+# :TenableCve node ids are namespaced to stay distinct from canonical NVD :CVE nodes.
+PLUGIN_1_CVE_NODE_IDS = [f"TNB|{cve_id}" for cve_id in PLUGIN_1_CVES]
+
 SCAN_UUID_1 = "270b911b-1fe6-4760-8c49-88d315cb764e"
 SCAN_UUID_2 = "e86252a3-8dc0-43b6-8ddd-afb219d040ed"
 
@@ -57,7 +64,7 @@ FINDINGS_DATA = [
             "cvss4_base_score": 6.9,
             "vpr": {"score": 6.7},
             "epss_score": 10.647,
-            "cve": ["CVE-2022-21837", "CVE-2022-21840", "CVE-2022-21842"],
+            "cve": PLUGIN_1_CVES,
             "type": "local",
         },
         "port": {"port": 445, "protocol": "TCP", "service": "cifs"},
