@@ -42,6 +42,19 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
     assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
 
 
+def test_jira_config_preserves_legacy_positional_slots() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters[72] == "lastpass_cid"
+    assert parameters[225] == "orca_api_token"
+    assert all(
+        parameters.index(name) > parameters.index("orca_api_token")
+        for name in ("jira_cloud_id", "jira_email", "jira_api_token", "jira_site_url")
+    )
+
+
 def test_config_stores_orca_credentials() -> None:
     # Act
     config = Config(

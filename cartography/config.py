@@ -603,10 +603,6 @@ class Config:
         gsuite_config=None,
         googleworkspace_auth_method=None,
         googleworkspace_config=None,
-        jira_cloud_id=None,
-        jira_email=None,
-        jira_api_token=None,
-        jira_site_url=None,
         lastpass_cid=None,
         lastpass_provhash=None,
         bigfix_username=None,
@@ -761,6 +757,10 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        jira_cloud_id=None,
+        jira_email=None,
+        jira_api_token=None,
+        jira_site_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
