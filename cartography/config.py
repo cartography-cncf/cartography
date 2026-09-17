@@ -244,6 +244,14 @@ class Config:
     :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
     :type googleworkspace_config: str
     :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type jira_cloud_id: str
+    :param jira_cloud_id: Jira Cloud ID, used to scope all resource IDs. Optional.
+    :type jira_email: str
+    :param jira_email: Email address of the Jira API-token owner. Optional.
+    :type jira_api_token: str
+    :param jira_api_token: Jira API token. Optional.
+    :type jira_site_url: str
+    :param jira_site_url: HTTPS site origin for unscoped API tokens. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -595,6 +603,10 @@ class Config:
         gsuite_config=None,
         googleworkspace_auth_method=None,
         googleworkspace_config=None,
+        jira_cloud_id=None,
+        jira_email=None,
+        jira_api_token=None,
+        jira_site_url=None,
         lastpass_cid=None,
         lastpass_provhash=None,
         bigfix_username=None,
@@ -853,6 +865,10 @@ class Config:
         self.gsuite_config = gsuite_config
         self.googleworkspace_auth_method = googleworkspace_auth_method
         self.googleworkspace_config = googleworkspace_config
+        self.jira_cloud_id = jira_cloud_id
+        self.jira_email = jira_email
+        self.jira_api_token = jira_api_token
+        self.jira_site_url = jira_site_url
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username

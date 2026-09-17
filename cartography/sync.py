@@ -106,6 +106,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "jumpcloud": _LazyStage(
             "cartography.intel.jumpcloud", "start_jumpcloud_ingestion"
         ),
+        "jira": _LazyStage("cartography.intel.jira", "start_jira_ingestion"),
         "lastpass": _LazyStage(
             "cartography.intel.lastpass", "start_lastpass_ingestion"
         ),

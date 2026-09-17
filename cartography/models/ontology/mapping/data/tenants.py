@@ -808,6 +808,20 @@ orca_mapping = OntologyMapping(
 )
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "jira": OntologyMapping(
+        module_name="jira",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="JiraTenant",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="domain"),
+                ],
+            )
+        ],
+    ),
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
