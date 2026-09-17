@@ -725,9 +725,6 @@ class Config:
         zizmor_source=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
-        zoom_account_id=None,
-        zoom_client_id=None,
-        zoom_client_secret=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
         socketdev_token=None,
@@ -758,6 +755,9 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        zoom_account_id=None,
+        zoom_client_id=None,
+        zoom_client_secret=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
