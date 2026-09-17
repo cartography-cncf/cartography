@@ -98,6 +98,17 @@ RETRYABLE_ECR_ERROR_CODES = {
     "ThrottlingException",
     "TooManyRequestsException",
 }
+# Error codes that mean the current credentials can no longer sign requests. Retrying
+# against the same session is pointless, but minting a fresh session can recover: STS
+# temporary credentials report expiry as ExpiredTokenException (ExpiredToken on some
+# services), SigV4 clock skew reports RequestExpired, and InvalidClientTokenId means the
+# access key ID itself is no longer recognized.
+CREDENTIAL_REFRESH_ERROR_CODES = {
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "InvalidClientTokenId",
+    "RequestExpired",
+}
 RETRYABLE_HTTPX_EXCEPTIONS = (
     httpx.ConnectError,
     httpx.PoolTimeout,
@@ -1559,12 +1570,14 @@ def sync(
                     error_code = error.response.get("Error", {}).get("Code")
                     if (
                         attempt == 1
-                        or error_code != "InvalidClientTokenId"
+                        or error_code not in CREDENTIAL_REFRESH_ERROR_CODES
                         or aioboto3_session_factory is None
                     ):
                         raise
                     logger.warning(
-                        "Retrying ECR image layer sync with a fresh AWS credential chain after temporary credential refresh failed.",
+                        "Retrying ECR image layer sync in region %s with a fresh AWS credential chain after credential error %s.",
+                        region,
+                        error_code,
                     )
                     aioboto3_session = aioboto3_session_factory()
 

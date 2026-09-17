@@ -45,10 +45,6 @@ class SyftPackageNodeProperties(CartographyNodeProperties):
         "language",
         description="Programming language associated with the package.",
     )
-    found_by: PropertyRef = PropertyRef(
-        "found_by",
-        description="Syft cataloger that discovered the package.",
-    )
 
 
 @dataclass(frozen=True)
@@ -76,6 +72,20 @@ class SyftPackageDependsOnRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SyftPackageToOntologyImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    found_by: PropertyRef = PropertyRef(
+        "found_by",
+        description=(
+            "Syft cataloger names that discovered this package in this image. "
+            "A package can be found by more than one cataloger in the same scan."
+        ),
+    )
+    locations: PropertyRef = PropertyRef(
+        "locations",
+        description=(
+            "Syft location paths for this package in this image, such as "
+            "node_modules paths or lockfile paths."
+        ),
+    )
 
 
 @dataclass(frozen=True)

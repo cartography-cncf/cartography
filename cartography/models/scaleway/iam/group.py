@@ -39,6 +39,20 @@ class ScalewayGroupProperties(CartographyNodeProperties):
     managed: PropertyRef = PropertyRef(
         "managed", description="Defines whether or not the group is managed."
     )
+    all_users: PropertyRef = PropertyRef(
+        "all_users",
+        description=(
+            "True if this is the special 'All Users' group, which implicitly contains "
+            "every user of the organization."
+        ),
+    )
+    all_applications: PropertyRef = PropertyRef(
+        "all_applications",
+        description=(
+            "True if this is the special 'All Applications' group, which implicitly "
+            "contains every non-managed application of the organization."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

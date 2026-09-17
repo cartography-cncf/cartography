@@ -13,6 +13,7 @@ from scaleway.rdb.v1 import EncryptionAtRest as RdbEncryptionAtRest
 from scaleway.rdb.v1 import Endpoint as RdbEndpoint
 from scaleway.rdb.v1 import EndpointLoadBalancerDetails as RdbLBDetails
 from scaleway.rdb.v1 import EndpointPrivateNetworkDetails as RdbPrivateNetDetails
+from scaleway.rdb.v1 import HighAvailabilityMode as RdbHighAvailabilityMode
 from scaleway.rdb.v1 import Instance as RdbInstance
 from scaleway.rdb.v1 import Volume as RdbVolume
 from scaleway.rdb.v1 import VolumeType as RdbVolumeType
@@ -46,6 +47,7 @@ SCALEWAY_RDB_INSTANCES = [
         settings=[],
         upgradable_version=[],
         is_ha_cluster=False,
+        high_availability_mode=RdbHighAvailabilityMode.DISABLED,
         read_replicas=[],
         node_type="DB-DEV-S",
         init_settings=[],
@@ -173,6 +175,8 @@ SCALEWAY_MONGO_INSTANCES = [
         region="fr-par",
         settings=[],
         volume=MongoVolume(type_=MongoVolumeType.SBS_5K, size_bytes=5368709120),
+        maintenances=[],
+        upgradable_versions=[],
         created_at=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         snapshot_schedule=None,
     ),
@@ -193,6 +197,7 @@ SCALEWAY_DATAWAREHOUSE = [
         cpu_max=8,
         endpoints=[],
         ram_per_cpu=4,
+        move_factor=0.1,
         region="fr-par",
         created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
@@ -226,6 +231,7 @@ SCALEWAY_SEARCHDB = [
         status="ready",
         tags=["demo"],
         node_amount=3,
+        node_count=3,
         node_type="essentials",
         endpoints=[],
         version="2.17",

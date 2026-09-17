@@ -22,6 +22,11 @@ class UserNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="User's primary email address.",
     )
+    normalized_email: PropertyRef = PropertyRef(
+        "normalized_email",
+        extra_index=True,
+        description="Trimmed, lowercase primary email for indexed case-insensitive identity matching; not a unique identifier.",
+    )
     fullname: PropertyRef = PropertyRef("fullname", description="User's full name.")
     firstname: PropertyRef = PropertyRef(
         "firstname",
