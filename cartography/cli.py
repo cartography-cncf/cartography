@@ -772,6 +772,15 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = None,
+            microsoft_defender: Annotated[
+                bool,
+                typer.Option(
+                    "--microsoft-defender",
+                    help="Include Defender for Endpoint machines and unresolved alerts (requires additional read permissions).",
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = False,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -3612,6 +3621,7 @@ class CLI:
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
+                microsoft_defender=microsoft_defender,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

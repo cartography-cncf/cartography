@@ -532,9 +532,55 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+microsoft_mapping = OntologyMapping(
+    module_name="microsoft",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="DefenderAlert",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="title", node_field="title", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="severity",
+                    node_field="severity",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "informational": "info",
+                            "low": "low",
+                            "medium": "medium",
+                            "high": "high",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="status",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "new": "open",
+                            "inProgress": "open",
+                            "resolved": "fixed",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type", node_field="detection_source"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="first_seen", node_field="created_date_time"
+                ),
+            ],
+        ),
+    ],
+)
+
 SECURITY_ISSUES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bbot": bbot_mapping,
     "huntress": huntress_mapping,
+    "microsoft": microsoft_mapping,
     "aws": aws_mapping,
     "semgrep": semgrep_mapping,
     "socketdev": socketdev_mapping,

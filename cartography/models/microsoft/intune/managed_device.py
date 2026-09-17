@@ -14,6 +14,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class IntuneManagedDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Intune managed device ID.")
+    tenant_id: PropertyRef = PropertyRef(
+        "TENANT_ID", set_in_kwargs=True, description="Microsoft tenant ID."
+    )
     device_name: PropertyRef = PropertyRef(
         "device_name", extra_index=True, description="Name of the managed device."
     )
