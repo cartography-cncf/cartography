@@ -23,6 +23,13 @@ WHERE NOT exists((p)<-[:DEPENDS_ON]-())
 RETURN p.name
 ```
 
+## Inspect how a package was discovered in an image
+
+```cypher
+MATCH (p:SyftPackage)-[d:DEPLOYED]->(i:Image)
+RETURN p.id, i._ont_digest, d.found_by, d.locations
+```
+
 ## Find nested packages
 
 ```cypher

@@ -104,8 +104,12 @@ def test_load_scaleway_databases(
     assert check_nodes(
         neo4j_session, "ScalewayRdbInstance", ["id", "is_public", "exposed_internet"]
     ) == {(TEST_RDB_INSTANCE_ID, True, True)}
-    assert check_nodes(neo4j_session, "ScalewayRdbInstance", ["id", "name"]) == {
-        (TEST_RDB_INSTANCE_ID, "demo-rdb"),
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayRdbInstance",
+        ["id", "name", "is_ha_cluster", "high_availability_mode"],
+    ) == {
+        (TEST_RDB_INSTANCE_ID, "demo-rdb", False, "disabled"),
     }
     assert check_nodes(neo4j_session, "ScalewayRedisCluster", ["id", "name"]) == {
         (TEST_REDIS_CLUSTER_ID, "demo-redis"),

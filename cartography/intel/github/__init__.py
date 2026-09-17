@@ -34,6 +34,9 @@ sync_container_images_container_images = lazy_callable(
 sync_dependabot_alerts = lazy_callable(
     "cartography.intel.github.dependabot_alerts", "sync"
 )
+sync_external_identities = lazy_callable(
+    "cartography.intel.github.external_identities", "sync"
+)
 sync_github_commits_commits = lazy_callable(
     "cartography.intel.github.commits", "sync_github_commits"
 )
@@ -139,6 +142,13 @@ def start_github_ingestion(
         token: Any = credential
 
         github_users = _users.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+        )
+        sync_external_identities(
             neo4j_session,
             common_job_parameters,
             token,

@@ -2,8 +2,6 @@ import configparser
 import hashlib
 import json
 import logging
-import random
-import time
 from collections import defaultdict
 from collections import namedtuple
 from collections.abc import Callable
@@ -39,6 +37,7 @@ from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.intel.github.util import rest_api_base_url
+from cartography.intel.github.util import sleep_with_jitter
 from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.intel.trivy.util import normalize_package_name
 from cartography.intel.trivy.util import parse_purl
@@ -271,9 +270,6 @@ GITHUB_REPO_DEP_MANIFESTS_PAGINATED_GRAPHQL = """
 # hits a warm result. Retrying that case straight away instead of paying the
 # transport-level backoff saves minutes of pure sleep across a large org.
 _MANIFEST_RESOLVER_RETRY_DELAYS = (0.0, 1.0)
-# Add up to +25% to every non-zero retry delay so a large org does not retry in
-# lockstep against the same resolver.
-_RETRY_JITTER_RATIO = 0.25
 
 
 class DependencyGraphForbiddenError(Exception):
@@ -282,15 +278,6 @@ class DependencyGraphForbiddenError(Exception):
     an IP allow list that does not cover this sync's source address. This is
     permanent for the run, so callers must not retry it.
     """
-
-
-def _sleep_with_jitter(delay: float) -> None:
-    """
-    Sleep for `delay` seconds plus jitter. A delay of 0 skips the sleep entirely.
-    """
-    if delay <= 0:
-        return
-    time.sleep(delay * (1 + random.random() * _RETRY_JITTER_RATIO))
 
 
 def _is_org_wide_forbidden(message: str) -> bool:
@@ -339,7 +326,7 @@ def _fetch_manifest_page(
     """
     for attempt in range(retries):
         try:
-            handle_rate_limit_sleep(token)
+            handle_rate_limit_sleep(token, api_url)
             resp = fetch_page(
                 token,
                 api_url,
@@ -357,7 +344,7 @@ def _fetch_manifest_page(
         ):
             if attempt + 1 >= retries:
                 return None
-            _sleep_with_jitter(2 ** (attempt + 1))
+            sleep_with_jitter(2 ** (attempt + 1))
             continue
 
         # Check for GraphQL-level timeout: HTTP 200 but dependencyGraphManifests is null
@@ -385,7 +372,7 @@ def _fetch_manifest_page(
                 attempt + 1,
                 retries,
             )
-            _sleep_with_jitter(
+            sleep_with_jitter(
                 _MANIFEST_RESOLVER_RETRY_DELAYS[
                     min(attempt, len(_MANIFEST_RESOLVER_RETRY_DELAYS) - 1)
                 ],

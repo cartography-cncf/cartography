@@ -92,9 +92,49 @@ data while continuing ingestion.
 | Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
+| SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
 GitHub exposes secret metadata, such as names and timestamps, but never secret
 values.
+
+### SAML identity mapping
+
+Cartography reads the organization's
+[SAML identity provider](https://docs.github.com/en/graphql/reference/objects#organizationidentityprovider)
+and paginates its external identities. Each `GitHubExternalIdentity` belongs to a
+`GitHubOrganization` through `RESOURCE`; a linked `GitHubUser` points to it through
+`HAS_IDENTITY`. The SAML NameID is stored separately from public profile and
+verified-domain email addresses because it may be an opaque identifier.
+
+After GitHub and your identity provider have synced, the ontology module can
+link organization members to existing canonical `User` nodes using email-shaped
+NameIDs. Matching ignores surrounding whitespace and letter case, requires a
+single canonical user across the account's organization identities, and skips
+accounts whose public or organization verified-domain emails identify a different
+canonical user, even when no email-based account link exists. A personal email
+or alias without a competing canonical owner does not contradict the SAML link. These
+emails are normalized during ingestion into `GitHubUser.normalized_emails`;
+raw email properties are preserved. Existing GitHub users need a GitHub resync
+before SAML linking uses this conflict check. The GitHub and ontology syncs use
+the same Python normalization for
+`GitHubExternalIdentity.saml_name_id_normalized` and the indexed
+`User.normalized_email`, including Unicode whitespace. The join compares these
+stored values, preserving the raw NameID, primary email, and canonical user ID. For
+example, configure `--ontology-users-source okta` to use Okta as the source of
+canonical users. SAML ingestion does not create canonical users on its own.
+
+Unavailable providers and denied access preserve prior identity data. A complete
+empty identity list removes stale identities for that organization. Transient
+transport failures, GraphQL timeouts, and rate limits retry the same page up to
+five attempts. Each attempt checks the GraphQL budget on the configured GitHub
+instance and waits for its reset when necessary. HTTP rate-limit delays honor
+GitHub's retry/reset headers, including resets more than five minutes away.
+Secondary limits without a reset start with a one-minute wait and back off
+exponentially. Unrecovered API errors log a warning and skip identity writes and
+cleanup, allowing other GitHub resources and organizations to sync. Graph write
+and cleanup errors still propagate. Refreshing the
+ontology removes links that no longer have an identity basis; SAML and existing
+GitHub email linking share the same relationship cleanup.
 
 ## Configure Cartography
 

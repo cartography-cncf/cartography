@@ -40,6 +40,20 @@ class CloudTrailSpaceliftEventNodeProperties(CartographyNodeProperties):
     instance_ids: PropertyRef = PropertyRef(
         "instance_ids", description="EC2 instance IDs affected by the event."
     )
+    error_code: PropertyRef = PropertyRef(
+        "error_code",
+        description=(
+            "AWS error code returned by the API call, such as `AccessDenied`. Null when "
+            "the call succeeded; a non-null value means CloudTrail recorded an error "
+            "for the call."
+        ),
+    )
+    error_message: PropertyRef = PropertyRef(
+        "error_message",
+        description=(
+            "AWS error message returned by the API call. Null when the call succeeded."
+        ),
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
