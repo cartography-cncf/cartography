@@ -164,6 +164,8 @@ GRANT USAGE ON ALL SCHEMAS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT USAGE ON FUTURE SCHEMAS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON ALL TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON FUTURE TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON ALL EVENT TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
+GRANT REFERENCES ON FUTURE EVENT TABLES IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON ALL VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON FUTURE VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
 GRANT REFERENCES ON ALL MATERIALIZED VIEWS IN DATABASE EXAMPLE_DB TO ROLE CARTOGRAPHY_RO;
@@ -188,7 +190,7 @@ even when they target a different role. For each schema with its own future tabl
 or view grants, also grant `REFERENCES ON FUTURE TABLES IN SCHEMA
 EXAMPLE_DB.EXAMPLE_SCHEMA` or `REFERENCES ON FUTURE VIEWS IN SCHEMA
 EXAMPLE_DB.EXAMPLE_SCHEMA` to `CARTOGRAPHY_RO`, respectively. Review this when adding
-schemas or changing future grants. Apply the same rule to materialized views,
+schemas or changing future grants. Apply the same rule to event tables, materialized views,
 external tables, Iceberg tables, and dynamic tables, using the corresponding
 object type and privilege above.
 
@@ -251,11 +253,25 @@ They are not required for this setup. Enabling them requires the
 not just the collector. Inherited grants apply to each specified object type:
 a grant on tables does not also cover views or dynamic tables.
 
-Cartography does not yet model inherited grants in the privilege graph. Use the
-ordinary grants above for the documented setup; do not treat successful object
-access through inherited grants as evidence of complete privilege mapping. When
-`ACCOUNT_USAGE` reports inherited grants, Cartography logs incomplete grant
-coverage and skips grant cleanup, preserving previously collected edges.
+Cartography records inherited grants as `SnowflakeInheritedGrant` nodes, preserving
+`privilege`, `object_type`, the grantee, and the account/database/schema scope.
+`HAS_INHERITED_GRANT` links a modeled principal to its grant, and `APPLIES_IN`
+links the grant to its container. For example, inherited `SELECT` on tables in a
+database stays distinct from privileges on the database itself and from `SELECT`
+on views. Unsupported principal kinds retain their provider identity on the grant
+record without a principal link.
+
+```cypher
+MATCH (p:SnowflakePrincipal)-[:HAS_INHERITED_GRANT]->(g:SnowflakeInheritedGrant)
+      -[:APPLIES_IN]->(container:SnowflakeSecurable)
+RETURN p.id, g.privilege, g.object_type, g.container_type, container.id
+```
+
+Direct privileges remain `HAS_PRIVILEGE` edges. Both direct and inherited grants
+are cleaned up after complete reads, so a persistent inherited grant does not
+retain revoked direct privileges. These records describe grants rather than
+expanded effective access: container `USAGE`, policy restrictions, and inventory
+visibility still matter. A malformed inherited scope fails the sync before cleanup.
 
 ## Optional Permissions
 

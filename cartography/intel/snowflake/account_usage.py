@@ -32,7 +32,10 @@ not requiring a privilege that can also grant and revoke access account-wide.
 """
 
 import logging
+import re
 from typing import Any
+
+import requests
 
 from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.sql_values import to_text
@@ -100,26 +103,39 @@ def get_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
 @timeit
 def get_grants_to_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
     """Every live grant to a role, or None when ACCOUNT_USAGE is unreadable."""
-    columns = _run(
-        client,
-        "SHOW COLUMNS IN VIEW snowflake.account_usage.grants_to_roles",
-        "grant columns from ACCOUNT_USAGE",
+    # Some roles can SELECT the view without being able to inspect its metadata.
+    optional = (
+        ", is_inherited, inherited_from, inherited_from_database, inherited_from_schema"
     )
-    if columns is None:
-        return None
-    if not columns:
-        warn_unavailable(
-            "grants from ACCOUNT_USAGE", "grant view columns are not visible"
+    try:
+        return _run(
+            client,
+            _GRANTS_TO_ROLES_QUERY.format(optional_columns=optional),
+            "grants from ACCOUNT_USAGE",
         )
-        return None
-    has_inherited = any(
-        (to_text(column.get("column_name")) or "").upper() == "IS_INHERITED"
-        for column in columns
+    except SnowflakeSqlError as error:
+        cause = error.__cause__
+        if not isinstance(cause, requests.HTTPError) or cause.response is None:
+            raise
+        try:
+            detail = cause.response.json()
+        except ValueError:
+            raise error
+        if (
+            not isinstance(detail, dict)
+            or str(detail.get("code")).zfill(6) != "000904"
+            or not re.search(
+                r"invalid identifier 'IS_INHERITED'",
+                str(detail.get("message", "")),
+                re.IGNORECASE,
+            )
+        ):
+            raise
+    return _run(
+        client,
+        _GRANTS_TO_ROLES_QUERY.format(optional_columns=""),
+        "grants from ACCOUNT_USAGE",
     )
-    statement = _GRANTS_TO_ROLES_QUERY.format(
-        optional_columns=", is_inherited" if has_inherited else ""
-    )
-    return _run(client, statement, "grants from ACCOUNT_USAGE")
 
 
 @timeit
@@ -173,10 +189,14 @@ def split_roles(
 def split_grants(
     grants_to_roles: list[dict[str, Any]],
     grants_to_users: list[dict[str, Any]],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]], int]:
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    list[dict[str, Any]],
+]:
     """Reshape the two grant views into the REST-shaped structures grants.py expects.
 
-    Returns ``(grants_by_role, grants_of_by_role, inherited_count)``:
+    Returns ``(grants_by_role, grants_of_by_role, inherited_grants)``:
 
     - ``grants_by_role`` maps a grantee to the privileges it holds, one row per
       privilege, matching ``SHOW GRANTS TO ROLE``. ``grants.transform_grants`` then
@@ -194,12 +214,14 @@ def split_grants(
     grants_by_role: dict[str, list[dict[str, Any]]] = {}
     grants_of_by_role: dict[str, list[dict[str, Any]]] = {}
 
-    inherited_count = 0
+    inherited_grants: list[dict[str, Any]] = []
     for row in grants_to_roles:
-        # Inherited grants target a container's object type, not a named object.
-        # The caller suppresses object-grant cleanup but can still clean role assignments.
-        if to_bool(row.get("is_inherited")):
-            inherited_count += 1
+        # Role hierarchy rows must reach the assignment transform even if flagged.
+        if (
+            to_bool(row.get("is_inherited"))
+            and to_text(row.get("granted_on")) not in _ROLE_SECURABLE_TYPES
+        ):
+            inherited_grants.append(row)
             continue
         raw_grantee = to_text(row.get("grantee_name"))
         privilege = to_text(row.get("privilege"))
@@ -263,7 +285,7 @@ def split_grants(
             },
         )
 
-    return grants_by_role, grants_of_by_role, inherited_count
+    return grants_by_role, grants_of_by_role, inherited_grants
 
 
 def _granted_role_name(row: dict[str, Any], granted_on: str, name: str) -> str:

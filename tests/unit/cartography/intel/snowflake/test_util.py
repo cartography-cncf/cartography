@@ -651,3 +651,71 @@ def test_api_url_preserves_same_origin_encoded_paths(target):
 
     # Assert
     assert resolved.endswith("/api/v2/results/%22Mixed%2FCase%22?page=2")
+
+
+@pytest.mark.parametrize("source", ["location", "body", "pagination"])
+@pytest.mark.parametrize("off_origin", [False, True])
+def test_redirects_from_poll_and_pagination_urls_are_validated(
+    mocker, source, off_origin
+):
+    # Arrange
+    received = []
+
+    class Destination(_SqlHandler):
+        def do_GET(self):
+            received.append(self.headers.get("Authorization"))
+            _respond_json(self, [{"name": "SUBSTITUTED"}])
+
+    destination = _serve(Destination)
+
+    class Origin(_SqlHandler):
+        def do_GET(self):
+            if self.path == "/redirect":
+                target = (
+                    f"http://127.0.0.1:{destination.server_port}/result"
+                    if off_origin
+                    else "/result"
+                )
+                _respond_json(self, {}, status=302, Location=target)
+            elif self.path == "/result":
+                _respond_json(self, [{"name": "EXPECTED"}])
+            elif source == "pagination":
+                _respond_json(self, [], Link='</redirect>; rel="next"')
+            elif source == "location":
+                _respond_json(self, {}, status=202, Location="/redirect")
+            else:
+                _respond_json(self, {"statementStatusUrl": "/redirect"}, status=202)
+
+    origin = _serve(Origin)
+    client = _build_client(origin.server_port)
+    mocker.patch("cartography.intel.snowflake.util.time.sleep")
+    try:
+        # Act and assert
+        if off_origin:
+            with pytest.raises(ValueError, match="configured account origin"):
+                client.list_all("/api/v2/roles")
+        else:
+            assert client.list_all("/api/v2/roles") == [{"name": "EXPECTED"}]
+        assert received == []
+    finally:
+        client._session.close()
+        _shutdown(origin)
+        _shutdown(destination)
+
+
+def test_redirect_loop_is_bounded():
+    # Arrange
+    class Handler(_SqlHandler):
+        def do_GET(self):
+            _respond_json(self, {}, status=302, Location="/loop")
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    client._session.max_redirects = 1
+    try:
+        # Act and assert
+        with pytest.raises(requests.TooManyRedirects):
+            client.list_all("/loop")
+    finally:
+        client._session.close()
+        _shutdown(server)

@@ -459,10 +459,41 @@ class SnowflakeClient:
 
     # -- object API ---------------------------------------------------------
 
+    def _send(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+        # Redirect responses are not API data and must not bypass the origin guard.
+        url = self._absolute(url)
+        for _ in range(self._session.max_redirects + 1):
+            self._apply_auth()
+            response = self._session.request(
+                method,
+                url,
+                timeout=_TIMEOUT,
+                allow_redirects=False,
+                **kwargs,
+            )
+            if not response.is_redirect:
+                if 300 <= response.status_code < 400:
+                    raise requests.HTTPError(
+                        "Snowflake returned a redirect without a Location header",
+                        response=response,
+                    )
+                return response
+            target = self._absolute(urljoin(url, response.headers["Location"]))
+            response.close()
+            if response.status_code in (302, 303) and method != "HEAD":
+                method = "GET"
+            elif response.status_code == 301 and method == "POST":
+                method = "GET"
+            if response.status_code not in (307, 308):
+                kwargs.pop("json", None)
+                kwargs.pop("data", None)
+            kwargs.pop("params", None)
+            url = target
+        raise requests.TooManyRedirects("Snowflake API exceeded the redirect limit")
+
     def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
         """Issue one request, resolving Snowflake's 202 async handshake."""
-        self._apply_auth()
-        response = self._session.request(method, url, timeout=_TIMEOUT, **kwargs)
+        response = self._send(method, url, **kwargs)
         if response.status_code == 202:
             response = self._await_async(response)
         response.raise_for_status()
@@ -499,8 +530,7 @@ class SnowflakeClient:
                     f"{_ASYNC_POLL_MAX_SECONDS}s: {url}",
                 )
             time.sleep(_ASYNC_POLL_INTERVAL_SECONDS)
-            self._apply_auth()
-            polled = self._session.get(url, timeout=_TIMEOUT)
+            polled = self._send("GET", url)
             if polled.status_code != 202:
                 return polled
 

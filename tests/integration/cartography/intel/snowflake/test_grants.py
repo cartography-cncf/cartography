@@ -70,144 +70,6 @@ def _clear_grant_edges(neo4j_session) -> None:
     )
 
 
-@pytest.mark.parametrize("is_inherited", ["true", True])
-def test_inherited_grants_preserve_edges_until_coverage_is_complete(
-    neo4j_session, caplog, is_inherited
-):
-    # Arrange
-    _clear_grant_edges(neo4j_session)
-    _ensure_local_neo4j_has_test_account(neo4j_session)
-    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
-    _seed_grant_targets(neo4j_session)
-    ordinary_grants = [
-        row
-        for row in SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
-        if row["granted_on"] in {"DATABASE", "TABLE"}
-    ]
-    client = build_test_client()
-    client.run_sql.side_effect = [
-        [{"column_name": "IS_INHERITED"}],
-        ordinary_grants,
-        [],
-    ]
-    parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID}
-
-    # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session, client, roles, set(), [], parameters
-    )
-
-    # Assert
-    assert complete is True
-    assert assignments_complete is True
-    assert check_rels(
-        neo4j_session,
-        "SnowflakeRole",
-        "name",
-        "SnowflakeTable",
-        "name",
-        "HAS_PRIVILEGE",
-    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
-
-    # Arrange: the table's direct grant has been replaced by a container grant.
-    remaining_grants = [
-        {**row, "is_inherited": "false"}
-        for row in ordinary_grants
-        if row["granted_on"] == "DATABASE"
-    ]
-    inherited_grant = {
-        "privilege": "SELECT",
-        "granted_on": "TABLE",
-        "name": "",
-        "granted_to": "ACCOUNT ROLE",
-        "grantee_name": "SAFETY_INSPECTOR",
-        "is_inherited": is_inherited,
-        "inherited_from": "ACCOUNT",
-        "inherited_from_database": None,
-        "inherited_from_schema": None,
-    }
-    client.run_sql.side_effect = [
-        [{"column_name": "IS_INHERITED"}],
-        remaining_grants + [inherited_grant],
-        [],
-    ]
-    parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
-
-    # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session, client, roles, set(), [], parameters
-    )
-    cartography.intel.snowflake.grants.cleanup(
-        neo4j_session,
-        SNOWFLAKE_ACCOUNT_ID,
-        parameters["UPDATE_TAG"],
-        object_grants_complete=complete,
-        role_assignments_complete=assignments_complete,
-    )
-
-    # Assert
-    assert complete is False
-    assert assignments_complete is True
-    assert "1 inherited grants" in caplog.text
-    assert check_rels(
-        neo4j_session,
-        "SnowflakeRole",
-        "name",
-        "SnowflakeTable",
-        "name",
-        "HAS_PRIVILEGE",
-    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
-    refreshed = neo4j_session.run(
-        "MATCH (:SnowflakeRole {name: 'SAFETY_INSPECTOR'})"
-        "-[r:HAS_PRIVILEGE]->(:SnowflakeDatabase {name: 'SPRINGFIELD_DB'}) "
-        "RETURN r.lastupdated AS tag"
-    ).single()
-    assert refreshed["tag"] == TEST_UPDATE_TAG + 1
-
-    # Arrange: after the inherited grant is revoked, stale edges can be removed.
-    client.run_sql.side_effect = [
-        [{"column_name": "IS_INHERITED"}],
-        remaining_grants,
-        [],
-    ]
-    parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 2}
-
-    # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session, client, roles, set(), [], parameters
-    )
-    cartography.intel.snowflake.grants.cleanup(
-        neo4j_session,
-        SNOWFLAKE_ACCOUNT_ID,
-        parameters["UPDATE_TAG"],
-        object_grants_complete=complete,
-        role_assignments_complete=assignments_complete,
-    )
-
-    # Assert
-    assert complete is True
-    assert assignments_complete is True
-    assert (
-        check_rels(
-            neo4j_session,
-            "SnowflakeRole",
-            "name",
-            "SnowflakeTable",
-            "name",
-            "HAS_PRIVILEGE",
-        )
-        == set()
-    )
-    assert check_rels(
-        neo4j_session,
-        "SnowflakeRole",
-        "name",
-        "SnowflakeDatabase",
-        "name",
-        "HAS_PRIVILEGE",
-    ) == {("SAFETY_INSPECTOR", "SPRINGFIELD_DB")}
-
-
 def test_sync_snowflake_roles(neo4j_session):
     # Arrange
     _ensure_local_neo4j_has_test_account(neo4j_session)
@@ -723,18 +585,18 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
     _seed_grant_targets(neo4j_session)
     client = build_test_client()
-    columns = [{"column_name": "IS_INHERITED"}]
     inherited = {
         "privilege": "REFERENCES",
         "granted_on": "TABLE",
         "name": None,
         "grantee_name": "SAFETY_INSPECTOR",
         "is_inherited": "true",
+        "inherited_from": "ACCOUNT",
+        "granted_to": "ROLE",
     }
     inherited_rows = [inherited] if has_inherited else []
     parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID}
     client.run_sql.side_effect = [
-        columns,
         SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES + inherited_rows,
         SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS,
     ]
@@ -745,7 +607,7 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     )
 
     # Assert
-    assert (complete, assignments_complete) == (not has_inherited, True)
+    assert (complete, assignments_complete) == (True, True)
     users_before = check_rels(
         neo4j_session, "SnowflakeUser", "name", "SnowflakeRole", "name", "HAS_ROLE"
     )
@@ -764,7 +626,7 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     )
 
     # Arrange: revoke assignments and direct privileges while inherited access remains.
-    client.run_sql.side_effect = [columns, inherited_rows, []]
+    client.run_sql.side_effect = [inherited_rows, []]
     parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
 
     # Act
@@ -780,7 +642,7 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     )
 
     # Assert: assignment cleanup is independent of object-grant completeness.
-    assert (complete, assignments_complete) == (not has_inherited, True)
+    assert (complete, assignments_complete) == (True, True)
     assert check_nodes(neo4j_session, "SnowflakeUser", ["name"])
     assert check_nodes(neo4j_session, "SnowflakeRole", ["name"])
     assert (
@@ -805,7 +667,177 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     )
     expected_privileges = (
         {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
-        if has_inherited or not account_grants_complete
+        if not account_grants_complete
         else set()
     )
     assert remaining_privileges == expected_privileges
+
+
+@pytest.mark.parametrize("scope", ["ACCOUNT", "DATABASE", "SCHEMA"])
+def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
+    neo4j_session, scope
+):
+    # Arrange
+    _clear_grant_edges(neo4j_session)
+    neo4j_session.run("MATCH (g:SnowflakeInheritedGrant) DETACH DELETE g")
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+    schema_id = f"{SNOWFLAKE_ACCOUNT_ID}/schema/SPRINGFIELD_DB.NUCLEAR_PLANT"
+    neo4j_session.run(
+        "MERGE (:SnowflakeSchema:SnowflakeSecurable {id: $id, name: 'NUCLEAR_PLANT'})",
+        id=schema_id,
+    )
+    direct = [
+        row
+        for row in SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
+        if row["granted_on"] == "TABLE"
+    ]
+    inherited = {
+        "granted_to": "ROLE",
+        "grantee_name": "SAFETY_INSPECTOR",
+        "granted_on": "TABLE",
+        "privilege": "SELECT",
+        "is_inherited": True,
+        "inherited_from": scope,
+        "inherited_from_database": "SPRINGFIELD_DB",
+        "inherited_from_schema": "NUCLEAR_PLANT",
+    }
+    view_grant = {**inherited, "granted_on": "VIEW"}
+    client = build_test_client()
+    params = {"ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID, "UPDATE_TAG": TEST_UPDATE_TAG}
+    client.run_sql.side_effect = [direct + [inherited, view_grant], []]
+
+    # Act
+    complete, assignments = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], params
+    )
+
+    # Assert
+    assert complete and assignments
+    assert check_nodes(
+        neo4j_session, "SnowflakeInheritedGrant", ["object_type", "privilege"]
+    ) == {("TABLE", "SELECT"), ("VIEW", "SELECT")}
+    assert (
+        len(
+            check_rels(
+                neo4j_session,
+                "SnowflakeRole",
+                "name",
+                "SnowflakeInheritedGrant",
+                "id",
+                "HAS_INHERITED_GRANT",
+            )
+        )
+        == 2
+    )
+    target_id = {
+        "ACCOUNT": SNOWFLAKE_ACCOUNT_ID,
+        "DATABASE": f"{SNOWFLAKE_ACCOUNT_ID}/database/SPRINGFIELD_DB",
+        "SCHEMA": schema_id,
+    }[scope]
+    linked = neo4j_session.run(
+        "MATCH (g:SnowflakeInheritedGrant)-[:APPLIES_IN]->(c) RETURN g.object_type AS kind, c.id AS container"
+    ).data()
+    assert {(r["kind"], r["container"]) for r in linked} == {
+        ("TABLE", target_id),
+        ("VIEW", target_id),
+    }
+    assert check_rels(
+        neo4j_session,
+        "SnowflakeRole",
+        "name",
+        "SnowflakeTable",
+        "name",
+        "HAS_PRIVILEGE",
+    ) == {("SAFETY_INSPECTOR", "REACTOR_READINGS")}
+
+    # Arrange: revoke the direct grant while both inherited grants remain.
+    client.run_sql.side_effect = [[inherited, view_grant], []]
+    params = {**params, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
+
+    # Act
+    complete, assignments = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], params
+    )
+    cartography.intel.snowflake.grants.cleanup(
+        neo4j_session,
+        SNOWFLAKE_ACCOUNT_ID,
+        params["UPDATE_TAG"],
+        object_grants_complete=complete,
+        role_assignments_complete=assignments,
+    )
+
+    # Assert
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnowflakeRole",
+            "name",
+            "SnowflakeTable",
+            "name",
+            "HAS_PRIVILEGE",
+        )
+        == set()
+    )
+    assert check_nodes(neo4j_session, "SnowflakeInheritedGrant", ["object_type"]) == {
+        ("TABLE",),
+        ("VIEW",),
+    }
+
+    # Arrange: revoke one inherited object type, preserving the other.
+    client.run_sql.side_effect = [[view_grant], []]
+    params = {**params, "UPDATE_TAG": TEST_UPDATE_TAG + 2}
+
+    # Act
+    complete, assignments = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], params
+    )
+    cartography.intel.snowflake.grants.cleanup(
+        neo4j_session,
+        SNOWFLAKE_ACCOUNT_ID,
+        params["UPDATE_TAG"],
+        object_grants_complete=complete,
+        role_assignments_complete=assignments,
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session, "SnowflakeInheritedGrant", ["object_type", "lastupdated"]
+    ) == {("VIEW", TEST_UPDATE_TAG + 2)}
+
+
+def test_inherited_grant_cleanup_is_account_scoped(neo4j_session):
+    # Arrange
+    from cartography.intel.snowflake.inherited_grants import cleanup
+    from cartography.intel.snowflake.inherited_grants import load_grants
+
+    accounts = ["EXAMPLE.FIRST", "EXAMPLE.SECOND"]
+    row = {
+        "granted_to": "ROLE",
+        "grantee_name": "READER",
+        "granted_on": "TABLE",
+        "privilege": "SELECT",
+        "inherited_from": "ACCOUNT",
+    }
+    for account in accounts:
+        neo4j_session.run(
+            "MERGE (:SnowflakeAccount:SnowflakeSecurable {id: $id})", id=account
+        )
+        load_grants(neo4j_session, [row], account, TEST_UPDATE_TAG)
+
+    # Act
+    cleanup(neo4j_session, accounts[0], TEST_UPDATE_TAG + 1)
+
+    # Assert
+    query = "MATCH (a:SnowflakeAccount)-[:RESOURCE]->(:SnowflakeInheritedGrant) WHERE a.id IN $ids RETURN a.id AS id"
+    assert {r["id"] for r in neo4j_session.run(query, ids=accounts)} == {accounts[1]}
+
+    # Arrange
+    load_grants(neo4j_session, [row], accounts[0], TEST_UPDATE_TAG + 2)
+
+    # Act
+    cleanup(neo4j_session, accounts[1], TEST_UPDATE_TAG + 2)
+
+    # Assert
+    assert {r["id"] for r in neo4j_session.run(query, ids=accounts)} == {accounts[0]}
