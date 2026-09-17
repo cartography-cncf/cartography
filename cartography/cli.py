@@ -96,6 +96,7 @@ PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
+PANEL_ZOOM = "Zoom Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
@@ -131,6 +132,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "zoom": PANEL_ZOOM,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
     "lastpass": PANEL_LASTPASS,
@@ -1305,6 +1307,36 @@ class CLI:
                     hidden=PANEL_LASTPASS not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Zoom Options
+            # =================================================================
+            zoom_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-account-id",
+                    help="Zoom account ID for server-to-server OAuth.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-id",
+                    help="Zoom server-to-server OAuth client ID.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-secret-env-var",
+                    help="Environment variable containing the Zoom OAuth client secret.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "ZOOM_CLIENT_SECRET",
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -3670,6 +3702,13 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_account_id=zoom_account_id,
+                zoom_client_id=zoom_client_id,
+                zoom_client_secret=(
+                    os.environ.get(zoom_client_secret_env_var)
+                    if zoom_client_secret_env_var
+                    else None
+                ),
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
                 socketdev_token=socketdev_token,
