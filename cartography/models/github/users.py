@@ -68,6 +68,12 @@ class BaseGitHubUserNodeProperties(CartographyNodeProperties):
         description="Email addresses verified against organization domains.",
     )
 
+    normalized_emails: PropertyRef = PropertyRef(
+        "normalized_emails",
+        description="Distinct nonempty public and organization verified-domain emails, "
+        "normalized with the canonical user email policy for SAML conflict checks.",
+    )
+
 
 @dataclass(frozen=True)
 class GitHubOrganizationUserNodeProperties(BaseGitHubUserNodeProperties):
