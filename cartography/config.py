@@ -331,6 +331,19 @@ class Config:
     :param gitlab_organization_id: GitLab organization (top-level group) ID to sync. Optional.
     :type gitlab_commits_since_days: int
     :param gitlab_commits_since_days: Number of days of commit history to fetch. Defaults to 90.
+    :type bitbucket_workspaces: str
+    :param bitbucket_workspaces: Comma-separated Bitbucket workspace slugs to sync. Required for the
+        bitbucket module to run - Bitbucket has no endpoint to discover workspaces by credential alone.
+    :type bitbucket_auth_method: str
+    :param bitbucket_auth_method: Either "token" or "oauth". Defaults to "token".
+    :type bitbucket_token: str
+    :param bitbucket_token: Bitbucket API token or Access token for API authentication. Optional.
+    :type bitbucket_oauth_client_id: str
+    :param bitbucket_oauth_client_id: Bitbucket OAuth consumer key. Optional.
+    :type bitbucket_oauth_client_secret: str
+    :param bitbucket_oauth_client_secret: Bitbucket OAuth consumer secret. Optional.
+    :type bitbucket_oauth_refresh_token: str
+    :param bitbucket_oauth_refresh_token: Bitbucket OAuth refresh token obtained out-of-band. Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -720,6 +733,12 @@ class Config:
         gitlab_token=None,
         gitlab_organization_id=None,
         gitlab_commits_since_days=90,
+        bitbucket_workspaces=None,
+        bitbucket_auth_method=None,
+        bitbucket_token=None,
+        bitbucket_oauth_client_id=None,
+        bitbucket_oauth_client_secret=None,
+        bitbucket_oauth_refresh_token=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         semgrep_oss_source=None,
@@ -1060,6 +1079,12 @@ class Config:
         self.gitlab_token = gitlab_token
         self.gitlab_organization_id = gitlab_organization_id
         self.gitlab_commits_since_days = gitlab_commits_since_days
+        self.bitbucket_workspaces = bitbucket_workspaces
+        self.bitbucket_auth_method = bitbucket_auth_method
+        self.bitbucket_token = bitbucket_token
+        self.bitbucket_oauth_client_id = bitbucket_oauth_client_id
+        self.bitbucket_oauth_client_secret = bitbucket_oauth_client_secret
+        self.bitbucket_oauth_refresh_token = bitbucket_oauth_refresh_token
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.semgrep_oss_source = semgrep_oss_source
