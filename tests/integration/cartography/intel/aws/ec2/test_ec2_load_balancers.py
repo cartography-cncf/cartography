@@ -190,6 +190,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag, aws :Tenant
+        MERGE (aws)-[:RESOURCE]->(elbv2)
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
