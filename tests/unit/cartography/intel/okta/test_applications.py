@@ -177,7 +177,7 @@ def test_transform_okta_applications_skips_deleted_app_groups(
     "_get_application_assigned_users",
     new_callable=AsyncMock,
 )
-def test_transform_okta_applications_reraises_other_okta_errors(
+def test_transform_okta_applications_reraises_other_okta_errors_on_users(
     mock_get_users: AsyncMock,
 ) -> None:
     # Arrange
@@ -186,6 +186,35 @@ def test_transform_okta_applications_reraises_other_okta_errors(
     )
     mock_get_users.side_effect = OktaApiError(
         "list_application_users",
+        SimpleNamespace(error_code="E0000011"),
+    )
+
+    # Act and assert
+    with pytest.raises(OktaApiError):
+        applications._transform_okta_applications(MagicMock(), [application])
+
+
+@patch.object(
+    applications,
+    "_get_application_assigned_groups",
+    new_callable=AsyncMock,
+)
+@patch.object(
+    applications,
+    "_get_application_assigned_users",
+    new_callable=AsyncMock,
+)
+def test_transform_okta_applications_reraises_other_okta_errors_on_groups(
+    mock_get_users: AsyncMock,
+    mock_get_groups: AsyncMock,
+) -> None:
+    # Arrange
+    application = ApplicationJsonConverter.from_dict(
+        APPLICATION_WITH_UNKNOWN_SIGN_ON_MODE
+    )
+    mock_get_users.return_value = []
+    mock_get_groups.side_effect = OktaApiError(
+        "list_application_group_assignments",
         SimpleNamespace(error_code="E0000011"),
     )
 
