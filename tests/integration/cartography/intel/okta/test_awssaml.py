@@ -1,3 +1,4 @@
+import cartography.intel.okta
 import cartography.intel.okta.awssaml
 from tests.integration.util import check_rels
 
@@ -41,6 +42,37 @@ def test_sync_okta_aws_saml(neo4j_session):
         rel_direction_right=False,  # AWSRole <- OktaGroup
     )
     assert actual_rels == expected_rels
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSRole",
+            "arn",
+            "OktaGroup",
+            "name",
+            "HAS_ROLE",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
+
+    relationship_metadata = neo4j_session.run(
+        """
+        MATCH (group:OktaGroup)-[r]->(:AWSRole)
+        WHERE group.id IN $GROUP_IDS AND r.lastupdated = $UPDATE_TAG
+              AND type(r) IN ["ALLOWED_BY", "HAS_ROLE"]
+        RETURN DISTINCT r._sub_resource_label AS label,
+                        r._sub_resource_id AS id
+        """,
+        GROUP_IDS=["group1", "group2", "group3"],
+        UPDATE_TAG=TEST_UPDATE_TAG,
+    ).data()
+    assert relationship_metadata == [
+        {
+            "label": "OktaOrganization",
+            "id": TEST_ORG_ID,
+        },
+    ]
 
 
 def test_sync_okta_aws_sso(neo4j_session):
@@ -200,6 +232,285 @@ def test_sync_okta_aws_saml_no_matching_roles(neo4j_session):
     )
     actual_rels = {(r["role_arn"], r["group_name"]) for r in result}
     assert actual_rels == set()
+
+
+def test_sync_okta_aws_saml_scopes_groups_to_the_current_organization(
+    neo4j_session,
+):
+    # Arrange
+    other_org_id = "other-okta-org-id"
+    current_group_id = "scope-current-group"
+    current_sso_group_id = "scope-current-sso-group"
+    other_group_id = "other-org-group"
+    other_sso_group_id = "other-org-sso-group"
+    current_role_arn = "arn:aws:iam::2468:role/current-role"
+    current_sso_role_arn = (
+        "arn:aws:iam::2468:role/AWSReservedSSO_current-sso-role_abcdef"
+    )
+    other_role_arn = "arn:aws:iam::4321:role/other-org-role"
+    other_sso_role_arn = "arn:aws:iam::4321:role/AWSReservedSSO_other-sso-role_abcdef"
+    neo4j_session.run(
+        """
+        UNWIND $MAPPINGS AS mapping
+        MERGE (org:OktaOrganization {id: mapping.org_id})
+        MERGE (app:OktaApplication {id: mapping.app_id})
+        SET app.name = mapping.app_name
+        MERGE (group:OktaGroup {id: mapping.group_id})
+        SET group.name = mapping.group_name
+        MERGE (org)-[:RESOURCE]->(app)
+        MERGE (org)-[:RESOURCE]->(group)
+        MERGE (group)-[:APPLICATION]->(app)
+        MERGE (account:AWSAccount {id: mapping.account_id})
+        MERGE (role:AWSRole {id: mapping.role_arn})
+        SET role.arn = mapping.role_arn,
+            role.name = mapping.role_name,
+            role.path = mapping.role_path
+        MERGE (account)-[:RESOURCE]->(role)
+        """,
+        MAPPINGS=[
+            {
+                "org_id": TEST_ORG_ID,
+                "app_id": "scope-current-aws-app",
+                "app_name": "amazon_aws",
+                "group_id": current_group_id,
+                "group_name": "aws#test#current-role#2468",
+                "account_id": "2468",
+                "role_arn": current_role_arn,
+                "role_name": "current-role",
+                "role_path": "/",
+            },
+            {
+                "org_id": TEST_ORG_ID,
+                "app_id": "scope-current-aws-sso-app",
+                "app_name": "amazon_aws_sso",
+                "group_id": current_sso_group_id,
+                "group_name": "aws#sso#current-sso-role#2468",
+                "account_id": "2468",
+                "role_arn": current_sso_role_arn,
+                "role_name": "AWSReservedSSO_current-sso-role_abcdef",
+                "role_path": "/aws-reserved/sso.amazonaws.com/",
+            },
+            {
+                "org_id": other_org_id,
+                "app_id": "scope-other-aws-app",
+                "app_name": "amazon_aws",
+                "group_id": other_group_id,
+                "group_name": "aws#test#other-org-role#4321",
+                "account_id": "4321",
+                "role_arn": other_role_arn,
+                "role_name": "other-org-role",
+                "role_path": "/",
+            },
+            {
+                "org_id": other_org_id,
+                "app_id": "scope-other-aws-sso-app",
+                "app_name": "amazon_aws_sso",
+                "group_id": other_sso_group_id,
+                "group_name": "aws#sso#other-sso-role#4321",
+                "account_id": "4321",
+                "role_arn": other_sso_role_arn,
+                "role_name": "AWSReservedSSO_other-sso-role_abcdef",
+                "role_path": "/aws-reserved/sso.amazonaws.com/",
+            },
+        ],
+    )
+
+    # Act
+    cartography.intel.okta.awssaml.sync_okta_aws_saml(
+        neo4j_session,
+        DEFAULT_REGEX,
+        TEST_UPDATE_TAG,
+        TEST_ORG_ID,
+    )
+
+    # Assert
+    relationships = neo4j_session.run(
+        """
+        MATCH (group:OktaGroup)-[r]->(role:AWSRole)
+        WHERE group.id IN $GROUP_IDS
+              AND type(r) IN ["ALLOWED_BY", "HAS_ROLE"]
+        RETURN group.id AS group_id, type(r) AS rel_type, role.arn AS role_arn
+        """,
+        GROUP_IDS=[
+            current_group_id,
+            current_sso_group_id,
+            other_group_id,
+            other_sso_group_id,
+        ],
+    ).data()
+    assert {
+        (row["group_id"], row["rel_type"], row["role_arn"]) for row in relationships
+    } == {
+        (current_group_id, "ALLOWED_BY", current_role_arn),
+        (current_group_id, "HAS_ROLE", current_role_arn),
+        (current_sso_group_id, "ALLOWED_BY", current_sso_role_arn),
+        (current_sso_group_id, "HAS_ROLE", current_sso_role_arn),
+    }
+
+
+def test_sync_okta_aws_saml_removes_stale_relationships(neo4j_session):
+    # Arrange
+    org_id = "stale-test-okta-org-id"
+    group_id = "stale-test-group"
+    role_arn = "arn:aws:iam::8765:role/stale-test-role"
+    neo4j_session.run(
+        """
+        MERGE (org:OktaOrganization {id: $ORG_ID})
+        MERGE (app:OktaApplication {id: $APP_ID, name: "amazon_aws"})
+        MERGE (org)-[:RESOURCE]->(app)
+        MERGE (group:OktaGroup {
+            id: $GROUP_ID,
+            name: "aws#test#stale-test-role#8765"
+        })
+        MERGE (org)-[:RESOURCE]->(group)
+        MERGE (group)-[:APPLICATION]->(app)
+        MERGE (role:AWSRole {id: $ROLE_ARN, arn: $ROLE_ARN})
+        """,
+        ORG_ID=org_id,
+        APP_ID="stale-test-app",
+        GROUP_ID=group_id,
+        ROLE_ARN=role_arn,
+    )
+    cartography.intel.okta.awssaml.sync_okta_aws_saml(
+        neo4j_session,
+        DEFAULT_REGEX,
+        TEST_UPDATE_TAG,
+        org_id,
+    )
+
+    # Act
+    neo4j_session.run(
+        """
+        MATCH (:OktaGroup {id: $GROUP_ID})-[r:APPLICATION]->(:OktaApplication)
+        DELETE r
+        """,
+        GROUP_ID=group_id,
+    )
+    cartography.intel.okta.awssaml.sync_okta_aws_saml(
+        neo4j_session,
+        DEFAULT_REGEX,
+        TEST_UPDATE_TAG + 1,
+        org_id,
+    )
+
+    # Assert
+    relationship_count = neo4j_session.run(
+        """
+        MATCH (:OktaGroup {id: $GROUP_ID})-[r]->(:AWSRole)
+        WHERE type(r) IN ["ALLOWED_BY", "HAS_ROLE"]
+        RETURN count(r) AS count
+        """,
+        GROUP_ID=group_id,
+    ).single(strict=True)["count"]
+    assert relationship_count == 0
+
+
+def test_okta_cleanup_removes_unscoped_legacy_role_relationships(neo4j_session):
+    # Arrange
+    org_id = "legacy-role-test-okta-org-id"
+    group_id = "legacy-role-test-group"
+    role_arn = "arn:aws:iam::9876:role/legacy-role-test"
+    neo4j_session.run(
+        """
+        MERGE (group:OktaGroup {
+            id: $GROUP_ID,
+            lastupdated: $UPDATE_TAG
+        })
+        MERGE (role:AWSRole {id: $ROLE_ARN, arn: $ROLE_ARN})
+        MERGE (group)-[:ALLOWED_BY {lastupdated: $OLD_UPDATE_TAG}]->(role)
+        """,
+        GROUP_ID=group_id,
+        ROLE_ARN=role_arn,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+        OLD_UPDATE_TAG=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.okta._cleanup_okta_organizations(
+        neo4j_session,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "OKTA_ORG_ID": org_id,
+        },
+    )
+
+    # Assert
+    relationship_count = neo4j_session.run(
+        """
+        MATCH (:OktaGroup {id: $GROUP_ID})-[r:ALLOWED_BY]->(:AWSRole)
+        RETURN count(r) AS count
+        """,
+        GROUP_ID=group_id,
+    ).single(strict=True)["count"]
+    assert relationship_count == 0
+
+
+def test_okta_cleanup_preserves_adopted_legacy_role_relationships(neo4j_session):
+    # Arrange
+    org_id = TEST_ORG_ID
+    group_id = "legacy-adoption-group"
+    role_arn = "arn:aws:iam::1234:role/myrole1"
+    _setup_okta_test_data(neo4j_session)
+    _setup_aws_test_data(neo4j_session)
+    neo4j_session.run(
+        """
+        MATCH (org:OktaOrganization {id: $ORG_ID})
+        MATCH (app:OktaApplication {name: "amazon_aws"})
+        MATCH (role:AWSRole {arn: $ROLE_ARN})
+        MERGE (group:OktaGroup {id: $GROUP_ID})
+        SET group.name = "aws#test#myrole1#1234",
+            group.lastupdated = $UPDATE_TAG
+        MERGE (org)-[:RESOURCE]->(group)
+        MERGE (group)-[:APPLICATION]->(app)
+        MERGE (group)-[:ALLOWED_BY {lastupdated: $OLD_UPDATE_TAG}]->(role)
+        """,
+        ORG_ID=org_id,
+        GROUP_ID=group_id,
+        ROLE_ARN=role_arn,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+        OLD_UPDATE_TAG=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    cartography.intel.okta.awssaml.sync_okta_aws_saml(
+        neo4j_session,
+        DEFAULT_REGEX,
+        TEST_UPDATE_TAG,
+        org_id,
+    )
+    cartography.intel.okta._cleanup_okta_organizations(
+        neo4j_session,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "OKTA_ORG_ID": org_id,
+        },
+    )
+
+    # Assert
+    relationships = neo4j_session.run(
+        """
+        MATCH (:OktaGroup {id: $GROUP_ID})-[r]->(:AWSRole {arn: $ROLE_ARN})
+        WHERE type(r) IN ["ALLOWED_BY", "HAS_ROLE"]
+        RETURN type(r) AS rel_type,
+               r.lastupdated AS lastupdated,
+               r._sub_resource_label AS sub_resource_label,
+               r._sub_resource_id AS sub_resource_id
+        """,
+        GROUP_ID=group_id,
+        ROLE_ARN=role_arn,
+    ).data()
+    assert {
+        (
+            row["rel_type"],
+            row["lastupdated"],
+            row["sub_resource_label"],
+            row["sub_resource_id"],
+        )
+        for row in relationships
+    } == {
+        ("ALLOWED_BY", TEST_UPDATE_TAG, "OktaOrganization", org_id),
+        ("HAS_ROLE", TEST_UPDATE_TAG, "OktaOrganization", org_id),
+    }
 
 
 def _setup_okta_test_data(neo4j_session):
