@@ -71,7 +71,7 @@ def _optional_bool(value: Any) -> bool | None:
 
 def _patch_available(value: Any) -> bool | None:
     # Orca includes extended-maintenance patches in its "Patch Available" filter.
-    if isinstance(value, str) and value.strip().lower() == "extended":
+    if str(value).strip().lower() == "extended":
         return True
     return _optional_bool(value)
 
