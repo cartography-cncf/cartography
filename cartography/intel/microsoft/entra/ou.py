@@ -95,16 +95,23 @@ def cleanup_ous(
 async def sync_entra_ous(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
-    Sync Entra OUs
+    Sync Entra OUs, preserving stale data for delegated authentication.
     """
     # Initialize Graph client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -129,4 +136,5 @@ async def sync_entra_ous(
         load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
 
     # Cleanup stale data
-    cleanup_ous(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_ous(neo4j_session, common_job_parameters)

@@ -148,11 +148,13 @@ async def get_app_role_assignments_for_app(
         next_page_url = assignments_page.odata_next_link
         try:
             assignments_page = await call_with_retries(
-                lambda: client.service_principals.by_service_principal_id(
-                    service_principal_id,
-                )
-                .app_role_assigned_to.with_url(next_page_url)
-                .get(),
+                lambda: (
+                    client.service_principals.by_service_principal_id(
+                        service_principal_id,
+                    )
+                    .app_role_assigned_to.with_url(next_page_url)
+                    .get()
+                ),
             )
         except Exception:
             # Intentionally not narrowed to 404/410: partial-pagination state
@@ -246,10 +248,12 @@ def cleanup_app_role_assignments(
 async def sync_app_role_assignments(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra app role assignments to the graph.
@@ -260,9 +264,15 @@ async def sync_app_role_assignments(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup
     """
     # Create credentials and client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
 
     client = GraphServiceClient(
         credential,
@@ -308,7 +318,8 @@ async def sync_app_role_assignments(
         assignments_batch.clear()
         transformed_assignments.clear()
 
-    cleanup_app_role_assignments(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_app_role_assignments(neo4j_session, common_job_parameters)
     logger.info(f"Completed syncing {total_assignment_count} app role assignments")
     # Final garbage collection
     gc.collect()

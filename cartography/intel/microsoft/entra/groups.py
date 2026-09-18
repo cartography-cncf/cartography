@@ -134,13 +134,20 @@ def cleanup_groups(
 async def sync_entra_groups(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
-    """Sync Entra groups."""
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    """Sync Entra groups, preserving stale data for delegated authentication."""
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -226,4 +233,5 @@ async def sync_entra_groups(
         )
         load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
 
-    cleanup_groups(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_groups(neo4j_session, common_job_parameters)

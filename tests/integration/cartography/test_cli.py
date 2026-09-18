@@ -145,6 +145,54 @@ def test_cli_microsoft_credentials_set_config():
     assert config.entra_client_secret == "secret"
 
 
+def test_cli_microsoft_delegated_auth_sets_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_delegated_auth is True
+    assert config.microsoft_client_id is None
+    assert config.microsoft_client_secret is None
+
+
+def test_cli_rejects_delegated_auth_with_application_credentials():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--microsoft-client-id",
+            "client-id",
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    # Assert
+    assert exit_code == 1
+    sync.run.assert_not_called()
+
+
 def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
     # Arrange
     sync = unittest.mock.MagicMock()
@@ -215,6 +263,7 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
     assert get_args(annotations["microsoft_tenant_id"])[1].hidden is False
     assert get_args(annotations["microsoft_client_id"])[1].hidden is False
     assert get_args(annotations["microsoft_client_secret_env_var"])[1].hidden is False
+    assert get_args(annotations["microsoft_delegated_auth"])[1].hidden is False
     assert get_args(annotations["entra_tenant_id"])[1].hidden is True
     assert get_args(annotations["entra_client_id"])[1].hidden is True
     assert get_args(annotations["entra_client_secret_env_var"])[1].hidden is True
@@ -230,6 +279,7 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
     assert "--microsoft-tenant-id" in help_output
     assert "--microsoft-client-id" in help_output
     assert "--microsoft-client-secret-env-" in help_output
+    assert "--microsoft-delegated-auth" in help_output
     assert "--entra-tenant-id" not in help_output
     assert "--entra-client-id" not in help_output
     assert "--entra-client-secret-env-var" not in help_output

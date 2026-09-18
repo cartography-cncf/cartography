@@ -8,6 +8,9 @@ Create an app registration in [App Registrations](https://portal.azure.com/#view
 
 Create a client secret for the app registration. Store the secret in an environment variable and note the Microsoft tenant ID and application client ID.
 
+Application authentication is the recommended mode because it provides explicit,
+repeatable permissions and complete cleanup semantics.
+
 ## Required Permissions
 
 Grant the app registration these Microsoft Graph application permissions:
@@ -49,6 +52,39 @@ cartography \
   --microsoft-client-id '<client-id>' \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
 ```
+
+## Experimental delegated user authentication
+
+Use delegated authentication only when an app registration is not available and
+you need a best-effort snapshot of the Entra data visible to a human user. It is
+not a replacement for application authentication:
+
+- Only Entra datasets are attempted. Intune and O365 ingestion are skipped.
+- Microsoft Graph may return partial results without an authorization error.
+- A denied Entra dataset is logged and skipped while later datasets continue.
+- Cleanup and derived federation analysis are disabled so partial visibility
+  cannot delete existing graph data.
+- The mode uses the local Azure CLI token cache and is intended for an attended,
+  one-off run on a trusted workstation. Do not use it for hosted or unattended
+  inventory collection.
+
+Use a dedicated, non-privileged test user and a fresh disposable Neo4j database
+when evaluating the mode. Sign in to the target tenant without requiring an Azure
+subscription, then run Cartography:
+
+```bash
+az login --tenant '<tenant-id>' --allow-no-subscriptions
+
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<tenant-id>' \
+  --microsoft-delegated-auth
+```
+
+Do not pass `--microsoft-client-id` or
+`--microsoft-client-secret-env-var` with delegated authentication. A run that
+reports no denied datasets can still be incomplete because results are limited
+to the signed-in user's effective visibility.
 
 ## References
 
