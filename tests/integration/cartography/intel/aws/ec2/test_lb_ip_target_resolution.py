@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from botocore.exceptions import ClientError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
@@ -368,3 +370,170 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     assert check_nodes(
         neo4j_session, "AWSECSContainer", ["exposed_internet", "exposed_internet_type"]
     ) == {(None, None)}
+
+
+@pytest.mark.parametrize("failure", ["list_clusters", "list_services", "timeout"])
+def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session, failure):
+    # Arrange: a valid cross-VPC target and an unrelated account sharing its IP.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, ACCOUNT, 1)
+    data = [
+        {
+            "DNSName": LB,
+            "LoadBalancerName": "synthetic-lb",
+            "CreatedTime": "2026-01-01",
+            "Type": "network",
+            "Scheme": "internet-facing",
+            "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}],
+            "TargetGroups": [
+                {
+                    "TargetGroupArn": TG,
+                    "TargetType": "ip",
+                    "VpcId": "vpc-local",
+                    "Targets": [IP],
+                }
+            ],
+        }
+    ]
+    elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
+    _load_workload(neo4j_session, "remote", ACCOUNT, "vpc-remote", registered=True)
+    _load_workload(neo4j_session, "other", OTHER_ACCOUNT, "vpc-other")
+    _, _, _, targets = elbv2._transform_load_balancer_v2_data(data)
+    elbv2._load_load_balancer_v2_ip_targets(neo4j_session, targets, ACCOUNT, 1)
+    _analyze(neo4j_session, 1)
+
+    failed_client = MagicMock()
+    healthy_client = MagicMock()
+    healthy_client.get_paginator.return_value.paginate.return_value = [{}]
+    healthy_client.describe_clusters.return_value = {"clusters": []}
+    failed_client.describe_clusters.return_value = {
+        "clusters": [{"clusterArn": "cluster"}]
+    }
+
+    def paginator(operation):
+        result = MagicMock()
+        if operation == failure or (
+            failure == "timeout" and operation == "list_clusters"
+        ):
+            result.paginate.side_effect = (
+                ReadTimeoutError(endpoint_url="https://ecs.example.invalid")
+                if failure == "timeout"
+                else ClientError(
+                    {
+                        "Error": {
+                            "Code": "AccessDeniedException",
+                            "Message": "Synthetic denial",
+                        }
+                    },
+                    operation,
+                )
+            )
+        else:
+            result.paginate.return_value = [{"clusterArns": ["cluster"]}]
+        return result
+
+    failed_client.get_paginator.side_effect = paginator
+    session = MagicMock()
+    session.client.side_effect = lambda service, **kwargs: (
+        failed_client if kwargs["region_name"] == REGION else healthy_client
+    )
+
+    # Act: ECS partially succeeds, then ELBV2 and derived exposure run normally.
+    ecs.sync(
+        neo4j_session,
+        session,
+        [REGION, "us-west-2"],
+        ACCOUNT,
+        2,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+    )
+    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
+        elbv2.sync_load_balancer_v2_expose(
+            neo4j_session,
+            session,
+            [REGION],
+            ACCOUNT,
+            2,
+            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+        )
+    _analyze(neo4j_session, 2)
+
+    # Assert: continue other regions without erasing prior identity or exposure.
+    healthy_client.get_paginator.assert_called_with("list_clusters")
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "AWSEC2PrivateIp",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {(LB, f"eni-remote:{IP}")}
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "AWSECSContainer",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {(LB, "container-remote")}
+    assert check_nodes(
+        neo4j_session, "AWSECSContainer", ["id", "exposed_internet"]
+    ) == {
+        ("container-remote", True),
+        ("container-other", None),
+    }
+
+    # Act: successful empty ECS inventory allows normal cleanup on the next sync.
+    session.client.side_effect = None
+    session.client.return_value = healthy_client
+    ecs.sync(
+        neo4j_session,
+        session,
+        [REGION, "us-west-2"],
+        ACCOUNT,
+        3,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
+    )
+    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
+        elbv2.sync_load_balancer_v2_expose(
+            neo4j_session,
+            session,
+            [REGION],
+            ACCOUNT,
+            3,
+            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
+        )
+    _analyze(neo4j_session, 3)
+
+    # Assert: stale exposure converges and the other account survives cleanup.
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSLoadBalancerV2",
+            "id",
+            "AWSEC2PrivateIp",
+            "id",
+            "EXPOSE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSLoadBalancerV2",
+            "id",
+            "AWSECSContainer",
+            "id",
+            "EXPOSE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+    assert check_nodes(
+        neo4j_session, "AWSECSContainer", ["id", "exposed_internet"]
+    ) == {
+        ("container-other", None),
+    }
