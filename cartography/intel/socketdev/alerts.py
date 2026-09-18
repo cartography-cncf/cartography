@@ -12,7 +12,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _BASE_URL = "https://api.socket.dev/v0"
-_PAGE_SIZE = 1000
+_PAGE_SIZE = 5000
 
 
 @timeit
