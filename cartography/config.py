@@ -520,6 +520,14 @@ class Config:
     :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
     :type orca_api_token: str
     :param orca_api_token: Orca Security API token. Optional.
+    :type infisical_api_url: str
+    :param infisical_api_url: Infisical API origin. Optional.
+    :type infisical_organization_id: str
+    :param infisical_organization_id: Infisical organization ID. Optional.
+    :type infisical_client_id: str
+    :param infisical_client_id: Infisical Machine Identity client ID. Optional.
+    :type infisical_client_secret: str
+    :param infisical_client_secret: Infisical Machine Identity client secret. Optional.
     """
 
     def __init__(
@@ -749,6 +757,10 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        infisical_api_url="https://app.infisical.com",
+        infisical_organization_id=None,
+        infisical_client_id=None,
+        infisical_client_secret=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1030,3 +1042,7 @@ class Config:
         self.snowflake_databases = snowflake_databases
         self.orca_api_endpoint = orca_api_endpoint
         self.orca_api_token = orca_api_token
+        self.infisical_api_url = infisical_api_url
+        self.infisical_organization_id = infisical_organization_id
+        self.infisical_client_id = infisical_client_id
+        self.infisical_client_secret = infisical_client_secret
