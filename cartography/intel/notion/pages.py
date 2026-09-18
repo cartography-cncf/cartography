@@ -9,7 +9,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
-from cartography.intel.notion.util import optional_string
 from cartography.intel.notion.util import post_paginated
 from cartography.intel.notion.util import require_boolean
 from cartography.intel.notion.util import require_nonempty_string
@@ -33,17 +32,21 @@ def get(
 
 
 def _get_title(properties: dict[str, Any]) -> str | None:
-    for value in properties.values():
-        if not isinstance(value, dict) or value.get("type") != "title":
+    for raw_value in properties.values():
+        value = require_object(raw_value, "Notion page property")
+        if value.get("type") != "title":
             continue
         title = value.get("title")
         if not isinstance(title, list):
-            return None
-        return "".join(
-            item.get("plain_text", "")
-            for item in title
-            if isinstance(item, dict) and isinstance(item.get("plain_text", ""), str)
-        )
+            raise ValueError("Notion page title must be a list")
+        plain_text_parts = []
+        for raw_item in title:
+            item = require_object(raw_item, "Notion page title item")
+            plain_text = item.get("plain_text")
+            if not isinstance(plain_text, str):
+                raise ValueError("Notion page title plain_text must be a string")
+            plain_text_parts.append(plain_text)
+        return "".join(plain_text_parts) or None
     return None
 
 
@@ -63,7 +66,7 @@ def transform(
         )
         if "public_url" not in page:
             raise ValueError("Notion page response is missing public_url")
-        public_url = optional_string(page["public_url"], "Notion page public_url")
+        public_url = page["public_url"]
         if public_url is not None:
             public_url = require_nonempty_string(
                 public_url,
@@ -96,14 +99,14 @@ def transform(
             parent.get("type"),
             "Notion page parent type",
         )
-        parent_notion_id = parent.get(parent_type)
-        if parent_type == "workspace":
-            parent_notion_id = None
-        else:
-            parent_notion_id = require_nonempty_string(
-                parent_notion_id,
+        parent_notion_id = (
+            None
+            if parent_type == "workspace"
+            else require_nonempty_string(
+                parent.get(parent_type),
                 "Notion page parent id",
             )
+        )
 
         if public_url is None:
             unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))

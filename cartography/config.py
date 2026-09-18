@@ -560,7 +560,6 @@ class Config:
         okta_saml_role_regex=None,
         github_config=None,
         github_commit_lookback_days=30,
-        notion_config=None,
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
@@ -752,6 +751,7 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        notion_config=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user

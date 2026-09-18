@@ -44,7 +44,7 @@ def start_notion_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
         for workspace, api_session in discovered_workspaces:
             logger.info("Starting Notion workspace sync")
-            workspaces.sync(
+            workspaces.load_workspace(
                 neo4j_session,
                 workspace,
                 config.update_tag,

@@ -33,6 +33,23 @@ def test_transform_splits_people_and_bots():
     assert bots[1]["is_token_bot"] is False
 
 
+def test_transform_merges_current_bot_over_list_users_result():
+    # Arrange
+    listed_bot = {
+        **TOKEN_USER,
+        "name": "Stale connection name",
+        "bot": {},
+    }
+
+    # Act
+    _, bots = transform([listed_bot], "workspace-1", TOKEN_USER)
+
+    # Assert
+    assert len(bots) == 1
+    assert bots[0]["name"] == "Security Exporter"
+    assert bots[0]["is_token_bot"] is True
+
+
 def test_transform_rejects_unknown_user_type():
     # Arrange
     users = [{"object": "user", "id": "unknown-1", "type": "alien"}]
@@ -53,7 +70,9 @@ def test_transform_requires_id_and_type():
 @pytest.mark.parametrize(
     "user",
     [
+        {"object": "user", "id": "person-1", "type": "person"},
         {"object": "user", "id": "person-1", "type": "person", "person": []},
+        {"object": "user", "id": "bot-malformed", "type": "bot"},
         {"object": "user", "id": "bot-malformed", "type": "bot", "bot": []},
         {
             "object": "user",

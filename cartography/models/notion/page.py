@@ -66,7 +66,7 @@ class NotionPageNodeProperties(CartographyNodeProperties):
     )
     created_by_notion_user_id: PropertyRef = PropertyRef(
         "created_by_notion_user_id",
-        description="Notion user UUID of the page creator.",
+        description="Notion user or bot UUID of the page creator.",
     )
 
 
@@ -97,9 +97,22 @@ class NotionPageToCreatorRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class NotionPageToCreatorRel(CartographyRelSchema):
-    """A public Notion page was created by a workspace user."""
+    """A public Notion page was created by a workspace person."""
 
     target_node_label: str = "NotionUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("created_by_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CREATED_BY"
+    properties: NotionPageToCreatorRelProperties = NotionPageToCreatorRelProperties()
+
+
+@dataclass(frozen=True)
+class NotionPageToBotCreatorRel(CartographyRelSchema):
+    """A public Notion page was created by a workspace bot."""
+
+    target_node_label: str = "NotionBot"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("created_by_id")},
     )
@@ -116,5 +129,5 @@ class NotionPageSchema(CartographyNodeSchema):
     properties: NotionPageNodeProperties = NotionPageNodeProperties()
     sub_resource_relationship: NotionWorkspaceToPageRel = NotionWorkspaceToPageRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [NotionPageToCreatorRel()],
+        [NotionPageToCreatorRel(), NotionPageToBotCreatorRel()],
     )

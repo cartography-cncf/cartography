@@ -51,10 +51,7 @@ def transform(
         )
         name = optional_string(user.get("name"), "Notion user name")
         if user_type == "person":
-            person = user.get("person")
-            if person is None:
-                person = {}
-            person = require_object(person, "Notion person details")
+            person = require_object(user.get("person"), "Notion person details")
             email = optional_string(person.get("email"), "Notion person email")
             people.append(
                 {
@@ -66,10 +63,7 @@ def transform(
                 },
             )
         elif user_type == "bot":
-            bot = user.get("bot")
-            if bot is None:
-                bot = {}
-            bot = require_object(bot, "Notion bot details")
+            bot = require_object(user.get("bot"), "Notion bot details")
             owner = bot.get("owner")
             if owner is None:
                 owner = {}
@@ -78,16 +72,14 @@ def transform(
                 owner.get("type"),
                 "Notion bot owner type",
             )
-            owner_user = owner.get("user")
-            if owner_user is None:
-                owner_user = {}
-            owner_user = require_object(owner_user, "Notion bot user owner")
-            owner_notion_user_id = (
-                owner_user.get("id") if owner_type == "user" else None
-            )
+            owner_notion_user_id = None
             if owner_type == "user":
+                owner_user = require_object(
+                    owner.get("user"),
+                    "Notion bot user owner",
+                )
                 owner_notion_user_id = require_nonempty_string(
-                    owner_notion_user_id,
+                    owner_user.get("id"),
                     "Notion bot user owner id",
                 )
             bots.append(

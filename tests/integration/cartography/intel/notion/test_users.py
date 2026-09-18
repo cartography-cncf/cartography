@@ -36,7 +36,7 @@ def _sync(neo4j_session, workspace_id, workspace_name, raw_users, update_tag):
     }
     workspace = cartography.intel.notion.workspaces.transform(token_user)
     workspace["token_user"] = token_user
-    cartography.intel.notion.workspaces.sync(
+    cartography.intel.notion.workspaces.load_workspace(
         neo4j_session,
         workspace,
         update_tag,
@@ -96,6 +96,18 @@ def test_sync_users_and_bots(neo4j_session):
     ) == {
         ("workspace-1", "workspace-1/person-1"),
         ("workspace-1", "workspace-1/person-2"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "NotionWorkspace",
+        "id",
+        "NotionBot",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("workspace-1", "workspace-1/bot-1"),
+        ("workspace-1", "workspace-1/bot-2"),
     }
     assert check_rels(
         neo4j_session,
@@ -185,4 +197,8 @@ def test_malformed_response_does_not_trigger_cleanup(neo4j_session):
     assert check_nodes(neo4j_session, "NotionUser", ["id"]) == {
         ("workspace-1/person-1",),
         ("workspace-1/person-2",),
+    }
+    assert check_nodes(neo4j_session, "NotionBot", ["id"]) == {
+        ("workspace-1/bot-1",),
+        ("workspace-1/bot-2",),
     }

@@ -23,7 +23,7 @@ def _config(workspaces):
 
 @patch("cartography.intel.notion.pages.sync")
 @patch("cartography.intel.notion.users.sync")
-@patch("cartography.intel.notion.workspaces.sync")
+@patch("cartography.intel.notion.workspaces.load_workspace")
 @patch("cartography.intel.notion.workspaces.get")
 @patch("cartography.intel.notion.create_api_session")
 def test_start_discovers_workspace_and_honors_public_page_option(
@@ -52,9 +52,17 @@ def test_start_discovers_workspace_and_honors_public_page_option(
     sync_pages.assert_called_once()
     api_session.close.assert_called_once()
 
+    # The option is off by default.
+    sync_pages.reset_mock()
+    start_notion_ingestion(
+        MagicMock(),
+        _config([{"api_token": "token"}]),
+    )
+    sync_pages.assert_not_called()
+
 
 @patch("cartography.intel.notion.users.sync")
-@patch("cartography.intel.notion.workspaces.sync")
+@patch("cartography.intel.notion.workspaces.load_workspace")
 @patch("cartography.intel.notion.workspaces.get")
 @patch("cartography.intel.notion.create_api_session")
 def test_start_rejects_duplicate_discovered_workspaces_before_writes(

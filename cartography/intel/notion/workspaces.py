@@ -54,8 +54,7 @@ def transform(token_user: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@timeit
-def sync(
+def load_workspace(
     neo4j_session: neo4j.Session,
     workspace: dict[str, Any],
     update_tag: int,

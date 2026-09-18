@@ -36,7 +36,7 @@ def _search_payload(results, has_more=False, next_cursor=None):
 def _seed_workspace_and_users(neo4j_session):
     workspace = cartography.intel.notion.workspaces.transform(TOKEN_USER)
     workspace["token_user"] = TOKEN_USER
-    cartography.intel.notion.workspaces.sync(
+    cartography.intel.notion.workspaces.load_workspace(
         neo4j_session,
         workspace,
         TEST_UPDATE_TAG,
@@ -65,10 +65,18 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _seed_workspace_and_users(neo4j_session)
+    bot_page = {
+        **PUBLIC_PAGE,
+        "id": "page-created-by-bot",
+        "created_by": {"object": "user", "id": "bot-1"},
+        "url": "https://www.notion.so/page-created-by-bot",
+        "public_url": "https://example.notion.site/page-created-by-bot",
+    }
     api_session = MagicMock()
-    api_session.post.return_value = _response(
-        _search_payload([PUBLIC_PAGE]),
-    )
+    api_session.post.side_effect = [
+        _response(_search_payload([PUBLIC_PAGE], True, "next-page")),
+        _response(_search_payload([bot_page])),
+    ]
 
     # Act
     cartography.intel.notion.pages.sync(
@@ -91,6 +99,13 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
             "page-parent",
             True,
         ),
+        (
+            "workspace-1/page-created-by-bot",
+            "Public security guidance",
+            "https://example.notion.site/page-created-by-bot",
+            "page-parent",
+            True,
+        ),
     }
     assert check_rels(
         neo4j_session,
@@ -100,7 +115,10 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {("workspace-1", "workspace-1/page-public")}
+    ) == {
+        ("workspace-1", "workspace-1/page-created-by-bot"),
+        ("workspace-1", "workspace-1/page-public"),
+    }
     assert check_rels(
         neo4j_session,
         "NotionPage",
@@ -110,6 +128,15 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
         "CREATED_BY",
         rel_direction_right=True,
     ) == {("workspace-1/page-public", "workspace-1/person-1")}
+    assert check_rels(
+        neo4j_session,
+        "NotionPage",
+        "id",
+        "NotionBot",
+        "id",
+        "CREATED_BY",
+        rel_direction_right=True,
+    ) == {("workspace-1/page-created-by-bot", "workspace-1/bot-1")}
 
 
 def test_sync_deletes_only_confirmed_unpublished_pages(neo4j_session):
