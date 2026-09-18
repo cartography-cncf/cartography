@@ -133,7 +133,7 @@ def get_grants_to_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
         if missing[1].upper() == "IS_INHERITED":
             optional = ""
         else:
-            # Some preview accounts expose the source account instead of a scope enum.
+            # Some accounts expose the source account instead of a scope enum.
             optional = """, is_inherited,
                 CASE WHEN inherited_from_schema IS NOT NULL THEN 'SCHEMA'
                      WHEN inherited_from_database IS NOT NULL THEN 'DATABASE'

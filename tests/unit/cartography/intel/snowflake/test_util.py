@@ -229,18 +229,26 @@ def test_run_sql_returns_all_partitions_keyed_by_lowercase_column():
 
 
 @pytest.mark.parametrize("status", [307, 308])
-def test_run_sql_uses_redirect_partition_without_duplicating_params(status):
+@pytest.mark.parametrize(
+    "location, expected_path",
+    [
+        ("/redirected?partition=1", "/redirected?partition=1"),
+        ("?partition=1", "/api/v2/statements/handle-sql?partition=1"),
+        ("#done", "/api/v2/statements/handle-sql?partition=1"),
+    ],
+)
+def test_run_sql_uses_redirect_partition_without_duplicating_params(
+    status, location, expected_path
+):
     # Arrange
     requested = []
 
     class Handler(_SqlHandler):
         def do_GET(self):
             requested.append(self.path)
-            if self.path.startswith("/api/v2/statements/"):
-                _respond_json(
-                    self, {}, status=status, Location="/redirected?partition=1"
-                )
-            elif self.path == "/redirected?partition=1":
+            if len(requested) == 1:
+                _respond_json(self, {}, status=status, Location=location)
+            elif self.path == expected_path:
                 super().do_GET()
             else:
                 _respond_json(self, {"data": [["ROLE_ONE", "1751412460.000"]]})
@@ -260,7 +268,7 @@ def test_run_sql_uses_redirect_partition_without_duplicating_params(status):
     ]
     assert requested == [
         "/api/v2/statements/handle-sql?partition=1",
-        "/redirected?partition=1",
+        expected_path,
     ]
 
 

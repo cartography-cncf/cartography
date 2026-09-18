@@ -478,7 +478,7 @@ class SnowflakeClient:
                         response=response,
                     )
                 return response
-            target = self._absolute(urljoin(url, response.headers["Location"]))
+            target = self._absolute(urljoin(response.url, response.headers["Location"]))
             response.close()
             if response.status_code in (302, 303) and method != "HEAD":
                 method = "GET"

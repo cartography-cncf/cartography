@@ -240,10 +240,11 @@ Cartography does not currently model application roles or their privilege paths.
 Granting an app role may improve exposed-object visibility, but does not provide
 complete application-role coverage in the graph.
 
-### Inherited grants (public preview)
+### Inherited grants
 
 Snowflake's [inherited grants](https://docs.snowflake.com/en/user-guide/inherited-grants-using)
-support account-wide scope and cover both existing and future objects. For
+are [generally available](https://docs.snowflake.com/en/release-notes/2026/other/2026-09-10-inherited-grants-ga).
+They support account-wide scope and cover both existing and future objects. For
 example, `GRANT INHERITED REFERENCES ON ALL TABLES IN ACCOUNT TO ROLE
 CARTOGRAPHY_RO` is different from the unsupported ordinary account-wide grant.
 
@@ -273,8 +274,9 @@ are cleaned up after complete reads, so a persistent inherited grant does not
 retain revoked direct privileges. These records describe grants rather than
 expanded effective access: container `USAGE`, policy restrictions, and inventory
 visibility still matter. Malformed inherited rows are skipped with a warning;
-valid grants and role assignments still load. Incomplete inherited coverage
-suppresses inherited grant cleanup without blocking direct-grant or role-assignment cleanup.
+valid grants and role assignments still load. These malformed rows suppress
+inherited grant cleanup without blocking direct-grant or role-assignment cleanup
+when their own reads are complete.
 
 ## Optional Permissions
 

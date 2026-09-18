@@ -143,7 +143,7 @@ def test_unreadable_grant_view_still_reports_incomplete(mocker):
     assert client.run_sql.call_count == 1
 
 
-def test_grant_query_supports_source_account_preview_layout(mocker):
+def test_grant_query_supports_source_account_layout(mocker):
     # Arrange
     client = mocker.Mock()
     rows = [{"is_inherited": True, "inherited_from": "ACCOUNT"}]
@@ -170,7 +170,7 @@ def test_grant_query_supports_source_account_preview_layout(mocker):
     assert "*" not in statement
 
 
-def test_missing_preview_scope_columns_does_not_drop_inheritance(mocker):
+def test_missing_source_scope_columns_does_not_drop_inheritance(mocker):
     # Arrange
     client = mocker.Mock()
     client.run_sql.side_effect = [
