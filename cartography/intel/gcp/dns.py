@@ -8,6 +8,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname_values
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
@@ -128,14 +129,19 @@ def transform_dns_rrs(dns_rrs: List[Dict]) -> List[Dict]:
     """Transform raw DNS record set responses into Neo4j-ready dicts."""
     records: List[Dict] = []
     for r in dns_rrs:
+        record_type = r.get("type")
+        data = r.get("rrdatas")
         records.append(
             {
                 # Compose a unique ID to avoid collisions across types and zones
                 "id": f"{r['name']}|{r.get('type')}|{r.get('zone')}",
                 "name": r["name"],
-                "type": r.get("type"),
+                "type": record_type,
                 "ttl": r.get("ttl"),
-                "data": r.get("rrdatas"),
+                "data": data,
+                "target_hostnames": (
+                    normalize_hostname_values(data) if record_type == "CNAME" else []
+                ),
                 "zone_id": r.get("zone"),
             }
         )
