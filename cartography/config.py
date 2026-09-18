@@ -577,6 +577,9 @@ class Config:
         huntress_api_secret=None,
         k8s_kubeconfig=None,
         managed_kubernetes=None,
+        gke_clusters=None,
+        gke_endpoint="dns",
+        gke_impersonate_service_account=None,
         statsd_enabled=False,
         statsd_prefix=None,
         statsd_host=None,
@@ -835,6 +838,9 @@ class Config:
         self.huntress_api_secret = huntress_api_secret
         self.k8s_kubeconfig = k8s_kubeconfig
         self.managed_kubernetes = managed_kubernetes
+        self.gke_clusters = gke_clusters
+        self.gke_endpoint = gke_endpoint
+        self.gke_impersonate_service_account = gke_impersonate_service_account
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host

@@ -23,6 +23,9 @@ class GCPWorkloadIdentityPoolNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef(
         "name", extra_index=True, description="Same as `id`."
     )
+    pool_id: PropertyRef = PropertyRef(
+        "pool_id", description="Pool ID without the parent project path."
+    )
     display_name: PropertyRef = PropertyRef(
         "displayName", description="The friendly name of the pool."
     )

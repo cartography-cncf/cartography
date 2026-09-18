@@ -126,6 +126,20 @@ def transform_gateways(gateways: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "namespace": namespace,
                 "qualified_name": get_qualified_resource_name(namespace, name),
                 "gateway_class_name": spec.get("gatewayClassName"),
+                "load_balancer_listeners": sorted(
+                    {
+                        f"{'UDP' if listener.get('protocol') == 'UDP' else 'TCP'}:{listener['port']}"
+                        for listener in spec.get("listeners", [])
+                        if listener.get("port")
+                    }
+                ),
+                "load_balancer_ips": sorted(
+                    {
+                        a["value"]
+                        for a in gateway.get("status", {}).get("addresses", [])
+                        if a.get("type", "IPAddress") == "IPAddress" and a.get("value")
+                    }
+                ),
                 "creation_timestamp": get_epoch(
                     parse_rfc3339(metadata.get("creationTimestamp"))
                 ),
@@ -284,7 +298,7 @@ def sync_gateway_api(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> bool:
     try:
         raw_gateways = get_gateways(client)
         raw_routes = get_http_routes(client)
@@ -303,7 +317,7 @@ def sync_gateway_api(
                 client.name,
                 err.status,
             )
-            return
+            return False
         raise
 
     gateways = transform_gateways(raw_gateways)
@@ -328,3 +342,4 @@ def sync_gateway_api(
         cluster_name=client.name,
     )
     cleanup(neo4j_session, common_job_parameters)
+    return True

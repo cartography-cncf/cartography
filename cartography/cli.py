@@ -1157,11 +1157,38 @@ class CLI:
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
             ] = None,
+            gke_clusters: Annotated[
+                list[str] | None,
+                typer.Option(
+                    "--gke-cluster",
+                    help="GKE resource name (projects/PROJECT/locations/LOCATION/clusters/NAME). Repeat for multiple clusters. Uses Google ADC without kubeconfig.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
+            gke_endpoint: Annotated[
+                str,
+                typer.Option(
+                    "--gke-endpoint",
+                    help="GKE API endpoint: dns, private, or public. No automatic fallback.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = "dns",
+            gke_impersonate_service_account: Annotated[
+                str | None,
+                typer.Option(
+                    "--gke-impersonate-service-account",
+                    help="Service account email to impersonate for GKE discovery and Kubernetes reads.",
+                    rich_help_panel=PANEL_KUBERNETES,
+                    hidden=PANEL_KUBERNETES not in visible_panels,
+                ),
+            ] = None,
             managed_kubernetes: Annotated[
                 str | None,
                 typer.Option(
                     "--managed-kubernetes",
-                    help="Type of managed Kubernetes service (e.g., 'eks').",
+                    help="Type of managed Kubernetes service ('eks' or 'gke').",
                     rich_help_panel=PANEL_KUBERNETES,
                     hidden=PANEL_KUBERNETES not in visible_panels,
                 ),
@@ -3652,6 +3679,9 @@ class CLI:
                 huntress_api_secret=huntress_api_secret,
                 k8s_kubeconfig=k8s_kubeconfig,
                 managed_kubernetes=managed_kubernetes,
+                gke_clusters=gke_clusters,
+                gke_endpoint=gke_endpoint,
+                gke_impersonate_service_account=gke_impersonate_service_account,
                 statsd_enabled=statsd_enabled,
                 statsd_prefix=statsd_prefix,
                 statsd_host=statsd_host,

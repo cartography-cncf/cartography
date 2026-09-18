@@ -1,7 +1,10 @@
+import json
 import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client import WellKnownApi
+from kubernetes.client.exceptions import ApiException
 from kubernetes.client.models import V1Namespace
 from kubernetes.client.models import VersionInfo
 
@@ -27,6 +30,9 @@ def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
 
 @timeit
 def get_kubernetes_cluster_tls_diagnostics(client: K8sClient) -> dict[str, Any]:
+    diagnostics = getattr(client, "tls_diagnostics", None)
+    if isinstance(diagnostics, dict):
+        return diagnostics
     return get_kubeconfig_tls_diagnostics(client.name, client.config_file)
 
 
@@ -49,6 +55,13 @@ def transform_kubernetes_cluster(
         "platform": version.platform,
     }
     cluster.update(tls_diagnostics)
+    metadata = getattr(client, "gke_cluster", None)
+    if isinstance(metadata, dict):
+        cluster["gke_resource_name"] = metadata["resource_name"]
+        cluster["gke_uid"] = metadata.get("id")
+        cluster["workload_pool"] = (metadata.get("workloadIdentityConfig") or {}).get(
+            "workloadPool"
+        )
 
     return [cluster]
 
@@ -79,6 +92,23 @@ def load_kubernetes_cluster(
 #     )
 
 
+def get_service_account_oidc(client: K8sClient) -> dict[str, str]:
+    # Read the raw JSON: some Kubernetes client versions coerce this endpoint's
+    # declared `str` response into a Python dict repr during deserialization.
+    response = WellKnownApi(
+        client.core.api_client
+    ).get_service_account_issuer_open_id_configuration(_preload_content=False)
+    try:
+        discovery = json.loads(response.data)
+    finally:
+        response.release_conn()
+    return {
+        key: value
+        for key, value in discovery.items()
+        if key in ("issuer", "jwks_uri") and isinstance(value, str)
+    }
+
+
 @timeit
 def sync_kubernetes_cluster(
     neo4j_session: neo4j.Session,
@@ -96,5 +126,16 @@ def sync_kubernetes_cluster(
         tls_diagnostics,
     )
 
+    if isinstance(getattr(client, "gke_cluster", None), dict):
+        try:
+            discovery = get_service_account_oidc(client)
+            cluster_info[0]["service_account_issuer"] = discovery.get("issuer")
+            cluster_info[0]["service_account_jwks_uri"] = discovery.get("jwks_uri")
+        except ApiException as err:
+            if err.status not in (401, 403, 404):
+                raise
+            logger.info(
+                "Service account OIDC discovery is unavailable for this Kubernetes reader"
+            )
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
     return cluster_info[0]

@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(client: K8sClient) -> list[V1Service]:
-    items = k8s_paginate(client.core.list_service_for_all_namespaces)
+    items = k8s_paginate(
+        client.core.list_service_for_all_namespaces, raise_on_error=True
+    )
     return items
 
 
@@ -102,11 +104,21 @@ def transform_services(
             "selector": _format_service_selector(service.spec.selector),
             "cluster_ip": service.spec.cluster_ip,
             "load_balancer_ip": service.spec.load_balancer_ip,
+            "load_balancer_ips": [],
+            "load_balancer_listeners": sorted(
+                {
+                    f"{port.protocol or 'TCP'}:{port.port}"
+                    for port in service.spec.ports or []
+                }
+            ),
         }
 
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
         if service.spec.type == "LoadBalancer":
-            if service.status.load_balancer:
+            if service.status and service.status.load_balancer:
+                item["load_balancer_ips"] = sorted(
+                    {i.ip for i in service.status.load_balancer.ingress or [] if i.ip}
+                )
                 item["load_balancer_ingress"] = _format_load_balancer_ingress(
                     service.status.load_balancer.ingress
                 )

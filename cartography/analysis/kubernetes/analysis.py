@@ -11,11 +11,11 @@ K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
     scope=ScopeById(
         "KubernetesCluster",
         "CLUSTER_ID",
-        scope_on=("svc", "ing"),
+        scope_on=("svc", "ing", "gw"),
     ),
     statements=(
         AnalysisStatement(
-            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc",
+            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') WITH DISTINCT svc",
             effects=(
                 SetProperty("svc", "exposed_internet", True, label="KubernetesService"),
                 AddToSet(
@@ -24,7 +24,16 @@ K8S_SERVICE_ASSET_EXPOSURE = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService) WITH DISTINCT svc",
+            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService) WITH DISTINCT svc",
+            effects=(
+                SetProperty("svc", "exposed_internet", True, label="KubernetesService"),
+                AddToSet(
+                    "svc", "exposed_internet_type", "lb", label="KubernetesService"
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (gw:KubernetesGateway)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (gw)-[:ROUTES]->(:KubernetesHTTPRoute)-[:TARGETS]->(svc:KubernetesService) WITH DISTINCT svc",
             effects=(
                 SetProperty("svc", "exposed_internet", True, label="KubernetesService"),
                 AddToSet(
@@ -75,32 +84,46 @@ K8S_LB_POD_EXPOSURE = AnalysisJob(
     scope=ScopeById(
         "KubernetesCluster",
         "CLUSTER_ID",
-        scope_on=("svc", "ing"),
+        scope_on=("svc", "ing", "gw"),
     ),
     statements=(
         AnalysisStatement(
-            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)",
+            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)",
             effects=(
                 AddRelationship(
                     "lb",
                     "EXPOSE",
                     "pod",
                     properties={"exposure_type": "via_lb_only"},
-                    source_label="AWSLoadBalancerV2",
+                    source_label="LoadBalancer",
                     target_label="KubernetesPod",
                     scoped_to="target",
                 ),
             ),
         ),
         AnalysisStatement(
-            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)",
+            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)",
             effects=(
                 AddRelationship(
                     "lb",
                     "EXPOSE",
                     "pod",
                     properties={"exposure_type": "via_lb_only"},
-                    source_label="AWSLoadBalancerV2",
+                    source_label="LoadBalancer",
+                    target_label="KubernetesPod",
+                    scoped_to="target",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (gw:KubernetesGateway)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (gw)-[:ROUTES]->(:KubernetesHTTPRoute)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)",
+            effects=(
+                AddRelationship(
+                    "lb",
+                    "EXPOSE",
+                    "pod",
+                    properties={"exposure_type": "via_lb_only"},
+                    source_label="LoadBalancer",
                     target_label="KubernetesPod",
                     scoped_to="target",
                 ),
@@ -114,32 +137,46 @@ K8S_LB_CONTAINER_EXPOSURE = AnalysisJob(
     scope=ScopeById(
         "KubernetesCluster",
         "CLUSTER_ID",
-        scope_on=("svc", "ing"),
+        scope_on=("svc", "ing", "gw"),
     ),
     statements=(
         AnalysisStatement(
-            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            match="MATCH (svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (svc)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
             effects=(
                 AddRelationship(
                     "lb",
                     "EXPOSE",
                     "c",
                     properties={"exposure_type": "via_lb_only"},
-                    source_label="AWSLoadBalancerV2",
+                    source_label="LoadBalancer",
                     target_label="KubernetesContainer",
                     scoped_to="target",
                 ),
             ),
         ),
         AnalysisStatement(
-            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            match="MATCH (ing:KubernetesIngress)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (ing)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
             effects=(
                 AddRelationship(
                     "lb",
                     "EXPOSE",
                     "c",
                     properties={"exposure_type": "via_lb_only"},
-                    source_label="AWSLoadBalancerV2",
+                    source_label="LoadBalancer",
+                    target_label="KubernetesContainer",
+                    scoped_to="target",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match="MATCH (gw:KubernetesGateway)-[:USES_LOAD_BALANCER]->(lb:LoadBalancer) WHERE lb.exposed_internet = true OR (lb.scheme = 'internet-facing' AND lb.type = 'network') MATCH (gw)-[:ROUTES]->(:KubernetesHTTPRoute)-[:TARGETS]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)-[:CONTAINS]->(c:KubernetesContainer)",
+            effects=(
+                AddRelationship(
+                    "lb",
+                    "EXPOSE",
+                    "c",
+                    properties={"exposure_type": "via_lb_only"},
+                    source_label="LoadBalancer",
                     target_label="KubernetesContainer",
                     scoped_to="target",
                 ),
