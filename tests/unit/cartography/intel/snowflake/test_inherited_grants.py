@@ -42,7 +42,7 @@ def test_container_ids_and_object_types_are_preserved(scope, parts):
 
 
 @pytest.mark.parametrize("scope", [None, "UNKNOWN", "DATABASE", "SCHEMA"])
-def test_missing_container_metadata_fails_before_cleanup(scope):
+def test_missing_container_metadata_is_skipped_and_warned(scope, caplog):
     # Arrange
     row = {
         "granted_to": "ROLE",
@@ -53,8 +53,9 @@ def test_missing_container_metadata_fails_before_cleanup(scope):
     }
 
     # Act and assert
-    with pytest.raises(ValueError, match="container scope"):
-        transform([row], "EXAMPLE.ACCOUNT")
+    assert transform([row], "EXAMPLE.ACCOUNT") == []
+    assert "container scope" in caplog.text
+    assert "READER" in caplog.text and "SELECT" in caplog.text
 
 
 @pytest.mark.parametrize(

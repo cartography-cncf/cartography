@@ -437,7 +437,7 @@ def start_snowflake_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     # Grants last: they read every principal and grantable object from the graph,
     # so running here means the edges resolve on the first pass.
-    grants_complete, role_assignments_complete = grants.sync(
+    grants_complete, role_assignments_complete, inherited_grants_complete = grants.sync(
         neo4j_session,
         client,
         role_list,
@@ -462,4 +462,5 @@ def start_snowflake_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         config.update_tag,
         object_grants_complete=grants_complete and account_grants_complete,
         role_assignments_complete=role_assignments_complete,
+        inherited_grants_complete=inherited_grants_complete,
     )

@@ -247,9 +247,10 @@ support account-wide scope and cover both existing and future objects. For
 example, `GRANT INHERITED REFERENCES ON ALL TABLES IN ACCOUNT TO ROLE
 CARTOGRAPHY_RO` is different from the unsupported ordinary account-wide grant.
 
-They are not required for this setup. Enabling them requires the
-[public-preview opt-in](https://docs.snowflake.com/en/user-guide/inherited-grants-intro);
-`SYSTEM$ENABLE_PREVIEW_ACCESS()` enables preview access for the whole account,
+They are not required for this setup. Snowflake documents an
+[account-wide opt-in](https://docs.snowflake.com/en/user-guide/inherited-grants-intro)
+using `ALTER ACCOUNT SET FEATURE_RBAC_INHERITED_GRANTS = 'ENABLED'`; this
+enables inherited grants and container-level grant management for the whole account,
 not just the collector. Inherited grants apply to each specified object type:
 a grant on tables does not also cover views or dynamic tables.
 
@@ -271,7 +272,9 @@ Direct privileges remain `HAS_PRIVILEGE` edges. Both direct and inherited grants
 are cleaned up after complete reads, so a persistent inherited grant does not
 retain revoked direct privileges. These records describe grants rather than
 expanded effective access: container `USAGE`, policy restrictions, and inventory
-visibility still matter. A malformed inherited scope fails the sync before cleanup.
+visibility still matter. Malformed inherited rows are skipped with a warning;
+valid grants and role assignments still load. Incomplete inherited coverage
+suppresses inherited grant cleanup without blocking direct-grant or role-assignment cleanup.
 
 ## Optional Permissions
 

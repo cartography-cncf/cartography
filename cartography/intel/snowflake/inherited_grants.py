@@ -29,9 +29,13 @@ def transform(rows: list[dict[str, Any]], account_id: str) -> list[dict[str, Any
         grantee = to_text(row.get("grantee_name"))
         grantee_type = (to_text(row.get("granted_to")) or "").replace("_", " ")
         if not privilege or not object_type or not grantee or not grantee_type:
-            raise ValueError(
-                "Snowflake inherited grant is missing its privilege, object type, or grantee"
+            logger.warning(
+                "Skipping malformed Snowflake inherited grant for grantee %r, privilege %r: "
+                "missing privilege, object type, or grantee.",
+                grantee,
+                privilege,
             )
+            continue
         if scope == "ACCOUNT":
             container_id = account_id
         elif scope == "DATABASE" and database:
@@ -39,9 +43,13 @@ def transform(rows: list[dict[str, Any]], account_id: str) -> list[dict[str, Any
         elif scope == "SCHEMA" and database and schema:
             container_id = sf_id(account_id, "schema", sf_fqn(database, schema))
         else:
-            raise ValueError(
-                "Snowflake inherited grant has an invalid or incomplete container scope"
+            logger.warning(
+                "Skipping malformed Snowflake inherited grant for grantee %r, privilege %r: "
+                "invalid or incomplete container scope.",
+                grantee,
+                privilege,
             )
+            continue
         principal_kind = {
             "ROLE": "role",
             "ACCOUNT ROLE": "role",
@@ -97,9 +105,8 @@ def load_grants(
     rows: list[dict[str, Any]],
     account_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
     grants = transform(rows, account_id)
-    logger.info("Loading %d Snowflake inherited grant records.", len(grants))
     load(
         neo4j_session,
         SnowflakeInheritedGrantSchema(),
@@ -107,6 +114,7 @@ def load_grants(
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
     )
+    return len(grants) == len(rows)
 
 
 def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:

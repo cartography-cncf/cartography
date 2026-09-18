@@ -6,6 +6,8 @@ import cartography.intel.snowflake.account_usage
 import cartography.intel.snowflake.database_roles
 import cartography.intel.snowflake.grants
 import cartography.intel.snowflake.roles
+from cartography.intel.snowflake.inherited_grants import cleanup
+from cartography.intel.snowflake.inherited_grants import load_grants
 from tests.data.snowflake.account import SNOWFLAKE_ACCOUNT_ID
 from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
 from tests.data.snowflake.roles import SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS
@@ -27,6 +29,15 @@ from tests.integration.cartography.intel.snowflake.test_users import (
 )
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
+
+@pytest.fixture
+def isolated_inherited_grants(neo4j_session):
+    neo4j_session.run("MATCH (g:SnowflakeInheritedGrant) DETACH DELETE g").consume()
+    try:
+        yield
+    finally:
+        neo4j_session.run("MATCH (g:SnowflakeInheritedGrant) DETACH DELETE g").consume()
 
 
 def _ensure_local_neo4j_has_test_roles(neo4j_session) -> list[dict]:
@@ -116,14 +127,16 @@ def test_sync_snowflake_grants(mock_grants, mock_grants_of, neo4j_session):
     }
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session,
-        client,
-        roles,
-        service_user_names={"SCRAM_BOT"},
-        database_roles=[],
-        common_job_parameters=common_job_parameters,
-        use_account_usage=False,
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session,
+            client,
+            roles,
+            service_user_names={"SCRAM_BOT"},
+            database_roles=[],
+            common_job_parameters=common_job_parameters,
+            use_account_usage=False,
+        )
     )
 
     # Assert: every edge is built, but the walk never claims completeness. SHOW GRANTS
@@ -131,6 +144,7 @@ def test_sync_snowflake_grants(mock_grants, mock_grants_of, neo4j_session):
     # no row and no error, so cleanup must not run off the back of this path.
     assert complete is False
     assert assignments_complete is False
+    assert inherited_complete is False
 
     # Assert the role hierarchy. ACCOUNTADMIN inherits SYSADMIN which inherits
     # SAFETY_INSPECTOR, so the composite role is the edge source and privilege
@@ -231,20 +245,23 @@ def test_sync_reports_incomplete_when_a_role_cannot_be_read(neo4j_session, mocke
     )
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session,
-        client,
-        roles,
-        service_user_names=set(),
-        database_roles=[],
-        common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
-        use_account_usage=False,
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session,
+            client,
+            roles,
+            service_user_names=set(),
+            database_roles=[],
+            common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
+            use_account_usage=False,
+        )
     )
 
     # Assert: the caller must skip grant cleanup, or edges it merely failed to
     # re-read this run would be deleted.
     assert complete is False
     assert assignments_complete is False
+    assert inherited_complete is False
 
 
 @patch.object(
@@ -275,16 +292,18 @@ def test_sync_snowflake_grants_from_account_usage(
     _clear_grant_edges(neo4j_session)
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session,
-        client,
-        roles,
-        service_user_names={"SCRAM_BOT"},
-        database_roles=[],
-        common_job_parameters={
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
-        },
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session,
+            client,
+            roles,
+            service_user_names={"SCRAM_BOT"},
+            database_roles=[],
+            common_job_parameters={
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+                "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+            },
+        )
     )
 
     # Assert
@@ -365,22 +384,25 @@ def test_sync_falls_back_to_the_object_api_when_account_usage_is_unreadable(
     _clear_grant_edges(neo4j_session)
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session,
-        client,
-        roles,
-        service_user_names={"SCRAM_BOT"},
-        database_roles=[],
-        common_job_parameters={
-            "UPDATE_TAG": TEST_UPDATE_TAG,
-            "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
-        },
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session,
+            client,
+            roles,
+            service_user_names={"SCRAM_BOT"},
+            database_roles=[],
+            common_job_parameters={
+                "UPDATE_TAG": TEST_UPDATE_TAG,
+                "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID,
+            },
+        )
     )
 
     # Assert: the edges are still built from the object API, but completeness is not
     # claimed, so cleanup stays off.
     assert complete is False
     assert assignments_complete is False
+    assert inherited_complete is False
     assert check_rels(
         neo4j_session, "SnowflakeRole", "name", "SnowflakeRole", "name", "INCLUDES"
     ) == {
@@ -575,6 +597,7 @@ def test_quoted_database_role_keeps_its_grant_edges(
 
 @pytest.mark.parametrize("account_grants_complete", [False, True])
 @pytest.mark.parametrize("has_inherited", [False, True])
+@pytest.mark.usefixtures("isolated_inherited_grants")
 def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     neo4j_session, account_grants_complete, has_inherited
 ):
@@ -602,12 +625,14 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     ]
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session, client, roles, set(), [], parameters
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session, client, roles, set(), [], parameters
+        )
     )
 
     # Assert
-    assert (complete, assignments_complete) == (True, True)
+    assert (complete, assignments_complete, inherited_complete) == (True, True, True)
     users_before = check_rels(
         neo4j_session, "SnowflakeUser", "name", "SnowflakeRole", "name", "HAS_ROLE"
     )
@@ -630,8 +655,10 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
 
     # Act
-    complete, assignments_complete = cartography.intel.snowflake.grants.sync(
-        neo4j_session, client, roles, set(), [], parameters
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session, client, roles, set(), [], parameters
+        )
     )
     cartography.intel.snowflake.grants.cleanup(
         neo4j_session,
@@ -639,10 +666,11 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
         parameters["UPDATE_TAG"],
         object_grants_complete=complete and account_grants_complete,
         role_assignments_complete=assignments_complete,
+        inherited_grants_complete=inherited_complete,
     )
 
     # Assert: assignment cleanup is independent of object-grant completeness.
-    assert (complete, assignments_complete) == (True, True)
+    assert (complete, assignments_complete, inherited_complete) == (True, True, True)
     assert check_nodes(neo4j_session, "SnowflakeUser", ["name"])
     assert check_nodes(neo4j_session, "SnowflakeRole", ["name"])
     assert (
@@ -672,14 +700,133 @@ def test_incomplete_privileges_do_not_preserve_revoked_role_assignments(
     )
     assert remaining_privileges == expected_privileges
 
+    # Arrange: ACCOUNT_USAGE revokes inherited access, independently of SHOW GRANTS.
+    client.run_sql.side_effect = [[], []]
+    parameters = {**parameters, "UPDATE_TAG": TEST_UPDATE_TAG + 2}
+
+    # Act
+    complete, assignments_complete, inherited_complete = (
+        cartography.intel.snowflake.grants.sync(
+            neo4j_session, client, roles, set(), [], parameters
+        )
+    )
+    cartography.intel.snowflake.grants.cleanup(
+        neo4j_session,
+        SNOWFLAKE_ACCOUNT_ID,
+        parameters["UPDATE_TAG"],
+        object_grants_complete=complete and account_grants_complete,
+        role_assignments_complete=assignments_complete,
+        inherited_grants_complete=inherited_complete,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "SnowflakeInheritedGrant", ["id"]) == set()
+
+
+@pytest.mark.parametrize("invalid_field", ["inherited_from", "privilege"])
+@pytest.mark.usefixtures("isolated_inherited_grants")
+def test_malformed_inherited_grant_preserves_state_without_aborting_sync(
+    neo4j_session, invalid_field, caplog
+):
+    # Arrange
+    _clear_grant_edges(neo4j_session)
+    _ensure_local_neo4j_has_test_account(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+    roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
+    _seed_grant_targets(neo4j_session)
+    client = build_test_client()
+    inherited = {
+        "privilege": "SELECT",
+        "granted_on": "TABLE",
+        "grantee_name": "SAFETY_INSPECTOR",
+        "is_inherited": "true",
+        "inherited_from": "ACCOUNT",
+        "granted_to": "ROLE",
+    }
+    params = {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": SNOWFLAKE_ACCOUNT_ID}
+    client.run_sql.side_effect = [
+        SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES + [inherited],
+        SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_USERS,
+    ]
+    cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], params
+    )
+    assert check_rels(
+        neo4j_session, "SnowflakeUser", "name", "SnowflakeRole", "name", "HAS_ROLE"
+    )
+
+    # Arrange: one malformed grant, one new valid grant, and revoked assignments.
+    direct = [
+        row
+        for row in SNOWFLAKE_ACCOUNT_USAGE_GRANTS_TO_ROLES
+        if row["granted_on"] == "DATABASE"
+    ]
+    client.run_sql.side_effect = [
+        direct
+        + [{**inherited, invalid_field: None}, {**inherited, "granted_on": "VIEW"}],
+        [],
+    ]
+    params = {**params, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
+
+    # Act
+    complete, assignments, inherited_complete = cartography.intel.snowflake.grants.sync(
+        neo4j_session, client, roles, set(), [], params
+    )
+    cartography.intel.snowflake.grants.cleanup(
+        neo4j_session,
+        SNOWFLAKE_ACCOUNT_ID,
+        params["UPDATE_TAG"],
+        object_grants_complete=complete,
+        role_assignments_complete=assignments,
+        inherited_grants_complete=inherited_complete,
+    )
+
+    # Assert: preserve only inherited state; direct grants and assignments still revoke.
+    assert (complete, assignments, inherited_complete) == (True, True, False)
+    assert "Skipping malformed Snowflake inherited grant" in caplog.text
+    assert "SAFETY_INSPECTOR" in caplog.text
+    assert check_nodes(
+        neo4j_session, "SnowflakeInheritedGrant", ["object_type", "lastupdated"]
+    ) == {("TABLE", TEST_UPDATE_TAG), ("VIEW", TEST_UPDATE_TAG + 1)}
+    assert (
+        check_rels(
+            neo4j_session, "SnowflakeUser", "name", "SnowflakeRole", "name", "HAS_ROLE"
+        )
+        == set()
+    )
+    assert (
+        check_rels(
+            neo4j_session, "SnowflakeRole", "name", "SnowflakeRole", "name", "INCLUDES"
+        )
+        == set()
+    )
+    assert (
+        neo4j_session.run(
+            "MATCH (:SnowflakeRole)-[r:HAS_PRIVILEGE]->(:SnowflakeDatabase) "
+            "RETURN r.lastupdated AS tag"
+        ).single()["tag"]
+        == params["UPDATE_TAG"]
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnowflakeRole",
+            "name",
+            "SnowflakeTable",
+            "name",
+            "HAS_PRIVILEGE",
+        )
+        == set()
+    )
+
 
 @pytest.mark.parametrize("scope", ["ACCOUNT", "DATABASE", "SCHEMA"])
+@pytest.mark.usefixtures("isolated_inherited_grants")
 def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     neo4j_session, scope
 ):
     # Arrange
     _clear_grant_edges(neo4j_session)
-    neo4j_session.run("MATCH (g:SnowflakeInheritedGrant) DETACH DELETE g")
     _ensure_local_neo4j_has_test_account(neo4j_session)
     roles = _ensure_local_neo4j_has_test_roles(neo4j_session)
     _seed_grant_targets(neo4j_session)
@@ -709,7 +856,7 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     client.run_sql.side_effect = [direct + [inherited, view_grant], []]
 
     # Act
-    complete, assignments = cartography.intel.snowflake.grants.sync(
+    complete, assignments, inherited_complete = cartography.intel.snowflake.grants.sync(
         neo4j_session, client, roles, set(), [], params
     )
 
@@ -752,7 +899,7 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     params = {**params, "UPDATE_TAG": TEST_UPDATE_TAG + 1}
 
     # Act
-    complete, assignments = cartography.intel.snowflake.grants.sync(
+    complete, assignments, inherited_complete = cartography.intel.snowflake.grants.sync(
         neo4j_session, client, roles, set(), [], params
     )
     cartography.intel.snowflake.grants.cleanup(
@@ -761,6 +908,7 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
         params["UPDATE_TAG"],
         object_grants_complete=complete,
         role_assignments_complete=assignments,
+        inherited_grants_complete=inherited_complete,
     )
 
     # Assert
@@ -785,7 +933,7 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     params = {**params, "UPDATE_TAG": TEST_UPDATE_TAG + 2}
 
     # Act
-    complete, assignments = cartography.intel.snowflake.grants.sync(
+    complete, assignments, inherited_complete = cartography.intel.snowflake.grants.sync(
         neo4j_session, client, roles, set(), [], params
     )
     cartography.intel.snowflake.grants.cleanup(
@@ -794,6 +942,7 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
         params["UPDATE_TAG"],
         object_grants_complete=complete,
         role_assignments_complete=assignments,
+        inherited_grants_complete=inherited_complete,
     )
 
     # Assert
@@ -802,11 +951,9 @@ def test_inherited_grants_refresh_and_revoke_without_preserving_direct_grants(
     ) == {("VIEW", TEST_UPDATE_TAG + 2)}
 
 
+@pytest.mark.usefixtures("isolated_inherited_grants")
 def test_inherited_grant_cleanup_is_account_scoped(neo4j_session):
     # Arrange
-    from cartography.intel.snowflake.inherited_grants import cleanup
-    from cartography.intel.snowflake.inherited_grants import load_grants
-
     accounts = ["EXAMPLE.FIRST", "EXAMPLE.SECOND"]
     row = {
         "granted_to": "ROLE",

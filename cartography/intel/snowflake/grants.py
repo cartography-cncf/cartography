@@ -386,6 +386,7 @@ def cleanup(
     *,
     object_grants_complete: bool,
     role_assignments_complete: bool,
+    inherited_grants_complete: bool,
 ) -> None:
     if object_grants_complete:
         GraphJob.from_matchlink(
@@ -395,8 +396,13 @@ def cleanup(
         logger.warning(
             "Skipping Snowflake object grant cleanup: coverage is incomplete."
         )
-    if role_assignments_complete:
+    if inherited_grants_complete:
         inherited_grants.cleanup(neo4j_session, account_id, update_tag)
+    else:
+        logger.warning(
+            "Skipping Snowflake inherited grant cleanup: coverage is incomplete."
+        )
+    if role_assignments_complete:
         for matchlink in _ROLE_EDGE_MATCHLINKS.values():
             GraphJob.from_matchlink(
                 matchlink, "SnowflakeAccount", account_id, update_tag
@@ -465,7 +471,7 @@ def sync(
     database_roles: list[dict[str, Any]],
     common_job_parameters: dict,
     use_account_usage: bool = True,
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, bool]:
     """Materialise every grant, role assignment and role-hierarchy edge.
 
     Runs last, after every principal and grantable object is in the graph, so the
@@ -476,9 +482,9 @@ def sync(
     rather than visibility-filtered, and dramatically cheaper: the REST path issues
     two requests per role, which on a large account is thousands of paginated calls.
 
-    Returns completeness for object grants and role assignments, respectively.
+    Returns completeness for object grants, role assignments, and inherited grants.
     On the REST path a role the collector cannot see produces no rows and no error,
-    so the caller skips both cleanup paths rather than deleting still-valid edges.
+    so the caller skips grant cleanup rather than deleting still-valid edges.
     """
     account_id = client.account_id
     database_role_names = {role["qualified_name"] for role in database_roles}
@@ -494,7 +500,7 @@ def sync(
         grants_by_role, grants_of_by_role, inherited_rows = account_usage.split_grants(
             grants_to_roles, grants_to_users
         )
-        inherited_grants.load_grants(
+        inherited_grants_complete = inherited_grants.load_grants(
             neo4j_session,
             inherited_rows,
             account_id,
@@ -520,6 +526,7 @@ def sync(
         # A partial REST walk cannot be told apart from a complete one, so it never
         # claims completeness even when every request happened to succeed.
         object_grants_complete = role_assignments_complete = False
+        inherited_grants_complete = False
 
     grants, unmodelled = transform_grants(
         grants_by_role, database_role_names, account_id
@@ -544,4 +551,4 @@ def sync(
         neo4j_session, role_edges, account_id, common_job_parameters["UPDATE_TAG"]
     )
 
-    return object_grants_complete, role_assignments_complete
+    return object_grants_complete, role_assignments_complete, inherited_grants_complete
