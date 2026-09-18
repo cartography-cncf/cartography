@@ -427,6 +427,23 @@ slack_mapping = OntologyMapping(
         ),
     ],
 )
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email",
+                    node_field="email",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="email"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
 spacelift_mapping = OntologyMapping(
     module_name="spacelift",
     nodes=[
@@ -796,6 +813,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
     "workos": workos_useraccounts_mapping,

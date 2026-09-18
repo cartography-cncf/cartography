@@ -1,0 +1,121 @@
+import pytest
+
+from cartography.intel.notion.users import transform
+from tests.data.notion.users import TOKEN_USER
+from tests.data.notion.users import USERS
+
+
+def test_transform_splits_people_and_bots():
+    # Act
+    people, bots = transform(USERS, "workspace-1", TOKEN_USER)
+
+    # Assert
+    assert people == [
+        {
+            "id": "workspace-1/person-1",
+            "notion_user_id": "person-1",
+            "name": "Alice Example",
+            "email": "alice@example.com",
+            "is_workspace_member": True,
+        },
+        {
+            "id": "workspace-1/person-2",
+            "notion_user_id": "person-2",
+            "name": "Bob Example",
+            "email": None,
+            "is_workspace_member": True,
+        },
+    ]
+    assert bots[0]["owner_id"] == "workspace-1/person-1"
+    assert bots[0]["owner_notion_user_id"] == "person-1"
+    assert bots[0]["is_token_bot"] is True
+    assert bots[1]["owner_id"] is None
+    assert bots[1]["is_token_bot"] is False
+
+
+def test_transform_merges_current_bot_over_list_users_result():
+    # Arrange
+    listed_bot = {
+        **TOKEN_USER,
+        "name": "Stale connection name",
+        "bot": {},
+    }
+
+    # Act
+    _, bots = transform([listed_bot], "workspace-1", TOKEN_USER)
+
+    # Assert
+    assert len(bots) == 1
+    assert bots[0]["name"] == "Security Exporter"
+    assert bots[0]["is_token_bot"] is True
+
+
+def test_transform_rejects_unknown_user_type():
+    # Arrange
+    users = [{"object": "user", "id": "unknown-1", "type": "alien"}]
+
+    # Act and assert
+    with pytest.raises(ValueError, match="Unsupported Notion user type"):
+        transform(users, "workspace-1", TOKEN_USER)
+
+
+def test_transform_requires_id_and_type():
+    # Act and assert
+    with pytest.raises(ValueError, match="Notion user id"):
+        transform([{"object": "user", "type": "person"}], "workspace-1", TOKEN_USER)
+    with pytest.raises(ValueError, match="Notion user type"):
+        transform([{"object": "user", "id": "person-1"}], "workspace-1", TOKEN_USER)
+
+
+@pytest.mark.parametrize(
+    "user",
+    [
+        {"object": "user", "id": "person-1", "type": "person"},
+        {"object": "user", "id": "person-1", "type": "person", "person": []},
+        {"object": "user", "id": "bot-malformed", "type": "bot"},
+        {"object": "user", "id": "bot-malformed", "type": "bot", "bot": []},
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": []},
+        },
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": {"type": "user", "user": {"id": ""}}},
+        },
+        {
+            "object": "user",
+            "id": "person-malformed",
+            "type": "person",
+            "name": [],
+        },
+        {
+            "object": "user",
+            "id": "person-malformed",
+            "type": "person",
+            "person": {"email": []},
+        },
+        {
+            "object": "user",
+            "id": "bot-malformed",
+            "type": "bot",
+            "bot": {"owner": {"type": []}},
+        },
+    ],
+)
+def test_transform_rejects_malformed_user_details(user):
+    # Act and assert
+    with pytest.raises(ValueError):
+        transform([user], "workspace-1", TOKEN_USER)
+
+
+def test_transform_rejects_wrong_object_type():
+    with pytest.raises(ValueError, match="unexpected object type"):
+        transform(
+            [{"object": "page", "id": "person-1", "type": "person"}],
+            "workspace-1",
+            TOKEN_USER,
+        )
