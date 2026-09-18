@@ -14,7 +14,7 @@ TEST_UPDATE_TAG_2 = 234567890
 
 
 def _cleanup_domains(neo4j_session):
-    neo4j_session.run("MATCH (n:Route53RegisteredDomain) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSRoute53RegisteredDomain) DETACH DELETE n")
     neo4j_session.run("MATCH (n:AWSDNSZone) DETACH DELETE n")
 
 
@@ -49,7 +49,7 @@ def test_sync_route53_registered_domains(mock_get_domains, neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "Route53RegisteredDomain",
+        "AWSRoute53RegisteredDomain",
         ["id", "name", "auto_renew", "transfer_lock"],
     ) == {
         ("example.com", "example.com", True, True),
@@ -60,7 +60,7 @@ def test_sync_route53_registered_domains(mock_get_domains, neo4j_session):
         neo4j_session,
         "AWSAccount",
         "id",
-        "Route53RegisteredDomain",
+        "AWSRoute53RegisteredDomain",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -73,7 +73,7 @@ def test_sync_route53_registered_domains(mock_get_domains, neo4j_session):
         neo4j_session,
         "AWSDNSZone",
         "name",
-        "Route53RegisteredDomain",
+        "AWSRoute53RegisteredDomain",
         "id",
         "REGISTERED_DOMAIN",
         rel_direction_right=True,
@@ -115,7 +115,7 @@ def test_cleanup_stale_route53_registered_domains(mock_get_domains, neo4j_sessio
 
     assert check_nodes(
         neo4j_session,
-        "Route53RegisteredDomain",
+        "AWSRoute53RegisteredDomain",
         ["id"],
     ) == {
         ("example.com",),

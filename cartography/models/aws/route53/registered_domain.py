@@ -44,7 +44,7 @@ class Route53RegisteredDomainToAWSAccountRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-# (:AWSAccount)-[:RESOURCE]->(:Route53RegisteredDomain)
+# (:AWSAccount)-[:RESOURCE]->(:AWSRoute53RegisteredDomain)
 class Route53RegisteredDomainToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -63,7 +63,7 @@ class Route53RegisteredDomainToAWSDNSZoneRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-# (:AWSDNSZone)-[:REGISTERED_DOMAIN]->(:Route53RegisteredDomain)
+# (:AWSDNSZone)-[:REGISTERED_DOMAIN]->(:AWSRoute53RegisteredDomain)
 class Route53RegisteredDomainToAWSDNSZoneRel(CartographyRelSchema):
     """Link hosted zones whose name matches this registered domain."""
 
@@ -85,7 +85,7 @@ class Route53RegisteredDomainSchema(CartographyNodeSchema):
     (https://docs.aws.amazon.com/Route53/latest/APIReference/API_domains_DomainSummary.html).
     """
 
-    label: str = "Route53RegisteredDomain"
+    label: str = "AWSRoute53RegisteredDomain"
     properties: Route53RegisteredDomainNodeProperties = (
         Route53RegisteredDomainNodeProperties()
     )
