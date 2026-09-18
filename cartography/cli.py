@@ -89,6 +89,7 @@ PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_TENABLE = "Tenable Options"
 PANEL_WIZ = "Wiz Options"
 PANEL_ORCA = "Orca Security Options"
+PANEL_INFISICAL = "Infisical Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
@@ -159,6 +160,7 @@ MODULE_PANELS = {
     "tenable": PANEL_TENABLE,
     "wiz": PANEL_WIZ,
     "orca": PANEL_ORCA,
+    "infisical": PANEL_INFISICAL,
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
@@ -2299,6 +2301,51 @@ class CLI:
                 ),
             ] = "ORCASECURITY_API_TOKEN",
             # =================================================================
+            # Infisical Options
+            # =================================================================
+            infisical_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--infisical-api-url",
+                    help="Infisical API origin for cloud or self-hosted instances.",
+                    rich_help_panel=PANEL_INFISICAL,
+                    hidden=PANEL_INFISICAL not in visible_panels,
+                ),
+            ] = "https://app.infisical.com",
+            infisical_organization_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--infisical-organization-id",
+                    help="Infisical organization ID whose projects will be ingested.",
+                    rich_help_panel=PANEL_INFISICAL,
+                    hidden=PANEL_INFISICAL not in visible_panels,
+                ),
+            ] = None,
+            infisical_client_id_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--infisical-client-id-env-var",
+                    help=(
+                        "Environment variable name containing the Infisical "
+                        "Machine Identity client ID."
+                    ),
+                    rich_help_panel=PANEL_INFISICAL,
+                    hidden=PANEL_INFISICAL not in visible_panels,
+                ),
+            ] = "INFISICAL_CLIENT_ID",
+            infisical_client_secret_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--infisical-client-secret-env-var",
+                    help=(
+                        "Environment variable name containing the Infisical "
+                        "Machine Identity client secret."
+                    ),
+                    rich_help_panel=PANEL_INFISICAL,
+                    hidden=PANEL_INFISICAL not in visible_panels,
+                ),
+            ] = "INFISICAL_CLIENT_SECRET",
+            # =================================================================
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
@@ -3505,6 +3552,24 @@ class CLI:
                 )
                 orca_api_token = os.environ.get(orca_api_token_env_var)
 
+            # Read Infisical Machine Identity credentials
+            infisical_client_id = None
+            if infisical_client_id_env_var:
+                logger.debug(
+                    "Reading Infisical client ID from environment variable %s",
+                    infisical_client_id_env_var,
+                )
+                infisical_client_id = os.environ.get(infisical_client_id_env_var)
+            infisical_client_secret = None
+            if infisical_client_secret_env_var:
+                logger.debug(
+                    "Reading Infisical client secret from environment variable %s",
+                    infisical_client_secret_env_var,
+                )
+                infisical_client_secret = os.environ.get(
+                    infisical_client_secret_env_var,
+                )
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -3793,6 +3858,10 @@ class CLI:
                 wiz_lookback_days=wiz_lookback_days,
                 orca_api_endpoint=orca_api_endpoint,
                 orca_api_token=orca_api_token,
+                infisical_api_url=infisical_api_url,
+                infisical_organization_id=infisical_organization_id,
+                infisical_client_id=infisical_client_id,
+                infisical_client_secret=infisical_client_secret,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
