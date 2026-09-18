@@ -328,11 +328,18 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """Indicates that the load balancer exposes a private IP address as a traffic target."""
+    """Links a registered IP target to its resolved ENI-specific private IP node.
+
+    Resolution requires target-group VPC context or an explicit ECS service
+    registration. An IP address alone does not identify an AWS resource.
+    """
 
     target_node_label: str = "AWSEC2PrivateIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"private_ip_address": PropertyRef("TargetId")},
+        {
+            "id": PropertyRef("PrivateIpId"),
+            "private_ip_address": PropertyRef("TargetId"),
+        },
     )
     source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

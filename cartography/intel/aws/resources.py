@@ -100,9 +100,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:load_balancer_v2": sync_load_balancer_v2s,
         "ec2:network_acls": sync_network_acls,
         "ec2:network_interface": sync_network_interfaces,
-        # `ec2:load_balancer_v2:expose` must run after `ec2:network_interface` so that
-        # AWSEC2PrivateIp nodes exist when IP target MatchLinks are created.
-        "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
         "ec2:tgw": sync_transit_gateways,
         "ec2:tgw_route_table": sync_transit_gateway_route_tables,
         "ec2:vpc": sync_vpc,
@@ -168,10 +165,12 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # regular-resource consumers, so keep them close to that analysis.
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
         "ec2:keypair": sync_ec2_key_pairs,
-        # Keep ECS last among regular resources. Its tasks and containers are
+        # Keep ECS close to analysis. Its tasks and containers are
         # short-lived, so syncing them close to AWS analysis minimizes the period
         # in which replacements lack analysis-derived relationships. EC2 instances
         # and load balancers must already exist for ECS relationships.
         "ecs": ecs.sync,
+        # Resolve IP targets after ENIs and ECS service target-group registrations.
+        "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
     }
 )
