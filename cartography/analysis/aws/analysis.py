@@ -56,7 +56,9 @@ AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
     statements=(
         AnalysisStatement(
             comment="Resolve local/shared-VPC targets or explicit ECS service targets; skip ambiguous identities.",
+            # Filter the account's resources before expanding target registrations.
             match="""
+            MATCH (lb:AWSLoadBalancerV2)
             UNWIND $IP_TARGETS AS target
             MATCH (lb:AWSLoadBalancerV2 {id: target.LoadBalancerId})
             CALL {
