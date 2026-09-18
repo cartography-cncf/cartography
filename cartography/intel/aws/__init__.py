@@ -146,6 +146,7 @@ def _sync_one_account(
         "ec2:load_balancer_v2:expose": [
             "ec2:load_balancer_v2",
             "ec2:network_interface",
+            "ec2:subnet",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
         # ECS matches existing roles, images, instances, ENIs, and target groups.

@@ -11,10 +11,12 @@ from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
 
+from cartography.client.core.tx import ensure_indexes_for_matchlinks
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.helpers import batch
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.loadbalancerv2 import ELBV2ListenerSchema
@@ -269,6 +271,7 @@ def _transform_load_balancer_v2_data(
                         "LoadBalancerId": dns_name,
                         "TargetId": target_id,
                         "TargetType": target_type,
+                        "VpcId": target_group.get("VpcId"),
                         "TargetGroupArn": tg_arn,
                         "Port": target_group.get("Port"),
                         "Protocol": target_group.get("Protocol"),
@@ -382,14 +385,58 @@ def _load_load_balancer_v2_ip_targets(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """Load EXPOSE relationships to IP target types (AWSEC2PrivateIp) using MatchLinks."""
-    ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
+    """Resolve registered IPs before loading ENI-specific EXPOSE MatchLinks.
 
-    if ip_targets:
+    A target-group VPC identifies local targets, including shared-VPC ENIs owned
+    by another account. For cross-VPC ECS targets, the service's explicit target
+    group registration identifies the workload. Other remote targets need routing
+    evidence that ELBV2 does not supply; never fall back to a global IP match.
+    """
+    ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
+    if not ip_targets:
+        return
+    ensure_indexes_for_matchlinks(
+        neo4j_session, LoadBalancerV2ToEC2PrivateIpMatchLink()
+    )
+    for targets in batch(ip_targets):
+        resolved_targets = [
+            record["target"]
+            for record in neo4j_session.run(
+                """
+                UNWIND $targets AS target
+                MATCH (lb:AWSLoadBalancerV2 {id: target.LoadBalancerId})
+                CALL {
+                    WITH target, lb
+                    MATCH (ip:AWSEC2PrivateIp {private_ip_address: target.TargetId})
+                          <-[:PRIVATE_IP_ADDRESS]-(eni:AWSNetworkInterface)
+                          -[:PART_OF_SUBNET]->(subnet:AWSEC2Subnet)
+                    WHERE subnet.vpc_id = target.VpcId AND eni.region = lb.region
+                    RETURN ip
+                    UNION
+                    WITH target, lb
+                    MATCH (:AWSELBV2TargetGroup {id: target.TargetGroupArn})
+                          -[:TARGETS]->(:AWSECSService)
+                          <-[:WORKLOAD_PARENT]-(task:AWSECSTask)
+                          -[:NETWORK_INTERFACE]->(:AWSNetworkInterface)
+                          -[:PRIVATE_IP_ADDRESS]->(ip:AWSEC2PrivateIp {private_ip_address: target.TargetId})
+                    RETURN ip
+                }
+                WITH target, collect(DISTINCT ip.id) AS ids
+                WHERE size(ids) = 1
+                RETURN target{.*, PrivateIpId: ids[0]} AS target
+                """,
+                targets=targets,
+            )
+        ]
+        if len(resolved_targets) < len(targets):
+            logger.warning(
+                "Skipping %d ELBV2 IP target registrations without a unique resource identity.",
+                len(targets) - len(resolved_targets),
+            )
         load_matchlinks(
             neo4j_session,
             LoadBalancerV2ToEC2PrivateIpMatchLink(),
-            ip_targets,
+            resolved_targets,
             lastupdated=update_tag,
             _sub_resource_label="AWSAccount",
             _sub_resource_id=current_aws_account_id,
@@ -461,6 +508,7 @@ def load_load_balancer_v2_target_groups(
                     "LoadBalancerId": load_balancer_id,
                     "TargetId": target_id,
                     "TargetType": target_type,
+                    "VpcId": target_group.get("VpcId"),
                     "TargetGroupArn": target_group.get("TargetGroupArn"),
                     "Port": target_group.get("Port"),
                     "Protocol": target_group.get("Protocol"),
@@ -609,7 +657,7 @@ def sync_load_balancer_v2_expose(
 ) -> None:
     """Phase 2: Sync IP target MatchLinks (LBv2 -> AWSEC2PrivateIp EXPOSE relationships).
 
-    Runs after ec2:network_interface so that AWSEC2PrivateIp nodes exist.
+    Runs after ec2:network_interface and ECS so target identity evidence exists.
     Re-fetches LBv2 data from AWS API to get target information.
     """
     cleanup_safe = True
