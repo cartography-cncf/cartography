@@ -339,6 +339,13 @@ class Config:
     :type modal_environments: list
     :param modal_environments: Modal environment names whose contents should be synced.
         Defaults to every environment in the workspace. Optional.
+    :type runpod_api_key: str
+    :param runpod_api_key: RunPod API key. Optional.
+    :type runpod_account_id: str
+    :param runpod_account_id: Stable RunPod account identifier to use as the
+        tenant root. Optional.
+    :type runpod_base_url: str
+    :param runpod_base_url: RunPod API v2 base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     :type openai_apikey: string
@@ -636,6 +643,9 @@ class Config:
         modal_token_id=None,
         modal_token_secret=None,
         modal_environments=None,
+        runpod_api_key=None,
+        runpod_account_id=None,
+        runpod_base_url=None,
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
@@ -897,6 +907,9 @@ class Config:
         self.modal_token_id = modal_token_id
         self.modal_token_secret = modal_token_secret
         self.modal_environments = modal_environments
+        self.runpod_api_key = runpod_api_key
+        self.runpod_account_id = runpod_account_id
+        self.runpod_base_url = runpod_base_url
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id

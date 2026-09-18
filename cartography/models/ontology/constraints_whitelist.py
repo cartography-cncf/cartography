@@ -192,6 +192,7 @@ from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToSARel
 from cartography.models.openai.adminapikey import OpenAIAdminApiKeyToUserRel
 from cartography.models.openai.apikey import OpenAIApiKeyToSARel
 from cartography.models.openai.apikey import OpenAIApiKeyToUserRel
+from cartography.models.runpod.pod import RunPodPodToRegistryCredentialRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToApplicationRel
 from cartography.models.scaleway.iam.apikey import ScalewayApiKeyToUserRel
 from cartography.models.scaleway.serverless.container import (
@@ -283,6 +284,9 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # mount_method property), will be removed in v1.0.0.
         KubernetesPodToSecretVolumeRel,
         KubernetesPodToSecretEnvRel,
+        # DEPRECATED: replaced by USES_SECRET for ontology queries. Kept to
+        # preserve the provider-specific RunPod registry credential edge.
+        RunPodPodToRegistryCredentialRel,
         # DEPRECATED: replaced by MEMBER_OF, will be removed in v1.0.0.
         AWSGroupToAWSUserRel,
         AWSSSOUserToSSOGroupRel,
