@@ -87,6 +87,9 @@ def test_sync_public_pages_and_creator_relationship(neo4j_session):
     )
 
     # Assert
+    assert api_session.post.call_args_list[1].kwargs["json"]["start_cursor"] == (
+        "next-page"
+    )
     assert check_nodes(
         neo4j_session,
         "NotionPage",
