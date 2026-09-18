@@ -18,7 +18,7 @@ from cartography.intel.aws.ec2.network_interfaces import (
 )
 from cartography.intel.aws.ec2.subnets import load_subnets
 from cartography.models.aws.ec2.loadbalancerv2 import (
-    LoadBalancerV2ToEC2PrivateIpMatchLink,
+    LoadBalancerV2ToEC2InstanceMatchLink,
 )
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import make_target_node_matcher
@@ -190,7 +190,8 @@ def test_ip_target_resolution_and_exposure_converge(
         _load_workload(neo4j_session, *workload)
     _, _, _, targets = elbv2._transform_load_balancer_v2_data(data)
     old_matcher = replace(
-        LoadBalancerV2ToEC2PrivateIpMatchLink(),
+        LoadBalancerV2ToEC2InstanceMatchLink(),
+        target_node_label="AWSEC2PrivateIp",
         target_node_matcher=make_target_node_matcher(
             {"private_ip_address": PropertyRef("TargetId")}
         ),
