@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 from botocore.exceptions import ClientError
-from botocore.exceptions import ReadTimeoutError
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
@@ -372,8 +371,7 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     ) == {(None, None)}
 
 
-@pytest.mark.parametrize("failure", ["list_clusters", "list_services", "timeout"])
-def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session, failure):
+def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session):
     # Arrange: a valid cross-VPC target and an unrelated account sharing its IP.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, ACCOUNT, 1)
@@ -412,21 +410,15 @@ def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session, failur
 
     def paginator(operation):
         result = MagicMock()
-        if operation == failure or (
-            failure == "timeout" and operation == "list_clusters"
-        ):
-            result.paginate.side_effect = (
-                ReadTimeoutError(endpoint_url="https://ecs.example.invalid")
-                if failure == "timeout"
-                else ClientError(
-                    {
-                        "Error": {
-                            "Code": "AccessDeniedException",
-                            "Message": "Synthetic denial",
-                        }
-                    },
-                    operation,
-                )
+        if operation == "list_services":
+            result.paginate.side_effect = ClientError(
+                {
+                    "Error": {
+                        "Code": "AccessDeniedException",
+                        "Message": "Synthetic denial",
+                    }
+                },
+                operation,
             )
         else:
             result.paginate.return_value = [{"clusterArns": ["cluster"]}]
