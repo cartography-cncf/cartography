@@ -29,6 +29,7 @@ modules/googleworkspace/index
 modules/gsuite/index
 modules/huntress/index
 modules/jamf/index
+modules/jira/index
 modules/jumpcloud/index
 modules/kandji/index
 modules/keycloak/index

@@ -51,6 +51,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Gsuite](../modules/gsuite/schema.md)
 - [Huntress](../modules/huntress/schema.md)
 - [Jamf](../modules/jamf/schema.md)
+- [Jira](../modules/jira/schema.md)
 - [Jumpcloud](../modules/jumpcloud/schema.md)
 - [Kandji](../modules/kandji/schema.md)
 - [Keycloak](../modules/keycloak/schema.md)
