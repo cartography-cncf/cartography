@@ -18,8 +18,9 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    data = transform(get(session, subdomain), subdomain)
-    load_users(neo4j_session, data, subdomain, update_tag)
+    users = get(session, subdomain)
+    transformed_users = transform(users, subdomain)
+    load_users(neo4j_session, transformed_users, subdomain, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
