@@ -1,4 +1,4 @@
-"""Incomplete ECS collection must not be treated as successful emptiness."""
+"""Transport failures preserve inventory; access-denial policy is unchanged."""
 
 from unittest.mock import MagicMock
 
@@ -18,17 +18,24 @@ OTHER_ACCOUNT = "111111111111"
 REGION = "us-east-1"
 
 
-@pytest.mark.parametrize("failure", ["list_clusters", "list_services", "timeout"])
-def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, failure):
-    # Arrange: two accounts with independent ECS workloads and target registrations.
+@pytest.mark.parametrize("operation", ["list_clusters", "list_services"])
+@pytest.mark.parametrize("transport_failure", [True, False])
+def test_ecs_cleanup_after_regional_failure(
+    neo4j_session, operation, transport_failure
+):
+    # Arrange: independent workloads in two regions and a separate account.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    for name, account in (("selected", ACCOUNT), ("other", OTHER_ACCOUNT)):
+    for name, account, region in (
+        ("selected", ACCOUNT, REGION),
+        ("healthy", ACCOUNT, "us-west-2"),
+        ("other", OTHER_ACCOUNT, REGION),
+    ):
         create_test_account(neo4j_session, account, 1)
         load(
             neo4j_session,
             ELBV2TargetGroupSchema(),
             [{"TargetGroupArn": f"target-group-{name}"}],
-            Region=REGION,
+            Region=region,
             AWS_ID=account,
             lastupdated=1,
         )
@@ -43,7 +50,7 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
                     "loadBalancers": [{"targetGroupArn": f"target-group-{name}"}],
                 }
             ],
-            REGION,
+            region,
             account,
             1,
         )
@@ -51,14 +58,14 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
             neo4j_session,
             "cluster",
             [{"taskArn": f"task-{name}", "clusterArn": "cluster", "serviceName": name}],
-            REGION,
+            region,
             account,
             1,
         )
         ecs.load_ecs_containers(
             neo4j_session,
             [{"containerArn": f"container-{name}", "taskArn": f"task-{name}"}],
-            REGION,
+            region,
             account,
             1,
         )
@@ -71,14 +78,12 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         "clusters": [{"clusterArn": "cluster"}]
     }
 
-    def paginator(operation):
+    def paginator(api_operation):
         result = MagicMock()
-        if operation == failure or (
-            failure == "timeout" and operation == "list_clusters"
-        ):
+        if api_operation == operation:
             result.paginate.side_effect = (
                 ReadTimeoutError(endpoint_url="https://ecs.example.invalid")
-                if failure == "timeout"
+                if transport_failure
                 else ClientError(
                     {
                         "Error": {
@@ -109,7 +114,9 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
     )
 
-    # Assert: collection continues without deleting workloads or their relationships.
+    # Assert: transport failures preserve data; denied scopes keep existing cleanup
+    # behavior, so a permanently denied region cannot block account cleanup forever.
+    expected = {"selected", "healthy", "other"} if transport_failure else {"other"}
     healthy_client.get_paginator.assert_called_with("list_clusters")
     for label, prefix in (
         ("AWSECSService", "service"),
@@ -117,8 +124,7 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         ("AWSECSContainer", "container"),
     ):
         assert check_nodes(neo4j_session, label, ["id"]) == {
-            (f"{prefix}-selected",),
-            (f"{prefix}-other",),
+            (f"{prefix}-{name}",) for name in expected
         }
     assert check_rels(
         neo4j_session,
@@ -128,10 +134,7 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         "id",
         "TARGETS",
         rel_direction_right=True,
-    ) == {
-        ("target-group-selected", "service-selected"),
-        ("target-group-other", "service-other"),
-    }
+    ) == {(f"target-group-{name}", f"service-{name}") for name in expected}
     assert check_rels(
         neo4j_session,
         "AWSECSTask",
@@ -140,10 +143,7 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         "id",
         "WORKLOAD_PARENT",
         rel_direction_right=True,
-    ) == {
-        ("task-selected", "service-selected"),
-        ("task-other", "service-other"),
-    }
+    ) == {(f"task-{name}", f"service-{name}") for name in expected}
     assert check_rels(
         neo4j_session,
         "AWSECSTask",
@@ -152,10 +152,7 @@ def test_incomplete_ecs_inventory_preserves_state_until_success(neo4j_session, f
         "id",
         "HAS_CONTAINER",
         rel_direction_right=True,
-    ) == {
-        ("task-selected", "container-selected"),
-        ("task-other", "container-other"),
-    }
+    ) == {(f"task-{name}", f"container-{name}") for name in expected}
 
     # Act: a later successful empty inventory permits normal account cleanup.
     provider.client.side_effect = None
