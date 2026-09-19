@@ -89,3 +89,18 @@ def test_ecs_getter_retains_invalid_token_guidance():
     with pytest.raises(RuntimeError, match="AWS_STS_REGIONAL_ENDPOINTS=regional"):
         ecs.get_ecs_cluster_arns(provider, "us-east-1")
     provider.client.assert_called_once()
+
+
+def test_ecs_getter_preserves_handled_server_failure():
+    # Arrange: this server error is normally swallowed by aws_handle_regions.
+    provider = MagicMock()
+    error = ClientError(
+        {"Error": {"Code": "InternalServerErrorException"}}, "ListClusters"
+    )
+    provider.client.return_value.get_paginator.return_value.paginate.side_effect = error
+
+    # Act and assert: distinguish failure from an authoritative empty inventory.
+    with pytest.raises(ecs.ECSTransientRegionFailure) as failure:
+        ecs.get_ecs_cluster_arns(provider, "us-east-1")
+    assert failure.value.__cause__ is error
+    provider.client.assert_called_once()
