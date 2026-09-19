@@ -60,6 +60,7 @@ GET_LOAD_BALANCER_V2_DATA = [
                 "Protocol": "HTTP",
                 "Port": 8080,
                 "TargetType": "ip",
+                "VpcId": "vpc-12345678",
                 "Targets": ["10.0.0.50", "10.0.0.51"],
             },
         ],
