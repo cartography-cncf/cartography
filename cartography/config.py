@@ -142,6 +142,8 @@ class Config:
     :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_secret: str
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_defender: bool
+    :param microsoft_defender: Opt in to Defender for Endpoint machines and unresolved alerts. Default is False.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -749,6 +751,7 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        microsoft_defender=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -799,6 +802,7 @@ class Config:
         self.entra_tenant_id = self.microsoft_tenant_id
         self.entra_client_id = self.microsoft_client_id
         self.entra_client_secret = self.microsoft_client_secret
+        self.microsoft_defender = microsoft_defender
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
