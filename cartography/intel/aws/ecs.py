@@ -7,6 +7,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
@@ -38,17 +39,25 @@ logger = logging.getLogger(__name__)
 
 
 class ECSTransientRegionFailure(Exception):
-    """ECS transport failure that must not be interpreted as empty inventory."""
+    """ECS collection failure that must not be interpreted as empty inventory."""
 
 
 def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
     # Keep this below aws_handle_regions: that decorator still owns API retries,
-    # access-denial handling, and InvalidToken guidance. Only transport failures
-    # bypass its empty-list fallback, as in the ELBV2 collector.
+    # access-denial handling, and InvalidToken guidance. Preserve failures that
+    # it would otherwise swallow as empty inventories.
     @wraps(func)
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
+        except ClientError as error:
+            # The shared decorator treats this server error as a regional skip.
+            if (
+                error.response.get("Error", {}).get("Code")
+                == "InternalServerErrorException"
+            ):
+                raise ECSTransientRegionFailure(func.__name__) from error
+            raise
         except (
             EndpointConnectionError,
             ConnectTimeoutError,
@@ -668,9 +677,9 @@ def sync(
         except ECSTransientRegionFailure as error:
             cleanup_safe = False
             logger.warning(
-                "Skipping ECS region %s after a transport failure in %s.", region, error
+                "Skipping ECS region %s after a transient failure in %s.", region, error
             )
     if cleanup_safe:
         cleanup_ecs(neo4j_session, common_job_parameters)
     else:
-        logger.warning("Skipping ECS cleanup because a region had a transport failure.")
+        logger.warning("Skipping ECS cleanup because a region had a transient failure.")
