@@ -1,4 +1,4 @@
-"""Transport failures preserve inventory; access-denial policy is unchanged."""
+"""Transient failures preserve inventory; access-denial policy is unchanged."""
 
 from unittest.mock import MagicMock
 
@@ -19,10 +19,8 @@ REGION = "us-east-1"
 
 
 @pytest.mark.parametrize("operation", ["list_clusters", "list_services"])
-@pytest.mark.parametrize("transport_failure", [True, False])
-def test_ecs_cleanup_after_regional_failure(
-    neo4j_session, operation, transport_failure
-):
+@pytest.mark.parametrize("failure", ["timeout", "server_error", "access_denied"])
+def test_ecs_cleanup_after_regional_failure(neo4j_session, operation, failure):
     # Arrange: independent workloads in two regions and a separate account.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     for name, account, region in (
@@ -83,11 +81,15 @@ def test_ecs_cleanup_after_regional_failure(
         if api_operation == operation:
             result.paginate.side_effect = (
                 ReadTimeoutError(endpoint_url="https://ecs.example.invalid")
-                if transport_failure
+                if failure == "timeout"
                 else ClientError(
                     {
                         "Error": {
-                            "Code": "AccessDeniedException",
+                            "Code": (
+                                "InternalServerErrorException"
+                                if failure == "server_error"
+                                else "AccessDeniedException"
+                            ),
                             "Message": "Synthetic denial",
                         }
                     },
@@ -114,9 +116,11 @@ def test_ecs_cleanup_after_regional_failure(
         {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
     )
 
-    # Assert: transport failures preserve data; denied scopes keep existing cleanup
+    # Assert: transient failures preserve data; denied scopes keep existing cleanup
     # behavior, so a permanently denied region cannot block account cleanup forever.
-    expected = {"selected", "healthy", "other"} if transport_failure else {"other"}
+    expected = (
+        {"selected", "healthy", "other"} if failure != "access_denied" else {"other"}
+    )
     healthy_client.get_paginator.assert_called_with("list_clusters")
     for label, prefix in (
         ("AWSECSService", "service"),
