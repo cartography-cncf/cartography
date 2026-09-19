@@ -55,6 +55,27 @@ def test_config_stores_orca_credentials() -> None:
     assert config.orca_api_token == "secret-token"
 
 
+def test_zoom_preserves_existing_positional_config_arguments() -> None:
+    # Arrange: construct the positional argument list available before Zoom.
+    parameters = inspect.signature(Config).parameters
+    names = [name for name in parameters if not name.startswith("zoom_")]
+    names = names[: names.index("orca_api_token") + 1]
+    args = [parameters[name].default for name in names]
+    args[0] = "bolt://localhost:7687"
+    args[names.index("jumpcloud_api_key")] = "legacy-api-key"
+    args[names.index("orca_api_token")] = "legacy-orca-token"
+
+    # Act
+    config = Config(*args)
+
+    # Assert
+    assert config.jumpcloud_api_key == "legacy-api-key"
+    assert config.orca_api_token == "legacy-orca-token"
+    assert config.zoom_account_id is None
+    assert config.zoom_client_id is None
+    assert config.zoom_client_secret is None
+
+
 def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     # Arrange and act
     with caplog.at_level(logging.WARNING):
