@@ -84,7 +84,9 @@ dependencies = [
     "azure-mgmt-storage>=25.0.0",
     "azure-mgmt-sql>=4.0.0",
     "azure-mgmt-authorization>=0.60.0",
-    "azure-identity>=1.5.0",
+    # 1.7.0 is where CertificateCredential accepts PKCS#12 files and a password
+    # (cartography.intel.microsoft.credentials documents both).
+    "azure-identity>=1.7.0",
     "azure-storage-blob>=12.0.0",
     "msgraph-sdk>=1.53.0",
     "kubernetes>=22.6.0",

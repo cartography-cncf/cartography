@@ -24,7 +24,8 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     per-user license assignments).
 
     Requires the same Microsoft Graph credentials used for the main Microsoft
-    module. Needs Organization.Read.All or Directory.Read.All Graph permission
+    module (config.microsoft_tenant_id / client_id, and either client_secret
+    or client_certificate_path). Needs Organization.Read.All or Directory.Read.All Graph permission
     for subscribedSkus, and User.Read.All for per-user assigned licenses.
 
     This sync is optional: if the app registration lacks the required Graph
@@ -36,7 +37,9 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     tenant_id = config.microsoft_tenant_id
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
-    if not tenant_id or not client_id or not client_secret:
+    client_certificate_path = config.microsoft_client_certificate_path
+    client_certificate_password = config.microsoft_client_certificate_password
+    if not tenant_id or not client_id or not (client_secret or client_certificate_path):
         logger.info(
             "O365 import is not configured - skipping this module. "
             "See docs to configure.",
@@ -49,7 +52,13 @@ def start_o365_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     async def main() -> None:
-        credential = credentials.make_credential(tenant_id, client_id, client_secret)
+        credential = credentials.make_credential(
+            tenant_id,
+            client_id,
+            client_secret,
+            client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
+        )
         o365_client = create_graph_service_client(credential)
 
         try:
