@@ -774,6 +774,23 @@ huntress_mapping = OntologyMapping(
 )
 
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zendesk": OntologyMapping(
+        module_name="zendesk",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZendeskUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity", node_field="last_login_at"
+                    ),
+                ],
+            ),
+        ],
+    ),
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,

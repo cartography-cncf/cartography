@@ -66,5 +66,6 @@ modules/vercel/index
 modules/wiz/index
 modules/workday/index
 modules/workos/index
+modules/zendesk/index
 modules/zizmor/index
 ```
