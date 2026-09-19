@@ -283,8 +283,9 @@ tests/integration/cartography/intel/your_service/
 
 ### Tests
 
-For test-specific guidance, including integration test boundaries, Cypher usage,
-fixtures, and `check_nodes()` / `check_rels()` helpers, see `tests/AGENTS.md`.
+[`tests/AGENTS.md`](tests/AGENTS.md) is the source of truth for test scope,
+assertions, fixtures, and validation commands. Skill instructions and examples
+must follow that policy.
 
 ---
 

@@ -173,7 +173,7 @@ For full MatchLink details, see the `add-relationship` skill.
 
 1. **Check existing patterns first.** Look at similar modules in `cartography/intel/` before inventing new ones.
 2. **Verify imports.** All `CartographyNodeSchema` / `CartographyRelSchema` imports must point to `cartography.models.core.*`.
-3. **Test transform functions** with real API responses.
+3. **Reproduce transform issues** with sanitized API responses that exhibit the diagnosed failure; do not add generic transform tests automatically.
 4. **Validate Cypher in Neo4j Browser** when relationships are not appearing.
 5. **Check file naming.** Module files should match the service name (`cartography/intel/lastpass/users.py`).
 6. **Run tests incrementally.** After each change, run the integration test.
@@ -198,16 +198,14 @@ For full MatchLink details, see the `add-relationship` skill.
 
 ## Test utilities
 
+Follow [tests/AGENTS.md](../../../tests/AGENTS.md). A regression test should
+reproduce the diagnosed issue and explain its cause or reference the issue.
+For relationship failures, assert the repaired relationship with `check_rels`;
+do not add a separate node assertion by default. Use a property-specific
+assertion when the diagnosed issue is about that property.
+
 ```python
-from tests.integration.util import check_nodes, check_rels
-
-
-# Nodes
-expected_nodes = {
-    ("user-123", "alice@example.com"),
-    ("user-456", "bob@example.com"),
-}
-assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
+from tests.integration.util import check_rels
 
 
 # Relationships
@@ -220,7 +218,7 @@ assert check_rels(
     "YourServiceUser", "id",
     "YourServiceTenant", "id",
     "RESOURCE",
-    rel_direction_right=True,
+    rel_direction_right=False,
 ) == expected_rels
 ```
 
