@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.analysis.aws.analysis import AWS_EC2_ASSET_EXPOSURE_LOAD_BALANCER_V2
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
@@ -371,7 +371,7 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     ) == {(None, None)}
 
 
-def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session):
+def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
     # Arrange: a valid cross-VPC target and an unrelated account sharing its IP.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, ACCOUNT, 1)
@@ -407,21 +407,45 @@ def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session):
     failed_client.describe_clusters.return_value = {
         "clusters": [{"clusterArn": "cluster"}]
     }
+    failed_client.describe_tasks.return_value = {
+        "tasks": [
+            {
+                "taskArn": "task-remote",
+                "clusterArn": "cluster",
+                "group": "service:remote",
+                "taskDefinitionArn": "task-definition-remote",
+                "attachments": [
+                    {
+                        "type": "ElasticNetworkInterface",
+                        "details": [
+                            {"name": "networkInterfaceId", "value": "eni-remote"}
+                        ],
+                    }
+                ],
+                "containers": [
+                    {"containerArn": "container-remote", "taskArn": "task-remote"}
+                ],
+            }
+        ]
+    }
+    failed_client.describe_task_definition.return_value = {
+        "taskDefinition": {"taskDefinitionArn": "task-definition-remote"}
+    }
 
     def paginator(operation):
         result = MagicMock()
         if operation == "list_services":
-            result.paginate.side_effect = ClientError(
-                {
-                    "Error": {
-                        "Code": "AccessDeniedException",
-                        "Message": "Synthetic denial",
-                    }
-                },
-                operation,
+            result.paginate.side_effect = ReadTimeoutError(
+                endpoint_url="https://ecs.example.invalid"
             )
         else:
-            result.paginate.return_value = [{"clusterArns": ["cluster"]}]
+            result.paginate.return_value = [
+                {
+                    "list_clusters": {"clusterArns": ["cluster"]},
+                    "list_tasks": {"taskArns": ["task-remote"]},
+                    "list_container_instances": {"containerInstanceArns": []},
+                }[operation]
+            ]
         return result
 
     failed_client.get_paginator.side_effect = paginator
@@ -450,7 +474,12 @@ def test_ecs_regional_failure_preserves_cross_vpc_exposure(neo4j_session):
         )
     _analyze(neo4j_session, 2)
 
-    # Assert: continue other regions without erasing prior identity or exposure.
+    # Assert: tasks were refreshed even though their service could not be read.
+    assert check_nodes(neo4j_session, "AWSECSTask", ["id", "lastupdated"]) == {
+        ("task-remote", 2),
+        ("task-other", 1),
+    }
+    # Continue other regions without erasing prior identity or exposure.
     healthy_client.get_paginator.assert_called_with("list_clusters")
     assert check_rels(
         neo4j_session,
