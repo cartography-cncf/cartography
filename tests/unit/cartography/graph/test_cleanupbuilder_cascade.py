@@ -98,9 +98,9 @@ def test_cascade_cleanup_with_selected_rel():
 def test_build_cleanup_queries_with_cascade():
     """
     Test that the full set of cleanup queries with cascade_delete=True is correct.
-    The detach query (queries[0]) must exclude by type, not identity, since cascade_delete
-    finds children through relationships of that same type in the opposite direction --
-    excluding only the specific sub resource relationship would delete those too early.
+    The detach query (queries[0]) excludes by type: cascade_delete finds children through
+    relationships of that same type in the opposite direction, so excluding only one
+    specific relationship instance would delete those too early.
     The second query includes cascade logic; subsequent rel queries are unchanged.
     """
     actual_queries: list[str] = build_cleanup_queries(

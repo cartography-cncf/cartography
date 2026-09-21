@@ -74,7 +74,7 @@ def build_cleanup_queries(
     if node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
         # Detach first so each delete transaction is bounded by a count of relationships
         # rather than an unbounded per-node cascade. See _build_cleanup_detach_query().
-        queries = [_build_cleanup_detach_query(node_schema, cascade_delete)]
+        queries = [_build_cleanup_detach_query(node_schema)]
         queries.extend(
             _build_cleanup_node_and_rel_queries(
                 node_schema,
@@ -249,10 +249,7 @@ def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> st
     )
 
 
-def _build_cleanup_detach_query(
-    node_schema: CartographyNodeSchema,
-    cascade_delete: bool = False,
-) -> str:
+def _build_cleanup_detach_query(node_schema: CartographyNodeSchema) -> str:
     """
     Generate a query that deletes a stale node's relationships in bounded batches.
 
@@ -267,13 +264,10 @@ def _build_cleanup_detach_query(
     Args:
         node_schema (CartographyNodeSchema): The node schema whose stale nodes'
             relationships should be deleted.
-        cascade_delete (bool): Must match the ``cascade_delete`` passed to the node cleanup
-            query for this schema. Defaults to False.
 
     Returns:
         str: A Neo4j query that deletes the relationships attached to stale nodes of
-            this type, excluding the sub resource relationship (if any) and, when
-            ``cascade_delete`` is True, every relationship sharing its type.
+            this type, excluding any relationship sharing the sub resource's type.
 
     Examples:
         >>> query = _build_cleanup_detach_query(node_schema)
@@ -281,32 +275,27 @@ def _build_cleanup_detach_query(
         MATCH (n:AWSUser)<-[s:RESOURCE]-(:AWSAccount{id: $account_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE r <> s
+        WHERE type(r) <> 'RESOURCE'
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
 
     Note:
-        Without ``cascade_delete``, only the sub resource relationship instance (``s``) is
-        excluded, by identity rather than type: the node cleanup query still needs that
-        specific relationship to find stale nodes. Excluding by type instead would also
-        wrongly preserve any other, unrelated relationship that happens to share the same
-        type name (e.g. a schema with two distinct ``RESOURCE`` edges), leaving it for the
-        unbounded ``DETACH DELETE`` cascade this query exists to avoid.
-
-        With ``cascade_delete``, every relationship of the sub resource's type is excluded
-        instead, not just ``s``: ``cascade_delete`` finds owned children through relationships
-        of that same type in the opposite direction, and those are different relationship
-        instances from ``s``. Excluding only ``s`` would delete them here before the node
-        cleanup query's cascade step ever runs, stranding the children it was meant to reach.
+        Excludes by type rather than by the specific relationship instance (``s``): the
+        node cleanup query still needs a relationship of that type to find stale nodes, and
+        ``cascade_delete`` reaches owned children through relationships of that same type in
+        the opposite direction. A node can also have more than one relationship of this type
+        for reasons outside this function's control (a duplicate sub resource node, a schema
+        with an unrelated relationship that happens to share the type name); excluding by
+        type protects all of them uniformly. Excluding only the one specific instance ``s``
+        was tried and reverted: when more than one relationship of that type exists, each
+        one is `s` in its own row of the underlying query, so per-row identity exclusion
+        ends up protecting none of them -- see the discussion on cartography-cncf/cartography#3298.
     """
     rel_filter_clause = ""
     if node_schema.sub_resource_relationship:
-        if cascade_delete:
-            rel_filter_clause = (
-                f"WHERE type(r) <> '{node_schema.sub_resource_relationship.rel_label}'"
-            )
-        else:
-            rel_filter_clause = "WHERE r <> s"
+        rel_filter_clause = (
+            f"WHERE type(r) <> '{node_schema.sub_resource_relationship.rel_label}'"
+        )
 
     query_template = Template(
         """

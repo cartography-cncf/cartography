@@ -7,9 +7,6 @@ from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
-from cartography.models.aws.apigateway.apigatewayresource import (
-    APIGatewayResourceSchema,
-)
 from cartography.models.aws.emr import EMRClusterToAWSAccountRel
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
@@ -70,7 +67,7 @@ def test_build_cleanup_detach_query_excludes_sub_resource_rel():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE r <> s
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """
@@ -127,7 +124,7 @@ def test_build_cleanup_queries():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE r <> s
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """,
@@ -173,7 +170,7 @@ def test_build_cleanup_queries_aws_inspector_package():
         MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE r <> s
+        WHERE type(r) <> 'RESOURCE'
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """,
@@ -191,34 +188,6 @@ def test_build_cleanup_queries_aws_inspector_package():
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
-
-
-def test_build_cleanup_detach_query_excludes_by_identity_not_type():
-    """
-    Regression test: AWSAPIGatewayResource has two distinct RESOURCE relationships -- one to
-    its AWSAccount (the sub resource) and a separate one to its AWSAPIGatewayRestAPI (an
-    other_relationship that happens to share the same rel_label). Excluding by type name
-    would wrongly preserve both, leaving the RestAPI relationship for the unbounded
-    DETACH DELETE this query exists to avoid. Excluding by relationship identity (`r <> s`)
-    must only preserve the specific sub resource edge.
-    """
-    node_schema = APIGatewayResourceSchema()
-    other_rel_labels = {rel.rel_label for rel in node_schema.other_relationships.rels}
-    assert node_schema.sub_resource_relationship.rel_label in other_rel_labels, (
-        "fixture assumption broken: this test requires a schema whose sub resource "
-        "rel_label collides with an other_relationships rel_label"
-    )
-
-    actual_query = _build_cleanup_detach_query(node_schema)
-    expected_query = """
-        MATCH (n:AWSAPIGatewayResource)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
-        WHERE n.lastupdated <> $UPDATE_TAG
-        MATCH (n)-[r]-()
-        WHERE r <> s
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r;
-        """
-    assert clean_query_list([actual_query]) == clean_query_list([expected_query])
 
 
 def test_get_params_from_queries():
