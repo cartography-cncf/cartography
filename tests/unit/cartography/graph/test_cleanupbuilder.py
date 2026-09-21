@@ -2,6 +2,7 @@ from typing import List
 
 import pytest
 
+from cartography.graph.cleanupbuilder import _build_cleanup_detach_query
 from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
@@ -55,6 +56,23 @@ def test_cleanup_sub_rel():
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
 
 
+def test_build_cleanup_detach_query_excludes_sub_resource_rel():
+    """
+    Test that the detach query excludes the sub resource relationship, since the node
+    cleanup query still needs it to find stale nodes.
+    """
+    actual_query = _build_cleanup_detach_query(InterestingAssetSchema())
+    expected_query = """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """
+    assert clean_query_list([actual_query]) == clean_query_list([expected_query])
+
+
 def test_cleanup_with_selected_rel():
     """
     Test that we correctly generate cleanup queries when a selected rel is specified.
@@ -101,6 +119,14 @@ def test_build_cleanup_queries():
     """
     actual_queries: list[str] = build_cleanup_queries(InterestingAssetSchema())
     expected_queries = [
+        """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG

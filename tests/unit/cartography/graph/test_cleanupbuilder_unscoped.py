@@ -1,3 +1,4 @@
+from cartography.graph.cleanupbuilder import _build_cleanup_detach_query
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
@@ -65,6 +66,24 @@ def test_build_ingestion_query_unscoped():
     assert actual_query == expected_query
 
 
+def test_build_cleanup_detach_query_unscoped_has_no_exclusion():
+    """
+    Test that the detach query has no exclusion clause when the node has no sub
+    resource relationship, since there's nothing to preserve.
+    """
+    actual_query = _build_cleanup_detach_query(UnscopedNodeSchema())
+    expected_query = """
+        MATCH (n:UnscopedNode)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """
+    assert remove_leading_whitespace_and_empty_lines(
+        actual_query
+    ) == remove_leading_whitespace_and_empty_lines(expected_query)
+
+
 def test_build_cleanup_queries_unscoped():
     """
     Test creating cleanup queries for an unscoped node schema.e
@@ -73,7 +92,16 @@ def test_build_cleanup_queries_unscoped():
     # Act
     queries = build_cleanup_queries(UnscopedNodeSchema())
 
-    actual_delete_node = remove_leading_whitespace_and_empty_lines(queries[0])
+    actual_detach_rels = remove_leading_whitespace_and_empty_lines(queries[0])
+    expected_detach_rels = """
+        MATCH (n:UnscopedNode)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+    """
+
+    actual_delete_node = remove_leading_whitespace_and_empty_lines(queries[1])
     expected_delete_node = """
         MATCH (n:UnscopedNode)
         WHERE n.lastupdated <> $UPDATE_TAG
@@ -81,7 +109,7 @@ def test_build_cleanup_queries_unscoped():
         DETACH DELETE n;
     """
 
-    actual_delete_rel = remove_leading_whitespace_and_empty_lines(queries[1])
+    actual_delete_rel = remove_leading_whitespace_and_empty_lines(queries[2])
     expected_delete_rel = """
         MATCH (n:UnscopedNode)
         MATCH (n)-[r:RELATES_TO]->(:SimpleNode)
@@ -91,6 +119,9 @@ def test_build_cleanup_queries_unscoped():
     """
 
     # Assert
+    assert actual_detach_rels == remove_leading_whitespace_and_empty_lines(
+        expected_detach_rels
+    )
     assert actual_delete_node == remove_leading_whitespace_and_empty_lines(
         expected_delete_node
     )
