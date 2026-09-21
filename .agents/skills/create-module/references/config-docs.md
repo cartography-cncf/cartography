@@ -84,14 +84,16 @@ omit optional sections that do not apply. Never add empty sections.
 
 Keep `config.md` focused on making the module run:
 
+- Keep `index.md` limited to the module title and its `toctree`.
 - Put module purpose, feature inventories, architecture, graph-model
   narratives, broad ingestion behavior, and ontology integration in
-  `index.md`.
+  `overview.md` or another focused child page.
 - Put Cypher investigations and query walkthroughs in `queries.md` or
   `examples.md`.
 - Put post-ingestion logic, risk derivation, and materialized relationship
   behavior in `analysis.md`.
 - Put node, relationship, and property documentation in schema docstrings and
   `PropertyRef.description`; Sphinx renders these into generated `schema.md`.
+- Link to one authoritative page instead of repeating guidance across pages.
 - Delete content only when it is stale or duplicated after preserving any
   necessary migration or compatibility notice.

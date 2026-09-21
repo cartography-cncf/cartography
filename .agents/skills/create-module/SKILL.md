@@ -136,6 +136,10 @@ Create `docs/root/modules/your_service/index.md` and
 the module's toctree. Follow `references/config-docs.md` exactly for the
 canonical `config.md` structure and content-placement rules.
 
+Keep `index.md` limited to the module title and its `toctree`. Put module
+descriptions and other explanatory content in `overview.md` or another focused
+child page, and add that page to the toctree.
+
 Do not create or hand-edit `schema.md`. Sphinx generates it from the
 declarative data model. Write human-readable schema documentation in the model
 itself:
@@ -170,7 +174,9 @@ Sign every commit: `git commit -s -m "..."`. Update the PR description to match 
 - [ ] Required fields use `data["x"]`, optional use `data.get("x")` with `None` default
 - [ ] `extra_index=True` set on frequently queried fields
 - [ ] Integration test exercises `sync()`, asserts nodes + rels with `check_nodes` / `check_rels`
-- [ ] `index.md` and canonical `config.md` added with a `config` / `schema` toctree
+- [ ] `index.md` contains only the module title and toctree
+- [ ] Explanatory content is in focused child pages such as `overview.md`
+- [ ] Canonical `config.md` added and `config` / `schema` included in the toctree
 - [ ] Schema classes have docstrings and displayed `PropertyRef` values have descriptions
 - [ ] No hand-written `schema.md` was added
 - [ ] `make lint` clean, `git commit -s` used
