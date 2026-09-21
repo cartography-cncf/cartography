@@ -28,9 +28,16 @@ tenable_mapping = OntologyMapping(
 )
 
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[OntologyNodeMapping(node_label="LangSmithResourceTag", fields=[])],
+)
+
+
 TAGS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "gcp": gcp_mapping,
     "tenable": tenable_mapping,
+    "langsmith": langsmith_mapping,
 }

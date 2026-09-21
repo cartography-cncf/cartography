@@ -33,6 +33,7 @@ modules/jumpcloud/index
 modules/kandji/index
 modules/keycloak/index
 modules/kubernetes/index
+modules/langsmith/index
 modules/lastpass/index
 modules/microsoft/index
 modules/miradore/index

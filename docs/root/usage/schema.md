@@ -55,6 +55,7 @@ Cartography metadata schema, which is attached here to keep it out of the orphan
 - [Kandji](../modules/kandji/schema.md)
 - [Keycloak](../modules/keycloak/schema.md)
 - [Kubernetes](../modules/kubernetes/schema.md)
+- [LangSmith](../modules/langsmith/schema.md)
 - [Lastpass](../modules/lastpass/schema.md)
 - [Microsoft](../modules/microsoft/schema.md)
 - [Miradore](../modules/miradore/schema.md)

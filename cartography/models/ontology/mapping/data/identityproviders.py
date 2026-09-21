@@ -159,6 +159,21 @@ supabase_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithSSOProvider",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+
 IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "kubernetes": kubernetes_mapping,
@@ -190,4 +205,5 @@ IDENTITYPROVIDERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }
