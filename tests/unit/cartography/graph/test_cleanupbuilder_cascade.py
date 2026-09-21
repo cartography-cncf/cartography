@@ -116,6 +116,14 @@ def test_build_cleanup_queries_with_cascade():
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        """
+        MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $SCAN_LIMIT_SIZE
         CALL (n) {
             CALL (n) {
