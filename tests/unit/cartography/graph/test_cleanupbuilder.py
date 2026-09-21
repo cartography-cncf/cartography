@@ -8,6 +8,7 @@ from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_res
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
 from cartography.models.aws.emr import EMRClusterToAWSAccountRel
+from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
     FakeEC2InstanceSchema,
@@ -151,6 +152,39 @@ def test_build_cleanup_queries():
         WHERE r.lastupdated <> $UPDATE_TAG
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
+        """,
+    ]
+    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_queries_aws_inspector_package():
+    """
+    Regression test for the production incident that motivated this module: AWSInspectorPackage
+    cleanup OOM'd (MemoryPoolOutOfMemoryError) because DETACH DELETE's relationship cascade was
+    unbounded for this densely-connected label. Uses the real schema, not a synthetic fixture, to
+    prove the fix applies to the label that actually broke.
+    """
+    actual_queries: list[str] = build_cleanup_queries(AWSInspectorPackageSchema())
+    expected_queries = [
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RESOURCE'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n;
+        """,
+        """
+        MATCH (n:AWSInspectorPackage)<-[s:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+        WHERE s.lastupdated <> $UPDATE_TAG
+        WITH s LIMIT $LIMIT_SIZE
+        DELETE s;
         """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
