@@ -1,10 +1,43 @@
+import base64
+from unittest.mock import patch
+
 from cartography.intel.gitlab.supply_chain import (
     build_singleton_dockerfile_fallback_matchlinks,
 )
 from cartography.intel.gitlab.supply_chain import (
     GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE,
 )
+from cartography.intel.gitlab.supply_chain import get_file_content
 from cartography.intel.supply_chain import ContainerImage
+
+TEST_GITLAB_URL = "https://gitlab.example.com"
+
+
+@patch("cartography.intel.gitlab.supply_chain.get_single")
+def test_get_file_content_returns_none_for_non_utf8_content(mock_get_single):
+    # A file named "Dockerfile" whose contents are actually binary (e.g. a PNG), matching
+    # the crash reported in VMP-1868: base64-encoded PNG magic bytes are not valid UTF-8.
+    png_magic_bytes = b"\x89PNG\r\n\x1a\n"
+    mock_get_single.return_value = {
+        "encoding": "base64",
+        "content": base64.b64encode(png_magic_bytes).decode("ascii"),
+    }
+
+    content = get_file_content(TEST_GITLAB_URL, "tok", 1, "Dockerfile")
+
+    assert content is None
+
+
+@patch("cartography.intel.gitlab.supply_chain.get_single")
+def test_get_file_content_decodes_valid_utf8_content(mock_get_single):
+    mock_get_single.return_value = {
+        "encoding": "base64",
+        "content": base64.b64encode(b"FROM alpine:latest\n").decode("ascii"),
+    }
+
+    content = get_file_content(TEST_GITLAB_URL, "tok", 1, "Dockerfile")
+
+    assert content == "FROM alpine:latest\n"
 
 
 def test_build_singleton_dockerfile_fallback_matchlinks_uses_scoped_singleton():
