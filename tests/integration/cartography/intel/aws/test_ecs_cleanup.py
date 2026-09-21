@@ -70,8 +70,20 @@ def test_ecs_cleanup_after_regional_failure(neo4j_session, operation, failure):
 
     failed_client = MagicMock()
     healthy_client = MagicMock()
-    healthy_client.get_paginator.return_value.paginate.return_value = [{}]
-    healthy_client.describe_clusters.return_value = {"clusters": []}
+    healthy_pages = {
+        "list_clusters": {"clusterArns": ["cluster-healthy"]},
+        "list_container_instances": {"containerInstanceArns": []},
+        "list_tasks": {"taskArns": []},
+        "list_services": {"serviceArns": []},
+    }
+    healthy_paginators = {}
+    for api_name, page in healthy_pages.items():
+        healthy_paginators[api_name] = MagicMock()
+        healthy_paginators[api_name].paginate.return_value = [page]
+    healthy_client.get_paginator.side_effect = healthy_paginators.__getitem__
+    healthy_client.describe_clusters.return_value = {
+        "clusters": [{"clusterArn": "cluster-healthy"}]
+    }
     failed_client.describe_clusters.return_value = {
         "clusters": [{"clusterArn": "cluster"}]
     }
@@ -121,7 +133,12 @@ def test_ecs_cleanup_after_regional_failure(neo4j_session, operation, failure):
     expected = (
         {"selected", "healthy", "other"} if failure != "access_denied" else {"other"}
     )
-    healthy_client.get_paginator.assert_called_with("list_clusters")
+    assert ("cluster-healthy", "us-west-2", 2) in check_nodes(
+        neo4j_session, "AWSECSCluster", ["id", "region", "lastupdated"]
+    )
+    assert (ACCOUNT, "cluster-healthy") in check_rels(
+        neo4j_session, "AWSAccount", "id", "AWSECSCluster", "id", "RESOURCE"
+    )
     for label, prefix in (
         ("AWSECSService", "service"),
         ("AWSECSTask", "task"),
@@ -159,6 +176,8 @@ def test_ecs_cleanup_after_regional_failure(neo4j_session, operation, failure):
     ) == {(f"task-{name}", f"container-{name}") for name in expected}
 
     # Act: a later successful empty inventory permits normal account cleanup.
+    healthy_paginators["list_clusters"].paginate.return_value = [{"clusterArns": []}]
+    healthy_client.describe_clusters.return_value = {"clusters": []}
     provider.client.side_effect = None
     provider.client.return_value = healthy_client
     ecs.sync(
