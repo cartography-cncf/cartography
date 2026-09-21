@@ -402,8 +402,20 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
 
     failed_client = MagicMock()
     healthy_client = MagicMock()
-    healthy_client.get_paginator.return_value.paginate.return_value = [{}]
-    healthy_client.describe_clusters.return_value = {"clusters": []}
+    healthy_pages = {
+        "list_clusters": {"clusterArns": ["cluster-healthy"]},
+        "list_container_instances": {"containerInstanceArns": []},
+        "list_tasks": {"taskArns": []},
+        "list_services": {"serviceArns": []},
+    }
+    healthy_paginators = {}
+    for api_name, page in healthy_pages.items():
+        healthy_paginators[api_name] = MagicMock()
+        healthy_paginators[api_name].paginate.return_value = [page]
+    healthy_client.get_paginator.side_effect = healthy_paginators.__getitem__
+    healthy_client.describe_clusters.return_value = {
+        "clusters": [{"clusterArn": "cluster-healthy"}]
+    }
     failed_client.describe_clusters.return_value = {
         "clusters": [{"clusterArn": "cluster"}]
     }
@@ -480,7 +492,12 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
         ("task-other", 1),
     }
     # Continue other regions without erasing prior identity or exposure.
-    healthy_client.get_paginator.assert_called_with("list_clusters")
+    assert ("cluster-healthy", "us-west-2", 2) in check_nodes(
+        neo4j_session, "AWSECSCluster", ["id", "region", "lastupdated"]
+    )
+    assert (ACCOUNT, "cluster-healthy") in check_rels(
+        neo4j_session, "AWSAccount", "id", "AWSECSCluster", "id", "RESOURCE"
+    )
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",
@@ -507,6 +524,8 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
     }
 
     # Act: successful empty ECS inventory allows normal cleanup on the next sync.
+    healthy_paginators["list_clusters"].paginate.return_value = [{"clusterArns": []}]
+    healthy_client.describe_clusters.return_value = {"clusters": []}
     session.client.side_effect = None
     session.client.return_value = healthy_client
     ecs.sync(
