@@ -2,6 +2,9 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
+import cartography.intel.gcp.compute
+import cartography.intel.gcp.iam
+import cartography.intel.gcp.workload_identity
 
 
 def _make_serviceusage_client(enabled_services: list[str]) -> MagicMock:

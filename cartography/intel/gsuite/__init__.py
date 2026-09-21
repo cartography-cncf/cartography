@@ -3,25 +3,33 @@ import json
 import logging
 import os
 from collections import namedtuple
+from typing import TYPE_CHECKING
 
-import googleapiclient.discovery
 import neo4j
-from google.auth import default
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.transport.requests import Request
-from google.oauth2 import credentials
-from google.oauth2 import service_account
-from google.oauth2.credentials import Credentials as OAuth2Credentials
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from googleapiclient.discovery import Resource
 
 from cartography.analysis.gsuite.analysis import GSUITE_HUMAN_LINK
 from cartography.config import Config
-from cartography.intel.gsuite import groups
-from cartography.intel.gsuite import users
 from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+if TYPE_CHECKING:
+    from google.oauth2.credentials import Credentials as OAuth2Credentials
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+    from googleapiclient.discovery import Resource
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+default = lazy_callable("google.auth", "default")
+google_auth_exceptions = lazy_import("google.auth.exceptions")
+discovery = lazy_import("googleapiclient.discovery")
+credentials = lazy_import("google.oauth2.credentials")
+service_account = lazy_import("google.oauth2.service_account")
+Request = lazy_callable("google.auth.transport.requests", "Request")
+groups = lazy_import("cartography.intel.gsuite.groups")
+users = lazy_import("cartography.intel.gsuite.users")
 
 OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
@@ -35,8 +43,8 @@ Resources = namedtuple("Resources", "admin")
 
 
 def _get_admin_resource(
-    credentials: OAuth2Credentials | ServiceAccountCredentials,
-) -> Resource:
+    credentials: "OAuth2Credentials | ServiceAccountCredentials",
+) -> "Resource":
     """
     Instantiates a Google API resource object to call the Google API.
     Used to pull users and groups.  See https://developers.google.com/admin-sdk/directory/v1/guides/manage-users
@@ -44,7 +52,7 @@ def _get_admin_resource(
     :param credentials: The credentials object
     :return: An admin api resource object
     """
-    return googleapiclient.discovery.build(
+    return discovery.build(
         "admin",
         "directory_v1",
         credentials=credentials,
@@ -53,7 +61,7 @@ def _get_admin_resource(
 
 
 def _initialize_resources(
-    credentials: OAuth2Credentials | ServiceAccountCredentials,
+    credentials: "OAuth2Credentials | ServiceAccountCredentials",
 ) -> Resources:
     """
     Create namedtuple of all resource objects necessary for Google API data gathering.
@@ -78,7 +86,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         "UPDATE_TAG": config.update_tag,
     }
 
-    creds: OAuth2Credentials | ServiceAccountCredentials
+    creds: "OAuth2Credentials | ServiceAccountCredentials"
     if config.gsuite_auth_method == "delegated":  # Legacy delegated method
         if config.gsuite_config is None or not os.path.isfile(config.gsuite_config):
             logger.warning(
@@ -98,7 +106,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             )
             creds = creds.with_subject(os.environ.get("GSUITE_DELEGATED_ADMIN"))
 
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize GSuite creds. If you don't have GSuite data or don't want to load "
@@ -123,7 +131,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize GSuite creds. If you don't have GSuite data or don't want to load "
@@ -138,7 +146,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         logger.info("Attempting to authenticate to GSuite using default credentials")
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
-        except DefaultCredentialsError as e:
+        except google_auth_exceptions.DefaultCredentialsError as e:
             logger.error(
                 (
                     "Unable to initialize GSuite creds using default credentials. If you don't have GSuite data or "

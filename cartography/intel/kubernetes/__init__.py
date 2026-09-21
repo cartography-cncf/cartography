@@ -1,27 +1,44 @@
 import logging
 
-import boto3
 from neo4j import Session
 
 from cartography.analysis.kubernetes.analysis import K8S_COMPUTE_ASSET_EXPOSURE_JOBS
 from cartography.analysis.kubernetes.analysis import K8S_LB_EXPOSURE_JOBS
 from cartography.config import Config
-from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
-from cartography.intel.kubernetes.eks import sync as sync_eks
-from cartography.intel.kubernetes.gateway_api import sync_gateway_api
-from cartography.intel.kubernetes.ingress import sync_ingress
-from cartography.intel.kubernetes.namespaces import sync_namespaces
-from cartography.intel.kubernetes.networkpolicies import sync_network_policies
-from cartography.intel.kubernetes.nodes import sync_nodes
-from cartography.intel.kubernetes.pods import sync_pods
-from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
-from cartography.intel.kubernetes.secrets import sync_secrets
-from cartography.intel.kubernetes.services import sync_services
-from cartography.intel.kubernetes.storage import sync_storage
-from cartography.intel.kubernetes.util import get_k8s_clients
-from cartography.intel.kubernetes.workloads import sync_workloads
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+boto3 = lazy_import("boto3")
+get_k8s_clients = lazy_callable("cartography.intel.kubernetes.util", "get_k8s_clients")
+sync_eks = lazy_callable("cartography.intel.kubernetes.eks", "sync")
+sync_gateway_api = lazy_callable(
+    "cartography.intel.kubernetes.gateway_api", "sync_gateway_api"
+)
+sync_ingress = lazy_callable("cartography.intel.kubernetes.ingress", "sync_ingress")
+sync_kubernetes_cluster = lazy_callable(
+    "cartography.intel.kubernetes.clusters", "sync_kubernetes_cluster"
+)
+sync_kubernetes_rbac = lazy_callable(
+    "cartography.intel.kubernetes.rbac", "sync_kubernetes_rbac"
+)
+sync_namespaces = lazy_callable(
+    "cartography.intel.kubernetes.namespaces", "sync_namespaces"
+)
+sync_network_policies = lazy_callable(
+    "cartography.intel.kubernetes.networkpolicies", "sync_network_policies"
+)
+sync_nodes = lazy_callable("cartography.intel.kubernetes.nodes", "sync_nodes")
+sync_pods = lazy_callable("cartography.intel.kubernetes.pods", "sync_pods")
+sync_secrets = lazy_callable("cartography.intel.kubernetes.secrets", "sync_secrets")
+sync_services = lazy_callable("cartography.intel.kubernetes.services", "sync_services")
+sync_storage = lazy_callable("cartography.intel.kubernetes.storage", "sync_storage")
+sync_workloads = lazy_callable(
+    "cartography.intel.kubernetes.workloads", "sync_workloads"
+)
 
 logger = logging.getLogger(__name__)
 

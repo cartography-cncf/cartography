@@ -39,9 +39,9 @@ from cartography.models.aws.iam.service_principal import AWSServicePrincipalSche
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

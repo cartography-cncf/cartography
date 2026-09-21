@@ -1,54 +1,96 @@
 import logging
+from typing import Any
 
 import neo4j
-import scaleway
 
-import cartography.intel.scaleway.baremetal.apple_silicon
-import cartography.intel.scaleway.baremetal.dedibox
-import cartography.intel.scaleway.baremetal.elastic_metal
-import cartography.intel.scaleway.baremetal.flexible_ips
-import cartography.intel.scaleway.container_registry.namespaces
-import cartography.intel.scaleway.container_registry.supply_chain
-import cartography.intel.scaleway.databases.datawarehouse
-import cartography.intel.scaleway.databases.mongodb
-import cartography.intel.scaleway.databases.rdb
-import cartography.intel.scaleway.databases.redis
-import cartography.intel.scaleway.databases.searchdb
-import cartography.intel.scaleway.databases.serverless_sql
-import cartography.intel.scaleway.dns.dns
-import cartography.intel.scaleway.dns.domains
-import cartography.intel.scaleway.iam.apikeys
-import cartography.intel.scaleway.iam.applications
-import cartography.intel.scaleway.iam.groups
-import cartography.intel.scaleway.iam.permissions
-import cartography.intel.scaleway.iam.permissionsets
-import cartography.intel.scaleway.iam.policies
-import cartography.intel.scaleway.iam.sshkeys
-import cartography.intel.scaleway.iam.users
-import cartography.intel.scaleway.instances.flexibleips
-import cartography.intel.scaleway.instances.instances
-import cartography.intel.scaleway.instances.securitygroups
-import cartography.intel.scaleway.kapsule.clusters
-import cartography.intel.scaleway.kms.keys
-import cartography.intel.scaleway.loadbalancers.loadbalancers
-import cartography.intel.scaleway.network.ips
-import cartography.intel.scaleway.network.private_networks
-import cartography.intel.scaleway.network.public_gateways
-import cartography.intel.scaleway.network.vpcs
-import cartography.intel.scaleway.projects
-import cartography.intel.scaleway.secrets.secrets
-import cartography.intel.scaleway.serverless.containers
-import cartography.intel.scaleway.serverless.functions
-import cartography.intel.scaleway.serverless.jobs
-import cartography.intel.scaleway.storage.filesystems
-import cartography.intel.scaleway.storage.objectstorage
-import cartography.intel.scaleway.storage.snapshots
-import cartography.intel.scaleway.storage.volumes
-import cartography.intel.scaleway.webhosting.hostings
 from cartography.analysis.scaleway.analysis import SCALEWAY_EXPOSURE_JOBS
 from cartography.config import Config
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+from cartography.util.lazy import lazy_namespace_all
+from cartography.util.lazy import lazy_submodule
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+scaleway = lazy_import("scaleway")
+sync_apikeys = lazy_callable("cartography.intel.scaleway.iam.apikeys", "sync")
+sync_apple_silicon = lazy_callable(
+    "cartography.intel.scaleway.baremetal.apple_silicon", "sync"
+)
+sync_applications = lazy_callable("cartography.intel.scaleway.iam.applications", "sync")
+sync_clusters = lazy_callable("cartography.intel.scaleway.kapsule.clusters", "sync")
+sync_containers = lazy_callable(
+    "cartography.intel.scaleway.serverless.containers", "sync"
+)
+sync_datawarehouse = lazy_callable(
+    "cartography.intel.scaleway.databases.datawarehouse", "sync"
+)
+sync_dedibox = lazy_callable("cartography.intel.scaleway.baremetal.dedibox", "sync")
+sync_dns = lazy_callable("cartography.intel.scaleway.dns.dns", "sync")
+sync_domains = lazy_callable("cartography.intel.scaleway.dns.domains", "sync")
+sync_elastic_metal = lazy_callable(
+    "cartography.intel.scaleway.baremetal.elastic_metal", "sync"
+)
+sync_filesystems = lazy_callable(
+    "cartography.intel.scaleway.storage.filesystems", "sync"
+)
+sync_flexible_ips = lazy_callable(
+    "cartography.intel.scaleway.baremetal.flexible_ips", "sync"
+)
+sync_flexibleips = lazy_callable(
+    "cartography.intel.scaleway.instances.flexibleips", "sync"
+)
+sync_functions = lazy_callable(
+    "cartography.intel.scaleway.serverless.functions", "sync"
+)
+sync_groups = lazy_callable("cartography.intel.scaleway.iam.groups", "sync")
+sync_hostings = lazy_callable("cartography.intel.scaleway.webhosting.hostings", "sync")
+sync_instances = lazy_callable("cartography.intel.scaleway.instances.instances", "sync")
+sync_ips = lazy_callable("cartography.intel.scaleway.network.ips", "sync")
+sync_jobs = lazy_callable("cartography.intel.scaleway.serverless.jobs", "sync")
+sync_keys = lazy_callable("cartography.intel.scaleway.kms.keys", "sync")
+sync_loadbalancers = lazy_callable(
+    "cartography.intel.scaleway.loadbalancers.loadbalancers", "sync"
+)
+sync_mongodb = lazy_callable("cartography.intel.scaleway.databases.mongodb", "sync")
+sync_namespaces = lazy_callable(
+    "cartography.intel.scaleway.container_registry.namespaces", "sync"
+)
+sync_objectstorage = lazy_callable(
+    "cartography.intel.scaleway.storage.objectstorage", "sync"
+)
+sync_permissions = lazy_callable("cartography.intel.scaleway.iam.permissions", "sync")
+sync_permissionsets = lazy_callable(
+    "cartography.intel.scaleway.iam.permissionsets", "sync"
+)
+sync_policies = lazy_callable("cartography.intel.scaleway.iam.policies", "sync")
+sync_private_networks = lazy_callable(
+    "cartography.intel.scaleway.network.private_networks", "sync"
+)
+sync_projects = lazy_callable("cartography.intel.scaleway.projects", "sync")
+sync_public_gateways = lazy_callable(
+    "cartography.intel.scaleway.network.public_gateways", "sync"
+)
+sync_rdb = lazy_callable("cartography.intel.scaleway.databases.rdb", "sync")
+sync_redis = lazy_callable("cartography.intel.scaleway.databases.redis", "sync")
+sync_searchdb = lazy_callable("cartography.intel.scaleway.databases.searchdb", "sync")
+sync_secrets = lazy_callable("cartography.intel.scaleway.secrets.secrets", "sync")
+sync_securitygroups = lazy_callable(
+    "cartography.intel.scaleway.instances.securitygroups", "sync"
+)
+sync_serverless_sql = lazy_callable(
+    "cartography.intel.scaleway.databases.serverless_sql", "sync"
+)
+sync_snapshots = lazy_callable("cartography.intel.scaleway.storage.snapshots", "sync")
+sync_sshkeys = lazy_callable("cartography.intel.scaleway.iam.sshkeys", "sync")
+sync_supply_chain = lazy_callable(
+    "cartography.intel.scaleway.container_registry.supply_chain", "sync"
+)
+sync_users = lazy_callable("cartography.intel.scaleway.iam.users", "sync")
+sync_volumes = lazy_callable("cartography.intel.scaleway.storage.volumes", "sync")
+sync_vpcs = lazy_callable("cartography.intel.scaleway.network.vpcs", "sync")
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +127,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     }
 
     # Organization level
-    projects = cartography.intel.scaleway.projects.sync(
+    projects = sync_projects(
         neo4j_session,
         client,
         common_job_parameters,
@@ -93,49 +135,49 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     projects_id = [project["id"] for project in projects]
-    cartography.intel.scaleway.iam.users.sync(
+    sync_users(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.applications.sync(
+    sync_applications(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.groups.sync(
+    sync_groups(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.apikeys.sync(
+    sync_apikeys(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.permissionsets.sync(
+    sync_permissionsets(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.policies.sync(
+    sync_policies(
         neo4j_session,
         client,
         common_job_parameters,
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.iam.sshkeys.sync(
+    sync_sshkeys(
         neo4j_session,
         client,
         common_job_parameters,
@@ -144,7 +186,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Storage
-    cartography.intel.scaleway.storage.volumes.sync(
+    sync_volumes(
         neo4j_session,
         client,
         common_job_parameters,
@@ -152,7 +194,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.storage.snapshots.sync(
+    sync_snapshots(
         neo4j_session,
         client,
         common_job_parameters,
@@ -160,7 +202,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.storage.objectstorage.sync(
+    sync_objectstorage(
         neo4j_session,
         client,
         common_job_parameters,
@@ -168,7 +210,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.storage.filesystems.sync(
+    sync_filesystems(
         neo4j_session,
         client,
         common_job_parameters,
@@ -178,7 +220,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Instances
-    cartography.intel.scaleway.instances.flexibleips.sync(
+    sync_flexibleips(
         neo4j_session,
         client,
         common_job_parameters,
@@ -186,7 +228,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.instances.instances.sync(
+    sync_instances(
         neo4j_session,
         client,
         common_job_parameters,
@@ -194,7 +236,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.instances.securitygroups.sync(
+    sync_securitygroups(
         neo4j_session,
         client,
         common_job_parameters,
@@ -204,7 +246,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Bare Metal (Elastic Metal / Apple silicon / Dedibox)
-    cartography.intel.scaleway.baremetal.elastic_metal.sync(
+    sync_elastic_metal(
         neo4j_session,
         client,
         common_job_parameters,
@@ -212,7 +254,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.baremetal.apple_silicon.sync(
+    sync_apple_silicon(
         neo4j_session,
         client,
         common_job_parameters,
@@ -220,7 +262,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.baremetal.dedibox.sync(
+    sync_dedibox(
         neo4j_session,
         client,
         common_job_parameters,
@@ -230,7 +272,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
     # Elastic Metal Flexible IPs (loaded after Elastic Metal servers so the
     # IDENTIFIES edge resolves).
-    cartography.intel.scaleway.baremetal.flexible_ips.sync(
+    sync_flexible_ips(
         neo4j_session,
         client,
         common_job_parameters,
@@ -240,7 +282,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Network (VPC + IPAM)
-    cartography.intel.scaleway.network.vpcs.sync(
+    sync_vpcs(
         neo4j_session,
         client,
         common_job_parameters,
@@ -248,7 +290,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.network.private_networks.sync(
+    sync_private_networks(
         neo4j_session,
         client,
         common_job_parameters,
@@ -256,7 +298,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.network.ips.sync(
+    sync_ips(
         neo4j_session,
         client,
         common_job_parameters,
@@ -265,7 +307,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     # Public Gateways (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
-    cartography.intel.scaleway.network.public_gateways.sync(
+    sync_public_gateways(
         neo4j_session,
         client,
         common_job_parameters,
@@ -275,7 +317,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Load Balancers
-    cartography.intel.scaleway.loadbalancers.loadbalancers.sync(
+    sync_loadbalancers(
         neo4j_session,
         client,
         common_job_parameters,
@@ -285,7 +327,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # DNS
-    cartography.intel.scaleway.dns.dns.sync(
+    sync_dns(
         neo4j_session,
         client,
         common_job_parameters,
@@ -293,7 +335,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.dns.domains.sync(
+    sync_domains(
         neo4j_session,
         client,
         common_job_parameters,
@@ -303,7 +345,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Web Hosting (loaded after DNS so the EXPOSE edges to ScalewayRegisteredDomain
     # and ScalewayDnsZone resolve).
-    cartography.intel.scaleway.webhosting.hostings.sync(
+    sync_hostings(
         neo4j_session,
         client,
         common_job_parameters,
@@ -313,7 +355,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Key Manager (loaded before Secrets so Secret -> Key ENCRYPTED_BY edges resolve).
-    cartography.intel.scaleway.kms.keys.sync(
+    sync_keys(
         neo4j_session,
         client,
         common_job_parameters,
@@ -323,7 +365,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Secret Manager
-    cartography.intel.scaleway.secrets.secrets.sync(
+    sync_secrets(
         neo4j_session,
         client,
         common_job_parameters,
@@ -334,7 +376,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     # Kubernetes (Kapsule). Loaded after VPC/PrivateNetwork so the
     # ScalewayKapsuleCluster -> ScalewayPrivateNetwork edge resolves.
-    cartography.intel.scaleway.kapsule.clusters.sync(
+    sync_clusters(
         neo4j_session,
         client,
         common_job_parameters,
@@ -346,19 +388,17 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # Container Registry. Returns the tag URI -> digest map so serverless
     # containers can resolve their `registry_image` to a digest and declare a
     # HAS_IMAGE edge to the Image node.
-    registry_image_digests = (
-        cartography.intel.scaleway.container_registry.namespaces.sync(
-            neo4j_session,
-            client,
-            common_job_parameters,
-            org_id=config.scaleway_org,
-            projects_id=projects_id,
-            update_tag=config.update_tag,
-        )
+    registry_image_digests = sync_namespaces(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
     )
     # Enrich registry images with layers + provenance from the OCI registry
     # endpoint (source for code-to-cloud); runs after the registry nodes exist.
-    cartography.intel.scaleway.container_registry.supply_chain.sync(
+    sync_supply_chain(
         neo4j_session,
         config.scaleway_secret_key,
         common_job_parameters,
@@ -367,7 +407,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     )
 
     # Managed Databases (loaded after PrivateNetworks so ATTACHED_TO edges resolve).
-    cartography.intel.scaleway.databases.rdb.sync(
+    sync_rdb(
         neo4j_session,
         client,
         common_job_parameters,
@@ -375,7 +415,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.databases.redis.sync(
+    sync_redis(
         neo4j_session,
         client,
         common_job_parameters,
@@ -383,7 +423,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.databases.mongodb.sync(
+    sync_mongodb(
         neo4j_session,
         client,
         common_job_parameters,
@@ -391,7 +431,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.databases.datawarehouse.sync(
+    sync_datawarehouse(
         neo4j_session,
         client,
         common_job_parameters,
@@ -399,7 +439,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.databases.serverless_sql.sync(
+    sync_serverless_sql(
         neo4j_session,
         client,
         common_job_parameters,
@@ -407,7 +447,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.databases.searchdb.sync(
+    sync_searchdb(
         neo4j_session,
         client,
         common_job_parameters,
@@ -419,7 +459,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # Serverless (Functions / Containers / Jobs). Loaded after PrivateNetworks
     # so the ATTACHED_TO edges resolve, and after the Container Registry so the
     # container HAS_IMAGE -> Image edges resolve (registry_image_digests below).
-    cartography.intel.scaleway.serverless.functions.sync(
+    sync_functions(
         neo4j_session,
         client,
         common_job_parameters,
@@ -427,7 +467,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         projects_id=projects_id,
         update_tag=config.update_tag,
     )
-    cartography.intel.scaleway.serverless.containers.sync(
+    sync_containers(
         neo4j_session,
         client,
         common_job_parameters,
@@ -436,7 +476,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
         registry_image_digests=registry_image_digests,
     )
-    cartography.intel.scaleway.serverless.jobs.sync(
+    sync_jobs(
         neo4j_session,
         client,
         common_job_parameters,
@@ -448,7 +488,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # IAM permissions: materialize principal -> permission set (HAS_ROLE) and
     # principal -> project (CAN_ACCESS) edges from the policy/rule graph. Runs
     # last so all IAM and project nodes are present.
-    cartography.intel.scaleway.iam.permissions.sync(
+    sync_permissions(
         neo4j_session,
         client,
         common_job_parameters,
@@ -463,3 +503,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     # so there is no other project's data for the generated cleanup to remove.
     for job in SCALEWAY_EXPOSURE_JOBS:
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)
+
+
+# DEPRECATED: importing this package used to populate its namespace with every
+# submodule the entry point pulled, so callers could reach a stage through
+# `cartography.intel.scaleway.<domain>`. Those imports are lazy now, so the names are served on
+# demand instead. Remove in v1.0.0.
+def __getattr__(name: str) -> Any:
+    return lazy_submodule(__name__, name)
+
+
+# A star-import only reaches __getattr__ for names __all__ mentions, so the shim above
+# needs this to cover `from cartography.intel.scaleway import *` too.
+__all__ = lazy_namespace_all(__path__, globals())

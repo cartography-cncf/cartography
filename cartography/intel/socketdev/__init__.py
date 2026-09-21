@@ -3,12 +3,22 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.socketdev.alerts import sync_alerts
-from cartography.intel.socketdev.dependencies import sync_dependencies
-from cartography.intel.socketdev.fixes import sync_fixes
-from cartography.intel.socketdev.organizations import sync_organizations
-from cartography.intel.socketdev.repositories import sync_repositories
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+sync_alerts = lazy_callable("cartography.intel.socketdev.alerts", "sync_alerts")
+sync_dependencies = lazy_callable(
+    "cartography.intel.socketdev.dependencies", "sync_dependencies"
+)
+sync_fixes = lazy_callable("cartography.intel.socketdev.fixes", "sync_fixes")
+sync_organizations = lazy_callable(
+    "cartography.intel.socketdev.organizations", "sync_organizations"
+)
+sync_repositories = lazy_callable(
+    "cartography.intel.socketdev.repositories", "sync_repositories"
+)
 
 logger = logging.getLogger(__name__)
 

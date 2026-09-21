@@ -19,11 +19,11 @@ from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.findings import InspectorFindingToPackageMatchLink
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
-from cartography.util import aws_handle_regions
-from cartography.util import aws_paginate
-from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
-from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import timeit
+from cartography.util.aws import aws_handle_regions
+from cartography.util.aws import aws_paginate
+from cartography.util.aws import AWS_REGION_ACCESS_DENIED_ERROR_CODES
+from cartography.util.aws import is_service_control_policy_explicit_deny
 
 logger = logging.getLogger(__name__)
 

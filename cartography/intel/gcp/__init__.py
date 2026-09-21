@@ -5,12 +5,9 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Set
+from typing import TYPE_CHECKING
 
 import neo4j
-from google.auth.credentials import Credentials as GoogleCredentials
-from google.cloud.asset_v1 import AssetServiceClient
-from googleapiclient.discovery import HttpError
-from googleapiclient.discovery import Resource
 
 from cartography.analysis.gcp.analysis import GCP_BUCKET_PUBLIC_PROJECTION
 from cartography.analysis.gcp.analysis import GCP_COMPUTE_EXPOSURE_JOBS
@@ -20,61 +17,113 @@ from cartography.analysis.gcp.analysis import GCP_GKE_BASIC_AUTH
 from cartography.analysis.gcp.analysis import GCP_LB_EXPOSURE
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import apikeys
-from cartography.intel.gcp import artifact_registry
-from cartography.intel.gcp import bigquery_connection
-from cartography.intel.gcp import bigquery_dataset
-from cartography.intel.gcp import bigquery_routine
-from cartography.intel.gcp import bigquery_table
-from cartography.intel.gcp import bigtable_app_profile
-from cartography.intel.gcp import bigtable_backup
-from cartography.intel.gcp import bigtable_cluster
-from cartography.intel.gcp import bigtable_instance
-from cartography.intel.gcp import bigtable_table
-from cartography.intel.gcp import cai
-from cartography.intel.gcp import cloud_sql_backup_config
-from cartography.intel.gcp import cloud_sql_database
-from cartography.intel.gcp import cloud_sql_instance
-from cartography.intel.gcp import cloud_sql_user
-from cartography.intel.gcp import compute
-from cartography.intel.gcp import dns
-from cartography.intel.gcp import gcf
-from cartography.intel.gcp import gke
-from cartography.intel.gcp import iam
-from cartography.intel.gcp import kms
-from cartography.intel.gcp import permission_relationships
-from cartography.intel.gcp import policy_bindings
-from cartography.intel.gcp import secretsmanager
-from cartography.intel.gcp import storage
-from cartography.intel.gcp import workload_identity
-from cartography.intel.gcp.clients import build_asset_client
-from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.clients import get_gcp_credentials
-from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
-from cartography.intel.gcp.cloudrun import job as cloudrun_job
-from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
-from cartography.intel.gcp.cloudrun import service as cloudrun_service
-from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
-from cartography.intel.gcp.crm.folders import sync_gcp_folders
-from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
-from cartography.intel.gcp.crm.projects import sync_gcp_projects
-from cartography.intel.gcp.util import classify_gcp_http_error
-from cartography.intel.gcp.util import parse_and_validate_gcp_requested_syncs
-from cartography.intel.gcp.util import summarize_gcp_http_error
-from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
-from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
-from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
-from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
-from cartography.intel.gcp.vertex.instances import sync_workbench_instances
-from cartography.intel.gcp.vertex.models import get_vertex_ai_locations
-from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
-from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
 from cartography.util import run_typed_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials as GoogleCredentials
+    from google.cloud.asset_v1 import AssetServiceClient
+    from googleapiclient.discovery import Resource
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+if TYPE_CHECKING:
+    from cartography.intel.gcp import permission_relationships
+    from cartography.intel.gcp import policy_bindings
+else:
+    permission_relationships = lazy_import(
+        "cartography.intel.gcp.permission_relationships"
+    )
+    policy_bindings = lazy_import("cartography.intel.gcp.policy_bindings")
+
+apikeys = lazy_import("cartography.intel.gcp.apikeys")
+artifact_registry = lazy_import("cartography.intel.gcp.artifact_registry")
+bigquery_connection = lazy_import("cartography.intel.gcp.bigquery_connection")
+bigquery_dataset = lazy_import("cartography.intel.gcp.bigquery_dataset")
+bigquery_routine = lazy_import("cartography.intel.gcp.bigquery_routine")
+bigquery_table = lazy_import("cartography.intel.gcp.bigquery_table")
+bigtable_app_profile = lazy_import("cartography.intel.gcp.bigtable_app_profile")
+bigtable_backup = lazy_import("cartography.intel.gcp.bigtable_backup")
+bigtable_cluster = lazy_import("cartography.intel.gcp.bigtable_cluster")
+bigtable_instance = lazy_import("cartography.intel.gcp.bigtable_instance")
+bigtable_table = lazy_import("cartography.intel.gcp.bigtable_table")
+build_asset_client = lazy_callable(
+    "cartography.intel.gcp.clients", "build_asset_client"
+)
+build_client = lazy_callable("cartography.intel.gcp.clients", "build_client")
+cai = lazy_import("cartography.intel.gcp.cai")
+classify_gcp_http_error = lazy_callable(
+    "cartography.intel.gcp.util", "classify_gcp_http_error"
+)
+cloud_sql_backup_config = lazy_import("cartography.intel.gcp.cloud_sql_backup_config")
+cloud_sql_database = lazy_import("cartography.intel.gcp.cloud_sql_database")
+cloud_sql_instance = lazy_import("cartography.intel.gcp.cloud_sql_instance")
+cloud_sql_user = lazy_import("cartography.intel.gcp.cloud_sql_user")
+cloudrun_execution = lazy_import("cartography.intel.gcp.cloudrun.execution")
+cloudrun_job = lazy_import("cartography.intel.gcp.cloudrun.job")
+cloudrun_revision = lazy_import("cartography.intel.gcp.cloudrun.revision")
+cloudrun_service = lazy_import("cartography.intel.gcp.cloudrun.service")
+compute = lazy_import("cartography.intel.gcp.compute")
+discover_cloud_run_locations = lazy_callable(
+    "cartography.intel.gcp.cloudrun.util", "discover_cloud_run_locations"
+)
+dns = lazy_import("cartography.intel.gcp.dns")
+gcf = lazy_import("cartography.intel.gcp.gcf")
+get_gcp_credentials = lazy_callable(
+    "cartography.intel.gcp.clients", "get_gcp_credentials"
+)
+get_vertex_ai_locations = lazy_callable(
+    "cartography.intel.gcp.vertex.models", "get_vertex_ai_locations"
+)
+gke = lazy_import("cartography.intel.gcp.gke")
+googleapiclient_discovery = lazy_import("googleapiclient.discovery")
+iam = lazy_import("cartography.intel.gcp.iam")
+kms = lazy_import("cartography.intel.gcp.kms")
+parse_and_validate_gcp_requested_syncs = lazy_callable(
+    "cartography.intel.gcp.util", "parse_and_validate_gcp_requested_syncs"
+)
+secretsmanager = lazy_import("cartography.intel.gcp.secretsmanager")
+storage = lazy_import("cartography.intel.gcp.storage")
+summarize_gcp_http_error = lazy_callable(
+    "cartography.intel.gcp.util", "summarize_gcp_http_error"
+)
+sync_feature_groups = lazy_callable(
+    "cartography.intel.gcp.vertex.feature_groups", "sync_feature_groups"
+)
+sync_gcp_folders = lazy_callable(
+    "cartography.intel.gcp.crm.folders", "sync_gcp_folders"
+)
+sync_gcp_organizations = lazy_callable(
+    "cartography.intel.gcp.crm.orgs", "sync_gcp_organizations"
+)
+sync_gcp_projects = lazy_callable(
+    "cartography.intel.gcp.crm.projects", "sync_gcp_projects"
+)
+sync_training_pipelines = lazy_callable(
+    "cartography.intel.gcp.vertex.training_pipelines", "sync_training_pipelines"
+)
+sync_vertex_ai_datasets = lazy_callable(
+    "cartography.intel.gcp.vertex.datasets", "sync_vertex_ai_datasets"
+)
+sync_vertex_ai_deployed_models = lazy_callable(
+    "cartography.intel.gcp.vertex.deployed_models", "sync_vertex_ai_deployed_models"
+)
+sync_vertex_ai_endpoints = lazy_callable(
+    "cartography.intel.gcp.vertex.endpoints", "sync_vertex_ai_endpoints"
+)
+sync_vertex_ai_models = lazy_callable(
+    "cartography.intel.gcp.vertex.models", "sync_vertex_ai_models"
+)
+sync_workbench_instances = lazy_callable(
+    "cartography.intel.gcp.vertex.instances", "sync_workbench_instances"
+)
+workload_identity = lazy_import("cartography.intel.gcp.workload_identity")
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +159,7 @@ class GCPProjectResourcesSyncResult(NamedTuple):
     policy_bindings_cleanup_skip_reason: str | None = None
 
 
-def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
+def _services_enabled_on_project(serviceusage: "Resource", project_id: str) -> Set:
     """
     Return a list of all Google API services that are enabled on the given project ID.
     See https://cloud.google.com/service-usage/docs/reference/rest/v1/services/list for data shape.
@@ -134,7 +183,7 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
                 previous_response=res,
             )
         return services
-    except HttpError as http_error:
+    except googleapiclient_discovery.HttpError as http_error:
         category = classify_gcp_http_error(http_error)
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
         # audit (e.g. adding a script to a Google spreadsheet causes a project to get created) and we don't need to emit
@@ -156,7 +205,7 @@ def _sync_project_resources(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    credentials: GoogleCredentials,
+    credentials: "GoogleCredentials",
     requested_syncs: Set[str] | None = None,
     org_role_permissions_by_name: dict[str, list[str]] | None = None,
 ) -> GCPProjectResourcesSyncResult:
@@ -188,8 +237,10 @@ def _sync_project_resources(
     # Note: We do NOT explicitly set a quota project for CAI clients. Google's default behavior
     # will use the credential/default project for quota/billing; that project must have CAI
     # enabled and the caller must have the required CAI and Service Usage permissions.
-    cai_rest_client: Optional[Resource] = None  # REST client for asset listing
-    cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
+    cai_rest_client: Optional["Resource"] = None  # REST client for asset listing
+    cai_grpc_client: Optional["AssetServiceClient"] = (
+        None  # gRPC client for policy APIs
+    )
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
@@ -356,7 +407,7 @@ def _sync_project_resources(
                     iam.build_role_permissions_by_name(project_roles)
                 )
                 iam_sync_succeeded = True
-            except HttpError as e:
+            except googleapiclient_discovery.HttpError as e:
                 category = classify_gcp_http_error(e)
                 status = getattr(e.resp, "status", None)
                 if category in ("forbidden", "api_disabled") or (
@@ -810,7 +861,7 @@ def _sync_project_resources(
 def start_gcp_ingestion(
     neo4j_session: neo4j.Session,
     config: Config,
-    credentials: Optional[GoogleCredentials] = None,
+    credentials: Optional["GoogleCredentials"] = None,
 ) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary

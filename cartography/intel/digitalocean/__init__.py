@@ -1,13 +1,18 @@
 import logging
 
 import neo4j
-from pydo import Client
 
 from cartography.config import Config
-from cartography.intel.digitalocean import compute
-from cartography.intel.digitalocean import management
-from cartography.intel.digitalocean import platform
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+Client = lazy_callable("pydo", "Client")
+compute = lazy_import("cartography.intel.digitalocean.compute")
+management = lazy_import("cartography.intel.digitalocean.management")
+platform = lazy_import("cartography.intel.digitalocean.platform")
 
 logger = logging.getLogger(__name__)
 

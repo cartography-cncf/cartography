@@ -3,10 +3,20 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.microsoft.entra import start_entra_ingestion
-from cartography.intel.microsoft.intune import start_intune_ingestion
-from cartography.intel.microsoft.o365 import start_o365_ingestion
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+start_entra_ingestion = lazy_callable(
+    "cartography.intel.microsoft.entra", "start_entra_ingestion"
+)
+start_intune_ingestion = lazy_callable(
+    "cartography.intel.microsoft.intune", "start_intune_ingestion"
+)
+start_o365_ingestion = lazy_callable(
+    "cartography.intel.microsoft.o365", "start_o365_ingestion"
+)
 
 logger = logging.getLogger(__name__)
 

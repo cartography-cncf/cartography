@@ -6,12 +6,6 @@ import neo4j
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.crowdstrike.endpoints import sync_hosts
-from cartography.intel.crowdstrike.label_migrations import (
-    migrate_spotlight_vulnerability_label,
-)
-from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
-from cartography.intel.crowdstrike.util import get_authorization
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import (
@@ -22,6 +16,21 @@ from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+get_authorization = lazy_callable(
+    "cartography.intel.crowdstrike.util", "get_authorization"
+)
+migrate_spotlight_vulnerability_label = lazy_callable(
+    "cartography.intel.crowdstrike.label_migrations",
+    "migrate_spotlight_vulnerability_label",
+)
+sync_hosts = lazy_callable("cartography.intel.crowdstrike.endpoints", "sync_hosts")
+sync_vulnerabilities = lazy_callable(
+    "cartography.intel.crowdstrike.spotlight", "sync_vulnerabilities"
+)
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

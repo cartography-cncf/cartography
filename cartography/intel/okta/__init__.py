@@ -3,21 +3,26 @@ from __future__ import annotations
 import logging
 
 import neo4j
-from okta.client import Client as OktaClient
 
 from cartography.config import Config
-from cartography.intel.okta import applications
-from cartography.intel.okta import authenticators
-from cartography.intel.okta import awssaml
-from cartography.intel.okta import factors
-from cartography.intel.okta import groups
-from cartography.intel.okta import organization
-from cartography.intel.okta import origins
-from cartography.intel.okta import users
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.util.lazy import lazy_callable
+from cartography.util.lazy import lazy_import
+
+# Bound lazily so that the provider SDK only loads once the config gate below
+# has decided that this module has something to sync.
+OktaClient = lazy_callable("okta.client", "Client")
+applications = lazy_import("cartography.intel.okta.applications")
+authenticators = lazy_import("cartography.intel.okta.authenticators")
+awssaml = lazy_import("cartography.intel.okta.awssaml")
+factors = lazy_import("cartography.intel.okta.factors")
+groups = lazy_import("cartography.intel.okta.groups")
+organization = lazy_import("cartography.intel.okta.organization")
+origins = lazy_import("cartography.intel.okta.origins")
+users = lazy_import("cartography.intel.okta.users")
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

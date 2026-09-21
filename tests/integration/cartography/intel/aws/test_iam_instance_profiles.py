@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.iam
 import cartography.intel.aws.iam_instance_profiles
 from cartography.analysis.aws.analysis import AWS_EC2_IAM_INSTANCE_PROFILE
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
