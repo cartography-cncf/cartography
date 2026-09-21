@@ -275,21 +275,22 @@ def _build_cleanup_detach_query(node_schema: CartographyNodeSchema) -> str:
         MATCH (n:AWSUser)<-[s:RESOURCE]-(:AWSAccount{id: $account_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE type(r) <> 'RESOURCE'
+        WHERE r <> s
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
 
     Note:
-        Relationships matching the sub resource rel_label are excluded: the node cleanup
-        query still needs that relationship to find stale nodes, and ``cascade_delete``
-        reaches owned children through it in the opposite direction, so deleting it here
-        would strand both.
+        The sub resource relationship instance (``s``) is excluded by identity, not by
+        type: the node cleanup query still needs that specific relationship to find stale
+        nodes, and ``cascade_delete`` reaches owned children through it in the opposite
+        direction, so deleting it here would strand both. Excluding by type instead would
+        also wrongly preserve any other, unrelated relationship that happens to share the
+        same type name (e.g. a schema with two distinct ``RESOURCE`` edges), leaving it for
+        the unbounded ``DETACH DELETE`` cascade this query exists to avoid.
     """
     rel_filter_clause = ""
     if node_schema.sub_resource_relationship:
-        rel_filter_clause = (
-            f"WHERE type(r) <> '{node_schema.sub_resource_relationship.rel_label}'"
-        )
+        rel_filter_clause = "WHERE r <> s"
 
     query_template = Template(
         """

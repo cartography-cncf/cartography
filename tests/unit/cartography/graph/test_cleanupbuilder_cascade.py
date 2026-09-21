@@ -109,7 +109,7 @@ def test_build_cleanup_queries_with_cascade():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         MATCH (n)-[r]-()
-        WHERE type(r) <> 'RELATIONSHIP_LABEL'
+        WHERE r <> s
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """,
