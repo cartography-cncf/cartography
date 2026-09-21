@@ -1,8 +1,8 @@
 """Synthetic regressions for resolving registered IPs to ENI identities."""
 
+from copy import deepcopy
 from dataclasses import replace
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 import pytest
 from botocore.exceptions import ReadTimeoutError
@@ -24,6 +24,8 @@ from cartography.models.aws.ec2.loadbalancerv2 import (
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.util import run_typed_analysis_job
+from tests.data.aws.ec2.load_balancer_v2s import IP_TARGET_API_PAGES
+from tests.data.aws.ec2.load_balancer_v2s import IP_TARGET_HEALTH
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -34,6 +36,28 @@ REGION = "us-east-1"
 IP = "10.0.0.10"
 LB = "lb.example.invalid"
 TG = "synthetic-target-group"
+
+
+def _elb_client(vpc="vpc-local"):
+    pages = deepcopy(IP_TARGET_API_PAGES)
+    target_group = pages["describe_target_groups"]["TargetGroups"][0]
+    if vpc is None:
+        target_group.pop("VpcId")
+    else:
+        target_group["VpcId"] = vpc
+
+    def paginator(operation):
+        result = MagicMock()
+        # The collector enriches response dictionaries; each API call gets fresh data.
+        result.paginate.side_effect = lambda **kwargs: [deepcopy(pages[operation])]
+        return result
+
+    client = MagicMock()
+    client.get_paginator.side_effect = paginator
+    client.describe_target_health.side_effect = lambda **kwargs: deepcopy(
+        IP_TARGET_HEALTH
+    )
+    return client
 
 
 def _load_workload(session, name, account, vpc, registered=False, region=REGION):
@@ -166,26 +190,9 @@ def test_ip_target_resolution_and_exposure_converge(
     # Arrange: load real schemas and reproduce the previous address-only matcher.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, ACCOUNT, 1)
-    data = [
-        {
-            "DNSName": LB,
-            "LoadBalancerName": "synthetic-lb",
-            "CreatedTime": "2026-01-01",
-            "Type": "network",
-            "Scheme": "internet-facing",
-            "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}],
-            "TargetGroups": [
-                {
-                    "TargetGroupArn": TG,
-                    "TargetType": "ip",
-                    "VpcId": vpc,
-                    "Targets": [IP],
-                    "Port": 443,
-                    "Protocol": "TCP",
-                }
-            ],
-        }
-    ]
+    lb_session = MagicMock()
+    lb_session.client.return_value = _elb_client(vpc)
+    data = elbv2.get_loadbalancer_v2_data(lb_session, REGION)
     elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
     for workload in workloads:
         _load_workload(neo4j_session, *workload)
@@ -217,15 +224,14 @@ def test_ip_target_resolution_and_exposure_converge(
     ) == {(LB, f"container-{w[0]}") for w in workloads}
 
     # Act: normal successful IP sync followed by the existing exposure analyses.
-    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
-        elbv2.sync_load_balancer_v2_expose(
-            neo4j_session,
-            MagicMock(),
-            [REGION],
-            ACCOUNT,
-            2,
-            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
-        )
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        2,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+    )
     _analyze(neo4j_session, 2)
 
     # Assert: both the source edges and all derived exposure converge.
@@ -268,24 +274,9 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     # Arrange: legacy wrong edge plus a relationship owned by another sync scope.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, ACCOUNT, 1)
-    data = [
-        {
-            "DNSName": LB,
-            "LoadBalancerName": "synthetic-lb",
-            "CreatedTime": "2026-01-01",
-            "Type": "network",
-            "Scheme": "internet-facing",
-            "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}],
-            "TargetGroups": [
-                {
-                    "TargetGroupArn": TG,
-                    "TargetType": "ip",
-                    "VpcId": "vpc-local",
-                    "Targets": [IP],
-                }
-            ],
-        }
-    ]
+    lb_session = MagicMock()
+    lb_session.client.return_value = _elb_client("vpc-local")
+    data = elbv2.get_loadbalancer_v2_data(lb_session, REGION)
     elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
     _load_workload(neo4j_session, "remote", OTHER_ACCOUNT, "vpc-remote")
     neo4j_session.run(
@@ -302,20 +293,24 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     )
     _analyze(neo4j_session, 1)
 
-    # Act: the first region completes, but the second is unavailable.
-    with patch.object(
-        elbv2,
-        "get_loadbalancer_v2_data",
-        side_effect=[data, elbv2.ELBV2TransientRegionFailure("synthetic outage")],
-    ):
-        elbv2.sync_load_balancer_v2_expose(
-            neo4j_session,
-            MagicMock(),
-            [REGION, "us-west-2"],
-            ACCOUNT,
-            2,
-            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
-        )
+    failed_client = _elb_client()
+    failed_client.describe_target_health.side_effect = ReadTimeoutError(
+        endpoint_url="https://elbv2.example.invalid"
+    )
+    healthy_client = lb_session.client.return_value
+    lb_session.client.side_effect = lambda service, **kwargs: (
+        healthy_client if kwargs["region_name"] == REGION else failed_client
+    )
+
+    # Act: the first region completes, but the second fails during target-health collection.
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION, "us-west-2"],
+        ACCOUNT,
+        2,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+    )
     _analyze(neo4j_session, 2)
 
     # Assert: preserve last-known state on an incomplete inventory.
@@ -333,15 +328,14 @@ def test_partial_ip_sync_preserves_edges_until_successful_cleanup(neo4j_session)
     }
 
     # Act: a later successful inventory removes only the owning scope's stale edge.
-    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
-        elbv2.sync_load_balancer_v2_expose(
-            neo4j_session,
-            MagicMock(),
-            [REGION],
-            ACCOUNT,
-            3,
-            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
-        )
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        3,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
+    )
     _analyze(neo4j_session, 3)
 
     # Assert: the foreign edge remains; the wrong ECS exposure and flags are gone.
@@ -375,24 +369,9 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
     # Arrange: a valid cross-VPC target and an unrelated account sharing its IP.
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, ACCOUNT, 1)
-    data = [
-        {
-            "DNSName": LB,
-            "LoadBalancerName": "synthetic-lb",
-            "CreatedTime": "2026-01-01",
-            "Type": "network",
-            "Scheme": "internet-facing",
-            "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}],
-            "TargetGroups": [
-                {
-                    "TargetGroupArn": TG,
-                    "TargetType": "ip",
-                    "VpcId": "vpc-local",
-                    "Targets": [IP],
-                }
-            ],
-        }
-    ]
+    lb_session = MagicMock()
+    lb_session.client.return_value = _elb_client("vpc-local")
+    data = elbv2.get_loadbalancer_v2_data(lb_session, REGION)
     elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
     _load_workload(neo4j_session, "remote", ACCOUNT, "vpc-remote", registered=True)
     _load_workload(neo4j_session, "other", OTHER_ACCOUNT, "vpc-other")
@@ -475,15 +454,14 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
         2,
         {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
     )
-    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
-        elbv2.sync_load_balancer_v2_expose(
-            neo4j_session,
-            session,
-            [REGION],
-            ACCOUNT,
-            2,
-            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
-        )
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        2,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+    )
     _analyze(neo4j_session, 2)
 
     # Assert: tasks were refreshed even though their service could not be read.
@@ -536,15 +514,14 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
         3,
         {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
     )
-    with patch.object(elbv2, "get_loadbalancer_v2_data", return_value=data):
-        elbv2.sync_load_balancer_v2_expose(
-            neo4j_session,
-            session,
-            [REGION],
-            ACCOUNT,
-            3,
-            {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
-        )
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        3,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 3},
+    )
     _analyze(neo4j_session, 3)
 
     # Assert: stale exposure converges and the other account survives cleanup.
