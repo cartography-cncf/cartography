@@ -44,9 +44,9 @@ async def get_entra_ous(
                     current_request = None
             else:
                 current_request = None
-        except Exception as e:
-            logger.error(f"Failed to retrieve administrative units: {str(e)}")
-            current_request = None
+        except Exception:
+            logger.exception("Failed to retrieve administrative units")
+            raise
 
 
 def transform_ous(

@@ -110,12 +110,9 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
             page = await call_with_retries(
                 lambda: client.users.with_url(page.odata_next_link).get(),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Entra users – stopping pagination early: %s",
-                e,
-            )
-            break
+        except Exception:
+            logger.exception("Failed to fetch next page of Entra users")
+            raise
 
 
 @timeit
