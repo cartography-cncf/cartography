@@ -55,6 +55,40 @@ def test_config_stores_orca_credentials() -> None:
     assert config.orca_api_token == "secret-token"
 
 
+def test_infisical_config_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters.index("infisical_api_url") > parameters.index("orca_api_token")
+    assert parameters.index("infisical_organization_id") > parameters.index(
+        "infisical_api_url",
+    )
+    assert parameters.index("infisical_client_id") > parameters.index(
+        "infisical_organization_id",
+    )
+    assert parameters.index("infisical_client_secret") > parameters.index(
+        "infisical_client_id",
+    )
+
+
+def test_config_stores_infisical_credentials() -> None:
+    # Act
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        infisical_api_url="https://app.infisical.example",
+        infisical_organization_id="org-123",
+        infisical_client_id="client-id",
+        infisical_client_secret="client-secret",
+    )
+
+    # Assert
+    assert config.infisical_api_url == "https://app.infisical.example"
+    assert config.infisical_organization_id == "org-123"
+    assert config.infisical_client_id == "client-id"
+    assert config.infisical_client_secret == "client-secret"
+
+
 def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     # Arrange and act
     with caplog.at_level(logging.WARNING):
