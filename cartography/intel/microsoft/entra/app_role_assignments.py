@@ -318,7 +318,8 @@ async def sync_app_role_assignments(
                         neo4j_session, transformed_assignments, update_tag, tenant_id
                     )
                     logger.debug(
-                        f"Loaded batch of {len(assignments_batch)} assignments"
+                        "Loaded batch of %s assignments",
+                        len(assignments_batch),
                     )
                     assignments_batch.clear()
                     transformed_assignments.clear()

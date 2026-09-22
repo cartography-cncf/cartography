@@ -189,8 +189,10 @@ async def sync_entra_applications(
                 load_applications(
                     neo4j_session, transformed_apps, update_tag, tenant_id
                 )
-                logger.info(
-                    f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
+                logger.debug(
+                    "Loaded batch of %s applications (total: %s)",
+                    len(apps_batch),
+                    total_app_count,
                 )
                 apps_batch.clear()
                 transformed_apps.clear()

@@ -191,6 +191,8 @@ async def sync_entra_groups(
                         group.display_name,
                     )
                     delegated_denial = delegated_denial or e
+                    # Delegated mode never runs relationship cleanup, so this
+                    # does not erase owners collected by an earlier run.
                     owners = []
                 else:
                     logger.exception(
@@ -225,6 +227,8 @@ async def sync_entra_groups(
                         group.display_name,
                     )
                     delegated_denial = delegated_denial or e
+                    # Delegated mode never runs relationship cleanup, so this
+                    # does not erase members collected by an earlier run.
                     users, subgroups = [], []
                 else:
                     logger.exception(

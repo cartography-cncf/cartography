@@ -227,8 +227,10 @@ async def sync_service_principals(
                     update_tag,
                     tenant_id,
                 )
-                logger.info(
-                    f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
+                logger.debug(
+                    "Loaded batch of %s service principals (total: %s)",
+                    len(service_principals_batch),
+                    total_count,
                 )
                 service_principals_batch.clear()
                 transformed_service_principals.clear()
