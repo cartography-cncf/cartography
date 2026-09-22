@@ -20,5 +20,8 @@ def test_get_unmatched_container_images_limits_before_layer_history_expansion():
 
     # Assert
     query = neo4j_session.run.call_args.args[0]
-    assert "WITH best\n        LIMIT 10\n        // Get layer history" in query
-    assert query.index("LIMIT 10") < query.index("UNWIND range")
+    assert (
+        query.index("ORDER BY coalesce(repo.uri, img.digest)")
+        < query.index("LIMIT 10")
+        < query.index("UNWIND range")
+    )

@@ -1094,6 +1094,13 @@ def get_unmatched_gcp_images_with_history(
             repo_img.upload_time DESC
         WITH group_key, collect({img: img, repo_img: repo_img})[0] AS selected
         WITH selected.img AS img, selected.repo_img AS repo_img
+        ORDER BY coalesce(repo_img.uri, img.digest)
+    """
+
+    if limit is not None:
+        query += f"        LIMIT {int(limit)}\n"
+
+    query += """
         UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
         WITH img, repo_img, img.layer_diff_ids[idx] AS diff_id, idx
         OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
@@ -1112,9 +1119,6 @@ def get_unmatched_gcp_images_with_history(
             img.layer_diff_ids AS layer_diff_ids,
             layer_history
     """
-
-    if limit is not None:
-        query += f" LIMIT {int(limit)}"
 
     result = neo4j_session.run(
         query,
@@ -1192,6 +1196,13 @@ def get_unmatched_scaleway_images_with_history(
             t.updated_at DESC
         WITH group_key, collect({img: img, t: t})[0] AS selected
         WITH selected.img AS img, selected.t AS t
+        ORDER BY coalesce(t.uri, img.digest)
+    """
+
+    if limit is not None:
+        query += f"        LIMIT {int(limit)}\n"
+
+    query += """
         UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
         WITH img, t, img.layer_diff_ids[idx] AS diff_id, idx
         OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
@@ -1209,9 +1220,6 @@ def get_unmatched_scaleway_images_with_history(
             img.layer_diff_ids AS layer_diff_ids,
             layer_history
     """
-
-    if limit is not None:
-        query += f" LIMIT {int(limit)}"
 
     result = neo4j_session.run(
         query,

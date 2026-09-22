@@ -114,11 +114,18 @@ def get_unmatched_circleci_candidate_images(
                   _sub_resource_id: $org_id
               }]->())
           )
+        WITH DISTINCT img
+        ORDER BY img.digest
+    """
+
+    if limit is not None:
+        query += f"        LIMIT {int(limit)}\n"
+
+    query += """
+        MATCH (img)<-[:IMAGE]-(t:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WITH img, collect(DISTINCT t.name) AS tags
         RETURN img.digest AS digest, tags
     """
-    if limit:
-        query += f" LIMIT {limit}"
 
     result = neo4j_session.run(query, update_tag=update_tag, org_id=org_id)
     images = [
