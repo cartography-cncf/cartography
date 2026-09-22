@@ -215,6 +215,7 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
     neo4j_session,
 ):
     prefix = "github-supply-chain-limit-regression"
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         """
         UNWIND range(0, 2) AS i
@@ -264,6 +265,7 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
         call.args[0] for call in run.call_args_list if "UNWIND range" in call.args[0]
     )
     assert query.index("LIMIT 2") < query.index("UNWIND range")
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 @patch(
