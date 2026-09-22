@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -170,32 +172,26 @@ async def test_app_role_assignments_only_query_the_requested_tenant(
         shared_app_id=shared_app_id,
     )
 
-    client = type(
-        "Client",
-        (),
-        {
-            "service_principals": type(
-                "ServicePrincipals",
-                (),
-                {
-                    "by_service_principal_id": lambda self, value: (
-                        _ for _ in ()
-                    ).throw(AssertionError(value))
-                },
-            )()
-        },
-    )()
+    client = MagicMock()
+    client.service_principals.by_service_principal_id.return_value.app_role_assigned_to.get = AsyncMock(
+        return_value=None
+    )
 
-    with pytest.raises(AssertionError, match="sp-a"):
-        async for (
-            _
-        ) in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
+    results = [
+        assignment
+        async for assignment in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
             client,
             neo4j_session,
             tenant_id,
             shared_app_id,
-        ):
-            pass
+        )
+    ]
+
+    assert results == []
+    assert {
+        call.args[0]
+        for call in client.service_principals.by_service_principal_id.call_args_list
+    } == {"sp-a"}
 
     neo4j_session.run(
         """
