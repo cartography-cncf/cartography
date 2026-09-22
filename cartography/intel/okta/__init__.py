@@ -9,6 +9,7 @@ from cartography.config import Config
 from cartography.intel.okta import applications
 from cartography.intel.okta import authenticators
 from cartography.intel.okta import awssaml
+from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
 from cartography.intel.okta import organization
@@ -94,6 +95,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
         user_ids,
+    )
+    devices.sync_okta_devices(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
     )
 
     # Sync Okta groups to AWS roles via SAML

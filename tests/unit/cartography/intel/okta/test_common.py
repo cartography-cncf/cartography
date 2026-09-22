@@ -1,12 +1,17 @@
+import asyncio
 import json
 from copy import deepcopy
 from typing import Any
+from unittest.mock import MagicMock
 
+import pytest
 from okta.models.application_json_converter import ApplicationJsonConverter
 from okta.models.authenticator_base import AuthenticatorBase
 from okta.models.user_factor import UserFactor
 
 import cartography.intel.okta.common  # noqa: F401
+from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
 from tests.data.okta.application import OIN_BROWSER_PLUGIN_APPLICATION
@@ -134,3 +139,39 @@ def test_tac_authenticator_preserves_declared_lowercase_provider_type() -> None:
     assert authenticator is not None
     assert authenticator.provider is not None
     assert authenticator.provider.type == "tac"
+
+
+def test_collect_paginated_follows_usable_next_cursor() -> None:
+    # Arrange
+    async def list_devices(limit: int = 200, after: str | None = None, **kwargs: Any):
+        response = MagicMock()
+        if after is None:
+            response.headers = {
+                "Link": (
+                    "<https://example.okta.com/api/v1/devices?after=cursor-2>; "
+                    'rel="next"'
+                )
+            }
+            return ([{"id": "device-1"}], response, None)
+        response.headers = {}
+        return ([{"id": "device-2"}], response, None)
+
+    # Act
+    items = asyncio.run(collect_paginated(list_devices))
+
+    # Assert
+    assert items == [{"id": "device-1"}, {"id": "device-2"}]
+
+
+def test_collect_paginated_raises_on_unusable_next_cursor() -> None:
+    # Arrange
+    async def list_devices(limit: int = 200, after: str | None = None, **kwargs: Any):
+        response = MagicMock()
+        response.headers = {
+            "Link": '<https://example.okta.com/api/v1/devices?limit=200>; rel="next"'
+        }
+        return ([{"id": "device-1"}], response, None)
+
+    # Act and assert
+    with pytest.raises(OktaApiError, match="unusable cursor"):
+        asyncio.run(collect_paginated(list_devices))
