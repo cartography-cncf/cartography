@@ -213,6 +213,47 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         ("arn:aws:test789", "CVE-2023-1234"),
     }
 
+    # Inspector's adjusted CVSS vector (inspectorScoreDetails.adjustedCvss.scoringVector)
+    # is stored as a single scalar property.
+    assert check_nodes(
+        neo4j_session,
+        "AWSInspectorFinding",
+        ["id", "cvssvector"],
+    ) == {
+        ("arn:aws:test456", "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"),
+        ("arn:aws:test789", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"),
+    }
+
+    # packageVulnerabilityDetails.cvss[].scoringVector (vendor/NVD entries) are
+    # stored as a list property.
+    vendorcvssvectors_by_id = {
+        row["id"]: row["vendorcvssvectors"]
+        for row in neo4j_session.run(
+            "MATCH (f:AWSInspectorFinding) RETURN f.id AS id, f.vendorcvssvectors AS vendorcvssvectors",
+        )
+    }
+    assert vendorcvssvectors_by_id == {
+        "arn:aws:test456": [
+            "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "AV:L/AC:L/Au:N/C:N/I:N/A:C",
+            "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+        ],
+        "arn:aws:test789": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+    }
+
+    # packageVulnerabilityDetails.cvss[].baseScore (vendor/NVD entries) are
+    # stored as a parallel list property.
+    vendorcvssscores_by_id = {
+        row["id"]: row["vendorcvssscores"]
+        for row in neo4j_session.run(
+            "MATCH (f:AWSInspectorFinding) RETURN f.id AS id, f.vendorcvssscores AS vendorcvssscores",
+        )
+    }
+    assert vendorcvssscores_by_id == {
+        "arn:aws:test456": [5.5, 4.9, 5.5],
+        "arn:aws:test789": [7.5],
+    }
+
 
 @patch.object(
     cartography.intel.aws.inspector,
