@@ -118,11 +118,10 @@ def get_unmatched_container_images_with_history(
             repo_img.image_pushed_at DESC
         WITH repo, collect({img: img, repo_img: repo_img})[0] AS selected
         WITH repo, selected.img AS img, selected.repo_img AS repo_img
-        ORDER BY coalesce(repo.uri, img.digest)
     """
 
     if limit is not None:
-        query += f"        LIMIT {int(limit)}\n"
+        query += f"        ORDER BY coalesce(repo.uri, img.digest)\n        LIMIT {int(limit)}\n"
 
     query += """
         // Get layer history for each best image

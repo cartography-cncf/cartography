@@ -113,13 +113,12 @@ def get_unmatched_circleci_candidate_images(
                   _sub_resource_label: 'CircleCIOrganization',
                   _sub_resource_id: $org_id
               }]->())
-          )
+        )
         WITH DISTINCT img
-        ORDER BY img.digest
     """
 
     if limit is not None:
-        query += f"        LIMIT {int(limit)}\n"
+        query += f"        ORDER BY img.digest\n        LIMIT {int(limit)}\n"
 
     query += """
         MATCH (img)<-[:IMAGE]-(t:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
