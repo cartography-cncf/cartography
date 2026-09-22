@@ -76,10 +76,20 @@ opaque reference to the stored token; no token material is requested or returned
 Agents are discovered by listing each deployment's assistants, because a LangSmith agent
 id is an *assistant* id and the control plane does not expose it: a deployment carries an
 `agent` block only when it was created with an explicit agent binding, and for most
-deployments that is `null`. Listing assistants requires `X-Tenant-Id` and costs one
-request per deployment with a serving URL. Deployments can be scaled to zero and take
-longer than a normal request to wake, so failures degrade to an empty assistant list
-rather than breaking the sync.
+deployments that is `null`.
+
+That listing requires `X-Tenant-Id` and costs one request per deployment, against the
+deployment's own data plane. Two things keep the cost bounded:
+
+* **Only `READY` deployments are probed.** The other states (`AWAITING_DATABASE`,
+  `UNUSED`, `AWAITING_DELETE`, `AWAITING_FINAL_DELETE`, `UNKNOWN`) cannot serve, and
+  asking one costs a full timeout to learn nothing. Non-serving deployments are still
+  ingested as nodes; they are simply not probed.
+* **The probes run concurrently**, since each targets an independent host. A
+  scaled-to-zero deployment waking slowly no longer holds up the rest.
+
+Any failure — timeout, or a credential the deployment rejects — degrades to an empty
+assistant list rather than breaking the sync.
 
 Because an assistant id is derived from its graph, one agent is commonly served by
 several deployments, so `RUNS` is a one-to-many edge.

@@ -5,6 +5,9 @@ Each test names the assumption that turned out to be wrong, so a future refactor
 quietly reintroduce it. These run without Neo4j.
 """
 
+import threading
+import time
+
 from cartography.intel.langsmith import agent_auth
 from cartography.intel.langsmith import deployments
 from cartography.intel.langsmith import organizations
@@ -306,10 +309,13 @@ class TestAssistantDiscovery:
     class _FakeClient:
         def __init__(self, by_url):
             self.by_url = by_url
+            self._lock = threading.Lock()
             self.calls = []
 
         def search_assistants(self, deployment_url, tenant_id, page_size=100):
-            self.calls.append((deployment_url, tenant_id))
+            # Searches run on a thread pool, so record calls under a lock.
+            with self._lock:
+                self.calls.append((deployment_url, tenant_id))
             return self.by_url.get(deployment_url, [])
 
     def test_assistants_become_agents(self):
@@ -329,9 +335,14 @@ class TestAssistantDiscovery:
             }
         )
         deps = [
-            {"id": "d1", "tenant_id": "w1", "url": "https://d1.langgraph.app"},
+            {
+                "id": "d1",
+                "tenant_id": "w1",
+                "url": "https://d1.langgraph.app",
+                "status": "READY",
+            },
             # No serving URL, so nothing to ask.
-            {"id": "d2", "tenant_id": "w1", "url": None},
+            {"id": "d2", "tenant_id": "w1", "url": None, "status": "READY"},
         ]
         out = deployments.get_assistants(client, deps)
         assert [a["id"] for a in out] == ["asst-1"]
@@ -383,3 +394,115 @@ class TestAssistantServedByManyDeployments:
         merged = {a["id"]: a for a in deployments.merge_assistants([], assistants)}
         assert merged["asst-1"]["deployment_ids"] == ["d1", "d2"]
         assert merged["asst-2"]["deployment_ids"] == ["d2"]
+
+
+class TestAssistantSearchIsScopedAndConcurrent:
+    """
+    Probing a deployment costs a request to its own data plane, and a non-serving one
+    costs a full timeout to learn nothing, so only READY deployments with a URL are asked.
+    """
+
+    class _RecordingClient:
+        def __init__(self):
+            self._lock = threading.Lock()
+            self.asked = []
+            self.max_concurrent = 0
+            self._active = 0
+
+        def search_assistants(self, deployment_url, tenant_id, page_size=100):
+            with self._lock:
+                self.asked.append(deployment_url)
+                self._active += 1
+                self.max_concurrent = max(self.max_concurrent, self._active)
+            time.sleep(0.02)
+            with self._lock:
+                self._active -= 1
+            return [{"assistant_id": f"asst-{deployment_url[-1]}"}]
+
+    def test_only_ready_deployments_with_a_url_are_probed(self):
+        client = self._RecordingClient()
+        deps = [
+            {"id": "a", "tenant_id": "w", "url": "https://a", "status": "READY"},
+            {
+                "id": "b",
+                "tenant_id": "w",
+                "url": "https://b",
+                "status": "AWAITING_DATABASE",
+            },
+            {
+                "id": "c",
+                "tenant_id": "w",
+                "url": "https://c",
+                "status": "AWAITING_DELETE",
+            },
+            {"id": "d", "tenant_id": "w", "url": "https://d", "status": "UNUSED"},
+            {"id": "e", "tenant_id": "w", "url": "https://e", "status": "UNKNOWN"},
+            {"id": "f", "tenant_id": "w", "url": None, "status": "READY"},
+        ]
+        out = deployments.get_assistants(client, deps)
+        assert client.asked == ["https://a"]
+        assert [a["id"] for a in out] == ["asst-a"]
+
+    def test_nothing_serving_means_no_requests(self):
+        client = self._RecordingClient()
+        deps = [{"id": "a", "tenant_id": "w", "url": "https://a", "status": "UNUSED"}]
+        assert deployments.get_assistants(client, deps) == []
+        assert client.asked == []
+
+    def test_searches_run_concurrently(self):
+        """
+        Proven with a barrier rather than timing: if the searches ran serially, the first
+        worker would wait for peers that never arrive and the barrier would break.
+        """
+        count = 6
+        barrier = threading.Barrier(count, timeout=10)
+
+        class _BarrierClient:
+            def search_assistants(self, deployment_url, tenant_id, page_size=100):
+                barrier.wait()
+                return [{"assistant_id": f"asst-{deployment_url[-1]}"}]
+
+        deps = [
+            {"id": str(i), "tenant_id": "w", "url": f"https://{i}", "status": "READY"}
+            for i in range(count)
+        ]
+        out = deployments.get_assistants(_BarrierClient(), deps)
+        assert len(out) == count
+
+    def test_worker_count_never_exceeds_the_cap(self):
+        client = self._RecordingClient()
+        total = deployments._MAX_ASSISTANT_WORKERS + 15
+        deps = [
+            {"id": str(i), "tenant_id": "w", "url": f"https://{i}", "status": "READY"}
+            for i in range(total)
+        ]
+        out = deployments.get_assistants(client, deps)
+        assert len(out) == total
+        assert len(client.asked) == total
+        assert client.max_concurrent <= deployments._MAX_ASSISTANT_WORKERS
+
+
+class TestNonServingDeploymentsAreStillInventoried:
+    def test_a_deployment_awaiting_delete_is_transformed_but_not_probed(self):
+        """
+        Skipping the assistant probe must not drop the deployment from the graph: a
+        deployment being torn down is still an asset worth inventorying.
+        """
+        raw = [
+            {
+                "id": "d1",
+                "tenant_id": "w1",
+                "name": "dying-bot",
+                "status": "AWAITING_DELETE",
+                "url": "https://d1.langgraph.app",
+            }
+        ]
+        transformed = deployments.transform_deployments(raw)
+        assert [d["id"] for d in transformed] == ["d1"]
+        assert transformed[0]["status"] == "AWAITING_DELETE"
+
+        class _Boom:
+            def search_assistants(self, *a, **k):
+                raise AssertionError("must not probe a non-serving deployment")
+
+        assert deployments.get_assistants(_Boom(), transformed) == []

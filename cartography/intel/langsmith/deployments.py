@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import neo4j
@@ -12,6 +13,13 @@ from cartography.models.langsmith.deployment import LangSmithDeploymentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Only a READY deployment is actually serving; the other states are provisioning,
+# unused, or being torn down, so probing them costs a timeout and returns nothing.
+# Note DEPLOYED is a *revision* status, not a deployment status.
+_SERVING_STATUS = "READY"
+# Assistant searches hit each deployment's own data plane, so they parallelise well.
+_MAX_ASSISTANT_WORKERS = 10
 
 
 @timeit
@@ -65,30 +73,61 @@ def get_assistants(
     """
     Enumerate the assistants served by each deployment.
 
-    A LangGraph Platform agent id is an assistant id, and assistants are only listable on
-    each deployment's own data plane. Deployments without a serving URL are skipped.
+    A LangSmith agent id is an assistant id, and assistants are only listable on each
+    deployment's own data plane, one request per deployment. Deployments without a serving
+    URL, or not in a serving state, are skipped: they cannot answer, and a scaled-to-zero
+    or half-provisioned deployment costs a full timeout to discover that.
+
+    The remaining requests run concurrently, because they target independent hosts.
     """
-    assistants: list[dict[str, Any]] = []
-    for deployment in deployments:
-        if not deployment.get("url"):
-            continue
+    candidates = [
+        deployment
+        for deployment in deployments
+        if deployment.get("url") and deployment.get("status") == _SERVING_STATUS
+    ]
+    skipped = len(deployments) - len(candidates)
+    if skipped:
+        logger.debug(
+            "Skipping assistant search for %d deployment(s) that are not %s or have no URL",
+            skipped,
+            _SERVING_STATUS,
+        )
+    if not candidates:
+        return []
+
+    worker_count = min(_MAX_ASSISTANT_WORKERS, len(candidates))
+    logger.info(
+        "Searching assistants across %d LangSmith deployment(s) with %d workers",
+        len(candidates),
+        worker_count,
+    )
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        batches = executor.map(
+            lambda deployment: _assistants_for(client, deployment), candidates
+        )
+    return [assistant for batch in batches for assistant in batch]
+
+
+def _assistants_for(
+    client: LangSmithClient, deployment: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Shape one deployment's assistants. Never raises: a failed search yields nothing."""
+    return [
+        {
+            "id": assistant["assistant_id"],
+            "name": assistant.get("name"),
+            "graph_id": assistant.get("graph_id"),
+            "description": assistant.get("description"),
+            "version": assistant.get("version"),
+            "environment": None,
+            "deployment_ids": [deployment["id"]],
+            "created_at": assistant.get("created_at"),
+            "updated_at": assistant.get("updated_at"),
+        }
         for assistant in client.search_assistants(
             deployment["url"], deployment["tenant_id"]
-        ):
-            assistants.append(
-                {
-                    "id": assistant["assistant_id"],
-                    "name": assistant.get("name"),
-                    "graph_id": assistant.get("graph_id"),
-                    "description": assistant.get("description"),
-                    "version": assistant.get("version"),
-                    "environment": None,
-                    "deployment_ids": [deployment["id"]],
-                    "created_at": assistant.get("created_at"),
-                    "updated_at": assistant.get("updated_at"),
-                }
-            )
-    return assistants
+        )
+    ]
 
 
 def merge_assistants(

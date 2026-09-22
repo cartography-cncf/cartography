@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import Any
 
 import requests
@@ -15,8 +16,26 @@ _TIMEOUT = (60, 60)
 _MEMBER_PAGE_SIZE = 500
 _DEPLOYMENT_PAGE_SIZE = 100
 _CURSOR_PAGE_SIZE = 100
-# Deployments can be scaled to zero, so waking one costs more than a normal request.
-_ASSISTANT_TIMEOUT = (10, 25)
+# Assistant searches run concurrently across deployments, so one scaled-to-zero
+# deployment waking slowly no longer holds up the rest. That makes a tighter read
+# timeout safe, and it bounds the worst case for a workspace full of idle deployments.
+_ASSISTANT_TIMEOUT = (5, 15)
+
+
+def _build_session() -> requests.Session:
+    """Build a session with the shared retry policy."""
+    session = requests.Session()
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        # LangSmith signals throttling with Retry-After and emits no X-RateLimit headers.
+        respect_retry_after_header=True,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    session.mount("http://", HTTPAdapter(max_retries=retry_policy))
+    return session
 
 
 class LangSmithPermissionError(Exception):
@@ -41,17 +60,22 @@ class LangSmithClient:
         self._pat = pat
         self.api_url = api_url.rstrip("/")
         self.host_api_url = host_api_url.rstrip("/")
-        self._session = requests.Session()
-        retry_policy = Retry(
-            total=5,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"],
-            # LangSmith signals throttling with Retry-After and emits no X-RateLimit headers.
-            respect_retry_after_header=True,
-        )
-        self._session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-        self._session.mount("http://", HTTPAdapter(max_retries=retry_policy))
+        self._session = _build_session()
+        self._thread_local = threading.local()
+
+    @property
+    def _worker_session(self) -> requests.Session:
+        """
+        A session private to the calling thread.
+
+        requests.Session is not guaranteed thread-safe, and assistant searches run on a
+        thread pool, so each worker gets its own rather than sharing the client's.
+        """
+        session = getattr(self._thread_local, "session", None)
+        if session is None:
+            session = _build_session()
+            self._thread_local.session = session
+        return session
 
     def _headers(
         self,
@@ -243,7 +267,7 @@ class LangSmithClient:
         headers = {"X-Api-Key": self._pat, "X-Tenant-Id": tenant_id}
         while True:
             try:
-                response = self._session.post(
+                response = self._worker_session.post(
                     url,
                     json={"limit": page_size, "offset": offset},
                     headers=headers,

@@ -77,8 +77,8 @@ def test_sync_langsmith_deployments(mock_get, neo4j_session):
     assert check_nodes(
         neo4j_session, "LangSmithDeployment", ["name", "shareable", "status"]
     ) == {
-        ("support-bot", True, "DEPLOYED"),
-        ("triage-bot", False, "DEPLOYED"),
+        ("support-bot", True, "READY"),
+        ("triage-bot", False, "READY"),
     }
 
     # Assistant detail is merged onto the agent from the agent block; the environment
