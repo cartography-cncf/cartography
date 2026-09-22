@@ -864,6 +864,19 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     ),
     "supabase": supabase_mapping,
     "modal": modal_mapping,
+    "runpod": OntologyMapping(
+        module_name="runpod",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="RunPodAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="id", required=True
+                    ),
+                ],
+            ),
+        ],
+    ),
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

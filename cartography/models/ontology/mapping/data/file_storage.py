@@ -83,11 +83,29 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+runpod_mapping = OntologyMapping(
+    module_name="runpod",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RunPodNetworkVolume",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="location", node_field="data_center_id"
+                ),
+            ],
+        ),
+    ],
+)
+
 FILE_STORAGE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "azure": azure_mapping,
     "scaleway": scaleway_mapping,
     "modal": modal_mapping,
+    "runpod": runpod_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

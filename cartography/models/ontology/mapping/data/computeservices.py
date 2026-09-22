@@ -272,6 +272,20 @@ _SNOWFLAKE_SERVICE_STATUS = {
     "DONE": "active",
 }
 
+runpod_mapping = OntologyMapping(
+    module_name="runpod",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RunPodServerlessEndpoint",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_ecs": aws_ecs_mapping,
     "gcp_cloudrun_service": gcp_cloudrun_service_mapping,
@@ -281,6 +295,7 @@ COMPUTESERVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "railway": railway_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "runpod": runpod_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[
