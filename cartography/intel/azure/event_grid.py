@@ -30,10 +30,10 @@ def get_event_grid_topics(
     try:
         return [topic.as_dict() for topic in client.topics.list_by_subscription()]
     except HttpResponseError as error:
-        if getattr(error.error, "code", None) != "DisallowedProvider":
+        if error.error is None or error.error.code != "DisallowedProvider":
             raise
         logger.warning(
-            "Skipping Azure Event Grid topics for subscription %s: %s",
+            "Skipping Azure Event Grid topic collection for subscription %s: %s",
             subscription_id,
             error,
         )
