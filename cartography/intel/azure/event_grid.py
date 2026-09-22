@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.eventgrid import EventGridManagementClient
 
 from cartography.client.core.tx import load
@@ -19,12 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_event_grid_topics(credentials: Credentials, subscription_id: str) -> list[dict]:
+def get_event_grid_topics(
+    credentials: Credentials, subscription_id: str
+) -> list[dict] | None:
     """
     Get a list of Event Grid Topics from the given Azure subscription.
     """
     client = EventGridManagementClient(credentials.credential, subscription_id)
-    return [topic.as_dict() for topic in client.topics.list_by_subscription()]
+    try:
+        return [topic.as_dict() for topic in client.topics.list_by_subscription()]
+    except HttpResponseError as error:
+        if error.error is None or error.error.code != "DisallowedProvider":
+            raise
+        logger.warning(
+            "Skipping Azure Event Grid topic collection for subscription %s: %s",
+            subscription_id,
+            error,
+        )
+        return None
 
 
 def transform_event_grid_topics(topics_response: list[dict]) -> list[dict]:
@@ -124,6 +137,8 @@ def sync(
     """
     logger.info(f"Syncing Azure Event Grid Topics for subscription {subscription_id}.")
     raw_topics = get_event_grid_topics(credentials, subscription_id)
+    if raw_topics is None:
+        return
     transformed_topics = transform_event_grid_topics(raw_topics)
     load_event_grid_topics(
         neo4j_session, transformed_topics, subscription_id, update_tag
