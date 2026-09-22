@@ -65,8 +65,10 @@ permissions. It isn't a replacement for application authentication.
 - Only Entra datasets are attempted. Intune and O365 ingestion are skipped.
 - Microsoft Graph may return partial results without an authorization error.
 - If Microsoft Graph returns `403 Forbidden`, Cartography stops the affected
-  dataset, reports it, and continues with the next dataset. Records from earlier
-  pages of the affected dataset can remain in the graph.
+  dataset, reports it, and continues with the next dataset. After attempting all
+  datasets, Cartography exits with a nonzero status so automation can't mistake
+  the partial inventory for a complete sync. Records from earlier pages of the
+  affected dataset can remain in the graph.
 - If Microsoft Graph returns `401 Unauthorized`, or an error other than `403`,
   Cartography stops the run.
 - Cartography disables cleanup and derived federation analysis. A delegated run

@@ -37,7 +37,10 @@ def test_delegated_auth_continues_after_denied_dataset(monkeypatch, caplog) -> N
     )
 
     # Act
-    with caplog.at_level(logging.WARNING):
+    with (
+        caplog.at_level(logging.WARNING),
+        pytest.raises(entra.DelegatedEntraSyncIncomplete) as error,
+    ):
         entra.start_entra_ingestion(MagicMock(), config)
 
     # Assert
@@ -45,6 +48,7 @@ def test_delegated_auth_continues_after_denied_dataset(monkeypatch, caplog) -> N
         sync.assert_awaited_once()
         assert sync.call_args.kwargs["delegated_auth"] is True
     federation.assert_not_awaited()
+    assert error.value.skipped_datasets == ("users",)
     assert "Skipping Entra users sync" in caplog.text
     assert "Datasets denied by Microsoft Graph: users" in caplog.text
 
@@ -91,4 +95,25 @@ def test_delegated_auth_does_not_hide_authentication_failures(monkeypatch) -> No
     with pytest.raises(APIError) as error:
         entra.start_entra_ingestion(MagicMock(), config)
     assert error.value is unauthorized
+    sync_users.assert_not_awaited()
+
+
+def test_delegated_auth_requires_tenant_dataset(monkeypatch) -> None:
+    denied = APIError("forbidden")
+    denied.response_status_code = 403
+    sync_tenant = AsyncMock(side_effect=denied)
+    sync_users = AsyncMock()
+    monkeypatch.setattr(entra, "sync_tenant", sync_tenant)
+    monkeypatch.setattr(entra, "sync_entra_users", sync_users)
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_delegated_auth=True,
+        update_tag=1234567890,
+    )
+
+    with pytest.raises(APIError) as error:
+        entra.start_entra_ingestion(MagicMock(), config)
+
+    assert error.value is denied
     sync_users.assert_not_awaited()

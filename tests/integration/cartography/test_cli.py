@@ -193,6 +193,22 @@ def test_cli_rejects_delegated_auth_with_application_credentials():
     sync.run.assert_not_called()
 
 
+def test_cli_rejects_delegated_auth_without_tenant():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    assert exit_code == 1
+    sync.run.assert_not_called()
+
+
 def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
     # Arrange
     sync = unittest.mock.MagicMock()

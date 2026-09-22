@@ -114,7 +114,9 @@ async def _mock_get_entra_service_principals(client):
         yield spn
 
 
-async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
+async def _mock_get_app_role_assignments_for_app(
+    client, neo4j_session, tenant_id, app_id
+):
     """Mock async generator for get_app_role_assignments_for_app"""
     # Return assignments that match this app_id
     assignments, _ = _prepare_mock_assignments()
@@ -141,6 +143,69 @@ async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
                 "resource_id": assignment.resource_id,
                 "application_app_id": assignment.application_app_id,
             }
+
+
+@pytest.mark.asyncio
+async def test_app_role_assignments_only_query_the_requested_tenant(
+    neo4j_session,
+):
+    tenant_id = "tenant-a"
+    other_tenant_id = "tenant-b"
+    shared_app_id = "shared-client-id"
+    neo4j_session.run(
+        """
+        CREATE (a:AzureTenant {id: $tenant_id})
+        CREATE (b:AzureTenant {id: $other_tenant_id})
+        CREATE (a_app:EntraApplication {id: 'app-a', app_id: $shared_app_id})
+        CREATE (b_app:EntraApplication {id: 'app-b', app_id: $shared_app_id})
+        CREATE (a_sp:EntraServicePrincipal {id: 'sp-a', app_id: $shared_app_id})
+        CREATE (b_sp:EntraServicePrincipal {id: 'sp-b', app_id: $shared_app_id})
+        CREATE (a)-[:RESOURCE]->(a_app)
+        CREATE (b)-[:RESOURCE]->(b_app)
+        CREATE (a)-[:RESOURCE]->(a_sp)
+        CREATE (b)-[:RESOURCE]->(b_sp)
+        """,
+        tenant_id=tenant_id,
+        other_tenant_id=other_tenant_id,
+        shared_app_id=shared_app_id,
+    )
+
+    client = type(
+        "Client",
+        (),
+        {
+            "service_principals": type(
+                "ServicePrincipals",
+                (),
+                {
+                    "by_service_principal_id": lambda self, value: (
+                        _ for _ in ()
+                    ).throw(AssertionError(value))
+                },
+            )()
+        },
+    )()
+
+    with pytest.raises(AssertionError, match="sp-a"):
+        async for (
+            _
+        ) in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
+            client,
+            neo4j_session,
+            tenant_id,
+            shared_app_id,
+        ):
+            pass
+
+    neo4j_session.run(
+        """
+        MATCH (n)
+        WHERE n.id IN [$tenant_id, $other_tenant_id, 'app-a', 'app-b', 'sp-a', 'sp-b']
+        DETACH DELETE n
+        """,
+        tenant_id=tenant_id,
+        other_tenant_id=other_tenant_id,
+    )
 
 
 @patch.object(

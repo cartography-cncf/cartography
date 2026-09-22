@@ -27,13 +27,17 @@ from cartography.util import timeit
 
 @timeit
 async def get_app_role_assignments_for_app(
-    client: GraphServiceClient, neo4j_session: neo4j.Session, app_id: str
+    client: GraphServiceClient,
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    app_id: str,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """
     Gets app role assignments for a single application by querying the graph for service principal ID.
 
     :param client: GraphServiceClient
     :param neo4j_session: Neo4j session for querying service principal
+    :param tenant_id: Entra tenant that owns the application and service principal
     :param app_id: Application ID
     :return: Generator of app role assignment data as dicts
     """
@@ -41,11 +45,12 @@ async def get_app_role_assignments_for_app(
 
     # Query the graph to get the service principal ID for this application
     query = """
-    MATCH (sp:EntraServicePrincipal {app_id: $app_id})
+    MATCH (tenant:AzureTenant {id: $tenant_id})-[:RESOURCE]->
+          (sp:EntraServicePrincipal {app_id: $app_id})
     RETURN sp.id as service_principal_id
     """
     service_principal_id = neo4j_session.execute_read(
-        read_single_value_tx, query, app_id=app_id
+        read_single_value_tx, query, tenant_id=tenant_id, app_id=app_id
     )
 
     if not service_principal_id:
@@ -283,13 +288,21 @@ async def sync_app_role_assignments(
     total_assignment_count = 0
 
     # Get app_ids from graph instead of streaming from API again
-    query = "MATCH (app:EntraApplication) RETURN app.app_id"
-    app_ids = neo4j_session.execute_read(read_list_of_values_tx, query)
+    query = """
+    MATCH (tenant:AzureTenant {id: $tenant_id})-[:RESOURCE]->
+          (app:EntraApplication)
+    RETURN app.app_id
+    """
+    app_ids = neo4j_session.execute_read(
+        read_list_of_values_tx,
+        query,
+        tenant_id=tenant_id,
+    )
 
     for app_id in app_ids:
         # Stream app role assignments (now using graph query for service principal ID)
         async for assignment in get_app_role_assignments_for_app(
-            client, neo4j_session, app_id
+            client, neo4j_session, tenant_id, app_id
         ):
             assignments_batch.append(assignment)
             total_assignment_count += 1

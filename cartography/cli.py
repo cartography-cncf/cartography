@@ -294,6 +294,14 @@ def _resolve_microsoft_credential_options(
             "--microsoft-delegated-auth cannot be combined with a Microsoft "
             "client ID or client secret.",
         )
+    if (
+        microsoft_delegated_auth
+        and microsoft_tenant_id is None
+        and entra_tenant_id is None
+    ):
+        raise typer.BadParameter(
+            "--microsoft-delegated-auth requires --microsoft-tenant-id.",
+        )
     if has_microsoft_values and has_entra_values:
         raise typer.BadParameter(
             "Cannot mix Microsoft credential flags "

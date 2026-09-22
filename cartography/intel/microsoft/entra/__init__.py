@@ -30,6 +30,17 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class DelegatedEntraSyncIncomplete(RuntimeError):
+    """Raised after a delegated sync when Graph denied one or more datasets."""
+
+    def __init__(self, skipped_datasets: list[str]) -> None:
+        self.skipped_datasets = tuple(skipped_datasets)
+        super().__init__(
+            "Microsoft Graph denied access to delegated Entra datasets: "
+            + ", ".join(skipped_datasets),
+        )
+
+
 async def _run_dataset(
     name: str,
     operation: Awaitable[None],
@@ -142,7 +153,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                     *common_args[:-1],
                     delegated_auth=delegated_auth,
                 ),
-                delegated_denials,
+                (),
             ),
             (
                 "users",
@@ -215,5 +226,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "Datasets denied by Microsoft Graph: %s.",
                 ", ".join(skipped_datasets) if skipped_datasets else "none",
             )
+            if skipped_datasets:
+                raise DelegatedEntraSyncIncomplete(skipped_datasets)
 
     asyncio.run(main())

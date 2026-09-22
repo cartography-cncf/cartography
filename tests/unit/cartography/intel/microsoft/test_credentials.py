@@ -1,6 +1,8 @@
+import time
 from unittest.mock import patch
 
 import pytest
+from azure.core.credentials import AccessToken
 from azure.identity import ClientSecretCredential
 
 from cartography.intel.microsoft import credentials
@@ -48,7 +50,31 @@ def test_make_credential_uses_azure_cli_for_delegated_auth(
 
     # Assert
     mock_azure_cli_credential.assert_called_once_with(tenant_id="tenant-id")
-    assert credential is mock_azure_cli_credential.return_value
+    assert isinstance(credential, credentials.CachingTokenCredential)
+
+
+def test_delegated_credential_caches_cli_token(monkeypatch) -> None:
+    expires_on = 2_000_000_000
+    monkeypatch.setattr(time, "time", lambda: 1_000_000_000)
+    with patch(
+        "cartography.intel.microsoft.credentials.AzureCliCredential"
+    ) as mock_azure_cli:
+        cli_credential = mock_azure_cli.return_value
+        cli_credential.get_token.return_value = AccessToken(
+            "token",
+            expires_on,
+        )
+        credential = credentials.make_credential(
+            "tenant-id",
+            None,
+            None,
+            delegated_auth=True,
+        )
+        first = credential.get_token("https://graph.microsoft.com/.default")
+        second = credential.get_token("https://graph.microsoft.com/.default")
+
+    assert first is second
+    cli_credential.get_token.assert_called_once()
 
 
 def test_make_credential_requires_application_credentials() -> None:

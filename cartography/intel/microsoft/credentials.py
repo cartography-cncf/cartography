@@ -12,9 +12,32 @@ reachable as a single attribute for tests and for anything that needs to
 substitute the credential.
 """
 
+import threading
+import time
+from typing import Any
+
+from azure.core.credentials import AccessToken
 from azure.core.credentials import TokenCredential
 from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
+
+
+class CachingTokenCredential:
+    """Cache tokens from a credential that does not cache them itself."""
+
+    def __init__(self, credential: TokenCredential) -> None:
+        self._credential = credential
+        self._tokens: dict[tuple[str, ...], AccessToken] = {}
+        self._lock = threading.Lock()
+
+    def get_token(self, *scopes: str, **kwargs: Any) -> AccessToken:
+        key = tuple(scopes)
+        with self._lock:
+            token = self._tokens.get(key)
+            if token is None or token.expires_on <= time.time() + 300:
+                token = self._credential.get_token(*scopes, **kwargs)
+                self._tokens[key] = token
+            return token
 
 
 def make_credential(
@@ -39,7 +62,7 @@ def make_credential(
                 "Microsoft delegated authentication cannot be combined with "
                 "application credentials",
             )
-        return AzureCliCredential(tenant_id=tenant_id)
+        return CachingTokenCredential(AzureCliCredential(tenant_id=tenant_id))
     if not client_id or not client_secret:
         raise ValueError(
             "Microsoft application authentication requires a client ID and secret",
