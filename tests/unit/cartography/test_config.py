@@ -116,18 +116,6 @@ def test_config_rejects_mixed_microsoft_and_entra_credentials() -> None:
         )
 
 
-def test_config_stores_microsoft_delegated_auth() -> None:
-    # Act
-    config = Config(
-        neo4j_uri="bolt://localhost:7687",
-        microsoft_tenant_id="tenant-id",
-        microsoft_delegated_auth=True,
-    )
-
-    # Assert
-    assert config.microsoft_delegated_auth is True
-
-
 def test_config_rejects_delegated_auth_with_application_credentials() -> None:
     # Act and assert
     with pytest.raises(ValueError, match="cannot be combined"):

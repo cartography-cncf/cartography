@@ -1,6 +1,5 @@
 import asyncio
 from collections.abc import AsyncIterator
-from types import ModuleType
 from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
@@ -176,29 +175,29 @@ def test_delegated_groups_preserves_owners_after_member_denial(monkeypatch) -> N
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]
-    ("module", "getter_name", "loader_name", "sync_name"),
+    ("module", "getter_name", "loader_name", "sync"),
     (
         (
             applications,
             "get_entra_applications",
             "load_applications",
-            "sync_entra_applications",
+            applications.sync_entra_applications,
         ),
         (
             service_principals,
             "get_entra_service_principals",
             "load_service_principals",
-            "sync_service_principals",
+            service_principals.sync_service_principals,
         ),
-        (ou, "get_entra_ous", "load_ous", "sync_entra_ous"),
+        (ou, "get_entra_ous", "load_ous", ou.sync_entra_ous),
     ),
 )
 def test_delegated_collectors_load_partial_batch_before_propagating_denial(
     monkeypatch: pytest.MonkeyPatch,
-    module: ModuleType,
+    module,
     getter_name: str,
     loader_name: str,
-    sync_name: str,
+    sync,
 ) -> None:
     # Arrange
     async def get_one_then_deny(client):
@@ -214,7 +213,7 @@ def test_delegated_collectors_load_partial_batch_before_propagating_denial(
     # Act and assert
     with pytest.raises(APIError, match="forbidden"):
         asyncio.run(
-            getattr(module, sync_name)(
+            sync(
                 MagicMock(),
                 "tenant-id",
                 None,

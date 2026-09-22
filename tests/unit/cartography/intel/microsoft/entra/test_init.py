@@ -55,8 +55,8 @@ def test_delegated_auth_continues_after_denied_dataset(monkeypatch, caplog) -> N
         sync.assert_awaited_once()
         assert sync.call_args.kwargs["delegated_auth"] is True
     federation.assert_not_awaited()
-    assert error.value.skipped_datasets == ("users",)
-    assert "Skipping Entra users sync" in caplog.text
+    assert error.value.denied_datasets == ("users",)
+    assert "denied access during Entra users sync" in caplog.text
     assert "Datasets denied by Microsoft Graph: users" in caplog.text
 
 

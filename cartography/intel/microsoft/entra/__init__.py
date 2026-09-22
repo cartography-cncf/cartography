@@ -1,8 +1,6 @@
 import asyncio
 import logging
 from collections.abc import Awaitable
-from collections.abc import Callable
-from functools import partial
 
 import neo4j
 from kiota_abstractions.api_error import APIError
@@ -33,33 +31,12 @@ logger = logging.getLogger(__name__)
 class DelegatedEntraSyncIncomplete(RuntimeError):
     """Raised after a delegated sync when Graph denied one or more datasets."""
 
-    def __init__(self, skipped_datasets: list[str]) -> None:
-        self.skipped_datasets = tuple(skipped_datasets)
+    def __init__(self, denied_datasets: list[str]) -> None:
+        self.denied_datasets = tuple(denied_datasets)
         super().__init__(
             "Microsoft Graph denied access to delegated Entra datasets: "
-            + ", ".join(skipped_datasets),
+            + ", ".join(denied_datasets),
         )
-
-
-async def _run_dataset(
-    name: str,
-    operation: Awaitable[None],
-    *,
-    allowed_statuses: tuple[int, ...],
-) -> bool:
-    try:
-        await operation
-    except APIError as e:
-        if e.response_status_code not in allowed_statuses:
-            raise
-        logger.warning(
-            "Skipping Entra %s sync because Microsoft Graph denied access (%d). "
-            "Existing graph data was preserved.",
-            name,
-            e.response_status_code,
-        )
-        return False
-    return True
 
 
 @timeit
@@ -128,7 +105,34 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     async def main() -> None:
-        skipped_datasets: list[str] = []
+        denied_datasets: list[str] = []
+
+        async def run_dataset(
+            name: str,
+            operation: Awaitable[None],
+            *,
+            allow_application_auth_denial: bool = False,
+        ) -> None:
+            try:
+                await operation
+            except APIError as e:
+                delegated_denial = delegated_auth and e.response_status_code == 403
+                optional_denial = (
+                    not delegated_auth
+                    and allow_application_auth_denial
+                    and e.response_status_code in (401, 403)
+                )
+                if not delegated_denial and not optional_denial:
+                    raise
+                logger.warning(
+                    "Microsoft Graph denied access during Entra %s sync (%d). "
+                    "Continuing with the next dataset; collected graph data was preserved.",
+                    name,
+                    e.response_status_code,
+                )
+                if delegated_denial:
+                    denied_datasets.append(name)
+
         if delegated_auth:
             logger.warning(
                 "Using experimental delegated Entra authentication. Results "
@@ -136,7 +140,16 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "and will not delete existing Entra data.",
             )
 
-        common_args = (
+        await sync_tenant(
+            neo4j_session,
+            tenant_id,
+            client_id,
+            client_secret,
+            config.update_tag,
+            delegated_auth=delegated_auth,
+        )
+
+        sync_args = (
             neo4j_session,
             tenant_id,
             client_id,
@@ -144,73 +157,35 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
-        delegated_denials = (403,) if delegated_auth else ()
-        datasets: list[tuple[str, Callable[[], Awaitable[None]], tuple[int, ...]]] = [
-            (
-                "tenant",
-                partial(
-                    sync_tenant,
-                    *common_args[:-1],
-                    delegated_auth=delegated_auth,
-                ),
-                (),
-            ),
-            (
-                "users",
-                partial(sync_entra_users, *common_args, delegated_auth=delegated_auth),
-                delegated_denials,
-            ),
-            (
-                "groups",
-                partial(sync_entra_groups, *common_args, delegated_auth=delegated_auth),
-                delegated_denials,
-            ),
-            (
-                "administrative units",
-                partial(sync_entra_ous, *common_args, delegated_auth=delegated_auth),
-                delegated_denials,
-            ),
-            (
-                "applications",
-                partial(
-                    sync_entra_applications, *common_args, delegated_auth=delegated_auth
-                ),
-                delegated_denials,
-            ),
-            (
-                "service principals",
-                partial(
-                    sync_service_principals, *common_args, delegated_auth=delegated_auth
-                ),
-                delegated_denials,
-            ),
-            (
-                "app role assignments",
-                partial(
-                    sync_app_role_assignments,
-                    *common_args,
-                    delegated_auth=delegated_auth,
-                ),
-                delegated_denials,
-            ),
-            # Directory roles remain optional for application auth too.
-            (
-                "directory roles",
-                partial(
-                    sync_entra_directory_roles,
-                    *common_args,
-                    delegated_auth=delegated_auth,
-                ),
-                (403,) if delegated_auth else (401, 403),
-            ),
-        ]
-        for name, sync_dataset, allowed_statuses in datasets:
-            if not await _run_dataset(
-                name,
-                sync_dataset(),
-                allowed_statuses=allowed_statuses,
-            ):
-                skipped_datasets.append(name)
+        await run_dataset(
+            "users",
+            sync_entra_users(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "groups",
+            sync_entra_groups(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "administrative units",
+            sync_entra_ous(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "applications",
+            sync_entra_applications(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "service principals",
+            sync_service_principals(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "app role assignments",
+            sync_app_role_assignments(*sync_args, delegated_auth=delegated_auth),
+        )
+        await run_dataset(
+            "directory roles",
+            sync_entra_directory_roles(*sync_args, delegated_auth=delegated_auth),
+            allow_application_auth_denial=True,
+        )
 
         # Derived federation cleanup is unsafe when delegated visibility is partial.
         if not delegated_auth:
@@ -224,9 +199,9 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             logger.warning(
                 "Delegated Entra sync finished with partial-visibility semantics. "
                 "Datasets denied by Microsoft Graph: %s.",
-                ", ".join(skipped_datasets) if skipped_datasets else "none",
+                ", ".join(denied_datasets) if denied_datasets else "none",
             )
-            if skipped_datasets:
-                raise DelegatedEntraSyncIncomplete(skipped_datasets)
+            if denied_datasets:
+                raise DelegatedEntraSyncIncomplete(denied_datasets)
 
     asyncio.run(main())

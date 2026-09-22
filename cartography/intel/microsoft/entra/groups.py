@@ -170,8 +170,8 @@ async def sync_entra_groups(
             # returning a 404 or 410. Skip it and move on.
             try:
                 owners = await call_with_retries(get_group_owners, client, group.id)
-            except Exception as e:
-                if isinstance(e, APIError) and e.response_status_code in (404, 410):
+            except APIError as e:
+                if e.response_status_code in (404, 410):
                     logger.warning(
                         "Group %s (%s) not found (%d) while fetching owners; skipping.",
                         group.id,
@@ -179,11 +179,7 @@ async def sync_entra_groups(
                         e.response_status_code,
                     )
                     continue
-                if (
-                    delegated_auth
-                    and isinstance(e, APIError)
-                    and e.response_status_code == 403
-                ):
+                if delegated_auth and e.response_status_code == 403:
                     logger.warning(
                         "Microsoft Graph denied access to owners for Entra group "
                         "%s (%s); continuing without owners.",
@@ -201,13 +197,20 @@ async def sync_entra_groups(
                         group.display_name,
                     )
                     raise
+            except Exception:
+                logger.exception(
+                    "Failed to fetch owners for Entra group %s (%s).",
+                    group.id,
+                    group.display_name,
+                )
+                raise
 
             try:
                 users, subgroups = await call_with_retries(
                     get_group_members, client, group.id
                 )
-            except Exception as e:
-                if isinstance(e, APIError) and e.response_status_code in (404, 410):
+            except APIError as e:
+                if e.response_status_code in (404, 410):
                     logger.warning(
                         "Group %s (%s) not found (%d) while fetching members; skipping.",
                         group.id,
@@ -215,11 +218,7 @@ async def sync_entra_groups(
                         e.response_status_code,
                     )
                     continue
-                if (
-                    delegated_auth
-                    and isinstance(e, APIError)
-                    and e.response_status_code == 403
-                ):
+                if delegated_auth and e.response_status_code == 403:
                     logger.warning(
                         "Microsoft Graph denied access to members for Entra group "
                         "%s (%s); continuing without members.",
@@ -237,6 +236,13 @@ async def sync_entra_groups(
                         group.display_name,
                     )
                     raise
+            except Exception:
+                logger.exception(
+                    "Failed to fetch members for Entra group %s (%s).",
+                    group.id,
+                    group.display_name,
+                )
+                raise
 
             groups_batch.append(group)
             group_owner_map[group.id] = owners
