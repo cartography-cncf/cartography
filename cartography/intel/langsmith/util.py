@@ -245,22 +245,34 @@ class LangSmithClient:
         deployment_url: str,
         tenant_id: str,
         page_size: int = 100,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         List the assistants (agents) served by one deployment.
 
-        LangGraph Platform agent ids are assistant ids, and they live on each deployment's
-        own data plane rather than in the control plane. This is the only way to enumerate
-        them, and it is what makes the agent-to-user OAuth graph reachable.
+        LangSmith agent ids are assistant ids, and they live on each deployment's own data
+        plane rather than in the control plane. This is the only way to enumerate them, and
+        it is what makes the agent-to-user OAuth graph reachable.
 
         Expressed as a POST because /assistants/search is a search; it reads and never
-        mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is
-        required: without it the data plane answers 403 "API key tenant mismatch".
+        mutates. The deployment API key check is tenant-scoped, so X-Tenant-Id is required:
+        without it the data plane answers 403 "API key tenant mismatch".
 
-        Deployments can be scaled to zero and take longer than a normal request to wake,
-        and some reject the credential outright, so every failure here degrades to an
-        empty list rather than breaking the sync.
+        Returns the assistants and whether the listing completed. A failure must not be
+        reported as an empty inventory, because callers use that inventory to decide what
+        to delete.
+
+        Redirects are refused. The deployment host comes from API data rather than from
+        operator configuration, and requests only strips the Authorization header when a
+        redirect changes host — a custom header like X-Api-Key would be forwarded intact,
+        handing an organization-admin token to whatever the redirect names.
         """
+        if not deployment_url.lower().startswith("https://"):
+            logger.warning(
+                "Refusing to send credentials to non-HTTPS deployment URL for tenant %s",
+                tenant_id,
+            )
+            return [], False
+
         assistants: list[dict[str, Any]] = []
         offset = 0
         url = deployment_url.rstrip("/") + "/assistants/search"
@@ -272,22 +284,33 @@ class LangSmithClient:
                     json={"limit": page_size, "offset": offset},
                     headers=headers,
                     timeout=_ASSISTANT_TIMEOUT,
+                    allow_redirects=False,
                 )
             except requests.RequestException as err:
-                logger.debug("Assistant search failed for a deployment: %s", err)
-                return assistants
+                logger.warning("Assistant search failed for a deployment: %s", err)
+                return assistants, False
+            if response.is_redirect or response.is_permanent_redirect:
+                logger.warning(
+                    "Refusing to follow a redirect from a deployment's assistant search "
+                    "(status %s): following it would forward the API key to another host.",
+                    response.status_code,
+                )
+                return assistants, False
             if response.status_code != 200:
-                logger.debug(
+                logger.warning(
                     "Assistant search returned %s for a deployment",
                     response.status_code,
                 )
-                return assistants
+                return assistants, False
             page = response.json()
             if not isinstance(page, list):
-                return assistants
+                logger.warning(
+                    "Assistant search returned an unexpected shape for a deployment"
+                )
+                return assistants, False
             assistants.extend(page)
             if len(page) < page_size:
-                return assistants
+                return assistants, True
             offset += len(page)
 
 

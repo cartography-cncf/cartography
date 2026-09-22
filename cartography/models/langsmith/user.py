@@ -35,89 +35,7 @@ class LangSmithUserNodeProperties(CartographyNodeProperties):
     avatar_url: PropertyRef = PropertyRef(
         "avatar_url", description="URL of the user's avatar image."
     )
-    is_disabled: PropertyRef = PropertyRef(
-        "is_disabled",
-        description=(
-            "True if the identity is deactivated. Deactivated identities cannot authenticate, "
-            "and their personal access tokens are rejected."
-        ),
-    )
-    is_pending: PropertyRef = PropertyRef(
-        "is_pending",
-        description="True if this is an outstanding invitation rather than an accepted membership.",
-    )
-    login_methods: PropertyRef = PropertyRef(
-        "login_methods",
-        description=(
-            "Auth providers linked to this user, for example email, oidc or saml."
-        ),
-    )
-    provisioning_methods: PropertyRef = PropertyRef(
-        "provisioning_methods",
-        description="How the user's login methods were provisioned, for example scim or saml:jit.",
-    )
-    org_identity_id: PropertyRef = PropertyRef(
-        "org_identity_id",
-        description=(
-            "UUID of the organization-scoped identity row for this user. This is a membership "
-            "identifier, not a user identifier."
-        ),
-    )
-    org_role_name: PropertyRef = PropertyRef(
-        "org_role_name", description="Display name of the user's organization role."
-    )
-    created_at: PropertyRef = PropertyRef(
-        "created_at", description="Timestamp when the user joined the organization."
-    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class LangSmithUserToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:LangSmithOrganization)-[:RESOURCE]->(:LangSmithUser)
-class LangSmithUserToOrganizationRel(CartographyRelSchema):
-    """Links an organization to one of its users."""
-
-    target_node_label: str = "LangSmithOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: LangSmithUserToOrganizationRelProperties = (
-        LangSmithUserToOrganizationRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class LangSmithUserToOrgRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# Canonical ontology edge: (:UserAccount)-[:HAS_ROLE]->(:PermissionRole)
-# (:LangSmithUser)-[:HAS_ROLE]->(:LangSmithRole)
-class LangSmithUserToOrgRoleRel(CartographyRelSchema):
-    """
-    A user holds an organization-scoped role.
-
-    Workspace-scoped roles are not attached to the user directly: they hang off
-    LangSmithWorkspaceMembership, which also records which workspace the role applies in.
-    """
-
-    target_node_label: str = "LangSmithRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("org_role_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_ROLE"
-    properties: LangSmithUserToOrgRoleRelProperties = (
-        LangSmithUserToOrgRoleRelProperties()
-    )
 
 
 @dataclass(frozen=True)
@@ -143,19 +61,28 @@ class LangSmithUserToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LangSmithUserSchema(CartographyNodeSchema):
-    """A LangSmith user account, keyed on the stable ls_user_id."""
+    """
+    A LangSmith user account, keyed on the stable ls_user_id.
+
+    A user can belong to several organizations, so this node deliberately carries only
+    identity that is true of the person everywhere. Everything organization-specific —
+    whether the identity is disabled, which organization role it holds, how it was
+    provisioned — lives on LangSmithOrgMembership, because storing it here would mean one
+    organization's sync overwriting another's view of the same human.
+
+    For the same reason the node has no sub-resource relationship: it is not owned by any
+    single organization. Cartography therefore prunes its stale relationships but never
+    deletes the node, so one organization's sync cannot destroy an identity another
+    organization still references.
+    """
 
     label: str = "LangSmithUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [USER_ACCOUNT]
     )  # UserAccount label is used for ontology mapping
     properties: LangSmithUserNodeProperties = LangSmithUserNodeProperties()
-    sub_resource_relationship: LangSmithUserToOrganizationRel = (
-        LangSmithUserToOrganizationRel()
-    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            LangSmithUserToOrgRoleRel(),
             LangSmithUserToWorkspaceRel(),
         ],
     )

@@ -26,7 +26,7 @@ def _providers(client, org_id, workspaces):
             provider, is_platform=False
         )
         for provider in tests.data.langsmith.agent_auth.LANGSMITH_OAUTH_PROVIDERS
-    ]
+    ], True
 
 
 def _connections(client, org_id, workspaces, agents):
@@ -37,7 +37,7 @@ def _connections(client, org_id, workspaces, agents):
         )
         for row in payload["data"]:
             connections.append(dict(row))
-    return connections
+    return connections, True
 
 
 @patch.object(
@@ -62,6 +62,7 @@ def test_sync_langsmith_agent_auth(mock_providers, mock_connections, neo4j_sessi
         LANGSMITH_WORKSPACES,
         agents,
         users,
+        True,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": LANGSMITH_ORG_ID},
     )
 
@@ -102,6 +103,7 @@ def test_agent_to_user_oauth_token_edges(
         LANGSMITH_WORKSPACES,
         agents,
         users,
+        True,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": LANGSMITH_ORG_ID},
     )
 
@@ -119,18 +121,23 @@ def test_agent_to_user_oauth_token_edges(
     }
     assert actual == {
         (
-            SUPPORT_AGENT_ID,
+            f"{LANGSMITH_ORG_ID}|{SUPPORT_AGENT_ID}",
             "mbsimpson@simpson.corp",
             "github-prod",
             ("repo", "read:org"),
         ),
         (
-            SUPPORT_AGENT_ID,
+            f"{LANGSMITH_ORG_ID}|{SUPPORT_AGENT_ID}",
             "hjsimpson@simpson.corp",
             "google-workspace",
             ("https://www.googleapis.com/auth/gmail.readonly",),
         ),
-        (TRIAGE_AGENT_ID, "bjsimpson@simpson.corp", "github-prod", ("repo",)),
+        (
+            f"{LANGSMITH_ORG_ID}|{TRIAGE_AGENT_ID}",
+            "bjsimpson@simpson.corp",
+            "github-prod",
+            ("repo",),
+        ),
     }
 
 
@@ -159,6 +166,7 @@ def test_deactivated_user_still_has_agent_acting_for_them(
         LANGSMITH_WORKSPACES,
         agents,
         users,
+        True,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": LANGSMITH_ORG_ID},
     )
 
@@ -170,5 +178,5 @@ def test_deactivated_user_still_has_agent_acting_for_them(
         """
     ).data()
     assert [(r["email"], r["agent"]) for r in result] == [
-        ("bjsimpson@simpson.corp", TRIAGE_AGENT_ID)
+        ("bjsimpson@simpson.corp", f"{LANGSMITH_ORG_ID}|{TRIAGE_AGENT_ID}")
     ]

@@ -7,6 +7,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import LangSmithClient
 from cartography.intel.langsmith.util import LangSmithPermissionError
+from cartography.models.langsmith.orgmembership import LangSmithOrgMembershipSchema
 from cartography.models.langsmith.user import LangSmithUserSchema
 from cartography.models.langsmith.workspacemembership import (
     LangSmithWorkspaceMembershipSchema,
@@ -26,8 +27,9 @@ def sync(
 ) -> list[dict[str, Any]]:
     active = get_active_members(client, org_id)
     pending = get_pending_members(client, org_id)
-    users = transform_users(active, pending)
+    users, org_memberships = transform_users(org_id, active, pending)
 
+    complete = True
     memberships: list[dict[str, Any]] = []
     for workspace_id in workspace_ids:
         try:
@@ -39,13 +41,26 @@ def sync(
                 workspace_id,
                 err,
             )
+            complete = False
             continue
         memberships.extend(transform_memberships(workspace_id, workspace_members))
 
     load_users(
-        neo4j_session, users, memberships, org_id, common_job_parameters["UPDATE_TAG"]
+        neo4j_session,
+        users,
+        org_memberships,
+        memberships,
+        org_id,
+        common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    if complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping LangSmith membership cleanup for organization %s: not every "
+            "workspace could be read, so existing memberships are preserved.",
+            org_id,
+        )
     return users
 
 
@@ -91,68 +106,76 @@ def _login_methods(member: dict[str, Any]) -> tuple[list[str], list[str], list[s
 
 
 def transform_users(
+    org_id: str,
     active: list[dict[str, Any]],
     pending: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Shape organization members for ingest.
+    Split organization members into shared user identities and per-organization memberships.
 
-    Users are keyed on ls_user_id, the stable LangSmith user identifier. The member row's
-    own id is an identity (membership) UUID and is kept as org_identity_id so it is not
-    mistaken for a user id. Pending invitations have not been accepted and therefore have no
-    ls_user_id, so they are skipped rather than loaded as half-formed users.
+    A user can belong to several organizations, so anything organization-specific — the
+    identity UUID, whether it is disabled, the organization role, how it was provisioned —
+    goes on the membership record. Only identity that is true of the person everywhere
+    stays on the user. Writing per-organization state onto a globally keyed user node would
+    mean the last organization synced silently overwrites the others.
+
+    Users are keyed on ls_user_id. Pending invitations have not been accepted and therefore
+    have no ls_user_id, so they are skipped rather than loaded as half-formed users.
     """
-    transformed = []
-    for member in active:
-        providers, provisioning, usernames = _login_methods(member)
-        transformed.append(
-            {
-                "ls_user_id": member["ls_user_id"],
-                "org_identity_id": member["id"],
-                "email": member.get("email"),
-                "full_name": member.get("full_name"),
-                "display_name": member.get("display_name"),
-                "avatar_url": member.get("avatar_url"),
-                "is_disabled": member.get("is_disabled"),
-                "is_pending": False,
-                "login_methods": providers,
-                "provisioning_methods": provisioning,
-                "usernames": usernames,
-                "org_role_id": member.get("org_role_id") or member.get("role_id"),
-                "org_role_name": member.get("org_role_name") or member.get("role_name"),
-                "tenant_ids": member.get("tenant_ids") or [],
-                "created_at": member.get("created_at"),
-            }
-        )
+    users: dict[str, dict[str, Any]] = {}
+    memberships: list[dict[str, Any]] = []
 
-    for member in pending:
-        if not member.get("ls_user_id"):
-            logger.debug(
-                "Skipping pending LangSmith invite for %s: no ls_user_id until accepted.",
-                member.get("email"),
+    for is_pending, members in ((False, active), (True, pending)):
+        for member in members:
+            ls_user_id = member.get("ls_user_id")
+            if not ls_user_id:
+                logger.debug(
+                    "Skipping pending LangSmith invite for %s: no ls_user_id until accepted.",
+                    member.get("email"),
+                )
+                continue
+            providers, provisioning, usernames = _login_methods(member)
+
+            # Later organizations must not clobber identity already seen; the fields here
+            # are the same person everywhere, so first non-null wins.
+            user = users.setdefault(
+                ls_user_id,
+                {
+                    "ls_user_id": ls_user_id,
+                    "email": None,
+                    "full_name": None,
+                    "display_name": None,
+                    "avatar_url": None,
+                    "tenant_ids": [],
+                    "usernames": [],
+                },
             )
-            continue
-        providers, provisioning, usernames = _login_methods(member)
-        transformed.append(
-            {
-                "ls_user_id": member["ls_user_id"],
-                "org_identity_id": member.get("id"),
-                "email": member.get("email"),
-                "full_name": member.get("full_name"),
-                "display_name": member.get("display_name"),
-                "avatar_url": member.get("avatar_url"),
-                "is_disabled": member.get("is_disabled"),
-                "is_pending": True,
-                "login_methods": providers,
-                "provisioning_methods": provisioning,
-                "usernames": usernames,
-                "org_role_id": member.get("org_role_id") or member.get("role_id"),
-                "org_role_name": member.get("org_role_name") or member.get("role_name"),
-                "tenant_ids": member.get("tenant_ids") or [],
-                "created_at": member.get("created_at"),
-            }
-        )
-    return transformed
+            for field in ("email", "full_name", "display_name", "avatar_url"):
+                if user[field] is None:
+                    user[field] = member.get(field)
+            for tenant_id in member.get("tenant_ids") or []:
+                if tenant_id not in user["tenant_ids"]:
+                    user["tenant_ids"].append(tenant_id)
+            for username in usernames:
+                if username not in user["usernames"]:
+                    user["usernames"].append(username)
+
+            memberships.append(
+                {
+                    "id": f"{org_id}|{ls_user_id}",
+                    "identity_id": member.get("id"),
+                    "ls_user_id": ls_user_id,
+                    "email": member.get("email"),
+                    "role_id": member.get("org_role_id") or member.get("role_id"),
+                    "role_name": member.get("org_role_name") or member.get("role_name"),
+                    "is_disabled": member.get("is_disabled"),
+                    "is_pending": is_pending,
+                    "login_methods": providers,
+                    "provisioning_methods": provisioning,
+                    "created_at": member.get("created_at"),
+                }
+            )
+    return list(users.values()), memberships
 
 
 def transform_memberships(
@@ -202,6 +225,7 @@ def transform_memberships(
 def load_users(
     neo4j_session: neo4j.Session,
     users: list[dict[str, Any]],
+    org_memberships: list[dict[str, Any]],
     memberships: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
@@ -210,6 +234,13 @@ def load_users(
         neo4j_session,
         LangSmithUserSchema(),
         users,
+        lastupdated=update_tag,
+        ORG_ID=org_id,
+    )
+    load(
+        neo4j_session,
+        LangSmithOrgMembershipSchema(),
+        org_memberships,
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
@@ -229,6 +260,11 @@ def cleanup(
     GraphJob.from_node_schema(
         LangSmithWorkspaceMembershipSchema(), common_job_parameters
     ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        LangSmithOrgMembershipSchema(), common_job_parameters
+    ).run(neo4j_session)
+    # LangSmithUser has no sub-resource because a user can span organizations, so this
+    # prunes stale relationships without ever deleting a shared identity node.
     GraphJob.from_node_schema(LangSmithUserSchema(), common_job_parameters).run(
         neo4j_session
     )

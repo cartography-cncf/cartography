@@ -783,11 +783,10 @@ langsmith_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="active",
-                    node_field="is_disabled",
-                    special_handling="invert_boolean",
-                ),
+                # active: Not mapped - whether an identity is disabled is per-organization
+                # state in LangSmith and lives on LangSmithOrgMembership. A user can be
+                # disabled in one organization and active in another, so there is no single
+                # value to put on the shared user node.
                 # username: Not available - LangSmith identifies users by email and
                 # ls_user_id; there is no separate username.
                 # has_mfa: Not available - MFA is handled by the upstream identity

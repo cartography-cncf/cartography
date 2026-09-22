@@ -88,11 +88,18 @@ class LangSmithAgentCredentialToProviderRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:LangSmithAgentCredential)-[:FOR_PROVIDER]->(:LangSmithOAuthProvider)
 class LangSmithAgentCredentialToProviderRel(CartographyRelSchema):
-    """The third-party provider this credential authenticates against."""
+    """
+    The third-party provider this credential authenticates against.
+
+    Matched on the provider's UUID, resolved during transform, rather than on its
+    provider_id slug. The slug is operator-chosen, so two organizations can both define
+    one called github-prod, and relationship matching carries no implicit organization
+    constraint.
+    """
 
     target_node_label: str = "LangSmithOAuthProvider"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"provider_id": PropertyRef("provider_id")},
+        {"id": PropertyRef("provider_uuid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FOR_PROVIDER"

@@ -14,7 +14,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class LangSmithAgentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Agent ID, also referred to as the assistant ID."
+        "id",
+        description=(
+            "Synthetic identifier of the form <organization_id>|<assistant_id>. LangSmith "
+            "derives an assistant id from its graph, so two organizations running the same "
+            "graph can produce the same assistant id; namespacing keeps their agents, "
+            "deployments and credential paths from merging."
+        ),
+    )
+    assistant_id: PropertyRef = PropertyRef(
+        "assistant_id",
+        extra_index=True,
+        description="The raw LangSmith assistant ID, as used by the agent-auth API.",
     )
     name: PropertyRef = PropertyRef(
         "name",

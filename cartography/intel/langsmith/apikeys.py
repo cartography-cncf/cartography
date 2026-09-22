@@ -28,11 +28,15 @@ def sync(
     service_accounts = get_service_accounts(client, org_id)
 
     keys: list[dict[str, Any]] = []
-    keys.extend(_fetch_optional(client, org_id, "service_key"))
-    keys.extend(_fetch_optional(client, org_id, "pat"))
-    keys.extend(_fetch_optional(client, org_id, "scim_token"))
+    complete = True
+    for key_type in ("service_key", "pat", "scim_token"):
+        rows, ok = _fetch_optional(client, org_id, key_type)
+        keys.extend(rows)
+        complete = complete and ok
     for workspace in workspaces:
-        keys.extend(_fetch_workspace_keys(client, org_id, workspace["id"]))
+        rows, ok = _fetch_workspace_keys(client, org_id, workspace["id"])
+        keys.extend(rows)
+        complete = complete and ok
 
     transformed = transform_keys(keys, users, workspaces)
     load_api_keys(
@@ -42,7 +46,14 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    if complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping LangSmith credential cleanup for organization %s: part of the "
+            "inventory was unreadable, so existing keys are preserved rather than deleted.",
+            org_id,
+        )
 
 
 _ORG_KEY_SOURCES = {
@@ -54,7 +65,7 @@ _ORG_KEY_SOURCES = {
 
 def _fetch_optional(
     client: LangSmithClient, org_id: str, key_type: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch one organization-scoped credential listing, tolerating a missing permission.
 
@@ -67,26 +78,26 @@ def _fetch_optional(
         rows = client.get(path, org_id=org_id)
     except LangSmithPermissionError as err:
         logger.warning("Skipping LangSmith %s inventory: %s", key_type, err)
-        return []
+        return [], False
     for row in rows:
         row["key_type"] = key_type
-    return rows
+    return rows, True
 
 
 def _fetch_workspace_keys(
     client: LangSmithClient, org_id: str, workspace_id: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     try:
         rows = client.get("/api/v1/api-key", org_id=org_id, tenant_id=workspace_id)
     except LangSmithPermissionError as err:
         logger.warning(
             "Skipping LangSmith API keys for workspace %s: %s", workspace_id, err
         )
-        return []
+        return [], False
     for row in rows:
         row["key_type"] = "workspace_key"
         row["workspace_id"] = workspace_id
-    return rows
+    return rows, True
 
 
 @timeit

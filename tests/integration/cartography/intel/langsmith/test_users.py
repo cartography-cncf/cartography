@@ -28,7 +28,8 @@ def _mock_get_workspace_members(client, org_id, workspace_id):
 
 
 def _ensure_local_neo4j_has_test_users(neo4j_session):
-    users = cartography.intel.langsmith.users.transform_users(
+    users, org_memberships = cartography.intel.langsmith.users.transform_users(
+        LANGSMITH_ORG_ID,
         tests.data.langsmith.users.LANGSMITH_ACTIVE_ORG_MEMBERS,
         tests.data.langsmith.users.LANGSMITH_PENDING_ORG_MEMBERS,
     )
@@ -41,7 +42,12 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
             )
         )
     cartography.intel.langsmith.users.load_users(
-        neo4j_session, users, memberships, LANGSMITH_ORG_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        users,
+        org_memberships,
+        memberships,
+        LANGSMITH_ORG_ID,
+        TEST_UPDATE_TAG,
     )
     return users
 
@@ -79,23 +85,31 @@ def test_sync_langsmith_users(mock_active, mock_pending, mock_ws, neo4j_session)
 
     # Users are keyed on ls_user_id, not on the identity (membership) UUID. The pending
     # invite has no ls_user_id yet and must not appear.
+    assert check_nodes(neo4j_session, "LangSmithUser", ["id", "email"]) == {
+        (MARGE_LS_USER_ID, "mbsimpson@simpson.corp"),
+        (HOMER_LS_USER_ID, "hjsimpson@simpson.corp"),
+        (BART_LS_USER_ID, "bjsimpson@simpson.corp"),
+    }
+    # Per-organization state lives on the membership so a second organization cannot
+    # overwrite it.
     assert check_nodes(
-        neo4j_session, "LangSmithUser", ["id", "email", "is_disabled"]
+        neo4j_session, "LangSmithOrgMembership", ["ls_user_id", "is_disabled"]
     ) == {
-        (MARGE_LS_USER_ID, "mbsimpson@simpson.corp", False),
-        (HOMER_LS_USER_ID, "hjsimpson@simpson.corp", False),
-        (BART_LS_USER_ID, "bjsimpson@simpson.corp", True),
+        (MARGE_LS_USER_ID, False),
+        (HOMER_LS_USER_ID, False),
+        (BART_LS_USER_ID, True),
     }
 
+    # The organization role hangs off the membership, not the shared user node.
     assert check_rels(
         neo4j_session,
-        "LangSmithUser",
+        "LangSmithOrgMembership",
         "id",
         "LangSmithRole",
         "id",
         "HAS_ROLE",
         rel_direction_right=True,
-    ) == {(MARGE_LS_USER_ID, ORG_ADMIN_ROLE_ID)}
+    ) == {(f"{LANGSMITH_ORG_ID}|{MARGE_LS_USER_ID}", ORG_ADMIN_ROLE_ID)}
 
     assert check_rels(
         neo4j_session,

@@ -59,7 +59,7 @@ def test_sync_langsmith_deployments(mock_get, neo4j_session):
         "ORG_ID": LANGSMITH_ORG_ID,
     }
 
-    agents, deployments_by_workspace = cartography.intel.langsmith.deployments.sync(
+    agents, deployments_by_workspace, _ = cartography.intel.langsmith.deployments.sync(
         neo4j_session,
         _FakeClient(),
         LANGSMITH_ORG_ID,

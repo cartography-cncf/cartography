@@ -35,8 +35,19 @@ organization the configured token can see, or a single organization if
 
 Users are keyed on **`ls_user_id`**, the stable LangSmith user identifier. The API
 also exposes a `user_id` (which mirrors the first linked auth provider's subject and
-is not stable) and per-membership identity UUIDs. Neither is used as a node key; the
-organization-scoped identity UUID is retained as `org_identity_id`.
+is not stable) and per-membership identity UUIDs. Neither is used as a node key.
+
+Because the same person can belong to several organizations, `LangSmithUser` carries
+only identity that is true of them everywhere — email, name, avatar. Everything
+organization-specific (whether the identity is disabled, which organization role it
+holds, how it was provisioned) lives on `LangSmithOrgMembership`. Writing that onto the
+shared node would mean the last organization synced silently overwrote the others.
+
+For the same reason `LangSmithUser` has no sub-resource relationship: it is not owned by
+any single organization, so Cartography prunes its stale relationships but never deletes
+the node. One organization's sync therefore cannot destroy an identity another
+organization still references. This follows the same pattern as `GitHubUser`,
+`ModalUser` and `RailwayUser`.
 
 ## Roles, permissions and memberships
 
@@ -50,8 +61,11 @@ relationship labels. Workspace role assignments are therefore modelled as their 
 (:LangSmithWorkspaceMembership)-[:HAS_ROLE]->(:LangSmithRole)-[:GRANTS]->(:LangSmithPermission)
 ```
 
-Organization-level roles are simpler — one per user — and attach directly:
-`(:LangSmithUser)-[:HAS_ROLE]->(:LangSmithRole)`.
+Organization roles work the same way, one membership per organization:
+
+```
+(:LangSmithUser)-[:HAS_MEMBERSHIP]->(:LangSmithOrgMembership)-[:HAS_ROLE]->(:LangSmithRole)
+```
 
 ```{note}
 LangSmith stores **every** organization-defined custom role under the system name
@@ -92,7 +106,15 @@ Any failure — timeout, or a credential the deployment rejects — degrades to 
 assistant list rather than breaking the sync.
 
 Because an assistant id is derived from its graph, one agent is commonly served by
-several deployments, so `RUNS` is a one-to-many edge.
+several deployments, so `RUNS` is a one-to-many edge. For the same reason agent nodes are
+keyed `<organization_id>|<assistant_id>`: two organizations running the same graph would
+otherwise share an agent node, merging their deployments and credential paths. The raw
+assistant id is kept as a property, because the agent-auth API is keyed by it.
+
+Credentials resolve their provider to that provider's UUID during transform rather than
+matching on the `provider_id` slug. The slug is operator-chosen, so two organizations can
+both define one called `github-prod`, and relationship matching carries no implicit
+organization constraint.
 
 ## What this module deliberately does not ingest
 
@@ -117,13 +139,26 @@ what it stores.
   personal access token, so group membership is not reachable. The SCIM *token*
   inventory is collected.
 
-## Graceful degradation
+## Graceful degradation, and why it does not delete anything
 
-A token commonly holds `workspaces:read` or `deployments:read` in only some
-workspaces, and listing every member's personal access tokens additionally requires
-`organization:pats:read`. Each workspace-scoped fetch and each optional credential
-listing degrades to a logged warning and an absent subgraph rather than failing the
-module.
+A token commonly holds `workspaces:read` or `deployments:read` in only some workspaces,
+and listing every member's personal access tokens additionally requires
+`organization:pats:read`. Each workspace-scoped fetch and each optional listing degrades
+to a logged warning rather than failing the module.
+
+Crucially, a degraded fetch is tracked as an **incomplete collection**, not as an empty
+one. Cleanup deletes nodes whose `lastupdated` does not match the current run, so a
+failed listing that silently returned nothing would look exactly like "these no longer
+exist" and delete live agents along with their credentials. When any fetch in a scope
+fails — a permission error, a timeout, a deployment that will not answer — the cleanup
+for that scope is skipped and a warning is logged. Stale nodes are the lesser harm.
+
+```{note}
+Credentials are never sent to a deployment over plaintext HTTP, and redirects from a
+deployment are refused rather than followed. Deployment hosts come from API data rather
+than operator configuration, and `requests` strips only the `Authorization` header when a
+redirect changes host — a custom `X-Api-Key` would be forwarded intact.
+```
 
 ## Example queries
 

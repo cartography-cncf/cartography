@@ -37,11 +37,12 @@ def sync(
     oauth_clients: list[dict[str, Any]] = []
     mcp_servers: list[dict[str, Any]] = []
 
+    complete = True
     for workspace in workspaces:
         workspace_id = workspace["id"]
-        secrets.extend(
-            transform_secrets(workspace_id, get_secrets(client, org_id, workspace_id))
-        )
+        raw_secrets, secrets_ok = get_secrets(client, org_id, workspace_id)
+        complete = complete and secrets_ok
+        secrets.extend(transform_secrets(workspace_id, raw_secrets))
         tags.extend(get_tags(client, org_id, workspace_id))
         oauth_clients.extend(get_oauth_clients(client, org_id, workspace_id))
         mcp_servers.extend(get_mcp_servers(client, org_id, workspace_id))
@@ -55,13 +56,20 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    if complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping LangSmith workspace resource cleanup for organization %s: not every "
+            "workspace could be read, so existing nodes are preserved.",
+            org_id,
+        )
 
 
 @timeit
 def get_secrets(
     client: LangSmithClient, org_id: str, workspace_id: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     List a workspace's secret key names.
 
@@ -69,16 +77,19 @@ def get_secrets(
     sibling /secrets/encrypted route returns secret material and is never called.
     """
     try:
-        return client.get(
-            "/api/v1/workspaces/current/secrets",
-            org_id=org_id,
-            tenant_id=workspace_id,
+        return (
+            client.get(
+                "/api/v1/workspaces/current/secrets",
+                org_id=org_id,
+                tenant_id=workspace_id,
+            ),
+            True,
         )
     except LangSmithPermissionError as err:
         logger.warning(
             "Skipping LangSmith secrets for workspace %s: %s", workspace_id, err
         )
-        return []
+        return [], False
 
 
 def transform_secrets(

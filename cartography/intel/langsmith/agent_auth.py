@@ -37,13 +37,24 @@ def sync(
     workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
     users: list[dict[str, Any]],
+    deployments_complete: bool,
     common_job_parameters: dict[str, Any],
 ) -> None:
     user_lookup = build_user_lookup(users)
 
-    providers = get_providers(client, org_id, workspaces)
-    connections = get_connections(client, org_id, workspaces, agents)
-    credentials = transform_credentials(connections, user_lookup)
+    providers, providers_complete = get_providers(client, org_id, workspaces)
+    connections, connections_complete = get_connections(
+        client, org_id, workspaces, agents
+    )
+    # Resolve each credential's provider slug to that provider's UUID within this
+    # organization. Slugs are operator-chosen, so matching on one would happily link a
+    # credential to another organization's identically named provider.
+    provider_uuid_by_slug = {
+        provider["provider_id"]: provider["id"] for provider in providers
+    }
+    credentials = transform_credentials(
+        connections, user_lookup, provider_uuid_by_slug, org_id
+    )
     # A credential can name an agent that no deployment reported, so top up the inventory.
     extra_agents = transform_missing_agents(credentials, agents)
 
@@ -55,7 +66,17 @@ def sync(
         org_id,
         common_job_parameters["UPDATE_TAG"],
     )
-    cleanup(neo4j_session, common_job_parameters)
+    if providers_complete and connections_complete and deployments_complete:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        # Cleanup here deletes agents and their credentials. A cold deployment or a
+        # workspace we could not read must not be mistaken for "these no longer exist".
+        logger.warning(
+            "Skipping LangSmith agent credential cleanup for organization %s: collection "
+            "was incomplete, so existing agents and credentials are preserved rather than "
+            "deleted.",
+            org_id,
+        )
 
 
 @timeit
@@ -63,7 +84,7 @@ def get_providers(
     client: LangSmithClient,
     org_id: str,
     workspaces: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch the OAuth providers agents can obtain tokens from.
 
@@ -72,6 +93,7 @@ def get_providers(
     results are deduplicated.
     """
     providers: dict[str, dict[str, Any]] = {}
+    complete = True
     for workspace in workspaces:
         for path, is_platform in (
             ("/v2/auth/providers", False),
@@ -88,10 +110,11 @@ def get_providers(
                     workspace["id"],
                     err,
                 )
+                complete = False
                 continue
             for row in rows:
                 providers[row["id"]] = transform_provider(row, is_platform=is_platform)
-    return list(providers.values())
+    return list(providers.values()), complete
 
 
 @timeit
@@ -100,7 +123,7 @@ def get_connections(
     org_id: str,
     workspaces: list[dict[str, Any]],
     agents: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Fetch each agent's OAuth connections.
 
@@ -109,12 +132,15 @@ def get_connections(
     """
     connections: list[dict[str, Any]] = []
     seen: set[str] = set()
+    complete = True
     for workspace in workspaces:
         for agent in agents:
-            agent_id = agent["id"]
+            # The API is keyed by the raw assistant id; agent["id"] is namespaced by
+            # organization for the graph and is not a valid path segment here.
+            assistant_id = agent.get("assistant_id") or agent["id"]
             try:
                 payload = client.get(
-                    f"/v2/auth/agents/{agent_id}/connections",
+                    f"/v2/auth/agents/{assistant_id}/connections",
                     org_id=org_id,
                     tenant_id=workspace["id"],
                     host=True,
@@ -122,7 +148,7 @@ def get_connections(
             except LangSmithPermissionError as err:
                 logger.debug(
                     "No LangSmith agent connections for agent %s in workspace %s: %s",
-                    agent_id,
+                    assistant_id,
                     workspace["id"],
                     err,
                 )
@@ -132,7 +158,7 @@ def get_connections(
                     continue
                 seen.add(row["id"])
                 connections.append(row)
-    return connections
+    return connections, complete
 
 
 def transform_provider(
@@ -162,6 +188,8 @@ def transform_provider(
 def transform_credentials(
     connections: list[dict[str, Any]],
     user_lookup: dict[str, str],
+    provider_uuid_by_slug: dict[str, str],
+    org_id: str,
 ) -> list[dict[str, Any]]:
     """
     Shape agent connections for ingest.
@@ -178,8 +206,21 @@ def transform_credentials(
         transformed.append(
             {
                 "id": connection["id"],
-                "agent_id": connection.get("agent_id"),
+                # Namespaced to match the agent node, which is namespaced because
+                # LangSmith derives assistant ids from graphs and they can repeat across
+                # organizations.
+                "agent_id": (
+                    f"{org_id}|{connection['agent_id']}"
+                    if connection.get("agent_id")
+                    else None
+                ),
+                "assistant_id": connection.get("agent_id"),
                 "provider_id": connection.get("provider_id"),
+                "provider_uuid": (
+                    provider_uuid_by_slug.get(connection["provider_id"])
+                    if connection.get("provider_id")
+                    else None
+                ),
                 "provider_account_label": connection.get("provider_account_label"),
                 "scopes": connection.get("scopes") or [],
                 "expires_at": connection.get("expires_at"),
@@ -204,7 +245,11 @@ def transform_missing_agents(
         agent_id = credential.get("agent_id")
         if not agent_id or agent_id in known or agent_id in extra:
             continue
-        extra[agent_id] = {"id": agent_id, "deployment_ids": []}
+        extra[agent_id] = {
+            "id": agent_id,
+            "assistant_id": credential.get("assistant_id"),
+            "deployment_ids": [],
+        }
     return list(extra.values())
 
 
