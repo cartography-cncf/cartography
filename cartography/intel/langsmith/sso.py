@@ -6,6 +6,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.langsmith.util import LangSmithClient
+from cartography.intel.langsmith.util import LangSmithPermissionError
 from cartography.models.langsmith.accesspolicy import LangSmithAccessPolicySchema
 from cartography.models.langsmith.dataplane import LangSmithDataPlaneSchema
 from cartography.models.langsmith.ssoprovider import LangSmithSSOProviderSchema
@@ -48,7 +49,18 @@ def get_access_policies(client: LangSmithClient, org_id: str) -> list[dict[str, 
 
 @timeit
 def get_data_planes(client: LangSmithClient, org_id: str) -> list[dict[str, Any]]:
-    payload = client.get("/orgs/current/data-planes", org_id=org_id)
+    """
+    Fetch the organization's registered data planes, tolerating an unavailable route.
+
+    Data planes only exist for hybrid and self-hosted deployments, and the route is not
+    served for organizations without one. Losing this listing should narrow the graph,
+    not fail the module.
+    """
+    try:
+        payload = client.get("/orgs/current/data-planes", org_id=org_id)
+    except LangSmithPermissionError as err:
+        logger.warning("Skipping LangSmith data planes: %s", err)
+        return []
     if isinstance(payload, dict):
         return payload.get("data_planes") or []
     return payload
