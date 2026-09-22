@@ -37,6 +37,9 @@ AWS_USER_PROJECTION = AnalysisJob(
         ),
     ),
 )
+# TODO: Normalize CrowdStrike and Jamf source emails during ingestion before
+# moving their device ownership joins to User.normalized_email; test Unicode
+# whitespace consistently on both sides and cleanup across update tags.
 DEVICE_OWNS_LINKING = AnalysisJob(
     name="Ontology - Devices OWNS relationship linking",
     short_name="ontology_devices_linking",
@@ -572,6 +575,31 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
     statements=(
         AnalysisStatement(
             match="MATCH (u:User) WHERE u.email is not NULL MATCH (g:GitHubUser) WHERE u.email in g.organization_verified_domain_emails",
+            effects=(
+                AddRelationship(
+                    "u",
+                    "HAS_ACCOUNT",
+                    "g",
+                    source_label="User",
+                    target_label="GitHubUser",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match=(
+                "MATCH (g:GitHubUser)-[:MEMBER_OF]->(org:GitHubOrganization)"
+                "-[:RESOURCE]->(identity:GitHubExternalIdentity)<-[:HAS_IDENTITY]-(g) "
+                "MATCH (u:User {normalized_email: identity.saml_name_id_normalized}) "
+                "WHERE u.normalized_email CONTAINS '@' "
+                "WITH g, collect(DISTINCT u) AS candidates "
+                "WHERE size(candidates) = 1 "
+                "WITH g, candidates[0] AS u "
+                "WHERE g.normalized_emails IS NOT NULL "
+                "AND NOT EXISTS { "
+                "UNWIND g.normalized_emails AS email "
+                "MATCH (other:User {normalized_email: email}) "
+                "WHERE other <> u }"
+            ),
             effects=(
                 AddRelationship(
                     "u",

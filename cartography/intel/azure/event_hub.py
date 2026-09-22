@@ -9,15 +9,21 @@ from cartography.graph.job import GraphJob
 from cartography.models.azure.event_hub import AzureEventHubSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
+from .util.common import get_resource_group_from_id
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 
-
-def get_resource_group_from_id(resource_id: str) -> str:
-    parts = resource_id.lower().split("/")
-    rg_index = parts.index("resourcegroups")
-    return parts[rg_index + 1]
+# azure-mgmt-eventhub 12.0.0 regenerated the package onto hybrid models, so `as_dict()`
+# now returns the ARM wire payload: resource-specific fields sit under `properties` with
+# camelCase names. The graph models read flat snake_case keys, so the payload is
+# normalized back to that shape here, leaving the graph contract untouched.
+_EVENT_HUB_PROPERTY_MAP = {
+    "message_retention_in_days": ("messageRetentionInDays",),
+    "partition_count": ("partitionCount",),
+    "status": ("status",),
+}
 
 
 @timeit
@@ -34,16 +40,14 @@ def transform_event_hubs(
 ) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for eh_raw in event_hubs_raw:
-        eh = eh_raw.as_dict()
+        eh = copy_properties(eh_raw.as_dict(), _EVENT_HUB_PROPERTY_MAP)
         transformed.append(
             {
                 "id": eh.get("id"),
                 "name": eh.get("name"),
-                "status": eh.get("properties", {}).get("status"),
-                "partition_count": eh.get("properties", {}).get("partition_count"),
-                "message_retention_in_days": eh.get("properties", {}).get(
-                    "message_retention_in_days"
-                ),
+                "status": eh.get("status"),
+                "partition_count": eh.get("partition_count"),
+                "message_retention_in_days": eh.get("message_retention_in_days"),
                 "namespace_id": namespace_id,
             }
         )
