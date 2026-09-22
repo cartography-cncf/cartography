@@ -127,8 +127,10 @@ def get_unmatched_container_images_with_history(
             architecture: img.architecture,
             os: img.os
         })[0] AS best
-        // Get layer history for each best image
+        // Bound the image set before expanding layer history.
         WITH best
+        __IMAGE_LIMIT_CLAUSE__
+        // Get layer history for each best image
         UNWIND range(0, size(best.layer_diff_ids) - 1) AS idx
         WITH best, best.layer_diff_ids[idx] AS diff_id, idx
         OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
@@ -152,8 +154,8 @@ def get_unmatched_container_images_with_history(
             layer_history
     """
 
-    if limit:
-        query += f" LIMIT {limit}"
+    image_limit_clause = f"LIMIT {limit}" if limit else ""
+    query = query.replace("__IMAGE_LIMIT_CLAUSE__", image_limit_clause)
 
     result = neo4j_session.run(query, update_tag=update_tag, organization=organization)
     images = []
