@@ -802,13 +802,17 @@ class Config:
         self.entra_tenant_id = self.microsoft_tenant_id
         self.entra_client_id = self.microsoft_client_id
         self.entra_client_secret = self.microsoft_client_secret
-        if microsoft_delegated_auth and (
-            self.microsoft_client_id or self.microsoft_client_secret
-        ):
-            raise ValueError(
-                "Microsoft delegated authentication cannot be combined with "
-                "a Microsoft client ID or client secret.",
-            )
+        if microsoft_delegated_auth:
+            if not self.microsoft_tenant_id:
+                raise ValueError(
+                    "Microsoft delegated authentication requires a Microsoft "
+                    "tenant ID.",
+                )
+            if self.microsoft_client_id or self.microsoft_client_secret:
+                raise ValueError(
+                    "Microsoft delegated authentication cannot be combined with "
+                    "a Microsoft client ID or client secret.",
+                )
         self.microsoft_delegated_auth = microsoft_delegated_auth
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold

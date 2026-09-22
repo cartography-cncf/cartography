@@ -286,6 +286,7 @@ async def sync_app_role_assignments(
     assignment_batch_size = 200  # Batch size for assignments
     assignments_batch = []
     total_assignment_count = 0
+    delegated_denial: APIError | None = None
 
     # Get app_ids from graph instead of streaming from API again
     query = """
@@ -301,26 +302,33 @@ async def sync_app_role_assignments(
 
     for app_id in app_ids:
         # Stream app role assignments (now using graph query for service principal ID)
-        async for assignment in get_app_role_assignments_for_app(
-            client, neo4j_session, tenant_id, app_id
-        ):
-            assignments_batch.append(assignment)
-            total_assignment_count += 1
+        try:
+            async for assignment in get_app_role_assignments_for_app(
+                client, neo4j_session, tenant_id, app_id
+            ):
+                assignments_batch.append(assignment)
+                total_assignment_count += 1
 
-            # Transform and load assignments in batches
-            if len(assignments_batch) >= assignment_batch_size:
-                transformed_assignments = transform_app_role_assignments(
-                    assignments_batch
-                )
-                load_app_role_assignments(
-                    neo4j_session, transformed_assignments, update_tag, tenant_id
-                )
-                logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
-                assignments_batch.clear()
-                transformed_assignments.clear()
+                # Transform and load assignments in batches
+                if len(assignments_batch) >= assignment_batch_size:
+                    transformed_assignments = transform_app_role_assignments(
+                        assignments_batch
+                    )
+                    load_app_role_assignments(
+                        neo4j_session, transformed_assignments, update_tag, tenant_id
+                    )
+                    logger.debug(
+                        f"Loaded batch of {len(assignments_batch)} assignments"
+                    )
+                    assignments_batch.clear()
+                    transformed_assignments.clear()
 
-                # Force garbage collection after batch load
-                gc.collect()
+                    # Force garbage collection after batch load
+                    gc.collect()
+        except APIError as error:
+            if not delegated_auth or error.response_status_code != 403:
+                raise
+            delegated_denial = delegated_denial or error
 
     # Process remaining assignments
     if assignments_batch:
@@ -330,6 +338,9 @@ async def sync_app_role_assignments(
         )
         assignments_batch.clear()
         transformed_assignments.clear()
+
+    if delegated_denial:
+        raise delegated_denial
 
     if not delegated_auth:
         cleanup_app_role_assignments(neo4j_session, common_job_parameters)

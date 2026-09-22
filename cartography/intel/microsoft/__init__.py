@@ -31,13 +31,14 @@ def start_microsoft_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         )
         return
 
-    start_entra_ingestion(neo4j_session, config)
     if config.microsoft_delegated_auth:
         logger.warning(
             "Microsoft delegated authentication is a best-effort Entra-only "
             "mode. Intune and O365 ingestion were not attempted. Prefer "
             "application authentication for complete inventory.",
         )
+    start_entra_ingestion(neo4j_session, config)
+    if config.microsoft_delegated_auth:
         return
     start_intune_ingestion(neo4j_session, config)
     start_o365_ingestion(neo4j_session, config)

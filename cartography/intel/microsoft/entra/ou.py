@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
@@ -120,20 +121,29 @@ async def sync_entra_ous(
     batch_size = 100  # OUs are typically fewer than users/groups
     units_batch = []
 
-    async for unit in get_entra_ous(client):
-        units_batch.append(unit)
+    delegated_denial: APIError | None = None
+    try:
+        async for unit in get_entra_ous(client):
+            units_batch.append(unit)
 
-        if len(units_batch) >= batch_size:
-            transformed_units = list(transform_ous(units_batch, tenant_id))
-            load_ous(
-                neo4j_session, transformed_units, update_tag, common_job_parameters
-            )
-            units_batch.clear()
+            if len(units_batch) >= batch_size:
+                transformed_units = list(transform_ous(units_batch, tenant_id))
+                load_ous(
+                    neo4j_session, transformed_units, update_tag, common_job_parameters
+                )
+                units_batch.clear()
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = error
 
     # Process any remaining OUs
     if units_batch:
         transformed_units = list(transform_ous(units_batch, tenant_id))
         load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
+
+    if delegated_denial:
+        raise delegated_denial
 
     # Cleanup stale data
     if not delegated_auth:

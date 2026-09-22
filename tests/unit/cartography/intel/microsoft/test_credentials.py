@@ -1,4 +1,5 @@
 import time
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -75,6 +76,67 @@ def test_delegated_credential_caches_cli_token(monkeypatch) -> None:
 
     assert first is second
     cli_credential.get_token.assert_called_once()
+
+
+def test_delegated_credential_refreshes_near_expiry(monkeypatch) -> None:
+    # Arrange
+    monkeypatch.setattr(time, "time", lambda: 1_000)
+    cli_credential = MagicMock()
+    cli_credential.get_token.side_effect = (
+        AccessToken("expiring-token", 1_299),
+        AccessToken("fresh-token", 2_000),
+    )
+    credential = credentials.CachingTokenCredential(cli_credential)
+
+    # Act
+    first = credential.get_token("scope")
+    second = credential.get_token("scope")
+
+    # Assert
+    assert first.token == "expiring-token"
+    assert second.token == "fresh-token"
+    assert cli_credential.get_token.call_count == 2
+
+
+def test_delegated_credential_caches_scopes_separately(monkeypatch) -> None:
+    # Arrange
+    monkeypatch.setattr(time, "time", lambda: 1_000)
+    cli_credential = MagicMock()
+    cli_credential.get_token.side_effect = (
+        AccessToken("graph-token", 2_000),
+        AccessToken("management-token", 2_000),
+    )
+    credential = credentials.CachingTokenCredential(cli_credential)
+
+    # Act
+    graph = credential.get_token("graph-scope")
+    management = credential.get_token("management-scope")
+
+    # Assert
+    assert graph.token == "graph-token"
+    assert management.token == "management-token"
+    assert cli_credential.get_token.call_count == 2
+
+
+def test_delegated_credential_bypasses_cache_for_claims_challenge() -> None:
+    # Arrange
+    cli_credential = MagicMock()
+    cli_credential.get_token.side_effect = (
+        AccessToken("cached-token", 2_000_000_000),
+        AccessToken("claims-token", 2_000_000_000),
+    )
+    credential = credentials.CachingTokenCredential(cli_credential)
+    credential.get_token("scope")
+
+    # Act
+    challenged = credential.get_token("scope", claims="required-claims")
+
+    # Assert
+    assert challenged.token == "claims-token"
+    cli_credential.get_token.assert_called_with(
+        "scope",
+        claims="required-claims",
+    )
 
 
 def test_make_credential_requires_application_credentials() -> None:

@@ -160,69 +160,104 @@ async def sync_entra_groups(
     group_member_map: dict[str, list[str]] = {}
     group_owner_map: dict[str, list[str]] = {}
 
-    # First pass: collect groups and their owners/members
-    async for group in get_entra_groups(client):
-        # Fetch owners and members for this group.
-        # The group may no longer exist by the time we fetch details,
-        # returning a 404 or 410. Skip it and move on.
-        try:
-            owners = await call_with_retries(get_group_owners, client, group.id)
-        except Exception as e:
-            if isinstance(e, APIError) and e.response_status_code in (404, 410):
-                logger.warning(
-                    "Group %s (%s) not found (%d) while fetching owners; skipping.",
-                    group.id,
-                    group.display_name,
-                    e.response_status_code,
+    delegated_denial: APIError | None = None
+
+    # First pass: collect groups and their owners/members.
+    try:
+        async for group in get_entra_groups(client):
+            # Fetch owners and members for this group.
+            # The group may no longer exist by the time we fetch details,
+            # returning a 404 or 410. Skip it and move on.
+            try:
+                owners = await call_with_retries(get_group_owners, client, group.id)
+            except Exception as e:
+                if isinstance(e, APIError) and e.response_status_code in (404, 410):
+                    logger.warning(
+                        "Group %s (%s) not found (%d) while fetching owners; skipping.",
+                        group.id,
+                        group.display_name,
+                        e.response_status_code,
+                    )
+                    continue
+                if (
+                    delegated_auth
+                    and isinstance(e, APIError)
+                    and e.response_status_code == 403
+                ):
+                    logger.warning(
+                        "Microsoft Graph denied access to owners for Entra group "
+                        "%s (%s); continuing without owners.",
+                        group.id,
+                        group.display_name,
+                    )
+                    delegated_denial = delegated_denial or e
+                    owners = []
+                else:
+                    logger.exception(
+                        "Failed to fetch owners for Entra group %s (%s).",
+                        group.id,
+                        group.display_name,
+                    )
+                    raise
+
+            try:
+                users, subgroups = await call_with_retries(
+                    get_group_members, client, group.id
                 )
-                continue
-            logger.exception(
-                "Failed to fetch owners for Entra group %s (%s).",
-                group.id,
-                group.display_name,
-            )
+            except Exception as e:
+                if isinstance(e, APIError) and e.response_status_code in (404, 410):
+                    logger.warning(
+                        "Group %s (%s) not found (%d) while fetching members; skipping.",
+                        group.id,
+                        group.display_name,
+                        e.response_status_code,
+                    )
+                    continue
+                if (
+                    delegated_auth
+                    and isinstance(e, APIError)
+                    and e.response_status_code == 403
+                ):
+                    logger.warning(
+                        "Microsoft Graph denied access to members for Entra group "
+                        "%s (%s); continuing without members.",
+                        group.id,
+                        group.display_name,
+                    )
+                    delegated_denial = delegated_denial or e
+                    users, subgroups = [], []
+                else:
+                    logger.exception(
+                        "Failed to fetch members for Entra group %s (%s).",
+                        group.id,
+                        group.display_name,
+                    )
+                    raise
+
+            groups_batch.append(group)
+            group_owner_map[group.id] = owners
+            user_member_map[group.id] = users
+            group_member_map[group.id] = subgroups
+
+            # Process batch when it reaches the size limit
+            if len(groups_batch) >= batch_size:
+                transformed_groups = list(
+                    transform_groups(
+                        groups_batch, user_member_map, group_member_map, group_owner_map
+                    )
+                )
+                load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+
+                # Clear the batch and maps for processed groups
+                for g in groups_batch:
+                    user_member_map.pop(g.id, None)
+                    group_member_map.pop(g.id, None)
+                    group_owner_map.pop(g.id, None)
+                groups_batch.clear()
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
             raise
-
-        try:
-            users, subgroups = await call_with_retries(
-                get_group_members, client, group.id
-            )
-        except Exception as e:
-            if isinstance(e, APIError) and e.response_status_code in (404, 410):
-                logger.warning(
-                    "Group %s (%s) not found (%d) while fetching members; skipping.",
-                    group.id,
-                    group.display_name,
-                    e.response_status_code,
-                )
-                continue
-            logger.exception(
-                "Failed to fetch members for Entra group %s (%s).",
-                group.id,
-                group.display_name,
-            )
-            raise
-
-        groups_batch.append(group)
-        group_owner_map[group.id] = owners
-        user_member_map[group.id] = users
-        group_member_map[group.id] = subgroups
-
-        # Process batch when it reaches the size limit
-        if len(groups_batch) >= batch_size:
-            transformed_groups = list(
-                transform_groups(
-                    groups_batch, user_member_map, group_member_map, group_owner_map
-                )
-            )
-            load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
-
-            # Clear the batch and maps for processed groups
-            for g in groups_batch:
-                user_member_map.pop(g.id, None)
-                group_member_map.pop(g.id, None)
-                group_owner_map.pop(g.id, None)
-            groups_batch.clear()
+        delegated_denial = delegated_denial or error
 
     # Process any remaining groups
     if groups_batch:
@@ -232,6 +267,9 @@ async def sync_entra_groups(
             )
         )
         load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+
+    if delegated_denial:
+        raise delegated_denial
 
     if not delegated_auth:
         cleanup_groups(neo4j_session, common_job_parameters)

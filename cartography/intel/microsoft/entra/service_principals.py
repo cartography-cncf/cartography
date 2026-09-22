@@ -4,6 +4,7 @@ from typing import Any
 from typing import AsyncGenerator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.service_principal import ServicePrincipal
 
@@ -208,24 +209,33 @@ async def sync_service_principals(
     batch_size = 50  # Batch size for service principals
     total_count = 0
 
-    # Stream service principals and process in batches
-    async for spn in get_entra_service_principals(client):
-        service_principals_batch.append(spn)
-        total_count += 1
+    delegated_denial: APIError | None = None
+    try:
+        # Stream service principals and process in batches
+        async for spn in get_entra_service_principals(client):
+            service_principals_batch.append(spn)
+            total_count += 1
 
-        # Transform and load service principals in batches
-        if len(service_principals_batch) >= batch_size:
-            transformed_service_principals = transform_service_principals(
-                service_principals_batch
-            )
-            load_service_principals(
-                neo4j_session, transformed_service_principals, update_tag, tenant_id
-            )
-            logger.info(
-                f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
-            )
-            service_principals_batch.clear()
-            transformed_service_principals.clear()
+            # Transform and load service principals in batches
+            if len(service_principals_batch) >= batch_size:
+                transformed_service_principals = transform_service_principals(
+                    service_principals_batch
+                )
+                load_service_principals(
+                    neo4j_session,
+                    transformed_service_principals,
+                    update_tag,
+                    tenant_id,
+                )
+                logger.info(
+                    f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
+                )
+                service_principals_batch.clear()
+                transformed_service_principals.clear()
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = error
 
     # Process remaining service principals
     if service_principals_batch:
@@ -237,6 +247,9 @@ async def sync_service_principals(
         )
         service_principals_batch.clear()
         transformed_service_principals.clear()
+
+    if delegated_denial:
+        raise delegated_denial
 
     if delegated_auth:
         return

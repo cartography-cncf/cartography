@@ -177,31 +177,32 @@ async def test_app_role_assignments_only_query_the_requested_tenant(
         return_value=None
     )
 
-    results = [
-        assignment
-        async for assignment in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
-            client,
-            neo4j_session,
-            tenant_id,
-            shared_app_id,
+    try:
+        results = [
+            assignment
+            async for assignment in cartography.intel.microsoft.entra.app_role_assignments.get_app_role_assignments_for_app(
+                client,
+                neo4j_session,
+                tenant_id,
+                shared_app_id,
+            )
+        ]
+
+        assert results == []
+        assert {
+            call.args[0]
+            for call in client.service_principals.by_service_principal_id.call_args_list
+        } == {"sp-a"}
+    finally:
+        neo4j_session.run(
+            """
+            MATCH (n)
+            WHERE n.id IN [$tenant_id, $other_tenant_id, 'app-a', 'app-b', 'sp-a', 'sp-b']
+            DETACH DELETE n
+            """,
+            tenant_id=tenant_id,
+            other_tenant_id=other_tenant_id,
         )
-    ]
-
-    assert results == []
-    assert {
-        call.args[0]
-        for call in client.service_principals.by_service_principal_id.call_args_list
-    } == {"sp-a"}
-
-    neo4j_session.run(
-        """
-        MATCH (n)
-        WHERE n.id IN [$tenant_id, $other_tenant_id, 'app-a', 'app-b', 'sp-a', 'sp-b']
-        DETACH DELETE n
-        """,
-        tenant_id=tenant_id,
-        other_tenant_id=other_tenant_id,
-    )
 
 
 @patch.object(

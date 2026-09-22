@@ -69,6 +69,8 @@ permissions. It isn't a replacement for application authentication.
   datasets, Cartography exits with a nonzero status so automation can't mistake
   the partial inventory for a complete sync. Records from earlier pages of the
   affected dataset can remain in the graph.
+- Because the command exits with a nonzero status after a denied dataset, run
+  delegated Microsoft ingestion separately from other selected modules.
 - If Microsoft Graph returns `401 Unauthorized`, or an error other than `403`,
   Cartography stops the run.
 - Cartography disables cleanup and derived federation analysis. A delegated run
@@ -89,21 +91,21 @@ when you evaluate this mode.
 
 1. Sign in to the target tenant. You don't need an Azure subscription.
 
-```bash
-az login --tenant '<TENANT_ID>' --allow-no-subscriptions
-```
+   ```bash
+   az login --tenant '<TENANT_ID>' --allow-no-subscriptions
+   ```
 
    If a browser can't open in your environment, add `--use-device-code`. Your
    tenant's Conditional Access policy might not allow device-code authentication.
 
 2. Run Cartography.
 
-```bash
-cartography \
-  --selected-modules microsoft \
-  --microsoft-tenant-id '<TENANT_ID>' \
-  --microsoft-delegated-auth
-```
+   ```bash
+   cartography \
+     --selected-modules microsoft \
+     --microsoft-tenant-id '<TENANT_ID>' \
+     --microsoft-delegated-auth
+   ```
 
 Do not pass `--microsoft-client-id` or
 `--microsoft-client-secret-env-var` with delegated authentication.

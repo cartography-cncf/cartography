@@ -56,6 +56,30 @@ def test_delegated_collection_does_not_cleanup(
         )
 
 
+def test_application_collection_runs_cleanup(monkeypatch) -> None:
+    # Arrange
+    monkeypatch.setattr(credentials, "make_credential", MagicMock())
+    monkeypatch.setattr(users, "GraphServiceClient", MagicMock())
+    monkeypatch.setattr(users, "get_users", _empty_async_iterator)
+    cleanup = MagicMock()
+    monkeypatch.setattr(users, "cleanup", cleanup)
+
+    # Act
+    asyncio.run(
+        users.sync_entra_users(
+            MagicMock(),
+            "tenant-id",
+            "client-id",
+            "client-secret",
+            1234567890,
+            {"TENANT_ID": "tenant-id", "UPDATE_TAG": 1234567890},
+        ),
+    )
+
+    # Assert
+    cleanup.assert_called_once()
+
+
 def _assert_delegated_collection_does_not_cleanup(
     monkeypatch: pytest.MonkeyPatch,
     module: ModuleType,
@@ -84,7 +108,8 @@ def _assert_delegated_collection_does_not_cleanup(
     )
 
     cleanup.assert_not_called()
-    analysis.assert_not_called()
+    if module is service_principals:
+        analysis.assert_not_called()
 
 
 def test_delegated_app_role_collection_does_not_cleanup(monkeypatch) -> None:

@@ -139,6 +139,15 @@ def test_config_rejects_delegated_auth_with_application_credentials() -> None:
         )
 
 
+def test_config_requires_tenant_for_delegated_auth() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="requires a Microsoft tenant ID"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_delegated_auth=True,
+        )
+
+
 def test_config_legacy_s3_source_shim_matches_cli_normalization(caplog) -> None:
     with caplog.at_level(logging.WARNING):
         config = Config(

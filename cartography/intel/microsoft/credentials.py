@@ -31,6 +31,11 @@ class CachingTokenCredential:
         self._lock = threading.Lock()
 
     def get_token(self, *scopes: str, **kwargs: Any) -> AccessToken:
+        # A claims challenge requires a new token containing those claims. A
+        # scope-only cache entry cannot satisfy that request safely.
+        if kwargs.get("claims"):
+            return self._credential.get_token(*scopes, **kwargs)
+
         key = tuple(scopes)
         with self._lock:
             token = self._tokens.get(key)
