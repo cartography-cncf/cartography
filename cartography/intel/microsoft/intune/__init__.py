@@ -29,7 +29,8 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     as Intune nodes relate back to Entra users, groups, and tenants.
 
     Uses the same Microsoft Graph credentials as the Entra sync
-    (config.microsoft_tenant_id / client_id / client_secret).
+    (config.microsoft_tenant_id / client_id, and either client_secret or
+    client_certificate_path).
 
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
@@ -38,7 +39,9 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     tenant_id = config.microsoft_tenant_id
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
-    if not tenant_id or not client_id or not client_secret:
+    client_certificate_path = config.microsoft_client_certificate_path
+    client_certificate_password = config.microsoft_client_certificate_password
+    if not tenant_id or not client_id or not (client_secret or client_certificate_path):
         logger.info(
             "Intune import is not configured - skipping this module. "
             "See docs to configure.",
@@ -51,7 +54,13 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     }
 
     async def main() -> None:
-        credential = credentials.make_credential(tenant_id, client_id, client_secret)
+        credential = credentials.make_credential(
+            tenant_id,
+            client_id,
+            client_secret,
+            client_certificate_path=client_certificate_path,
+            client_certificate_password=client_certificate_password,
+        )
         intune_client = create_graph_service_client(credential)
 
         managed_devices_synced = False
