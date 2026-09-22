@@ -165,6 +165,27 @@ slack_mapping = OntologyMapping(
     ],
 )
 
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionBot",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 jumpcloud_mapping = OntologyMapping(
     module_name="jumpcloud",
     nodes=[
@@ -250,6 +271,7 @@ THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "okta": okta_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "jumpcloud": jumpcloud_mapping,
     "netlify": netlify_mapping,
 }

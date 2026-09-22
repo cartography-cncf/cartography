@@ -42,6 +42,14 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
     assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
 
 
+def test_notion_config_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters.index("notion_config") > parameters.index("orca_api_token")
+
+
 def test_config_stores_orca_credentials() -> None:
     # Act
     config = Config(
