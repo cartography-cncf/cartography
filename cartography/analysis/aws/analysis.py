@@ -56,10 +56,12 @@ AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
     statements=(
         AnalysisStatement(
             comment="Resolve local/shared-VPC targets or explicit ECS service targets; skip ambiguous identities.",
-            # Filter the account's resources before expanding target registrations.
+            # Expand only this balancer's registrations, not every target in the batch.
+            # Each registration must resolve to one ENI-specific IP identity; several
+            # candidates mean overlapping addresses remain ambiguous, not multiple targets.
             match="""
             MATCH (lb:AWSLoadBalancerV2)
-            UNWIND $IP_TARGETS AS target
+            UNWIND $IP_TARGETS_BY_LB[lb.id] AS target
             MATCH (lb:AWSLoadBalancerV2 {id: target.LoadBalancerId})
             CALL {
                 WITH target, lb
@@ -92,6 +94,8 @@ AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
                         "port": Var("target.Port"),
                         "protocol": Var("target.Protocol"),
                         "target_group_arn": Var("target.TargetGroupArn"),
+                        # Retain the legacy MatchLink ownership fields so its existing
+                        # edges participate in the same account-scoped cleanup.
                         "_sub_resource_label": "AWSAccount",
                         "_sub_resource_id": Param("AWS_ID"),
                     },

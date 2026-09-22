@@ -385,11 +385,14 @@ def _load_load_balancer_v2_ip_targets(
     """Resolve IP targets with typed analysis, deferring cleanup until inventory completes."""
     ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
     for targets in batch(ip_targets):
+        targets_by_lb: dict[str, list[dict]] = {}
+        for target in targets:
+            targets_by_lb.setdefault(target["LoadBalancerId"], []).append(target)
         run_typed_analysis_job(
             AWS_LB_IP_TARGET_EXPOSURE,
             neo4j_session,
             {
-                "IP_TARGETS": targets,
+                "IP_TARGETS_BY_LB": targets_by_lb,
                 "AWS_ID": current_aws_account_id,
                 "UPDATE_TAG": update_tag,
                 "CLEANUP_SAFE": False,
@@ -531,7 +534,7 @@ def cleanup_load_balancer_v2_expose(
     run_typed_analysis_job(
         AWS_LB_IP_TARGET_EXPOSURE,
         neo4j_session,
-        {**common_job_parameters, "IP_TARGETS": [], "CLEANUP_SAFE": True},
+        {**common_job_parameters, "IP_TARGETS_BY_LB": {}, "CLEANUP_SAFE": True},
     )
 
 

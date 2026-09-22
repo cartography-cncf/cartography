@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import replace
+from ipaddress import IPv4Address
 from unittest.mock import MagicMock
 
 import pytest
@@ -553,4 +554,69 @@ def test_ecs_service_timeout_preserves_cross_vpc_exposure(neo4j_session):
         neo4j_session, "AWSECSContainer", ["id", "exposed_internet"]
     ) == {
         ("container-other", None),
+    }
+
+
+def test_ip_target_batches_preserve_each_balancers_targets(neo4j_session):
+    # Arrange: exceed the default batch size, with two balancers sharing a VPC
+    # and a third balancer with no registrations.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, ACCOUNT, 1)
+    balancers = [
+        {
+            **IP_TARGET_API_PAGES["describe_load_balancers"]["LoadBalancers"][0],
+            "DNSName": f"lb-{i}.example.invalid",
+            "LoadBalancerArn": f"synthetic-load-balancer-{i}",
+        }
+        for i in range(3)
+    ]
+    elbv2.load_load_balancer_v2s(neo4j_session, balancers, REGION, ACCOUNT, 1)
+    load_subnets(
+        neo4j_session,
+        [{"SubnetId": "subnet-targets", "VpcId": "vpc-local"}],
+        REGION,
+        ACCOUNT,
+        1,
+    )
+    addresses = [str(IPv4Address("10.0.0.1") + i) for i in range(1001)]
+    interfaces = [
+        {
+            "NetworkInterfaceId": f"eni-{i}",
+            "Description": "Synthetic test interface",
+            "InterfaceType": "interface",
+            "MacAddress": "02:00:00:00:00:01",
+            "RequesterManaged": False,
+            "SourceDestCheck": True,
+            "Status": "in-use",
+            "SubnetId": "subnet-targets",
+            "PrivateIpAddresses": [{"PrivateIpAddress": address, "Primary": True}],
+        }
+        for i, address in enumerate(addresses)
+    ]
+    network = transform_network_interface_data(interfaces, REGION)
+    load_network_data(neo4j_session, REGION, ACCOUNT, 1, **network._asdict())
+    targets = [
+        {
+            "LoadBalancerId": f"lb-{i % 2}.example.invalid",
+            "TargetType": "ip",
+            "TargetId": address,
+            "VpcId": "vpc-local",
+            "TargetGroupArn": f"synthetic-target-group-{i % 2}",
+        }
+        for i, address in enumerate(addresses)
+    ]
+
+    # Act: run the split ingestion phase and its account cleanup.
+    elbv2._load_load_balancer_v2_ip_targets(neo4j_session, targets, ACCOUNT, 2)
+    elbv2.cleanup_load_balancer_v2_expose(
+        neo4j_session, {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2}
+    )
+
+    # Assert: no registrations were overwritten, lost between batches, or
+    # assigned to another balancer.
+    assert check_rels(
+        neo4j_session, "AWSLoadBalancerV2", "id", "AWSEC2PrivateIp", "id", "EXPOSE"
+    ) == {
+        (f"lb-{i % 2}.example.invalid", f"eni-{i}:{address}")
+        for i, address in enumerate(addresses)
     }
