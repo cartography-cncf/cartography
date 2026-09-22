@@ -33,6 +33,7 @@ class EC2PrivateIpNetworkInterfaceNodeProperties(CartographyNodeProperties):
     )
     private_ip_address: PropertyRef = PropertyRef(
         "PrivateIpAddress",
+        extra_index=True,
         description="The private IPv4 address of the network interface.",
     )
     public_ip: PropertyRef = PropertyRef(
