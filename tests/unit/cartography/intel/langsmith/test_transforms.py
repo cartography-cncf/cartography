@@ -229,7 +229,14 @@ class TestDeploymentSecrets:
             }
         ]
         agents = deployments.transform_agents(deployments.transform_deployments(raw))
-        assert agents == [{"id": "asst-1", "name": "Bot", "environment": "production"}]
+        assert agents == [
+            {
+                "id": "asst-1",
+                "name": "Bot",
+                "environment": "production",
+                "deployment_ids": ["d1"],
+            }
+        ]
 
 
 class TestAgentCredentials:

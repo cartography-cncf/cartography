@@ -17,7 +17,9 @@ TEST_UPDATE_TAG = 123456789
 def _ensure_local_neo4j_has_test_roles(neo4j_session):
     cartography.intel.langsmith.roles.load_roles(
         neo4j_session,
-        tests.data.langsmith.roles.LANGSMITH_PERMISSIONS,
+        cartography.intel.langsmith.roles.transform_permissions(
+            tests.data.langsmith.roles.LANGSMITH_ROLES
+        ),
         cartography.intel.langsmith.roles.transform_roles(
             tests.data.langsmith.roles.LANGSMITH_ROLES
         ),
@@ -31,12 +33,7 @@ def _ensure_local_neo4j_has_test_roles(neo4j_session):
     "get_roles",
     return_value=tests.data.langsmith.roles.LANGSMITH_ROLES,
 )
-@patch.object(
-    cartography.intel.langsmith.roles,
-    "get_permissions",
-    return_value=tests.data.langsmith.roles.LANGSMITH_PERMISSIONS,
-)
-def test_sync_langsmith_roles(mock_permissions, mock_roles, neo4j_session):
+def test_sync_langsmith_roles(mock_roles, neo4j_session):
     _ensure_local_neo4j_has_test_organizations(neo4j_session)
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -47,6 +44,8 @@ def test_sync_langsmith_roles(mock_permissions, mock_roles, neo4j_session):
         neo4j_session, None, LANGSMITH_ORG_ID, common_job_parameters
     )
 
+    # The permission catalog is derived from what the roles grant; the dedicated
+    # /orgs/permissions endpoint is not reachable with a personal access token.
     assert check_nodes(
         neo4j_session, "LangSmithPermission", ["id", "access_scope"]
     ) == {

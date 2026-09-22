@@ -197,11 +197,16 @@ def transform_agents(deployments: list[dict[str, Any]]) -> list[dict[str, Any]]:
         agent_id = deployment.get("agent_id")
         if not agent_id:
             continue
-        agents[agent_id] = {
-            "id": agent_id,
-            "name": deployment.get("display_name") or deployment.get("name"),
-            "environment": deployment.get("agent_environment"),
-        }
+        record = agents.setdefault(
+            agent_id,
+            {
+                "id": agent_id,
+                "name": deployment.get("display_name") or deployment.get("name"),
+                "environment": deployment.get("agent_environment"),
+                "deployment_ids": [],
+            },
+        )
+        record["deployment_ids"].append(deployment["id"])
     return list(agents.values())
 
 
@@ -213,18 +218,19 @@ def load_deployments(
     org_id: str,
     update_tag: int,
 ) -> None:
-    # Agents must land before deployments so the RUNS edges have targets to match.
+    # Deployments must land before agents: every agent carries the ids of the deployments
+    # serving it, and that one-to-many RUNS edge can only match deployments that exist.
     load(
         neo4j_session,
-        LangSmithAgentSchema(),
-        agents,
+        LangSmithDeploymentSchema(),
+        deployments,
         lastupdated=update_tag,
         ORG_ID=org_id,
     )
     load(
         neo4j_session,
-        LangSmithDeploymentSchema(),
-        deployments,
+        LangSmithAgentSchema(),
+        agents,
         lastupdated=update_tag,
         ORG_ID=org_id,
     )

@@ -100,9 +100,19 @@ def test_sync_langsmith_workspace_resources(
         neo4j_session, "LangSmithOAuthClient", ["id", "name", "disabled"]
     ) == {("langsmith-mcp-client", "Internal MCP Client", False)}
 
-    assert check_nodes(
-        neo4j_session, "LangSmithMcpServer", ["slug", "auth_type", "tool_names"]
-    ) == {("internal-docs", "oauth", ["search_docs", "get_doc"])}
+    assert check_nodes(neo4j_session, "LangSmithMcpServer", ["slug", "auth_type"]) == {
+        ("internal-docs", "oauth")
+    }
+    # tool_names is a list property, which check_nodes() cannot hash into a set.
+    mcp_tools = neo4j_session.run(
+        """
+        MATCH (n:LangSmithMcpServer)
+        RETURN n.slug AS slug, n.tool_names AS tool_names
+        """
+    ).data()
+    assert [(r["slug"], r["tool_names"]) for r in mcp_tools] == [
+        ("internal-docs", ["search_docs", "get_doc"])
+    ]
 
     assert check_rels(
         neo4j_session,

@@ -66,3 +66,31 @@ LANGSMITH_DEPLOYMENTS = {
         },
     ],
 }
+
+# Assistants served on each deployment's own data plane, keyed by deployment URL. The
+# support deployment also declares its agent in an agent block, so its record is merged;
+# the triage deployment has agent: null, so its agent is only discoverable this way.
+LANGSMITH_ASSISTANTS = {
+    "https://support-bot.us.langgraph.app": [
+        {
+            "assistant_id": SUPPORT_AGENT_ID,
+            "graph_id": "support_graph",
+            "name": "Support Bot",
+            "description": "Answers customer support tickets.",
+            "version": 3,
+            "created_at": "2026-02-01T09:05:00Z",
+            "updated_at": "2026-03-01T09:05:00Z",
+        },
+    ],
+    "https://triage-bot.us.langgraph.app": [
+        {
+            "assistant_id": TRIAGE_AGENT_ID,
+            "graph_id": "triage_graph",
+            "name": "Triage Bot",
+            "description": "Routes incoming issues.",
+            "version": 1,
+            "created_at": "2026-02-02T09:05:00Z",
+            "updated_at": "2026-03-02T09:05:00Z",
+        },
+    ],
+}

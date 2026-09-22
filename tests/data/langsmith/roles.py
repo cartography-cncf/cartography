@@ -1,28 +1,5 @@
 from tests.data.langsmith.organizations import LANGSMITH_ORG_ID
 
-LANGSMITH_PERMISSIONS = [
-    {
-        "name": "organization:manage",
-        "description": "Manage organization settings.",
-        "access_scope": "organization",
-    },
-    {
-        "name": "organization:read",
-        "description": "Read organization settings.",
-        "access_scope": "organization",
-    },
-    {
-        "name": "deployments:read",
-        "description": "View deployments.",
-        "access_scope": "workspace",
-    },
-    {
-        "name": "workspaces:read",
-        "description": "View workspace settings.",
-        "access_scope": "workspace",
-    },
-]
-
 ORG_ADMIN_ROLE_ID = "11111111-1111-4111-8111-111111111111"
 WORKSPACE_VIEWER_ROLE_ID = "22222222-2222-4222-8222-222222222222"
 CUSTOM_ROLE_ID = "33333333-3333-4333-8333-333333333333"
