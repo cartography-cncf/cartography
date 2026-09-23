@@ -83,6 +83,12 @@ hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
 - EKS Access Entry ingestion requires `eks:ListAccessEntries`, which
   `SecurityAudit` includes. Grant `eks:DescribeAccessEntry` to populate
   detailed fields such as the ARN, username, type, and Kubernetes groups.
+- AWS Identity Center ingestion uses the `sso-admin` and `identitystore`
+  services. Grant the following actions when Identity Center inventory is
+  enabled:
+  `sso:ListInstances`, `sso:ListPermissionSets`, `sso:DescribePermissionSet`,
+  `sso:ListAccountAssignmentsForPrincipal`, `identitystore:ListGroups`,
+  `identitystore:ListGroupMemberships`, and `identitystore:ListUsers`.
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
