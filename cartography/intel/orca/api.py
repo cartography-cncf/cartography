@@ -173,11 +173,6 @@ def iter_serving_layer_pages(
     page_signatures: set[str] = set()
 
     while True:
-        if page_count >= max_pages and start_index != total_items:
-            raise RuntimeError(
-                f"Orca {result_name} pagination exceeded {max_pages} pages",
-            )
-
         payload = {
             **query,
             "limit": page_size,

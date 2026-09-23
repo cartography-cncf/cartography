@@ -270,12 +270,12 @@ def test_iter_serving_layer_pages_accepts_rows_beyond_advisory_count(mocker) -> 
     assert query_call.call_count == 2
 
 
-def test_iter_serving_layer_pages_allows_empty_probe_at_page_limit(mocker) -> None:
+def test_iter_serving_layer_pages_allows_empty_probe_after_undercount(mocker) -> None:
     # Arrange
     query_call = mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
-            {"data": [{"id": "1"}], "total_items": 2},
+            {"data": [{"id": "1"}], "total_items": 1},
             {"data": [{"id": "2"}]},
             {"data": []},
         ],
