@@ -5,7 +5,7 @@ from cartography.intel.aws import AWS_LB_NACL_DIRECT_DEPS
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
 
 
-def test_ecs_syncs_last_to_minimize_stale_analysis_relationships():
+def test_ip_targets_resolve_after_ecs_and_network_interfaces():
     # Arrange
     resource_order = list(RESOURCE_FUNCTIONS)
 
@@ -13,7 +13,11 @@ def test_ecs_syncs_last_to_minimize_stale_analysis_relationships():
     last_resource = resource_order[-1]
 
     # Assert
-    assert last_resource == "ecs"
+    assert last_resource == "ec2:load_balancer_v2:expose"
+    assert resource_order[-2] == "ecs"
+    assert resource_order.index("ec2:network_interface") < resource_order.index(
+        last_resource
+    )
     assert resource_order.index("ec2:instance") < resource_order.index("ecs")
     assert resource_order.index("ec2:load_balancer_v2") < resource_order.index("ecs")
 
@@ -23,10 +27,15 @@ def test_analysis_producers_sync_close_to_their_analysis_jobs():
     resource_order = list(RESOURCE_FUNCTIONS)
 
     # Act
-    analysis_tail = resource_order[-3:]
+    analysis_tail = resource_order[-4:]
 
     # Assert
-    assert analysis_tail == ["ec2:autoscalinggroup", "ec2:keypair", "ecs"]
+    assert analysis_tail == [
+        "ec2:autoscalinggroup",
+        "ec2:keypair",
+        "ecs",
+        "ec2:load_balancer_v2:expose",
+    ]
     assert resource_order.index("eks") + 1 == resource_order.index("guardduty")
 
 
