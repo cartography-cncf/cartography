@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.supply_chain
 from tests.data.github.dockerfiles import DOCKERFILE_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_DEV_CONTENT
@@ -15,6 +17,13 @@ from tests.data.github.dockerfiles import TEST_REPOS
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://api.github.com/graphql"
+
+
+@pytest.fixture
+def isolated_neo4j_session(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    yield neo4j_session
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")
@@ -212,11 +221,10 @@ def test_sync_with_dockerfiles(
 
 
 def test_get_unmatched_container_images_applies_limit_before_layer_history(
-    neo4j_session,
+    isolated_neo4j_session,
 ):
     prefix = "github-supply-chain-limit-regression"
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    neo4j_session.run(
+    isolated_neo4j_session.run(
         """
         UNWIND range(0, 2) AS i
         CREATE (repo:ContainerRegistry {
@@ -250,9 +258,13 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
         prefix=prefix,
     )
 
-    with patch.object(neo4j_session, "run", wraps=neo4j_session.run) as run:
+    with patch.object(
+        isolated_neo4j_session,
+        "run",
+        wraps=isolated_neo4j_session.run,
+    ) as run:
         images = cartography.intel.github.supply_chain.get_unmatched_container_images_with_history(
-            neo4j_session,
+            isolated_neo4j_session,
             organization="example",
             update_tag=TEST_UPDATE_TAG,
             limit=2,
@@ -265,7 +277,6 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
         call.args[0] for call in run.call_args_list if "UNWIND range" in call.args[0]
     )
     assert query.index("LIMIT 2") < query.index("UNWIND range")
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 @patch(
