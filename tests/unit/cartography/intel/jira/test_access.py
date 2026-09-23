@@ -1,8 +1,10 @@
 from copy import deepcopy
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 import requests
+from pytest_mock import MockerFixture
 
 from cartography.config import Config
 from cartography.intel.jira import start_jira_ingestion
@@ -272,3 +274,53 @@ def test_missing_user_references_remain_fatal(reference, source):
     # Act and assert
     with pytest.raises((KeyError, ValueError)):
         transform(raw, CLOUD_ID)
+
+
+def test_duplicate_membership_and_role_actors_collapse_before_loading() -> None:
+    # Arrange
+    from tests.data.jira.access import API_RESPONSES
+    from tests.data.jira.access import GROUPS
+    from tests.data.jira.access import PROJECTS
+    from tests.data.jira.access import ROLE
+    from tests.data.jira.access import USERS
+
+    role: dict[str, Any] = deepcopy(ROLE)
+    role["actors"] *= 2
+    raw = {
+        "info": API_RESPONSES["serverInfo"],
+        "groups": GROUPS,
+        "users": USERS,
+        "admin_groups": {},
+        "memberships": {"group-1": [USERS[0], USERS[0]]},
+        "projects": [PROJECTS[0]],
+        "roles": {"100": [role]},
+        "schemes": {},
+    }
+    # Act
+    data = transform(raw, CLOUD_ID)
+    # Assert
+    assert data["users"][0]["group_ids"] == [resource_id(CLOUD_ID, "group", "group-1")]
+    assert data["roles"][0]["user_ids"] == [resource_id(CLOUD_ID, "user", "user-1")]
+    assert data["roles"][0]["group_ids"] == [resource_id(CLOUD_ID, "group", "group-1")]
+
+
+@pytest.mark.parametrize("path", ["users/search", "group/bulk"])  # type: ignore[misc]
+def test_advancing_pages_stop_at_page_budget(path: str, mocker: MockerFixture) -> None:
+    # Arrange
+    mocker.patch("cartography.intel.jira.util.DEFAULT_MAX_PAGES", 2)
+    client = JiraClient(CLOUD_ID, "reader@example.com", "test-token")
+    pages: list[Any] = (
+        [[{"accountId": "user-1"}], [{"accountId": "user-2"}]]
+        if path == "users/search"
+        else [
+            {"values": [{"groupId": f"group-{i}"}], "startAt": i, "isLast": False}
+            for i in range(2)
+        ]
+    )
+    get_response = mocker.patch.object(
+        client.session, "get", side_effect=[response(page) for page in pages]
+    )
+    # Act and assert
+    with client.session, pytest.raises(RuntimeError, match="exceeded 2 pages"):
+        client.pages(path)
+    assert get_response.call_count == 2

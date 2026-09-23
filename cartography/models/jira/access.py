@@ -165,11 +165,13 @@ class JiraGrantProjectRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class JiraTenantProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id", description="Stable Cloud UUID supplied by --jira-cloud-id."
     )
-    name: PropertyRef = PropertyRef("name", description="Site title.")
-    url: PropertyRef = PropertyRef("url", description="Site base URL.")
-    domain: PropertyRef = PropertyRef("domain", description="Site hostname.")
+    name: PropertyRef = PropertyRef("name", description="serverInfo.serverTitle.")
+    url: PropertyRef = PropertyRef("url", description="serverInfo.baseUrl.")
+    domain: PropertyRef = PropertyRef(
+        "domain", description="Hostname parsed from serverInfo.baseUrl."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -185,15 +187,15 @@ class JiraTenantSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class JiraGroupProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id", description="Cloud ID, group kind, and URL-escaped groupId."
     )
     group_id: PropertyRef = PropertyRef(
-        "group_id", description="Atlassian group ID, independent of group name."
+        "group_id", description="group/bulk groupId, independent of group name."
     )
-    name: PropertyRef = PropertyRef("name", description="Group name.")
+    name: PropertyRef = PropertyRef("name", description="group/bulk name.")
     admin_access_types: PropertyRef = PropertyRef(
         "admin_access_types",
-        description="Access levels returned by group/bulk: admin or site-admin.",
+        description="Experimental group/bulk accessType filters matching this group: admin or site-admin; not exhaustive effective privileges.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."
@@ -214,24 +216,28 @@ class JiraGroupSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class JiraUserProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id", description="Cloud ID, user kind, and URL-escaped accountId."
     )
     account_id: PropertyRef = PropertyRef(
-        "account_id", description="Atlassian account ID."
+        "account_id",
+        description="Atlassian accountId from a user profile or actor/holder reference.",
     )
     display_name: PropertyRef = PropertyRef(
-        "display_name", description="Display name subject to profile visibility."
+        "display_name",
+        description="User profile displayName, subject to profile visibility.",
     )
     email: PropertyRef = PropertyRef(
         "email",
-        description="Email address if visible; absent addresses are not inferred.",
+        description="User profile emailAddress if visible; absent addresses are not inferred.",
     )
     active: PropertyRef = PropertyRef(
-        "active", description="Whether the Atlassian account is active."
+        "active",
+        extra_index=True,
+        description="User profile active flag; absent for reference-only accounts.",
     )
     account_type: PropertyRef = PropertyRef(
         "account_type",
-        description="Atlassian account type: atlassian, app, customer, or unknown.",
+        description="User profile accountType: atlassian, app, customer, or unknown; absent for reference-only accounts.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."
@@ -255,24 +261,26 @@ class JiraUserSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class JiraProjectProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id", description="Cloud ID, project kind, and URL-escaped project id."
     )
-    project_id: PropertyRef = PropertyRef("project_id", description="Jira project ID.")
-    key: PropertyRef = PropertyRef("key", description="Mutable project key.")
-    name: PropertyRef = PropertyRef("name", description="Project name.")
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="project/search id."
+    )
+    key: PropertyRef = PropertyRef("key", description="project/search key; mutable.")
+    name: PropertyRef = PropertyRef("name", description="project/search name.")
     project_type: PropertyRef = PropertyRef(
-        "project_type", description="Jira project product type."
+        "project_type", description="project/search projectTypeKey."
     )
     style: PropertyRef = PropertyRef(
-        "style", description="classic or next-gen (team-managed)."
+        "style", description="project/search style: classic or next-gen (team-managed)."
     )
     permission_scheme_id: PropertyRef = PropertyRef(
         "permission_scheme_id",
-        description="Assigned permission scheme ID for company-managed projects.",
+        description="project/{id}/permissionscheme id for company-managed projects.",
     )
     permission_scheme_supported: PropertyRef = PropertyRef(
         "permission_scheme_supported",
-        description="False for team-managed projects, whose scheme grants are not exported.",
+        description="Derived from style; false for next-gen projects, whose scheme grants are not exported.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."
@@ -293,18 +301,19 @@ class JiraProjectSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class JiraProjectRoleProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id", description="Cloud ID, role kind, and URL-escaped project and role IDs."
     )
     role_id: PropertyRef = PropertyRef(
         "role_id",
-        description="Jira role ID; role assignments are scoped to the project.",
+        description="project/{id}/role/{roleId} id; assignments are scoped to the project.",
     )
-    name: PropertyRef = PropertyRef("name", description="Role name.")
+    name: PropertyRef = PropertyRef("name", description="Project role name.")
     description: PropertyRef = PropertyRef(
-        "description", description="Role description."
+        "description", description="Project role description."
     )
     admin: PropertyRef = PropertyRef(
-        "admin", description="Whether Jira identifies this as the project admin role."
+        "admin",
+        description="Project role admin flag; does not infer effective permissions.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."
@@ -327,28 +336,32 @@ class JiraProjectRoleSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class JiraPermissionGrantProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "id", description="Tenant-scoped stable resource identifier."
+        "id",
+        description="Cloud ID, grant kind, and URL-escaped project, scheme, and grant IDs.",
     )
     grant_id: PropertyRef = PropertyRef(
-        "grant_id", description="Permission grant ID within the scheme."
+        "grant_id",
+        description="permissionscheme/{id} permissions[].id within the scheme.",
     )
     scheme_id: PropertyRef = PropertyRef(
-        "scheme_id", description="Permission scheme ID."
+        "scheme_id", description="Assigned permissionscheme id."
     )
     permission: PropertyRef = PropertyRef(
         "permission",
-        description="Permission key such as BROWSE_PROJECTS or ADMINISTER_PROJECTS.",
+        extra_index=True,
+        description="permissions[].permission, such as BROWSE_PROJECTS or ADMINISTER_PROJECTS.",
     )
     holder_type: PropertyRef = PropertyRef(
         "holder_type",
-        description="Jira permission holder type, including conditional or app-specific holders.",
+        description="permissions[].holder.type, including conditional or app-specific holders.",
     )
     holder_parameter: PropertyRef = PropertyRef(
         "holder_parameter",
-        description="Original holder parameter, such as group name or role ID.",
+        description="Original permissions[].holder.parameter, such as group name or role ID.",
     )
     holder_value: PropertyRef = PropertyRef(
-        "holder_value", description="Original stable holder value, such as group ID."
+        "holder_value",
+        description="Original permissions[].holder.value, such as group ID.",
     )
     tenant_id: PropertyRef = PropertyRef(
         "TENANT_ID", set_in_kwargs=True, description="Jira Cloud ID."

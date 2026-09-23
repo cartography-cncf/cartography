@@ -21,7 +21,5 @@ def start_jira_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.jira_api_token,
         config.jira_site_url,
     )
-    try:
+    with client.session:
         sync(neo4j_session, client, config.update_tag)
-    finally:
-        client.session.close()

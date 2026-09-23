@@ -4,7 +4,9 @@ from uuid import UUID
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+from cartography.client.http import CappedRetry
+from cartography.util import DEFAULT_MAX_PAGES
 
 
 class JiraClient:
@@ -39,7 +41,7 @@ class JiraClient:
         self.session.mount(
             "https://",
             HTTPAdapter(
-                max_retries=Retry(
+                max_retries=CappedRetry(
                     total=3,
                     backoff_factor=1,
                     status_forcelist=(429, 502, 503, 504),
@@ -68,7 +70,7 @@ class JiraClient:
         result: list[dict[str, Any]] = []
         start = 0
         previous = None
-        while True:
+        for _ in range(DEFAULT_MAX_PAGES):
             page = self.get(
                 path,
                 startAt=start,
@@ -109,3 +111,6 @@ class JiraClient:
                 return result
             previous = values
             start += len(values)
+        raise RuntimeError(
+            f"Jira pagination exceeded {DEFAULT_MAX_PAGES} pages for {path}"
+        )

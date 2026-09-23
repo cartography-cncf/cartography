@@ -1,6 +1,8 @@
+from collections.abc import Iterator
 from copy import deepcopy
 from unittest.mock import Mock
 
+import neo4j
 import pytest
 import requests
 
@@ -16,6 +18,15 @@ from tests.data.jira.access import PROJECTS
 from tests.data.jira.access import USERS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
+
+@pytest.fixture(autouse=True)  # type: ignore[misc]
+def clean_graph(neo4j_session: neo4j.Session) -> Iterator[None]:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    try:
+        yield
+    finally:
+        neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def api_client(cloud_id=CLOUD_ID):
@@ -49,9 +60,8 @@ def api_client(cloud_id=CLOUD_ID):
     return client, state
 
 
-def test_sync_access_graph_and_ontology(neo4j_session):
+def test_sync_access_graph_and_ontology(neo4j_session: neo4j.Session) -> None:
     # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
     client, _ = api_client()
     # Act
     sync(neo4j_session, client, 1)
@@ -131,9 +141,10 @@ def test_sync_access_graph_and_ontology(neo4j_session):
     assert dict(row) == {"permission": "BROWSE_PROJECTS", "holders": 0}
 
 
-def test_cleanup_removes_stale_nodes_and_edges_without_cross_tenant_loss(neo4j_session):
+def test_cleanup_removes_stale_nodes_and_edges_without_cross_tenant_loss(
+    neo4j_session: neo4j.Session,
+) -> None:
     # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
     client, state = api_client()
     other, _ = api_client(OTHER_CLOUD_ID)
     sync(neo4j_session, client, 1)
@@ -203,9 +214,10 @@ def test_cleanup_removes_stale_nodes_and_edges_without_cross_tenant_loss(neo4j_s
     }
 
 
-def test_late_api_failure_preserves_entire_previous_snapshot(neo4j_session):
+def test_late_api_failure_preserves_entire_previous_snapshot(
+    neo4j_session: neo4j.Session,
+) -> None:
     # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
     client, state = api_client()
     sync(neo4j_session, client, 1)
     before = neo4j_session.run("MATCH (n) RETURN count(n) AS count").single()["count"]
@@ -231,9 +243,10 @@ def test_late_api_failure_preserves_entire_previous_snapshot(neo4j_session):
     )
 
 
-def test_deleted_user_tombstones_leave_references_unlinked(neo4j_session):
+def test_deleted_user_tombstones_leave_references_unlinked(
+    neo4j_session: neo4j.Session,
+) -> None:
     # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
     client, state = api_client()
     sync(neo4j_session, client, 1)
     tombstone = {"accountId": "unknown", "active": False, "displayName": "Former user"}
@@ -313,3 +326,38 @@ def test_deleted_user_tombstones_leave_references_unlinked(neo4j_session):
         "HAS_PERMISSION",
         rel_direction_right=True,
     ) == {("user-1", "5")}
+
+
+@pytest.mark.parametrize("source", ["membership", "lead"])  # type: ignore[misc]
+def test_nested_profiles_preserve_listed_user_fields(
+    neo4j_session: neo4j.Session, source: str
+) -> None:
+    # Arrange
+    client, state = api_client()
+    # UserDetails permits a null email and an alternative display name for privacy.
+    profile = {**USERS[0], "emailAddress": None, "displayName": "Restricted profile"}
+    if source == "membership":
+        state["memberships"]["group-1"] = [profile, deepcopy(USERS[1])]
+        state["memberships"]["group-2"] = [profile]
+        state["projects"][0]["lead"] = None
+    else:
+        state["projects"][0]["lead"] = profile
+    # Act
+    sync(neo4j_session, client, 1)
+    sync_ontology_users(neo4j_session, ["jira"], 1, {"UPDATE_TAG": 1})
+    # Assert
+    assert check_nodes(
+        neo4j_session, "JiraUser", ["account_id", "display_name", "email"]
+    ) == {
+        ("user-1", USERS[0]["displayName"], "user@example.com"),
+        ("user-2", USERS[1]["displayName"], None),
+    }
+    assert check_rels(
+        neo4j_session,
+        "User",
+        "email",
+        "JiraUser",
+        "account_id",
+        "HAS_ACCOUNT",
+        rel_direction_right=True,
+    ) == {("user@example.com", "user-1")}

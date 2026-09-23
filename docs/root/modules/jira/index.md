@@ -8,6 +8,8 @@ It does not ingest issues or create tickets.
 Visible email addresses can link these accounts to canonical users with
 `--selected-modules jira,ontology --ontology-users-source jira`. Hidden email
 addresses are left absent; the module does not infer them from names.
+The complete user listing supplies profile fields; nested membership and lead
+profiles supply fields only for accounts absent from that listing.
 `JiraTenant` carries the `Tenant` ontology label.
 Atlassian's inactive, corrupted deleted-user records with account ID `unknown`
 are omitted. References to these tombstones remain unlinked; their permission
@@ -50,6 +52,10 @@ Each project needs one role-list request and one request per role. Each
 company-managed project needs one permission-scheme assignment request; each
 unique scheme is fetched once. There are also two preflight/site-info requests.
 No per-user by per-project permission checks are performed.
+Requests reuse one session and run sequentially to limit concurrent API load.
+The module logs group and project counts before fetching their detail records.
+Each paginated listing is limited to 10,000 pages. If Jira keeps returning pages
+past that limit, the sync fails before graph writes or cleanup.
 
 ```{toctree}
 config

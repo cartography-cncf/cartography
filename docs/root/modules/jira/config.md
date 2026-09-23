@@ -94,7 +94,8 @@ cartography --neo4j-uri bolt://localhost:7687 \
   required Jira global permissions. Scoped tokens use the gateway; unscoped
   tokens use the site URL override.
 - **429 or transient failures**: The client retries GET requests up to three
-  times on 429, 502, 503, and 504, honoring `Retry-After` with exponential backoff.
+  times on 429, 502, 503, and 504. Each `Retry-After` delay is capped at eight
+  seconds; without that header, retries use exponential backoff.
   Exhausted retries abort the snapshot and preserve the previous graph. The
   connect/read timeouts are 10/60 seconds per request.
 - **Missing emails**: Atlassian profile visibility may hide an email even from

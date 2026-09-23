@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from urllib.parse import quote
 from urllib.parse import urlsplit
@@ -15,6 +16,8 @@ from cartography.models.jira.access import JiraProjectSchema
 from cartography.models.jira.access import JiraTenantSchema
 from cartography.models.jira.access import JiraUserSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -37,6 +40,7 @@ def get(client: JiraClient) -> dict[str, Any]:
         access: client.pages("group/bulk", accessType=access)
         for access in ("admin", "site-admin")
     }
+    logger.info("Fetching Jira membership for %d groups", len(groups))
     memberships = {
         group["groupId"]: client.pages(
             "group/member", groupId=group["groupId"], includeInactiveUsers="true"
@@ -44,6 +48,9 @@ def get(client: JiraClient) -> dict[str, Any]:
         for group in groups
     }
     projects = client.pages("project/search", expand="lead", status="live")
+    logger.info(
+        "Fetching Jira roles and permission schemes for %d projects", len(projects)
+    )
     roles = {}
     schemes: dict[str, Any] = {}
     for project in projects:
@@ -101,14 +108,16 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             admin_types[group["groupId"]].append(access)
     group_names = {g["name"]: g["groupId"] for g in groups.values()}
     users = {u["accountId"]: dict(u) for u in raw["users"] if not _is_deleted_user(u)}
-    user_groups: dict[str, list[str]] = {}
+    user_groups: dict[str, set[str]] = {}
     for group_id, members in raw["memberships"].items():
         for user in members:
             if _is_deleted_user(user):
                 continue
             account_id = user["accountId"]
-            users.setdefault(account_id, {}).update(user)
-            user_groups.setdefault(account_id, []).append(
+            # The complete user listing owns profile fields. Nested profiles can
+            # be privacy-restricted; use them only for otherwise unlisted users.
+            users.setdefault(account_id, dict(user))
+            user_groups.setdefault(account_id, set()).add(
                 resource_id(tenant_id, "group", group_id)
             )
     projects = []
@@ -120,7 +129,7 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
         if lead is not None and _is_deleted_user(lead):
             lead = None
         if lead:
-            users.setdefault(lead["accountId"], {}).update(lead)
+            users.setdefault(lead["accountId"], dict(lead))
         scheme_id = project.get("permission_scheme_id")
         projects.append(
             {
@@ -138,8 +147,8 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             }
         )
         for role in raw["roles"][project["id"]]:
-            role_users = []
-            role_groups = []
+            role_users: set[str] = set()
+            role_groups: set[str] = set()
             for actor in role["actors"]:
                 if actor["type"] == "atlassian-user-role-actor":
                     account_id = actor["actorUser"]["accountId"]
@@ -152,12 +161,12 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
                             "displayName": actor.get("displayName"),
                         },
                     )
-                    role_users.append(resource_id(tenant_id, "user", account_id))
+                    role_users.add(resource_id(tenant_id, "user", account_id))
                 elif actor["type"] == "atlassian-group-role-actor":
                     group_id = actor["actorGroup"]["groupId"]
                     # Require the group to be present in the completed group inventory.
                     groups[group_id]
-                    role_groups.append(resource_id(tenant_id, "group", group_id))
+                    role_groups.add(resource_id(tenant_id, "group", group_id))
                 else:
                     raise ValueError(
                         f"Unsupported Jira role actor type: {actor['type']}"
@@ -170,8 +179,8 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
                     "name": role["name"],
                     "description": role.get("description"),
                     "admin": role.get("admin"),
-                    "user_ids": role_users,
-                    "group_ids": role_groups,
+                    "user_ids": sorted(role_users),
+                    "group_ids": sorted(role_groups),
                 }
             )
         if scheme_id is None:
@@ -238,7 +247,7 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
                 "email": u.get("emailAddress"),
                 "active": u.get("active"),
                 "account_type": u.get("accountType"),
-                "group_ids": user_groups.get(uid, []),
+                "group_ids": sorted(user_groups.get(uid, set())),
             }
             for uid, u in users.items()
         ],
