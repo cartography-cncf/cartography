@@ -1,8 +1,45 @@
 from unittest.mock import MagicMock
 
+import botocore.exceptions
 import pytest
 
 from cartography.intel.aws import bedrock
+
+
+@pytest.mark.parametrize(
+    ("error_code", "expected_exception"),
+    [
+        (
+            "InternalServerException",
+            bedrock.knowledge_bases.BedrockKnowledgeBaseRegionServerError,
+        ),
+        ("AccessDeniedException", botocore.exceptions.ClientError),
+    ],
+)
+def test_bedrock_knowledge_base_region_error_classification(
+    error_code, expected_exception
+):
+    # Arrange
+    def raises_error():
+        raise botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": error_code,
+                    "Message": "The server encountered an internal error",
+                }
+            },
+            "ListKnowledgeBases",
+        )
+
+    wrapped = (
+        bedrock.knowledge_bases._reraise_bedrock_knowledge_base_region_server_errors(
+            raises_error
+        )
+    )
+
+    # Act and assert
+    with pytest.raises(expected_exception):
+        wrapped()
 
 
 @pytest.mark.parametrize("agent_regions", [[], ["ap-southeast-4", "us-west-2"]])
