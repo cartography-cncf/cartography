@@ -49,6 +49,64 @@ AWS_LAMBDA_ECR = AnalysisJob(
         ),
     ),
 )
+AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
+    name="Resolve ELBV2 IP targets to private IP identities",
+    short_name="aws_lb_ip_target_exposure",
+    scope=ScopeById("AWSAccount", "AWS_ID", scope_on="lb"),
+    statements=(
+        AnalysisStatement(
+            comment="Resolve local/shared-VPC targets or explicit ECS service targets; skip ambiguous identities.",
+            # Expand only this balancer's registrations, not every target in the batch.
+            # Each registration must resolve to one ENI-specific IP identity; several
+            # candidates mean overlapping addresses remain ambiguous, not multiple targets.
+            match="""
+            MATCH (lb:AWSLoadBalancerV2)
+            UNWIND $IP_TARGETS_BY_LB[lb.id] AS target
+            MATCH (lb:AWSLoadBalancerV2 {id: target.LoadBalancerId})
+            CALL {
+                WITH target, lb
+                MATCH (ip:AWSEC2PrivateIp {private_ip_address: target.TargetId})
+                      <-[:PRIVATE_IP_ADDRESS]-(eni:AWSNetworkInterface)
+                      -[:PART_OF_SUBNET]->(subnet:AWSEC2Subnet)
+                WHERE subnet.vpc_id = target.VpcId AND eni.region = lb.region
+                RETURN ip
+                UNION
+                WITH target, lb
+                MATCH (:AWSELBV2TargetGroup {id: target.TargetGroupArn})
+                      -[:TARGETS]->(:AWSECSService)
+                      <-[:WORKLOAD_PARENT]-(:AWSECSTask)
+                      -[:NETWORK_INTERFACE]->(:AWSNetworkInterface)
+                      -[:PRIVATE_IP_ADDRESS]->(ip:AWSEC2PrivateIp {private_ip_address: target.TargetId})
+                RETURN ip
+            }
+            WITH lb, target, collect(DISTINCT ip) AS candidates
+            WHERE size(candidates) = 1
+            WITH lb, target, candidates[0] AS ip
+            """,
+            effects=(
+                AddRelationship(
+                    "lb",
+                    "EXPOSE",
+                    "ip",
+                    source_label="AWSLoadBalancerV2",
+                    target_label="AWSEC2PrivateIp",
+                    properties={
+                        "port": Var("target.Port"),
+                        "protocol": Var("target.Protocol"),
+                        "target_group_arn": Var("target.TargetGroupArn"),
+                        # Retain the legacy MatchLink ownership fields so its existing
+                        # edges participate in the same account-scoped cleanup.
+                        "_sub_resource_label": "AWSAccount",
+                        "_sub_resource_id": Param("AWS_ID"),
+                    },
+                    # Load batches without cleanup. Only a complete account inventory
+                    # enables cleanup, including edges written by the legacy MatchLink.
+                    cleanup_where="$CLEANUP_SAFE AND r._sub_resource_label = 'AWSAccount' AND r._sub_resource_id = $AWS_ID",
+                ),
+            ),
+        ),
+    ),
+)
 AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     name="AWS LoadBalancer to ECS Container direct relationship",
     short_name="aws_lb_container_exposure",

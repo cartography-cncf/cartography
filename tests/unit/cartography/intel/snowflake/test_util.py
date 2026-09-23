@@ -14,6 +14,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from cartography.intel.snowflake.network_rules import get_schema_network_rules
 from cartography.intel.snowflake.util import account_host
 from cartography.intel.snowflake.util import hyphenated_account_id
 from cartography.intel.snowflake.util import is_sql_unavailable
@@ -53,9 +54,11 @@ def _shutdown(server: ThreadingHTTPServer) -> None:
     server._thread.join()  # type: ignore[attr-defined]
 
 
-def _respond_json(handler: BaseHTTPRequestHandler, payload: object, **headers: str):
+def _respond_json(
+    handler: BaseHTTPRequestHandler, payload: object, status: int = 200, **headers: str
+):
     body = json.dumps(payload).encode()
-    handler.send_response(200)
+    handler.send_response(status)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     for name, value in headers.items():
@@ -225,6 +228,104 @@ def test_run_sql_returns_all_partitions_keyed_by_lowercase_column():
     ]
 
 
+@pytest.mark.parametrize("status", [307, 308])
+@pytest.mark.parametrize(
+    "location, expected_path",
+    [
+        ("/redirected?partition=1", "/redirected?partition=1"),
+        ("?partition=1", "/api/v2/statements/handle-sql?partition=1"),
+        ("#done", "/api/v2/statements/handle-sql?partition=1"),
+    ],
+)
+def test_run_sql_uses_redirect_partition_without_duplicating_params(
+    status, location, expected_path
+):
+    # Arrange
+    requested = []
+
+    class Handler(_SqlHandler):
+        def do_GET(self):
+            requested.append(self.path)
+            if len(requested) == 1:
+                _respond_json(self, {}, status=status, Location=location)
+            elif self.path == expected_path:
+                super().do_GET()
+            else:
+                _respond_json(self, {"data": [["ROLE_ONE", "1751412460.000"]]})
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act
+        rows = client.run_sql("SHOW ROLES")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert rows == [
+        {"name": "ROLE_ONE", "created_on": "1751412460.000"},
+        {"name": "ROLE_TWO", "created_on": "1751412461.000"},
+    ]
+    assert requested == [
+        "/api/v2/statements/handle-sql?partition=1",
+        expected_path,
+    ]
+
+
+def test_run_sql_polls_statement_status_url_and_reads_all_partitions(mocker):
+    # Arrange
+    requested = []
+    status_url = "/api/v2/statements/handle-sql"
+
+    class Handler(_SqlHandler):
+        def do_POST(self):
+            requested.append(("POST", self.path))
+            _respond_json(self, {"statementStatusUrl": status_url}, status=202)
+
+        def do_GET(self):
+            requested.append(("GET", self.path))
+            if "partition=" in self.path:
+                super().do_GET()
+            elif len(requested) == 2:
+                _respond_json(self, {"statementStatusUrl": status_url}, status=202)
+            else:
+                super().do_POST()
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    mocker.patch("cartography.intel.snowflake.util.time.sleep")
+    try:
+        # Act
+        rows = client.run_sql("SHOW ROLES")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert rows == [
+        {"name": "ROLE_ONE", "created_on": "1751412460.000"},
+        {"name": "ROLE_TWO", "created_on": "1751412461.000"},
+    ]
+    assert requested[0][0] == "POST"
+    assert requested[1:] == [
+        ("GET", status_url),
+        ("GET", status_url),
+        ("GET", status_url + "?partition=1"),
+    ]
+
+
+@pytest.mark.parametrize("body", [b"{}", b"[]", b"not json"])
+def test_async_response_without_polling_url_fails(body):
+    # Arrange
+    response = requests.Response()
+    response.status_code = 202
+    response._content = body
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act and assert
+    with pytest.raises(SnowflakeSqlError, match="cannot poll"):
+        client._await_async(response)
+
+
 def test_run_sql_surfaces_snowflake_error_message():
     # Arrange
     server = _serve(_SqlErrorHandler)
@@ -385,22 +486,71 @@ def test_sf_fqn_quotes_only_non_uppercase_identifiers():
     assert sf_fqn("PROD", 'we"ird') == 'PROD."we""ird"'
     # Snowflake requires quoting an identifier that does not start with a letter.
     assert sf_fqn("PROD", "1DB") == 'PROD."1DB"'
+    assert sf_fqn("PROD", "CAFÉ") == 'PROD."CAFÉ"'
     with pytest.raises(ValueError):
         sf_fqn("PROD", "")
 
 
-def test_sf_path_segment_escapes_url_significant_characters():
-    # A plain identifier is left alone, so the common case produces a readable URL.
-    assert sf_path_segment("PROD") == "PROD"
-    assert sf_path_segment("MY_DB$1") == "MY_DB%241"
-    # A quoted Snowflake name may contain characters that are structural in a URL.
-    # Each has to be escaped, or the request addresses a different endpoint.
-    assert sf_path_segment("my/db") == "my%2Fdb"
-    assert sf_path_segment("prod?1") == "prod%3F1"
-    assert sf_path_segment("a b") == "a%20b"
-    assert sf_path_segment("d#1") == "d%231"
-    # Not the dotted quoted form: the REST path wants the raw name.
-    assert sf_path_segment("sales") == "sales"
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("PROD", "PROD"),
+        ("MY_DB$1", "MY_DB%241"),
+        ("example_schema", "%22example_schema%22"),
+        ("ExampleSchema", "%22ExampleSchema%22"),
+        ("my/db", "%22my%2Fdb%22"),
+        ("prod?1", "%22prod%3F1%22"),
+        ("a b", "%22a%20b%22"),
+        ("d#1", "%22d%231%22"),
+        ("a.b", "%22a.b%22"),
+        ('a"b', "%22a%22%22b%22"),
+        ("a%2Fb", "%22a%252Fb%22"),
+        ("1DB", "%221DB%22"),
+        ("CAFÉ", "%22CAF%C3%89%22"),
+    ],
+)
+def test_sf_path_segment_preserves_identifier(name, expected):
+    # Act
+    result = sf_path_segment(name)
+
+    # Assert
+    assert result == expected
+
+
+def test_network_rules_request_preserves_case_and_encoded_pagination():
+    # Arrange
+    requested_paths = []
+    first_path = (
+        "/api/v2/databases/%22ExampleDB%22/schemas/%22example_schema%22/network-rules"
+    )
+    next_path = first_path + "?fromName=a%2Fb"
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requested_paths.append(self.path)
+            if self.path == first_path:
+                _respond_json(
+                    self, [{"name": "RULE_ONE"}], Link=f'<{next_path}>; rel="next"'
+                )
+            elif self.path == next_path:
+                _respond_json(self, [{"name": "RULE_TWO"}])
+            else:
+                self.send_error(404)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act
+        result = get_schema_network_rules(client, "ExampleDB", "example_schema")
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert result == [{"name": "RULE_ONE"}, {"name": "RULE_TWO"}]
+    assert requested_paths == [first_path, next_path]
 
 
 def test_hyphenated_account_id_accepts_either_input_form():
@@ -470,3 +620,146 @@ def test_is_sql_unavailable_distinguishes_gating_from_failure():
     assert is_sql_unavailable(SnowflakeSqlError("Unsupported feature 'X'."))
     assert is_sql_unavailable(SnowflakeSqlError("Insufficient privileges to operate"))
     assert not is_sql_unavailable(SnowflakeSqlError("Syntax error at line 1"))
+
+
+@pytest.mark.parametrize("source", ["location", "body", "pagination"])
+def test_response_urls_cannot_send_credentials_to_another_origin(source):
+    # Arrange
+    received = []
+
+    class Destination(_SqlHandler):
+        def do_GET(self):
+            received.append(self.headers.get("Authorization"))
+            _respond_json(self, [])
+
+    destination = _serve(Destination)
+    target = f"http://127.0.0.1:{destination.server_port}/api/v2/results/other"
+
+    class Origin(_SqlHandler):
+        def do_GET(self):
+            if source == "pagination":
+                _respond_json(self, [], Link=f'<{target}>; rel="next"')
+            elif source == "location":
+                _respond_json(self, {}, status=202, Location=target)
+            else:
+                _respond_json(self, {"statementStatusUrl": target}, status=202)
+
+    origin = _serve(Origin)
+    client = _build_client(origin.server_port)
+    try:
+        # Act and assert
+        with pytest.raises(ValueError, match="configured account origin"):
+            client.list_all("/api/v2/roles")
+        assert received == []
+    finally:
+        client._session.close()
+        _shutdown(origin)
+        _shutdown(destination)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "https://other.example/api/v2/results/1",
+        "//other.example/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com.other.example/results/1",
+        "http://myorg-myacct.snowflakecomputing.com/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com:444/api/v2/results/1",
+        "https://myorg-myacct.snowflakecomputing.com:0/api/v2/results/1",
+        "https://user@myorg-myacct.snowflakecomputing.com/api/v2/results/1",
+    ],
+)
+def test_api_url_rejects_origin_changes(target):
+    # Arrange
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act and assert
+    with pytest.raises(ValueError, match="configured account origin"):
+        client._absolute(target)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "/api/v2/results/%22Mixed%2FCase%22?page=2",
+        "https://myorg-myacct.snowflakecomputing.com/api/v2/results/%22Mixed%2FCase%22?page=2",
+        "https://myorg-myacct.snowflakecomputing.com:443/api/v2/results/%22Mixed%2FCase%22?page=2",
+    ],
+)
+def test_api_url_preserves_same_origin_encoded_paths(target):
+    # Arrange
+    client = SnowflakeClient(TEST_ACCOUNT, "svc", pat="test-pat")
+
+    # Act
+    resolved = client._absolute(target)
+
+    # Assert
+    assert resolved.endswith("/api/v2/results/%22Mixed%2FCase%22?page=2")
+
+
+@pytest.mark.parametrize("source", ["location", "body", "pagination"])
+@pytest.mark.parametrize("off_origin", [False, True])
+def test_redirects_from_poll_and_pagination_urls_are_validated(
+    mocker, source, off_origin
+):
+    # Arrange
+    received = []
+
+    class Destination(_SqlHandler):
+        def do_GET(self):
+            received.append(self.headers.get("Authorization"))
+            _respond_json(self, [{"name": "SUBSTITUTED"}])
+
+    destination = _serve(Destination)
+
+    class Origin(_SqlHandler):
+        def do_GET(self):
+            if self.path == "/redirect":
+                target = (
+                    f"http://127.0.0.1:{destination.server_port}/result"
+                    if off_origin
+                    else "/result"
+                )
+                _respond_json(self, {}, status=302, Location=target)
+            elif self.path == "/result":
+                _respond_json(self, [{"name": "EXPECTED"}])
+            elif source == "pagination":
+                _respond_json(self, [], Link='</redirect>; rel="next"')
+            elif source == "location":
+                _respond_json(self, {}, status=202, Location="/redirect")
+            else:
+                _respond_json(self, {"statementStatusUrl": "/redirect"}, status=202)
+
+    origin = _serve(Origin)
+    client = _build_client(origin.server_port)
+    mocker.patch("cartography.intel.snowflake.util.time.sleep")
+    try:
+        # Act and assert
+        if off_origin:
+            with pytest.raises(ValueError, match="configured account origin"):
+                client.list_all("/api/v2/roles")
+        else:
+            assert client.list_all("/api/v2/roles") == [{"name": "EXPECTED"}]
+        assert received == []
+    finally:
+        client._session.close()
+        _shutdown(origin)
+        _shutdown(destination)
+
+
+def test_redirect_loop_is_bounded():
+    # Arrange
+    class Handler(_SqlHandler):
+        def do_GET(self):
+            _respond_json(self, {}, status=302, Location="/loop")
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    client._session.max_redirects = 1
+    try:
+        # Act and assert
+        with pytest.raises(requests.TooManyRedirects):
+            client.list_all("/loop")
+    finally:
+        client._session.close()
+        _shutdown(server)

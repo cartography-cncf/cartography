@@ -170,7 +170,14 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
         MERGE (private_ip:AWSEC2PrivateIp{private_ip_address: $private_ip_address})
         ON CREATE SET private_ip.firstseen = timestamp()
-        SET private_ip.lastupdated = $aws_update_tag
+        SET private_ip.lastupdated = $aws_update_tag,
+            private_ip.id = 'eni-target:' + $private_ip_address
+        MERGE (eni:AWSNetworkInterface {id: 'eni-target'})
+        SET eni.region = 'us-east-1', elbv2.region = 'us-east-1'
+        MERGE (eni)-[:PRIVATE_IP_ADDRESS]->(private_ip)
+        MERGE (subnet:AWSEC2Subnet {id: 'subnet-target'})
+        SET subnet.vpc_id = 'vpc-12345'
+        MERGE (eni)-[:PART_OF_SUBNET]->(subnet)
 
         MERGE (lambda_fn:AWSLambda{id: $lambda_arn})
         ON CREATE SET lambda_fn.firstseen = timestamp()
@@ -183,6 +190,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag, aws :Tenant
+        MERGE (aws)-[:RESOURCE]->(elbv2)
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
