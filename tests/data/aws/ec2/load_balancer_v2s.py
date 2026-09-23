@@ -60,6 +60,7 @@ GET_LOAD_BALANCER_V2_DATA = [
                 "Protocol": "HTTP",
                 "Port": 8080,
                 "TargetType": "ip",
+                "VpcId": "vpc-12345678",
                 "Targets": ["10.0.0.50", "10.0.0.51"],
             },
         ],
@@ -128,3 +129,37 @@ MIXED_CASE_LOAD_BALANCER_V2_DATA = [
         "TargetGroups": [],
     },
 ]
+
+
+# Separate AWS responses for IP-target identity and exposure regression tests.
+IP_TARGET_API_PAGES = {
+    "describe_load_balancers": {
+        "LoadBalancers": [
+            {
+                "LoadBalancerArn": "synthetic-load-balancer",
+                "DNSName": "lb.example.invalid",
+                "LoadBalancerName": "synthetic-lb",
+                "CreatedTime": datetime.datetime(2026, 1, 1),
+                "Type": "network",
+                "Scheme": "internet-facing",
+            }
+        ]
+    },
+    "describe_listeners": {
+        "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}]
+    },
+    "describe_target_groups": {
+        "TargetGroups": [
+            {
+                "TargetGroupArn": "synthetic-target-group",
+                "TargetType": "ip",
+                "VpcId": "vpc-local",
+                "Port": 443,
+                "Protocol": "TCP",
+            }
+        ]
+    },
+}
+IP_TARGET_HEALTH = {
+    "TargetHealthDescriptions": [{"Target": {"Id": "10.0.0.10", "Port": 443}}]
+}

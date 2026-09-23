@@ -41,6 +41,13 @@ def build_query() -> dict[str, Any]:
                         "type": "object",
                         "operator": "has",
                     },
+                    # VulnerabilityV2 also includes non-CVE advisories.
+                    {
+                        "key": "CveId",
+                        "type": "str",
+                        "operator": "containing",
+                        "values": ["CVE-"],
+                    },
                 ],
             },
         },
@@ -62,6 +69,13 @@ def _optional_bool(value: Any) -> bool | None:
     raise ValueError("Unexpected Orca boolean value")
 
 
+def _patch_available(value: Any) -> bool | None:
+    # Orca includes extended-maintenance patches in its "Patch Available" filter.
+    if str(value).strip().lower() == "extended":
+        return True
+    return _optional_bool(value)
+
+
 def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
     value = row.get("InstalledPackage")
     if value is None:
@@ -76,7 +90,7 @@ def _related_packages(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _package_properties(package: dict[str, Any]) -> dict[str, str | None]:
-    return {
+    properties = {
         field: optional_nonempty_string(
             package.get(orca_field),
             f"Orca vulnerability.InstalledPackage.{orca_field}",
@@ -88,9 +102,13 @@ def _package_properties(package: dict[str, Any]) -> dict[str, str | None]:
             ("package_version", "Version"),
             ("purl", "PURL"),
             ("cpe", "CPE"),
-            ("source_package", "SourcePackage"),
         )
     }
+    properties["source_package"] = optional_string(
+        package.get("SourcePackage"),
+        "Orca vulnerability.InstalledPackage.SourcePackage",
+    )
+    return properties
 
 
 def _package_key(package: dict[str, str | None]) -> tuple[str, ...]:
@@ -189,7 +207,7 @@ def transform(
             ),
             "has_exploit": _optional_bool(vulnerability.get("HasExploit")),
             "cisa_kev": _optional_bool(vulnerability.get("CisaKev")),
-            "patch_available": _optional_bool(
+            "patch_available": _patch_available(
                 vulnerability.get("PatchAvailable"),
             ),
             "trending": _optional_bool(vulnerability.get("Trending")),

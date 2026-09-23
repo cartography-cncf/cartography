@@ -327,25 +327,6 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
-    """Indicates that the load balancer exposes a private IP address as a traffic target."""
-
-    target_node_label: str = "AWSEC2PrivateIp"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"private_ip_address": PropertyRef("TargetId")},
-    )
-    source_node_label: str = "AWSLoadBalancerV2"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"id": PropertyRef("LoadBalancerId")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "EXPOSE"
-    properties: LoadBalancerV2ToTargetRelProperties = (
-        LoadBalancerV2ToTargetRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
     """Indicates that the load balancer exposes a Lambda function as a traffic target."""
 
