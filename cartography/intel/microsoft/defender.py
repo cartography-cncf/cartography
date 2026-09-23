@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -6,14 +7,16 @@ import neo4j
 import requests
 from azure.core.credentials import TokenCredential
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from cartography.client.core.tx import load
+from cartography.client.http import CappedRetry
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
+from cartography.intel.microsoft.util import normalize_azure_ad_device_id
 from cartography.models.microsoft.defender import DefenderAlertSchema
 from cartography.models.microsoft.defender import DefenderMachineSchema
+from cartography.util import DEFAULT_MAX_PAGES
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ def create_session() -> requests.Session:
     session.mount(
         "https://",
         HTTPAdapter(
-            max_retries=Retry(
+            max_retries=CappedRetry(
                 total=5,
                 backoff_factor=1,
                 status_forcelist=[429, 500, 502, 503, 504],
@@ -60,7 +63,7 @@ def get_collection(
     results: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     seen_links: set[str] = set()
-    while True:
+    for _ in range(DEFAULT_MAX_PAGES):
         # Azure Identity caches tokens and refreshes them when necessary.
         token = credential.get_token(scope).token
         response = session.get(
@@ -109,6 +112,7 @@ def get_collection(
             query = {**params, "$skip": len(results)}
         else:
             return results
+    raise ValueError("Defender API exceeded the pagination limit; snapshot incomplete")
 
 
 @timeit
@@ -141,19 +145,39 @@ def get_alerts(
 def transform_machines(
     machines: list[dict[str, Any]], tenant_id: str
 ) -> list[dict[str, Any]]:
-    return [
-        {
+    result = []
+    for machine in machines:
+        normalized_id = normalize_azure_ad_device_id(machine.get("aadDeviceId"))
+        data = {
             **machine,
             "id": f"{tenant_id}/{machine['id']}",
             "machine_id": machine["id"],
-            "aadDeviceId": (
-                machine.get("aadDeviceId") or None
-                if machine.get("aadDeviceId") != "00000000-0000-0000-0000-000000000000"
-                else None
-            ),
+            "aadDeviceId": machine.get("aadDeviceId") if normalized_id else None,
+            "aad_device_id_normalized": normalized_id,
         }
-        for machine in machines
-    ]
+        _parse_timestamps(data, ("firstSeen", "lastSeen"))
+        result.append(data)
+    return result
+
+
+def _parse_timestamps(record: dict[str, Any], fields: tuple[str, ...]) -> None:
+    """Convert optional provider metadata without discarding valid inventory."""
+    for field in fields:
+        value = record.get(field)
+        record[field] = None
+        if value is None or value == "":
+            continue
+        try:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None:
+                raise ValueError("Expected a timezone in the provider timestamp")
+            record[field] = parsed
+        except (TypeError, ValueError):
+            logger.warning(
+                "Defender record %s has invalid %s; omitting optional timestamp",
+                record["id"],
+                field,
+            )
 
 
 def transform_alerts(
@@ -184,6 +208,7 @@ def transform_alerts(
                 ),
             },
         )
+        _parse_timestamps(result[-1], ("createdDateTime", "lastUpdateDateTime"))
     return result
 
 

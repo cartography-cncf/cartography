@@ -70,6 +70,11 @@ class IntuneManagedDeviceNodeProperties(CartographyNodeProperties):
     azure_ad_device_id: PropertyRef = PropertyRef(
         "azure_ad_device_id", description="Microsoft Entra device ID."
     )
+    azure_ad_device_id_normalized: PropertyRef = PropertyRef(
+        "azure_ad_device_id_normalized",
+        extra_index=True,
+        description="Lowercase azureADDeviceId used for inventory joins; empty and all-zero IDs are excluded.",
+    )
     azure_ad_registered: PropertyRef = PropertyRef(
         "azure_ad_registered",
         description="Whether the device is registered in Entra ID.",

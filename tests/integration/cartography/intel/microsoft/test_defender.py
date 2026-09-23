@@ -1,8 +1,13 @@
 import asyncio
 import json
+from collections.abc import AsyncIterator
+from collections.abc import Iterator
+from datetime import datetime
+from datetime import timezone
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import neo4j
 import pytest
 import requests
 from msgraph.generated.models.managed_device import ManagedDevice
@@ -37,8 +42,8 @@ def _api_session(machines, alerts):
     return session
 
 
-@pytest.fixture(autouse=True)
-def reset_defender_graph(neo4j_session):
+@pytest.fixture(autouse=True)  # type: ignore[misc]
+def reset_defender_graph(neo4j_session: neo4j.Session) -> Iterator[None]:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     load(
         neo4j_session,
@@ -46,14 +51,18 @@ def reset_defender_graph(neo4j_session):
         [{"id": TENANT_ID}, {"id": OTHER_TENANT}],
         lastupdated=1,
     )
+    yield
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
-async def _sync_intune(neo4j_session, tenant_id, device_id):
-    async def devices(_client):
+async def _sync_intune(
+    neo4j_session: neo4j.Session, tenant_id: str, device_id: str
+) -> None:
+    async def devices(_client: object) -> AsyncIterator[ManagedDevice]:
         yield ManagedDevice(
             id=device_id,
             device_name="laptop.example.test",
-            azure_a_d_device_id=AAD_DEVICE_ID,
+            azure_a_d_device_id=AAD_DEVICE_ID.upper(),
         )
 
     with patch(
@@ -61,11 +70,17 @@ async def _sync_intune(neo4j_session, tenant_id, device_id):
         side_effect=devices,
     ):
         await sync_managed_devices(
-            neo4j_session, None, tenant_id, 1, {"TENANT_ID": tenant_id, "UPDATE_TAG": 1}
+            neo4j_session,
+            MagicMock(),
+            tenant_id,
+            1,
+            {"TENANT_ID": tenant_id, "UPDATE_TAG": 1},
         )
 
 
-def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(neo4j_session):
+def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(
+    neo4j_session: neo4j.Session,
+) -> None:
     # Arrange
     asyncio.run(_sync_intune(neo4j_session, TENANT_ID, "intune-1"))
     asyncio.run(_sync_intune(neo4j_session, OTHER_TENANT, "intune-other"))
@@ -118,6 +133,16 @@ def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(neo4j_s
         (f"{TENANT_ID}/machine-1", "intune-1"),
         (f"{OTHER_TENANT}/machine-1", "intune-other"),
     }
+    assert check_nodes(
+        neo4j_session,
+        "IntuneManagedDevice",
+        ["azure_ad_device_id", "azure_ad_device_id_normalized"],
+    ) == {(AAD_DEVICE_ID.upper(), AAD_DEVICE_ID)}
+    temporal = neo4j_session.run(
+        "MATCH (a:DefenderAlert) "
+        "RETURN count(a) AS count, min(a._ont_first_seen.year) AS first_year"
+    ).single(strict=True)
+    assert (temporal["count"], temporal["first_year"]) == (2, 2026)
     assert check_rels(
         neo4j_session, "DefenderAlert", "id", "DefenderMachine", "id", "AFFECTS"
     ) == {
@@ -129,7 +154,7 @@ def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(neo4j_s
     # Act: one machine ages out and the alert resolves; the remaining machine loses its Entra ID.
     defender.sync(
         neo4j_session,
-        _api_session([{"id": "machine-1"}], []),
+        _api_session([{"id": "machine-1", "lastSeen": "invalid"}], []),
         MagicMock(),
         TENANT_ID,
         2,
@@ -144,6 +169,13 @@ def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(neo4j_s
     assert check_nodes(neo4j_session, "DefenderAlert", ["id"]) == {
         (f"{OTHER_TENANT}/alert-1",)
     }
+    assert (
+        neo4j_session.run(
+            "MATCH (m:DefenderMachine {id: $id}) RETURN m.last_seen AS seen",
+            id=f"{TENANT_ID}/machine-1",
+        ).single(strict=True)["seen"]
+        is None
+    )
     assert check_rels(
         neo4j_session,
         "DefenderMachine",
@@ -153,6 +185,14 @@ def test_sync_links_real_intune_transform_and_cleans_only_current_tenant(neo4j_s
         "ASSOCIATED_WITH",
     ) == {
         (f"{OTHER_TENANT}/machine-1", "intune-other"),
+    }
+
+    # Act: cleaning the other tenant must also preserve this tenant's remaining machine.
+    defender.sync(neo4j_session, _api_session([], []), MagicMock(), OTHER_TENANT, 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "DefenderMachine", ["id"]) == {
+        (f"{TENANT_ID}/machine-1",)
     }
 
 
@@ -234,6 +274,6 @@ def test_security_issue_mapping_preserves_unknown_values(
             normalized_severity,
             normalized_status,
             "antivirus",
-            "2026-09-17T09:00:00Z",
+            datetime(2026, 9, 17, 9, tzinfo=timezone.utc),
         )
     }

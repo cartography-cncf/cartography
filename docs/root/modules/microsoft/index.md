@@ -25,12 +25,19 @@ removed on the next successful sync. Alert device evidence links to retained
 machine inventory when that machine exists; no placeholder machines are created.
 
 Defender machines link to Intune managed devices using the Microsoft Entra device
-ID and tenant ID. That path also reaches Entra users through the existing Intune
+ID and tenant ID. Both imports normalize the device ID to an indexed lowercase
+lookup key while retaining the original ID. Intune refreshes that key before
+Defender runs; empty/all-zero IDs never create associations. That path also reaches Entra users through the existing Intune
 enrollment relationship. The API does not provide hardware serial numbers, so
 Defender machines do not create canonical `Device` nodes. Canonical devices already
 linked to Intune remain reachable through the Intune association. Defender alerts
 carry the `SecurityIssue` ontology label with normalized title, severity, status,
 type, and first-seen fields. Unknown severity and status values remain unmapped.
+Machine first/last-seen and alert creation/update times are native datetimes,
+including the ontology first-seen value. Malformed optional timestamps are omitted
+with a warning while the inventory is retained. Repeated records or pagination
+cursors indicate an unstable snapshot and abort before writes; rerun after
+concurrent provider changes settle.
 
 `microsoft` is the canonical top-level module name. `entra` remains accepted as a backward-compatible alias for module selection and ontology source configuration during the migration.
 

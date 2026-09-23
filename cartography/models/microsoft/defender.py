@@ -52,16 +52,21 @@ class DefenderMachineNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Microsoft Entra device ID, when available.",
     )
+    aad_device_id_normalized: PropertyRef = PropertyRef(
+        "aad_device_id_normalized",
+        description="Lowercase aadDeviceId used for inventory joins; empty and all-zero IDs are excluded.",
+    )
     is_aad_joined: PropertyRef = PropertyRef(
         "isAadJoined",
         description="Whether the machine is joined to Microsoft Entra ID.",
     )
     first_seen: PropertyRef = PropertyRef(
-        "firstSeen", description="When Defender first observed the machine."
+        "firstSeen",
+        description="Native datetime from firstSeen: when Defender first observed the machine.",
     )
     last_seen: PropertyRef = PropertyRef(
         "lastSeen",
-        description="When Defender last received a full device report (typically every 24 hours); not the portal's last-seen timestamp.",
+        description="Native datetime from lastSeen: when Defender last received a full device report (typically every 24 hours); not the portal's last-seen timestamp.",
     )
     os_platform: PropertyRef = PropertyRef(
         "osPlatform", description="Operating system platform reported by Defender."
@@ -111,7 +116,7 @@ class DefenderMachineToIntuneDeviceRel(CartographyRelSchema):
     target_node_label: str = "IntuneManagedDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "azure_ad_device_id": PropertyRef("aadDeviceId", ignore_case=True),
+            "azure_ad_device_id_normalized": PropertyRef("aad_device_id_normalized"),
             "tenant_id": PropertyRef("TENANT_ID", set_in_kwargs=True),
         },
     )
@@ -182,10 +187,12 @@ class DefenderAlertNodeProperties(CartographyNodeProperties):
         description="MITRE ATT&CK techniques identified in the alert.",
     )
     created_date_time: PropertyRef = PropertyRef(
-        "createdDateTime", description="When the alert was created."
+        "createdDateTime",
+        description="Native datetime from createdDateTime: when the alert was created.",
     )
     last_update_date_time: PropertyRef = PropertyRef(
-        "lastUpdateDateTime", description="When the alert was last updated."
+        "lastUpdateDateTime",
+        description="Native datetime from lastUpdateDateTime: when the alert was last updated.",
     )
     alert_web_url: PropertyRef = PropertyRef(
         "alertWebUrl", description="Alert URL in the Microsoft Defender portal."

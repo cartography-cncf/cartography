@@ -1,10 +1,16 @@
 import json
+from datetime import datetime
+from datetime import timezone
+from io import BytesIO
+from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 import requests
 from azure.core.exceptions import ClientAuthenticationError
+from urllib3.connectionpool import HTTPSConnectionPool
+from urllib3.response import HTTPResponse
 
 from cartography.cli import CLI
 from cartography.config import Config
@@ -121,6 +127,74 @@ def test_repeated_pagination_fails():
     # Act and assert
     with pytest.raises(ValueError, match="repeated nextLink"):
         defender.get_alerts(session, MagicMock())
+
+
+def test_advancing_pagination_is_bounded() -> None:
+    # Arrange
+    session = MagicMock()
+    session.get.side_effect = [
+        _response(
+            {
+                "value": [{"id": str(i)}],
+                "@odata.nextLink": defender.ALERTS_URL + f"?$skiptoken={i}",
+            }
+        )
+        for i in range(2)
+    ]
+
+    # Act and assert
+    with (
+        patch.object(defender, "DEFAULT_MAX_PAGES", 2),
+        pytest.raises(ValueError, match="pagination limit"),
+    ):
+        defender.get_alerts(session, MagicMock())
+    assert session.get.call_count == 2
+
+
+def test_retry_after_is_capped_through_real_http_adapter() -> None:
+    # Arrange: replace network I/O only; the actual requests/urllib3 retry loop runs.
+    responses = [
+        HTTPResponse(
+            status=status,
+            body=BytesIO(b'{"value": []}'),
+            headers={"Retry-After": "3600"},
+            preload_content=False,
+        )
+        for status in (429, 503, 200)
+    ]
+    credential = MagicMock()
+    credential.get_token.return_value.token = "synthetic-token"
+
+    # Act
+    with (
+        defender.create_session() as session,
+        patch.object(
+            HTTPSConnectionPool, "_make_request", side_effect=responses
+        ) as send,
+        patch("urllib3.util.retry.time.sleep") as sleep,
+    ):
+        result = defender.get_machines(session, credential)
+
+    # Assert
+    assert result == []
+    assert send.call_count == 3
+    assert sleep.call_args_list == [call(8), call(8)]
+
+
+def test_optional_timestamps_are_native_and_bad_metadata_keeps_inventory() -> None:
+    # Arrange
+    machines = [{"id": "machine", "firstSeen": None, "lastSeen": "invalid"}]
+
+    # Act
+    machine = defender.transform_machines(machines, TENANT_ID)[0]
+    alert = defender.transform_alerts(ALERTS, TENANT_ID)[0]
+
+    # Assert
+    assert machine["id"] == f"{TENANT_ID}/machine"
+    assert machine["firstSeen"] is None
+    assert machine["lastSeen"] is None
+    assert alert["createdDateTime"] == datetime(2026, 9, 17, 9, tzinfo=timezone.utc)
+    assert alert["lastUpdateDateTime"] is None
 
 
 def test_repeated_machine_records_fail_instead_of_looping_on_ignored_skip():

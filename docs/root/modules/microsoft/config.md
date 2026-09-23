@@ -74,7 +74,9 @@ of 100 machine requests per minute and 1,500 per hour. Alerts use Graph
 `/v1.0/security/alerts_v2` with
 `serviceSource eq 'microsoftDefenderForEndpoint' and status ne 'resolved'`, pages
 of 100, and `@odata.nextLink` pagination. Requests retry HTTP 429 and transient 5xx
-responses up to five times and honor `Retry-After`.
+responses up to five times and cap each `Retry-After` delay at eight seconds.
+Each collection is limited to 10,000 pages; exceeding that limit aborts the
+snapshot before graph writes or cleanup.
 
 ## Troubleshooting
 
