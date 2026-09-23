@@ -173,7 +173,7 @@ def iter_serving_layer_pages(
     page_signatures: set[str] = set()
 
     while True:
-        if page_count >= max_pages:
+        if page_count >= max_pages and start_index != total_items:
             raise RuntimeError(
                 f"Orca {result_name} pagination exceeded {max_pages} pages",
             )
@@ -225,29 +225,22 @@ def iter_serving_layer_pages(
                 f"Orca {result_name} returned more rows than the requested page size",
             )
 
-        if not rows:
-            if start_index != total_items:
-                logger.warning(
-                    "Orca %s pagination ended after %d rows; initial "
-                    "total_items was %d.",
-                    result_name,
-                    start_index,
-                    total_items,
+        if rows:
+            if page_count >= max_pages:
+                raise RuntimeError(
+                    f"Orca {result_name} pagination exceeded {max_pages} pages",
                 )
-            return
 
-        page_signature = hashlib.sha256(
-            json.dumps(rows, sort_keys=True, separators=(",", ":")).encode(),
-        ).hexdigest()
-        if page_signature in page_signatures:
-            raise RuntimeError(f"Orca {result_name} pagination repeated a page")
-        page_signatures.add(page_signature)
+            page_signature = hashlib.sha256(
+                json.dumps(rows, sort_keys=True, separators=(",", ":")).encode(),
+            ).hexdigest()
+            if page_signature in page_signatures:
+                raise RuntimeError(f"Orca {result_name} pagination repeated a page")
+            page_signatures.add(page_signature)
 
-        next_index = start_index + len(rows)
-
-        page_count += 1
-        yield rows
-        start_index = next_index
+            page_count += 1
+            yield rows
+            start_index += len(rows)
 
         # Orca's count can change while a long-running query is paged. A short
         # page is the provider's end-of-results signal; treating the initial

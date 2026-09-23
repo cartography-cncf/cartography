@@ -270,6 +270,34 @@ def test_iter_serving_layer_pages_accepts_rows_beyond_advisory_count(mocker) -> 
     assert query_call.call_count == 2
 
 
+def test_iter_serving_layer_pages_allows_empty_probe_at_page_limit(mocker) -> None:
+    # Arrange
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 2},
+            {"data": [{"id": "2"}]},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=1,
+            result_name="alerts",
+            max_pages=2,
+        ),
+    )
+
+    # Assert
+    assert pages == [[{"id": "1"}], [{"id": "2"}]]
+    assert query_call.call_count == 3
+
+
 def test_iter_serving_layer_pages_rejects_excessive_page_count(mocker) -> None:
     # Arrange
     mocker.patch(
