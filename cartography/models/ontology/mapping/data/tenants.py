@@ -808,6 +808,19 @@ orca_mapping = OntologyMapping(
 )
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": OntologyMapping(
+        module_name="zoom",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZoomAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="id", required=True
+                    )
+                ],
+            )
+        ],
+    ),
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,

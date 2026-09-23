@@ -67,4 +67,5 @@ modules/wiz/index
 modules/workday/index
 modules/workos/index
 modules/zizmor/index
+modules/zoom/index
 ```
