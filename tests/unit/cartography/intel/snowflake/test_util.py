@@ -14,6 +14,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from cartography.intel.snowflake.network_rules import get as get_network_rules
 from cartography.intel.snowflake.network_rules import get_schema_network_rules
 from cartography.intel.snowflake.util import account_host
 from cartography.intel.snowflake.util import hyphenated_account_id
@@ -551,6 +552,52 @@ def test_network_rules_request_preserves_case_and_encoded_pagination():
     # Assert
     assert result == [{"name": "RULE_ONE"}, {"name": "RULE_TWO"}]
     assert requested_paths == [first_path, next_path]
+
+
+def test_network_rules_400_preserves_readable_schemas():
+    # Arrange
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if "blocked_schema" in self.path:
+                _respond_json(self, {"message": "invalid schema"}, status=400)
+            else:
+                _respond_json(
+                    self,
+                    [
+                        {
+                            "name": "RULE_ONE",
+                            "database_name": "ExampleDB",
+                            "schema_name": "readable_schema",
+                        }
+                    ],
+                )
+
+        def log_message(self, format, *args):
+            pass
+
+    server = _serve(Handler)
+    client = _build_client(server.server_port)
+    try:
+        # Act
+        result, complete = get_network_rules(
+            client,
+            [
+                {"database_name": "ExampleDB", "name": "blocked_schema"},
+                {"database_name": "ExampleDB", "name": "readable_schema"},
+            ],
+        )
+    finally:
+        _shutdown(server)
+
+    # Assert
+    assert result == [
+        {
+            "name": "RULE_ONE",
+            "database_name": "ExampleDB",
+            "schema_name": "readable_schema",
+        }
+    ]
+    assert complete is False
 
 
 def test_hyphenated_account_id_accepts_either_input_form():
