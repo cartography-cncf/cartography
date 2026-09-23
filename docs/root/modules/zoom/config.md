@@ -64,11 +64,12 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
   renewed once automatically; repeated authorization failures abort the sync.
 - **403 or insufficient scope**: Add `user:read:list_users:admin` to the active
   app and verify the app owner's permissions.
-- **429**: Zoom's Users API has the `MEDIUM` rate-limit label. Requests honor
-  `Retry-After` and retry up to three times. A sustained rate limit aborts the
-  sync without deleting prior users; retry after the quota resets.
+- **429**: Zoom's Users API has the `MEDIUM` rate-limit label. Requests retry
+  up to three times, capping each `Retry-After` delay at eight seconds. A sustained
+  rate limit aborts the sync without deleting prior users; retry after the quota resets.
 - **Incomplete/repeated pagination**: Retry the sync. Page tokens expire after
-  15 minutes, and a truncated list is not safe for stale-user cleanup.
+  15 minutes. Each status list has a safety limit of 10,000 pages; hitting it or
+  receiving a truncated list aborts the sync before stale-user cleanup.
 
 ## References
 

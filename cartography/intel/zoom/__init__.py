@@ -21,7 +21,5 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     client = ZoomClient(
         config.zoom_account_id, config.zoom_client_id, config.zoom_client_secret
     )
-    try:
+    with client.session:
         sync(neo4j_session, client, config.zoom_account_id, config.update_tag)
-    finally:
-        client.session.close()

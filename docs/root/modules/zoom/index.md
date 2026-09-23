@@ -18,7 +18,10 @@ one account cannot delete another account's membership or invitation.
 All three status lists must finish before ingestion and stale-user cleanup run.
 An HTTP, pagination, or required-field error aborts the sync and retains existing
 graph data. Requests retry rate limits and transient server errors, honor
-`Retry-After`, and renew expiring OAuth tokens.
+`Retry-After` up to eight seconds per retry, and renew expiring OAuth tokens.
+Creation and last-login timestamps are stored as native datetimes. Missing or
+malformed optional timestamps are omitted; malformed values emit a warning
+without blocking user ingestion or cleanup.
 
 The assigned plan type is `1` (Basic), `2` (Licensed), `4` (Unassigned without
 Meetings Basic), or legacy `99` (None, SSO creation only). This is user licensing

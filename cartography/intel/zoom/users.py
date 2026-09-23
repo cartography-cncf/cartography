@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 
 import neo4j
@@ -9,6 +11,7 @@ from cartography.helpers import normalize_email_for_matching
 from cartography.intel.zoom.client import ZoomClient
 from cartography.models.zoom.account import ZoomAccountSchema
 from cartography.models.zoom.user import ZoomUserSchema
+from cartography.util import DEFAULT_MAX_PAGES
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -27,7 +30,7 @@ def get(client: ZoomClient) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"status": status, "page_size": 2000}
         seen_tokens: set[str] = set()
         count = 0
-        while True:
+        for _ in range(DEFAULT_MAX_PAGES):
             page = client.get_users_page(params)
             records = page["users"]
             if not isinstance(records, list):
@@ -45,11 +48,13 @@ def get(client: ZoomClient) -> list[dict[str, Any]]:
                 raise ValueError("Zoom returned a repeated pagination token")
             seen_tokens.add(next_token)
             params = {**params, "next_page_token": next_token}
+        else:
+            raise ValueError("Zoom user pagination exceeded the page limit")
     return users
 
 
 def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
-    result = {}
+    result: dict[str, dict[str, Any]] = {}
     for user in users:
         email = normalize_email_for_matching(user["email"])
         if not email:
@@ -62,7 +67,7 @@ def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, An
             node_id = f"{account_id}:pending:{email}"
         else:
             raise ValueError("Zoom active/inactive user is missing its ID")
-        result[node_id] = {
+        record = {
             "id": node_id,
             "zoom_id": zoom_id,
             "email": email,
@@ -79,6 +84,21 @@ def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, An
             "created_at": user.get("user_created_at"),
             "last_login_time": user.get("last_login_time"),
         }
+        for field in ("created_at", "last_login_time"):
+            value = record[field]
+            record[field] = None
+            if value is None or value == "":
+                continue
+            try:
+                timestamp = datetime.fromisoformat(value)
+                # The Users API reports timestamps in UTC.
+                record[field] = timestamp.replace(
+                    tzinfo=timestamp.tzinfo or timezone.utc
+                )
+            except (ValueError, TypeError):
+                # Optional activity metadata must not block membership cleanup.
+                logger.warning("Ignoring invalid Zoom user %s timestamp", field)
+        result[node_id] = record
     return list(result.values())
 
 

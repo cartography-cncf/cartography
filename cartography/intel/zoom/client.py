@@ -3,14 +3,15 @@ from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+from cartography.client.http import CappedRetry
 
 TOKEN_URL = "https://zoom.us/oauth/token"
 USERS_URL = "https://api.zoom.us/v2/users"
 
 
 class ZoomClient:
-    """Account-scoped server-to-server OAuth with a limited HTTP retry count."""
+    """Account-scoped OAuth with three retries and capped Retry-After delays."""
 
     def __init__(self, account_id: str, client_id: str, client_secret: str) -> None:
         self.account_id = account_id
@@ -19,7 +20,7 @@ class ZoomClient:
         self.session.mount(
             "https://",
             HTTPAdapter(
-                max_retries=Retry(
+                max_retries=CappedRetry(
                     total=3,
                     backoff_factor=1,
                     status_forcelist={429, 500, 502, 503, 504},
@@ -62,11 +63,11 @@ class ZoomClient:
                 allow_redirects=False,
             )
             if response.status_code != 401 or attempt:
-                response.raise_for_status()
-                if response.status_code != 200:
-                    raise requests.HTTPError(
-                        "Unexpected Zoom users response status", response=response
-                    )
-                return response.json()
+                break
             self._refresh_token()
-        raise AssertionError("Unreachable")
+        response.raise_for_status()
+        if response.status_code != 200:
+            raise requests.HTTPError(
+                "Unexpected Zoom users response status", response=response
+            )
+        return response.json()

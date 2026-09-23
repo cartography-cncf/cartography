@@ -65,11 +65,13 @@ class ZoomUserNodeProperties(CartographyNodeProperties):
         description="Provider login method codes; 101 denotes SSO, 100 Zoom work email.",
     )
     created_at: PropertyRef = PropertyRef(
-        "created_at", description="Provider user_created_at timestamp, when available."
+        "created_at",
+        description="Provider user_created_at as a native datetime, when available.",
     )
     last_login_time: PropertyRef = PropertyRef(
         "last_login_time",
-        description="Last login time with Zoom's three-day reporting buffer; not precise activity telemetry.",
+        extra_index=True,
+        description="Provider last_login_time as a native datetime with Zoom's three-day reporting buffer; not precise activity telemetry.",
     )
 
 
