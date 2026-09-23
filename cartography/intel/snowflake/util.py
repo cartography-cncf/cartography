@@ -313,7 +313,7 @@ def warn_unavailable(resource: str, reason: str) -> None:
     )
 
 
-def _http_error_detail(error: requests.HTTPError) -> str:
+def http_error_detail(error: requests.HTTPError) -> str:
     """Return Snowflake's own error message for a failed request, if it sent one.
 
     Snowflake puts a numeric ``code`` and a human ``message`` in the JSON body
@@ -652,7 +652,7 @@ class SnowflakeClient:
             # distinguish "Standard edition has no masking policies" from a real
             # failure, so re-raise with the message attached.
             raise SnowflakeSqlError(
-                f"{_http_error_detail(error)} (statement: {statement})",
+                f"{http_error_detail(error)} (statement: {statement})",
             ) from error
         body = response.json()
         metadata = body.get("resultSetMetaData") or {}

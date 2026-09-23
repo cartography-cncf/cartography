@@ -12,6 +12,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.util import http_error_detail
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -38,11 +39,11 @@ def get_schema_network_rules(
     except requests.HTTPError as error:
         skip_or_raise_http(error, 400, 403, 404)
         logger.warning(
-            "Cannot list network rules of Snowflake schema %s.%s (HTTP %s); they will "
-            "be missing from the graph.",
+            "Cannot list network rules of Snowflake schema %s.%s (%s); they will be "
+            "missing from the graph.",
             database_name,
             schema_name,
-            error.response.status_code if error.response is not None else "unknown",
+            http_error_detail(error),
         )
         return None
 

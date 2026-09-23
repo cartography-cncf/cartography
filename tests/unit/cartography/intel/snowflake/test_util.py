@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -554,12 +555,23 @@ def test_network_rules_request_preserves_case_and_encoded_pagination():
     assert requested_paths == [first_path, next_path]
 
 
-def test_network_rules_400_preserves_readable_schemas():
+def test_network_rules_400_preserves_readable_schemas(caplog):
     # Arrange
+    caplog.set_level(
+        logging.WARNING, logger="cartography.intel.snowflake.network_rules"
+    )
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if "blocked_schema" in self.path:
-                _respond_json(self, {"message": "invalid schema"}, status=400)
+                _respond_json(
+                    self,
+                    {
+                        "code": "002003",
+                        "message": "Network rules are unavailable for this schema.",
+                    },
+                    status=400,
+                )
             else:
                 _respond_json(
                     self,
@@ -598,6 +610,10 @@ def test_network_rules_400_preserves_readable_schemas():
         }
     ]
     assert complete is False
+    assert (
+        "Snowflake error 002003: Network rules are unavailable for this schema."
+        in caplog.text
+    )
 
 
 def test_hyphenated_account_id_accepts_either_input_form():
