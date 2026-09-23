@@ -479,7 +479,7 @@ class TestBedrockKnowledgeBasesSync:
             TEST_UPDATE_TAG - 1,
         )
         mock_get.side_effect = [
-            cartography.intel.aws.bedrock.knowledge_bases.BedrockKnowledgeBaseRegionServerError(),
+            cartography.intel.aws.bedrock.knowledge_bases.BedrockKnowledgeBaseTransientRegionFailure(),
             deepcopy(KNOWLEDGE_BASES),
         ]
 
