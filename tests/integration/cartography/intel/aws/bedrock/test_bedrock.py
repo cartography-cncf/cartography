@@ -7,6 +7,7 @@ Focus on high-value tests:
 3. Cross-resource relationships (Agent→Model, Agent→KB, Agent→Guardrail, KB→S3)
 """
 
+from copy import deepcopy
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -440,6 +441,67 @@ class TestBedrockAgentsSync:
 
 class TestBedrockKnowledgeBasesSync:
     """Tests for knowledge base sync including embedding model relationship."""
+
+    @patch.object(
+        cartography.intel.aws.bedrock.knowledge_bases,
+        "get_knowledge_bases",
+    )
+    def test_preserves_data_when_a_region_returns_internal_server_error(
+        self, mock_get, neo4j_session
+    ):
+        # Arrange
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+        stale_knowledge_base = deepcopy(KNOWLEDGE_BASES[0])
+        stale_knowledge_base.update(
+            {
+                "knowledgeBaseId": "STALE12345",
+                "knowledgeBaseArn": (
+                    f"arn:aws:bedrock:ap-southeast-4:{TEST_ACCOUNT_ID}:"
+                    "knowledge-base/STALE12345"
+                ),
+            }
+        )
+        stale_knowledge_base = (
+            cartography.intel.aws.bedrock.knowledge_bases.transform_knowledge_bases(
+                [stale_knowledge_base], "ap-southeast-4"
+            )
+        )
+        cartography.intel.aws.bedrock.knowledge_bases.load_knowledge_bases(
+            neo4j_session,
+            stale_knowledge_base,
+            "ap-southeast-4",
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG - 1,
+        )
+        mock_get.side_effect = [
+            cartography.intel.aws.bedrock.knowledge_bases.BedrockKnowledgeBaseTransientRegionFailure(),
+            deepcopy(KNOWLEDGE_BASES),
+        ]
+
+        # Act
+        cartography.intel.aws.bedrock.knowledge_bases.sync(
+            neo4j_session,
+            boto3_session,
+            ["ap-southeast-4", TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+
+        # Assert
+        assert check_nodes(
+            neo4j_session,
+            "AWSBedrockKnowledgeBase",
+            ["knowledge_base_id", "region"],
+        ) == {
+            ("STALE12345", "ap-southeast-4"),
+            ("KB12345ABCD", TEST_REGION),
+        }
 
     @patch.object(
         cartography.intel.aws.bedrock.knowledge_bases,
