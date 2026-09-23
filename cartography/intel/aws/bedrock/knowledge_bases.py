@@ -14,6 +14,9 @@ from typing import List
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -28,14 +31,24 @@ logger = logging.getLogger(__name__)
 
 
 class BedrockKnowledgeBaseTransientRegionFailure(Exception):
-    """Raised when Bedrock cannot serve ListKnowledgeBases for one region."""
+    """Raised when Bedrock knowledge base collection cannot complete for one region."""
+
+
+_BEDROCK_TRANSIENT_REGION_ERRORS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
 
 def _is_bedrock_knowledge_base_region_server_error(
     error: ClientError,
 ) -> bool:
     """Return whether Bedrock reported a regional ListKnowledgeBases failure."""
-    return error.response.get("Error", {}).get("Code") == "InternalServerException"
+    return error.response.get("Error", {}).get("Code") in {
+        "InternalServerException",
+        "InternalServerErrorException",
+    }
 
 
 def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
@@ -51,6 +64,10 @@ def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
                     func.__name__,
                 ) from error
             raise
+        except _BEDROCK_TRANSIENT_REGION_ERRORS as error:
+            raise BedrockKnowledgeBaseTransientRegionFailure(
+                func.__name__,
+            ) from error
 
     return cast(AWSGetFunc, wrapped)
 
