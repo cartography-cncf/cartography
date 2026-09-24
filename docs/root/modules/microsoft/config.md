@@ -1,4 +1,4 @@
-# Microsoft Configuration
+# Microsoft configuration
 
 ## Prerequisites
 
@@ -8,7 +8,10 @@ Create an app registration in [App Registrations](https://portal.azure.com/#view
 
 Create a client secret for the app registration. Store the secret in an environment variable and note the Microsoft tenant ID and application client ID.
 
-## Required Permissions
+Application authentication is the recommended mode because it provides explicit,
+repeatable permissions and complete cleanup semantics.
+
+## Required permissions
 
 Grant the app registration these Microsoft Graph application permissions:
 
@@ -19,7 +22,7 @@ Grant the app registration these Microsoft Graph application permissions:
 - `GroupMember.Read.All`: Read all group memberships.
 - `User.Read.All`: Read all users' full profiles.
 
-## Optional Permissions
+## Optional permissions
 
 Grant these application permissions when ingesting the indicated data:
 
@@ -49,6 +52,63 @@ cartography \
   --microsoft-client-id '<client-id>' \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
 ```
+
+## Experimental delegated user authentication
+
+Use delegated authentication only when you can't use an app registration and
+you need a best-effort snapshot of the Entra data visible to a signed-in user.
+Delegated authentication doesn't grant the user additional Microsoft Graph
+permissions. It isn't a replacement for application authentication.
+
+### Limitations
+
+- Only Entra datasets are attempted. Intune and O365 ingestion are skipped.
+- Microsoft Graph may return partial results without an authorization error.
+- If Microsoft Graph returns `403 Forbidden`, Cartography stops the affected
+  dataset, reports it, and continues with the next dataset. After attempting all
+  datasets, Cartography exits with a nonzero status so automation can't mistake
+  the partial inventory for a complete sync. Records from earlier pages of the
+  affected dataset can remain in the graph.
+- Because the command exits with a nonzero status after a denied dataset, run
+  delegated Microsoft ingestion separately from other selected modules.
+- If Microsoft Graph returns `401 Unauthorized`, or an error other than `403`,
+  Cartography stops the run.
+- Cartography disables cleanup and derived federation analysis. A delegated run
+  doesn't delete existing Entra data, so records that the user can't see can
+  remain in the graph.
+- Cartography reads the local Azure CLI token cache. Use this mode only for an
+  attended, one-time run on a trusted workstation. Don't use it for hosted or
+  unattended inventory collection.
+
+A run that reports no denied datasets can still be incomplete. Microsoft Graph
+can filter results based on the signed-in user's effective visibility without
+returning `403 Forbidden`.
+
+### Sign in and run Cartography
+
+Use a dedicated, non-privileged test user and a fresh disposable Neo4j database
+when you evaluate this mode.
+
+1. Sign in to the target tenant. You don't need an Azure subscription.
+
+   ```bash
+   az login --tenant '<TENANT_ID>' --allow-no-subscriptions
+   ```
+
+   If a browser can't open in your environment, add `--use-device-code`. Your
+   tenant's Conditional Access policy might not allow device-code authentication.
+
+2. Run Cartography.
+
+   ```bash
+   cartography \
+     --selected-modules microsoft \
+     --microsoft-tenant-id '<TENANT_ID>' \
+     --microsoft-delegated-auth
+   ```
+
+Do not pass `--microsoft-client-id` or
+`--microsoft-client-secret-env-var` with delegated authentication.
 
 ## References
 

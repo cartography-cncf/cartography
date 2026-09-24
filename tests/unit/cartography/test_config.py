@@ -42,6 +42,16 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
     assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
 
 
+def test_microsoft_delegated_auth_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters.index("microsoft_delegated_auth") > parameters.index(
+        "orca_api_token",
+    )
+
+
 def test_config_stores_orca_credentials() -> None:
     # Act
     config = Config(
@@ -103,6 +113,26 @@ def test_config_rejects_mixed_microsoft_and_entra_credentials() -> None:
             neo4j_uri="bolt://localhost:7687",
             microsoft_tenant_id="tenant-id",
             entra_client_id="client-id",
+        )
+
+
+def test_config_rejects_delegated_auth_with_application_credentials() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            microsoft_client_id="client-id",
+            microsoft_delegated_auth=True,
+        )
+
+
+def test_config_requires_tenant_for_delegated_auth() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="requires a Microsoft tenant ID"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_delegated_auth=True,
         )
 
 

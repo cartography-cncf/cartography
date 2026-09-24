@@ -45,7 +45,7 @@ async def test_get_app_role_assignments_skips_deleted_sp(caplog):
         results = [
             x
             async for x in get_app_role_assignments_for_app(
-                client, neo4j_session, "app-1"
+                client, neo4j_session, "tenant-1", "app-1"
             )
         ]
 
@@ -64,7 +64,9 @@ async def test_get_app_role_assignments_skips_gone_sp():
 
     results = [
         x
-        async for x in get_app_role_assignments_for_app(client, neo4j_session, "app-2")
+        async for x in get_app_role_assignments_for_app(
+            client, neo4j_session, "tenant-1", "app-2"
+        )
     ]
 
     assert results == []
@@ -79,5 +81,7 @@ async def test_get_app_role_assignments_reraises_other_apierrors():
     neo4j_session = _make_neo4j_session_returning_sp("sp-3")
 
     with pytest.raises(APIError):
-        async for _ in get_app_role_assignments_for_app(client, neo4j_session, "app-3"):
+        async for _ in get_app_role_assignments_for_app(
+            client, neo4j_session, "tenant-1", "app-3"
+        ):
             pass

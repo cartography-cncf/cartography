@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
@@ -110,12 +111,9 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
             page = await call_with_retries(
                 lambda: client.users.with_url(page.odata_next_link).get(),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Entra users – stopping pagination early: %s",
-                e,
-            )
-            break
+        except Exception:
+            logger.exception("Failed to fetch next page of Entra users")
+            raise
 
 
 @timeit
@@ -221,10 +219,12 @@ def cleanup(
 async def sync_entra_users(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra users and tenant information
@@ -234,10 +234,16 @@ async def sync_entra_users(
     :param client_secret: Entra application client secret
     :param update_tag: Timestamp used to determine data freshness
     :param common_job_parameters: dict of other job parameters to carry to sub-jobs
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup
     :return: None
     """
     # Initialize Graph client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -248,17 +254,27 @@ async def sync_entra_users(
     )
     users_batch = []
 
-    async for user in get_users(client):
-        users_batch.append(user)
+    delegated_denial: APIError | None = None
+    try:
+        async for user in get_users(client):
+            users_batch.append(user)
 
-        if len(users_batch) >= batch_size:
-            transformed_users = list(transform_users(users_batch))
-            load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-            users_batch.clear()
+            if len(users_batch) >= batch_size:
+                transformed_users = list(transform_users(users_batch))
+                load_users(neo4j_session, transformed_users, tenant_id, update_tag)
+                users_batch.clear()
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = error
 
     # Process any remaining users
     if users_batch:
         transformed_users = list(transform_users(users_batch))
         load_users(neo4j_session, transformed_users, tenant_id, update_tag)
 
-    cleanup(neo4j_session, common_job_parameters)
+    if delegated_denial:
+        raise delegated_denial
+
+    if not delegated_auth:
+        cleanup(neo4j_session, common_job_parameters)
