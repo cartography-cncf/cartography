@@ -69,6 +69,13 @@ Attach the AWS managed
 (`arn:aws:iam::aws:policy/SecurityAudit`) to every identity or
 `cartography-read-only` role used by Cartography.
 
+`SecurityAudit` includes the EKS Access Entry actions
+(`eks:ListAccessEntries` and `eks:DescribeAccessEntry`) and the AWS Identity
+Center and Identity Store actions that Cartography calls: `sso:ListInstances`,
+`sso:ListPermissionSets`, `sso:DescribePermissionSet`,
+`sso:ListAccountAssignmentsForPrincipal`, `identitystore:ListUsers`,
+`identitystore:ListGroups`, and `identitystore:ListGroupMemberships`.
+
 Full AWS Organizations hierarchy enumeration requires credentials from the
 management account or a delegated administrator account. Grant
 `organizations:Describe*` and `organizations:List*` permissions. The managed
@@ -78,25 +85,21 @@ hierarchy APIs such as `ListRoots`, `ListAccountsForParent`, and
 
 ## Optional Permissions
 
-- Inspector ingestion requires the
-  [AmazonInspector2ReadOnlyAccess policy](https://docs.aws.amazon.com/inspector/latest/user/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonInspector2ReadOnlyAccess).
-- EKS Access Entry ingestion requires `eks:ListAccessEntries`, which
-  `SecurityAudit` includes. Grant `eks:DescribeAccessEntry` to populate
-  detailed fields such as the ARN, username, type, and Kubernetes groups.
-- AWS Identity Center ingestion uses the `sso-admin` and `identitystore`
-  services. Grant the following actions when Identity Center inventory is
-  enabled:
-  `sso:ListInstances`, `sso:ListPermissionSets`, `sso:DescribePermissionSet`,
-  `sso:ListAccountAssignmentsForPrincipal`, `identitystore:ListGroups`,
-  `identitystore:ListGroupMemberships`, and `identitystore:ListUsers`.
+`SecurityAudit` does not include the following actions. Grant them to ingest
+the corresponding data.
+
+- AWS Identity Center permission set ingestion requires `sso:GetPermissionSet`,
+  which AWS evaluates together with `sso:DescribePermissionSet`.
+- Inspector ingestion requires `inspector2:ListMembers`. `SecurityAudit`
+  includes `inspector2:ListFindings`.
+- SES email identity ingestion requires `ses:ListEmailIdentities`.
+- ECR pull through cache rule ingestion requires
+  `ecr:DescribePullThroughCacheRules`.
+- AWS Glue connection ingestion requires `glue:GetConnections`.
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
   not resources owned by the account performing the sync.
-- The `ecr:pull_through_cache_rules` requested sync requires
-  `ecr:DescribePullThroughCacheRules`.
-- AWS Glue connection ingestion requires `glue:GetConnections`, which
-  `SecurityAudit` does not include.
 
 ## Configure Cartography
 
