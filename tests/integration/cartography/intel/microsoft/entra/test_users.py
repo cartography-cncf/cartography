@@ -7,6 +7,7 @@ from unittest.mock import patch
 import neo4j
 import pytest
 from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.sign_in_activity import SignInActivity
 from msgraph.generated.models.user import User
 from msgraph.generated.models.user_collection_response import UserCollectionResponse
@@ -22,6 +23,39 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
+
+
+def test_manager_links_across_activity_availability(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    users = [
+        User(
+            id="activity-report",
+            manager=DirectoryObject(id="basic-manager"),
+            sign_in_activity=SignInActivity(),
+        ),
+        User(id="basic-manager"),
+        User(id="basic-report", manager=DirectoryObject(id="activity-manager")),
+        User(id="activity-manager", sign_in_activity=SignInActivity()),
+    ]
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
+
+    # Act
+    load_users(
+        neo4j_session, list(transform_users(users)), TEST_TENANT_ID, TEST_UPDATE_TAG
+    )
+
+    # Assert
+    rows = neo4j_session.run(
+        "MATCH (u:EntraUser)-[:REPORTS_TO]->(manager:EntraUser) "
+        "WHERE u.id IN ['activity-report', 'basic-report'] "
+        "RETURN u.id AS report, manager.id AS manager"
+    )
+    assert {(row["report"], row["manager"]) for row in rows} == {
+        ("activity-report", "basic-manager"),
+        ("basic-report", "activity-manager"),
+    }
 
 
 def test_sign_in_activity_datetimes(neo4j_session: neo4j.Session) -> None:

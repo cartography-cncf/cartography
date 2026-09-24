@@ -227,18 +227,18 @@ def load_users(
 ) -> None:
     # Missing optional activity is not evidence that old timestamps should be erased.
     schema = EntraUserSchema()
-    for available, node_schema in (
-        (True, schema),
-        (False, replace(schema, properties=EntraUserBaseNodeProperties())),
+    # Keep managers and reports together before enriching optional activity.
+    for node_schema, batch in (
+        (
+            replace(schema, properties=EntraUserBaseNodeProperties()),
+            [{**user, "sign_in_activity_available": False} for user in users],
+        ),
+        (schema, [user for user in users if user.get("sign_in_activity_available")]),
     ):
         load(
             neo4j_session,
             node_schema,
-            [
-                user
-                for user in users
-                if bool(user.get("sign_in_activity_available")) == available
-            ],
+            batch,
             lastupdated=update_tag,
             TENANT_ID=tenant_id,
         )
