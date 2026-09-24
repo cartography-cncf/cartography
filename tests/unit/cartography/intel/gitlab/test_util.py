@@ -4,7 +4,9 @@ import requests
 
 from cartography.intel.gitlab import util
 from cartography.intel.gitlab.util import fetch_registry_manifest
+from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_registry_token
+from cartography.intel.gitlab.util import get_single
 
 
 def _make_response(status_code: int, json_data=None, headers=None):
@@ -36,7 +38,7 @@ def test_get_registry_token_retries_transient_server_error(monkeypatch):
         return next(responses)
 
     util._registry_token_cache.clear()
-    monkeypatch.setattr("cartography.intel.gitlab.util.requests.request", _request)
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
     token = get_registry_token(
@@ -65,7 +67,7 @@ def test_fetch_registry_manifest_retries_connection_error(monkeypatch):
         "cartography.intel.gitlab.util.get_registry_token",
         lambda *args, **kwargs: "jwt-token",
     )
-    monkeypatch.setattr("cartography.intel.gitlab.util.requests.request", _request)
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
     monkeypatch.setattr("cartography.intel.gitlab.util.time.sleep", lambda _: None)
 
     response = fetch_registry_manifest(
@@ -98,7 +100,7 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
         _get_registry_token,
     )
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         lambda *args, **kwargs: next(responses),
     )
 
@@ -112,6 +114,36 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
 
     assert response.status_code == 200
     assert token_calls == [False, True]
+
+
+def test_get_single_and_get_paginated_reuse_shared_session(monkeypatch):
+    # Arrange: get_single and get_paginated are independent call paths (as are
+    # runners.sync_gitlab_runners and supply_chain.get_dockerfiles_for_projects,
+    # which route through get_paginated too). They must all dispatch through the
+    # same requests.Session so the underlying connection pool - and therefore
+    # any pooled/keep-alive TCP connections - is actually shared instead of each
+    # call path opening its own.
+    assert isinstance(util._session, requests.Session)
+
+    seen_sessions = []
+    single_response = _make_response(200, {"id": 1})
+    paginated_response = _make_response(200, [{"id": 1}], headers={})
+
+    def _request(method, url, **kwargs):
+        seen_sessions.append(util._session)
+        if url.endswith("/single"):
+            return single_response
+        return paginated_response
+
+    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
+
+    # Act
+    get_single("https://gitlab.example.com", "tok", "/single")
+    get_paginated("https://gitlab.example.com", "tok", "/list")
+
+    # Assert
+    assert len(seen_sessions) == 2
+    assert seen_sessions[0] is seen_sessions[1] is util._session
 
 
 def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
@@ -135,7 +167,7 @@ def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
         return next(responses)
 
     monkeypatch.setattr(
-        "cartography.intel.gitlab.util.requests.request",
+        "cartography.intel.gitlab.util._session.request",
         _request,
     )
 
