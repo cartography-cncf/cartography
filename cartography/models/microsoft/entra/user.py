@@ -20,7 +20,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
-class EntraUserNodeProperties(CartographyNodeProperties):
+class EntraUserBaseNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Entra user ID.")
     user_principal_name: PropertyRef = PropertyRef(
         "user_principal_name", description="User principal name."
@@ -79,7 +79,35 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     manager_id: PropertyRef = PropertyRef(
         "manager_id", description="Entra user ID of the user's manager."
     )
+    sign_in_activity_available: PropertyRef = PropertyRef(
+        "sign_in_activity_available",
+        description="Whether this sync received signInActivity for the user. "
+        "When false, retained sign-in timestamps may be stale.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EntraUserNodeProperties(EntraUserBaseNodeProperties):
+    last_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastSignInDateTime: last "
+        "interactive sign-in attempt, including failures. Null means unknown.",
+    )
+    last_non_interactive_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_non_interactive_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastNonInteractiveSignInDateTime: "
+        "last non-interactive sign-in attempt, including failures. Null means unknown.",
+    )
+    last_successful_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_successful_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastSuccessfulSignInDateTime: "
+        "last successful interactive or non-interactive sign-in. Available since "
+        "December 2023 without backfill; null means unknown, not never signed in.",
+    )
 
 
 @dataclass(frozen=True)
@@ -120,7 +148,7 @@ class EntraUserSchema(CartographyNodeSchema):
     """A user account in Microsoft Entra ID."""
 
     label: str = "EntraUser"
-    properties: EntraUserNodeProperties = EntraUserNodeProperties()
+    properties: EntraUserBaseNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
