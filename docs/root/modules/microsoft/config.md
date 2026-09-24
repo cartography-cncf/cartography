@@ -29,6 +29,41 @@ Grant these application permissions when ingesting the indicated data:
 - `DeviceManagementManagedDevices.Read.All`: Intune managed devices and detected apps.
 - `DeviceManagementConfiguration.Read.All`: Intune device configuration and compliance policies.
 - `RoleManagement.Read.Directory`: Entra directory role definitions and assignments.
+- `AuditLog.Read.All`: Entra user sign-in activity; also requires an Entra ID P1 or P2 license.
+
+### User sign-in activity
+
+Cartography requests `signInActivity` with the existing user inventory query,
+using pages of up to 500 users and no per-user requests. If the first request
+returns `403 Forbidden`, it logs a warning and retries the inventory without
+activity. Failure of that retry or any later page still propagates and prevents
+cleanup. A successful fallback leaves activity properties null, including any
+previously collected values.
+
+The three activity properties on `EntraUser` are native UTC datetimes:
+
+- `last_successful_sign_in_date_time`: last successful interactive **or non-interactive** sign-in. Use this for inactivity queries.
+- `last_sign_in_date_time`: last interactive attempt, including failures.
+- `last_non_interactive_sign_in_date_time`: last non-interactive attempt, including failures.
+
+For example, find enabled accounts with a known successful sign-in older than
+90 days:
+
+```cypher
+MATCH (u:EntraUser)
+WHERE u.account_enabled = true
+  AND u.last_successful_sign_in_date_time < datetime() - duration('P90D')
+RETURN u.user_principal_name, u.last_successful_sign_in_date_time
+ORDER BY u.last_successful_sign_in_date_time
+```
+
+Null means unknown, not proof that an account has never signed in. Microsoft
+does not backfill `lastSuccessfulSignInDateTime` before December 1, 2023.
+These timestamps measure sign-in recency, not usage frequency or active human
+use; background clients can produce successful non-interactive sign-ins.
+
+See Microsoft's [signInActivity reference](https://learn.microsoft.com/en-us/graph/api/resources/signinactivity?view=graph-rest-1.0)
+and [inactive-account guidance](https://learn.microsoft.com/en-us/entra/identity/monitoring-health/howto-manage-inactive-user-accounts).
 
 ## Configure Cartography
 

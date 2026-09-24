@@ -79,6 +79,25 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     manager_id: PropertyRef = PropertyRef(
         "manager_id", description="Entra user ID of the user's manager."
     )
+    last_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastSignInDateTime: last "
+        "interactive sign-in attempt, including failures. Null means unknown.",
+    )
+    last_non_interactive_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_non_interactive_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastNonInteractiveSignInDateTime: "
+        "last non-interactive sign-in attempt, including failures. Null means unknown.",
+    )
+    last_successful_sign_in_date_time: PropertyRef = PropertyRef(
+        "last_successful_sign_in_date_time",
+        extra_index=True,
+        description="UTC datetime from signInActivity.lastSuccessfulSignInDateTime: "
+        "last successful interactive or non-interactive sign-in. Available since "
+        "December 2023 without backfill; null means unknown, not never signed in.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

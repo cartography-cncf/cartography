@@ -1,16 +1,95 @@
+from datetime import datetime
+from datetime import timezone
 from unittest.mock import patch
 
+import neo4j
 import pytest
+from msgraph.generated.models.sign_in_activity import SignInActivity
+from msgraph.generated.models.user import User
 
 import cartography.intel.microsoft.entra.users
 from cartography.intel.microsoft.entra.users import load_tenant
+from cartography.intel.microsoft.entra.users import load_users
 from cartography.intel.microsoft.entra.users import sync_entra_users
+from cartography.intel.microsoft.entra.users import transform_users
 from tests.data.microsoft.entra.users import MOCK_ENTRA_USERS
 from tests.data.microsoft.entra.users import TEST_TENANT_ID
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
+
+
+def test_sign_in_activity_datetimes(neo4j_session: neo4j.Session) -> None:
+    # Arrange
+    timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    user = User(
+        id="synthetic-activity-user",
+        account_enabled=True,
+        sign_in_activity=SignInActivity(
+            last_successful_sign_in_date_time=timestamp,
+            last_sign_in_date_time=timestamp,
+            last_non_interactive_sign_in_date_time=timestamp,
+        ),
+    )
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
+
+    # Act
+    load_users(
+        neo4j_session, list(transform_users([user])), TEST_TENANT_ID, TEST_UPDATE_TAG
+    )
+
+    # Assert: native datetimes support inactivity filtering.
+    result = neo4j_session.run(
+        "MATCH (u:EntraUser {id: 'synthetic-activity-user'}) "
+        "WHERE u.account_enabled = true "
+        "AND u.last_successful_sign_in_date_time < datetime('2024-06-01T00:00:00Z') "
+        "RETURN u.last_successful_sign_in_date_time AS successful, "
+        "u.last_sign_in_date_time AS interactive, "
+        "u.last_non_interactive_sign_in_date_time AS non_interactive"
+    ).single()
+    assert result is not None
+    assert all(value.to_native() == timestamp for value in result.values())
+
+
+def test_unavailable_activity_clears_old_timestamps(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
+    load_users(
+        neo4j_session,
+        [
+            {
+                "id": "synthetic-activity-user",
+                "last_successful_sign_in_date_time": timestamp,
+                "last_sign_in_date_time": timestamp,
+                "last_non_interactive_sign_in_date_time": timestamp,
+            }
+        ],
+        TEST_TENANT_ID,
+        TEST_UPDATE_TAG,
+    )
+    user = User(id="synthetic-activity-user")
+
+    # Act
+    load_users(
+        neo4j_session,
+        list(transform_users([user])),
+        TEST_TENANT_ID,
+        TEST_UPDATE_TAG + 1,
+    )
+
+    # Assert: old activity is not presented as a current observation.
+    result = neo4j_session.run(
+        "MATCH (u:EntraUser {id: 'synthetic-activity-user'}) "
+        "RETURN u.last_successful_sign_in_date_time AS successful, "
+        "u.last_sign_in_date_time AS interactive, "
+        "u.last_non_interactive_sign_in_date_time AS non_interactive"
+    ).single()
+    assert result is not None
+    assert all(value is None for value in result.values())
 
 
 async def _mock_get_users(client):

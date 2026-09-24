@@ -86,8 +86,8 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
 
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
-            top=999,
-            select=USER_SELECT_FIELDS,
+            top=500,
+            select=[*USER_SELECT_FIELDS, "signInActivity"],
             expand=["manager($select=id)"],
         ),
     )
@@ -96,9 +96,19 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
         page = await call_with_retries(
             lambda: client.users.get(request_configuration=request_configuration),
         )
-    except Exception:
-        logger.exception("Failed to fetch Entra users")
-        raise
+    except APIError as error:
+        if error.response_status_code != 403:
+            raise
+        # Activity requires extra permissions/licensing; basic inventory does not.
+        logger.warning(
+            "Entra user sign-in activity request was forbidden; retrying without "
+            "signInActivity. Check AuditLog.Read.All and Entra ID P1/P2 licensing."
+        )
+        request_configuration.query_parameters.select = USER_SELECT_FIELDS
+        request_configuration.query_parameters.top = 999
+        page = await call_with_retries(
+            lambda: client.users.get(request_configuration=request_configuration),
+        )
 
     while page:
         if page.value:
@@ -123,6 +133,7 @@ def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema."""
 
     for user in users:
+        activity = user.sign_in_activity
         manager_id: str | None = None
         if getattr(user, "manager", None) is not None:
             # The SDK materialises `manager` as a DirectoryObject (or subclass)
@@ -150,6 +161,19 @@ def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
             "account_enabled": user.account_enabled,
             "age_group": user.age_group,
             "manager_id": manager_id,
+            "last_sign_in_date_time": (
+                activity.last_sign_in_date_time if activity is not None else None
+            ),
+            "last_non_interactive_sign_in_date_time": (
+                activity.last_non_interactive_sign_in_date_time
+                if activity is not None
+                else None
+            ),
+            "last_successful_sign_in_date_time": (
+                activity.last_successful_sign_in_date_time
+                if activity is not None
+                else None
+            ),
         }
 
 
