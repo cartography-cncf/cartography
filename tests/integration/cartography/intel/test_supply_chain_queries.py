@@ -87,7 +87,7 @@ def _check_unlimited_image_history(
     registry_label: str,
     tag_label: str,
     image_label: str,
-):
+) -> None:
     # Arrange
     image_count = 32
     layer_count = 24
@@ -144,14 +144,18 @@ def _check_unlimited_image_history(
     # The compiled plan must aggregate inside the correlated subquery. A global
     # aggregation returns the same rows but retains every image's layer history.
     plan = image_graph.run("EXPLAIN " + query, **parameters).consume().plan
-    pending = [plan]
+    pending = [(plan, False)]
     while pending:
-        operator = pending.pop()
-        if operator["operatorType"].split("@")[0] == "Apply":
-            inner = operator["children"][1]
-            if inner["args"].get("Details") == "collect(layer_info) AS layer_history":
-                break
-        pending.extend(operator.get("children", []))
+        operator, in_subquery = pending.pop()
+        details = operator["args"].get("Details", "")
+        if in_subquery and "collect(layer_info) AS layer_history" in details:
+            break
+        # Apply's right branch is correlated; projections may precede aggregation.
+        is_apply = operator["operatorType"].split("@")[0] == "Apply"
+        pending.extend(
+            (child, in_subquery or (is_apply and index == 1))
+            for index, child in enumerate(operator.get("children", []))
+        )
     else:
         pytest.fail("layer history is not aggregated per image")
 
