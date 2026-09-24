@@ -91,17 +91,20 @@ def get_unmatched_gitlab_container_images_with_history(
         query += f"        ORDER BY coalesce(repo.uri, repo.id), img.digest\n        LIMIT {int(limit)}\n"
 
     query += """
-        // Get layer history for each best image
-        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH repo, img, repo_img, img.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH repo, img, repo_img, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: layer.is_empty
-        } AS layer_info
-        ORDER BY idx
-        WITH repo, img, repo_img, collect(layer_info) AS layer_history
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: layer.is_empty
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
             img.digest AS digest,
             repo_img.id AS uri,

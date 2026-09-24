@@ -1100,16 +1100,20 @@ def get_unmatched_gcp_images_with_history(
         query += f"        ORDER BY coalesce(repo_img.uri, img.digest)\n        LIMIT {int(limit)}\n"
 
     query += """
-        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH img, repo_img, img.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH img, repo_img, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: false
-        } AS layer_info
-        ORDER BY idx
-        WITH img, repo_img, collect(layer_info) AS layer_history
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: false
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
             img.digest AS digest,
             repo_img.uri AS uri,
@@ -1201,16 +1205,20 @@ def get_unmatched_scaleway_images_with_history(
         query += f"        ORDER BY coalesce(t.uri, img.digest)\n        LIMIT {int(limit)}\n"
 
     query += """
-        UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
-        WITH img, t, img.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH img, t, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: layer.is_empty
-        } AS layer_info
-        ORDER BY idx
-        WITH img, t, collect(layer_info) AS layer_history
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: layer.is_empty
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
         RETURN
             img.digest AS digest,
             t.uri AS uri,
