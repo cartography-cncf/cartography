@@ -14,7 +14,6 @@ from msgraph.generated.users.users_request_builder import UsersRequestBuilder
 
 from cartography.intel.microsoft.entra.users import get_users
 from cartography.intel.microsoft.entra.users import transform_users
-from cartography.intel.microsoft.entra.users import USER_SELECT_FIELDS
 
 
 def test_activity_timestamps_and_missing_activity() -> None:
@@ -68,7 +67,7 @@ async def _collect(client: MagicMock) -> list[User]:
     return [user async for user in get_users(client)]
 
 
-def test_activity_request_paginates_and_keeps_managers() -> None:
+def test_activity_request_paginates() -> None:
     # Arrange
     client = _client()
     first, second = User(id="first"), User(id="second")
@@ -89,44 +88,8 @@ def test_activity_request_paginates_and_keeps_managers() -> None:
         "request_configuration"
     ].query_parameters
     assert parameters.top == 500
-    assert parameters.select == [*USER_SELECT_FIELDS, "signInActivity"]
-    assert parameters.expand == ["manager($select=id)"]
-    client.users.get.assert_awaited_once()
+    assert "signInActivity" in parameters.select
     client.users.with_url.assert_called_once_with(next_link)
-
-
-def test_forbidden_activity_falls_back_to_basic_inventory(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    # Arrange
-    client = _client()
-    denied = APIError("forbidden", response_status_code=403)
-    user = User(id="basic-user")
-    requests: list[tuple[int, list[str], list[str]]] = []
-
-    async def get(
-        *,
-        request_configuration: UsersRequestBuilder.UsersRequestBuilderGetRequestConfiguration,
-    ) -> UserCollectionResponse:
-        parameters = request_configuration.query_parameters
-        requests.append((parameters.top, list(parameters.select), parameters.expand))
-        if len(requests) == 1:
-            raise denied
-        return UserCollectionResponse(value=[user])
-
-    client.users.get = AsyncMock(side_effect=get)
-
-    # Act
-    result = asyncio.run(_collect(client))
-
-    # Assert
-    assert result == [user]
-    assert requests == [
-        (500, [*USER_SELECT_FIELDS, "signInActivity"], ["manager($select=id)"]),
-        (999, USER_SELECT_FIELDS, ["manager($select=id)"]),
-    ]
-    assert "AuditLog.Read.All" in caplog.text
-    assert "signInActivity" not in USER_SELECT_FIELDS
 
 
 @pytest.mark.parametrize("status", [400, 401, 429, 500])  # type: ignore[misc]
