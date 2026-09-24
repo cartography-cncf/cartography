@@ -44,6 +44,9 @@ def test_activity_timestamps_and_missing_activity() -> None:
     assert result[0]["last_sign_in_date_time"] == interactive
     assert result[0]["last_non_interactive_sign_in_date_time"] == non_interactive
     assert result[0]["manager_id"] == "manager"
+    assert result[0]["sign_in_activity_available"] is True
+    assert result[1]["sign_in_activity_available"] is False
+    assert result[2]["sign_in_activity_available"] is True
     for row in result[1:]:
         assert row["last_successful_sign_in_date_time"] is None
         assert row["last_sign_in_date_time"] is None

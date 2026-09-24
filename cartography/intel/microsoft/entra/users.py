@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from typing import Any
 from typing import AsyncGenerator
 from typing import Generator
@@ -14,6 +15,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
+from cartography.models.microsoft.entra.user import EntraUserBaseNodeProperties
 from cartography.models.microsoft.entra.user import EntraUserSchema
 from cartography.util import timeit
 
@@ -161,6 +163,7 @@ def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
             "account_enabled": user.account_enabled,
             "age_group": user.age_group,
             "manager_id": manager_id,
+            "sign_in_activity_available": activity is not None,
             "last_sign_in_date_time": (
                 activity.last_sign_in_date_time if activity is not None else None
             ),
@@ -222,13 +225,23 @@ def load_users(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        EntraUserSchema(),
-        users,
-        lastupdated=update_tag,
-        TENANT_ID=tenant_id,
-    )
+    # Missing optional activity is not evidence that old timestamps should be erased.
+    schema = EntraUserSchema()
+    for available, node_schema in (
+        (True, schema),
+        (False, replace(schema, properties=EntraUserBaseNodeProperties())),
+    ):
+        load(
+            neo4j_session,
+            node_schema,
+            [
+                user
+                for user in users
+                if bool(user.get("sign_in_activity_available")) == available
+            ],
+            lastupdated=update_tag,
+            TENANT_ID=tenant_id,
+        )
 
 
 def cleanup(

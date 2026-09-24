@@ -37,8 +37,10 @@ Cartography requests `signInActivity` with the existing user inventory query,
 using pages of up to 500 users and no per-user requests. If the first request
 returns `403 Forbidden`, it logs a warning and retries the inventory without
 activity. Failure of that retry or any later page still propagates and prevents
-cleanup. A successful fallback leaves activity properties null, including any
-previously collected values.
+cleanup. A successful fallback preserves previously collected activity timestamps
+and sets `sign_in_activity_available` to false. It still refreshes basic user
+inventory and allows its normal cleanup. Missing activity on an individual user
+also preserves old timestamps; new users without activity have null timestamps.
 
 The three activity properties on `EntraUser` are native UTC datetimes:
 
@@ -52,6 +54,7 @@ For example, find enabled accounts with a known successful sign-in older than
 ```cypher
 MATCH (u:EntraUser)
 WHERE u.account_enabled = true
+  AND u.sign_in_activity_available = true
   AND u.last_successful_sign_in_date_time < datetime() - duration('P90D')
 RETURN u.user_principal_name, u.last_successful_sign_in_date_time
 ORDER BY u.last_successful_sign_in_date_time
