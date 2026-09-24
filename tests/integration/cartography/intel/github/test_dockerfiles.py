@@ -250,6 +250,7 @@ def test_get_unmatched_container_images_applies_limit_before_layer_history(
         WITH img, i
         UNWIND range(0, 1) AS layer_index
         CREATE (:ImageLayer {
+            id: $prefix + '-layer-' + toString(i) + '-' + toString(layer_index),
             diff_id: $prefix + '-layer-' + toString(i) + '-' + toString(layer_index),
             history: 'RUN echo ' + toString(layer_index),
             is_empty: false

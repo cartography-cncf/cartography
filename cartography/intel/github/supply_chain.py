@@ -112,12 +112,14 @@ def get_unmatched_container_images_with_history(
               NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitHubOrganization'}]->())
               OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization}]->())
           )
-        WITH repo, img, repo_img
-        ORDER BY
-            CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
-            repo_img.image_pushed_at DESC
-        WITH repo, collect({img: img, repo_img: repo_img})[0] AS selected
-        WITH repo, selected.img AS img, selected.repo_img AS repo_img
+        // Retain one candidate per repository; DESC timestamps put nulls first.
+        WITH repo, max([
+            CASE WHEN repo_img.tag = 'latest' THEN 1 ELSE 0 END,
+            repo_img.image_pushed_at IS NULL,
+            repo_img.image_pushed_at,
+            img, repo_img
+        ]) AS selected
+        WITH repo, selected[3] AS img, selected[4] AS repo_img
     """
 
     if limit is not None:
@@ -129,7 +131,7 @@ def get_unmatched_container_images_with_history(
             WITH img
             UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
             WITH img.layer_diff_ids[idx] AS diff_id, idx
-            OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
+            OPTIONAL MATCH (layer:ImageLayer {id: diff_id})
             WITH idx, {
                 diff_id: diff_id,
                 history: layer.history,
