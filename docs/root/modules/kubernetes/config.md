@@ -169,6 +169,9 @@ Grant the AWS principal running Cartography these IAM actions on each target clu
 Notes:
 
 - These AWS permissions are in addition to the Kubernetes RBAC above.
+- The AWS managed `SecurityAudit` policy includes `eks:ListAccessEntries` and
+  `eks:DescribeAccessEntry`. If the principal already has `SecurityAudit`, grant
+  only `eks:ListIdentityProviderConfigs` and `eks:DescribeIdentityProviderConfig`.
 - Cartography derives the EKS region from the `cluster` field of each kubeconfig context entry. When using `aws eks update-kubeconfig`, this field is automatically set to the cluster ARN.
 - If you use `aws eks update-kubeconfig` to generate the kubeconfig that Cartography consumes, that command also requires `eks:DescribeCluster`.
 
