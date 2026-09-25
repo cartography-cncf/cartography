@@ -34,6 +34,7 @@ from . import inspector
 from . import kms
 from . import lambda_function
 from . import permission_relationships
+from . import ram
 from . import rds
 from . import redshift
 from . import resourcegroupstaggingapi
@@ -118,6 +119,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
         "lambda_function": lambda_function.sync,
+        "ram": ram.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
         # `route53` matches already-existing nodes to create DNS_POINTS_TO edges, so it must
