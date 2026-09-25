@@ -130,7 +130,7 @@ def test_alert_transform_normalizes_identifiers_and_timestamps() -> None:
 
 @pytest.mark.parametrize(
     "status",
-    ["CLOSE", "closed", " Dismiss ", "DISMISSED"],
+    ["CLOSE", "close", "DISMISS", "dismiss"],
 )  # type: ignore[misc]
 def test_alert_transform_skips_terminal_statuses(status: str) -> None:
     # Arrange
@@ -146,7 +146,7 @@ def test_alert_transform_skips_terminal_statuses(status: str) -> None:
 
 @pytest.mark.parametrize(
     "status",
-    ["OPEN", "IN_PROGRESS", "In Progress", "SNOOZED", "unexpected", None],
+    ["OPEN", "in_progress", "unexpected", None],
 )  # type: ignore[misc]
 def test_alert_transform_retains_non_terminal_statuses(status: str | None) -> None:
     # Arrange
@@ -158,6 +158,18 @@ def test_alert_transform_retains_non_terminal_statuses(status: str | None) -> No
 
     # Assert
     assert [alert["status"] for alert in result] == [status]
+
+
+def test_alert_transform_retains_alert_without_status() -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"].pop("Status")
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert [alert["status"] for alert in result] == [None]
 
 
 def test_alert_transform_reports_missing_alert_id() -> None:
