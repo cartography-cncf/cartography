@@ -1,0 +1,6 @@
+# Vercel
+
+```{toctree}
+config
+schema
+```
