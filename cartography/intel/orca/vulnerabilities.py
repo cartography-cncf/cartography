@@ -7,7 +7,6 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.orca import api
 from cartography.intel.orca.response import canonical_cve_ids
@@ -325,17 +324,6 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    stale_count = neo4j_session.execute_read(
-        read_single_value_tx,
-        """
-        MATCH (:OrcaOrganization {id: $ORCA_ORGANIZATION_ID})-[:RESOURCE]->(n:OrcaVulnerabilityFinding)
-        WHERE n.lastupdated <> $UPDATE_TAG
-        RETURN count(n)
-        """,
-        ORCA_ORGANIZATION_ID=common_job_parameters["ORCA_ORGANIZATION_ID"],
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-    )
-    logger.info("Removing %d stale Orca vulnerability findings.", stale_count)
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
         common_job_parameters,
