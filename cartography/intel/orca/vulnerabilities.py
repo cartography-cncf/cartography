@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
 VULNERABILITY_MODEL = "VulnerabilityV2"
+# Each deleted finding removes ~23 index entries plus its RESOURCE and ENRICHES
+# edges. At the 10,000-node default, cleanup transactions commit long enough to
+# delay other sessions waiting on causal bookmarks.
+CLEANUP_ITERATION_SIZE = 2000
 
 
 def build_query() -> dict[str, Any]:
@@ -310,4 +314,5 @@ def cleanup(
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
         common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)
