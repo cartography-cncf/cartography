@@ -153,12 +153,8 @@ def test_orca_ontology_mappings_use_provider_semantics() -> None:
     assert alert_fields["status"].extra["map"] == {
         "open": "open",
         "in_progress": "open",
-        "close": "fixed",
-        "dismiss": "ignored",
         "OPEN": "open",
         "IN_PROGRESS": "open",
-        "CLOSE": "fixed",
-        "DISMISS": "ignored",
     }
 
     assert set(vulnerability_fields) == {
