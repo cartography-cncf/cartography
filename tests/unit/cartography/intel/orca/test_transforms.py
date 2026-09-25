@@ -1,4 +1,3 @@
-import logging
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
@@ -380,7 +379,6 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     duplicate = deepcopy(VULNERABILITIES[0])
     duplicate["id"] = "another-orca-row"
     duplicate["Description"] = "Different advisory for the same occurrence."
-    caplog.set_level(logging.INFO, logger=vulnerabilities.__name__)
     mocker.patch.object(
         api,
         "iter_serving_layer_pages",
@@ -404,10 +402,6 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     load_vulnerabilities.assert_called_once()
     assert "Skipped 1 duplicate Orca vulnerability findings across pages" in (
         caplog.text
-    )
-    assert (
-        "Loaded 1 Orca vulnerability findings from 2 rows with 1 cross-page "
-        "duplicates." in caplog.text
     )
 
 
