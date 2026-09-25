@@ -748,6 +748,35 @@ def test_run_index_query_succeeds_normally():
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
     mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
+    mock_session.run.return_value.consume.assert_called_once_with()
+
+
+def test_run_index_query_handles_errors_raised_on_consume():
+    """Auto-commit errors can surface on consume; they must stay inside the retry."""
+    already_exists = MagicMock()
+    already_exists.consume.side_effect = _create_client_error(
+        "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+        "An equivalent index already exists.",
+    )
+    mock_session = MagicMock()
+    mock_session.run.return_value = already_exists
+
+    _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
+    already_exists.consume.assert_called_once_with()
+
+
+@patch("time.sleep")
+def test_run_index_query_retries_transient_error_raised_on_consume(mock_sleep):
+    transient = MagicMock()
+    transient.consume.side_effect = neo4j.exceptions.TransientError("busy")
+    mock_session = MagicMock()
+    mock_session.run.side_effect = [transient, MagicMock()]
+
+    _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    assert mock_session.run.call_count == 2
 
 
 # Tests for _is_retryable_buffer_error
