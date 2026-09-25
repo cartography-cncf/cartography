@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.ram
 from cartography.intel.aws.ram import sync
 from tests.data.aws.ram import GET_RAM_PRINCIPALS
@@ -131,15 +133,23 @@ def test_sync_ram(
     ) == {(TEST_TGW_ARN, TEST_TGW_ARN)}
 
 
+@patch.object(cartography.intel.aws.ram, "get_ram_resources", return_value=[])
+@patch.object(cartography.intel.aws.ram, "get_ram_principals", return_value=[])
 @patch.object(
     cartography.intel.aws.ram,
     "get_ram_resource_shares",
-    side_effect=cartography.intel.aws.ram.RAMRegionUnreadable("AccessDeniedException"),
+    side_effect=[
+        cartography.intel.aws.ram.RAMRegionUnreadable("AccessDeniedException"),
+        [],
+    ],
 )
-def test_sync_ram_unreadable_region_preserves_data(mock_get_shares, neo4j_session):
+def test_sync_ram_unreadable_region_preserves_data(
+    mock_get_shares, mock_get_principals, mock_get_resources, neo4j_session
+):
     """
     A region that cannot be read must not converge previously synced RAM data to empty:
-    cleanup is skipped so the last known good state survives.
+    cleanup is skipped so the last known good state survives, even though the other region
+    synced successfully and returned nothing.
     """
     # Arrange: a share already in the graph from an earlier, successful run.
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -156,11 +166,11 @@ def test_sync_ram_unreadable_region_preserves_data(mock_get_shares, neo4j_sessio
         old_tag=TEST_UPDATE_TAG,
     )
 
-    # Act: the next sync cannot read the region.
+    # Act: the first region cannot be read, the second is readable and empty.
     sync(
         neo4j_session,
         MagicMock(),
-        [TEST_REGION],
+        [TEST_REGION, "us-east-1"],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG + 1,
         {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
@@ -170,3 +180,27 @@ def test_sync_ram_unreadable_region_preserves_data(mock_get_shares, neo4j_sessio
     assert check_nodes(neo4j_session, "AWSRAMResourceShare", ["arn"]) == {
         (TEST_SHARE_ARN,)
     }
+
+
+@patch.object(
+    cartography.intel.aws.ram,
+    "get_ram_resource_shares",
+    side_effect=cartography.intel.aws.ram.RAMRegionUnreadable("AccessDeniedException"),
+)
+def test_sync_ram_all_regions_unreadable_raises(mock_get_shares, neo4j_session):
+    """
+    Failing in every region is an account-level problem — bad credentials or no RAM access
+    at all — not a regional one, so it must fail loudly instead of logging warnings and
+    reporting a successful sync.
+    """
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    with pytest.raises(RuntimeError, match="any of the 2 requested regions"):
+        sync(
+            neo4j_session,
+            MagicMock(),
+            [TEST_REGION, "us-east-1"],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG + 1,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+        )

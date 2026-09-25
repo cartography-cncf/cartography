@@ -23,6 +23,7 @@ from cartography.models.aws.ram.principal_association import (
 from cartography.models.aws.ram.resource_association import RAMResourceAssociationSchema
 from cartography.models.aws.ram.resource_share import RAMResourceShareSchema
 from cartography.util import AWSGetFunc
+from cartography.util import is_aws_region_skippable_client_error
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -30,24 +31,6 @@ logger = logging.getLogger(__name__)
 # Only shares owned by the account being synced. Shares owned by others are discovered
 # from the owner's own sync, which avoids ingesting the same share once per consumer.
 RESOURCE_OWNER = "SELF"
-
-# Error codes for which a region is unreadable rather than empty: the account cannot use
-# RAM here, or the service is unavailable. `aws_handle_regions` turns these into an empty
-# list, which `sync` cannot tell apart from a region that genuinely holds no shares, so RAM
-# raises instead and lets `sync` skip its destructive cleanup.
-_REGION_UNREADABLE_ERROR_CODES = frozenset(
-    {
-        "AccessDenied",
-        "AccessDeniedException",
-        "AuthFailure",
-        "AuthorizationError",
-        "AuthorizationErrorException",
-        "InvalidClientTokenId",
-        "UnauthorizedOperation",
-        "UnrecognizedClientException",
-        "InternalServerErrorException",
-    }
-)
 
 
 class RAMRegionUnreadable(Exception):
@@ -58,6 +41,12 @@ def ram_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     """
     Like `aws_handle_regions`, but signals an unreadable region with an exception instead of
     an empty list, so callers can tell "nothing shared here" from "could not look".
+
+    Classification of what counts as a regional failure is delegated to
+    `is_aws_region_skippable_client_error`, so this stays in step with the rest of the AWS
+    intel modules. Anything else — including credential failures, which are not specific to
+    one region — propagates and fails the account sync rather than being downgraded to a
+    per-region warning.
     """
 
     @wraps(func)
@@ -71,7 +60,13 @@ def ram_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as error:
             error_code = error.response.get("Error", {}).get("Code")
-            if error_code in _REGION_UNREADABLE_ERROR_CODES:
+            if error_code == "InvalidToken":
+                raise RuntimeError(
+                    "AWS returned an InvalidToken error. Configure regional STS endpoints by "
+                    "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
+                    "'sts_regional_endpoints = regional' to your AWS config file."
+                ) from error
+            if is_aws_region_skippable_client_error(error):
                 raise RAMRegionUnreadable(
                     f"Could not read RAM data: {error_code}"
                 ) from error
@@ -298,6 +293,7 @@ def sync(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     cleanup_safe = True
+    unreadable_regions: List[str] = []
 
     for region in regions:
         logger.info(
@@ -314,6 +310,7 @@ def sync(
             # Keep whatever this region held on a previous run rather than deleting it
             # below because we could not look.
             cleanup_safe = False
+            unreadable_regions.append(region)
             logger.warning(
                 "Skipping RAM region '%s' for account '%s': %s",
                 region,
@@ -352,11 +349,22 @@ def sync(
             update_tag,
         )
 
+    # Every region failing is not a regional problem: it points at the credentials or at
+    # RAM access for the whole account. Fail rather than report an account-wide outage as a
+    # series of per-region warnings.
+    if regions and len(unreadable_regions) == len(regions):
+        raise RuntimeError(
+            f"Could not read RAM data in any of the {len(regions)} requested regions for "
+            f"account {current_aws_account_id}. This usually means the credentials are "
+            f"invalid or lack RAM permissions account-wide."
+        )
+
     if cleanup_safe:
         cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(
-            "Skipping RAM cleanup for account '%s' because one or more regions could not "
-            "be read. Preserving last-known-good data.",
+            "Skipping RAM cleanup for account '%s' because regions %s could not be read. "
+            "Preserving last-known-good data.",
             current_aws_account_id,
+            ", ".join(unreadable_regions),
         )
