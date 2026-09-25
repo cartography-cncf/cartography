@@ -12,6 +12,8 @@ from typing import Any
 
 import neo4j
 
+from cartography.client.core.tx import read_list_of_dicts_tx
+
 logger = logging.getLogger(__name__)
 
 
@@ -1126,7 +1128,8 @@ def get_unmatched_gcp_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         update_tag=update_tag,
         sub_resource_label=sub_resource_label,
@@ -1233,7 +1236,8 @@ def get_unmatched_scaleway_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         update_tag=update_tag,
         sub_resource_label=sub_resource_label,

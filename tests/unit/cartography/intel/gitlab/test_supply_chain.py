@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.gitlab.supply_chain import (
     build_singleton_dockerfile_fallback_matchlinks,
 )
@@ -14,7 +15,7 @@ from cartography.intel.supply_chain import ContainerImage
 
 def test_get_unmatched_container_images_limits_before_layer_history_expansion():
     neo4j_session = MagicMock()
-    neo4j_session.run.return_value = []
+    neo4j_session.execute_read.return_value = []
 
     get_unmatched_gitlab_container_images_with_history(
         neo4j_session,
@@ -24,7 +25,8 @@ def test_get_unmatched_container_images_limits_before_layer_history_expansion():
         limit=10,
     )
 
-    query = neo4j_session.run.call_args.args[0]
+    tx_func, query = neo4j_session.execute_read.call_args.args[:2]
+    assert tx_func is read_list_of_dicts_tx
     assert (
         query.index("ORDER BY coalesce(repo.uri, repo.id)")
         < query.index("LIMIT 10")
