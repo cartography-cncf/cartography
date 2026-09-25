@@ -309,11 +309,11 @@ def sync(
                 organization_id,
                 update_tag,
             )
-    # Cross-page duplicates mean offset pagination returned a row twice, which
-    # can also mean it skipped another row that cleanup will then delete.
+    # Findings repeated across pages have several causes. One is offset
+    # pagination drift, which can also skip rows that cleanup then deletes.
     logger.info(
-        "Loaded %d Orca vulnerability findings from %d rows with %d cross-page "
-        "duplicates.",
+        "Loaded %d Orca vulnerability findings from %d rows; skipped %d "
+        "findings repeated across pages.",
         len(seen_ids),
         row_count,
         cross_page_duplicates,
