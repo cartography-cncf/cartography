@@ -224,8 +224,17 @@ def get_file_content(
         # GitLab returns content as base64 encoded
         if response.get("encoding") == "base64":
             content_b64 = response.get("content", "")
-            content = base64.b64decode(content_b64).decode("utf-8")
-            return content
+            raw_content = base64.b64decode(content_b64)
+            try:
+                return raw_content.decode("utf-8")
+            except UnicodeDecodeError:
+                # A file named e.g. "Dockerfile" isn't guaranteed to be text (could be a
+                # binary image, compiled artifact, etc). One project's non-text file
+                # shouldn't abort ingestion for the rest of the org.
+                logger.debug(
+                    f"Skipping non-text file (failed UTF-8 decode): project {project_id}/{file_path}",
+                )
+                return None
 
         # If not base64 encoded, return raw content
         return response.get("content")
