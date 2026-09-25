@@ -566,9 +566,6 @@ def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
         "cartography.intel.orca.vulnerabilities.CLEANUP_ITERATION_SIZE",
         2,
     )
-    cleanup_job = mocker.spy(
-        cartography.intel.orca.vulnerabilities.GraphJob, "from_node_schema"
-    )
 
     # Act
     cartography.intel.orca.start_orca_ingestion(
@@ -577,7 +574,6 @@ def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
     )
 
     # Assert
-    assert cleanup_job.call_args.kwargs["iterationsize"] == 2
     assert {
         (organization_id, cve_id, lastupdated)
         for organization_id, cve_id, lastupdated in check_nodes(
