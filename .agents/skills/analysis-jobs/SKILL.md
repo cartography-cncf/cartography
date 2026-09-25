@@ -163,9 +163,11 @@ def _perform_analysis(requested_syncs, neo4j_session, common_job_parameters):
 Add an integration test that:
 
 1. Calls `sync()` with mocked external boundaries.
-2. Asserts the analysis-produced edges / properties using `check_nodes` / `check_rels`.
+2. Asserts the analysis-produced relationships using `check_rels`. When the
+   feature computes properties rather than edges, assert those properties with
+   `check_nodes` or a focused read query instead; do not require both by default.
 
-See the `create-module` skill for testing conventions.
+Follow [tests/AGENTS.md](../../../tests/AGENTS.md) for test scope and conventions.
 
 ## Best practices
 
