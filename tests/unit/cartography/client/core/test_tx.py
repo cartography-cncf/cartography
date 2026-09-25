@@ -763,6 +763,9 @@ def test_run_index_query_handles_errors_raised_on_consume():
 
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
+    mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
+    already_exists.consume.assert_called_once_with()
+
 
 @patch("time.sleep")
 def test_run_index_query_retries_transient_error_raised_on_consume(mock_sleep):
