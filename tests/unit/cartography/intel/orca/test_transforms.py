@@ -519,3 +519,24 @@ def test_vulnerability_query_matches_official_serving_layer_shape() -> None:
     }
     assert query["additional_models[]"] == ["InstalledPackage", "Inventory"]
     assert query["flat_json"] is True
+
+
+def test_vulnerability_cleanup_uses_bounded_iteration_size(mocker) -> None:
+    # Arrange
+    from_node_schema = mocker.patch(
+        "cartography.intel.orca.vulnerabilities.GraphJob.from_node_schema",
+    )
+    neo4j_session = mocker.MagicMock()
+
+    # Act
+    vulnerabilities.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": 12345, "ORCA_ORGANIZATION_ID": ORGANIZATION_ID},
+    )
+
+    # Assert
+    assert (
+        from_node_schema.call_args.kwargs["iterationsize"]
+        == vulnerabilities.CLEANUP_ITERATION_SIZE
+    )
+    from_node_schema.return_value.run.assert_called_once_with(neo4j_session)
