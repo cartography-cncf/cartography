@@ -278,6 +278,8 @@ def sync(
     update_tag: int,
 ) -> None:
     seen_ids: set[str] = set()
+    row_count = 0
+    cross_page_duplicates = 0
     for page in api.iter_serving_layer_pages(
         session,
         api_endpoint,
@@ -285,6 +287,7 @@ def sync(
         page_size=PAGE_SIZE,
         result_name="vulnerabilities",
     ):
+        row_count += len(page)
         vulnerabilities = transform(page, organization_id)
         new_vulnerabilities = [
             vulnerability
@@ -292,6 +295,7 @@ def sync(
             if vulnerability["id"] not in seen_ids
         ]
         duplicate_count = len(vulnerabilities) - len(new_vulnerabilities)
+        cross_page_duplicates += duplicate_count
         if duplicate_count:
             logger.warning(
                 "Skipped %d duplicate Orca vulnerability findings across pages.",
@@ -305,6 +309,15 @@ def sync(
                 organization_id,
                 update_tag,
             )
+    # Cross-page duplicates mean offset pagination returned a row twice, which
+    # can also mean it skipped another row that cleanup will then delete.
+    logger.info(
+        "Loaded %d Orca vulnerability findings from %d rows with %d cross-page "
+        "duplicates.",
+        len(seen_ids),
+        row_count,
+        cross_page_duplicates,
+    )
 
 
 def cleanup(
