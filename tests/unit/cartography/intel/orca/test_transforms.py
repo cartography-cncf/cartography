@@ -128,6 +128,38 @@ def test_alert_transform_normalizes_identifiers_and_timestamps() -> None:
     assert result["created_at"] == datetime.fromisoformat("2026-08-02T12:00:00+00:00")
 
 
+@pytest.mark.parametrize(
+    "status",
+    ["CLOSE", "closed", " Dismiss ", "DISMISSED"],
+)  # type: ignore[misc]
+def test_alert_transform_skips_terminal_statuses(status: str) -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"]["Status"] = {"value": status}
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["OPEN", "IN_PROGRESS", "In Progress", "SNOOZED", "unexpected", None],
+)  # type: ignore[misc]
+def test_alert_transform_retains_non_terminal_statuses(status: str | None) -> None:
+    # Arrange
+    raw = deepcopy(ALERTS[0])
+    raw["data"]["Status"] = {"value": status}
+
+    # Act
+    result = alerts.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert [alert["status"] for alert in result] == [status]
+
+
 def test_alert_transform_reports_missing_alert_id() -> None:
     # Arrange
     raw = deepcopy(ALERTS[0])
