@@ -304,7 +304,8 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     check and the actual creation.
     """
     try:
-        neo4j_session.run(query)
+        # Consume inside the retry boundary: auto-commit errors surface lazily.
+        neo4j_session.run(query).consume()
     except neo4j.exceptions.ClientError as e:
         # EquivalentSchemaRuleAlreadyExists means another parallel sync already created
         # this index, which is the desired end state. Safe to ignore.

@@ -8,6 +8,7 @@ import requests
 
 from cartography.analysis.ontology.analysis import SUPPLY_CHAIN_SOURCE_FILE
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
@@ -120,7 +121,8 @@ def get_unmatched_gitlab_container_images_with_history(
             layer_history
     """
 
-    result = neo4j_session.run(
+    result = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         query,
         update_tag=update_tag,
         organization_id=organization_id,
