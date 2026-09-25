@@ -129,3 +129,44 @@ def test_sync_ram(
         "SHARES",
         rel_direction_right=True,
     ) == {(TEST_TGW_ARN, TEST_TGW_ARN)}
+
+
+@patch.object(
+    cartography.intel.aws.ram,
+    "get_ram_resource_shares",
+    side_effect=cartography.intel.aws.ram.RAMRegionUnreadable("AccessDeniedException"),
+)
+def test_sync_ram_unreadable_region_preserves_data(mock_get_shares, neo4j_session):
+    """
+    A region that cannot be read must not converge previously synced RAM data to empty:
+    cleanup is skipped so the last known good state survives.
+    """
+    # Arrange: a share already in the graph from an earlier, successful run.
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (a:AWSAccount{id: $account_id})
+        MERGE (s:AWSRAMResourceShare{id: $arn})
+        SET s.arn = $arn, s.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(s)
+        SET r.lastupdated = $old_tag
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        arn=TEST_SHARE_ARN,
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: the next sync cannot read the region.
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: the stale share is still there rather than cleaned up.
+    assert check_nodes(neo4j_session, "AWSRAMResourceShare", ["arn"]) == {
+        (TEST_SHARE_ARN,)
+    }

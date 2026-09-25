@@ -22,6 +22,7 @@ class RAMPrincipalAssociationNodeProperties(CartographyNodeProperties):
     )
     principal: PropertyRef = PropertyRef(
         "id",
+        extra_index=True,
         description=(
             "The ID of the principal that can access the resources in the resource share. "
             "An AWS account ID, or the ARN of an organization, OU, IAM role or IAM user"

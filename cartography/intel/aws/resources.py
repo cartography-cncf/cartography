@@ -119,6 +119,8 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
         "lambda_function": lambda_function.sync,
+        # `ram` must run after `ec2:tgw` so that AWSTransitGateway nodes exist when
+        # resource associations create SHARES edges to shared Transit Gateways.
         "ram": ram.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,

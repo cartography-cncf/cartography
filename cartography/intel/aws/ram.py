@@ -1,9 +1,13 @@
 import logging
+from functools import wraps
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
+import backoff
 import boto3
+import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -18,7 +22,7 @@ from cartography.models.aws.ram.principal_association import (
 )
 from cartography.models.aws.ram.resource_association import RAMResourceAssociationSchema
 from cartography.models.aws.ram.resource_share import RAMResourceShareSchema
-from cartography.util import aws_handle_regions
+from cartography.util import AWSGetFunc
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -27,9 +31,57 @@ logger = logging.getLogger(__name__)
 # from the owner's own sync, which avoids ingesting the same share once per consumer.
 RESOURCE_OWNER = "SELF"
 
+# Error codes for which a region is unreadable rather than empty: the account cannot use
+# RAM here, or the service is unavailable. `aws_handle_regions` turns these into an empty
+# list, which `sync` cannot tell apart from a region that genuinely holds no shares, so RAM
+# raises instead and lets `sync` skip its destructive cleanup.
+_REGION_UNREADABLE_ERROR_CODES = frozenset(
+    {
+        "AccessDenied",
+        "AccessDeniedException",
+        "AuthFailure",
+        "AuthorizationError",
+        "AuthorizationErrorException",
+        "InvalidClientTokenId",
+        "UnauthorizedOperation",
+        "UnrecognizedClientException",
+        "InternalServerErrorException",
+    }
+)
+
+
+class RAMRegionUnreadable(Exception):
+    """Raised when a region's RAM data could not be read at all."""
+
+
+def ram_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
+    """
+    Like `aws_handle_regions`, but signals an unreadable region with an exception instead of
+    an empty list, so callers can tell "nothing shared here" from "could not look".
+    """
+
+    @wraps(func)
+    @backoff.on_exception(
+        backoff.expo,
+        botocore.exceptions.ClientError,
+        max_time=600,
+    )
+    def inner_function(*args, **kwargs):  # type: ignore
+        try:
+            return func(*args, **kwargs)
+        except botocore.exceptions.ClientError as error:
+            error_code = error.response.get("Error", {}).get("Code")
+            if error_code in _REGION_UNREADABLE_ERROR_CODES:
+                raise RAMRegionUnreadable(
+                    f"Could not read RAM data: {error_code}"
+                ) from error
+            raise
+
+    return cast(AWSGetFunc, inner_function)
+
 
 @timeit
-@aws_handle_regions
+@ram_handle_regions
 def get_ram_resource_shares(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
@@ -44,7 +96,7 @@ def get_ram_resource_shares(
 
 
 @timeit
-@aws_handle_regions
+@ram_handle_regions
 def get_ram_principals(
     boto3_session: boto3.Session, region: str, shares: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -69,7 +121,7 @@ def get_ram_principals(
 
 
 @timeit
-@aws_handle_regions
+@ram_handle_regions
 def get_ram_resources(
     boto3_session: boto3.Session, region: str, shares: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -100,9 +152,7 @@ def transform_ram_principals(
     """
     transformed: List[Dict[str, Any]] = []
     for principal in principals:
-        principal_id = principal.get("id")
-        if not principal_id:
-            continue
+        principal_id = principal["id"]
         transformed_principal = dict(principal)
         transformed_principal["Id"] = f"{principal['resourceShareArn']}|{principal_id}"
         transformed_principal["PrincipalAccountId"] = (
@@ -117,9 +167,7 @@ def transform_ram_resources(
 ) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for resource in resources:
-        resource_arn = resource.get("arn")
-        if not resource_arn:
-            continue
+        resource_arn = resource["arn"]
         transformed_resource = dict(resource)
         transformed_resource["Id"] = f"{resource['resourceShareArn']}|{resource_arn}"
         transformed.append(transformed_resource)
@@ -136,7 +184,7 @@ def get_principal_accounts(
     account_ids = {
         principal["PrincipalAccountId"]
         for principal in principals
-        if principal.get("PrincipalAccountId")
+        if principal["PrincipalAccountId"]
     }
     return [{"id": account_id} for account_id in sorted(account_ids)]
 
@@ -149,8 +197,8 @@ def load_ram_resource_shares(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading RAM {len(data)} resource shares for region '{region}' into graph.",
+    logger.debug(
+        "Loading %d RAM resource shares for region '%s' into graph.", len(data), region
     )
     load(
         neo4j_session,
@@ -168,7 +216,7 @@ def load_ram_principal_accounts(
     data: List[Dict[str, Any]],
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} RAM principal AWS accounts into graph.")
+    logger.debug("Loading %d RAM principal AWS accounts into graph.", len(data))
     load(
         neo4j_session,
         AWSAccountRAMPrincipalSchema(),
@@ -185,8 +233,10 @@ def load_ram_principal_associations(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading RAM {len(data)} principal associations for region '{region}' into graph.",
+    logger.debug(
+        "Loading %d RAM principal associations for region '%s' into graph.",
+        len(data),
+        region,
     )
     load(
         neo4j_session,
@@ -206,8 +256,10 @@ def load_ram_resource_associations(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(
-        f"Loading RAM {len(data)} resource associations for region '{region}' into graph.",
+    logger.debug(
+        "Loading %d RAM resource associations for region '%s' into graph.",
+        len(data),
+        region,
     )
     load(
         neo4j_session,
@@ -245,12 +297,31 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    cleanup_safe = True
+
     for region in regions:
         logger.info(
-            f"Syncing RAM for region '{region}' in account '{current_aws_account_id}'.",
+            "Syncing RAM for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
         )
 
-        shares = get_ram_resource_shares(boto3_session, region)
+        try:
+            shares = get_ram_resource_shares(boto3_session, region)
+            principals = get_ram_principals(boto3_session, region, shares)
+            resources = get_ram_resources(boto3_session, region, shares)
+        except RAMRegionUnreadable as error:
+            # Keep whatever this region held on a previous run rather than deleting it
+            # below because we could not look.
+            cleanup_safe = False
+            logger.warning(
+                "Skipping RAM region '%s' for account '%s': %s",
+                region,
+                current_aws_account_id,
+                error,
+            )
+            continue
+
         load_ram_resource_shares(
             neo4j_session,
             shares,
@@ -259,7 +330,6 @@ def sync(
             update_tag,
         )
 
-        principals = get_ram_principals(boto3_session, region, shares)
         transformed_principals = transform_ram_principals(principals)
         load_ram_principal_accounts(
             neo4j_session,
@@ -274,7 +344,6 @@ def sync(
             update_tag,
         )
 
-        resources = get_ram_resources(boto3_session, region, shares)
         load_ram_resource_associations(
             neo4j_session,
             transform_ram_resources(resources),
@@ -283,4 +352,11 @@ def sync(
             update_tag,
         )
 
-    cleanup(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping RAM cleanup for account '%s' because one or more regions could not "
+            "be read. Preserving last-known-good data.",
+            current_aws_account_id,
+        )
