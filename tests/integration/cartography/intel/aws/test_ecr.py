@@ -470,6 +470,11 @@ def test_load_ecr_images(neo4j_session):
 
 @patch.object(
     cartography.intel.aws.ecr,
+    "get_ecr_scan_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
     "get_ecr_repositories",
     return_value=[
         {
@@ -481,7 +486,7 @@ def test_load_ecr_images(neo4j_session):
         }
     ],
 )
-def test_sync_manifest_list(mock_get_repos, neo4j_session):
+def test_sync_manifest_list(mock_get_repos, mock_get_findings, neo4j_session):
     """
     Ensure that manifest lists are properly handled:
     - AWSECRRepositoryImage points to manifest list, platform-specific, and attestation ECRImages
@@ -682,6 +687,11 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
 
 @patch.object(
     cartography.intel.aws.ecr,
+    "get_ecr_scan_findings",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
     "get_ecr_repositories",
     return_value=[
         {
@@ -694,7 +704,7 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     ],
 )
 def test_sync_single_platform_image_marked_as_manifest_list(
-    mock_get_repos, neo4j_session
+    mock_get_repos, mock_get_findings, neo4j_session
 ):
     """
     Test that single-platform images incorrectly marked as manifest lists are handled gracefully.
@@ -826,3 +836,253 @@ def test_sync_single_platform_image_marked_as_manifest_list(
 
     assert len(image_digests) == 1
     assert tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST in image_digests
+
+
+def test_transform_ecr_scan_findings():
+    """Check transform: id format, field mapping, CVSS score priority."""
+    raw = [
+        {
+            "_repo_uri": tests.data.aws.ecr.SCAN_FINDING_REPO_URI,
+            "_image_digest": tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+            **finding,
+        }
+        for finding in tests.data.aws.ecr.DESCRIBE_IMAGE_SCAN_FINDINGS
+    ]
+    result = cartography.intel.aws.ecr.transform_ecr_scan_findings(raw)
+
+    assert len(result) == 2
+
+    critical = next(f for f in result if f["cve_id"] == "CVE-2021-44228")
+    assert critical["id"] == (
+        f"{tests.data.aws.ecr.SCAN_FINDING_REPO_URI}"
+        f"/{tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST}"
+        "/CVE-2021-44228"
+    )
+    assert critical["severity"] == "CRITICAL"
+    assert critical["package_name"] == "log4j"
+    assert critical["package_version"] == "2.14.1"
+    assert critical["cvssscore"] == 10.0
+    assert critical["image_digest"] == tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST
+    assert critical["repository_uri"] == tests.data.aws.ecr.SCAN_FINDING_REPO_URI
+
+    high = next(f for f in result if f["cve_id"] == "CVE-2022-22965")
+    # CVSS4 > CVSS3 > CVSS2 priority
+    assert high["cvssscore"] == 9.8
+
+
+def test_load_ecr_scan_findings(neo4j_session):
+    """Verify AWSECRScanFinding nodes and AFFECTS/RESOURCE relationships."""
+    # Arrange: seed prerequisite graph state
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
+    data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
+    cartography.intel.aws.ecr.load_ecr_repository_images(
+        neo4j_session,
+        repo_images_list,
+        ecr_images_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    raw_findings = [
+        {
+            "_repo_uri": tests.data.aws.ecr.SCAN_FINDING_REPO_URI,
+            "_image_digest": tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+            **f,
+        }
+        for f in tests.data.aws.ecr.DESCRIBE_IMAGE_SCAN_FINDINGS
+    ]
+    findings = cartography.intel.aws.ecr.transform_ecr_scan_findings(raw_findings)
+    cartography.intel.aws.ecr.load_ecr_scan_findings(
+        neo4j_session,
+        findings,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: nodes created with expected properties
+    assert check_nodes(
+        neo4j_session, "AWSECRScanFinding", ["id", "cve_id", "severity"]
+    ) == {
+        (
+            f"{tests.data.aws.ecr.SCAN_FINDING_REPO_URI}"
+            f"/{tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST}/CVE-2021-44228",
+            "CVE-2021-44228",
+            "CRITICAL",
+        ),
+        (
+            f"{tests.data.aws.ecr.SCAN_FINDING_REPO_URI}"
+            f"/{tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST}/CVE-2022-22965",
+            "CVE-2022-22965",
+            "HIGH",
+        ),
+    }
+
+    # Assert: AFFECTS relationship to AWSECRImage
+    assert check_rels(
+        neo4j_session,
+        "AWSECRScanFinding",
+        "cve_id",
+        "AWSECRImage",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    ) == {
+        ("CVE-2021-44228", tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST),
+        ("CVE-2022-22965", tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST),
+    }
+
+    # Assert: RESOURCE relationship to AWSAccount
+    assert check_rels(
+        neo4j_session,
+        "AWSECRScanFinding",
+        "cve_id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("CVE-2021-44228", TEST_ACCOUNT_ID),
+        ("CVE-2022-22965", TEST_ACCOUNT_ID),
+    }
+
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=tests.data.aws.ecr.DESCRIBE_REPOSITORIES["repositories"],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repository_images",
+    side_effect=_mock_get_ecr_repository_images,
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_scan_findings",
+    return_value=tests.data.aws.ecr.DESCRIBE_IMAGE_SCAN_FINDINGS,
+)
+def test_sync_ecr_scan_findings(
+    mock_get_findings, mock_get_images, mock_get_repos, neo4j_session
+):
+    """Ensure ECR scan findings are loaded during sync and connected to images."""
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: scan finding nodes exist with correct properties
+    assert check_nodes(
+        neo4j_session,
+        "AWSECRScanFinding",
+        ["cve_id", "severity", "package_name", "package_version", "cvssscore"],
+    ) == {
+        ("CVE-2021-44228", "CRITICAL", "log4j", "2.14.1", 10.0),
+        ("CVE-2022-22965", "HIGH", "spring-webmvc", "5.3.17", 9.8),
+    }
+
+    # Assert: findings connect to images via AFFECTS
+    finding_to_image_rels = check_rels(
+        neo4j_session,
+        "AWSECRScanFinding",
+        "cve_id",
+        "AWSECRImage",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,
+    )
+    assert (
+        "CVE-2021-44228",
+        tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+    ) in finding_to_image_rels
+    assert (
+        "CVE-2022-22965",
+        tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+    ) in finding_to_image_rels
+
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+
+def test_cleanup_ecr_scan_findings(neo4j_session):
+    """Stale AWSECRScanFinding nodes removed when update_tag changes."""
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
+    data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
+    cartography.intel.aws.ecr.load_ecr_repository_images(
+        neo4j_session,
+        repo_images_list,
+        ecr_images_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    raw_findings = [
+        {
+            "_repo_uri": tests.data.aws.ecr.SCAN_FINDING_REPO_URI,
+            "_image_digest": tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+            **f,
+        }
+        for f in tests.data.aws.ecr.DESCRIBE_IMAGE_SCAN_FINDINGS
+    ]
+    findings = cartography.intel.aws.ecr.transform_ecr_scan_findings(raw_findings)
+    cartography.intel.aws.ecr.load_ecr_scan_findings(
+        neo4j_session,
+        findings,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Confirm both findings exist before cleanup
+    assert len(check_nodes(neo4j_session, "AWSECRScanFinding", ["id"])) == 2
+
+    # Load one new finding under a different update_tag
+    new_update_tag = TEST_UPDATE_TAG + 1
+    new_findings = cartography.intel.aws.ecr.transform_ecr_scan_findings(
+        [
+            {
+                "_repo_uri": tests.data.aws.ecr.SCAN_FINDING_REPO_URI,
+                "_image_digest": tests.data.aws.ecr.SCAN_FINDING_IMAGE_DIGEST,
+                **tests.data.aws.ecr.DESCRIBE_IMAGE_SCAN_FINDINGS[0],
+            }
+        ]
+    )
+    cartography.intel.aws.ecr.load_ecr_scan_findings(
+        neo4j_session,
+        new_findings,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        new_update_tag,
+    )
+
+    cartography.intel.aws.ecr.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": new_update_tag, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Only the finding loaded under new_update_tag should survive
+    remaining = check_nodes(neo4j_session, "AWSECRScanFinding", ["cve_id"])
+    assert remaining == {("CVE-2021-44228",)}
+
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
