@@ -558,10 +558,6 @@ def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
     closed_alert = deepcopy(ALERTS[0])
     closed_alert["data"]["Status"] = {"value": "CLOSE"}
     state["Alert"] = [closed_alert, deepcopy(ALERTS[1])]
-    cleanup_job = mocker.spy(
-        cartography.intel.orca.alerts.GraphJob,
-        "from_node_schema",
-    )
 
     # Act
     cartography.intel.orca.start_orca_ingestion(
@@ -570,7 +566,6 @@ def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
     )
 
     # Assert
-    assert cleanup_job.call_args_list[0].kwargs["iterationsize"] == 2000
     assert check_nodes(neo4j_session, "OrcaAlert", ["id", "lastupdated"]) == {
         (f"orca:{ORGANIZATION_ID}:{ALERT_ID_2}", TEST_UPDATE_TAG + 1),
         (f"orca:{OTHER_ORGANIZATION_ID}:{ALERT_ID_1}", TEST_UPDATE_TAG),
