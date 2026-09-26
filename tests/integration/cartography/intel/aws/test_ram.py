@@ -1,7 +1,6 @@
+import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
-
-import pytest
 
 import cartography.intel.aws.ram
 from cartography.intel.aws.ram import sync
@@ -182,20 +181,36 @@ def test_sync_ram_unreadable_region_preserves_data(
     }
 
 
+@patch.object(cartography.intel.aws.ram, "get_ram_resources", return_value=[])
+@patch.object(cartography.intel.aws.ram, "get_ram_principals", return_value=[])
 @patch.object(
     cartography.intel.aws.ram,
     "get_ram_resource_shares",
     side_effect=cartography.intel.aws.ram.RAMRegionUnreadable("AccessDeniedException"),
 )
-def test_sync_ram_all_regions_unreadable_raises(mock_get_shares, neo4j_session):
+def test_sync_ram_all_regions_unreadable_does_not_raise(
+    mock_get_shares, mock_get_principals, mock_get_resources, neo4j_session, caplog
+):
     """
-    Failing in every region is an account-level problem — bad credentials or no RAM access
-    at all — not a regional one, so it must fail loudly instead of logging warnings and
-    reporting a successful sync.
+    An account where RAM is denied in every region — typically a service control policy —
+    must not abort the account's sync: the modules that run after this one still need to
+    execute. It is logged as an error, and cleanup is skipped so nothing is deleted.
     """
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (a:AWSAccount{id: $account_id})
+        MERGE (s:AWSRAMResourceShare{id: $arn})
+        SET s.arn = $arn, s.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(s)
+        SET r.lastupdated = $old_tag
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        arn=TEST_SHARE_ARN,
+        old_tag=TEST_UPDATE_TAG,
+    )
 
-    with pytest.raises(RuntimeError, match="any of the 2 requested regions"):
+    with caplog.at_level(logging.ERROR):
         sync(
             neo4j_session,
             MagicMock(),
@@ -204,3 +219,9 @@ def test_sync_ram_all_regions_unreadable_raises(mock_get_shares, neo4j_session):
             TEST_UPDATE_TAG + 1,
             {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
         )
+
+    assert "Could not read RAM data in any of the 2 requested regions" in caplog.text
+    # Cleanup was skipped, so the previously synced share is still present.
+    assert check_nodes(neo4j_session, "AWSRAMResourceShare", ["arn"]) == {
+        (TEST_SHARE_ARN,)
+    }

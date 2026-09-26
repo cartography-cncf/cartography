@@ -349,14 +349,18 @@ def sync(
             update_tag,
         )
 
-    # Every region failing is not a regional problem: it points at the credentials or at
-    # RAM access for the whole account. Fail rather than report an account-wide outage as a
-    # series of per-region warnings.
+    # Every region failing points at something account-wide rather than regional: RAM denied
+    # by a service control policy, or a role without RAM permissions. That is worth an
+    # ERROR, because the account contributes no RAM data at all, but not an exception: it is
+    # a legitimate standing configuration in some accounts, and raising here would abort the
+    # whole account's sync — including the modules that run after this one.
     if regions and len(unreadable_regions) == len(regions):
-        raise RuntimeError(
-            f"Could not read RAM data in any of the {len(regions)} requested regions for "
-            f"account {current_aws_account_id}. This usually means the credentials are "
-            f"invalid or lack RAM permissions account-wide."
+        logger.error(
+            "Could not read RAM data in any of the %d requested regions for account '%s'. "
+            "RAM is likely denied account-wide by a service control policy, or the role "
+            "lacks RAM permissions. No RAM data was ingested for this account.",
+            len(regions),
+            current_aws_account_id,
         )
 
     if cleanup_safe:
