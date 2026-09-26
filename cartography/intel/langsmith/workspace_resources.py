@@ -10,6 +10,7 @@ import logging
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -207,6 +208,20 @@ def get_mcp_servers(
                 "Skipping LangSmith MCP gateways for vendor %s: %s", vendor_slug, err
             )
             continue
+        except requests.HTTPError as err:
+            # A vendor that is registered but not yet OAuth-connected in this workspace
+            # answers 400 ("Please connect your Arcade account first"). It exposes no
+            # gateways, so treat it as empty rather than failing the whole sync.
+            if err.response is not None and err.response.status_code == 400:
+                logger.warning(
+                    "Skipping LangSmith MCP gateways for vendor %s in workspace %s: "
+                    "the vendor is not connected (%s)",
+                    vendor_slug,
+                    workspace_id,
+                    err,
+                )
+                continue
+            raise
         for gateway in gateways:
             servers.append(
                 _transform_mcp_server(gateway, workspace_id, vendor=vendor_slug)
