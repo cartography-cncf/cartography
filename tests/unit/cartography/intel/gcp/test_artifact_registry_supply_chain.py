@@ -22,8 +22,18 @@ from cartography.intel.gcp.artifact_registry.supply_chain import (
 from cartography.intel.gcp.artifact_registry.supply_chain import _process_single_image
 from cartography.intel.gcp.artifact_registry.supply_chain import _TokenManager
 from cartography.intel.supply_chain import extract_provenance_from_oci_config
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_ARTIFACT
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_DIGEST
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_MANIFEST
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_ATTESTATION_MANIFEST_URL
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_INDEX_ARTIFACT
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_PROVENANCE_BLOB_URL
+from tests.data.gcp.artifact_registry import MOCK_BUILDKIT_PROVENANCE_STATEMENT
 from tests.data.gcp.artifact_registry import mock_ko_spdx_sbom
 from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_CONFIG
+from tests.data.gcp.artifact_registry import (
+    mock_single_image_config_with_inherited_labels,
+)
 from tests.data.gcp.artifact_registry import mock_single_image_config_without_labels
 from tests.data.gcp.artifact_registry import MOCK_SINGLE_IMAGE_MANIFEST
 from tests.data.gcp.artifact_registry import mock_spdx_parent_image_sbom
@@ -584,6 +594,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "os_version": None,
                 "os_features": None,
                 "variant": None,
+                "provenance_from_slsa": False,
             },
             {
                 "digest": "sha256:img-2",
@@ -600,6 +611,7 @@ def test_sync_loads_provenance_and_layers_with_split_phases(patched_sync):
                 "os_version": None,
                 "os_features": None,
                 "variant": None,
+                "provenance_from_slsa": False,
             },
         ],
         "proj",
@@ -851,6 +863,7 @@ async def test_cached_digest_rechecks_provenance_without_fetching_config(monkeyp
     assert result == {
         "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
         "source_uri": "https://github.com/example/repository",
+        "provenance_from_slsa": True,
     }
 
 
@@ -1504,3 +1517,230 @@ async def test_fetch_json_applies_quota_project_header():
 
     assert captured.get("Authorization") == "Bearer t"
     assert captured.get("x-goog-user-project") == "my-quota-proj"
+
+
+# ---------------------------------------------------------------------------
+# BuildKit attestations embedded in image indexes
+# ---------------------------------------------------------------------------
+
+
+EXPECTED_BUILDKIT_PROVENANCE = {
+    "source_uri": "https://github.com/example-org/widgets",
+    "source_revision": "1111111111111111111111111111111111111111",
+    "source_file": "services/api/Dockerfile",
+}
+
+
+def test_embedded_attestation_refs_reads_unknown_platform_entries():
+    refs = supply_chain._embedded_attestation_refs(
+        [MOCK_BUILDKIT_INDEX_ARTIFACT],
+        skip_subject_digests=set(),
+    )
+
+    assert refs == [
+        (
+            "us-central1-docker.pkg.dev",
+            "test-project/docker-repo/widgets-api",
+            MOCK_BUILDKIT_ATTESTATION_DIGEST,
+        ),
+    ]
+
+
+def test_embedded_attestation_refs_skips_index_with_known_source_file():
+    refs = supply_chain._embedded_attestation_refs(
+        [MOCK_BUILDKIT_INDEX_ARTIFACT],
+        skip_subject_digests={MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+    )
+
+    assert refs == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_embedded_attestation_provenance_maps_to_subject_digest():
+    client = _FakeClient(
+        {
+            MOCK_BUILDKIT_ATTESTATION_MANIFEST_URL: _FakeResponse(
+                200, json_body=MOCK_BUILDKIT_ATTESTATION_MANIFEST
+            ),
+            MOCK_BUILDKIT_PROVENANCE_BLOB_URL: _FakeResponse(
+                200, json_body=MOCK_BUILDKIT_PROVENANCE_STATEMENT
+            ),
+        },
+    )
+
+    provenance = await supply_chain._fetch_embedded_attestation_provenance(
+        client,
+        _fake_token_manager(),
+        "us-central1-docker.pkg.dev",
+        "test-project/docker-repo/widgets-api",
+        MOCK_BUILDKIT_ATTESTATION_DIGEST,
+    )
+
+    assert provenance == {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE}
+
+
+@pytest.mark.asyncio
+async def test_fetch_embedded_attestation_provenance_ignores_non_slsa_layers():
+    manifest = json.loads(json.dumps(MOCK_BUILDKIT_ATTESTATION_MANIFEST))
+    manifest["layers"][0]["annotations"] = {
+        "in-toto.io/predicate-type": "https://spdx.dev/Document",
+    }
+    client = _FakeClient(
+        {
+            MOCK_BUILDKIT_ATTESTATION_MANIFEST_URL: _FakeResponse(
+                200, json_body=manifest
+            ),
+        },
+    )
+
+    provenance = await supply_chain._fetch_embedded_attestation_provenance(
+        client,
+        _fake_token_manager(),
+        "us-central1-docker.pkg.dev",
+        "test-project/docker-repo/widgets-api",
+        MOCK_BUILDKIT_ATTESTATION_DIGEST,
+    )
+
+    assert provenance == {}
+    assert MOCK_BUILDKIT_PROVENANCE_BLOB_URL not in client.calls
+
+
+@pytest.mark.asyncio
+async def test_fetch_embedded_attestation_provenance_returns_empty_on_404():
+    provenance = await supply_chain._fetch_embedded_attestation_provenance(
+        _FakeClient({}),
+        _fake_token_manager(),
+        "us-central1-docker.pkg.dev",
+        "test-project/docker-repo/widgets-api",
+        MOCK_BUILDKIT_ATTESTATION_DIGEST,
+    )
+
+    assert provenance == {}
+
+
+@pytest.mark.asyncio
+async def test_process_single_image_prefers_slsa_over_inherited_labels():
+    client = _FakeClient(
+        {
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body=mock_single_image_config_with_inherited_labels(),
+            ),
+        },
+    )
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        embedded_provenance={
+            MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE,
+        },
+    )
+
+    assert fetch_failed is False
+    assert result is not None
+    assert {
+        field: result.get(field)
+        for field in ("source_uri", "source_revision", "source_file")
+    } == EXPECTED_BUILDKIT_PROVENANCE
+    assert result["provenance_from_slsa"] is True
+    assert MOCK_SUPPLY_CHAIN_IMAGE_REFERRERS_URL not in client.calls
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_image_provenance_uses_embedded_attestations(monkeypatch):
+    credentials = MagicMock()
+    credentials.valid = True
+    monkeypatch.setattr(supply_chain, "_resolve_credentials", lambda _: credentials)
+    embedded_fetch = AsyncMock(
+        return_value={MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
+    )
+    monkeypatch.setattr(
+        supply_chain,
+        "_fetch_embedded_attestation_provenance",
+        embedded_fetch,
+    )
+    processed = []
+
+    async def _fake_process(_client, _token_manager, artifact, *_args, **kwargs):
+        processed.append((artifact["uri"], kwargs["embedded_provenance"]))
+        return None, False
+
+    monkeypatch.setattr(supply_chain, "_process_single_image", _fake_process)
+
+    await supply_chain._fetch_all_image_provenance(
+        None,
+        [
+            MOCK_BUILDKIT_INDEX_ARTIFACT,
+            MOCK_BUILDKIT_ATTESTATION_ARTIFACT,
+            {
+                "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+                "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            },
+        ],
+        "test-project",
+    )
+
+    embedded_fetch.assert_awaited_once()
+    assert embedded_fetch.await_args.args[2:] == (
+        "us-central1-docker.pkg.dev",
+        "test-project/docker-repo/widgets-api",
+        MOCK_BUILDKIT_ATTESTATION_DIGEST,
+    )
+    # The attestation manifest is not enriched as if it were a runnable image.
+    assert processed == [
+        (
+            MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            {MOCK_SUPPLY_CHAIN_IMAGE_DIGEST: EXPECTED_BUILDKIT_PROVENANCE},
+        ),
+    ]
+
+
+def test_load_image_provenance_slsa_replaces_label_source(monkeypatch):
+    load_nodes_without_relationships = MagicMock()
+    monkeypatch.setattr(
+        supply_chain,
+        "load_nodes_without_relationships",
+        load_nodes_without_relationships,
+    )
+    monkeypatch.setattr(supply_chain, "load_matchlinks_with_progress", MagicMock())
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = [
+        {
+            "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+            "source_uri": "https://github.com/example-base/base-images",
+            "source_revision": "2222222222222222222222222222222222222222",
+            "source_file": None,
+        },
+    ]
+
+    supply_chain.load_image_provenance(
+        neo4j_session,
+        [
+            {
+                "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+                **EXPECTED_BUILDKIT_PROVENANCE,
+                "provenance_from_slsa": True,
+            },
+        ],
+        "proj",
+        1,
+    )
+
+    loaded = load_nodes_without_relationships.call_args.args[2]
+    assert {
+        field: loaded[0][field]
+        for field in ("source_uri", "source_revision", "source_file")
+    } == EXPECTED_BUILDKIT_PROVENANCE
+    assert "provenance_from_slsa" not in loaded[0]

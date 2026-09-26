@@ -431,3 +431,121 @@ MOCK_PLATFORM_IMAGES = [
         "layer_diff_ids": None,
     },
 ]
+
+
+# BuildKit stores provenance as an attestation manifest inside the image index
+# (platform unknown/unknown) rather than as an OCI referrer.
+MOCK_BUILDKIT_INDEX_DIGEST = (
+    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+)
+MOCK_BUILDKIT_ATTESTATION_DIGEST = (
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+)
+MOCK_BUILDKIT_PROVENANCE_LAYER_DIGEST = (
+    "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+)
+MOCK_BUILDKIT_INDEX_ARTIFACT = {
+    "name": (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{MOCK_BUILDKIT_INDEX_DIGEST}"
+    ),
+    "uri": (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{MOCK_BUILDKIT_INDEX_DIGEST}"
+    ),
+    "tags": ["1.2.3"],
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "imageManifests": [
+        {
+            "architecture": "amd64",
+            "os": "linux",
+            "digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+        {
+            "architecture": "unknown",
+            "os": "unknown",
+            "digest": MOCK_BUILDKIT_ATTESTATION_DIGEST,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+    ],
+}
+MOCK_BUILDKIT_ATTESTATION_ARTIFACT = {
+    "name": (
+        "projects/test-project/locations/us-central1/repositories/docker-repo/"
+        f"dockerImages/widgets-api@{MOCK_BUILDKIT_ATTESTATION_DIGEST}"
+    ),
+    "uri": (
+        "us-central1-docker.pkg.dev/test-project/docker-repo/widgets-api"
+        f"@{MOCK_BUILDKIT_ATTESTATION_DIGEST}"
+    ),
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+}
+MOCK_BUILDKIT_ATTESTATION_MANIFEST_URL = (
+    "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+    f"widgets-api/manifests/{MOCK_BUILDKIT_ATTESTATION_DIGEST}"
+)
+MOCK_BUILDKIT_PROVENANCE_BLOB_URL = (
+    "https://us-central1-docker.pkg.dev/v2/test-project/docker-repo/"
+    f"widgets-api/blobs/{MOCK_BUILDKIT_PROVENANCE_LAYER_DIGEST}"
+)
+MOCK_BUILDKIT_ATTESTATION_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:" + "f" * 64,
+        "size": 241,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.in-toto+json",
+            "digest": MOCK_BUILDKIT_PROVENANCE_LAYER_DIGEST,
+            "size": 4096,
+            "annotations": {
+                "in-toto.io/predicate-type": "https://slsa.dev/provenance/v1",
+            },
+        },
+    ],
+}
+MOCK_BUILDKIT_PROVENANCE_STATEMENT = {
+    "_type": "https://in-toto.io/Statement/v0.1",
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "subject": [
+        {
+            "name": "pkg:docker/test-project/widgets-api@1.2.3?platform=linux%2Famd64",
+            "digest": {"sha256": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST_HEX},
+        },
+    ],
+    "predicate": {
+        "buildDefinition": {
+            "buildType": "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md",
+            "externalParameters": {
+                "configSource": {"path": "Dockerfile"},
+                "request": {"frontend": "dockerfile.v0"},
+            },
+        },
+        "runDetails": {
+            "builder": {"id": ""},
+            "metadata": {
+                "buildkit_metadata": {
+                    "vcs": {
+                        "localdir:context": ".",
+                        "localdir:dockerfile": "services/api",
+                        "revision": "1111111111111111111111111111111111111111",
+                        "source": "https://github.com/example-org/widgets",
+                    },
+                },
+            },
+        },
+    },
+}
+
+
+def mock_single_image_config_with_inherited_labels():
+    config = deepcopy(MOCK_SINGLE_IMAGE_CONFIG)
+    config["config"]["Labels"] = {
+        "org.opencontainers.image.source": "https://github.com/example-base/base-images",
+        "org.opencontainers.image.revision": "2222222222222222222222222222222222222222",
+    }
+    return config
