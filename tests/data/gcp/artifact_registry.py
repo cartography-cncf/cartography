@@ -107,24 +107,19 @@ MOCK_REPOSITORIES = [
     },
 ]
 
-# Manifest list data for multi-arch images (returned in imageManifests field)
+# imageManifests entries as returned by the dockerImages API: platform fields sit
+# at the top level, unlike a registry manifest list's nested "platform" object.
 MOCK_MANIFEST_LIST = [
     {
         "digest": "sha256:def456",  # This matches what Trivy reports in trivy_gcp_sample.py
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "amd64",
-            "os": "linux",
-        },
+        "architecture": "amd64",
+        "os": "linux",
     },
     {
         "digest": "sha256:ghi789",
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "arm64",
-            "os": "linux",
-            "variant": "v8",
-        },
+        "architecture": "arm64",
+        "os": "linux",
+        "variant": "v8",
     },
 ]
 
