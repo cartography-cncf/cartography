@@ -1249,16 +1249,12 @@ SLSA_SOURCE_FIELDS = (
 )
 
 
-def _merge_existing_image_provenance(
+def _get_existing_image_provenance(
     neo4j_session: neo4j.Session,
-    provenance_updates: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    digests = sorted(
-        {update["digest"] for update in provenance_updates if update.get("digest")}
-    )
+    digests: set[str],
+) -> dict[str, dict[str, Any]]:
     if not digests:
-        return []
-
+        return {}
     existing_rows = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         """
@@ -1280,15 +1276,28 @@ def _merge_existing_image_provenance(
             img.parent_image_digest AS parent_image_digest,
             img.layer_diff_ids AS layer_diff_ids
         """,
-        digests=digests,
+        digests=sorted(digests),
     )
-    merged_by_digest = {
+    return {
         row["digest"]: {
             "digest": row["digest"],
             **{field: row.get(field) for field in PROVENANCE_FIELDS},
         }
         for row in existing_rows
     }
+
+
+def _merge_existing_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    digests = {
+        update["digest"] for update in provenance_updates if update.get("digest")
+    }
+    if not digests:
+        return []
+
+    merged_by_digest = _get_existing_image_provenance(neo4j_session, digests)
 
     for update in provenance_updates:
         digest = update.get("digest")
@@ -1318,25 +1327,6 @@ def _merge_existing_image_provenance(
                 merged[field] = value
 
     return list(merged_by_digest.values())
-
-
-def _get_digests_with_source_file(
-    neo4j_session: neo4j.Session,
-    digests: set[str],
-) -> set[str]:
-    if not digests:
-        return set()
-    rows = neo4j_session.execute_read(
-        read_list_of_dicts_tx,
-        """
-        UNWIND $digests AS digest
-        MATCH (img:GCPArtifactRegistryImage {digest: digest})
-        WHERE img.source_file IS NOT NULL
-        RETURN img.digest AS digest
-        """,
-        digests=sorted(digests),
-    )
-    return {row["digest"] for row in rows}
 
 
 @timeit
@@ -1466,10 +1456,14 @@ def sync(
             len(complete_digests),
         )
 
-    digests_with_source_file = _get_digests_with_source_file(
-        neo4j_session,
-        _platform_image_digests(docker_artifacts_raw),
-    )
+    digests_with_source_file = {
+        digest
+        for digest, existing in _get_existing_image_provenance(
+            neo4j_session,
+            _platform_image_digests(docker_artifacts_raw),
+        ).items()
+        if existing.get("source_file")
+    }
 
     try:
         loop = asyncio.get_event_loop()
