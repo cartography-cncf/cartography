@@ -773,6 +773,33 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                # active: Not mapped - whether an identity is disabled is per-organization
+                # state in LangSmith and lives on LangSmithOrgMembership. A user can be
+                # disabled in one organization and active in another, so there is no single
+                # value to put on the shared user node.
+                # username: Not available - LangSmith identifies users by email and
+                # ls_user_id; there is no separate username.
+                # has_mfa: Not available - MFA is handled by the upstream identity
+                # provider, and LangSmith does not report enrollment.
+                # lastactivity: Not available on the member endpoints. The closest signal
+                # is LangSmithApiKey.last_used_at, which is per-credential rather than
+                # per-user.
+            ],
+        ),
+    ],
+)
+
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
@@ -877,4 +904,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }

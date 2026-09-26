@@ -75,6 +75,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_LANGSMITH = "LangSmith Options"
 PANEL_DATABRICKS = "Databricks Options"
 PANEL_BBOT = "BBOT Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
@@ -144,6 +145,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "langsmith": PANEL_LANGSMITH,
     "databricks": PANEL_DATABRICKS,
     "bbot": PANEL_BBOT,
     "docker_scout": PANEL_DOCKER_SCOUT,
@@ -1722,6 +1724,48 @@ class CLI:
                     hidden=PANEL_AIRBYTE not in visible_panels,
                 ),
             ] = "https://api.airbyte.com/v1",
+            # =================================================================
+            # LangSmith Options
+            # =================================================================
+            langsmith_pat_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--langsmith-pat-env-var",
+                    help="Environment variable name containing a LangSmith personal access token.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = None,
+            langsmith_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--langsmith-api-url",
+                    help="LangSmith control plane base URL.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = "https://api.smith.langchain.com",
+            langsmith_host_api_url: Annotated[
+                str,
+                typer.Option(
+                    "--langsmith-host-api-url",
+                    help="LangGraph Platform (api-host) base URL.",
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = "https://api.host.langchain.com",
+            langsmith_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--langsmith-org-id",
+                    help=(
+                        "Restrict the LangSmith sync to a single organization UUID. "
+                        "Omit to sync every organization the token can see."
+                    ),
+                    rich_help_panel=PANEL_LANGSMITH,
+                    hidden=PANEL_LANGSMITH not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Databricks Options
             # =================================================================
@@ -3339,6 +3383,15 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
+            # Read LangSmith personal access token
+            langsmith_pat = None
+            if langsmith_pat_env_var:
+                logger.debug(
+                    "Reading LangSmith personal access token from environment variable %s",
+                    langsmith_pat_env_var,
+                )
+                langsmith_pat = os.environ.get(langsmith_pat_env_var)
+
             # Read Databricks credentials
             databricks_token = None
             if databricks_token_env_var:
@@ -3767,6 +3820,10 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                langsmith_pat=langsmith_pat,
+                langsmith_api_url=langsmith_api_url,
+                langsmith_host_api_url=langsmith_host_api_url,
+                langsmith_org_id=langsmith_org_id,
                 databricks_workspace_url=databricks_workspace_url,
                 databricks_token=databricks_token,
                 databricks_client_id=databricks_client_id,
