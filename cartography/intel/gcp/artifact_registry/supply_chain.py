@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 from typing import Any
@@ -71,6 +72,8 @@ ALL_MANIFEST_ACCEPT = ", ".join(
 )
 
 ATTESTATION_MEDIA_TYPE_FRAGMENTS = {"attestation", "in-toto"}
+BUILDKIT_ATTESTATION_PLATFORM = "unknown"
+SLSA_PROVENANCE_PREDICATE_PREFIX = "https://slsa.dev/provenance/"
 SPDX_MEDIA_TYPE_FRAGMENTS = {"spdx+json", "spdx.json"}
 GITHUB_URL_PREFIXES = (
     "https://github.com/",
@@ -276,6 +279,145 @@ async def _fetch_attestation_provenance(
                 return provenance
 
     return {}
+
+
+def _is_buildkit_attestation_manifest(image_manifest: dict[str, Any]) -> bool:
+    # BuildKit gives attestation manifests an unknown/unknown platform so runtimes
+    # never pull them. The dockerImages API reports each index entry's platform
+    # but not its annotations, so the platform is the available marker.
+    return (
+        image_manifest.get("architecture") == BUILDKIT_ATTESTATION_PLATFORM
+        and image_manifest.get("os") == BUILDKIT_ATTESTATION_PLATFORM
+    )
+
+
+def _embedded_attestation_digests(
+    docker_artifacts_raw: list[dict[str, Any]],
+) -> set[str]:
+    return {
+        image_manifest["digest"]
+        for artifact in docker_artifacts_raw
+        for image_manifest in artifact.get("imageManifests") or []
+        if image_manifest.get("digest")
+        and _is_buildkit_attestation_manifest(image_manifest)
+    }
+
+
+def _platform_image_digests(docker_artifacts_raw: list[dict[str, Any]]) -> set[str]:
+    return {
+        image_manifest["digest"]
+        for artifact in docker_artifacts_raw
+        for image_manifest in artifact.get("imageManifests") or []
+        if image_manifest.get("digest")
+        and not _is_buildkit_attestation_manifest(image_manifest)
+    }
+
+
+def _embedded_attestation_refs(
+    docker_artifacts_raw: list[dict[str, Any]],
+    skip_subject_digests: set[str],
+) -> list[tuple[str, str, str]]:
+    """Return (registry, image_path, attestation_digest) for BuildKit attestations
+    embedded in image indexes whose platform images still lack a source file."""
+    refs: dict[str, tuple[str, str, str]] = {}
+    for artifact in docker_artifacts_raw:
+        image_manifests = artifact.get("imageManifests") or []
+        attestation_digests = [
+            image_manifest["digest"]
+            for image_manifest in image_manifests
+            if image_manifest.get("digest")
+            and _is_buildkit_attestation_manifest(image_manifest)
+        ]
+        if not attestation_digests:
+            continue
+        platform_digests = {
+            image_manifest["digest"]
+            for image_manifest in image_manifests
+            if image_manifest.get("digest")
+            and not _is_buildkit_attestation_manifest(image_manifest)
+        }
+        if platform_digests and platform_digests <= skip_subject_digests:
+            continue
+        parsed = parse_docker_image_uri(artifact.get("uri", ""))
+        if not parsed:
+            continue
+        registry, image_path, _ = parsed
+        for attestation_digest in attestation_digests:
+            refs.setdefault(
+                attestation_digest,
+                (registry, image_path, attestation_digest),
+            )
+    return list(refs.values())
+
+
+def _in_toto_subject_digests(blob: dict[str, Any]) -> list[str]:
+    statement: Any = blob
+    payload_b64 = blob.get("payload")
+    if payload_b64:
+        try:
+            statement = json.loads(base64.b64decode(str(payload_b64)).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return []
+    if not isinstance(statement, dict):
+        return []
+    digests = []
+    for subject in statement.get("subject") or []:
+        if not isinstance(subject, dict):
+            continue
+        sha256 = (subject.get("digest") or {}).get("sha256")
+        if isinstance(sha256, str) and sha256:
+            digests.append(f"sha256:{sha256}")
+    return digests
+
+
+async def _fetch_embedded_attestation_provenance(
+    http_client: httpx.AsyncClient,
+    token_manager: _TokenManager,
+    registry: str,
+    image_path: str,
+    attestation_digest: str,
+) -> dict[str, dict[str, str]]:
+    """Read SLSA provenance from a BuildKit attestation manifest in an image index.
+
+    BuildKit's image exporter stores attestations as extra index entries instead
+    of OCI referrers unless ``oci-artifact=true`` is set, so the Referrers API
+    returns nothing for them. The in-toto statement subject names the platform
+    manifests the provenance describes; returns provenance keyed by those digests.
+    """
+    manifest_url = build_manifest_url(registry, image_path, attestation_digest)
+    try:
+        manifest = await _fetch_json(
+            http_client, manifest_url, token_manager, ALL_MANIFEST_ACCEPT
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return {}
+        raise
+
+    provenance_by_subject: dict[str, dict[str, str]] = {}
+    for layer in manifest.get("layers") or []:
+        predicate_type = (layer.get("annotations") or {}).get(
+            "in-toto.io/predicate-type", ""
+        )
+        layer_digest = layer.get("digest")
+        if not layer_digest or not predicate_type.startswith(
+            SLSA_PROVENANCE_PREDICATE_PREFIX
+        ):
+            continue
+        blob_url = build_blob_url(registry, image_path, layer_digest)
+        try:
+            blob = await _fetch_json(http_client, blob_url, token_manager)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                continue
+            raise
+        predicate = decode_attestation_blob_to_predicate(blob)
+        provenance = extract_image_source_provenance(predicate) if predicate else {}
+        if not provenance:
+            continue
+        for subject_digest in _in_toto_subject_digests(blob):
+            provenance_by_subject[subject_digest] = provenance
+    return provenance_by_subject
 
 
 def _legacy_sbom_tag_for_digest(image_digest: str) -> str | None:
@@ -733,6 +875,7 @@ async def _process_single_image(
     sbom_artifacts_by_digest: dict[str, list[dict[str, Any]]] | None = None,
     *,
     fetch_config: bool = True,
+    embedded_provenance: dict[str, dict[str, str]] | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Process one image: fetch config, extract provenance + layers.
 
@@ -775,10 +918,16 @@ async def _process_single_image(
     subject_digest = uri.split("@")[-1] if "@" in uri else manifest_digest
     subject_digest_str = subject_digest if isinstance(subject_digest, str) else None
 
+    slsa_provenance = (
+        (embedded_provenance or {}).get(subject_digest_str)
+        if subject_digest_str
+        else None
+    )
     # OCI labels are fast but not always present; fall back to the Referrers API.
     # The Referrers endpoint requires a digest, not a tag.
     if (
-        not provenance.get("source_uri")
+        not slsa_provenance
+        and not provenance.get("source_uri")
         and subject_digest_str
         and subject_digest_str.startswith("sha256:")
     ):
@@ -798,6 +947,9 @@ async def _process_single_image(
             )
             slsa_provenance = {}
             fetch_failed = True
+    # The builder records SLSA provenance for this exact build, while OCI source
+    # labels are often inherited unchanged from the base image, so SLSA wins.
+    if slsa_provenance:
         provenance.update(slsa_provenance)
 
     # Some older build flows publish SPDX SBOMs as digest-specific image tags
@@ -908,6 +1060,8 @@ async def _process_single_image(
     for field in PROVENANCE_SOURCE_FIELDS:
         if provenance.get(field):
             result[field] = provenance[field]
+    if slsa_provenance:
+        result["provenance_from_slsa"] = True
 
     return (result if len(result) > 1 else None), fetch_failed
 
@@ -918,6 +1072,7 @@ async def _fetch_all_image_provenance(
     project_id: str,
     max_concurrent: int = 50,
     cached_layer_digests: set[str] | None = None,
+    digests_with_source_file: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Run enrichment for all single-image artifacts.
 
@@ -932,10 +1087,12 @@ async def _fetch_all_image_provenance(
     sbom_artifacts_by_digest = _sbom_artifacts_by_subject_digest(docker_artifacts_raw)
 
     cached_layer_digests = cached_layer_digests or set()
+    attestation_digests = _embedded_attestation_digests(docker_artifacts_raw)
     single_images = [
         a
         for a in docker_artifacts_raw
         if a.get("mediaType", "") in SINGLE_IMAGE_MEDIA_TYPES
+        and _artifact_digest(a) not in attestation_digests
     ]
     if not single_images:
         return [], 0
@@ -943,6 +1100,26 @@ async def _fetch_all_image_provenance(
     semaphore = asyncio.Semaphore(max_concurrent)
     results: list[dict[str, Any]] = []
     fetch_failures = 0
+    embedded_provenance: dict[str, dict[str, str]] = {}
+
+    async def bounded_attestation(
+        ref: tuple[str, str, str], client: httpx.AsyncClient
+    ) -> dict[str, dict[str, str]]:
+        registry, image_path, attestation_digest = ref
+        async with semaphore:
+            try:
+                return await _fetch_embedded_attestation_provenance(
+                    client, token_manager, registry, image_path, attestation_digest
+                )
+            except (httpx.HTTPError, json.JSONDecodeError) as e:
+                logger.warning(
+                    "Failed to fetch BuildKit attestation %s/%s@%s: %s",
+                    registry,
+                    image_path,
+                    attestation_digest,
+                    e,
+                )
+                return {}
 
     async def bounded_process(
         artifact: dict[str, Any], client: httpx.AsyncClient
@@ -954,9 +1131,23 @@ async def _fetch_all_image_provenance(
                 artifact,
                 sbom_artifacts_by_digest,
                 fetch_config=_artifact_digest(artifact) not in cached_layer_digests,
+                embedded_provenance=embedded_provenance,
             )
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
+        attestation_refs = _embedded_attestation_refs(
+            docker_artifacts_raw, digests_with_source_file or set()
+        )
+        if attestation_refs:
+            logger.info(
+                "Fetching %d BuildKit attestation manifests embedded in image indexes...",
+                len(attestation_refs),
+            )
+            for provenance_by_subject in await asyncio.gather(
+                *(bounded_attestation(ref, client) for ref in attestation_refs)
+            ):
+                embedded_provenance.update(provenance_by_subject)
+
         tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
         total = len(tasks)
 
@@ -1051,17 +1242,19 @@ PROVENANCE_FIELDS = (
     *PROVENANCE_SOURCE_FIELDS,
 )
 
+SLSA_SOURCE_FIELDS = (
+    "source_uri",
+    "source_revision",
+    "source_file",
+)
 
-def _merge_existing_image_provenance(
+
+def _get_existing_image_provenance(
     neo4j_session: neo4j.Session,
-    provenance_updates: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    digests = sorted(
-        {update["digest"] for update in provenance_updates if update.get("digest")}
-    )
+    digests: set[str],
+) -> dict[str, dict[str, Any]]:
     if not digests:
-        return []
-
+        return {}
     existing_rows = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         """
@@ -1083,15 +1276,28 @@ def _merge_existing_image_provenance(
             img.parent_image_digest AS parent_image_digest,
             img.layer_diff_ids AS layer_diff_ids
         """,
-        digests=digests,
+        digests=sorted(digests),
     )
-    merged_by_digest = {
+    return {
         row["digest"]: {
             "digest": row["digest"],
             **{field: row.get(field) for field in PROVENANCE_FIELDS},
         }
         for row in existing_rows
     }
+
+
+def _merge_existing_image_provenance(
+    neo4j_session: neo4j.Session,
+    provenance_updates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    digests = {
+        update["digest"] for update in provenance_updates if update.get("digest")
+    }
+    if not digests:
+        return []
+
+    merged_by_digest = _get_existing_image_provenance(neo4j_session, digests)
 
     for update in provenance_updates:
         digest = update.get("digest")
@@ -1107,10 +1313,17 @@ def _merge_existing_image_provenance(
                 merged[field] = value
         # These fields are digest-level provenance. Keep existing non-null values
         # so a later ref without equivalent metadata does not erase or replace
-        # provenance discovered through another ref for the same digest.
+        # provenance discovered through another ref for the same digest. SLSA
+        # provenance is the exception: it replaces source fields an earlier sync
+        # took from OCI labels, which may describe the base image instead.
+        replace_source = bool(update.get("provenance_from_slsa"))
         for field in PROVENANCE_SOURCE_FIELDS:
             value = update.get(field)
-            if merged.get(field) is None and value is not None:
+            if value is None:
+                continue
+            if merged.get(field) is None or (
+                replace_source and field in SLSA_SOURCE_FIELDS
+            ):
                 merged[field] = value
 
     return list(merged_by_digest.values())
@@ -1243,6 +1456,15 @@ def sync(
             len(complete_digests),
         )
 
+    digests_with_source_file = {
+        digest
+        for digest, existing in _get_existing_image_provenance(
+            neo4j_session,
+            _platform_image_digests(docker_artifacts_raw),
+        ).items()
+        if existing.get("source_file")
+    }
+
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
@@ -1255,6 +1477,7 @@ def sync(
             docker_artifacts_raw,
             project_id,
             cached_layer_digests=complete_digests,
+            digests_with_source_file=digests_with_source_file,
         ),
     )
 
@@ -1275,6 +1498,7 @@ def sync(
                 "os_version": e.get("os_version"),
                 "os_features": e.get("os_features"),
                 "variant": e.get("variant"),
+                "provenance_from_slsa": e.get("provenance_from_slsa", False),
             }
             for e in enrichments
         ]
