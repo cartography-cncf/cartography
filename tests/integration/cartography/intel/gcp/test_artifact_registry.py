@@ -289,6 +289,21 @@ def test_sync_artifact_registry(
         (TEST_PLATFORM_IMAGE_AMD64_ID,),
         (TEST_PLATFORM_IMAGE_ARM64_ID,),
     }
+    platform_rows = neo4j_session.run(
+        """
+        MATCH (:GCPArtifactRegistryImage {id: $parent})-[:CONTAINS_IMAGE]->(child)
+        RETURN child.id AS id, child.architecture AS architecture,
+               child._ont_architecture AS ont_architecture, child.variant AS variant
+        """,
+        parent=TEST_DOCKER_IMAGE_DIGEST,
+    ).data()
+    assert {
+        (row["id"], row["architecture"], row["ont_architecture"], row["variant"])
+        for row in platform_rows
+    } == {
+        (TEST_PLATFORM_IMAGE_AMD64_ID, "amd64", "amd64", None),
+        (TEST_PLATFORM_IMAGE_ARM64_ID, "arm64", "arm64", "v8"),
+    }
 
     # Assert: Check Helm chart nodes
     assert check_nodes(neo4j_session, "GCPArtifactRegistryHelmChart", ["id"]) == {
