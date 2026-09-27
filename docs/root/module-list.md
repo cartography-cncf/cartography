@@ -14,6 +14,7 @@ modules/azure/index
 modules/bbot/index
 modules/bigfix/index
 modules/circleci/index
+modules/civo/index
 modules/cloudflare/index
 modules/crowdstrike/index
 modules/cve/index
