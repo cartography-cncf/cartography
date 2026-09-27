@@ -112,11 +112,13 @@ MOCK_REPOSITORIES = [
 MOCK_MANIFEST_LIST = [
     {
         "digest": "sha256:def456",  # This matches what Trivy reports in trivy_gcp_sample.py
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
         "architecture": "amd64",
         "os": "linux",
     },
     {
         "digest": "sha256:ghi789",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
         "architecture": "arm64",
         "os": "linux",
         "variant": "v8",
