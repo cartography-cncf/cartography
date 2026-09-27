@@ -82,6 +82,32 @@ def test_sync_directconnect(
         rel_direction_right=True,
     ) == {(TEST_ACCOUNT_ID, TEST_CONNECTION_ID)}
 
+    # Assert: the Direct Connect gateway itself, with its properties.
+    assert check_nodes(
+        neo4j_session,
+        "AWSDirectConnectGateway",
+        ["id", "name", "state", "amazon_side_asn"],
+    ) == {(TEST_DXGW_ID, "corp-dxgw", "available", 64512)}
+
+    # Assert: every node type hangs off the account that owns it.
+    for label, expected in (
+        ("AWSDirectConnectGateway", {TEST_DXGW_ID}),
+        ("AWSDirectConnectVirtualInterface", {"dxvif-ffabc123", "dxvif-ffdef456"}),
+        (
+            "AWSDirectConnectGatewayAssociation",
+            {"dxgw-assoc-aaa111", "dxgw-assoc-bbb222"},
+        ),
+    ):
+        assert check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            label,
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        ) == {(TEST_ACCOUNT_ID, node_id) for node_id in expected}
+
     # Assert: both virtual interfaces, and the prefixes a public VIF advertises.
     assert check_nodes(
         neo4j_session, "AWSDirectConnectVirtualInterface", ["id", "type", "vlan"]
@@ -167,4 +193,65 @@ def test_sync_directconnect(
     ) == {
         ("dxgw-assoc-aaa111", TEST_DXGW_ID),
         ("dxgw-assoc-bbb222", TEST_DXGW_ID),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.directconnect,
+    "get_dx_gateway_associations",
+    return_value=DESCRIBE_DIRECT_CONNECT_GATEWAY_ASSOCIATIONS,
+)
+@patch.object(
+    cartography.intel.aws.directconnect,
+    "get_dx_gateways",
+    return_value=DESCRIBE_DIRECT_CONNECT_GATEWAYS,
+)
+@patch.object(
+    cartography.intel.aws.directconnect,
+    "get_dx_virtual_interfaces",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.directconnect,
+    "get_dx_connections",
+    side_effect=[
+        cartography.intel.aws.directconnect.DirectConnectRegionUnreadable(
+            "AccessDeniedException"
+        ),
+        [],
+    ],
+)
+def test_sync_directconnect_unreadable_region_preserves_data(
+    mock_connections, mock_vifs, mock_gateways, mock_assocs, neo4j_session
+):
+    """
+    A region that cannot be read must not converge previously synced Direct Connect data to
+    empty: cleanup is skipped so the last known good state survives, even though the other
+    region synced successfully and returned nothing.
+    """
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (a:AWSAccount{id: $account_id})
+        MERGE (c:AWSDirectConnectConnection{id: $conn_id})
+        SET c.connection_id = $conn_id, c.lastupdated = $old_tag
+        MERGE (a)-[r:RESOURCE]->(c)
+        SET r.lastupdated = $old_tag
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        conn_id=TEST_CONNECTION_ID,
+        old_tag=TEST_UPDATE_TAG,
+    )
+
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION, "us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(neo4j_session, "AWSDirectConnectConnection", ["id"]) == {
+        (TEST_CONNECTION_ID,)
     }
