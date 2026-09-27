@@ -1744,3 +1744,82 @@ def test_load_image_provenance_slsa_replaces_label_source(monkeypatch):
         for field in ("source_uri", "source_revision", "source_file")
     } == EXPECTED_BUILDKIT_PROVENANCE
     assert "provenance_from_slsa" not in loaded[0]
+
+
+@pytest.mark.asyncio
+async def test_process_single_image_prefers_referrers_slsa_over_labels(monkeypatch):
+    client = _FakeClient(
+        {
+            MOCK_SUPPLY_CHAIN_IMAGE_MANIFEST_URL: _FakeResponse(
+                200,
+                json_body=MOCK_SINGLE_IMAGE_MANIFEST,
+                headers={"Docker-Content-Digest": MOCK_SUPPLY_CHAIN_IMAGE_DIGEST},
+            ),
+            MOCK_SUPPLY_CHAIN_IMAGE_CONFIG_URL: _FakeResponse(
+                200,
+                json_body=mock_single_image_config_with_inherited_labels(),
+            ),
+        },
+    )
+    referrers_fetch = AsyncMock(return_value=EXPECTED_BUILDKIT_PROVENANCE)
+    monkeypatch.setattr(supply_chain, "_fetch_attestation_provenance", referrers_fetch)
+
+    result, fetch_failed = await _process_single_image(
+        client,
+        _fake_token_manager(),
+        {
+            "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+            "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        },
+    )
+
+    referrers_fetch.assert_awaited_once()
+    assert fetch_failed is False
+    assert result is not None
+    assert {
+        field: result.get(field)
+        for field in ("source_uri", "source_revision", "source_file")
+    } == EXPECTED_BUILDKIT_PROVENANCE
+    assert result["provenance_from_slsa"] is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_image_provenance_counts_attestation_failures(monkeypatch):
+    credentials = MagicMock()
+    credentials.valid = True
+    monkeypatch.setattr(supply_chain, "_resolve_credentials", lambda _: credentials)
+    monkeypatch.setattr(
+        supply_chain,
+        "_fetch_embedded_attestation_provenance",
+        AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "503",
+                request=httpx.Request("GET", "https://example.test"),
+                response=httpx.Response(503),
+            ),
+        ),
+    )
+    processed = []
+
+    async def _fake_process(_client, _token_manager, artifact, *_args, **kwargs):
+        processed.append(kwargs["embedded_provenance"])
+        return None, False
+
+    monkeypatch.setattr(supply_chain, "_process_single_image", _fake_process)
+
+    _, fetch_failures = await supply_chain._fetch_all_image_provenance(
+        None,
+        [
+            MOCK_BUILDKIT_INDEX_ARTIFACT,
+            {
+                "name": MOCK_SUPPLY_CHAIN_IMAGE_ARTIFACT_NAME,
+                "uri": MOCK_SUPPLY_CHAIN_IMAGE_URI,
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            },
+        ],
+        "test-project",
+    )
+
+    assert fetch_failures == 1
+    assert processed == [{}]

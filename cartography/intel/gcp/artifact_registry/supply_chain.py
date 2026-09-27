@@ -351,23 +351,19 @@ def _embedded_attestation_refs(
 
 
 def _in_toto_subject_digests(blob: dict[str, Any]) -> list[str]:
-    statement: Any = blob
+    # Only called after the predicate decoded from this same blob, so the
+    # payload is known to be valid.
     payload_b64 = blob.get("payload")
-    if payload_b64:
-        try:
-            statement = json.loads(base64.b64decode(str(payload_b64)).decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
-            return []
-    if not isinstance(statement, dict):
-        return []
-    digests = []
-    for subject in statement.get("subject") or []:
-        if not isinstance(subject, dict):
-            continue
-        sha256 = (subject.get("digest") or {}).get("sha256")
-        if isinstance(sha256, str) and sha256:
-            digests.append(f"sha256:{sha256}")
-    return digests
+    statement = (
+        json.loads(base64.b64decode(str(payload_b64)).decode("utf-8"))
+        if payload_b64
+        else blob
+    )
+    return [
+        f"sha256:{subject['digest']['sha256']}"
+        for subject in statement.get("subject") or []
+        if subject["digest"].get("sha256")
+    ]
 
 
 async def _fetch_embedded_attestation_provenance(
@@ -923,11 +919,11 @@ async def _process_single_image(
         if subject_digest_str
         else None
     )
-    # OCI labels are fast but not always present; fall back to the Referrers API.
+    # Without embedded provenance, check the Referrers API even when OCI labels
+    # are present, since those labels are often inherited from the base image.
     # The Referrers endpoint requires a digest, not a tag.
     if (
         not slsa_provenance
-        and not provenance.get("source_uri")
         and subject_digest_str
         and subject_digest_str.startswith("sha256:")
     ):
@@ -1104,7 +1100,8 @@ async def _fetch_all_image_provenance(
 
     async def bounded_attestation(
         ref: tuple[str, str, str], client: httpx.AsyncClient
-    ) -> dict[str, dict[str, str]]:
+    ) -> dict[str, dict[str, str]] | None:
+        """Return provenance keyed by subject digest, or None if the fetch failed."""
         registry, image_path, attestation_digest = ref
         async with semaphore:
             try:
@@ -1119,7 +1116,7 @@ async def _fetch_all_image_provenance(
                     attestation_digest,
                     e,
                 )
-                return {}
+                return None
 
     async def bounded_process(
         artifact: dict[str, Any], client: httpx.AsyncClient
@@ -1146,6 +1143,9 @@ async def _fetch_all_image_provenance(
             for provenance_by_subject in await asyncio.gather(
                 *(bounded_attestation(ref, client) for ref in attestation_refs)
             ):
+                if provenance_by_subject is None:
+                    fetch_failures += 1
+                    continue
                 embedded_provenance.update(provenance_by_subject)
 
         tasks = [asyncio.create_task(bounded_process(a, client)) for a in single_images]
