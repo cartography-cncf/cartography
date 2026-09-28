@@ -29,7 +29,7 @@ def test_configure_session_mounts_bounded_get_retries() -> None:
         assert retries.respect_retry_after_header is True
 
 
-@pytest.mark.parametrize(
+@pytest.mark.parametrize(  # type: ignore[misc]
     "links",
     [
         {},
