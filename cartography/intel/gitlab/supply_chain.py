@@ -232,7 +232,9 @@ def get_file_content(
                 # binary image, compiled artifact, etc). One project's non-text file
                 # shouldn't abort ingestion for the rest of the org.
                 logger.debug(
-                    f"Skipping non-text file (failed UTF-8 decode): project {project_id}/{file_path}",
+                    "Skipping non-text file (failed UTF-8 decode): project %s/%s",
+                    project_id,
+                    file_path,
                 )
                 return None
 

@@ -5,13 +5,13 @@ from unittest.mock import patch
 from cartography.intel.gitlab.supply_chain import (
     build_singleton_dockerfile_fallback_matchlinks,
 )
+from cartography.intel.gitlab.supply_chain import get_file_content
 from cartography.intel.gitlab.supply_chain import (
     get_unmatched_gitlab_container_images_with_history,
 )
 from cartography.intel.gitlab.supply_chain import (
     GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE,
 )
-from cartography.intel.gitlab.supply_chain import get_file_content
 from cartography.intel.supply_chain import ContainerImage
 
 TEST_GITLAB_URL = "https://gitlab.example.com"

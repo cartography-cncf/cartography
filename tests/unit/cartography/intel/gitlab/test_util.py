@@ -119,31 +119,48 @@ def test_fetch_registry_manifest_refreshes_token_after_401(monkeypatch):
 def test_get_single_and_get_paginated_reuse_shared_session(monkeypatch):
     # Arrange: get_single and get_paginated are independent call paths (as are
     # runners.sync_gitlab_runners and supply_chain.get_dockerfiles_for_projects,
-    # which route through get_paginated too). They must all dispatch through the
-    # same requests.Session so the underlying connection pool - and therefore
-    # any pooled/keep-alive TCP connections - is actually shared instead of each
-    # call path opening its own.
-    assert isinstance(util._session, requests.Session)
+    # which route through get_paginated too). None of them should construct a
+    # new requests.Session - they should all reuse the shared module-level
+    # _session so the underlying connection pool is actually shared.
+    #
+    # Track requests.Session.__init__ calls rather than asserting on `self`
+    # identity from a patched request() - a prior test in this file patches
+    # the *instance* attribute _session.request, and pytest's monkeypatch
+    # restores that on teardown by re-setting it as a permanent instance
+    # attribute (since it resolved via class inheritance), which would
+    # silently shadow any later class-level patch of Session.request and
+    # make an identity-based assertion unable to observe the real call.
+    # Asserting no new Session gets constructed is what actually falls out
+    # of a regression (a future change constructing a fresh Session per call).
+    session_init_calls = []
+    original_init = requests.Session.__init__
 
-    seen_sessions = []
+    def _tracking_init(self, *args, **kwargs):
+        session_init_calls.append(self)
+        return original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(requests.Session, "__init__", _tracking_init)
+
+    call_count = 0
     single_response = _make_response(200, {"id": 1})
     paginated_response = _make_response(200, [{"id": 1}], headers={})
 
     def _request(method, url, **kwargs):
-        seen_sessions.append(util._session)
+        nonlocal call_count
+        call_count += 1
         if url.endswith("/single"):
             return single_response
         return paginated_response
 
-    monkeypatch.setattr("cartography.intel.gitlab.util._session.request", _request)
+    monkeypatch.setattr(util._session, "request", _request)
 
     # Act
     get_single("https://gitlab.example.com", "tok", "/single")
     get_paginated("https://gitlab.example.com", "tok", "/list")
 
     # Assert
-    assert len(seen_sessions) == 2
-    assert seen_sessions[0] is seen_sessions[1] is util._session
+    assert call_count == 2
+    assert session_init_calls == []
 
 
 def test_fetch_registry_manifest_forwards_head_method(monkeypatch):
