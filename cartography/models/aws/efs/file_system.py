@@ -16,24 +16,71 @@ from cartography.models.ontology.labels import FILE_STORAGE
 
 @dataclass(frozen=True)
 class EfsFileSystemNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("FileSystemId")
-    arn: PropertyRef = PropertyRef("FileSystemArn", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    owner_id: PropertyRef = PropertyRef("OwnerId")
-    creation_token: PropertyRef = PropertyRef("CreationToken")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    lifecycle_state: PropertyRef = PropertyRef("LifeCycleState")
-    name: PropertyRef = PropertyRef("Name")
-    number_of_mount_targets: PropertyRef = PropertyRef("NumberOfMountTargets")
-    size_in_bytes_value: PropertyRef = PropertyRef("SizeInBytesValue")
-    size_in_bytes_timestamp: PropertyRef = PropertyRef("SizeInBytesTimestamp")
-    performance_mode: PropertyRef = PropertyRef("PerformanceMode")
-    encrypted: PropertyRef = PropertyRef("Encrypted")
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
-    throughput_mode: PropertyRef = PropertyRef("ThroughputMode")
-    availability_zone_name: PropertyRef = PropertyRef("AvailabilityZoneName")
-    availability_zone_id: PropertyRef = PropertyRef("AvailabilityZoneId")
-    file_system_protection: PropertyRef = PropertyRef("FileSystemProtection")
+    id: PropertyRef = PropertyRef(
+        "FileSystemId", description="The ID of the file system, assigned by Amazon EFS"
+    )
+    arn: PropertyRef = PropertyRef(
+        "FileSystemArn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) for the EFS file system",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the file system"
+    )
+    owner_id: PropertyRef = PropertyRef(
+        "OwnerId", description="The AWS account that created the file system"
+    )
+    creation_token: PropertyRef = PropertyRef(
+        "CreationToken", description="The opaque string specified in the request"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime",
+        description="The time that the file system was created, in seconds",
+    )
+    lifecycle_state: PropertyRef = PropertyRef(
+        "LifeCycleState", description="The lifecycle phase of the file system"
+    )
+    name: PropertyRef = PropertyRef(
+        "Name",
+        description="If the file system has a name tag, Amazon EFS returns the value in this field",
+    )
+    number_of_mount_targets: PropertyRef = PropertyRef(
+        "NumberOfMountTargets",
+        description="The current number of mount targets that the file system has",
+    )
+    size_in_bytes_value: PropertyRef = PropertyRef(
+        "SizeInBytesValue",
+        description="Latest known metered size (in bytes) of data stored in the file system",
+    )
+    size_in_bytes_timestamp: PropertyRef = PropertyRef(
+        "SizeInBytesTimestamp", description="Time at which that size was determined"
+    )
+    performance_mode: PropertyRef = PropertyRef(
+        "PerformanceMode", description="The performance mode of the file system"
+    )
+    encrypted: PropertyRef = PropertyRef(
+        "Encrypted",
+        description="A Boolean value that, if true, indicates that the file system is encrypted",
+    )
+    kms_key_id: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="The ID of an AWS KMS key used to protect the encrypted file system",
+    )
+    throughput_mode: PropertyRef = PropertyRef(
+        "ThroughputMode", description="Displays the file system's throughput mode"
+    )
+    availability_zone_name: PropertyRef = PropertyRef(
+        "AvailabilityZoneName",
+        description="Describes the AWS Availability Zone in which the file system is located",
+    )
+    availability_zone_id: PropertyRef = PropertyRef(
+        "AvailabilityZoneId",
+        description="The unique and consistent identifier of the Availability Zone in which the file system is located",
+    )
+    file_system_protection: PropertyRef = PropertyRef(
+        "FileSystemProtection",
+        description="Describes the protection on the file system",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -78,6 +125,8 @@ class EfsFileSystemToKMSKeyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EfsFileSystemSchema(CartographyNodeSchema):
+    """Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)"""
+
     label: str = "AWSEfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
     # DEPRECATED: legacy EfsFileSystem node label will be removed in v1.0.0.

@@ -15,12 +15,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DBSubnetGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    vpc_id: PropertyRef = PropertyRef("vpc_id")
-    description: PropertyRef = PropertyRef("description")
-    status: PropertyRef = PropertyRef("status")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="The ARN of the AWSDBSubnetGroup")
+    name: PropertyRef = PropertyRef("name", description="The name of AWSDBSubnetGroup")
+    vpc_id: PropertyRef = PropertyRef(
+        "vpc_id",
+        description="The ID of the VPC (Virtual Private Cloud) that this DB Subnet Group is associated with.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the DB Subnet Group"
+    )
+    status: PropertyRef = PropertyRef("status", description="The status of the group")
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the DB Subnet Group is located.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -86,9 +95,7 @@ class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DBSubnetGroupSchema(CartographyNodeSchema):
-    """
-    DB Subnet Group schema
-    """
+    """Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html)."""
 
     label: str = "AWSDBSubnetGroup"
     # DEPRECATED: legacy DBSubnetGroup node label will be removed in v1.0.0.

@@ -110,9 +110,12 @@ def transform_namespaces(
     endpoint_by_namespace_id = {ns.id: ns.endpoint for ns in namespaces}
 
     for namespace in namespaces:
-        namespaces_by_project.setdefault(namespace.project_id, []).append(
-            scaleway_obj_to_dict(namespace)
-        )
+        formatted_ns = scaleway_obj_to_dict(namespace)
+        # A public namespace serves unauthenticated pulls from its registry endpoint.
+        exposed = bool(formatted_ns.get("is_public"))
+        formatted_ns["exposed_internet"] = exposed
+        formatted_ns["exposed_internet_type"] = ["direct"] if exposed else None
+        namespaces_by_project.setdefault(namespace.project_id, []).append(formatted_ns)
 
     # Resolve each named image to the project/namespace/name/visibility we
     # denormalize onto its tags. The named image is not loaded as a node.

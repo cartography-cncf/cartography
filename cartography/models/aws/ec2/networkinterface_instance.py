@@ -20,13 +20,33 @@ class EC2NetworkInterfaceInstanceNodeProperties(CartographyNodeProperties):
     """
 
     # arn: PropertyRef = PropertyRef('Arn', extra_index=True) TODO use arn; issue #1024
-    id: PropertyRef = PropertyRef("NetworkInterfaceId")
-    status: PropertyRef = PropertyRef("Status")
-    mac_address: PropertyRef = PropertyRef("MacAddress", extra_index=True)
-    description: PropertyRef = PropertyRef("Description")
-    private_dns_name: PropertyRef = PropertyRef("PrivateDnsName", extra_index=True)
-    private_ip_address: PropertyRef = PropertyRef("PrivateIpAddress", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId",
+        description="The ID of the network interface.  (known as `networkInterfaceId` in EC2)",
+    )
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="Status of the network interface.  Valid Values: ``available | associated | attaching | in-use | detaching ``",
+    )
+    mac_address: PropertyRef = PropertyRef(
+        "MacAddress",
+        extra_index=True,
+        description="The MAC address of the network interface",
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="Description of the network interface"
+    )
+    private_dns_name: PropertyRef = PropertyRef(
+        "PrivateDnsName", extra_index=True, description="The private DNS name"
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "PrivateIpAddress",
+        extra_index=True,
+        description="The primary IPv4 address of the network interface within the subnet",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -104,9 +124,10 @@ class EC2NetworkInterfaceToEC2SecurityGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceInstanceSchema(CartographyNodeSchema):
-    """
-    Network interface as known by an EC2 instance
-    """
+    """Representation of a generic Network Interface.  Currently however, we only create AWSNetworkInterface nodes from AWS [EC2 Instances](#awsec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html)."""
+
+    # Implementation note:
+    # Network interface as known by an EC2 instance
 
     label: str = "AWSNetworkInterface"
     # DEPRECATED: legacy NetworkInterface node label will be removed in v1.0.0.

@@ -1,8 +1,22 @@
-## BigFix Configuration
+# BigFix Configuration
 
-Follow these steps to analyze BigFix objects with Cartography.
+## Authentication
 
-1. Prepare a read-only BigFix username and password.
-1. Pass the BigFix username to the `--bigfix-username` CLI arg.
-1. Populate an environment variable with the password.
-1. Pass that env var name to the `--bigfix_password_env_var` CLI arg.
+Prepare a read-only BigFix username and password. Store the password in an
+environment variable.
+
+## Configure Cartography
+
+Pass the username with `--bigfix-username`, the password environment variable
+name with `--bigfix-password-env-var`, and the BigFix API URL with
+`--bigfix-root-url`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules bigfix \
+  --bigfix-username "$BIGFIX_USERNAME" \
+  --bigfix-password-env-var BIGFIX_PASSWORD \
+  --bigfix-root-url "$BIGFIX_ROOT_URL"
+```

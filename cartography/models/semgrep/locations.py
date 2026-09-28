@@ -13,14 +13,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SemgrepSCALocationProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("findingId")
+    id: PropertyRef = PropertyRef(
+        "findingId",
+        description="Unique identifier for the vulnerable dependency usage location.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    path: PropertyRef = PropertyRef("path", extra_index=True)
-    start_line: PropertyRef = PropertyRef("startLine")
-    start_col: PropertyRef = PropertyRef("startCol")
-    end_line: PropertyRef = PropertyRef("endLine")
-    end_col: PropertyRef = PropertyRef("endCol")
-    url: PropertyRef = PropertyRef("url")
+    path: PropertyRef = PropertyRef(
+        "path",
+        extra_index=True,
+        description="Path of the file containing the vulnerable dependency usage.",
+    )
+    start_line: PropertyRef = PropertyRef(
+        "startLine",
+        description="Line where the usage starts.",
+    )
+    start_col: PropertyRef = PropertyRef(
+        "startCol",
+        description="Column where the usage starts.",
+    )
+    end_line: PropertyRef = PropertyRef(
+        "endLine",
+        description="Line where the usage ends.",
+    )
+    end_col: PropertyRef = PropertyRef(
+        "endCol",
+        description="Column where the usage ends.",
+    )
+    url: PropertyRef = PropertyRef(
+        "url",
+        description="URL of the file containing the usage.",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +53,8 @@ class SemgrepSCALocToSemgrepSCAFindingRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SemgrepSCALocation)<-[:USAGE_AT]-(:SemgrepSCAFinding)
 class SemgrepSCALocToSemgrepSCAFindingRel(CartographyRelSchema):
+    """Links an SCA finding to a source location where the dependency is used."""
+
     target_node_label: str = "SemgrepSCAFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SCA_ID")},
@@ -50,6 +74,8 @@ class SemgrepSCALocToSemgrepSCADeploymentRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:SemgrepSCALocation)<-[:RESOURCE]-(:SemgrepSCADeployment)
 class SemgrepSCALocToSCADeploymentRel(CartographyRelSchema):
+    """Connects a Semgrep deployment to one of its SCA usage locations."""
+
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -63,6 +89,8 @@ class SemgrepSCALocToSCADeploymentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SemgrepSCALocationSchema(CartographyNodeSchema):
+    """A source location where vulnerable dependency code is used."""
+
     label: str = "SemgrepSCALocation"
     properties: SemgrepSCALocationProperties = SemgrepSCALocationProperties()
     sub_resource_relationship: SemgrepSCALocToSCADeploymentRel = (

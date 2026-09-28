@@ -22,8 +22,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE = 500
-GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE = 1000
-GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE = 100
+GCP_PERMISSION_BULK_RESOURCE_BATCH_SIZE = 1000
+GCP_PERMISSION_BULK_PRINCIPAL_BATCH_SIZE = 100
 GCPPrincipalPermissionContext = dict[str, dict[str, dict[str, Any]]]
 
 
@@ -359,14 +359,6 @@ def iter_permission_relationship_batches(
         yield batch
 
 
-def _bigquery_dataset_id_from_table_id(table_id: str) -> str | None:
-    if ":" not in table_id or "." not in table_id:
-        return None
-    project_id, rest = table_id.split(":", 1)
-    dataset_id, _ = rest.split(".", 1)
-    return f"{project_id}:{dataset_id}"
-
-
 def _match_bigquery_dataset_scope(scope_pattern: str, project_id: str) -> str | None:
     match = re.fullmatch(
         rf"project/{re.escape(project_id)}/resource/projects/([^/]+)/datasets/([^/]+)",
@@ -378,67 +370,59 @@ def _match_bigquery_dataset_scope(scope_pattern: str, project_id: str) -> str | 
     return f"{scope_project_id}:{dataset_id}"
 
 
-def split_bigquery_table_broad_scope_principals(
+def _is_broad_scope_for_bigquery_table(
+    assignment_data: dict[str, Any],
+    project_id: str,
+) -> bool:
+    """
+    Return True if this binding covers more than one specific BigQuery table.
+
+    A project scope covers every table in the project; organization and folder
+    scopes resolve to it too (see resolve_gcp_scope). A dataset scope covers every
+    table in that dataset.
+    """
+    scope_pattern = assignment_data["scope"].pattern
+    if scope_pattern == f"project/{project_id}/.*":
+        return True
+    return _match_bigquery_dataset_scope(scope_pattern, project_id) is not None
+
+
+def filter_bigquery_table_broad_scope_bindings(
     principals: GCPPrincipalPermissionContext,
     permissions: list[str],
     project_id: str,
-) -> tuple[set[str], dict[str, set[str]], GCPPrincipalPermissionContext]:
+) -> GCPPrincipalPermissionContext:
     """
-    Split BigQuery table permissions into broad scopes and exact residual work.
+    Keep only the bindings placed directly on a BigQuery table.
 
-    Project- and dataset-scope BigQuery grants can apply to every table in a
-    project or dataset. Group those principals up front so they can be loaded
-    through the core MatchLink Cartesian product helper instead of repeatedly
-    evaluating the same broad scope for every table.
+    Expanding a project- or dataset-scope grant into one relationship per table
+    wrote millions of relationships that carried no information: the permission
+    engine consults no table-level property (no table ACL, no row or column level
+    security, no authorized view), and the same grant always also produces the
+    GCPBigQueryDataset relationship. Consumers reach the tables in one hop:
+
+        (:GCPPrincipal)-[:CAN_READ]->(:GCPBigQueryDataset)-[:HAS_TABLE]->(:GCPBigQueryTable)
+
+    What survives here is the signal that cannot be derived from the dataset
+    relationship: an IAM binding placed directly on a single table. Conditional
+    bindings follow the same rule; the dataset relationship carries their
+    condition metadata.
     """
-    project_scope_principals, residual_principals = _split_project_scope_principals(
-        principals,
-        permissions,
-        project_id,
-    )
-    dataset_scope_principals, residual_principals = (
-        _split_bigquery_table_dataset_scope_principals(
-            residual_principals,
-            permissions,
-            project_id,
-        )
-    )
-    return project_scope_principals, dataset_scope_principals, residual_principals
-
-
-def _split_bigquery_table_dataset_scope_principals(
-    principals: GCPPrincipalPermissionContext,
-    permissions: list[str],
-    project_id: str,
-) -> tuple[dict[str, set[str]], GCPPrincipalPermissionContext]:
-    dataset_scope_principals: dict[str, set[str]] = {}
-    residual_principals: GCPPrincipalPermissionContext = {}
+    direct_principals: GCPPrincipalPermissionContext = {}
 
     for principal_email, policy_bindings in principals.items():
         for binding_id, assignment_data in policy_bindings.items():
             if not _assignment_allows_permissions(assignment_data, permissions):
                 continue
 
-            # As with project scope, conditional grants cannot ride the bulk loader.
-            if assignment_data.get("has_condition"):
-                residual_principals.setdefault(principal_email, {})[
-                    binding_id
-                ] = assignment_data
+            if _is_broad_scope_for_bigquery_table(assignment_data, project_id):
                 continue
 
-            scope_pattern = assignment_data["scope"].pattern
-            dataset_id = _match_bigquery_dataset_scope(scope_pattern, project_id)
-            if dataset_id is not None:
-                dataset_scope_principals.setdefault(dataset_id, set()).add(
-                    principal_email
-                )
-                continue
-
-            residual_principals.setdefault(principal_email, {})[
+            direct_principals.setdefault(principal_email, {})[
                 binding_id
             ] = assignment_data
 
-    return dataset_scope_principals, residual_principals
+    return direct_principals
 
 
 @timeit
@@ -450,8 +434,8 @@ def load_permission_relationships_cartesian_product(
     update_tag: int,
     project_id: str,
     scope_description: str,
-    principal_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_PRINCIPAL_BATCH_SIZE,
-    resource_batch_size: int = GCP_BIGQUERY_TABLE_PERMISSION_TABLE_BATCH_SIZE,
+    principal_batch_size: int = GCP_PERMISSION_BULK_PRINCIPAL_BATCH_SIZE,
+    resource_batch_size: int = GCP_PERMISSION_BULK_RESOURCE_BATCH_SIZE,
 ) -> int:
     if not principal_emails or not resource_ids:
         return 0
@@ -480,71 +464,54 @@ def load_permission_relationships_cartesian_product(
     )
 
 
-@timeit
-def _load_bigquery_dataset_scope_bulk(
+_BroadScopeFilter = Callable[
+    [GCPPrincipalPermissionContext, list[str], str],
+    GCPPrincipalPermissionContext,
+]
+
+# Labels whose broad-scope grants are deliberately not materialized per resource:
+# a container node already carries the relationship and consumers traverse one hop
+# to the members. Only bindings placed directly on the resource are written, so
+# these labels have no bulk Cartesian phase at all.
+_BROAD_SCOPE_FILTERS: dict[str, _BroadScopeFilter] = {
+    "GCPBigQueryTable": filter_bigquery_table_broad_scope_bindings,
+}
+
+
+def _load_residual_permission_relationships(
     neo4j_session: neo4j.Session,
-    dataset_scope_principals: dict[str, set[str]],
+    residual_principals: GCPPrincipalPermissionContext,
     resource_dict: dict[str, str],
+    permissions: list[str],
     matchlink_schema: GCPPermissionMatchLink,
     update_tag: int,
     project_id: str,
+    batch_size: int,
 ) -> int:
-    relationships_loaded = 0
-    table_ids_by_dataset: dict[str, list[str]] = {}
-    for table_id in resource_dict:
-        dataset_id = _bigquery_dataset_id_from_table_id(table_id)
-        if dataset_id in dataset_scope_principals:
-            table_ids_by_dataset.setdefault(dataset_id, []).append(table_id)
+    """
+    Load the row-by-row path, the only one that carries per-edge condition metadata.
 
-    for dataset_id, dataset_table_ids in table_ids_by_dataset.items():
-        dataset_principals = dataset_scope_principals[dataset_id]
-        logger.info(
-            "Bulk loading relationship '%s' for %d dataset-scope principals across %d BigQuery tables in dataset '%s'",
-            matchlink_schema.rel_label,
-            len(dataset_principals),
-            len(dataset_table_ids),
-            dataset_id,
-        )
-        relationships_loaded += load_permission_relationships_cartesian_product(
-            neo4j_session,
-            matchlink_schema,
-            dataset_principals,
-            dataset_table_ids,
-            update_tag,
-            project_id,
-            f"dataset {dataset_id}",
-        )
+    Every pair is evaluated against the binding scope, so this handles exact and
+    partially wildcarded scopes alike.
+    """
+    if not residual_principals:
+        return 0
 
-    return relationships_loaded
-
-
-_ContainerScopeSplitter = Callable[
-    [GCPPrincipalPermissionContext, list[str], str],
-    tuple[dict[str, set[str]], GCPPrincipalPermissionContext],
-]
-_ContainerScopeBulkLoader = Callable[
-    [
-        neo4j.Session,
-        dict[str, set[str]],
-        dict[str, str],
-        GCPPermissionMatchLink,
-        int,
-        str,
-    ],
-    int,
-]
-
-# Container scopes (e.g. a BigQuery dataset covering all its tables) are handled
-# in two phases: a splitter separates broad-scope principals from exact residual
-# work, then a bulk loader Cartesian-writes the broad grants.
-_CONTAINER_SCOPE_HANDLERS: dict[
-    str, tuple[_ContainerScopeSplitter, _ContainerScopeBulkLoader]
-] = {
-    "GCPBigQueryTable": (
-        _split_bigquery_table_dataset_scope_principals,
-        _load_bigquery_dataset_scope_bulk,
-    ),
-}
+    residual_matchlink_schema = GCPConditionalPermissionMatchLink(
+        source_node_label=matchlink_schema.source_node_label,
+        target_node_label=matchlink_schema.target_node_label,
+        rel_label=matchlink_schema.rel_label,
+    )
+    return evaluate_and_load_permission_relationships(
+        neo4j_session,
+        residual_principals,
+        resource_dict,
+        permissions,
+        residual_matchlink_schema,
+        update_tag,
+        project_id,
+        batch_size=batch_size,
+    )
 
 
 @timeit
@@ -558,59 +525,56 @@ def evaluate_and_load_scope_aware_permission_relationships(
     project_id: str,
     batch_size: int = GCP_PERMISSION_RELATIONSHIP_BATCH_SIZE,
 ) -> int:
+    broad_scope_filter = _BROAD_SCOPE_FILTERS.get(matchlink_schema.target_node_label)
+    if broad_scope_filter is not None:
+        # This label represents broad grants on a container node instead of
+        # expanding them per resource, so there is no bulk Cartesian phase and
+        # _split_project_scope_principals must not run: it drops a project-scope
+        # principal from the residual entirely, which would discard the direct
+        # binding of a principal that also holds project-wide access.
+        direct_principals = broad_scope_filter(principals, permissions, project_id)
+        logger.info(
+            "Loading relationship '%s' for %d %s resources in project '%s' from direct "
+            "bindings only: %d of %d principals hold one, broader grants stay on the container node",
+            matchlink_schema.rel_label,
+            len(resource_dict),
+            matchlink_schema.target_node_label,
+            project_id,
+            len(direct_principals),
+            len(principals),
+        )
+        return _load_residual_permission_relationships(
+            neo4j_session,
+            direct_principals,
+            resource_dict,
+            permissions,
+            matchlink_schema,
+            update_tag,
+            project_id,
+            batch_size,
+        )
+
     project_scope_principals, residual_principals = _split_project_scope_principals(
         principals,
         permissions,
         project_id,
     )
 
-    # Split container-scope (e.g. BigQuery dataset) broad grants out of the residual
-    # up front so we know the final residual before loading anything.
-    dataset_scope_principals: dict[str, set[str]] = {}
-    handler = _CONTAINER_SCOPE_HANDLERS.get(matchlink_schema.target_node_label)
-    if handler is not None:
-        splitter, _ = handler
-        dataset_scope_principals, residual_principals = splitter(
-            residual_principals,
-            permissions,
-            project_id,
-        )
-
-    relationships_loaded = 0
     resource_ids = list(resource_dict)
 
     # Load the residual (row-by-row) path FIRST. It may write conditional edges, and
-    # the bulk unconditional loads below must overwrite any overlapping edge so that
+    # the bulk unconditional load below must overwrite any overlapping edge so that
     # broader unconditional access always wins (has_condition=false). See #2891 review.
-    if residual_principals:
-        residual_matchlink_schema = GCPConditionalPermissionMatchLink(
-            source_node_label=matchlink_schema.source_node_label,
-            target_node_label=matchlink_schema.target_node_label,
-            rel_label=matchlink_schema.rel_label,
-        )
-        relationships_loaded += evaluate_and_load_permission_relationships(
-            neo4j_session,
-            residual_principals,
-            resource_dict,
-            permissions,
-            residual_matchlink_schema,
-            update_tag,
-            project_id,
-            batch_size=batch_size,
-        )
-
-    # Container (dataset) bulk: overwrites overlapping residual edges with
-    # has_condition=false.
-    if handler is not None and dataset_scope_principals:
-        _, bulk_loader = handler
-        relationships_loaded += bulk_loader(
-            neo4j_session,
-            dataset_scope_principals,
-            resource_dict,
-            matchlink_schema,
-            update_tag,
-            project_id,
-        )
+    relationships_loaded = _load_residual_permission_relationships(
+        neo4j_session,
+        residual_principals,
+        resource_dict,
+        permissions,
+        matchlink_schema,
+        update_tag,
+        project_id,
+        batch_size,
+    )
 
     # Project bulk is the broadest scope, so it runs last and wins over everything.
     if project_scope_principals:

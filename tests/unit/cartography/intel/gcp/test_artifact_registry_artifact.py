@@ -124,10 +124,6 @@ def test_load_docker_images_uses_artifact_registry_batch_size():
 
     assert load_nodes_without_relationships.call_count == 2
     assert (
-        load_nodes_without_relationships.call_args_list[1].kwargs["apply_labels"]
-        is False
-    )
-    assert (
         load_nodes_without_relationships.call_args_list[0].kwargs["batch_size"]
         == ARTIFACT_REGISTRY_LOAD_BATCH_SIZE
     )
@@ -181,7 +177,6 @@ def test_load_nodes_without_relationships_logs_batch_progress(caplog):
             [{"id": "1"}, {"id": "2"}, {"id": "3"}],
             batch_size=2,
             progress_description="test GAR nodes",
-            apply_labels=False,
             lastupdated=123,
         )
 

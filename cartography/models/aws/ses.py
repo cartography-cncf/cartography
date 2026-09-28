@@ -14,15 +14,41 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SESEmailIdentityNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    identity: PropertyRef = PropertyRef("IdentityName")
-    identity_type: PropertyRef = PropertyRef("IdentityType")
-    sending_enabled: PropertyRef = PropertyRef("SendingEnabled")
-    verification_status: PropertyRef = PropertyRef("VerificationStatus")
-    dkim_signing_enabled: PropertyRef = PropertyRef("DkimSigningEnabled")
-    dkim_status: PropertyRef = PropertyRef("DkimStatus")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "Arn", description="The ARN of the SES email identity"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn", extra_index=True, description="The ARN of the SES email identity"
+    )
+    identity: PropertyRef = PropertyRef(
+        "IdentityName",
+        description="The name of the email identity (domain or email address)",
+    )
+    identity_type: PropertyRef = PropertyRef(
+        "IdentityType",
+        description="The type of the identity, either `EMAIL_ADDRESS` or `DOMAIN`",
+    )
+    sending_enabled: PropertyRef = PropertyRef(
+        "SendingEnabled",
+        description="Whether email sending is enabled for this identity",
+    )
+    verification_status: PropertyRef = PropertyRef(
+        "VerificationStatus",
+        description="The verification status of the identity (e.g., `SUCCESS`, `PENDING`, `FAILED`)",
+    )
+    dkim_signing_enabled: PropertyRef = PropertyRef(
+        "DkimSigningEnabled",
+        description="Whether DKIM signing is enabled for this identity",
+    )
+    dkim_status: PropertyRef = PropertyRef(
+        "DkimStatus",
+        description="The DKIM authentication status (e.g., `SUCCESS`, `PENDING`, `FAILED`)",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the SES email identity exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,6 +73,8 @@ class SESEmailIdentityToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SESEmailIdentitySchema(CartographyNodeSchema):
+    """Representation of an AWS [SES Email Identity](https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetEmailIdentity.html). An SES email identity is a domain or email address that you use to send email through Amazon Simple Email Service (SESv2)."""
+
     label: str = "AWSSESEmailIdentity"
     # DEPRECATED: legacy SESEmailIdentity node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_SES_EMAIL_IDENTITY])

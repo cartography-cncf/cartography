@@ -27,14 +27,33 @@ class TGWRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TransitGatewayArn")
+    id: PropertyRef = PropertyRef(
+        "TransitGatewayArn", description="Unique identifier of the Transit Gateway"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    arn: PropertyRef = PropertyRef("TransitGatewayArn")
-    tgw_id: PropertyRef = PropertyRef("TransitGatewayId")
-    ownerid: PropertyRef = PropertyRef("OwnerId")
-    state: PropertyRef = PropertyRef("State")
-    description: PropertyRef = PropertyRef("Description")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    arn: PropertyRef = PropertyRef(
+        "TransitGatewayArn",
+        description="AWS-unique identifier for this object (same as `id`)",
+    )
+    tgw_id: PropertyRef = PropertyRef(
+        "TransitGatewayId", description="Unique identifier of the Transit Gateway"
+    )
+    ownerid: PropertyRef = PropertyRef(
+        "OwnerId",
+        description="Identifier of the owner linked to this `AWSTransitGateway` node.",
+    )
+    state: PropertyRef = PropertyRef(
+        "State",
+        description="Can be one of ``pending | available | modifying | deleting | deleted``",
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="Transit Gateway description"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSTransitGateway` node.",
+    )
 
 
 # (:AWSAccount)-[:RESOURCE]->(:AWSTransitGateway)
@@ -67,6 +86,8 @@ class AWSTransitGatewaySharedWithAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewaySchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html)."""
+
     label: str = "AWSTransitGateway"
     properties: AWSTransitGatewayNodeProperties = AWSTransitGatewayNodeProperties()
     sub_resource_relationship: AWSTransitGatewayToAWSAccountRel = (
@@ -86,11 +107,24 @@ class AWSTransitGatewaySchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayAttachmentNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("TransitGatewayAttachmentId")
+    id: PropertyRef = PropertyRef(
+        "TransitGatewayAttachmentId",
+        description="Unique identifier of the Transit Gateway Attachment",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    resource_type: PropertyRef = PropertyRef("ResourceType")
-    state: PropertyRef = PropertyRef("State")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    resource_type: PropertyRef = PropertyRef(
+        "ResourceType",
+        description="Can be one of ``vpc | vpn | direct-connect-gateway | tgw-peering``",
+    )
+    state: PropertyRef = PropertyRef(
+        "State",
+        description="Can be one of ``initiating | pendingAcceptance | rollingBack | pending | available | modifying | deleting | deleted | failed | rejected | rejecting | failing``",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSTransitGatewayAttachment` node.",
+    )
 
 
 # (:AWSAccount)-[:RESOURCE]->(:AWSTransitGatewayAttachment)
@@ -143,6 +177,8 @@ class AWSTransitGatewayAttachmentToSubnetRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSTransitGatewayAttachmentSchema(CartographyNodeSchema):
+    """Representation of an [AWS Transit Gateway Attachment](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGatewayAttachment.html)."""
+
     label: str = "AWSTransitGatewayAttachment"
     properties: AWSTransitGatewayAttachmentNodeProperties = (
         AWSTransitGatewayAttachmentNodeProperties()

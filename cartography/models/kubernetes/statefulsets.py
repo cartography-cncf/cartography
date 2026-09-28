@@ -15,17 +15,44 @@ from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 @dataclass(frozen=True)
 class KubernetesStatefulSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    replicas: PropertyRef = PropertyRef("replicas")
-    ready_replicas: PropertyRef = PropertyRef("ready_replicas")
-    service_name: PropertyRef = PropertyRef("service_name")
-    labels: PropertyRef = PropertyRef("labels")
+    id: PropertyRef = PropertyRef(
+        "uid", description="UID of the Kubernetes StatefulSet."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Kubernetes StatefulSet."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="Kubernetes namespace containing the StatefulSet.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the Kubernetes StatefulSet was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the Kubernetes StatefulSet was marked for deletion.",
+    )
+    replicas: PropertyRef = PropertyRef(
+        "replicas", description="Desired number of pod replicas."
+    )
+    ready_replicas: PropertyRef = PropertyRef(
+        "ready_replicas", description="Number of pod replicas that are ready."
+    )
+    service_name: PropertyRef = PropertyRef(
+        "service_name",
+        description="Name of the governing Kubernetes Service.",
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Metadata labels on the StatefulSet, stored as a JSON-encoded string.",
+    )
     cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster containing the StatefulSet.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -38,6 +65,8 @@ class KubernetesStatefulSetToKubernetesClusterRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:KubernetesStatefulSet)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesStatefulSetToKubernetesClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its stateful sets."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -59,6 +88,8 @@ class KubernetesStatefulSetToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesStatefulSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesStatefulSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
+    """Links a stateful set to the namespace that owns it."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -75,6 +106,8 @@ class KubernetesStatefulSetToKubernetesNamespaceWorkloadParentRel(CartographyRel
 
 @dataclass(frozen=True)
 class KubernetesStatefulSetSchema(CartographyNodeSchema):
+    "A Kubernetes StatefulSet that manages pods with stable identities."
+
     label: str = "KubernetesStatefulSet"
     # ComputeService is the cross-provider "logical workload / controller" label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])

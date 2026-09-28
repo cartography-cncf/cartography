@@ -18,22 +18,11 @@ from cartography.models.azure.vm.snapshot import AzureSnapshotSchema
 from cartography.models.azure.vm.virtualmachine import AzureVirtualMachineSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
 from .util.common import extract_identity_principal_ids
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
-
-
-def _copy_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
-    properties = data.get("properties") or {}
-    for target, sources in mapping.items():
-        if target in data:
-            continue
-        for source in sources:
-            if source in properties:
-                data[target] = properties[source]
-                break
-    return data
 
 
 def _copy_nested_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) -> Dict:
@@ -48,7 +37,7 @@ def _copy_nested_properties(data: Dict, mapping: Mapping[str, tuple[str, ...]]) 
 
 
 def transform_vm(vm: Dict) -> Dict:
-    vm = _copy_properties(
+    vm = copy_properties(
         vm,
         {
             "storage_profile": ("storage_profile", "storageProfile"),
@@ -119,7 +108,7 @@ DISK_PROPERTY_MAP = {
 
 
 def transform_disk(disk: Dict) -> Dict:
-    return _copy_properties(disk, DISK_PROPERTY_MAP)
+    return copy_properties(disk, DISK_PROPERTY_MAP)
 
 
 SNAPSHOT_PROPERTY_MAP = {
@@ -129,7 +118,7 @@ SNAPSHOT_PROPERTY_MAP = {
 
 
 def transform_snapshot(snapshot: Dict) -> Dict:
-    return _copy_properties(snapshot, SNAPSHOT_PROPERTY_MAP)
+    return copy_properties(snapshot, SNAPSHOT_PROPERTY_MAP)
 
 
 def get_client(

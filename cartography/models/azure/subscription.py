@@ -15,12 +15,27 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class AzureSubscriptionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("subscriptionId")
+    id: PropertyRef = PropertyRef(
+        "subscriptionId",
+        description="Azure subscription ID.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    path: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("displayName")
-    state: PropertyRef = PropertyRef("state")
-    parent_management_group_id: PropertyRef = PropertyRef("parent_management_group_id")
+    path: PropertyRef = PropertyRef(
+        "id",
+        description="Azure Resource Manager path of the subscription.",
+    )
+    name: PropertyRef = PropertyRef(
+        "displayName",
+        description="Display name of the subscription.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state",
+        description="Current state of the subscription.",
+    )
+    parent_management_group_id: PropertyRef = PropertyRef(
+        "parent_management_group_id",
+        description="Azure Resource Manager ID of the parent management group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -31,6 +46,8 @@ class AzureSubscriptionToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AzureTenant)-[:RESOURCE]->(:AzureSubscription)
 class AzureSubscriptionToTenantRel(CartographyRelSchema):
+    """An Azure tenant contains the subscription as a resource."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -49,6 +66,8 @@ class AzureSubscriptionToManagementGroupParentRelProperties(CartographyRelProper
 
 @dataclass(frozen=True)
 class AzureSubscriptionToManagementGroupParentRel(CartographyRelSchema):
+    """An Azure subscription has a parent management group."""
+
     target_node_label: str = "AzureManagementGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_management_group_id")},
@@ -62,6 +81,8 @@ class AzureSubscriptionToManagementGroupParentRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSubscriptionSchema(CartographyNodeSchema):
+    """An Azure subscription that contains cloud resources."""
+
     label: str = "AzureSubscription"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])
     properties: AzureSubscriptionProperties = AzureSubscriptionProperties()

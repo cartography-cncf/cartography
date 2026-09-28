@@ -23,12 +23,17 @@ def test_transform_inspector_findings_network():
             "awsaccount": "123456789011",
             "description": "string",
             "cvssscore": 123.0,
+            "cvssvector": "string",
             "protocol": "TCP",
             "portrange": "123-124",
             "portrangeend": 124,
             "portrangebegin": 123,
             "type": "NETWORK_REACHABILITY",
             "status": "ACTIVE",
+            "fixavailable": "YES",
+            "exploitavailable": "NO",
+            "lastknownexploitat": datetime(2015, 1, 1, 0, 0),
+            "epss_score_inspector": 123.0,
         },
     ]
 
@@ -54,11 +59,18 @@ def test_transform_inspector_findings_package():
             "callback shutdown when unmounting an NFSv4 filesystem, aka "
             'a "module reference and kernel daemon" leak.',
             "cvssscore": 5.5,
+            "cvssvector": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
             "type": "PACKAGE_VULNERABILITY",
             "vulnerabilityid": "CVE-2017-9059",
             "cve_id": "CVE-2017-9059",
             "referenceurls": [],
             "relatedvulnerabilities": [],
+            "vendorcvssvectors": [
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+                "AV:L/AC:L/Au:N/C:N/I:N/A:C",
+                "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            ],
+            "vendorcvssscores": [5.5, 4.9, 5.5],
             "source": "REDHAT_CVE",
             "vendorcreatedat": datetime(2017, 4, 25, 17, 0),
             "vendorupdatedat": None,
@@ -69,6 +81,10 @@ def test_transform_inspector_findings_package():
                 "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
                 "kernel|0:4.9.17-6.29.amzn1.X86_64",
             ],
+            "fixavailable": "PARTIAL",
+            "exploitavailable": "YES",
+            "lastknownexploitat": datetime(2022, 5, 4, 16, 23, 3, 692000),
+            "epss_score_inspector": 0.42,
         },
         {
             "id": "arn:aws:test789",
@@ -84,10 +100,13 @@ def test_transform_inspector_findings_package():
             "to execute arbitrary code or cause a denial of service via crafted "
             "SSL/TLS handshake messages.",
             "cvssscore": 7.5,
+            "cvssvector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
             "type": "PACKAGE_VULNERABILITY",
             "cve_id": "CVE-2023-1234",
             "referenceurls": ["https://nvd.nist.gov/vuln/detail/CVE-2023-1234"],
             "relatedvulnerabilities": [],
+            "vendorcvssvectors": ["CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"],
+            "vendorcvssscores": [7.5],
             "source": "NVD",
             "vendorcreatedat": datetime(2023, 1, 15, 10, 0),
             "vendorupdatedat": None,
@@ -97,6 +116,8 @@ def test_transform_inspector_findings_package():
             "vulnerablepackageids": [
                 "openssl|0:1.0.2k-1.amzn2.X86_64",
             ],
+            "fixavailable": None,
+            "exploitavailable": None,
         },
     ]
     # The order of packages is not guaranteed because it comes from a set.

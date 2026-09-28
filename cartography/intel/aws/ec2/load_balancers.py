@@ -138,9 +138,11 @@ def transform_load_balancer_data(
     for lb in load_balancers:
         load_balancer_id = lb["DNSName"]
         transformed_lb = {
+            # `id` stays raw: it is what listeners join against. `dnsname` is lowercased so
+            # equality matchers survive AWS preserving the load balancer name's case.
             "id": load_balancer_id,
             "name": lb["LoadBalancerName"],
-            "dnsname": lb["DNSName"],
+            "dnsname": lb["DNSName"].lower(),
             "canonicalhostedzonename": lb.get("CanonicalHostedZoneName"),
             "canonicalhostedzonenameid": lb.get("CanonicalHostedZoneNameID"),
             "scheme": lb.get("Scheme"),

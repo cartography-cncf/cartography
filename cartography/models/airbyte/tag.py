@@ -13,9 +13,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("tagId")
-    name: PropertyRef = PropertyRef("name")
-    color: PropertyRef = PropertyRef("color")
+    id: PropertyRef = PropertyRef("tagId", description="Tag UUID.")
+    name: PropertyRef = PropertyRef("name", description="Tag name.")
+    color: PropertyRef = PropertyRef("color", description="Tag color in hexadecimal.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -27,6 +27,8 @@ class AirbyteTagToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteTag)
 class AirbyteTagToOrganizationRel(CartographyRelSchema):
+    """Links an organization to a tag it owns."""
+
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -46,6 +48,8 @@ class AirbyteTagToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AirbyteWorkspace)-[:CONTAINS]->(:AirbyteTag)
 class AirbyteTagToWorkspaceRel(CartographyRelSchema):
+    """Links a workspace to a tag it contains."""
+
     target_node_label: str = "AirbyteWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspaceId")},
@@ -59,6 +63,8 @@ class AirbyteTagToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AirbyteTagSchema(CartographyNodeSchema):
+    """A tag used to categorize Airbyte resources."""
+
     label: str = "AirbyteTag"
     properties: AirbyteTagNodeProperties = AirbyteTagNodeProperties()
     sub_resource_relationship: AirbyteTagToOrganizationRel = (

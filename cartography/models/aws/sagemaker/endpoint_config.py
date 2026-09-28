@@ -13,13 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("EndpointConfigArn")
-    arn: PropertyRef = PropertyRef("EndpointConfigArn", extra_index=True)
-    endpoint_config_name: PropertyRef = PropertyRef("EndpointConfigName")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    model_name: PropertyRef = PropertyRef("ModelName")
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "EndpointConfigArn", description="The ARN of the Endpoint Config"
+    )
+    arn: PropertyRef = PropertyRef(
+        "EndpointConfigArn",
+        extra_index=True,
+        description="The ARN of the Endpoint Config",
+    )
+    endpoint_config_name: PropertyRef = PropertyRef(
+        "EndpointConfigName", description="The name of the Endpoint Config"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Endpoint Config was created"
+    )
+    model_name: PropertyRef = PropertyRef(
+        "ModelName", description="The name of the model to deploy"
+    )
+    kms_key_id: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="Identifier of the KMS key linked to this `AWSSageMakerEndpointConfig` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Endpoint Config exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,6 +80,8 @@ class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerEndpointConfigSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time."""
+
     label: str = "AWSSageMakerEndpointConfig"
     properties: AWSSageMakerEndpointConfigNodeProperties = (
         AWSSageMakerEndpointConfigNodeProperties()

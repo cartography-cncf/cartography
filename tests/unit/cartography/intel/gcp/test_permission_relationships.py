@@ -408,7 +408,13 @@ def test_iter_permission_relationship_batches_preserves_matches():
     assert all(mapping["has_condition"] is False for mapping in flattened)
 
 
-def test_split_bigquery_table_broad_scope_principals():
+def test_filter_bigquery_table_broad_scope_bindings():
+    """
+    Only bindings placed directly on a table survive. Project scope (which org and
+    folder scopes resolve to) and dataset scope are dropped whether or not they
+    carry a condition: the GCPBigQueryDataset relationship covers them and the
+    tables are one HAS_TABLE hop away.
+    """
     # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
@@ -423,11 +429,31 @@ def test_split_bigquery_table_broad_scope_principals():
             ["bigquery.tables.getData"],
             "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
         ),
+        # Conditional broad grants follow the same rule as unconditional ones.
+        "conditional-project-viewer@example.com": {
+            "binding-1": _build_assignment(
+                ["bigquery.tables.getData"],
+                "project/project-abc/*",
+                has_condition=True,
+                condition_title="business-hours",
+            ),
+        },
+        "conditional-dataset-viewer@example.com": {
+            "binding-1": _build_assignment(
+                ["bigquery.tables.getData"],
+                "project/project-abc/resource/projects/project-abc/datasets/analytics",
+                has_condition=True,
+                condition_title="business-hours",
+            ),
+        },
+        # Holds the permission through a different verb only.
         "writer@example.com": _build_policy_bindings(
             ["bigquery.tables.updateData"],
-            "project/project-abc/*",
+            "project/project-abc/resource/projects/project-abc/datasets/analytics/tables/events",
         ),
     }
+    # A project-wide principal that ALSO holds a direct table binding must keep it:
+    # that surgical access is the whole point of the table-level relationship.
     principals["project-viewer@example.com"]["binding-exact-table"] = (
         _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -437,8 +463,8 @@ def test_split_bigquery_table_broad_scope_principals():
     )
 
     # Act
-    project_principals, dataset_principals, residual_principals = (
-        permission_relationships.split_bigquery_table_broad_scope_principals(
+    direct_principals = (
+        permission_relationships.filter_bigquery_table_broad_scope_bindings(
             principals,
             ["bigquery.tables.getData"],
             TEST_PROJECT_ID,
@@ -446,11 +472,52 @@ def test_split_bigquery_table_broad_scope_principals():
     )
 
     # Assert
-    assert project_principals == {"project-viewer@example.com"}
-    assert dataset_principals == {
-        "project-abc:analytics": {"dataset-viewer@example.com"},
+    assert set(direct_principals) == {
+        "project-viewer@example.com",
+        "table-viewer@example.com",
     }
-    assert set(residual_principals) == {"table-viewer@example.com"}
+    assert set(direct_principals["project-viewer@example.com"]) == {
+        "binding-exact-table",
+    }
+    assert set(direct_principals["table-viewer@example.com"]) == {"binding-1"}
+
+
+def test_filter_bigquery_table_broad_scope_bindings_drops_org_and_folder_scope():
+    """
+    Organization- and folder-level grants resolve to the project scope pattern
+    (resolve_gcp_scope), so they are dropped like any other project-wide grant.
+    """
+    # Arrange
+    org_scope = permission_relationships.resolve_gcp_scope(
+        "//cloudresourcemanager.googleapis.com/organizations/1337",
+        TEST_PROJECT_ID,
+    )
+    folder_scope = permission_relationships.resolve_gcp_scope(
+        "//cloudresourcemanager.googleapis.com/folders/42",
+        TEST_PROJECT_ID,
+    )
+    principals = {
+        "org-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            org_scope,
+        ),
+        "folder-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            folder_scope,
+        ),
+    }
+
+    # Act
+    direct_principals = (
+        permission_relationships.filter_bigquery_table_broad_scope_bindings(
+            principals,
+            ["bigquery.tables.getData"],
+            TEST_PROJECT_ID,
+        )
+    )
+
+    # Assert
+    assert direct_principals == {}
 
 
 def test_load_permission_relationships_cartesian_product_uses_core_cartesian_product_loader():
@@ -559,12 +626,20 @@ def test_scope_aware_loader_uses_cartesian_product_for_project_scope():
     mock_calculate.assert_not_called()
 
 
-def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
+def test_bigquery_table_loader_writes_direct_bindings_only():
+    """
+    The GCPBigQueryTable label never uses the bulk Cartesian path: a project-wide
+    grant writes nothing, and only the direct table binding is loaded row by row.
+    """
     # Arrange
     principals = {
         "project-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
             "project/project-abc/*",
+        ),
+        "dataset-viewer@example.com": _build_policy_bindings(
+            ["bigquery.tables.getData"],
+            "project/project-abc/resource/projects/project-abc/datasets/analytics",
         ),
         "table-viewer@example.com": _build_policy_bindings(
             ["bigquery.tables.getData"],
@@ -592,7 +667,7 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
             permission_relationships,
             "load_permission_relationships_cartesian_product",
             return_value=2,
-        ),
+        ) as mock_bulk_load,
         patch.object(
             permission_relationships,
             "load_principal_mappings",
@@ -609,7 +684,8 @@ def test_bigquery_table_fast_path_keeps_exact_table_scope_on_residual_path():
         )
 
     # Assert
-    assert loaded_count == 3
+    assert loaded_count == 1
+    mock_bulk_load.assert_not_called()
     mock_load_principal_mappings.assert_called_once()
     assert mock_load_principal_mappings.call_args.args[1] == [
         {

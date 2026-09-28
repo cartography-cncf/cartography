@@ -12,7 +12,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzurePrincipalProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Microsoft Entra object ID of the principal.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -23,6 +26,8 @@ class AzurePrincipalToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzurePrincipalToTenantRel(CartographyRelSchema):
+    """An Azure tenant contains the principal as a resource."""
+
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -36,6 +41,8 @@ class AzurePrincipalToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzurePrincipalSchema(CartographyNodeSchema):
+    """A Microsoft Entra principal referenced by Azure resources."""
+
     label: str = "AzurePrincipal"
     properties: AzurePrincipalProperties = AzurePrincipalProperties()
     sub_resource_relationship: AzurePrincipalToTenantRel = AzurePrincipalToTenantRel()

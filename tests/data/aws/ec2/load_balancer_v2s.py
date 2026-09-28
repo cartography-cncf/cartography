@@ -60,6 +60,7 @@ GET_LOAD_BALANCER_V2_DATA = [
                 "Protocol": "HTTP",
                 "Port": 8080,
                 "TargetType": "ip",
+                "VpcId": "vpc-12345678",
                 "Targets": ["10.0.0.50", "10.0.0.51"],
             },
         ],
@@ -93,3 +94,72 @@ GET_LOAD_BALANCER_V2_DATA = [
         "TargetGroups": [],
     },
 ]
+
+# AWS preserves the load balancer name's case in DNSName, while Route53 alias targets and
+# Kubernetes load balancer status hostnames are lowercase.
+MIXED_CASE_LB_DNS_NAME = "My-Mixed-ALB-1234567890.us-east-1.elb.amazonaws.com"
+
+MIXED_CASE_LOAD_BALANCER_V2_DATA = [
+    {
+        "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/My-Mixed-ALB/9999999999999999",
+        "DNSName": MIXED_CASE_LB_DNS_NAME,
+        "CanonicalHostedZoneId": "Z35SXDOTRQ7X7K",
+        "CreatedTime": datetime.datetime(2021, 1, 1, 12, 0, 0),
+        "LoadBalancerName": "My-Mixed-ALB",
+        "Scheme": "internet-facing",
+        "VpcId": "vpc-12345678",
+        "State": {"Code": "active"},
+        "Type": "application",
+        "AvailabilityZones": [
+            {
+                "ZoneName": "us-east-1a",
+                "SubnetId": "subnet-11111111",
+            },
+        ],
+        "SecurityGroups": [],
+        "IpAddressType": "ipv4",
+        "Listeners": [
+            {
+                "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/My-Mixed-ALB/9999999999999999/1111111111111111",
+                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/My-Mixed-ALB/9999999999999999",
+                "Port": 443,
+                "Protocol": "HTTPS",
+            },
+        ],
+        "TargetGroups": [],
+    },
+]
+
+
+# Separate AWS responses for IP-target identity and exposure regression tests.
+IP_TARGET_API_PAGES = {
+    "describe_load_balancers": {
+        "LoadBalancers": [
+            {
+                "LoadBalancerArn": "synthetic-load-balancer",
+                "DNSName": "lb.example.invalid",
+                "LoadBalancerName": "synthetic-lb",
+                "CreatedTime": datetime.datetime(2026, 1, 1),
+                "Type": "network",
+                "Scheme": "internet-facing",
+            }
+        ]
+    },
+    "describe_listeners": {
+        "Listeners": [{"ListenerArn": "synthetic-listener", "Port": 443}]
+    },
+    "describe_target_groups": {
+        "TargetGroups": [
+            {
+                "TargetGroupArn": "synthetic-target-group",
+                "TargetType": "ip",
+                "VpcId": "vpc-local",
+                "Port": 443,
+                "Protocol": "TCP",
+            }
+        ]
+    },
+}
+IP_TARGET_HEALTH = {
+    "TargetHealthDescriptions": [{"Target": {"Id": "10.0.0.10", "Port": 443}}]
+}

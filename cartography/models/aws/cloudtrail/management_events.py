@@ -25,9 +25,18 @@ class AssumedRoleRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # CloudTrail-specific relationship properties
-    last_used: PropertyRef = PropertyRef("last_used")
-    times_used: PropertyRef = PropertyRef("times_used")
-    first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
+    last_used: PropertyRef = PropertyRef(
+        "last_used",
+        description="Timestamp when this relationship was last observed in use.",
+    )
+    times_used: PropertyRef = PropertyRef(
+        "times_used",
+        description="Number of times this relationship was observed in use.",
+    )
+    first_seen_in_time_window: PropertyRef = PropertyRef(
+        "first_seen_in_time_window",
+        description="Timestamp when this relationship was first observed in the current time window.",
+    )
 
 
 @dataclass(frozen=True)
@@ -73,9 +82,18 @@ class AssumedRoleWithSAMLRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # CloudTrail-specific relationship properties
-    last_used: PropertyRef = PropertyRef("last_used")
-    times_used: PropertyRef = PropertyRef("times_used")
-    first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
+    last_used: PropertyRef = PropertyRef(
+        "last_used",
+        description="Timestamp when this relationship was last observed in use.",
+    )
+    times_used: PropertyRef = PropertyRef(
+        "times_used",
+        description="Number of times this relationship was observed in use.",
+    )
+    first_seen_in_time_window: PropertyRef = PropertyRef(
+        "first_seen_in_time_window",
+        description="Timestamp when this relationship was first observed in the current time window.",
+    )
 
 
 @dataclass(frozen=True)
@@ -120,9 +138,18 @@ class AssumeRoleWithWebIdentityRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # CloudTrail-specific relationship properties
-    last_used: PropertyRef = PropertyRef("last_used")
-    times_used: PropertyRef = PropertyRef("times_used")
-    first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
+    last_used: PropertyRef = PropertyRef(
+        "last_used",
+        description="Timestamp when this relationship was last observed in use.",
+    )
+    times_used: PropertyRef = PropertyRef(
+        "times_used",
+        description="Number of times this relationship was observed in use.",
+    )
+    first_seen_in_time_window: PropertyRef = PropertyRef(
+        "first_seen_in_time_window",
+        description="Timestamp when this relationship was first observed in the current time window.",
+    )
 
 
 @dataclass(frozen=True)

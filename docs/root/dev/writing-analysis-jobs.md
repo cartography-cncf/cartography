@@ -10,18 +10,17 @@ There are 3 stages to a cartography sync. First we create database indexes, next
 Built-in enrichment Analysis Jobs are typed Python definitions under `cartography/analysis/*/analysis.py`; the remaining built-in JSON jobs are migration/cleanup-only compatibility jobs. Custom JSON Analysis Jobs are still supported with `--analysis-job-directory`; each JSON file contains a list of Neo4j statements which get run in order. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
 
 ### Typed job syntax
-Typed Analysis Jobs declare a Cypher match pattern and the effect Cartography should apply. The framework compiles the write query and the cleanup query from those effects.
+Typed Analysis Jobs declare a Cypher match pattern and the effect Cartography should apply. The framework compiles the write query and the cleanup query from those effects. This minimal example is illustrative and is not a built-in job:
 
 ```python
 AnalysisJob(
-    name="AWS EC2 instance internet exposure",
-    short_name="aws_ec2_asset_exposure_instance",
+    name="Example public IP marker",
+    short_name="example_public_ip",
     statements=(
         AnalysisStatement(
             match="MATCH (instance:AWSEC2Instance) WHERE instance.publicipaddress IS NOT NULL",
             effects=(
-                SetProperty("instance", "exposed_internet", True, label="AWSEC2Instance"),
-                AddToSet("instance", "exposed_internet_type", "direct", label="AWSEC2Instance"),
+                SetProperty("instance", "has_public_ip", True, label="AWSEC2Instance"),
             ),
         ),
     ),
@@ -66,116 +65,125 @@ Common primitives:
 `CleanupScopedTo(...)` lives on the `AnalysisJob` and describes the resource boundary used during generated cleanup, for example `CleanupScopedTo("AWSAccount", "AWS_ID")`. For relationship effects, `scoped_to="source"` or `"target"` lives on `AddRelationship` and chooses which endpoint is connected to that scoped resource. Keep the default `source` when the source node is under the scoped account/project; override it to `target` when only the target node is under that scope.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
-The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs included by default in Cartography's source tree is `AWS_EC2_ASSET_EXPOSURE_INSTANCE` in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
+The built-in `AWS_EC2_ASSET_EXPOSURE_INSTANCE` job lives in [cartography/analysis/aws/analysis.py](https://github.com/cartography-cncf/cartography/blob/master/cartography/analysis/aws/analysis.py). It marks an instance as internet-exposed when one of these conditions is true:
 
-### Our goal
-After ingesting all our AWS data, we want to explicitly mark EC2 instances that are accessible to the public internet - a useful thing to know for anyone running an internet service. If any internet-open nodes are found, the job will add an attribute `exposed_internet = True` to the node. This way we can easily query to find the assets later on and take remediation action if needed.
+1. The instance has a public IP and is attached, directly or through a network interface, to a security group that permits `0.0.0.0/0`.
+2. An internet-exposed classic load balancer exposes the instance.
+3. An internet-exposed v2 load balancer exposes the instance.
 
-But how do we make this determination, and how should we structure the job?
+The current typed definition is:
 
-### The logic in plain English
-We can use the following facts to tell if an EC2 instance is open to the internet:
-
-1. The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.
-2. The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.
-
-The graph created by Cartography's sync process already has this information for us; we just need to run a few queries to properly to mark it with `exposed_internet = True`. This example is complex but we hope that this exposes enough Neo4j concepts to help you write your own queries.
-
-### Translating the plain-English logic into Neo4j's Cypher syntax
-We can take the ideas above and use Cypher's declarative syntax to "sketch" out this graph path.
-
-1. _The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet._
-
-    In Cypher, this is
-
-    ```
-    MATCH
-    (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-    <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(instance:AWSEC2Instance)
-
-    SET instance.exposed_internet = true,
-        instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
-    ```
-
-    In the `SET` clause we add `exposed_internet = True` to the instance. We also add a field for `exposed_internet_type` to denote what type of internet exposure has occurred here. You can read the [documentation for `coalesce`](https://neo4j.com/docs/cypher-manual/current/functions/scalar/#functions-coalesce), but in English this last part says "add `direct` to the list of ways this instance is exposed to the internet".
-
-2. _The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet._
-
-    This is the same as the previous query except for the final line:
-
-    ```
-    MATCH
-    (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-    -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-    <-[:NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
-
-    SET instance.exposed_internet = true,
-        instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
-    ```
-
-    The `*..2` operator means "within 2 hops". We use this here as a shortcut because there are a few more relationships between NetworkInterfaces and EC2SecurityGroups that we can skip over.
-
-Finally, notice that (1) and (2) are similar enough that we can actually merge them like this:
-
-```
-MATCH
-(:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
--[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
-
-SET instance.exposed_internet = true,
-    instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';
-```
-
-Kinda neat, right?
-
-### The skeleton of an Analysis Job
-Now that we know what we want to do on a sync, how should we structure the Analysis Job?  Here is the basic skeleton that we recommend.
-
-#### Clean up first, then update (properties)
-For analysis jobs that **set custom attributes on nodes**, the first statement(s) should be a "clean-up phase" that removes the custom attributes you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.
-
-#### MERGE first, then clean up (relationships)
-For analysis jobs that **create or update relationships**, invert the order: run the `MERGE` statements first, then `DELETE` any edge whose `r.lastupdated <> $UPDATE_TAG` at the end. Iterative `DELETE` statements commit per batch, so a leading `DELETE` of relationships creates a visible window during which concurrent readers observe the graph with those edges missing or partially deleted. `MERGE` is idempotent and bumps `r.lastupdated` on every still-valid edge, so the trailing `DELETE` only removes edges that genuinely no longer have a current basis. See `AWS_LAMBDA_ECR` in `cartography/analysis/aws/analysis.py` for the canonical ordering.
-
-**Here's our final result:**
-
-```
-{
-  "name": "AWS asset internet exposure",
-  "statements": [
-      {
-        "__comment": "This is a clean-up statement to remove custom attributes",
-        "query": "MATCH (n)
-                  WHERE n.exposed_internet IS NOT NULL
-                        AND labels(n) IN ['AWSAutoScalingGroup', 'AWSEC2Instance', 'LoadBalancer']
-                  WITH n LIMIT $LIMIT_SIZE
-                  REMOVE n.exposed_internet, n.exposed_internet_type
-                  RETURN COUNT(*) as TotalCompleted",
-        "iterative": true,
-        "iterationsize": 1000
-      },
-      {
-        "__comment__": "This is our analysis logic as described in the section above",
-        "query": MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)
-                 -[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:AWSEC2SecurityGroup)
-                 <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:AWSEC2Instance)
-
-                 SET instance.exposed_internet = true,
-                     instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';,
-        "iterative": true,
-        "iterationsize": 100
-      }
-  ]
-}
+```python
+AWS_EC2_ASSET_EXPOSURE_INSTANCE = AnalysisJob(
+    name="AWS EC2 instance internet exposure",
+    short_name="aws_ec2_asset_exposure_instance",
+    cleanup_iterationsize=1000,
+    statements=(
+        AnalysisStatement(
+            match="""
+            MATCH (:AWSIpRange{id: '0.0.0.0/0'})
+              -[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)
+              -[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)
+              <-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]
+              -(instance:AWSEC2Instance)
+            WHERE instance.publicipaddress IS NOT NULL
+            """,
+            effects=(
+                SetProperty(
+                    "instance",
+                    "exposed_internet",
+                    True,
+                    label="AWSEC2Instance",
+                ),
+                AddToSet(
+                    "instance",
+                    "exposed_internet_type",
+                    "direct",
+                    label="AWSEC2Instance",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match=(
+                "MATCH (:AWSLoadBalancer{exposed_internet: true})"
+                "-[:EXPOSE]->(instance:AWSEC2Instance)"
+            ),
+            effects=(
+                SetProperty(
+                    "instance",
+                    "exposed_internet",
+                    True,
+                    label="AWSEC2Instance",
+                ),
+                AddToSet(
+                    "instance",
+                    "exposed_internet_type",
+                    "elb",
+                    label="AWSEC2Instance",
+                ),
+            ),
+        ),
+        AnalysisStatement(
+            match=(
+                "MATCH (:AWSLoadBalancerV2{exposed_internet: true})"
+                "-[:EXPOSE]->(instance:AWSEC2Instance)"
+            ),
+            effects=(
+                SetProperty(
+                    "instance",
+                    "exposed_internet",
+                    True,
+                    label="AWSEC2Instance",
+                ),
+                AddToSet(
+                    "instance",
+                    "exposed_internet_type",
+                    "elbv2",
+                    label="AWSEC2Instance",
+                ),
+            ),
+        ),
+    ),
+)
 ```
 
-Setting a statement as `iterative: true` means that we will run this query on `#{iterationsize}` entries at a time. This can be helpful for queries that return large numbers of records so that Neo4j doesn't get too angry.
+The match clauses only identify the rows to update. The effects describe the graph changes, and the framework generates both the write statements and the corresponding cleanup statements.
 
-Now we can enjoy the fruits of our labor and query for internet exposure:
+### Cleanup ordering
 
-![internet-exposure-query](../images/exposed-internet.png)
+The compiler determines cleanup ordering from the effect type:
+
+- Node-property effects such as `SetProperty` and `AddToSet` remove values left by the previous run before applying current matches.
+- Relationship effects such as `AddRelationship` run their `MERGE` statements first and delete relationships with an old `lastupdated` value afterward. This avoids a window where concurrent readers see all managed relationships disappear.
+
+Do not add handwritten cleanup statements to a typed job when an existing effect can express the change.
+
+### Run the typed job
+
+Built-in typed jobs are converted to `GraphJob` statements and executed with `run_typed_analysis_job()`:
+
+```python
+run_typed_analysis_job(
+    AWS_EC2_ASSET_EXPOSURE_INSTANCE,
+    neo4j_session,
+    common_job_parameters,
+)
+```
+
+After the job runs, query the generated properties:
+
+```cypher
+MATCH (instance:AWSEC2Instance {exposed_internet: true})
+RETURN instance.id, instance.exposed_internet_type
+ORDER BY instance.id
+```
+
+## Custom JSON jobs (legacy format)
+
+Custom JSON jobs remain supported through `--analysis-job-directory`. Use them only when the typed effect model cannot express the required operation. Statements run in file order, but Cartography does not guarantee the order in which separate job files run.
+
+JSON jobs must provide their own cleanup and batching behavior. For node properties, remove stale values before setting current values. For managed relationships, `MERGE` current relationships before deleting edges whose `lastupdated` does not match `$UPDATE_TAG`.
 
 ## Recap
-As shown, you create an Analysis Job by putting together a bunch of `statements` together (which are essentially Neo4j queries). In general, each job should first clean up the custom attributes added by a previous run, and then it can perform the match and update steps to add the custom attributes back again. This ensures that your data is up to date.
+
+Prefer typed Analysis Jobs for built-in enrichment. Declare a match and one or more effects, let the compiler generate cleanup, and add an explicit scope when the job manages only one account, project, or tenant.

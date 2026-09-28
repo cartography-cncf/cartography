@@ -15,16 +15,40 @@ from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 @dataclass(frozen=True)
 class KubernetesDaemonSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    desired_number_scheduled: PropertyRef = PropertyRef("desired_number_scheduled")
-    number_ready: PropertyRef = PropertyRef("number_ready")
-    labels: PropertyRef = PropertyRef("labels")
+    id: PropertyRef = PropertyRef("uid", description="UID of the Kubernetes DaemonSet.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Kubernetes DaemonSet."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="Kubernetes namespace containing the DaemonSet.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the Kubernetes DaemonSet was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the Kubernetes DaemonSet was marked for deletion.",
+    )
+    desired_number_scheduled: PropertyRef = PropertyRef(
+        "desired_number_scheduled",
+        description="Number of nodes that should run a pod from the DaemonSet.",
+    )
+    number_ready: PropertyRef = PropertyRef(
+        "number_ready",
+        description="Number of nodes running a ready pod from the DaemonSet.",
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Metadata labels on the DaemonSet, stored as a JSON-encoded string.",
+    )
     cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster containing the DaemonSet.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -37,6 +61,8 @@ class KubernetesDaemonSetToKubernetesClusterRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:KubernetesDaemonSet)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesDaemonSetToKubernetesClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its daemon sets."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -58,6 +84,8 @@ class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesDaemonSet)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
+    """Links a daemon set to the namespace that owns it."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -74,6 +102,8 @@ class KubernetesDaemonSetToKubernetesNamespaceWorkloadParentRel(CartographyRelSc
 
 @dataclass(frozen=True)
 class KubernetesDaemonSetSchema(CartographyNodeSchema):
+    "A Kubernetes DaemonSet that runs pods across selected cluster nodes."
+
     label: str = "KubernetesDaemonSet"
     # ComputeService is the cross-provider "logical workload / controller" label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])

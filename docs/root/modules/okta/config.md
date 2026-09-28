@@ -1,11 +1,28 @@
-## Okta Configuration
+# Okta Configuration
 
-Follow these steps to analyze Okta objects with Cartography.
+## Authentication
 
-1. Prepare your Okta API token.
-    1. Generate your API token by following the steps from the Okta [Create An API Token documentation](https://developer.okta.com/docs/guides/create-an-api-token/overview/)
-    1. Populate an environment variable with the API token. You can pass the environment variable name via CLI with the `--okta-api-key-env-var` parameter.
-    1. Use the CLI `--okta-org-id` parameter with the organization ID that you wish to query. The organization ID is the first part of the Okta URL for your organization.
-    1. If you are using an Okta preview environment or another Okta region, use `--okta-base-domain` to set the base domain (e.g., `--okta-base-domain oktapreview.com`). The default is `okta.com`.
-	1. If you are using Okta to [administer AWS as a SAML provider](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC) then the module will automatically match OktaGroups to the AWSRole they control access for.
-		- If you are using a regex other than the standard okta group to role regex `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` defined in [Step 5: Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC)  then you can specify your regex with the `--okta-saml-role-regex` parameter.
+Generate an API token by following Okta's [Create an API Token guide](https://developer.okta.com/docs/guides/create-an-api-token/overview/). Store the token in an environment variable.
+
+## Configure Cartography
+
+Provide these options:
+
+- `--okta-api-key-env-var`: Name of the environment variable containing the API token.
+- `--okta-org-id`: Organization ID to query. This is the first part of the Okta organization URL.
+
+## Run Cartography
+
+```bash
+export OKTA_API_TOKEN='<api-token>'
+cartography \
+  --selected-modules okta \
+  --okta-org-id '<organization-id>' \
+  --okta-api-key-env-var OKTA_API_TOKEN
+```
+
+## Advanced Configuration
+
+For an Okta preview environment or another region, set `--okta-base-domain`. The default is `okta.com`.
+
+When Okta administers AWS as a [SAML provider](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), Cartography matches Okta groups to the AWS roles they control. If your group names do not use the standard `^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$` pattern from [Enabling Group Based Role Mapping in Okta](https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#scenarioC), provide your pattern with `--okta-saml-role-regex`.

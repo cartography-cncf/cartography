@@ -91,6 +91,9 @@ from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_instances_without_shielded_vm_enabled,
 )
 from cartography.rules.data.rules.cis_4_0_gcp import (
+    gcp_kms_keys_without_rotation_policy,
+)
+from cartography.rules.data.rules.cis_4_0_gcp import (
     gcp_projects_without_effective_os_login,
 )
 from cartography.rules.data.rules.cis_4_0_gcp import (
@@ -222,6 +225,9 @@ from cartography.rules.data.rules.cloud_security_product_deactivated import (
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
+from cartography.rules.data.rules.database_backup_gaps import (
+    aws_rds_automated_backups_disabled,
+)
 from cartography.rules.data.rules.database_instance_exposed import (
     database_instance_exposed,
 )
@@ -238,8 +244,15 @@ from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
 from cartography.rules.data.rules.device_security_posture_gaps import (
+    device_malware_protection_gaps,
+)
+from cartography.rules.data.rules.device_security_posture_gaps import (
+    device_management_gaps,
+)
+from cartography.rules.data.rules.device_security_posture_gaps import (
     device_security_posture_gaps,
 )
+from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
 from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.iam_role_external_account_trust import (
@@ -270,6 +283,9 @@ from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
 from cartography.rules.data.rules.public_snapshots import public_snapshots
+from cartography.rules.data.rules.security_monitoring_gaps import (
+    aws_security_hub_configuration_gaps,
+)
 from cartography.rules.data.rules.serverless_workload_exposed import (
     serverless_workload_exposed,
 )
@@ -295,6 +311,9 @@ from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
 )
 from cartography.rules.data.rules.tailscale_security_configuration_gaps import (
     tailscale_tailnet_approval_disabled,
+)
+from cartography.rules.data.rules.transport_encryption_gaps import (
+    azure_sql_minimum_tls_below_1_2,
 )
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.unpinned_github_actions import unpinned_github_actions
@@ -341,9 +360,13 @@ RULES = {
     aws_account_not_synced.id: aws_account_not_synced,
     # Security Rules
     compute_instance_exposed.id: compute_instance_exposed,
+    aws_rds_automated_backups_disabled.id: aws_rds_automated_backups_disabled,
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
+    device_malware_protection_gaps.id: device_malware_protection_gaps,
+    device_management_gaps.id: device_management_gaps,
     device_security_posture_gaps.id: device_security_posture_gaps,
+    device_update_gaps.id: device_update_gaps,
     eol_software.id: eol_software,
     iam_role_external_account_trust.id: iam_role_external_account_trust,
     identity_administration_privileges.id: identity_administration_privileges,
@@ -358,11 +381,13 @@ RULES = {
     tailscale_network_flow_logging_disabled.id: tailscale_network_flow_logging_disabled,
     tailscale_device_auto_updates_disabled.id: tailscale_device_auto_updates_disabled,
     tailscale_device_key_expiry_disabled.id: tailscale_device_key_expiry_disabled,
+    azure_sql_minimum_tls_below_1_2.id: azure_sql_minimum_tls_below_1_2,
     serverless_workload_exposed.id: serverless_workload_exposed,
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     guardduty_active_threat.id: guardduty_active_threat,
+    aws_security_hub_configuration_gaps.id: aws_security_hub_configuration_gaps,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
     unpinned_github_actions.id: unpinned_github_actions,
     # NIST AI RMF Rules
@@ -387,6 +412,7 @@ RULES = {
     gcp_instances_with_serial_port_access.id: gcp_instances_with_serial_port_access,
     gcp_instances_with_ip_forwarding.id: gcp_instances_with_ip_forwarding,
     gcp_instances_without_shielded_vm_enabled.id: gcp_instances_without_shielded_vm_enabled,
+    gcp_kms_keys_without_rotation_policy.id: gcp_kms_keys_without_rotation_policy,
     gcp_compute_instance_public_ips.id: gcp_compute_instance_public_ips,
     gcp_instances_without_confidential_computing_enabled.id: gcp_instances_without_confidential_computing_enabled,
     gcp_bucket_uniform_access_disabled.id: gcp_bucket_uniform_access_disabled,

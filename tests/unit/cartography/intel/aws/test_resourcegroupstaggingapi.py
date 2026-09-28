@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import cartography.intel.aws.resourcegroupstaggingapi as rgta
 import tests.data.aws.resourcegroupstaggingapi as test_data
+from cartography.models.aws_tagging import AWS_TAGGABLE_RESOURCES
 
 
 def test_compute_resource_id():
@@ -217,3 +218,22 @@ def test_sync_fetches_iam_tags_once_across_regions(mocker):
     assert len(iam_load_calls) == 2
     for call in iam_load_calls:
         assert call.kwargs["region"] == rgta.GLOBAL_REGION
+
+
+def test_every_declared_arn_parser_resolves():
+    """
+    The catalog names its ARN parser with a string because cartography.models must not
+    import cartography.intel. A typo would otherwise only fail mid-sync.
+    """
+    # Act
+    declared = {
+        resource.id_parser
+        for resource in AWS_TAGGABLE_RESOURCES
+        if resource.id_parser is not None
+    }
+
+    # Assert
+    assert declared <= set(rgta._TAG_ID_PARSERS)
+    assert set(rgta.TAG_RESOURCE_TYPE_MAPPINGS) == {
+        resource.resource_type for resource in AWS_TAGGABLE_RESOURCES
+    }

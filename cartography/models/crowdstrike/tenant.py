@@ -16,12 +16,17 @@ class CrowdstrikeTenantNodeProperties(CartographyNodeProperties):
     nodes.
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="CrowdStrike customer ID for the tenant.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CrowdstrikeTenantSchema(CartographyNodeSchema):
+    """A CrowdStrike customer tenant that scopes imported Falcon resources."""
+
     label: str = "CrowdstrikeTenant"
     # Mirrors the ontology pattern used by other tenant roots (KandjiTenant,
     # GoogleWorkspaceTenant, etc.): expose the shared `Tenant` label so

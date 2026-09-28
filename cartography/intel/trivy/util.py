@@ -102,3 +102,40 @@ def make_normalized_package_id(
         return f"{pkg_type_lower}|{norm_name}|{version}"
 
     return None
+
+
+def make_normalized_package_name_id(
+    purl: str | None = None,
+    name: str | None = None,
+    pkg_type: str | None = None,
+) -> str | None:
+    """
+    Create a versionless normalized package ID for cross-tool matching.
+
+    The ID format is: {type}|{namespace/}{normalized_name}
+
+    This is the version-independent counterpart of make_normalized_package_id(): it
+    identifies the package itself rather than one of its versions, and is used as the
+    id of the canonical `Package` ontology node that groups `PackageVersion` nodes.
+
+    Args:
+        purl: Package URL (preferred, used to extract all components)
+        name: Package name (fallback if no PURL)
+        pkg_type: Package type (fallback if no PURL)
+
+    Returns:
+        Normalized ID in format "{type}|{namespace/}{normalized_name}" or None
+    """
+    if purl:
+        parsed = parse_purl(purl)
+        if parsed and parsed["name"]:
+            norm_name = normalize_package_name(parsed["name"], parsed["type"])
+            ns_prefix = f"{parsed['namespace']}/" if parsed.get("namespace") else ""
+            return f"{parsed['type']}|{ns_prefix}{norm_name}"
+
+    # Fallback to provided components
+    if name and pkg_type:
+        norm_name = normalize_package_name(name, pkg_type)
+        return f"{pkg_type.lower()}|{norm_name}"
+
+    return None

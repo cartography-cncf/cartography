@@ -13,12 +13,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureRecoverableDatabaseProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID for the recoverable database."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    edition: PropertyRef = PropertyRef("edition")
-    servicelevelobjective: PropertyRef = PropertyRef("service_level_objective")
-    lastbackupdate: PropertyRef = PropertyRef("last_available_backup_date")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    edition: PropertyRef = PropertyRef(
+        "edition", description="Service edition of the database."
+    )
+    servicelevelobjective: PropertyRef = PropertyRef(
+        "service_level_objective",
+        description="Service level objective of the database.",
+    )
+    lastbackupdate: PropertyRef = PropertyRef(
+        "last_available_backup_date",
+        description="Timestamp of the latest available database backup.",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +39,8 @@ class AzureRecoverableDatabaseToSQLServerRelProperties(CartographyRelProperties)
 @dataclass(frozen=True)
 # (:AzureSQLServer)-[:CONTAINS]->(:AzureRecoverableDatabase)
 class AzureRecoverableDatabaseToSQLServerRel(CartographyRelSchema):
+    """An Azure SQL logical server contains this recoverable database."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -48,6 +60,8 @@ class AzureRecoverableDatabaseToSubscriptionRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureRecoverableDatabase)
 class AzureRecoverableDatabaseToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this recoverable database resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -62,6 +76,8 @@ class AzureRecoverableDatabaseToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:AzureSQLServer)-[:RESOURCE]->(:AzureRecoverableDatabase) - Backwards compatibility
 class AzureRecoverableDatabaseToSQLServerDeprecatedRel(CartographyRelSchema):
+    """An Azure SQL logical server contains this recoverable database resource."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -75,6 +91,8 @@ class AzureRecoverableDatabaseToSQLServerDeprecatedRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureRecoverableDatabaseSchema(CartographyNodeSchema):
+    """An Azure SQL database recoverable from its available backups."""
+
     label: str = "AzureRecoverableDatabase"
     properties: AzureRecoverableDatabaseProperties = (
         AzureRecoverableDatabaseProperties()

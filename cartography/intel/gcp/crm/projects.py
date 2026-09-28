@@ -18,13 +18,22 @@ logger = logging.getLogger(__name__)
 def _get_project_parents_to_list(
     org_resource_name: str,
     folders: List[Dict],
+    exclude_org_root_projects: bool = False,
 ) -> set[str]:
     """
     Build the parent set for list_projects(), excluding documented default Apps Script folders.
     """
     folder_names = {folder["name"] for folder in folders if folder.get("name")}
     excluded_folder_names = get_default_apps_script_folder_names(folders)
-    return {org_resource_name, *folder_names} - excluded_folder_names
+    parents = folder_names - excluded_folder_names
+    if not exclude_org_root_projects:
+        parents.add(org_resource_name)
+    elif org_resource_name:
+        logger.info(
+            "Excluding GCP projects attached directly to %s from ingestion.",
+            org_resource_name,
+        )
+    return parents
 
 
 @timeit
@@ -32,14 +41,18 @@ def get_gcp_projects(
     org_resource_name: str,
     folders: List[Dict],
     credentials: Optional[GoogleCredentials] = None,
+    exclude_org_root_projects: bool = False,
 ) -> List[Dict]:
     """
     Return list of ACTIVE GCP projects under the specified organization
     and within the specified folders.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     :param folders: List of folder dictionaries containing 'name' field with full resource names
+    :param exclude_org_root_projects: If True, projects directly under the org root are excluded.
     """
-    parents = _get_project_parents_to_list(org_resource_name, folders)
+    parents = _get_project_parents_to_list(
+        org_resource_name, folders, exclude_org_root_projects
+    )
     results: List[Dict] = []
     client = resourcemanager_v3.ProjectsClient(credentials=credentials)
     for parent in sorted(parents):
@@ -114,11 +127,13 @@ def sync_gcp_projects(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     credentials: Optional[GoogleCredentials] = None,
+    exclude_org_root_projects: bool = False,
 ) -> List[Dict]:
     """
     Get and sync GCP project data to Neo4j.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     :param folders: List of folder dictionaries containing 'name' field with full resource names
+    :param exclude_org_root_projects: If True, projects directly under the org root are excluded.
     :return: List of projects synced
     """
     logger.debug("Syncing GCP projects")
@@ -126,6 +141,7 @@ def sync_gcp_projects(
         org_resource_name,
         folders,
         credentials=credentials,
+        exclude_org_root_projects=exclude_org_root_projects,
     )
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
     return projects

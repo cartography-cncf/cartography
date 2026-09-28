@@ -1,5 +1,7 @@
 import logging
+import re
 from typing import Any
+from urllib.parse import urlparse
 
 import boto3
 from neo4j import Session
@@ -21,6 +23,9 @@ from cartography.intel.common.report_reader_builder import (
 )
 from cartography.intel.common.report_source import parse_report_source
 from cartography.intel.trivy.scanner import cleanup
+from cartography.intel.trivy.scanner import cleanup_filesystem_snapshot_relationships
+from cartography.intel.trivy.scanner import cleanup_image_relationships
+from cartography.intel.trivy.scanner import sync_single_filesystem_snapshot
 from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -155,6 +160,45 @@ def _get_scan_targets_and_aliases(
     return image_uris, digest_aliases
 
 
+def _normalize_repository(value: str) -> str:
+    repository = value.strip().rstrip("/")
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+
+    if "://" in repository:
+        repository = urlparse(repository).path
+    elif repository.startswith("git@") and ":" in repository:
+        repository = repository.split(":", 1)[1]
+
+    return repository.strip("/").lower()
+
+
+def _get_filesystem_scan_targets(
+    neo4j_session: Session,
+) -> dict[tuple[str, str, str | None], list[str]]:
+    """Return source repository, revision, and root mapped to snapshot IDs."""
+    result = neo4j_session.run(
+        """
+        MATCH (snapshot:FilesystemSnapshot)
+        WHERE snapshot.source_repo IS NOT NULL
+          AND snapshot.source_revision IS NOT NULL
+        RETURN snapshot.id AS id,
+               snapshot.source_repo AS repository,
+               snapshot.source_revision AS revision,
+               snapshot.root_directory AS root_directory
+        """,
+    )
+    targets: dict[tuple[str, str, str | None], list[str]] = {}
+    for record in result:
+        repository = _normalize_repository(record["repository"])
+        revision = record["revision"].lower()
+        root_directory = (record["root_directory"] or "").strip("/") or None
+        targets.setdefault((repository, revision, root_directory), []).append(
+            record["id"]
+        )
+    return targets
+
+
 @timeit
 def get_scan_targets(
     neo4j_session: Session,
@@ -171,13 +215,13 @@ def _prepare_trivy_data(
     trivy_data: dict[str, Any],
     image_uris: set[str],
     digest_aliases: dict[str, str],
+    filesystem_targets: dict[tuple[str, str, str | None], list[str]],
     source: str,
-) -> tuple[dict[str, Any], str] | None:
+) -> tuple[dict[str, Any], str | None, list[str]] | None:
     """
     Determine the tag URI that corresponds to this Trivy payload.
 
-    Returns (trivy_data, display_uri) if the payload can be linked to an image present
-    in the graph; otherwise returns None so the caller can skip ingestion.
+    Returns the report and its matching image or filesystem snapshot targets.
     """
 
     artifact_name = (trivy_data.get("ArtifactName") or "").strip()
@@ -205,14 +249,44 @@ def _prepare_trivy_data(
             display_uri = alias
             break
 
-    if not display_uri:
-        logger.debug(
-            "Skipping Trivy results for %s because no matching image URI was found in the graph",
-            source,
-        )
-        return None
+    if display_uri:
+        return trivy_data, display_uri, []
 
-    return trivy_data, display_uri
+    artifact_type = trivy_data.get("ArtifactType")
+    repo_url = metadata.get("RepoURL")
+    revision = metadata.get("Commit")
+    root_directory = metadata.get("RootDirectory")
+    if (
+        artifact_type in {"filesystem", "repository"}
+        and isinstance(repo_url, str)
+        and isinstance(revision, str)
+        and re.fullmatch(r"[0-9a-fA-F]{40}", revision)
+    ):
+        repository_key = _normalize_repository(repo_url)
+        revision_key = revision.lower()
+        if isinstance(root_directory, str):
+            root_key = root_directory.strip("/") or None
+            snapshot_ids = filesystem_targets.get(
+                (repository_key, revision_key, root_key),
+                [],
+            )
+        else:
+            # Reports without a root predate this discriminator and represent
+            # the whole repository, so retain the existing broad match.
+            snapshot_ids = [
+                snapshot_id
+                for (repository, commit, _), ids in filesystem_targets.items()
+                if repository == repository_key and commit == revision_key
+                for snapshot_id in ids
+            ]
+        if snapshot_ids:
+            return trivy_data, None, snapshot_ids
+
+    logger.debug(
+        "Skipping Trivy results for %s because no matching scan target was found in the graph",
+        source,
+    )
+    return None
 
 
 @timeit
@@ -234,6 +308,7 @@ def sync_trivy_from_report_reader(
     logger.info("Using Trivy scan results from %s", reader.source_uri)
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
+    filesystem_targets = _get_filesystem_scan_targets(neo4j_session)
     json_files = filter_report_refs(
         reader.list_reports(),
         suffix=".json",
@@ -252,6 +327,8 @@ def sync_trivy_from_report_reader(
     logger.info("Processing %d Trivy result files from report source", len(json_files))
     failed_report_count = 0
     processed_reports = 0
+    processed_filesystem_reports = 0
+    processed_image_reports = 0
     for ref in json_files:
         logger.debug(
             "Reading scan results from report source: %s",
@@ -268,18 +345,30 @@ def sync_trivy_from_report_reader(
             trivy_data,
             image_uris=image_uris,
             digest_aliases=digest_aliases,
+            filesystem_targets=filesystem_targets,
             source=ref.uri,
         )
         if prepared is None:
             continue
 
-        prepared_data, display_uri = prepared
-        sync_single_image(
-            neo4j_session,
-            prepared_data,
-            display_uri,
-            update_tag,
-        )
+        prepared_data, display_uri, filesystem_snapshot_ids = prepared
+        if display_uri:
+            sync_single_image(
+                neo4j_session,
+                prepared_data,
+                display_uri,
+                update_tag,
+            )
+            processed_image_reports += 1
+        else:
+            sync_single_filesystem_snapshot(
+                neo4j_session,
+                prepared_data,
+                filesystem_snapshot_ids,
+                ref.uri,
+                update_tag,
+            )
+            processed_filesystem_reports += 1
         processed_reports += 1
 
     if failed_report_count:
@@ -293,6 +382,22 @@ def sync_trivy_from_report_reader(
         logger.warning(
             "Skipping Trivy cleanup because no reports were ingested.",
         )
+        return
+
+    if image_uris and processed_image_reports == 0:
+        logger.warning(
+            "Limiting Trivy cleanup to filesystem relationships because the report "
+            "source contained only filesystem reports while image scan targets exist.",
+        )
+        cleanup_filesystem_snapshot_relationships(neo4j_session, update_tag)
+        return
+
+    if filesystem_targets and processed_filesystem_reports == 0:
+        logger.warning(
+            "Limiting Trivy cleanup to image relationships because the report source "
+            "contained only image reports while filesystem scan targets exist.",
+        )
+        cleanup_image_relationships(neo4j_session, update_tag)
         return
 
     cleanup(neo4j_session, common_job_parameters)

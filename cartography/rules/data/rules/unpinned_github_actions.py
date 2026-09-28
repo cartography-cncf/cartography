@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -92,5 +93,6 @@ unpinned_github_actions = Rule(
     frameworks=(
         iso27001_annex_a("8.28"),
         iso27001_annex_a("8.32"),
+        soc2_tsc("CC6.8"),
     ),
 )

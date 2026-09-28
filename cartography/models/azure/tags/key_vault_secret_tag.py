@@ -19,6 +19,8 @@ class KeyVaultSecretToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KeyVaultSecretToTagRel(CartographyRelSchema):
+    """An Azure Key Vault secret has the tag."""
+
     target_node_label: str = "AzureKeyVaultSecret"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -30,6 +32,8 @@ class KeyVaultSecretToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureKeyVaultSecretTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     properties: AzureTagProperties = AzureTagProperties()
     sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()

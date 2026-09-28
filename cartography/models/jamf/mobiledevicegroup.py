@@ -12,12 +12,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class JamfMobileDeviceGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Jamf mobile device group ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    membership_count: PropertyRef = PropertyRef("membership_count")
-    is_smart: PropertyRef = PropertyRef("is_smart")
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Friendly name of the group.",
+    )
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="Group description.",
+    )
+    membership_count: PropertyRef = PropertyRef(
+        "membership_count",
+        description="Number of members reported by Jamf.",
+    )
+    is_smart: PropertyRef = PropertyRef(
+        "is_smart",
+        description="Whether this is a smart group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -27,6 +39,8 @@ class JamfTenantToMobileDeviceGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class JamfTenantToMobileDeviceGroupRel(CartographyRelSchema):
+    """Links a Jamf tenant to one of its mobile device groups."""
+
     target_node_label: str = "JamfTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)}
@@ -40,6 +54,8 @@ class JamfTenantToMobileDeviceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class JamfMobileDeviceGroupSchema(CartographyNodeSchema):
+    """A group of mobile devices managed by Jamf."""
+
     label: str = "JamfMobileDeviceGroup"
     properties: JamfMobileDeviceGroupNodeProperties = (
         JamfMobileDeviceGroupNodeProperties()

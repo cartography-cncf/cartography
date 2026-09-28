@@ -12,13 +12,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    version: PropertyRef = PropertyRef("version", extra_index=True)
-    release: PropertyRef = PropertyRef("release", extra_index=True)
-    arch: PropertyRef = PropertyRef("arch")
-    epoch: PropertyRef = PropertyRef("epoch")
-    manager: PropertyRef = PropertyRef("packageManager")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Uses the format of `name|epoch:version-release.arch` to uniquely identify packages",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The package name"
+    )
+    version: PropertyRef = PropertyRef(
+        "version", extra_index=True, description="Version of the package"
+    )
+    release: PropertyRef = PropertyRef(
+        "release", extra_index=True, description="Release of the package"
+    )
+    arch: PropertyRef = PropertyRef("arch", description="Architecture for the package")
+    epoch: PropertyRef = PropertyRef(
+        "epoch", description="Package epoch used for version ordering."
+    )
+    manager: PropertyRef = PropertyRef(
+        "packageManager", description="Related package manager"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,6 +55,8 @@ class InspectorPackageToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInspectorPackageSchema(CartographyNodeSchema):
+    """Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)"""
+
     label: str = "AWSInspectorPackage"
     properties: AWSInspectorPackageNodeProperties = AWSInspectorPackageNodeProperties()
     sub_resource_relationship: InspectorPackageToAWSAccountRel = (

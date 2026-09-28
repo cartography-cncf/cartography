@@ -713,7 +713,6 @@ def load_docker_images(
         repository_image_schema,
         data,
         batch_size=ARTIFACT_REGISTRY_LOAD_BATCH_SIZE,
-        apply_labels=False,
         progress_description=(
             f"Artifact Registry repository image nodes for project {project_id}"
         ),

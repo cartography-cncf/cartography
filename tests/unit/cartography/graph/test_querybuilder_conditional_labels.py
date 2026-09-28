@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.core.common import PropertyRef
@@ -66,6 +65,36 @@ VALID_CONDITION = ExtraNodeLabel(
 )
 
 
+def _set_clause(query: str) -> str:
+    """
+    Return the part of an ingestion query that precedes the conditional label clauses.
+
+    Conditional labels are applied with FOREACH clauses that themselves contain `SET i:Label`, so
+    tests that assert on the unconditional SET clause need to look at the query prefix only.
+    """
+    return query.split("FOREACH")[0]
+
+
+def _apply_clause(query: str, label: str) -> str:
+    """Return the FOREACH clause that applies `label`, or "" if there is none."""
+    for line in query.splitlines():
+        if line.strip().startswith("FOREACH") and line.rstrip().endswith(
+            f"| SET i:{label})"
+        ):
+            return line.strip()
+    return ""
+
+
+def _remove_clause(query: str, label: str) -> str:
+    """Return the FOREACH clause that removes `label`, or "" if there is none."""
+    for line in query.splitlines():
+        if line.strip().startswith("FOREACH") and line.rstrip().endswith(
+            f"| REMOVE i:{label})"
+        ):
+            return line.strip()
+    return ""
+
+
 @dataclass(frozen=True)
 class NodeWithConditionalLabelSchema(CartographyNodeSchema):
     """Test schema with a conditional label."""
@@ -117,33 +146,33 @@ class NodeWithNoExtraLabelsSchema(CartographyNodeSchema):
     properties: SimpleNodeProperties = SimpleNodeProperties()
 
 
-def test_build_ingestion_query_excludes_conditional_labels():
+def test_build_ingestion_query_excludes_conditional_labels_from_set_clause():
     """
-    Test that conditional labels are excluded from the main ingestion query.
-    Only string labels should appear in the SET clause.
+    Test that conditional labels are excluded from the unconditional SET clause.
+    Only unconditional labels should appear there.
     """
 
     query = build_ingestion_query(NodeWithConditionalLabelSchema())
 
-    # The query should contain the string label "Resource"
-    assert "i:Resource" in query
-    # The query should NOT contain the conditional label "Critical"
-    assert "i:Critical" not in query
+    # The SET clause should contain the unconditional label "Resource"
+    assert "i:Resource" in _set_clause(query)
+    # The SET clause should NOT contain the conditional label "Critical"
+    assert "Critical" not in _set_clause(query)
     assert "i:Resource:Critical" not in query
 
 
 def test_build_ingestion_query_with_multiple_conditional_labels():
     """
-    Test that only string labels appear in the main query when there are
-    multiple conditional labels mixed with string labels.
+    Test that only unconditional labels appear in the SET clause when there are
+    multiple conditional labels mixed with unconditional ones.
     """
     query = build_ingestion_query(NodeWithMultipleConditionalLabelsSchema())
 
-    # Should contain string labels
-    assert "i:Resource:AWSResource" in query
+    # Should contain unconditional labels
+    assert "i:Resource:AWSResource" in _set_clause(query)
     # Should NOT contain conditional labels
-    assert "Critical" not in query
-    assert "PublicResource" not in query
+    assert "Critical" not in _set_clause(query)
+    assert "PublicResource" not in _set_clause(query)
 
 
 def test_build_ingestion_query_with_only_conditional_labels():
@@ -153,78 +182,100 @@ def test_build_ingestion_query_with_only_conditional_labels():
     """
     query = build_ingestion_query(NodeWithOnlyConditionalLabelSchema())
 
-    # Should NOT contain any extra labels in SET clause
-    # (no "i:SomeLabel" pattern after the property settings)
-    assert "i:Critical" not in query
+    assert "Critical" not in _set_clause(query)
 
 
-def test_build_conditional_label_queries_single_condition():
+def test_conditional_label_single_condition():
     """
-    Test building a conditional label query with a single condition.
-    Each conditional label generates 2 queries: REMOVE then SET.
+    Test that a conditional label with a single condition is applied per row with a
+    matching pair of FOREACH clauses.
     """
-    queries = build_conditional_label_queries(NodeWithConditionalLabelSchema())
+    query = build_ingestion_query(NodeWithConditionalLabelSchema())
 
-    # 1 conditional label = 2 queries (remove + set)
-    assert len(queries) == 2
-
-    # First query should remove the label from all nodes that have it
-    remove_query = queries[0]
-    assert "MATCH (n:TestAsset:Critical)" in remove_query
-    assert "REMOVE n:Critical" in remove_query
-
-    # Second query should set the label on matching nodes
-    set_query = queries[1]
-    assert "MATCH (n:TestAsset)" in set_query
-    assert 'n.severity = "high"' in set_query
-    assert "SET n:Critical" in set_query
+    assert (
+        _apply_clause(query, "Critical")
+        == 'FOREACH (_ IN CASE WHEN i.severity = "high" THEN [1] ELSE [] END | SET i:Critical)'
+    )
+    assert (
+        _remove_clause(query, "Critical")
+        == 'FOREACH (_ IN CASE WHEN i.severity = "high" THEN [] ELSE [1] END | REMOVE i:Critical)'
+    )
+    # 1 conditional label = 1 apply clause + 1 remove clause.
+    assert query.count("FOREACH") == 2
 
 
-def test_build_conditional_label_queries_multiple_conditions():
+def test_conditional_label_multiple_conditions_are_anded():
     """
-    Test building conditional label queries with multiple conditions.
-    Each conditional label generates 2 queries: REMOVE then SET.
+    Test that several conditions on one label declaration are ANDed together, and that each
+    conditional label gets its own FOREACH pair.
     """
-    queries = build_conditional_label_queries(NodeWithMultipleConditionalLabelsSchema())
+    query = build_ingestion_query(NodeWithMultipleConditionalLabelsSchema())
 
-    # 2 conditional labels = 4 queries (2 x (remove + set))
-    assert len(queries) == 4
+    # 2 conditional labels = 4 FOREACH clauses.
+    assert query.count("FOREACH") == 4
 
-    # First conditional label: Critical (queries 0 and 1)
-    critical_remove = queries[0]
-    assert "MATCH (n:TestAsset:Critical)" in critical_remove
-    assert "REMOVE n:Critical" in critical_remove
+    assert (
+        _apply_clause(query, "Critical")
+        == 'FOREACH (_ IN CASE WHEN i.severity = "high" THEN [1] ELSE [] END | SET i:Critical)'
+    )
 
-    critical_set = queries[1]
-    assert "MATCH (n:TestAsset)" in critical_set
-    assert 'n.severity = "high"' in critical_set
-    assert "SET n:Critical" in critical_set
+    public_apply = _apply_clause(query, "PublicResource")
+    assert 'i.is_public = "true"' in public_apply
+    assert 'i.severity = "high"' in public_apply
+    assert " AND " in public_apply
 
-    # Second conditional label: PublicResource (queries 2 and 3)
-    public_remove = queries[2]
-    assert "MATCH (n:TestAsset:PublicResource)" in public_remove
-    assert "REMOVE n:PublicResource" in public_remove
-
-    public_set = queries[3]
-    assert "MATCH (n:TestAsset)" in public_set
-    assert 'n.is_public = "true"' in public_set
-    assert 'n.severity = "high"' in public_set
-    assert "SET n:PublicResource" in public_set
-    # Multiple conditions should be joined with AND
-    assert " AND " in public_set
+    # The remove clause negates the same predicate by swapping the CASE branches, so that a node
+    # whose condition property is missing (null predicate) still loses the stale label.
+    public_remove = _remove_clause(query, "PublicResource")
+    assert public_remove == public_apply.replace(
+        "THEN [1] ELSE [] END | SET i:PublicResource",
+        "THEN [] ELSE [1] END | REMOVE i:PublicResource",
+    )
 
 
-def test_build_conditional_label_queries_no_extra_labels():
+def test_conditional_label_declarations_sharing_a_label_are_ored():
     """
-    Test that an empty list is returned when there are no extra labels.
+    Test that two declarations of the same label produce a single FOREACH pair whose predicate ORs
+    the two condition groups, rather than two pairs that would clobber each other.
     """
-    queries = build_conditional_label_queries(NodeWithNoExtraLabelsSchema())
-    assert queries == []
+
+    @dataclass(frozen=True)
+    class NodeWithSharedLabelSchema(CartographyNodeSchema):
+        label: str = "TestAsset"
+        properties: SimpleNodeProperties = SimpleNodeProperties()
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                CRITICAL.when(severity="high"),
+                CRITICAL.when(severity="urgent"),
+            ]
+        )
+
+    query = build_ingestion_query(NodeWithSharedLabelSchema())
+
+    assert query.count("FOREACH") == 2
+    assert (
+        _apply_clause(query, "Critical")
+        == 'FOREACH (_ IN CASE WHEN (i.severity = "high") OR (i.severity = "urgent") '
+        "THEN [1] ELSE [] END | SET i:Critical)"
+    )
+    assert (
+        _remove_clause(query, "Critical")
+        == 'FOREACH (_ IN CASE WHEN (i.severity = "high") OR (i.severity = "urgent") '
+        "THEN [] ELSE [1] END | REMOVE i:Critical)"
+    )
 
 
-def test_build_conditional_label_queries_only_unconditional_labels():
+def test_no_conditional_clauses_when_no_extra_labels():
     """
-    Test that an empty list is returned when there are only string labels.
+    Test that no FOREACH clauses are emitted when there are no extra labels.
+    """
+    query = build_ingestion_query(NodeWithNoExtraLabelsSchema())
+    assert "FOREACH" not in query
+
+
+def test_no_conditional_clauses_for_only_unconditional_labels():
+    """
+    Test that no FOREACH clauses are emitted when every extra label is unconditional.
     """
 
     @dataclass(frozen=True)
@@ -238,11 +289,12 @@ def test_build_conditional_label_queries_only_unconditional_labels():
             ]
         )
 
-    queries = build_conditional_label_queries(NodeWithOnlyUnconditionalLabelsSchema())
-    assert queries == []
+    query = build_ingestion_query(NodeWithOnlyUnconditionalLabelsSchema())
+    assert "FOREACH" not in query
+    assert "i:Resource:AWSResource" in query
 
 
-def test_build_conditional_label_queries_escapes_special_chars():
+def test_conditional_label_escapes_special_chars():
     """
     Test that special characters in condition values are properly escaped.
     """
@@ -257,21 +309,16 @@ def test_build_conditional_label_queries_escapes_special_chars():
             ]
         )
 
-    queries = build_conditional_label_queries(NodeWithSpecialCharsSchema())
+    query = build_ingestion_query(NodeWithSpecialCharsSchema())
 
-    # 1 conditional label = 2 queries (remove + set)
-    assert len(queries) == 2
-    # Check the SET query (second one) for escaped values
-    set_query = queries[1]
-    # Check that quotes and backslashes are escaped
-    assert r"\"quotes\"" in set_query
-    assert r"\\backslash" in set_query
+    apply_clause = _apply_clause(query, "Special")
+    assert r"\"quotes\"" in apply_clause
+    assert r"\\backslash" in apply_clause
 
 
 def test_build_create_index_queries_includes_conditional_label_indexes():
     """
-    Test that index creation includes indexes for conditional labels
-    and their condition fields.
+    Test that index creation covers conditional labels but not their condition fields.
     """
     queries = build_create_index_queries(NodeWithConditionalLabelSchema())
 
@@ -285,8 +332,9 @@ def test_build_create_index_queries_includes_conditional_label_indexes():
     # Should have index for the conditional label
     assert any("Critical" in q and "id" in q for q in queries)
 
-    # Should have index for the condition field on the primary label
-    assert any("TestAsset" in q and "severity" in q for q in queries)
+    # Should NOT index the condition field: conditions are evaluated against the already-bound node
+    # of the current row, so there is no lookup for an index to serve.
+    assert not any("severity" in q for q in queries)
 
 
 def test_build_create_index_queries_with_multiple_conditional_labels():
@@ -299,15 +347,14 @@ def test_build_create_index_queries_with_multiple_conditional_labels():
     assert any("Critical" in q and "id" in q for q in queries)
     assert any("PublicResource" in q and "id" in q for q in queries)
 
-    # Should have indexes for all condition fields
-    assert any("TestAsset" in q and "severity" in q for q in queries)
-    assert any("TestAsset" in q and "is_public" in q for q in queries)
+    # Should NOT index any condition field
+    assert not any("severity" in q for q in queries)
+    assert not any("is_public" in q for q in queries)
 
 
 def test_empty_conditions_apply_label_unconditionally():
     """
-    Test that conditional labels with empty conditions are skipped
-    and don't generate invalid Cypher.
+    Test that labels with empty conditions land in the SET clause and get no FOREACH pair.
     """
 
     @dataclass(frozen=True)
@@ -321,22 +368,45 @@ def test_empty_conditions_apply_label_unconditionally():
             ]
         )
 
-    ingestion_query = build_ingestion_query(NodeWithEmptyConditionsSchema())
-    conditional_queries = build_conditional_label_queries(
-        NodeWithEmptyConditionsSchema()
-    )
+    query = build_ingestion_query(NodeWithEmptyConditionsSchema())
 
-    assert "i:EmptyCondition" in ingestion_query
-    assert len(conditional_queries) == 2
-    assert all("EmptyCondition" not in query for query in conditional_queries)
-    assert "REMOVE n:ValidCondition" in conditional_queries[0]
-    assert "SET n:ValidCondition" in conditional_queries[1]
+    assert "i:EmptyCondition" in _set_clause(query)
+    assert query.count("FOREACH") == 2
+    assert "EmptyCondition" not in query.split(_set_clause(query))[1]
+    assert _apply_clause(query, "ValidCondition")
+    assert _remove_clause(query, "ValidCondition")
 
 
-def test_build_conditional_label_queries_scoped_by_sub_resource():
+def test_label_declared_both_unconditionally_and_conditionally_is_never_removed():
     """
-    Test that conditional label queries are scoped to the sub-resource
-    when a sub_resource_relationship is defined on the schema.
+    Test that a label declared both with and without conditions is applied unconditionally and gets
+    no removal clause. Otherwise the removal clause would strip a label the SET clause just applied.
+    """
+
+    @dataclass(frozen=True)
+    class NodeWithRedundantConditionSchema(CartographyNodeSchema):
+        label: str = "TestAsset"
+        properties: SimpleNodeProperties = SimpleNodeProperties()
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                CRITICAL,
+                CRITICAL.when(severity="high"),
+            ]
+        )
+
+    query = build_ingestion_query(NodeWithRedundantConditionSchema())
+
+    assert "i:Critical" in _set_clause(query)
+    assert "FOREACH" not in query
+
+
+def test_conditional_labels_are_not_scoped_by_sub_resource():
+    """
+    Test that a sub_resource_relationship does not change how conditional labels are applied.
+
+    Conditional labels used to be maintained by post-load queries that had to be scoped to the
+    current tenant to avoid touching other tenants' nodes. Applying them per row makes that scoping
+    unnecessary: only the nodes in the current batch are ever touched.
     """
 
     @dataclass(frozen=True)
@@ -365,65 +435,13 @@ def test_build_conditional_label_queries_scoped_by_sub_resource():
             ]
         )
 
-    queries = build_conditional_label_queries(ScopedNodeSchema())
+    scoped_query = build_ingestion_query(ScopedNodeSchema())
+    unscoped_query = build_ingestion_query(NodeWithConditionalLabelSchema())
 
-    assert len(queries) == 2
-
-    # REMOVE query should be scoped to the sub-resource
-    remove_query = queries[0]
-    assert "MATCH (n:TestAsset:Critical)" in remove_query
-    # Should have the relationship pattern to AWSAccount (INWARD direction)
-    assert "<-[:RESOURCE]-" in remove_query
-    assert "(sub:AWSAccount{" in remove_query
-    assert "id: $AWS_ID" in remove_query
-    assert "REMOVE n:Critical" in remove_query
-
-    # SET query should also be scoped to the sub-resource
-    set_query = queries[1]
-    assert "MATCH (n:TestAsset)" in set_query
-    assert "<-[:RESOURCE]-" in set_query
-    assert "(sub:AWSAccount{" in set_query
-    assert "id: $AWS_ID" in set_query
-    assert 'n.severity = "high"' in set_query
-    assert "SET n:Critical" in set_query
-
-
-def test_build_conditional_label_queries_scoped_outward_direction():
-    """
-    Test that conditional label queries handle OUTWARD direction correctly.
-    """
-
-    @dataclass(frozen=True)
-    class SubResourceRelProperties(CartographyRelProperties):
-        lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    @dataclass(frozen=True)
-    class TestAssetToTenantRel(CartographyRelSchema):
-        target_node_label: str = "Tenant"
-        target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-            {"id": PropertyRef("tenant_id", set_in_kwargs=True)},
-        )
-        direction: LinkDirection = LinkDirection.OUTWARD
-        rel_label: str = "BELONGS_TO"
-        properties: SubResourceRelProperties = SubResourceRelProperties()
-
-    @dataclass(frozen=True)
-    class OutwardScopedNodeSchema(CartographyNodeSchema):
-        label: str = "TestAsset"
-        properties: SimpleNodeProperties = SimpleNodeProperties()
-        sub_resource_relationship: TestAssetToTenantRel = TestAssetToTenantRel()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
-            [
-                CRITICAL.when(severity="high"),
-            ]
-        )
-
-    queries = build_conditional_label_queries(OutwardScopedNodeSchema())
-
-    assert len(queries) == 2
-
-    # Both queries should have OUTWARD relationship pattern
-    for query in queries:
-        assert "-[:BELONGS_TO]->" in query
-        assert "(sub:Tenant{" in query
-        assert "id: $tenant_id" in query
+    assert _apply_clause(scoped_query, "Critical") == _apply_clause(
+        unscoped_query, "Critical"
+    )
+    assert _remove_clause(scoped_query, "Critical") == _remove_clause(
+        unscoped_query, "Critical"
+    )
+    assert scoped_query.count("FOREACH") == 2

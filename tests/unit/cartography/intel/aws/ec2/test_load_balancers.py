@@ -80,3 +80,32 @@ def test_sync_load_balancers_skips_cleanup_after_retryable_client_error(mocker):
     )
 
     cleanup.assert_not_called()
+
+
+def test_transform_load_balancer_data_lowercases_dnsname_but_not_id():
+    raw_dns_name = "MyELB-1234567890.us-east-1.elb.amazonaws.com"
+    data = [
+        {
+            "DNSName": raw_dns_name,
+            "LoadBalancerName": "MyELB",
+            "CreatedTime": "2024-01-01 00:00:00",
+            "ListenerDescriptions": [
+                {
+                    "Listener": {
+                        "LoadBalancerPort": 443,
+                        "Protocol": "HTTPS",
+                        "InstancePort": 8443,
+                        "InstanceProtocol": "HTTPS",
+                    },
+                },
+            ],
+        },
+    ]
+
+    [transformed], [listener] = load_balancers.transform_load_balancer_data(data)
+
+    # `id` is the join key for listeners, so it must stay byte-for-byte what AWS returned.
+    assert transformed["id"] == raw_dns_name
+    assert transformed["dnsname"] == raw_dns_name.lower()
+    assert transformed["LISTENER_IDS"] == [listener["id"]]
+    assert listener["id"].startswith(raw_dns_name)

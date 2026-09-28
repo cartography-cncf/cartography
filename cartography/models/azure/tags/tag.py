@@ -12,10 +12,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AzureTagProperties(CartographyNodeProperties):
     # The ID is a string: "{subscription_id}|{key}:{value}"
-    id: PropertyRef = PropertyRef("id")
-    key: PropertyRef = PropertyRef("key", extra_index=True)
-    value: PropertyRef = PropertyRef("value")
-    subscription_id: PropertyRef = PropertyRef("subscription_id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Subscription-scoped identifier formed from the tag key and value.",
+    )
+    key: PropertyRef = PropertyRef(
+        "key", extra_index=True, description="Name of the tag."
+    )
+    value: PropertyRef = PropertyRef("value", description="Value of the tag.")
+    subscription_id: PropertyRef = PropertyRef(
+        "subscription_id",
+        description="Azure subscription containing the tagged resource.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -26,6 +34,8 @@ class AzureTagToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureTagToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription scopes the tag."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},

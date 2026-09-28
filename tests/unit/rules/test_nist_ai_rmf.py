@@ -19,7 +19,13 @@ def test_nist_ai_rules_registered_and_metadata():
         "ai_provider_api_key_hygiene": ai_provider_api_key_hygiene,
     }
 
-    expected_versions = {"ai_provider_api_key_hygiene": "0.2.0"}
+    expected_versions = {
+        "ai_provider_api_key_hygiene": "0.2.1",
+        "ai_third_party_app_inventory": "0.1.1",
+        "ai_third_party_app_sensitive_scopes": "0.1.1",
+        "ai_admin_app_authorizations": "0.1.1",
+        "aibom_agent_inventory": "0.1.1",
+    }
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES
         assert RULES[rule_id] is rule_obj
@@ -176,6 +182,17 @@ def test_ai_admin_app_authorizations_include_delegated_admins():
     assert "u.is_delegated_admin" in fact.cypher_count_query
 
 
+def test_ai_admin_app_authorizations_exclude_inactive_accounts():
+    fact = ai_admin_app_authorizations.get_fact_by_id(
+        "gw_nist_ai_admin_app_authorizations"
+    )
+    active_filter = "coalesce(u._ont_active, true) = true"
+
+    assert active_filter in fact.cypher_query
+    assert active_filter in fact.cypher_visual_query
+    assert active_filter in fact.cypher_count_query
+
+
 def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
     fact = ai_provider_api_key_hygiene.get_fact_by_id(
         "openai_nist_ai_stale_or_unowned_api_keys"
@@ -190,7 +207,10 @@ def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
         "openai_nist_ai_stale_or_unowned_api_keys"
     )
 
-    assert "MATCH (k)" in fact.cypher_query
+    # Anchored on the shared ontology label so the rows cannot diverge from
+    # the declared asset_label; the provider filter stays in the WHERE clause.
+    assert "MATCH (k:APIKey)" in fact.cypher_query
+    assert "WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey" in fact.cypher_query
     assert (
         "OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)" in fact.cypher_query
     )

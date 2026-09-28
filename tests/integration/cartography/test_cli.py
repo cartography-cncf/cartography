@@ -62,6 +62,58 @@ def test_cli_aws_ssm_public_parameter_prefix_allowlist_sets_config():
     )
 
 
+def test_cli_wiz_options_set_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    with unittest.mock.patch(
+        "cartography.sync.run_with_config",
+        return_value=0,
+    ) as run_with_config:
+        with unittest.mock.patch.dict(
+            os.environ,
+            {
+                "TEST_WIZ_CLIENT_ID": "client-id",
+                "TEST_WIZ_CLIENT_SECRET": "client-secret",
+            },
+        ):
+            cli.main(
+                [
+                    "--neo4j-uri",
+                    settings.get("NEO4J_URL"),
+                    "--selected-modules",
+                    "wiz",
+                    "--wiz-graphql-url",
+                    "https://api.us1.app.wiz.io/graphql",
+                    "--wiz-auth-url",
+                    "https://auth.app.wiz.io/oauth/token",
+                    "--wiz-client-id-env-var",
+                    "TEST_WIZ_CLIENT_ID",
+                    "--wiz-client-secret-env-var",
+                    "TEST_WIZ_CLIENT_SECRET",
+                    "--wiz-tenant-id",
+                    "tenant-1",
+                    "--wiz-project-ids",
+                    "project-1, project-2",
+                    "--wiz-lookback-days",
+                    "30",
+                ],
+            )
+
+    # Assert
+    run_with_config.assert_called_once()
+    config = run_with_config.call_args[0][1]
+    assert config.wiz_graphql_url == "https://api.us1.app.wiz.io/graphql"
+    assert config.wiz_auth_url == "https://auth.app.wiz.io/oauth/token"
+    assert config.wiz_client_id == "client-id"
+    assert config.wiz_client_secret == "client-secret"
+    assert config.wiz_tenant_id == "tenant-1"
+    assert config.wiz_project_ids == ["project-1", "project-2"]
+    assert config.wiz_lookback_days == 30
+
+
 def test_cli_microsoft_credentials_set_config():
     # Arrange
     sync = unittest.mock.MagicMock()
@@ -91,6 +143,70 @@ def test_cli_microsoft_credentials_set_config():
     assert config.entra_tenant_id == "tenant-id"
     assert config.entra_client_id == "client-id"
     assert config.entra_client_secret == "secret"
+
+
+def test_cli_microsoft_delegated_auth_sets_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.microsoft_tenant_id == "tenant-id"
+    assert config.microsoft_delegated_auth is True
+    assert config.microsoft_client_id is None
+    assert config.microsoft_client_secret is None
+
+
+def test_cli_rejects_delegated_auth_with_application_credentials():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-tenant-id",
+            "tenant-id",
+            "--microsoft-client-id",
+            "client-id",
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    # Assert
+    assert exit_code == 1
+    sync.run.assert_not_called()
+
+
+def test_cli_rejects_delegated_auth_without_tenant():
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    exit_code = cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--microsoft-delegated-auth",
+        ],
+    )
+
+    assert exit_code == 1
+    sync.run.assert_not_called()
 
 
 def test_cli_legacy_entra_credentials_set_microsoft_config(caplog):
@@ -163,6 +279,7 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
     assert get_args(annotations["microsoft_tenant_id"])[1].hidden is False
     assert get_args(annotations["microsoft_client_id"])[1].hidden is False
     assert get_args(annotations["microsoft_client_secret_env_var"])[1].hidden is False
+    assert get_args(annotations["microsoft_delegated_auth"])[1].hidden is False
     assert get_args(annotations["entra_tenant_id"])[1].hidden is True
     assert get_args(annotations["entra_client_id"])[1].hidden is True
     assert get_args(annotations["entra_client_secret_env_var"])[1].hidden is True
@@ -178,6 +295,7 @@ def test_cli_selected_modules_microsoft_help_shows_microsoft_options(capsys):
     assert "--microsoft-tenant-id" in help_output
     assert "--microsoft-client-id" in help_output
     assert "--microsoft-client-secret-env-" in help_output
+    assert "--microsoft-delegated-auth" in help_output
     assert "--entra-tenant-id" not in help_output
     assert "--entra-client-id" not in help_output
     assert "--entra-client-secret-env-var" not in help_output
@@ -223,6 +341,7 @@ def test_cli_help_hides_deprecated_report_source_flags(capsys):
     annotations = app.registered_commands[0].callback.__annotations__
 
     for field in (
+        "bbot_source",
         "trivy_source",
         "syft_source",
         "aibom_source",
@@ -297,6 +416,27 @@ def test_cli_trivy_source_sets_config():
     sync.run.assert_called_once()
     config = sync.run.call_args[0][1]
     assert config.trivy_source == "gs://example-bucket/reports/trivy/"
+
+
+def test_cli_bbot_source_sets_config():
+    # Arrange
+    sync = unittest.mock.MagicMock()
+    cli = cartography.cli.CLI(sync, "test")
+
+    # Act
+    cli.main(
+        [
+            "--neo4j-uri",
+            settings.get("NEO4J_URL"),
+            "--bbot-source",
+            "azblob://example-account/reports/bbot/",
+        ],
+    )
+
+    # Assert
+    sync.run.assert_called_once()
+    config = sync.run.call_args[0][1]
+    assert config.bbot_source == "azblob://example-account/reports/bbot/"
 
 
 def test_cli_trivy_legacy_results_dir_sets_source(caplog):

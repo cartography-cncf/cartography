@@ -16,11 +16,23 @@ from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
 
 @dataclass(frozen=True)
 class EC2SecurityGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId")
-    groupid: PropertyRef = PropertyRef("GroupId", extra_index=True)
-    name: PropertyRef = PropertyRef("GroupName")
-    description: PropertyRef = PropertyRef("Description")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("GroupId", description="Same as `groupid`")
+    groupid: PropertyRef = PropertyRef(
+        "GroupId",
+        extra_index=True,
+        description="The ID of the security group. Note that these are globally unique in AWS.",
+    )
+    name: PropertyRef = PropertyRef(
+        "GroupName", description="The name of the security group"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="A description of the security group"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region this security group is installed in",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -80,6 +92,8 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupSchema(CartographyNodeSchema):
+    """Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html)."""
+
     label: str = "AWSEC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
     # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.

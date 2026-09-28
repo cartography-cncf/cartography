@@ -16,10 +16,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("KeyPairArn")
-    arn: PropertyRef = PropertyRef("KeyPairArn", extra_index=True)
-    keyname: PropertyRef = PropertyRef("KeyName")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("KeyPairArn", description="same as `arn`")
+    arn: PropertyRef = PropertyRef(
+        "KeyPairArn",
+        extra_index=True,
+        description="AWS-unique identifier for this object",
+    )
+    keyname: PropertyRef = PropertyRef(
+        "KeyName", description="The name of the key pair"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,9 +69,10 @@ class EC2KeyPairInstanceToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2KeyPairInstanceSchema(CartographyNodeSchema):
-    """
-    EC2 keypairs as known by describe-instances.
-    """
+    """Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html)"""
+
+    # Implementation note:
+    # EC2 keypairs as known by describe-instances.
 
     label: str = "AWSEC2KeyPair"
     # DEPRECATED: legacy EC2KeyPair node label will be removed in v1.0.0.

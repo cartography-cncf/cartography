@@ -21,6 +21,8 @@ class EventGridTopicToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EventGridTopicToTagRel(CartographyRelSchema):
+    """An Azure Event Grid topic has the tag."""
+
     target_node_label: str = "AzureEventGridTopic"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class EventGridTopicToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureEventGridTopicTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

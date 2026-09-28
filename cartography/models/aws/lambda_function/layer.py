@@ -13,12 +13,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSLambdaLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn")
-    codesize: PropertyRef = PropertyRef("CodeSize")
-    signingprofileversionarn: PropertyRef = PropertyRef("SigningProfileVersionArn")
-    signingjobarn: PropertyRef = PropertyRef("SigningJobArn")
-    functionarn: PropertyRef = PropertyRef("FunctionArn")
+    id: PropertyRef = PropertyRef(
+        "Arn", description="The arn of the lambda function layer"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn", description="The arn of the lambda function layer"
+    )
+    codesize: PropertyRef = PropertyRef(
+        "CodeSize", description="The size of the layer archive in bytes."
+    )
+    signingprofileversionarn: PropertyRef = PropertyRef(
+        "SigningProfileVersionArn",
+        description="The Amazon Resource Name (ARN) for a signing profile version.",
+    )
+    signingjobarn: PropertyRef = PropertyRef(
+        "SigningJobArn", description="The Amazon Resource Name (ARN) of a signing job."
+    )
+    functionarn: PropertyRef = PropertyRef(
+        "FunctionArn",
+        description="The ARN of the Lambda function this layer belongs to",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -60,6 +74,8 @@ class AWSLambdaLayerToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaLayerSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)."""
+
     label: str = "AWSLambdaLayer"
     properties: AWSLambdaLayerNodeProperties = AWSLambdaLayerNodeProperties()
     sub_resource_relationship: AWSLambdaLayerToAWSAccountRel = (

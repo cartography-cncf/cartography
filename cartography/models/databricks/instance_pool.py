@@ -14,19 +14,41 @@ from cartography.models.databricks.extra_labels import DATABRICKS_ACL_OBJECT
 
 @dataclass(frozen=True)
 class DatabricksInstancePoolNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    instance_pool_id: PropertyRef = PropertyRef("instance_pool_id", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the instance pool."
+    )
+    instance_pool_id: PropertyRef = PropertyRef(
+        "instance_pool_id",
+        extra_index=True,
+        description="Databricks instance pool identifier.",
+    )
     instance_pool_name: PropertyRef = PropertyRef(
-        "instance_pool_name", extra_index=True
+        "instance_pool_name",
+        extra_index=True,
+        description="Name of the instance pool.",
     )
-    node_type_id: PropertyRef = PropertyRef("node_type_id")
-    min_idle_instances: PropertyRef = PropertyRef("min_idle_instances")
-    max_capacity: PropertyRef = PropertyRef("max_capacity")
+    node_type_id: PropertyRef = PropertyRef(
+        "node_type_id", description="Node type provisioned by the instance pool."
+    )
+    min_idle_instances: PropertyRef = PropertyRef(
+        "min_idle_instances",
+        description="Minimum number of idle instances maintained by the pool.",
+    )
+    max_capacity: PropertyRef = PropertyRef(
+        "max_capacity",
+        description="Maximum number of instances the pool can contain.",
+    )
     idle_instance_autotermination_minutes: PropertyRef = PropertyRef(
-        "idle_instance_autotermination_minutes"
+        "idle_instance_autotermination_minutes",
+        description="Minutes before an idle instance terminates automatically.",
     )
-    enable_elastic_disk: PropertyRef = PropertyRef("enable_elastic_disk")
-    state: PropertyRef = PropertyRef("state")
+    enable_elastic_disk: PropertyRef = PropertyRef(
+        "enable_elastic_disk",
+        description="Whether elastic disk autoscaling is enabled.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Current lifecycle state of the instance pool."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -38,6 +60,8 @@ class DatabricksInstancePoolToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksInstancePool)
 class DatabricksInstancePoolToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the instance pool as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -51,6 +75,8 @@ class DatabricksInstancePoolToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksInstancePoolSchema(CartographyNodeSchema):
+    """A Databricks pool of reusable compute instances."""
+
     label: str = "DatabricksInstancePool"
     properties: DatabricksInstancePoolNodeProperties = (
         DatabricksInstancePoolNodeProperties()

@@ -17,10 +17,18 @@ from cartography.models.ontology.labels import SUBNET
 
 @dataclass(frozen=True)
 class EC2SubnetVPCEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("SubnetId")
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("SubnetId", description="same as subnetid")
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region the subnet is installed on",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,10 +52,11 @@ class EC2SubnetToVPCEndpointRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SubnetVPCEndpointSchema(CartographyNodeSchema):
-    """
-    EC2 Subnet as known by describe-vpc-endpoints.
-    Creates stub subnet nodes and USES_SUBNET relationships from VPC endpoints.
-    """
+    """Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html)."""
+
+    # Implementation note:
+    # EC2 Subnet as known by describe-vpc-endpoints.
+    # Creates stub subnet nodes and USES_SUBNET relationships from VPC endpoints.
 
     label: str = "AWSEC2Subnet"
     properties: EC2SubnetVPCEndpointNodeProperties = (

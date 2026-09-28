@@ -1,0 +1,23 @@
+{
+  "name": "Railway EXPOSE edge direction migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions created (RailwayServiceInstance)-[:EXPOSE]->(RailwayServiceDomain); the schema now creates the edge the other way round, so that EXPOSE always runs from the internet-facing entrypoint to the asset it puts at risk. Only the legacy orientation is deleted: the correct one is recreated by the loader on every sync, so there is nothing to backfill, and copying lastupdated onto a fabricated edge would only invent a stale one. Generated cleanup matches the new orientation only, which is why these would otherwise linger forever and leave the graph holding both directions. Restricted to instances this run actually refreshed: the job runs per workspace, and a graph can hold workspaces this run never touched, whose instances must keep whatever they have until their own sync reaches them. Remove in v1.0.0.",
+      "query": "MATCH (si:RailwayServiceInstance)-[r:EXPOSE]->(:RailwayServiceDomain) WHERE si.lastupdated = $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: same migration for RailwayCustomDomain. Remove in v1.0.0.",
+      "query": "MATCH (si:RailwayServiceInstance)-[r:EXPOSE]->(:RailwayCustomDomain) WHERE si.lastupdated = $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: same migration for RailwayTCPProxy. Remove in v1.0.0.",
+      "query": "MATCH (si:RailwayServiceInstance)-[r:EXPOSE]->(:RailwayTCPProxy) WHERE si.lastupdated = $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

@@ -21,6 +21,8 @@ class StorageAccountToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class StorageAccountToTagRel(CartographyRelSchema):
+    """An Azure Storage account has the tag."""
+
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class StorageAccountToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

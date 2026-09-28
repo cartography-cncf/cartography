@@ -4,13 +4,17 @@ from typing import Type
 
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import LabelKind
 from cartography.models.ontology.mapping import get_deprecated_ontology_index_properties
+from cartography.models.ontology.mapping import ONTOLOGY_CANONICAL_SCHEMAS
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import SEMANTIC_LABEL_BY_CATEGORY
 from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.models.ontology.mapping.data.cves import CVES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
+from tests.utils import is_node_schema
 from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
@@ -27,7 +31,6 @@ OLD_FORMAT_NODES = [
     "OktaApplication",
     "OktaGroup",
     "OktaOrganization",
-    "OktaAdministrationRole",
     "AWSAccount",
     "GitHubRepository",
 ]
@@ -36,7 +39,7 @@ OLD_FORMAT_NODES = [
 def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema]]:
     models = []
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class.label == node_label:
             models.append(node_class)
@@ -61,7 +64,7 @@ def _get_models_with_properties_for_label(
 
     # Include models that declare this label among their extra_node_labels.
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class in all_models:
             continue
@@ -96,7 +99,7 @@ def test_extra_label_condition_fields_exist_on_node_schema() -> None:
     violations: list[str] = []
 
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         node_schema = node_class()
         if not node_schema.extra_node_labels:
@@ -143,11 +146,11 @@ def test_ontology_primary_labels_are_reserved_for_ontology_models():
     # Ontology primary labels (e.g. Package, UserAccount) must only be owned by
     # ontology model classes. Reusing them in provider/raw schemas causes
     # collisions in ontology matching and migration logic.
-    ontology_labels = {model().label for model in ONTOLOGY_MODELS.values()}
+    ontology_labels = {model().label for model in ONTOLOGY_CANONICAL_SCHEMAS}
     violations: set[str] = set()
 
     for _, node_class in MODELS:
-        if not issubclass(node_class, CartographyNodeSchema):
+        if not is_node_schema(node_class):
             continue
         if node_class.__module__.startswith("cartography.models.ontology"):
             continue
@@ -159,6 +162,68 @@ def test_ontology_primary_labels_are_reserved_for_ontology_models():
     assert (
         not violations
     ), "Ontology primary labels are reserved for ontology schemas only.\n" + "\n".join(
+        sorted(violations)
+    )
+
+
+def test_semantic_label_by_category_is_complete():
+    # Every semantic category must declare the ontology label its nodes carry, and that
+    # label must actually be an ontology label.
+    assert set(SEMANTIC_LABEL_BY_CATEGORY) == set(SEMANTIC_LABELS_MAPPING), (
+        "SEMANTIC_LABEL_BY_CATEGORY is out of sync with SEMANTIC_LABELS_MAPPING: "
+        f"missing {sorted(set(SEMANTIC_LABELS_MAPPING) - set(SEMANTIC_LABEL_BY_CATEGORY))}, "
+        f"extra {sorted(set(SEMANTIC_LABEL_BY_CATEGORY) - set(SEMANTIC_LABELS_MAPPING))}."
+    )
+
+    for category, extra_label in SEMANTIC_LABEL_BY_CATEGORY.items():
+        assert extra_label.kind is LabelKind.ONTOLOGY, (
+            f"Semantic category '{category}' maps to '{extra_label.label}', "
+            f"which is a {extra_label.kind.value} label, not an ontology one."
+        )
+
+
+def test_semantically_mapped_nodes_declare_their_ontology_label():
+    # A node mapped into a semantic category gets normalized `_ont_*` properties written by
+    # the query builder. If it does not also carry the category's ontology label, it stays
+    # invisible to every cross-provider `MATCH (n:<Label>)` query.
+    violations: set[str] = set()
+
+    for category, mappings in SEMANTIC_LABELS_MAPPING.items():
+        ontology_label = SEMANTIC_LABEL_BY_CATEGORY[category].label
+        for module_name, mapping in mappings.items():
+            for node in mapping.nodes:
+                # TODO: Remove that uggly exception once all models are migrated to the new data model system
+                if node.node_label in OLD_FORMAT_NODES:
+                    continue
+                model_classes = _get_model_by_node_label(node.node_label)
+                assert len(model_classes) > 0, (
+                    f"Model class for node label '{node.node_label}' "
+                    f"in module '{module_name}' not found."
+                )
+                # A canonical ontology schema owns the label as its primary label (e.g. CVE).
+                if node.node_label == ontology_label:
+                    continue
+                declared = any(
+                    ontology_label
+                    in {
+                        extra_label.label
+                        for extra_label in (
+                            model_class().extra_node_labels.labels
+                            if model_class().extra_node_labels
+                            else ()
+                        )
+                    }
+                    for model_class in model_classes
+                )
+                if not declared:
+                    violations.add(
+                        f"{node.node_label} is mapped into the '{category}' ontology category "
+                        f"but does not declare the '{ontology_label}' extra node label.",
+                    )
+
+    assert (
+        not violations
+    ), "Semantically mapped nodes must declare their ontology label.\n" + "\n".join(
         sorted(violations)
     )
 

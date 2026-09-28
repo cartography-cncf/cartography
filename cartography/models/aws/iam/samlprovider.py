@@ -19,13 +19,27 @@ class AWSSAMLProviderNodeProperties(CartographyNodeProperties):
     """
 
     # Unique identifiers
-    id: PropertyRef = PropertyRef("Arn")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "Arn", description="Unique identifier for this `AWSSAMLProvider` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSSAMLProvider` node.",
+    )
 
     # Business properties
-    name: PropertyRef = PropertyRef("Name", extra_index=True)
-    create_date: PropertyRef = PropertyRef("CreateDate")
-    valid_until: PropertyRef = PropertyRef("ValidUntil")
+    name: PropertyRef = PropertyRef(
+        "Name", extra_index=True, description="Name of this `AWSSAMLProvider` node."
+    )
+    create_date: PropertyRef = PropertyRef(
+        "CreateDate",
+        description="Timestamp when the IAM SAML provider was created.",
+    )
+    valid_until: PropertyRef = PropertyRef(
+        "ValidUntil",
+        description="Timestamp when the SAML provider metadata expires.",
+    )
 
     # Common
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

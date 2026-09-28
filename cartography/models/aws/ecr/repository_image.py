@@ -16,16 +16,40 @@ from cartography.models.ontology.labels import IMAGE_TAG
 
 @dataclass(frozen=True)
 class ECRRepositoryImageNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    tag: PropertyRef = PropertyRef("imageTag")
-    uri: PropertyRef = PropertyRef("uri")
-    repo_uri: PropertyRef = PropertyRef("repo_uri")
-    image_size_bytes: PropertyRef = PropertyRef("imageSizeInBytes")
-    image_pushed_at: PropertyRef = PropertyRef("imagePushedAt")
-    image_manifest_media_type: PropertyRef = PropertyRef("imageManifestMediaType")
-    artifact_media_type: PropertyRef = PropertyRef("artifactMediaType")
-    last_recorded_pull_time: PropertyRef = PropertyRef("lastRecordedPullTime")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="same as uri")
+    tag: PropertyRef = PropertyRef(
+        "imageTag", description='The tag applied to the repository image, e.g. "latest"'
+    )
+    uri: PropertyRef = PropertyRef(
+        "uri", description="The URI where the repository image is stored"
+    )
+    repo_uri: PropertyRef = PropertyRef(
+        "repo_uri",
+        description="URI of the ECR repository containing the image.",
+    )
+    image_size_bytes: PropertyRef = PropertyRef(
+        "imageSizeInBytes", description="The size of the image in bytes"
+    )
+    image_pushed_at: PropertyRef = PropertyRef(
+        "imagePushedAt",
+        description="The date and time the image was pushed to the repository",
+    )
+    image_manifest_media_type: PropertyRef = PropertyRef(
+        "imageManifestMediaType",
+        description="The media type of the image manifest, see [opencontainers image spec](https://github.com/opencontainers/image-spec/blob/main/media-types.md)",
+    )
+    artifact_media_type: PropertyRef = PropertyRef(
+        "artifactMediaType", description="The media type of the image artifact"
+    )
+    last_recorded_pull_time: PropertyRef = PropertyRef(
+        "lastRecordedPullTime",
+        description="The date and time the image was last pulled",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSECRRepositoryImage` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -85,6 +109,13 @@ class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRRepositoryImageSchema(CartographyNodeSchema):
+    """An ECR image may be referenced and tagged by more than one ECR Repository. To best represent this, we've created an `AWSECRRepositoryImage` node as a layer of indirection between the repo and the image.
+
+    More concretely explained, we run [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html), and then store the image tag on an `AWSECRRepositoryImage` node and the image digest hash on a separate `AWSECRImage` node.
+
+    This way, more than one `AWSECRRepositoryImage` can reference/be connected to the same `AWSECRImage`.
+    """
+
     label: str = "AWSECRRepositoryImage"
     properties: ECRRepositoryImageNodeProperties = ECRRepositoryImageNodeProperties()
     sub_resource_relationship: ECRRepositoryImageToAWSAccountRel = (

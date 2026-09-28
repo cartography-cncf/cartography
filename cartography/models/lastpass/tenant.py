@@ -9,12 +9,14 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class LastpassTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="LastPass tenant ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class LastpassTenantSchema(CartographyNodeSchema):
+    """Representation of a LastPass tenant."""
+
     label: str = "LastpassTenant"
     properties: LastpassTenantNodeProperties = LastpassTenantNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

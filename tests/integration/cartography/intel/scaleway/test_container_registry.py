@@ -53,6 +53,10 @@ def test_load_scaleway_container_registry(_mock_get, neo4j_session):
         "ScalewayContainerRegistryNamespace",
         ["id", "name", "is_public"],
     ) == {(TEST_NAMESPACE_ID, "demo-namespace", True)}
+    # A public namespace serves unauthenticated pulls.
+    assert check_nodes(
+        neo4j_session, "ScalewayContainerRegistryNamespace", ["id", "exposed_internet"]
+    ) == {(TEST_NAMESPACE_ID, True)}
     assert check_nodes(neo4j_session, "ContainerRegistry", ["id"]) == {
         (TEST_NAMESPACE_ID,)
     }

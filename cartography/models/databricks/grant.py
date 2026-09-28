@@ -17,10 +17,13 @@ class DatabricksGrantRelProperties(CartographyRelProperties):
         "_sub_resource_label", set_in_kwargs=True
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    privileges: PropertyRef = PropertyRef("privileges")
+    privileges: PropertyRef = PropertyRef(
+        "privileges",
+        description="Unity Catalog privileges granted to the principal.",
+    )
 
 
-# The three principal rels all match the source by ``principal_id`` — the
+# The three principal rels all match the source by ``principal_id``, the
 # workspace-scoped node id resolved from the grant's principal name in the intel
 # layer. Matching by the scoped id (not the bare name) keeps grants from two
 # workspaces that share an email / group name / application id from attaching to
@@ -30,6 +33,8 @@ class DatabricksGrantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksUser)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
 class DatabricksUserGrantRel(CartographyRelSchema):
+    """A Databricks user has privileges on a Unity Catalog securable."""
+
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("securable_id")},
@@ -46,6 +51,8 @@ class DatabricksUserGrantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksGroup)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
 class DatabricksGroupGrantRel(CartographyRelSchema):
+    """A Databricks group has privileges on a Unity Catalog securable."""
+
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("securable_id")},
@@ -62,6 +69,8 @@ class DatabricksGroupGrantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksServicePrincipal)-[:HAS_PRIVILEGE {privileges}]->(:DatabricksSecurable)
 class DatabricksServicePrincipalGrantRel(CartographyRelSchema):
+    """A Databricks service principal has privileges on a Unity Catalog securable."""
+
     target_node_label: str = "DatabricksSecurable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("securable_id")},

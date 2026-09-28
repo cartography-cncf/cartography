@@ -29,14 +29,17 @@ def get_factories(client: DataFactoryManagementClient) -> list[Any]:
 def transform_factories(factories_raw: list[Any]) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for f in factories_raw:
+        # azure-mgmt-datafactory 10 serializes `as_dict()` in ARM wire format, so the
+        # factory fields sit under `properties` with camelCase names.
+        properties = f.get("properties") or {}
         transformed.append(
             {
                 "id": f.get("id"),
                 "name": f.get("name"),
                 "location": f.get("location"),
-                "provisioning_state": f.get("properties", {}).get("provisioning_state"),
-                "create_time": f.get("properties", {}).get("create_time"),
-                "version": f.get("properties", {}).get("version"),
+                "provisioning_state": properties.get("provisioningState"),
+                "create_time": properties.get("createTime"),
+                "version": properties.get("version"),
             },
         )
     return transformed

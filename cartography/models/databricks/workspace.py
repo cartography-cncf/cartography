@@ -15,17 +15,40 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class DatabricksWorkspaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    host: PropertyRef = PropertyRef("host", extra_index=True)
-    tokens_enabled: PropertyRef = PropertyRef("tokens_enabled")
-    max_token_lifetime_days: PropertyRef = PropertyRef("max_token_lifetime_days")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Workspace host used as the Databricks workspace ID.",
+    )
+    host: PropertyRef = PropertyRef(
+        "host",
+        extra_index=True,
+        description="Full URL of the Databricks workspace.",
+    )
+    tokens_enabled: PropertyRef = PropertyRef(
+        "tokens_enabled",
+        description="Whether personal access tokens are enabled in the workspace.",
+    )
+    max_token_lifetime_days: PropertyRef = PropertyRef(
+        "max_token_lifetime_days",
+        description="Maximum personal access token lifetime in days.",
+    )
     # Numeric account-API workspace id + deployment/name, set by the account
     # workspaces sync when account creds are configured (None on the
     # workspace-only path). Lets workspace permission assignments key off the
     # numeric id the account API reports.
-    workspace_id: PropertyRef = PropertyRef("workspace_id", extra_index=True)
-    deployment_name: PropertyRef = PropertyRef("deployment_name")
-    workspace_name: PropertyRef = PropertyRef("workspace_name")
+    workspace_id: PropertyRef = PropertyRef(
+        "workspace_id",
+        extra_index=True,
+        description="Numeric workspace ID assigned by the Databricks account.",
+    )
+    deployment_name: PropertyRef = PropertyRef(
+        "deployment_name",
+        description="Workspace deployment name used in its host name.",
+    )
+    workspace_name: PropertyRef = PropertyRef(
+        "workspace_name",
+        description="Workspace display name.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -37,6 +60,8 @@ class DatabricksWorkspaceToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksWorkspace)
 class DatabricksWorkspaceToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -50,6 +75,8 @@ class DatabricksWorkspaceToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksWorkspaceSchema(CartographyNodeSchema):
+    """A Databricks workspace identified by its host."""
+
     label: str = "DatabricksWorkspace"
     properties: DatabricksWorkspaceNodeProperties = DatabricksWorkspaceNodeProperties()
     # `Tenant` is the ontology label for the top-level resource container.

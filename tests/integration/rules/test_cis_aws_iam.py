@@ -242,3 +242,87 @@ def test_admin_policy_flags_attached_full_admin_policies(neo4j_session) -> None:
     # Only attached policies are evaluated assets: admin + scoped + inline = 3.
     # The unattached OrphanAdmin managed policy must be excluded.
     assert count_rows[0]["count"] == 3
+
+
+def test_admin_policy_excludes_control_tower_and_quicksetup_roles(
+    neo4j_session,
+) -> None:
+    # Arrange
+    _reset_graph(neo4j_session)
+    neo4j_session.run(
+        """
+        CREATE (a:AWSAccount {id: '111111111111', name: 'prod'})
+        CREATE (admin_user:AWSUser:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:user/admin',
+            name: 'admin'
+        })
+        CREATE (ct_exec:AWSRole:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:role/AWSControlTowerExecution',
+            name: 'AWSControlTowerExecution'
+        })
+        CREATE (ct_admin:AWSRole:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:role/aws-controltower-AdministratorExecutionRole',
+            name: 'aws-controltower-AdministratorExecutionRole'
+        })
+        CREATE (quicksetup:AWSRole:AWSPrincipal {
+            arn: 'arn:aws:iam::111111111111:role/AWS-QuickSetup-StackSet-Local-ExecutionRole',
+            name: 'AWS-QuickSetup-StackSet-Local-ExecutionRole'
+        })
+        CREATE (admin_policy:AWSManagedPolicy:AWSPolicy {
+            id: 'arn:aws:iam::aws:policy/AdministratorAccess',
+            arn: 'arn:aws:iam::aws:policy/AdministratorAccess',
+            name: 'AdministratorAccess'
+        })
+        CREATE (ct_only_policy:AWSInlinePolicy:AWSPolicy {
+            id: 'arn:aws:iam::111111111111:role/AWSControlTowerExecution/inline_policy/CtAdmin',
+            arn: null,
+            name: 'CtAdmin'
+        })
+        CREATE (admin_stmt:AWSPolicyStatement {
+            id: 'arn:aws:iam::aws:policy/AdministratorAccess/statement/1',
+            effect: 'Allow',
+            action: ['*'],
+            resource: ['*'],
+            sid: 'AdminAll'
+        })
+        CREATE (ct_stmt:AWSPolicyStatement {
+            id: 'arn:aws:iam::111111111111:role/AWSControlTowerExecution/inline_policy/CtAdmin/statement/1',
+            effect: 'Allow',
+            action: ['*'],
+            resource: ['*'],
+            sid: 'CtAdminAll'
+        })
+        MERGE (a)-[:RESOURCE]->(admin_user)
+        MERGE (a)-[:RESOURCE]->(ct_exec)
+        MERGE (a)-[:RESOURCE]->(ct_admin)
+        MERGE (a)-[:RESOURCE]->(quicksetup)
+        MERGE (admin_user)-[:POLICY]->(admin_policy)
+        MERGE (ct_exec)-[:POLICY]->(admin_policy)
+        MERGE (ct_admin)-[:POLICY]->(admin_policy)
+        MERGE (quicksetup)-[:POLICY]->(admin_policy)
+        MERGE (ct_exec)-[:POLICY]->(ct_only_policy)
+        MERGE (admin_policy)-[:STATEMENT]->(admin_stmt)
+        MERGE (ct_only_policy)-[:STATEMENT]->(ct_stmt)
+        """
+    )
+    fact = _get_fact(aws_policies_with_full_administrative_privileges)
+
+    # Act
+    findings = neo4j_session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
+    visual_rows = list(neo4j_session.run(fact.cypher_visual_query))
+    count_rows = list(neo4j_session.run(fact.cypher_count_query))
+
+    # Assert: only the human admin attachment is flagged. Control Tower / QuickSetup
+    # roles that hold AdministratorAccess by design are omitted, including a
+    # Control-Tower-only admin policy that has no other principal.
+    assert {row["policy_id"] for row in findings} == {
+        "arn:aws:iam::aws:policy/AdministratorAccess",
+    }
+    assert set(findings[0]["principal_arns"]) == {
+        "arn:aws:iam::111111111111:user/admin",
+    }
+    assert findings[0]["principal_count"] == 1
+    assert len(visual_rows) == 1
+    # Evaluated assets: AdministratorAccess via the human admin only. The
+    # Control-Tower-only inline policy is attached solely to an excluded role.
+    assert count_rows[0]["count"] == 1

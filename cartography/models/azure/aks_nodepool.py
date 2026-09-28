@@ -17,12 +17,23 @@ logger = logging.getLogger(__name__)
 # --- Node Definitions ---
 @dataclass(frozen=True)
 class AzureKubernetesNodePoolProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
-    vm_size: PropertyRef = PropertyRef("vm_size")
-    os_type: PropertyRef = PropertyRef("os_type")
-    count: PropertyRef = PropertyRef("count")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the agent pool."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the agent pool.")
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the agent pool.",
+    )
+    vm_size: PropertyRef = PropertyRef(
+        "vm_size", description="Virtual machine size used by nodes in the pool."
+    )
+    os_type: PropertyRef = PropertyRef(
+        "os_type", description="Operating system used by nodes in the pool."
+    )
+    count: PropertyRef = PropertyRef(
+        "count", description="Number of nodes in the agent pool."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +45,8 @@ class AzureKubernetesAgentPoolToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureKubernetesAgentPoolToClusterRel(CartographyRelSchema):
+    """An AKS cluster contains the agent pool."""
+
     target_node_label: str = "AzureKubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)},
@@ -52,6 +65,8 @@ class AzureKubernetesAgentPoolToSubscriptionRelProperties(CartographyRelProperti
 
 @dataclass(frozen=True)
 class AzureKubernetesAgentPoolToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the agent pool as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -66,6 +81,8 @@ class AzureKubernetesAgentPoolToSubscriptionRel(CartographyRelSchema):
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKubernetesNodePoolSchema(CartographyNodeSchema):
+    """An agent pool of virtual machine nodes in an AKS cluster."""
+
     label: str = "AzureKubernetesAgentPool"
     properties: AzureKubernetesNodePoolProperties = AzureKubernetesNodePoolProperties()
     other_relationships: OtherRelationships = OtherRelationships(

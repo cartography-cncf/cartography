@@ -4,8 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from digitalocean import Account
-from digitalocean import Manager
+from pydo import Client
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -18,12 +17,14 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    manager: Manager,
+    client: Client,
     update_tag: int,
     common_job_parameters: dict,
 ) -> str:
     logger.info("Syncing Account")
-    account = get_account(manager)
+    account = get_account(client)
+    if not account:
+        return ""
     account_transformed = transform_account(account)
     load_account(
         neo4j_session,
@@ -38,18 +39,24 @@ def sync(
 
 
 @timeit
-def get_account(manager: Manager) -> Account:
-    return manager.get_account()
+def get_account(client: Client) -> Dict[str, Any]:
+    result = client.account.get()
+    return result["account"]
 
 
 @timeit
-def transform_account(account_res: Account) -> dict:
+def transform_account(account_res: Dict[str, Any]) -> Dict[str, Any]:
+    uuid = account_res.get("uuid")
+    droplet_limit = account_res.get("droplet_limit")
+    floating_ip_limit = account_res.get("floating_ip_limit")
+    status = account_res.get("status")
+
     return {
-        "id": account_res.uuid,
-        "uuid": account_res.uuid,
-        "droplet_limit": account_res.droplet_limit,
-        "floating_ip_limit": account_res.floating_ip_limit,
-        "status": account_res.status,
+        "id": uuid,
+        "uuid": uuid,
+        "droplet_limit": droplet_limit,
+        "floating_ip_limit": floating_ip_limit,
+        "status": status,
     }
 
 

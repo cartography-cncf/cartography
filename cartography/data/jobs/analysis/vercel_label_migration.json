@@ -1,0 +1,10 @@
+{
+  "statements": [
+    {
+      "__comment__": "VercelAccessGroup used to carry a vercel-local :Group label instead of the :UserGroup ontology label. Strip stale :Group from pre-migration access groups. Idempotent (REMOVE on a missing label is a no-op).",
+      "query": "MATCH (n:VercelAccessGroup:Group) REMOVE n:Group",
+      "iterative": false
+    }
+  ],
+  "name": "Vercel ontology label migration"
+}

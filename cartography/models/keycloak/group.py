@@ -15,10 +15,16 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class KeycloakGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
-    path: PropertyRef = PropertyRef("path")
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier of the group"
+    )
+    name: PropertyRef = PropertyRef("name", description="The name of the group")
+    description: PropertyRef = PropertyRef(
+        "description", description="The description of the group"
+    )
+    path: PropertyRef = PropertyRef(
+        "path", description="The hierarchical path of the group"
+    )
     lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
@@ -30,6 +36,8 @@ class KeycloakGroupToRealmRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakGroup)<-[:RESOURCE]-(:KeycloakRealm)
 class KeycloakGroupToRealmRel(CartographyRelSchema):
+    """The realm contains the group."""
+
     target_node_label: str = "KeycloakRealm"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("REALM", set_in_kwargs=True)},
@@ -50,6 +58,8 @@ class KeycloakGroupToGroupRelProperties(CartographyRelProperties):
 # be removed in v1.0.0.
 # (:KeycloakGroup)-[:SUBGROUP_OF]->(:KeycloakGroup)
 class KeycloakGroupToGroupRel(CartographyRelSchema):
+    """Deprecated compatibility edge linking a subgroup to its parent group."""
+
     target_node_label: str = "KeycloakGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parentId")},
@@ -67,6 +77,8 @@ class KeycloakGroupToGroupMemberOfRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
 class KeycloakGroupToGroupMemberOfRel(CartographyRelSchema):
+    """The group is a member of its parent group."""
+
     target_node_label: str = "KeycloakGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parentId")},
@@ -86,6 +98,8 @@ class KeycloakGroupToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:KeycloakGroup)<-[:MEMBER_OF]-(:KeycloakUser)
 class KeycloakGroupToUserRel(CartographyRelSchema):
+    """Users can be members of the group."""
+
     target_node_label: str = "KeycloakUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_member_ids", one_to_many=True)},
@@ -106,6 +120,8 @@ class KeycloakGroupToRoleRelProperties(CartographyRelProperties):
 # removed in v1.0.0.
 # (:KeycloakGroup)-[:GRANTS]->(:KeycloakRole)
 class KeycloakGroupToRoleRel(CartographyRelSchema):
+    """Deprecated compatibility edge for a role granted to group members."""
+
     target_node_label: str = "KeycloakRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -126,6 +142,8 @@ class KeycloakGroupToRoleHasRoleRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserGroup)-[:HAS_ROLE]->(:PermissionRole)
 class KeycloakGroupToRoleHasRoleRel(CartographyRelSchema):
+    """The group has a role that applies to its members."""
+
     target_node_label: str = "KeycloakRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -142,6 +160,8 @@ class KeycloakGroupToRoleHasRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KeycloakGroupSchema(CartographyNodeSchema):
+    """Represents a group of users in Keycloak that can be used for organizing users and assigning roles."""
+
     label: str = "KeycloakGroup"
     properties: KeycloakGroupNodeProperties = KeycloakGroupNodeProperties()
     sub_resource_relationship: KeycloakGroupToRealmRel = KeycloakGroupToRealmRel()

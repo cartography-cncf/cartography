@@ -13,17 +13,43 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksAlertNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    alert_id: PropertyRef = PropertyRef("alert_id", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name", extra_index=True)
-    query_id: PropertyRef = PropertyRef("query_id", extra_index=True)
-    owner_user_name: PropertyRef = PropertyRef("owner_user_name", extra_index=True)
-    state: PropertyRef = PropertyRef("state")
-    lifecycle_state: PropertyRef = PropertyRef("lifecycle_state")
-    condition_op: PropertyRef = PropertyRef("condition_op")
-    parent_path: PropertyRef = PropertyRef("parent_path")
-    create_time: PropertyRef = PropertyRef("create_time")
-    update_time: PropertyRef = PropertyRef("update_time")
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the Databricks alert."
+    )
+    alert_id: PropertyRef = PropertyRef(
+        "alert_id", extra_index=True, description="Databricks alert identifier."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", extra_index=True, description="Display name of the alert."
+    )
+    query_id: PropertyRef = PropertyRef(
+        "query_id",
+        extra_index=True,
+        description="Identifier of the query monitored by the alert.",
+    )
+    owner_user_name: PropertyRef = PropertyRef(
+        "owner_user_name",
+        extra_index=True,
+        description="User name of the alert owner.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Current evaluation state of the alert."
+    )
+    lifecycle_state: PropertyRef = PropertyRef(
+        "lifecycle_state", description="Lifecycle state of the alert."
+    )
+    condition_op: PropertyRef = PropertyRef(
+        "condition_op", description="Comparison operator used by the alert condition."
+    )
+    parent_path: PropertyRef = PropertyRef(
+        "parent_path", description="Workspace path of the alert's parent folder."
+    )
+    create_time: PropertyRef = PropertyRef(
+        "create_time", description="Timestamp when the alert was created."
+    )
+    update_time: PropertyRef = PropertyRef(
+        "update_time", description="Timestamp when the alert was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,6 +61,8 @@ class DatabricksAlertToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksAlert)
 class DatabricksAlertToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this alert resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -54,6 +82,8 @@ class DatabricksAlertToQueryRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAlert)-[:MONITORS]->(:DatabricksQuery)
 class DatabricksAlertToQueryRel(CartographyRelSchema):
+    """A Databricks alert monitors a Databricks query."""
+
     target_node_label: str = "DatabricksQuery"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("query_scoped_id")},
@@ -67,6 +97,8 @@ class DatabricksAlertToQueryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksAlertSchema(CartographyNodeSchema):
+    """A Databricks SQL alert that evaluates a saved query."""
+
     label: str = "DatabricksAlert"
     properties: DatabricksAlertNodeProperties = DatabricksAlertNodeProperties()
     sub_resource_relationship: DatabricksAlertToWorkspaceRel = (

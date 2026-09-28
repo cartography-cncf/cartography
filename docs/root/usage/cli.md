@@ -64,8 +64,10 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 
 | Option | Description |
 |--------|-------------|
-| `-v, --verbose` | Enable debug logging |
+| `-d, --debug` | Enable debug logging |
+| `-v, --verbose` | Deprecated alias for `--debug`; scheduled for removal in v1.0.0 |
 | `-q, --quiet` | Only show warnings and errors |
+| `--version` | Show the Cartography release version and commit revision, then exit |
 | `--log-timestamps` | Prepend an ISO-8601 timestamp and level to each log line (off by default so log aggregators that add their own timestamp field don't get a redundant one) |
 | `--selected-modules` | Comma-separated list of modules to sync |
 | `--update-tag` | Custom update tag (default: current timestamp) |
@@ -79,6 +81,37 @@ Core, Neo4j, StatsD, and Analysis panels are always shown regardless of selected
 | `--neo4j-password-env-var` | Env var containing password |
 | `--neo4j-password-prompt` | Prompt for password interactively |
 | `--neo4j-database` | Database name |
+
+## Advanced Common Options
+
+### Neo4j Connection Lifecycle
+
+| Option | Description |
+|--------|-------------|
+| `--neo4j-max-connection-lifetime` | Maximum TCP connection lifetime in seconds before the driver replaces it. Default: `3600` |
+| `--neo4j-liveness-check-timeout` | Idle time in seconds before the driver checks a connection before reuse. Uses the Neo4j driver default when omitted |
+
+`--neo4j-liveness-check-timeout` can help with Aura or clustered deployments
+whose infrastructure closes idle connections.
+
+### StatsD Metrics
+
+| Option | Description |
+|--------|-------------|
+| `--statsd-enabled` | Enable StatsD metrics |
+| `--statsd-host` | StatsD server address. Default: `127.0.0.1` |
+| `--statsd-port` | StatsD server port. Default: `8125` |
+| `--statsd-prefix` | Prefix added to emitted metric names. Default: empty |
+
+### Custom Analysis Jobs
+
+| Option | Description |
+|--------|-------------|
+| `--analysis-job-directory` | Directory containing custom JSON analysis jobs to run at the end of the sync |
+
+Built-in enrichment uses typed analysis jobs and does not require this option.
+See [writing analysis jobs](../dev/writing-analysis-jobs.md) for the typed API
+and the legacy custom JSON format.
 
 ## Environment Variables
 

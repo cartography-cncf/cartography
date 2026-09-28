@@ -66,6 +66,17 @@ def test_load_vercel_access_groups(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "VercelAccessGroup", ["id"]) == expected_nodes
 
+    # Assert Access Groups carry the UserGroup ontology label and its normalized properties
+    record = neo4j_session.run(
+        """
+        MATCH (g:VercelAccessGroup:UserGroup {id: $id})
+        RETURN g._ont_name AS name, g._ont_source AS source
+        """,
+        id="ag_123",
+    ).single()
+    assert record["name"] == "Engineering"
+    assert record["source"] == "vercel"
+
     # Assert Access Groups are connected to VercelTeam via RESOURCE
     expected_team_rels = {
         ("ag_123", TEST_TEAM_ID),
@@ -102,6 +113,17 @@ def test_load_vercel_access_groups(mock_api, neo4j_session):
         )
         == expected_user_rels
     )
+
+    # Assert the canonical MEMBER_OF edge mirrors HAS_MEMBER in the ontology direction
+    assert check_rels(
+        neo4j_session,
+        "VercelUser",
+        "id",
+        "VercelAccessGroup",
+        "id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {(user_id, group_id) for group_id, user_id in expected_user_rels}
 
     # Assert Access Groups are connected to VercelProject via HAS_ACCESS_TO,
     # and the per-project role is captured on the relationship.

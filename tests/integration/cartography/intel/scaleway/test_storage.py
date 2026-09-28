@@ -210,6 +210,14 @@ def test_load_scaleway_object_storage_buckets(_mock_get, neo4j_session):
         ("cartography-private-bucket", "fr-par", False, False, False),
         ("cartography-public-bucket", "nl-ams", True, True, True),
     }
+    # exposed_internet inherits the tri-state of `public`, so a bucket whose ACL and policy
+    # were both unreadable keeps no verdict instead of being reported as safe.
+    assert check_nodes(
+        neo4j_session, "ScalewayObjectStorageBucket", ["id", "exposed_internet"]
+    ) == {
+        ("cartography-private-bucket", False),
+        ("cartography-public-bucket", True),
+    }
     # Assert the ObjectStorage ontology mapping populates normalized _ont_* fields.
     # _ont_public is mapped from the tri-state `public` field.
     assert check_nodes(

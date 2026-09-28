@@ -19,13 +19,26 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     Schema describing a RouteTable.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    route_table_id: PropertyRef = PropertyRef("route_table_id", extra_index=True)
-    owner_id: PropertyRef = PropertyRef("owner_id")
-    vpc_id: PropertyRef = PropertyRef("VpcId")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id", description="The ID of the route table")
+    route_table_id: PropertyRef = PropertyRef(
+        "route_table_id",
+        extra_index=True,
+        description="The ID of the route table (same as id)",
+    )
+    owner_id: PropertyRef = PropertyRef(
+        "owner_id", description="The AWS account ID of the route table owner"
+    )
+    vpc_id: PropertyRef = PropertyRef(
+        "VpcId", description="The ID of the VPC the route table is associated with"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region the route table is in"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    main: PropertyRef = PropertyRef("main")
+    main: PropertyRef = PropertyRef(
+        "main",
+        description="If True, this route table is the main route table for VPC, meaning that any subnets in this VPC not explicitly associated with another route table will use this route table.",
+    )
 
 
 @dataclass(frozen=True)
@@ -104,6 +117,9 @@ class RouteTableToVpnGatewayRelRelProperties(CartographyRelProperties):
 # TODO implement AWSVpnGateways
 @dataclass(frozen=True)
 class RouteTableToVpnGatewayRel(CartographyRelSchema):
+    # No edge can materialize until AWSVpnGateway nodes are implemented.
+    __cartography_introspection_exclude__ = True
+
     target_node_label: str = "AWSVpnGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpnGatewayIds", one_to_many=True)},
@@ -117,6 +133,8 @@ class RouteTableToVpnGatewayRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTable.html)."""
+
     label: str = "AWSEC2RouteTable"
     # DEPRECATED: legacy EC2RouteTable node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EC2_ROUTE_TABLE])

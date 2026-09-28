@@ -49,9 +49,129 @@ from cartography.models.azure.cosmosdb.virtualnetworkrule import (
 from cartography.models.azure.tags.cosmosdb_tag import AzureCosmosDBAccountTagsSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
+from .util.common import rename_keys
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+# azure-mgmt-cosmosdb 10.0.0 regenerated the package onto hybrid models, so `as_dict()`
+# now returns the ARM wire payload: resource-specific fields sit under `properties` with
+# camelCase names. The graph models read flat snake_case keys, so every payload is
+# normalized back to that shape here, leaving the graph contract untouched.
+_ACCOUNT_PROPERTY_MAP = {
+    "capabilities": ("capabilities",),
+    "connector_offer": ("connectorOffer",),
+    "consistency_policy": ("consistencyPolicy",),
+    "cors": ("cors",),
+    "database_account_offer_type": ("databaseAccountOfferType",),
+    "disable_key_based_metadata_write_access": ("disableKeyBasedMetadataWriteAccess",),
+    "document_endpoint": ("documentEndpoint",),
+    "enable_analytical_storage": ("enableAnalyticalStorage",),
+    "enable_automatic_failover": ("enableAutomaticFailover",),
+    "enable_cassandra_connector": ("enableCassandraConnector",),
+    "enable_free_tier": ("enableFreeTier",),
+    "enable_multiple_write_locations": ("enableMultipleWriteLocations",),
+    "failover_policies": ("failoverPolicies",),
+    "ip_rules": ("ipRules",),
+    "is_virtual_network_filter_enabled": ("isVirtualNetworkFilterEnabled",),
+    "key_vault_key_uri": ("keyVaultKeyUri",),
+    "locations": ("locations",),
+    "private_endpoint_connections": ("privateEndpointConnections",),
+    "provisioning_state": ("provisioningState",),
+    "public_network_access": ("publicNetworkAccess",),
+    "read_locations": ("readLocations",),
+    "virtual_network_rules": ("virtualNetworkRules",),
+    "write_locations": ("writeLocations",),
+}
+_CONSISTENCY_POLICY_KEY_MAP = {
+    "default_consistency_level": "defaultConsistencyLevel",
+    "max_staleness_prefix": "maxStalenessPrefix",
+    "max_interval_in_seconds": "maxIntervalInSeconds",
+}
+_IP_RULE_KEY_MAP = {"ip_address_or_range": "ipAddressOrRange"}
+_LOCATION_KEY_MAP = {
+    "location_name": "locationName",
+    "document_endpoint": "documentEndpoint",
+    "provisioning_state": "provisioningState",
+    "failover_priority": "failoverPriority",
+    "is_zone_redundant": "isZoneRedundant",
+}
+_CORS_KEY_MAP = {
+    "allowed_origins": "allowedOrigins",
+    "allowed_methods": "allowedMethods",
+    "allowed_headers": "allowedHeaders",
+    "exposed_headers": "exposedHeaders",
+    "max_age_in_seconds": "maxAgeInSeconds",
+}
+_VIRTUAL_NETWORK_RULE_KEY_MAP = {
+    "ignore_missing_v_net_service_endpoint": "ignoreMissingVNetServiceEndpoint",
+}
+_PRIVATE_ENDPOINT_CONNECTION_PROPERTY_MAP = {
+    "private_endpoint": ("privateEndpoint",),
+    "private_link_service_connection_state": ("privateLinkServiceConnectionState",),
+}
+_PRIVATE_LINK_STATE_KEY_MAP = {"actions_required": "actionsRequired"}
+# SQL databases and containers, MongoDB databases and collections, Cassandra keyspaces
+# and tables, and table resources all moved `resource` and `options` under `properties`.
+_CHILD_RESOURCE_PROPERTY_MAP = {
+    "resource": ("resource",),
+    "options": ("options",),
+}
+_OPTIONS_KEY_MAP = {"autoscale_setting": "autoscaleSettings"}
+_AUTOSCALE_SETTING_KEY_MAP = {"max_throughput": "maxThroughput"}
+_RESOURCE_KEY_MAP = {
+    "default_ttl": "defaultTtl",
+    "analytical_storage_ttl": "analyticalStorageTtl",
+    "indexing_policy": "indexingPolicy",
+    "conflict_resolution_policy": "conflictResolutionPolicy",
+}
+_INDEXING_POLICY_KEY_MAP = {"indexing_mode": "indexingMode"}
+
+
+def _normalize_database_account(database_account: Dict) -> Dict:
+    """
+    Normalize a DatabaseAccountGetResults payload to the flat snake_case shape the
+    Cosmos DB graph models read.
+    """
+    copy_properties(database_account, _ACCOUNT_PROPERTY_MAP)
+
+    rename_keys(database_account.get("consistency_policy"), _CONSISTENCY_POLICY_KEY_MAP)
+    for ip_rule in database_account.get("ip_rules") or []:
+        rename_keys(ip_rule, _IP_RULE_KEY_MAP)
+    for key in ("write_locations", "read_locations", "locations", "failover_policies"):
+        for location in database_account.get(key) or []:
+            rename_keys(location, _LOCATION_KEY_MAP)
+    for policy in database_account.get("cors") or []:
+        rename_keys(policy, _CORS_KEY_MAP)
+    for rule in database_account.get("virtual_network_rules") or []:
+        rename_keys(rule, _VIRTUAL_NETWORK_RULE_KEY_MAP)
+    for connection in database_account.get("private_endpoint_connections") or []:
+        copy_properties(connection, _PRIVATE_ENDPOINT_CONNECTION_PROPERTY_MAP)
+        rename_keys(
+            connection.get("private_link_service_connection_state"),
+            _PRIVATE_LINK_STATE_KEY_MAP,
+        )
+
+    return database_account
+
+
+def _normalize_child_resource(resource: Dict) -> Dict:
+    """
+    Normalize a SQL/MongoDB/Cassandra/table child resource payload to the flat
+    snake_case shape the Cosmos DB graph models read.
+    """
+    copy_properties(resource, _CHILD_RESOURCE_PROPERTY_MAP)
+
+    options = rename_keys(resource.get("options"), _OPTIONS_KEY_MAP)
+    if isinstance(options, dict):
+        rename_keys(options.get("autoscale_setting"), _AUTOSCALE_SETTING_KEY_MAP)
+
+    inner = rename_keys(resource.get("resource"), _RESOURCE_KEY_MAP)
+    if isinstance(inner, dict):
+        rename_keys(inner.get("indexing_policy"), _INDEXING_POLICY_KEY_MAP)
+
+    return resource
 
 
 @timeit
@@ -107,6 +227,7 @@ def transform_database_account_data(database_account_list: List[Dict]) -> List[D
     Transforming the database account response for neo4j ingestion.
     """
     for database_account in database_account_list:
+        _normalize_database_account(database_account)
         capabilities: List[str] = []
         iprules: List[str] = []
         if (
@@ -615,6 +736,7 @@ def transform_database_account_resources(
     Transform the SQL Database/Cassandra Keyspace/MongoDB Database/Table Resource response for neo4j ingestion.
     """
     for resource in resources:
+        _normalize_child_resource(resource)
         resource["database_account_name"] = name
         resource["database_account_id"] = account_id
         resource["resource_group_name"] = resource_group
@@ -886,6 +1008,7 @@ def load_sql_database_details(
     for database_id, container in details:
         if len(container) > 0:
             for c in container:
+                _normalize_child_resource(c)
                 c["database_id"] = database_id
             containers.extend(container)
 
@@ -1001,6 +1124,7 @@ def load_cassandra_keyspace_details(
     for keyspace_id, cassandra_table in details:
         if len(cassandra_table) > 0:
             for t in cassandra_table:
+                _normalize_child_resource(t)
                 t["keyspace_id"] = keyspace_id
             cassandra_tables.extend(cassandra_table)
 
@@ -1113,6 +1237,7 @@ def load_mongodb_databases_details(
     for database_id, collection in details:
         if len(collection) > 0:
             for c in collection:
+                _normalize_child_resource(c)
                 c["database_id"] = database_id
             collections.extend(collection)
 

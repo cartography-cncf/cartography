@@ -51,6 +51,7 @@ def test_sync_dependencies(mock_api, neo4j_session):
         ("dep-001", "lodash", "npm"),
         ("dep-002", "express", "npm"),
         ("dep-003", "requests", "pypi"),
+        ("dep-004", "package", "npm"),
     }
     assert (
         check_nodes(
@@ -66,6 +67,7 @@ def test_sync_dependencies(mock_api, neo4j_session):
         ("dep-001", TEST_ORG_ID),
         ("dep-002", TEST_ORG_ID),
         ("dep-003", TEST_ORG_ID),
+        ("dep-004", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -85,6 +87,7 @@ def test_sync_dependencies(mock_api, neo4j_session):
         ("dep-001", "acme-corp/frontend-app"),
         ("dep-002", "acme-corp/backend-api"),
         ("dep-003", "acme-corp/backend-api"),
+        ("dep-004", "acme-corp/frontend-app"),
     }
     assert (
         check_rels(

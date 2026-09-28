@@ -1,8 +1,17 @@
-from digitalocean import Account
+from typing import Any
 
-ACCOUNT_RESPONSE = Account(
-    uuid="123-4567-8789",
-    droplet_limit=1234,
-    floating_ip_limit=123,
-    status="active",
-)
+ACCOUNT_RESPONSE: dict[str, Any] = {
+    "account": {
+        "droplet_limit": 10,
+        "floating_ip_limit": 10,
+        "reserved_ip_limit": 10,
+        "volume_limit": 5000,
+        "email": "test@email.com",
+        "name": "Zach Saucier",
+        "uuid": "test-account-uuid",
+        "email_verified": True,
+        "status": "active",
+        "status_message": "",
+        "team": {"uuid": "test-owner-uuid", "name": "My Team"},
+    }
+}

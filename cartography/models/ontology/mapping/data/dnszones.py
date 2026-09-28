@@ -68,8 +68,31 @@ cloudflare_mapping = OntologyMapping(
     ],
 )
 
+# Netlify
+netlify_mapping = OntologyMapping(
+    module_name="netlify",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NetlifyDNSZone",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # Netlify DNS only hosts public zones; there is no private-zone concept.
+                OntologyFieldMapping(
+                    ontology_field="public",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": True},
+                ),
+            ],
+        ),
+    ],
+)
+
 DNSZONES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
     "cloudflare": cloudflare_mapping,
+    "netlify": netlify_mapping,
 }

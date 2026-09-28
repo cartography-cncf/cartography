@@ -45,8 +45,8 @@ class CloudflareSeed(Seed):
         for account in self._seed_accounts(mock_client):
             self._seed_roles(mock_client, account)
             self._seed_members(mock_client, account)
-            for zone in self._seed_zones(mock_client, account):
-                self._seed_dns_records(mock_client, zone)
+            zones = self._seed_zones(mock_client, account)
+            self._seed_dns_records(mock_client, account, zones)
 
     def _seed_accounts(self, mock_client: Mock) -> list[dict]:
         return cartography.intel.cloudflare.accounts.sync(
@@ -90,13 +90,16 @@ class CloudflareSeed(Seed):
             account_id=account["id"],
         )
 
-    def _seed_dns_records(self, mock_client: Mock, zone: dict) -> None:
+    def _seed_dns_records(
+        self, mock_client: Mock, account: dict, zones: list[dict]
+    ) -> None:
         cartography.intel.cloudflare.dnsrecords.sync(
             self.neo4j_session,
             mock_client,
             {
                 "UPDATE_TAG": self.update_tag,
-                "zone_id": zone["id"],
+                "account_id": account["id"],
             },
-            zone_id=zone["id"],
+            account_id=account["id"],
+            zones=zones,
         )

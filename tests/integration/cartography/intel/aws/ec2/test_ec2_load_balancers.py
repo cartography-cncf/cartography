@@ -4,9 +4,12 @@ from unittest.mock import patch
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.load_balancers
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
 from cartography.intel.aws.ec2.load_balancers import _migrate_legacy_loadbalancer_labels
 from cartography.intel.aws.ec2.load_balancers import sync_load_balancers
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LB_DNS_NAME
+from tests.data.aws.ec2.load_balancer_v2s import MIXED_CASE_LOAD_BALANCER_V2_DATA
 from tests.data.aws.ec2.load_balancers import DESCRIBE_LOAD_BALANCERS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -167,7 +170,14 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
         MERGE (private_ip:AWSEC2PrivateIp{private_ip_address: $private_ip_address})
         ON CREATE SET private_ip.firstseen = timestamp()
-        SET private_ip.lastupdated = $aws_update_tag
+        SET private_ip.lastupdated = $aws_update_tag,
+            private_ip.id = 'eni-target:' + $private_ip_address
+        MERGE (eni:AWSNetworkInterface {id: 'eni-target'})
+        SET eni.region = 'us-east-1', elbv2.region = 'us-east-1'
+        MERGE (eni)-[:PRIVATE_IP_ADDRESS]->(private_ip)
+        MERGE (subnet:AWSEC2Subnet {id: 'subnet-target'})
+        SET subnet.vpc_id = 'vpc-12345'
+        MERGE (eni)-[:PART_OF_SUBNET]->(subnet)
 
         MERGE (lambda_fn:AWSLambda{id: $lambda_arn})
         ON CREATE SET lambda_fn.firstseen = timestamp()
@@ -180,6 +190,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag, aws :Tenant
+        MERGE (aws)-[:RESOURCE]->(elbv2)
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
@@ -662,3 +673,41 @@ def test_migrate_legacy_loadbalancer_labels_is_scoped_and_idempotent(
         account_id=other_account_id,
     ).single()
     assert other_migrated["has_aws_label"] is False
+
+
+def test_load_balancer_v2_dnsname_is_lowercased(neo4j_session):
+    """
+    AWS preserves the load balancer name's case in DNSName. `dnsname` is lowercased at
+    ingestion so equality matchers (Route53 aliases, Kubernetes load balancer status
+    hostnames) still hit it, while `id` stays raw because listeners join against it.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    load_load_balancer_v2s(
+        neo4j_session,
+        MIXED_CASE_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(neo4j_session, "AWSLoadBalancerV2", ["id", "dnsname"]) == {
+        (MIXED_CASE_LB_DNS_NAME, MIXED_CASE_LB_DNS_NAME.lower()),
+    }
+
+    # Listeners join on the raw id, so they must still attach.
+    assert check_rels(
+        neo4j_session,
+        "AWSELBV2Listener",
+        "id",
+        "AWSLoadBalancerV2",
+        "id",
+        "ELBV2_LISTENER",
+        rel_direction_right=False,
+    ) == {
+        (
+            "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/My-Mixed-ALB/9999999999999999/1111111111111111",
+            MIXED_CASE_LB_DNS_NAME,
+        ),
+    }

@@ -12,9 +12,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TenableNetworkNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Tenable network UUID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", description="Tenable network name.")
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,8 @@ class TenableNetworkToTenantRelProperties(CartographyRelProperties):
 # (:TenableTenant)-[:RESOURCE]->(:TenableNetwork)
 @dataclass(frozen=True)
 class TenableNetworkToTenantRel(CartographyRelSchema):
+    """Links a Tenable tenant to one of its logical networks."""
+
     target_node_label: str = "TenableTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENABLE_TENANT_ID", set_in_kwargs=True)},
@@ -38,6 +40,8 @@ class TenableNetworkToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TenableNetworkSchema(CartographyNodeSchema):
+    """A logical network that groups Tenable assets."""
+
     label: str = "TenableNetwork"
     properties: TenableNetworkNodeProperties = TenableNetworkNodeProperties()
     sub_resource_relationship: TenableNetworkToTenantRel = TenableNetworkToTenantRel()

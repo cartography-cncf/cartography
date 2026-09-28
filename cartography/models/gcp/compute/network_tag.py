@@ -13,9 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPNetworkTagNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("tag_id")
+    id: PropertyRef = PropertyRef(
+        "tag_id",
+        description="GCP doesn't define a resource URI for Tags so we define this as `{instance resource URI}/tags/{tag value}`.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    value: PropertyRef = PropertyRef("value")
+    value: PropertyRef = PropertyRef(
+        "value", description="The actual value of the tag."
+    )
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,8 @@ class GCPNetworkTagToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPNetworkTagSchema(CartographyNodeSchema):
+    """A Google Cloud Network Tag resource."""
+
     label: str = "GCPNetworkTag"
     properties: GCPNetworkTagNodeProperties = GCPNetworkTagNodeProperties()
     sub_resource_relationship: GCPNetworkTagToProjectRel = GCPNetworkTagToProjectRel()

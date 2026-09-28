@@ -13,14 +13,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksCleanRoomNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    metastore_id: PropertyRef = PropertyRef("metastore_id", extra_index=True)
-    owner: PropertyRef = PropertyRef("owner", extra_index=True)
-    comment: PropertyRef = PropertyRef("comment")
-    access_restricted: PropertyRef = PropertyRef("access_restricted")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef(
+        "id", description="Metastore-scoped identifier for the clean room."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the clean room."
+    )
+    metastore_id: PropertyRef = PropertyRef(
+        "metastore_id",
+        extra_index=True,
+        description="Identifier of the metastore that contains the clean room.",
+    )
+    owner: PropertyRef = PropertyRef(
+        "owner", extra_index=True, description="Principal that owns the clean room."
+    )
+    comment: PropertyRef = PropertyRef(
+        "comment", description="User-provided description of the clean room."
+    )
+    access_restricted: PropertyRef = PropertyRef(
+        "access_restricted",
+        description="Whether access to the clean room is restricted.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the clean room was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the clean room was last updated."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +51,8 @@ class DatabricksCleanRoomToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksCleanRoom)
 class DatabricksCleanRoomToWorkspaceRel(CartographyRelSchema):
+    """A Databricks clean room is a resource within a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -51,6 +72,8 @@ class DatabricksCleanRoomToMetastoreRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksMetastore)-[:CONTAINS]->(:DatabricksCleanRoom)
 class DatabricksCleanRoomToMetastoreRel(CartographyRelSchema):
+    """A Databricks metastore contains a clean room."""
+
     target_node_label: str = "DatabricksMetastore"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("metastore_id")},
@@ -64,6 +87,8 @@ class DatabricksCleanRoomToMetastoreRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksCleanRoomSchema(CartographyNodeSchema):
+    """A Databricks clean room for privacy-preserving data collaboration."""
+
     label: str = "DatabricksCleanRoom"
     properties: DatabricksCleanRoomNodeProperties = DatabricksCleanRoomNodeProperties()
     sub_resource_relationship: DatabricksCleanRoomToWorkspaceRel = (

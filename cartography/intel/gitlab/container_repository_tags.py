@@ -68,6 +68,7 @@ def get_container_repository_tags(
     return detailed_tags
 
 
+@timeit
 def get_all_container_repository_tags(
     gitlab_url: str,
     token: str,
@@ -97,6 +98,26 @@ def get_all_container_repository_tags(
         "Fetched %s tags across %s repositories", len(all_tags), len(repositories)
     )
     return all_tags
+
+
+def group_tags_by_repository(
+    raw_tags: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Group raw tag records by their parent repository location.
+
+    The image sync consumes this to resolve each tag's manifest digest without a
+    registry round trip: get_container_repository_tags already paid for the tag
+    detail endpoint, which reports the digest, so re-deriving it from a manifest
+    fetch is wasted work.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for tag in raw_tags:
+        repository_location = tag.get("_repository_location")
+        if not repository_location:
+            continue
+        grouped.setdefault(str(repository_location), []).append(tag)
+    return grouped
 
 
 def transform_container_repository_tags(
@@ -169,13 +190,19 @@ def sync_container_repository_tags(
     repositories: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    raw_tags: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Sync GitLab container repository tags for an organization.
+
+    Pass ``raw_tags`` to reuse records already fetched by the caller. The tag
+    detail endpoint costs one request per tag, so the container phase fetches
+    them once and shares them with the image sync rather than fetching twice.
     """
     logger.info(f"Syncing container repository tags for organization {org_id}")
 
-    raw_tags = get_all_container_repository_tags(gitlab_url, token, repositories)
+    if raw_tags is None:
+        raw_tags = get_all_container_repository_tags(gitlab_url, token, repositories)
 
     transformed = transform_container_repository_tags(raw_tags)
     load_container_repository_tags(

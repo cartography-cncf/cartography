@@ -9,9 +9,20 @@ from cartography.graph.job import GraphJob
 from cartography.models.azure.event_hub_namespace import AzureEventHubsNamespaceSchema
 from cartography.util import timeit
 
+from .util.common import copy_properties
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+# azure-mgmt-eventhub 12.0.0 regenerated the package onto hybrid models, so `as_dict()`
+# now returns the ARM wire payload: resource-specific fields sit under `properties` with
+# camelCase names. The graph models read flat snake_case keys, so the payload is
+# normalized back to that shape here, leaving the graph contract untouched.
+_NAMESPACE_PROPERTY_MAP = {
+    "is_auto_inflate_enabled": ("isAutoInflateEnabled",),
+    "maximum_throughput_units": ("maximumThroughputUnits",),
+    "provisioning_state": ("provisioningState",),
+}
 
 
 @timeit
@@ -25,23 +36,18 @@ def get_event_hub_namespaces(client: EventHubManagementClient) -> list[Any]:
 def transform_namespaces(namespaces_raw: list[Any]) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     for ns_raw in namespaces_raw:
-        ns = ns_raw.as_dict()
+        ns = copy_properties(ns_raw.as_dict(), _NAMESPACE_PROPERTY_MAP)
+        sku = ns.get("sku") or {}
         transformed.append(
             {
                 "id": ns.get("id"),
                 "name": ns.get("name"),
                 "location": ns.get("location"),
-                "sku_name": ns.get("sku", {}).get("name"),
-                "sku_tier": ns.get("sku", {}).get("tier"),
-                "provisioning_state": ns.get("properties", {}).get(
-                    "provisioning_state"
-                ),
-                "is_auto_inflate_enabled": ns.get("properties", {}).get(
-                    "is_auto_inflate_enabled"
-                ),
-                "maximum_throughput_units": ns.get("properties", {}).get(
-                    "maximum_throughput_units"
-                ),
+                "sku_name": sku.get("name"),
+                "sku_tier": sku.get("tier"),
+                "provisioning_state": ns.get("provisioning_state"),
+                "is_auto_inflate_enabled": ns.get("is_auto_inflate_enabled"),
+                "maximum_throughput_units": ns.get("maximum_throughput_units"),
             }
         )
     return transformed

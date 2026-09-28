@@ -45,6 +45,7 @@ CIS_AWS_CONTROL_TITLES = {
 }
 
 CIS_GCP_CONTROL_TITLES = {
+    "1.10": "Ensure KMS Encryption Keys Are Rotated Within a Period of 90 Days",
     "3.1": "Ensure That the Default Network Does Not Exist in a Project",
     "3.3": "Ensure That DNSSEC Is Enabled for Cloud DNS",
     "3.4": "Ensure That RSASHA1 Is Not Used for the Key-Signing Key in Cloud DNS DNSSEC",

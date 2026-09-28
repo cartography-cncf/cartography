@@ -14,15 +14,30 @@ from cartography.models.ontology.labels import NETWORK_ACCESS_CONTROL
 
 @dataclass(frozen=True)
 class GCPCloudArmorPolicyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("partial_uri")
-    partial_uri: PropertyRef = PropertyRef("partial_uri")
+    id: PropertyRef = PropertyRef(
+        "partial_uri", description="Stable identifier for this resource."
+    )
+    partial_uri: PropertyRef = PropertyRef("partial_uri", description="Same as `id`.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    self_link: PropertyRef = PropertyRef("self_link")
-    project_id: PropertyRef = PropertyRef("project_id")
-    description: PropertyRef = PropertyRef("description")
-    policy_type: PropertyRef = PropertyRef("policy_type")
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="The name of the security policy."
+    )
+    self_link: PropertyRef = PropertyRef(
+        "self_link", description="Server-defined URL for the resource."
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The project ID that this policy belongs to."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="An optional description of this security policy."
+    )
+    policy_type: PropertyRef = PropertyRef(
+        "policy_type",
+        description="The type of the security policy (e.g., `CLOUD_ARMOR`).",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp", description="Creation timestamp of the resource."
+    )
 
 
 @dataclass(frozen=True)
@@ -47,6 +62,8 @@ class GCPCloudArmorPolicyToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudArmorPolicySchema(CartographyNodeSchema):
+    """Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services."""
+
     label: str = "GCPCloudArmorPolicy"
     properties: GCPCloudArmorPolicyNodeProperties = GCPCloudArmorPolicyNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_ACCESS_CONTROL])

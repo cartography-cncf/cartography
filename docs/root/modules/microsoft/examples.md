@@ -1,4 +1,4 @@
-## Microsoft Examples
+# Microsoft Examples
 
 Here are some common query patterns for working with Microsoft Entra applications and access management.
 

@@ -21,6 +21,8 @@ class GroupContainerToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GroupContainerToTagRel(CartographyRelSchema):
+    """An Azure Container Instances container group has the tag."""
+
     target_node_label: str = "AzureGroupContainer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class GroupContainerToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureGroupContainerTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

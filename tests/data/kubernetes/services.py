@@ -1,6 +1,13 @@
 import json
 from uuid import uuid4
 
+from kubernetes.client import V1LoadBalancerIngress
+from kubernetes.client import V1LoadBalancerStatus
+from kubernetes.client import V1ObjectMeta
+from kubernetes.client import V1Service
+from kubernetes.client import V1ServiceSpec
+from kubernetes.client import V1ServiceStatus
+
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
@@ -139,4 +146,34 @@ KUBERNETES_MULTI_LB_SERVICE_DATA = [
             AWS_TEST_LB_DNS_NAME_2,
         ],
     },
+]
+
+# The AWS Load Balancer Controller copies the ELB DNSName verbatim into the service status,
+# and AWS preserves the load balancer name's case there. Kept raw so tests exercise
+# transform_services rather than a hand-written load_balancer_dns_names.
+MIXED_CASE_LB_HOSTNAME = "My-Mixed-ALB-1234567890.us-east-1.elb.amazonaws.com"
+
+KUBERNETES_MIXED_CASE_LB_SERVICE_RAW = [
+    V1Service(
+        metadata=V1ObjectMeta(
+            uid=uuid4().hex,
+            name="mixed-case-lb-service",
+            namespace=KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+            creation_timestamp=None,
+            deletion_timestamp=None,
+        ),
+        spec=V1ServiceSpec(
+            type="LoadBalancer",
+            selector={"app": "mixed-case-app"},
+            cluster_ip="10.0.0.3",
+            load_balancer_ip=None,
+        ),
+        status=V1ServiceStatus(
+            load_balancer=V1LoadBalancerStatus(
+                ingress=[
+                    V1LoadBalancerIngress(hostname=MIXED_CASE_LB_HOSTNAME),
+                ],
+            ),
+        ),
+    ),
 ]

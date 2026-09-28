@@ -14,14 +14,33 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GuardDutyDetectorNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    accountid: PropertyRef = PropertyRef("accountid")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    status: PropertyRef = PropertyRef("status")
-    findingpublishingfrequency: PropertyRef = PropertyRef("findingpublishingfrequency")
-    service_role: PropertyRef = PropertyRef("service_role")
-    createdat: PropertyRef = PropertyRef("createdat")
-    updatedat: PropertyRef = PropertyRef("updatedat")
+    id: PropertyRef = PropertyRef(
+        "id", description="The unique identifier for the GuardDuty detector"
+    )
+    accountid: PropertyRef = PropertyRef(
+        "accountid", description="The AWS Account ID the detector belongs to"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS Region where the detector is deployed",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Whether the detector is enabled or disabled"
+    )
+    findingpublishingfrequency: PropertyRef = PropertyRef(
+        "findingpublishingfrequency",
+        description="Frequency with which GuardDuty publishes findings",
+    )
+    service_role: PropertyRef = PropertyRef(
+        "service_role", description="IAM service role used by GuardDuty"
+    )
+    createdat: PropertyRef = PropertyRef(
+        "createdat", description="Timestamp when the detector was created"
+    )
+    updatedat: PropertyRef = PropertyRef(
+        "updatedat", description="Timestamp when the detector was last updated"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -45,6 +64,8 @@ class GuardDutyDetectorToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GuardDutyDetectorSchema(CartographyNodeSchema):
+    """Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html)."""
+
     label: str = "AWSGuardDutyDetector"
     # DEPRECATED: legacy GuardDutyDetector node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GUARD_DUTY_DETECTOR])

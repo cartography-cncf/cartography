@@ -2,6 +2,7 @@ TENABLE_TENANT_ID = "cloud.tenable.com"
 
 ASSET_ID_1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 ASSET_ID_2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+GCP_ASSET_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
 
 NETWORK_ID = "00000000-0000-0000-0000-000000000000"
 
@@ -9,6 +10,7 @@ TAG_ID_1 = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 
 AWS_EC2_INSTANCE_ID_1 = "i-1234567890abcdef0"
 AZURE_VM_ID_2 = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+GCP_INSTANCE_ID = "1234567890123456789"
 
 ASSETS_DATA = [
     {
@@ -135,3 +137,14 @@ ASSETS_DATA = [
         "tags": [],
     },
 ]
+
+GCP_ASSET_DATA = {
+    "id": GCP_ASSET_ID,
+    "cloud": {
+        "gcp": {
+            "instance_id": GCP_INSTANCE_ID,
+            "project_id": "example-project",
+            "zone": "us-central1-a",
+        },
+    },
+}

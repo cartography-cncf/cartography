@@ -15,13 +15,33 @@ from cartography.models.extra_labels import FIX
 
 @dataclass(frozen=True)
 class SocketDevFixNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique Socket.dev fix identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    purl: PropertyRef = PropertyRef("purl")
-    fixed_version: PropertyRef = PropertyRef("fixed_version")
-    update_type: PropertyRef = PropertyRef("update_type")
-    vulnerability_id: PropertyRef = PropertyRef("vulnerability_id", extra_index=True)
-    fix_type: PropertyRef = PropertyRef("fix_type", extra_index=True)
+    purl: PropertyRef = PropertyRef(
+        "purl",
+        description="Package URL of the affected package.",
+    )
+    fixed_version: PropertyRef = PropertyRef(
+        "fixed_version",
+        description="Package version that fixes the vulnerability.",
+    )
+    update_type: PropertyRef = PropertyRef(
+        "update_type",
+        description="Type of version update required.",
+    )
+    vulnerability_id: PropertyRef = PropertyRef(
+        "vulnerability_id",
+        extra_index=True,
+        description="CVE or GHSA identifier addressed by the fix.",
+    )
+    fix_type: PropertyRef = PropertyRef(
+        "fix_type",
+        extra_index=True,
+        description="Availability classification for the fix.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +52,8 @@ class SocketDevOrgToFixRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SocketDevOrganization)-[:RESOURCE]->(:SocketDevFix)
 class SocketDevOrgToFixRel(CartographyRelSchema):
+    """Links a Socket.dev organization to one of its available fixes."""
+
     target_node_label: str = "SocketDevOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -49,6 +71,8 @@ class SocketDevFixToAlertRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SocketDevFix)-[:APPLIES_TO]->(:SocketDevAlert)
 class SocketDevFixToAlertRel(CartographyRelSchema):
+    """Links an available fix to the alert it addresses."""
+
     target_node_label: str = "SocketDevAlert"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("alert_id")},
@@ -66,6 +90,8 @@ class SocketDevFixToDependencyRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SocketDevDependency)-[:SHOULD_UPDATE_TO]->(:SocketDevFix)
 class SocketDevFixToDependencyRel(CartographyRelSchema):
+    """Links a dependency to the fix version it should use."""
+
     target_node_label: str = "SocketDevDependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("dependency_id")},
@@ -79,6 +105,8 @@ class SocketDevFixToDependencyRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SocketDevFixSchema(CartographyNodeSchema):
+    """An available remediation for a Socket.dev vulnerability alert."""
+
     label: str = "SocketDevFix"
     properties: SocketDevFixNodeProperties = SocketDevFixNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([FIX])

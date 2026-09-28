@@ -25,6 +25,18 @@ def test_build_yearly_cve_batches_groups_by_feed_year():
     ]
 
 
+@patch.object(cve_metadata, "load")
+def test_load_cve_metadata_bounds_batch_size(mock_load):
+    """Each row fans out to every :CVE-labelled node, so transactions must stay small."""
+    cve_metadata.load_cve_metadata(MagicMock(), [{"id": "CVE-2024-0001"}], 123)
+
+    assert (
+        mock_load.call_args.kwargs["batch_size"] == cve_metadata.CVE_METADATA_BATCH_SIZE
+    )
+    # Guard against someone raising this back toward the 10000-row load() default.
+    assert cve_metadata.CVE_METADATA_BATCH_SIZE <= 500
+
+
 @patch.object(cve_metadata, "merge_module_sync_metadata")
 @patch.object(GraphJob, "from_node_schema")
 @patch.object(cve_metadata, "run_analysis_job")

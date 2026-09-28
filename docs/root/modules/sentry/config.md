@@ -1,20 +1,41 @@
-## Sentry Configuration
+# Sentry Configuration
 
-Follow these steps to analyze Sentry objects with Cartography.
+## Authentication
 
-1. Create an [Internal Integration](https://docs.sentry.io/organization/integrations/integration-platform/internal-integration/) in your Sentry organization.
-    1. Go to **Settings** > **Developer Settings** > **Custom Integrations** > **Create New Integration**.
-    1. Select **Internal Integration**.
-    1. Grant the integration the following scopes: `org:read`, `member:read`, `project:read`, `project:releases`, `alerts:read`, `team:read`.
-    1. Save and copy the generated token.
-    1. Populate an environment variable with the token.
+Create a Sentry [Internal Integration](https://docs.sentry.io/organization/integrations/integration-platform/internal-integration/):
 
-1. Run Cartography with the following options:
+1. Open **Settings** > **Developer Settings** > **Custom Integrations** > **Create New Integration**.
+1. Select **Internal Integration**.
+1. Save the integration and copy its generated token into an environment variable.
 
-   ```bash
-   cartography --sentry-token-env-var SENTRY_TOKEN --sentry-org your-org-slug
-   ```
+## Required Permissions
 
-   - `--sentry-token-env-var`: Environment variable name containing the internal integration token.
-   - `--sentry-org`: Your Sentry organization slug (visible in the URL: `https://sentry.io/organizations/<slug>/`).
-   - `--sentry-host` (optional): Sentry host URL for self-hosted instances (default: `https://sentry.io`).
+Grant the integration these scopes:
+
+- `org:read`
+- `member:read`
+- `project:read`
+- `project:releases`
+- `alerts:read`
+- `team:read`
+
+## Configure Cartography
+
+Provide these options:
+
+- `--sentry-token-env-var`: Name of the environment variable containing the integration token.
+- `--sentry-org`: Organization slug from a URL such as `https://sentry.io/organizations/<slug>/`.
+
+## Run Cartography
+
+```bash
+export SENTRY_TOKEN='<integration-token>'
+cartography \
+  --selected-modules sentry \
+  --sentry-token-env-var SENTRY_TOKEN \
+  --sentry-org '<organization-slug>'
+```
+
+## Advanced Configuration
+
+For a self-hosted instance, set `--sentry-host` to its host URL. The default is `https://sentry.io`.

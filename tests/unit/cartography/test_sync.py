@@ -10,24 +10,29 @@ from cartography.sync import TOP_LEVEL_MODULES
 
 
 def test_available_modules_import():
-    # Check if all available modules are defined in the TOP_LEVEL_MODULES list
+    # Act and assert
     assert sorted(TOP_LEVEL_MODULES.keys()) == sorted(Sync.list_intel_modules().keys())
 
 
 def test_build_default_sync():
+    # Act
     sync = build_default_sync()
-    # Use list because order matters
+
+    # Assert; use list because order matters
     assert [name for name in sync._stages.keys()] == list(TOP_LEVEL_MODULES.keys())
 
 
 def test_default_sync_runs_cve_metadata_after_cve_producers():
+    # Arrange
     stage_names = list(TOP_LEVEL_MODULES.keys())
     cve_metadata_index = stage_names.index("cve_metadata")
 
+    # Act and assert
     for producer in (
         "crowdstrike",
         "cve",
         "github",
+        "orca",
         "semgrep",
         "trivy",
         "ubuntu",

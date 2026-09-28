@@ -13,11 +13,24 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCloudSQLAuthorizedNetworkProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    value: PropertyRef = PropertyRef("value")
-    expiration_time: PropertyRef = PropertyRef("expiration_time")
-    instance_id: PropertyRef = PropertyRef("instance_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="`{instance_self_link}/authorizedNetworks/{value}`."
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Human-readable label assigned to the authorized network entry.",
+    )
+    value: PropertyRef = PropertyRef(
+        "value",
+        description="The CIDR allowed inbound, e.g. `203.0.113.0/24` or `0.0.0.0/0`.",
+    )
+    expiration_time: PropertyRef = PropertyRef(
+        "expiration_time",
+        description="RFC 3339 timestamp at which the entry expires, if set.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id", description="The selfLink of the parent GCPCloudSQLInstance."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -59,6 +72,8 @@ class AuthorizedNetworkToSqlInstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudSQLAuthorizedNetworkSchema(CartographyNodeSchema):
+    """A CIDR entry authorized to connect to a Cloud SQL instance."""
+
     label: str = "GCPCloudSQLAuthorizedNetwork"
     properties: GCPCloudSQLAuthorizedNetworkProperties = (
         GCPCloudSQLAuthorizedNetworkProperties()

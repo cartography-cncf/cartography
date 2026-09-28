@@ -1,0 +1,16 @@
+{
+  "name": "Cloudflare DNS record RESOURCE edge migration",
+  "statements": [
+    {
+      "__comment__": "DEPRECATED: temporary backward-compatibility migration. Earlier versions scoped CloudflareDNSRecord cleanup via RESOURCE from CloudflareZone (per-zone); the schema now uses RESOURCE from CloudflareAccount as the sub_resource. Backfill the RESOURCE edge for every existing CloudflareDNSRecord reachable from the currently-syncing CloudflareAccount via its zones, so records that the API no longer returns fall inside the account-scoped cleanup instead of lingering forever. lastupdated is copied from the record, which keeps stale records stale and therefore eligible for cleanup. Scoped by $account_id so multi-account refreshes don't redo the full graph each time. Idempotent (MERGE). Remove in v1.0.0.",
+      "query": "MATCH (a:CloudflareAccount {id: $account_id})-[:RESOURCE]->(:CloudflareZone)-[:RESOURCE]->(r:CloudflareDNSRecord) MERGE (a)-[rel:RESOURCE]->(r) ON CREATE SET rel.lastupdated = r.lastupdated",
+      "iterative": false
+    },
+    {
+      "__comment__": "DEPRECATED: same migration, second case. Under the per-zone scoping, a zone dropped from the API was DETACH DELETEd by the zone cleanup before its records were ever reconciled, which took the only path to them with it. Those records carry no incoming RESOURCE edge at all, so the backfill above cannot reach them and no account-scoped cleanup ever will. A record owned by neither an account nor a zone is unattributable garbage, so sweep it globally: this runs after the backfill, which means records that just gained their account edge are not candidates. Remove in v1.0.0.",
+      "query": "MATCH (r:CloudflareDNSRecord) WHERE NOT (r)<-[:RESOURCE]-() WITH r LIMIT $LIMIT_SIZE DETACH DELETE r RETURN count(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ]
+}

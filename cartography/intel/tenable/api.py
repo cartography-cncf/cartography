@@ -77,7 +77,13 @@ def _download_chunk(
     url = f"{base_url}/{result_base}/{export_uuid}/chunks/{chunk_id}"
     response = session.get(url, timeout=(30, 120))
     response.raise_for_status()
-    return response.json()
+    chunk_data = response.json()
+    if not isinstance(chunk_data, list):
+        raise TypeError(
+            f"Tenable export chunk {chunk_id} returned "
+            f"{type(chunk_data).__name__}; expected a list"
+        )
+    return chunk_data
 
 
 def export_and_download(
@@ -103,19 +109,40 @@ def export_and_download(
     :return: Aggregated list of all exported records
     """
     export_uuid = _initiate_export(session, base_url, export_path, export_params)
-    logger.info("Initiated Tenable export %s (endpoint: %s)", export_uuid, export_path)
+    logger.debug("Initiated Tenable export %s (endpoint: %s)", export_uuid, export_path)
 
     for attempt in range(1, _MAX_POLL_ATTEMPTS + 1):
         status_data = _get_export_status(session, base_url, result_base, export_uuid)
-        status = status_data.get("status")
+        status = status_data["status"]
 
         if status == "ERROR":
             raise RuntimeError(f"Tenable export {export_uuid} failed with status ERROR")
         if status == "CANCELLED":
             raise RuntimeError(f"Tenable export {export_uuid} was cancelled")
         if status == "FINISHED":
-            chunks = status_data.get("chunks_available") or []
-            logger.info(
+            chunks = status_data["chunks_available"]
+            if not isinstance(chunks, list):
+                raise TypeError(
+                    f"Tenable export {export_uuid} chunks_available returned "
+                    f"{type(chunks).__name__}; expected a list"
+                )
+            chunks_failed = status_data.get("chunks_failed", [])
+            chunks_cancelled = status_data.get("chunks_cancelled", [])
+            for field_name, incomplete_chunks in (
+                ("chunks_failed", chunks_failed),
+                ("chunks_cancelled", chunks_cancelled),
+            ):
+                if not isinstance(incomplete_chunks, list):
+                    raise TypeError(
+                        f"Tenable export {export_uuid} {field_name} returned "
+                        f"{type(incomplete_chunks).__name__}; expected a list"
+                    )
+            if chunks_failed or chunks_cancelled:
+                raise RuntimeError(
+                    f"Tenable export {export_uuid} finished with incomplete chunks: "
+                    f"failed={chunks_failed}, cancelled={chunks_cancelled}"
+                )
+            logger.debug(
                 "Tenable export %s finished; downloading %d chunk(s)",
                 export_uuid,
                 len(chunks),
@@ -131,15 +158,16 @@ def export_and_download(
                 results.extend(chunk_data)
             return results
 
-        logger.info(
-            "Tenable export %s status: %s (attempt %d/%d) — waiting %ds",
-            export_uuid,
-            status,
-            attempt,
-            _MAX_POLL_ATTEMPTS,
-            _EXPORT_POLL_INTERVAL,
-        )
-        time.sleep(_EXPORT_POLL_INTERVAL)
+        if attempt < _MAX_POLL_ATTEMPTS:
+            logger.debug(
+                "Tenable export %s status: %s (attempt %d/%d); waiting %ds",
+                export_uuid,
+                status,
+                attempt,
+                _MAX_POLL_ATTEMPTS,
+                _EXPORT_POLL_INTERVAL,
+            )
+            time.sleep(_EXPORT_POLL_INTERVAL)
 
     raise TimeoutError(
         f"Tenable export {export_uuid} did not finish after "

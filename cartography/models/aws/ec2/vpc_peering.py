@@ -13,20 +13,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class VPCPeeringNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("VpcPeeringConnectionId")
+    id: PropertyRef = PropertyRef(
+        "VpcPeeringConnectionId",
+        description="vpcPeeringConnectionId, The ID of the VPC peering connection.",
+    )
     allow_dns_resolution_from_remote_vpc: PropertyRef = PropertyRef(
         "AllowDnsResolutionFromRemoteVpc",
+        description="Indicates whether a local VPC can resolve public DNS hostnames to private IP addresses when queried from instances in a peer VPC.",
     )
     allow_egress_from_local_classic_link_to_remote_vpc: PropertyRef = PropertyRef(
         "AllowEgressFromLocalClassicLinkToRemoteVpc",
+        description="Indicates whether a local ClassicLink connection can communicate with the peer VPC over the VPC peering connection.",
     )
     allow_egress_from_local_vpc_to_remote_classic_link: PropertyRef = PropertyRef(
         "AllowEgressFromLocalVpcToRemoteClassicLink",
+        description="Indicates whether a local VPC can communicate with a ClassicLink connection in the peer VPC over the VPC peering connection.",
     )
-    requester_region: PropertyRef = PropertyRef("RequesterRegion")
-    accepter_region: PropertyRef = PropertyRef("AccepterRegion")
-    status_code: PropertyRef = PropertyRef("StatusCode")
-    status_message: PropertyRef = PropertyRef("StatusMessage")
+    requester_region: PropertyRef = PropertyRef(
+        "RequesterRegion", description="Peering requester region"
+    )
+    accepter_region: PropertyRef = PropertyRef(
+        "AccepterRegion", description="Peering accepter region"
+    )
+    status_code: PropertyRef = PropertyRef(
+        "StatusCode", description="The status of the VPC peering connection."
+    )
+    status_message: PropertyRef = PropertyRef(
+        "StatusMessage",
+        description="A message that provides more information about the status, if applicable.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -121,17 +136,18 @@ class PeeringConnectionToAWSAccountRel(CartographyRelSchema):
 # Composite Node Pattern: AWSAccount as known by VPC Peering
 @dataclass(frozen=True)
 class AWSAccountVPCPeeringNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="The AWS Account ID number")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class AWSAccountVPCPeeringSchema(CartographyNodeSchema):
-    """
-    Composite schema to represent AWS Accounts as known by VPC Peering.
-    Targets the same 'AWSAccount' label as the primary AWS account schema,
-    allowing MERGE operations to combine properties from both sources.
-    """
+    "Represents an AWS account."
+
+    # Implementation note:
+    # Composite schema to represent AWS Accounts as known by VPC Peering.
+    # Targets the same 'AWSAccount' label as the primary AWS account schema,
+    # allowing MERGE operations to combine properties from both sources.
 
     label: str = "AWSAccount"  # Same label as primary AWSAccount schema
     properties: AWSAccountVPCPeeringNodeProperties = (
@@ -142,6 +158,8 @@ class AWSAccountVPCPeeringSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class AWSPeeringConnectionSchema(CartographyNodeSchema):
+    """Representation of an AWS [PeeringConnection](https://docs.aws.amazon.com/vpc/latest/peering/what-is-vpc-peering.html) implementing an AWS [VpcPeeringConnection](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcPeeringConnection.html) object."""
+
     label: str = "AWSPeeringConnection"
     properties: VPCPeeringNodeProperties = VPCPeeringNodeProperties()
     sub_resource_relationship: PeeringConnectionToAWSAccountRel = (

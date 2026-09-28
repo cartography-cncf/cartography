@@ -31,26 +31,73 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
     Network interface properties
     """
 
-    id: PropertyRef = PropertyRef("NetworkInterfaceId")
+    id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId",
+        description="The ID of the network interface.  (known as `networkInterfaceId` in EC2)",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    description: PropertyRef = PropertyRef("Description")
-    mac_address: PropertyRef = PropertyRef("MacAddress", extra_index=True)
-    private_dns_name: PropertyRef = PropertyRef("PrivateDnsName")
-    private_ip_address: PropertyRef = PropertyRef("PrivateIpAddress", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    status: PropertyRef = PropertyRef("Status")
+    description: PropertyRef = PropertyRef(
+        "Description", description="Description of the network interface"
+    )
+    mac_address: PropertyRef = PropertyRef(
+        "MacAddress",
+        extra_index=True,
+        description="The MAC address of the network interface",
+    )
+    private_dns_name: PropertyRef = PropertyRef(
+        "PrivateDnsName", description="The private DNS name"
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "PrivateIpAddress",
+        extra_index=True,
+        description="The primary IPv4 address of the network interface within the subnet",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region"
+    )
+    status: PropertyRef = PropertyRef(
+        "Status",
+        description="Status of the network interface.  Valid Values: ``available | associated | attaching | in-use | detaching ``",
+    )
 
     # Properties only returned by describe-network-interfaces
-    interface_type: PropertyRef = PropertyRef("InterfaceType")
-    public_ip: PropertyRef = PropertyRef("PublicIp", extra_index=True)
-    requester_id: PropertyRef = PropertyRef("RequesterId", extra_index=True)
-    requester_managed: PropertyRef = PropertyRef("RequesterManaged")
-    source_dest_check: PropertyRef = PropertyRef("SourceDestCheck")
+    interface_type: PropertyRef = PropertyRef(
+        "InterfaceType",
+        description="Describes the type of network interface. Valid values: `` interface | efa ``",
+    )
+    public_ip: PropertyRef = PropertyRef(
+        "PublicIp",
+        extra_index=True,
+        description="Public IPv4 address attached to the interface",
+    )
+    requester_id: PropertyRef = PropertyRef(
+        "RequesterId",
+        extra_index=True,
+        description="Id of the requester, e.g. `amazon-elb` for ELBs",
+    )
+    requester_managed: PropertyRef = PropertyRef(
+        "RequesterManaged",
+        description="Indicates whether the interface is managed by the requester",
+    )
+    source_dest_check: PropertyRef = PropertyRef(
+        "SourceDestCheck",
+        description="Indicates whether to validate network traffic to or from this network interface.",
+    )
     # TODO: remove subnetid once we have migrated to subnet_id
-    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
-    attach_time: PropertyRef = PropertyRef("AttachTime")
-    device_index: PropertyRef = PropertyRef("DeviceIndex")
+    subnetid: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId", extra_index=True, description="The ID of the subnet"
+    )
+    attach_time: PropertyRef = PropertyRef(
+        "AttachTime",
+        description="The timestamp when the network interface was attached to an EC2 instance. For primary interfaces (device_index=0), this reveals the first launch time of the instance [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html).",
+    )
+    device_index: PropertyRef = PropertyRef(
+        "DeviceIndex",
+        description="The index of the device on the instance for the network interface attachment. A value of `0` indicates the primary (eth0) network interface, which is created when the instance is launched.",
+    )
 
 
 @dataclass(frozen=True)
@@ -91,9 +138,10 @@ class EC2NetworkInterfaceToElbV2Rel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceSchema(CartographyNodeSchema):
-    """
-    Network interface as known by describe-network-interfaces.
-    """
+    """Representation of a generic Network Interface.  Currently however, we only create AWSNetworkInterface nodes from AWS [EC2 Instances](#awsec2instance).  The spec for an AWS EC2 network interface is [here](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html)."""
+
+    # Implementation note:
+    # Network interface as known by describe-network-interfaces.
 
     label: str = "AWSNetworkInterface"
     # DEPRECATED: legacy NetworkInterface node label will be removed in v1.0.0.

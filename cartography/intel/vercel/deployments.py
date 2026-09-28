@@ -19,6 +19,7 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: dict[str, Any],
     project_id: str,
+    protection: dict[str, Any] | None = None,
 ) -> None:
     deployments = get(
         api_session,
@@ -26,7 +27,7 @@ def sync(
         common_job_parameters["TEAM_ID"],
         project_id,
     )
-    transform(deployments)
+    transform(deployments, protection)
     load_deployments(
         neo4j_session,
         deployments,
@@ -52,11 +53,56 @@ def get(
     )
 
 
-def transform(deployments: list[dict[str, Any]]) -> None:
+def transform(
+    deployments: list[dict[str, Any]],
+    protection: dict[str, Any] | None = None,
+) -> None:
+    protection = protection or {}
     for d in deployments:
         d["creator_uid"] = d.get("creator", {}).get("uid")
         d["meta_git_commit_sha"] = d.get("meta", {}).get("githubCommitSha")
         d["meta_git_branch"] = d.get("meta", {}).get("branchAlias")
+        exposed = _is_exposed(d, protection)
+        d["exposed_internet"] = exposed
+        d["exposed_internet_type"] = ["direct"] if exposed else None
+
+
+# Which deploymentType values of a protection method cover a given deployment. A production
+# deployment is not covered by `preview`, and `prod_deployment_urls_and_all_previews` covers
+# the generated production deployment URL, which is what VercelDeployment.url holds.
+_COVERS_PRODUCTION = frozenset({"all", "prod_deployment_urls_and_all_previews"})
+_COVERS_PREVIEW = frozenset({"all", "preview", "prod_deployment_urls_and_all_previews"})
+
+
+def _is_exposed(deployment: dict[str, Any], protection: dict[str, Any]) -> bool:
+    """
+    Whether anyone on the internet can reach this deployment's URL.
+
+    A READY deployment answers on its URL unless one of the project's protection methods
+    covers it. Which methods cover it depends on whether it is a production or a preview
+    deployment, since Vercel scopes both Vercel Authentication and password protection by
+    deployment type.
+
+    An unrecognised deploymentType is treated as not covering the deployment, so a value
+    Vercel adds later errs towards reporting exposure rather than hiding it.
+
+    Vercel's IP allowlist, `trustedIps`, is not considered: it is absent from the documented
+    schema of the projects listing this module reads, so a project relying on it alone is
+    reported as exposed. That is the safe direction. `trustedSources` is not a restriction at
+    all, see the note in projects.transform.
+    """
+    if deployment.get("state") != "READY" or not deployment.get("url"):
+        return False
+    covers = (
+        _COVERS_PRODUCTION
+        if deployment.get("target") == "production"
+        else _COVERS_PREVIEW
+    )
+    gated = (
+        protection.get("sso_protection_deployment_type") in covers
+        or protection.get("password_protection_deployment_type") in covers
+    )
+    return not gated
 
 
 @timeit

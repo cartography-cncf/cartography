@@ -15,13 +15,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TailscaleGrantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Stable content-hash ID (eg. `grant:a1b2c3d4e5f6`). Computed from the grant's src, dst, ip, app, and srcPosture fields.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    sources: PropertyRef = PropertyRef("sources")
-    destinations: PropertyRef = PropertyRef("destinations")
-    ip_rules: PropertyRef = PropertyRef("ip_rules")
-    app_capabilities: PropertyRef = PropertyRef("app_capabilities")
-    src_posture: PropertyRef = PropertyRef("src_posture")
+    sources: PropertyRef = PropertyRef(
+        "sources", description="Native list of source selectors (users, groups, tags)."
+    )
+    destinations: PropertyRef = PropertyRef(
+        "destinations",
+        description="Native list of destination selectors (tags, groups, services, IPs).",
+    )
+    ip_rules: PropertyRef = PropertyRef(
+        "ip_rules",
+        description='Native list of network capabilities (eg. `["tcp:443"]`).',
+    )
+    app_capabilities: PropertyRef = PropertyRef(
+        "app_capabilities",
+        description="JSON-serialized dict of application capabilities.",
+    )
+    src_posture: PropertyRef = PropertyRef(
+        "src_posture",
+        description="Native list of required posture policies for sources.",
+    )
 
 
 @dataclass(frozen=True)
@@ -32,6 +49,8 @@ class TailscaleGrantToTailnetRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleGrant)
 class TailscaleGrantToTailnetRel(CartographyRelSchema):
+    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org", set_in_kwargs=True)},
@@ -51,6 +70,8 @@ class TailscaleGrantToSourceGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleGroup)-[:SOURCE]->(:TailscaleGrant)
 class TailscaleGrantToSourceGroupRel(CartographyRelSchema):
+    """Defines the SOURCE relationship to TailscaleGroup nodes."""
+
     target_node_label: str = "TailscaleGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("source_groups", one_to_many=True)},
@@ -70,6 +91,8 @@ class TailscaleGrantToSourceUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleUser)-[:SOURCE]->(:TailscaleGrant)
 class TailscaleGrantToSourceUserRel(CartographyRelSchema):
+    """Defines the SOURCE relationship to TailscaleUser nodes."""
+
     target_node_label: str = "TailscaleUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"login_name": PropertyRef("source_users", one_to_many=True)},
@@ -89,6 +112,8 @@ class TailscaleGrantToDestinationTagRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleGrant)-[:DESTINATION]->(:TailscaleTag)
 class TailscaleGrantToDestinationTagRel(CartographyRelSchema):
+    """Defines the DESTINATION relationship to TailscaleTag nodes."""
+
     target_node_label: str = "TailscaleTag"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("destination_tags", one_to_many=True)},
@@ -108,6 +133,8 @@ class TailscaleGrantToDestinationGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleGrant)-[:DESTINATION]->(:TailscaleGroup)
 class TailscaleGrantToDestinationGroupRel(CartographyRelSchema):
+    """Defines the DESTINATION relationship to TailscaleGroup nodes."""
+
     target_node_label: str = "TailscaleGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("destination_groups", one_to_many=True)},
@@ -121,6 +148,11 @@ class TailscaleGrantToDestinationGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGrantSchema(CartographyNodeSchema):
+    """
+    A grant rule from the Tailscale ACL/policy file. Grants define access rules with
+    sources, destinations, and capabilities.
+    """
+
     label: str = "TailscaleGrant"
     properties: TailscaleGrantNodeProperties = TailscaleGrantNodeProperties()
     sub_resource_relationship: TailscaleGrantToTailnetRel = TailscaleGrantToTailnetRel()
@@ -144,17 +176,21 @@ class TailscaleGrantAccessRelProperties(CartographyRelProperties):
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
+        description="Label used to scope relationship cleanup.",
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    granted_by: PropertyRef = PropertyRef("granted_by")
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+        description="Identifier used to scope relationship cleanup.",
+    )
+    granted_by: PropertyRef = PropertyRef(
+        "granted_by", description="Grant IDs that justify the resolved access."
+    )
 
 
 @dataclass(frozen=True)
 class TailscaleUserToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a user to a device via a grant.
-    """
+    """Indicates that a Tailscale user has effective access to a device through a grant."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -171,10 +207,7 @@ class TailscaleUserToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a group to a device via a grant.
-    """
+    """Indicates that a Tailscale group has effective access to a device through a grant."""
 
     source_node_label: str = "TailscaleGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -191,11 +224,7 @@ class TailscaleGroupToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleDevice)-[:CAN_ACCESS]->(:TailscaleDevice)
-
-    Represents resolved effective access from a tagged device (source) to
-    another device (destination) via a grant where the source is a tag.
-    """
+    """Indicates that a tagged Tailscale device has effective access to another device through a grant."""
 
     source_node_label: str = "TailscaleDevice"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -212,10 +241,7 @@ class TailscaleDeviceToDeviceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleUserToServiceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:CAN_ACCESS]->(:TailscaleService)
-
-    Represents resolved effective access from a user to a service via a grant.
-    """
+    """Indicates that a Tailscale user has effective access to a service through a grant."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -232,10 +258,7 @@ class TailscaleUserToServiceAccessMatchLink(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupToServiceAccessMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleGroup)-[:CAN_ACCESS]->(:TailscaleService)
-
-    Represents resolved effective access from a group to a service via a grant.
-    """
+    """Indicates that a Tailscale group has effective access to a service through a grant."""
 
     source_node_label: str = "TailscaleGroup"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

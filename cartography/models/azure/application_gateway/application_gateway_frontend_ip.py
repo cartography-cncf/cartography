@@ -16,14 +16,27 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    private_ip_address: PropertyRef = PropertyRef("private_ip_address")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Azure resource ID of the application gateway frontend IP configuration.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the application gateway frontend IP configuration."
+    )
+    private_ip_address: PropertyRef = PropertyRef(
+        "private_ip_address", description="Private IP address assigned to the frontend."
+    )
     private_ip_allocation_method: PropertyRef = PropertyRef(
         "private_ip_allocation_method",
+        description="Allocation method for the frontend private IP address.",
     )
-    public_ip_address_id: PropertyRef = PropertyRef("public_ip_address_id")
-    subnet_id: PropertyRef = PropertyRef("subnet_id")
+    public_ip_address_id: PropertyRef = PropertyRef(
+        "public_ip_address_id",
+        description="Azure resource ID of the associated public IP address.",
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "subnet_id", description="Azure resource ID of the subnet used by the frontend."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,6 +47,8 @@ class AzureApplicationGatewayFrontendIPToGatewayRelProperties(CartographyRelProp
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPToGatewayRel(CartographyRelSchema):
+    """An Azure Application Gateway contains the frontend IP configuration."""
+
     target_node_label: str = "AzureApplicationGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("APPLICATION_GATEWAY_ID", set_in_kwargs=True)},
@@ -54,6 +69,8 @@ class AzureApplicationGatewayFrontendIPToPublicIPRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPToPublicIPRel(CartographyRelSchema):
+    """An application gateway frontend IP configuration uses a public IP address."""
+
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("public_ip_address_id")},
@@ -72,6 +89,8 @@ class AzureApplicationGatewayFrontendIPToSubnetRelProperties(CartographyRelPrope
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPToSubnetRel(CartographyRelSchema):
+    """An application gateway frontend IP configuration is assigned to a subnet."""
+
     target_node_label: str = "AzureSubnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("subnet_id")},
@@ -92,6 +111,8 @@ class AzureApplicationGatewayFrontendIPToSubscriptionRelProperties(
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the application gateway frontend IP configuration as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -105,6 +126,8 @@ class AzureApplicationGatewayFrontendIPToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureApplicationGatewayFrontendIPSchema(CartographyNodeSchema):
+    """A frontend IP configuration that receives traffic for an Azure Application Gateway."""
+
     label: str = "AzureApplicationGatewayFrontendIPConfiguration"
     properties: AzureApplicationGatewayFrontendIPProperties = (
         AzureApplicationGatewayFrontendIPProperties()

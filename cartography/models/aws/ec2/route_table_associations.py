@@ -15,16 +15,40 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RouteTableAssociationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    route_table_association_id: PropertyRef = PropertyRef("id", extra_index=True)
-    target: PropertyRef = PropertyRef("_target")
-    gateway_id: PropertyRef = PropertyRef("gateway_id")
-    main: PropertyRef = PropertyRef("main")
-    route_table_id: PropertyRef = PropertyRef("route_table_id")
-    subnet_id: PropertyRef = PropertyRef("subnet_id")
-    association_state: PropertyRef = PropertyRef("association_state")
-    association_state_message: PropertyRef = PropertyRef("association_state_message")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="The ID of the route table association"
+    )
+    route_table_association_id: PropertyRef = PropertyRef(
+        "id",
+        extra_index=True,
+        description="The ID of the route table association (same as id)",
+    )
+    target: PropertyRef = PropertyRef(
+        "_target",
+        description="Subnet or gateway identifier associated with the route table.",
+    )
+    gateway_id: PropertyRef = PropertyRef(
+        "gateway_id", description="The ID of the gateway (if associated with a gateway)"
+    )
+    main: PropertyRef = PropertyRef(
+        "main", description="Whether this is the main route table association"
+    )
+    route_table_id: PropertyRef = PropertyRef(
+        "route_table_id", description="The ID of the route table"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "subnet_id", description="The ID of the subnet (if associated with a subnet)"
+    )
+    association_state: PropertyRef = PropertyRef(
+        "association_state", description="The state of the association"
+    )
+    association_state_message: PropertyRef = PropertyRef(
+        "association_state_message",
+        description="The message describing the state of the association",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The AWS region the association is in"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -84,6 +108,8 @@ class RouteTableAssociationToIgwRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class RouteTableAssociationSchema(CartographyNodeSchema):
+    """Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTableAssociation.html)."""
+
     label: str = "AWSEC2RouteTableAssociation"
     # DEPRECATED: legacy EC2RouteTableAssociation node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

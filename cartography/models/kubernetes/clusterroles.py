@@ -14,14 +14,36 @@ from cartography.models.ontology.labels import PERMISSION_ROLE
 
 @dataclass(frozen=True)
 class KubernetesClusterRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    uid: PropertyRef = PropertyRef("uid")
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    resource_version: PropertyRef = PropertyRef("resource_version")
-    api_groups: PropertyRef = PropertyRef("api_groups")
-    resources: PropertyRef = PropertyRef("resources")
-    verbs: PropertyRef = PropertyRef("verbs")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Identifier for the ClusterRole derived from cluster_name and name (e.g. `my-cluster/cluster-admin`).",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the Kubernetes ClusterRole."
+    )
+    uid: PropertyRef = PropertyRef(
+        "uid", description="UID of the Kubernetes ClusterRole."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp of the creation time of the Kubernetes ClusterRole.",
+    )
+    resource_version: PropertyRef = PropertyRef(
+        "resource_version",
+        description="The resource version of the ClusterRole for optimistic concurrency control.",
+    )
+    api_groups: PropertyRef = PropertyRef(
+        "api_groups",
+        description='List of API groups that this ClusterRole grants access to (e.g. `["core", "apps"]`).',
+    )
+    resources: PropertyRef = PropertyRef(
+        "resources",
+        description='List of resources that this ClusterRole grants access to (e.g. `["pods", "services"]`).',
+    )
+    verbs: PropertyRef = PropertyRef(
+        "verbs",
+        description='List of verbs/actions that this ClusterRole allows (e.g. `["get", "list", "create"]`).',
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +54,8 @@ class KubernetesClusterRoleToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesClusterRoleToClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its cluster roles."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -45,6 +69,8 @@ class KubernetesClusterRoleToClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesClusterRoleSchema(CartographyNodeSchema):
+    "A cluster-scoped Kubernetes RBAC role."
+
     label: str = "KubernetesClusterRole"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     properties: KubernetesClusterRoleNodeProperties = (

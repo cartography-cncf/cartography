@@ -25,40 +25,62 @@ class GitHubRulesetNodeProperties(CartographyNodeProperties):
     Maps to GitHub's repository ruleset REST response.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    database_id: PropertyRef = PropertyRef("database_id")
-    name: PropertyRef = PropertyRef("name")
-    target: PropertyRef = PropertyRef("target")
-    enforcement: PropertyRef = PropertyRef("enforcement")
-    created_at: PropertyRef = PropertyRef("created_at")
-    updated_at: PropertyRef = PropertyRef("updated_at")
+    id: PropertyRef = PropertyRef("id", description="GitHub ruleset node ID.")
+    database_id: PropertyRef = PropertyRef(
+        "database_id", description="GitHub numeric database ID for the ruleset."
+    )
+    name: PropertyRef = PropertyRef("name", description="Ruleset name.")
+    target: PropertyRef = PropertyRef(
+        "target", description="Ruleset target, such as `BRANCH` or `TAG`."
+    )
+    enforcement: PropertyRef = PropertyRef(
+        "enforcement", description="Ruleset enforcement mode."
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at", description="Timestamp when the ruleset was created."
+    )
+    updated_at: PropertyRef = PropertyRef(
+        "updated_at", description="Timestamp when the ruleset was last updated."
+    )
     conditions_ref_name_include: PropertyRef = PropertyRef(
-        "conditions_ref_name_include"
+        "conditions_ref_name_include",
+        description="Ref name patterns included by the ruleset.",
     )
     conditions_ref_name_exclude: PropertyRef = PropertyRef(
-        "conditions_ref_name_exclude"
+        "conditions_ref_name_exclude",
+        description="Ref name patterns excluded by the ruleset.",
     )
     conditions_repository_name_include: PropertyRef = PropertyRef(
-        "conditions_repository_name_include"
+        "conditions_repository_name_include",
+        description="Repository name patterns included by the ruleset.",
     )
     conditions_repository_name_exclude: PropertyRef = PropertyRef(
-        "conditions_repository_name_exclude"
+        "conditions_repository_name_exclude",
+        description="Repository name patterns excluded by the ruleset.",
     )
     conditions_repository_name_protected: PropertyRef = PropertyRef(
-        "conditions_repository_name_protected"
+        "conditions_repository_name_protected",
+        description="Whether repository-name conditions select protected repositories.",
     )
-    conditions_repository_ids: PropertyRef = PropertyRef("conditions_repository_ids")
+    conditions_repository_ids: PropertyRef = PropertyRef(
+        "conditions_repository_ids",
+        description="Repository database IDs selected by the ruleset.",
+    )
     conditions_repository_property_include: PropertyRef = PropertyRef(
-        "conditions_repository_property_include"
+        "conditions_repository_property_include",
+        description="Repository property include conditions encoded as JSON.",
     )
     conditions_repository_property_exclude: PropertyRef = PropertyRef(
-        "conditions_repository_property_exclude"
+        "conditions_repository_property_exclude",
+        description="Repository property exclude conditions encoded as JSON.",
     )
     conditions_organization_property_include: PropertyRef = PropertyRef(
-        "conditions_organization_property_include"
+        "conditions_organization_property_include",
+        description="Organization property include conditions encoded as JSON.",
     )
     conditions_organization_property_exclude: PropertyRef = PropertyRef(
-        "conditions_organization_property_exclude"
+        "conditions_organization_property_exclude",
+        description="Organization property exclude conditions encoded as JSON.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -115,6 +137,8 @@ class GitHubRulesetToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GitHubRulesetSchema(CartographyNodeSchema):
+    """A repository ruleset configured in GitHub."""
+
     label: str = "GitHubRuleset"
     properties: GitHubRulesetNodeProperties = GitHubRulesetNodeProperties()
     sub_resource_relationship: GitHubRulesetToOrganizationRel = (

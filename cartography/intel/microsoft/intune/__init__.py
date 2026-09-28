@@ -2,13 +2,13 @@ import asyncio
 import logging
 
 import neo4j
-from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 
 from cartography.analysis.microsoft.intune.analysis import (
     INTUNE_COMPLIANCE_POLICY_DEVICE,
 )
 from cartography.config import Config
+from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.client import create_graph_service_client
 from cartography.intel.microsoft.intune.compliance_policies import (
     sync_compliance_policies,
@@ -51,11 +51,7 @@ def start_intune_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     }
 
     async def main() -> None:
-        credential = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            client_secret=client_secret,
-        )
+        credential = credentials.make_credential(tenant_id, client_id, client_secret)
         intune_client = create_graph_service_client(credential)
 
         managed_devices_synced = False

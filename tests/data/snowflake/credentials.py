@@ -1,0 +1,55 @@
+"""SNOWFLAKE.ACCOUNT_USAGE.CREDENTIALS rows, as the SQL API returns them."""
+
+from typing import Any
+
+SNOWFLAKE_CREDENTIALS: list[dict[str, Any]] = [
+    {
+        "credential_id": "101",
+        "name": "PASSWORD",
+        "user_name": "HOMER",
+        "type": "PASSWORD",
+        "domain": "USER",
+        "comment": None,
+        "status": "ACTIVE",
+        "additional_details": None,
+        "created_by": "ACCOUNTADMIN",
+        "last_altered_by": "HOMER",
+        "created_on": "1780000000.000",
+        # An empty expiration means the credential never expires.
+        "expiration_date": "",
+        "last_used_on": "1785771633.789",
+        "last_altered": "1782000000.000",
+    },
+    {
+        "credential_id": "102",
+        "name": "TOTP",
+        "user_name": "HOMER",
+        "type": "TOTP",
+        "domain": "USER",
+        "comment": None,
+        "status": "ACTIVE",
+        "additional_details": '{"issuer":"Snowflake"}',
+        "created_by": "HOMER",
+        "last_altered_by": "HOMER",
+        "created_on": "1781000000.000",
+        "expiration_date": None,
+        "last_used_on": None,
+        "last_altered": "1781000000.000",
+    },
+    {
+        "credential_id": "103",
+        "name": "RSA_PUBLIC_KEY",
+        "user_name": "SCRAM_BOT",
+        "type": "KEYPAIR",
+        "domain": "USER",
+        "comment": "rotated quarterly",
+        "status": "ACTIVE",
+        "additional_details": '{"fingerprint":"SHA256:redacted"}',
+        "created_by": "ACCOUNTADMIN",
+        "last_altered_by": "ACCOUNTADMIN",
+        "created_on": "1783000000.000",
+        "expiration_date": "1800000000.000",
+        "last_used_on": "1785700000.000",
+        "last_altered": "1783000000.000",
+    },
+]

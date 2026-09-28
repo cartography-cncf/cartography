@@ -20,9 +20,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureSubnetProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    address_prefix: PropertyRef = PropertyRef("address_prefix")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the subnet."
+    )
+    name: PropertyRef = PropertyRef("name", description="Name of the subnet.")
+    address_prefix: PropertyRef = PropertyRef(
+        "address_prefix",
+        description="IPv4 or IPv6 address prefix assigned to the subnet.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,6 +38,8 @@ class AzureSubnetToVNetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSubnetToVNetRel(CartographyRelSchema):
+    """An Azure virtual network contains the subnet."""
+
     target_node_label: str = "AzureVirtualNetwork"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VNET_ID", set_in_kwargs=True)},
@@ -58,6 +65,8 @@ class AzureSubnetToNSGRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSubnetToNSGRel(CartographyRelSchema):
+    """An Azure subnet is associated with a network security group."""
+
     source_node_label: str = "AzureSubnet"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("NODE_ID")},
@@ -78,6 +87,8 @@ class AzureSubnetToSubscriptionRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSubnetToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the subnet as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -91,6 +102,8 @@ class AzureSubnetToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSubnetSchema(CartographyNodeSchema):
+    """A subnet within an Azure virtual network."""
+
     label: str = "AzureSubnet"
     properties: AzureSubnetProperties = AzureSubnetProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SUBNET])

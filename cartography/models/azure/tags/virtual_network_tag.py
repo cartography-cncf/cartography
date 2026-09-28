@@ -21,6 +21,8 @@ class VirtualNetworkToTagRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class VirtualNetworkToTagRel(CartographyRelSchema):
+    """An Azure virtual network has the tag."""
+
     target_node_label: str = "AzureVirtualNetwork"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("resource_id")},
@@ -32,6 +34,8 @@ class VirtualNetworkToTagRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureVirtualNetworkTagsSchema(CartographyNodeSchema):
+    """An Azure resource tag represented by a subscription-scoped key and value."""
+
     label: str = "AzureTag"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TAG])
     properties: AzureTagProperties = AzureTagProperties()

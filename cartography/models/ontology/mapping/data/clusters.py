@@ -242,6 +242,27 @@ scaleway_kapsule_mapping = OntologyMapping(
     ],
 )
 
+# Snowflake warehouse state. SUSPENDED has no slot in the canonical Cluster set
+# (active/creating/updating/deleting/failed/unknown), so it maps to unknown; the
+# raw value stays on SnowflakeWarehouse.state.
+_SNOWFLAKE_WAREHOUSE_STATUS = {
+    "STARTED": "active",
+    "RESUMING": "creating",
+    "RESIZING": "updating",
+    "SUSPENDING": "updating",
+    "SUSPENDED": "unknown",
+}
+
+# Snowflake compute pool state.
+_SNOWFLAKE_COMPUTE_POOL_STATUS = {
+    "ACTIVE": "active",
+    "IDLE": "active",
+    "STARTING": "creating",
+    "RESIZING": "updating",
+    "STOPPING": "deleting",
+    "SUSPENDED": "unknown",
+}
+
 CLUSTERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws_eks": aws_eks_mapping,
     "aws_ecs": aws_ecs_mapping,
@@ -250,4 +271,33 @@ CLUSTERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp_gke": gcp_gke_mapping,
     "kubernetes": kubernetes_mapping,
     "scaleway_kapsule": scaleway_kapsule_mapping,
+    "snowflake": OntologyMapping(
+        module_name="snowflake",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="SnowflakeWarehouse",
+                fields=[
+                    OntologyFieldMapping(ontology_field="name", node_field="name"),
+                    OntologyFieldMapping(
+                        ontology_field="status",
+                        node_field="state",
+                        special_handling="mapping",
+                        extra={"map": _SNOWFLAKE_WAREHOUSE_STATUS},
+                    ),
+                ],
+            ),
+            OntologyNodeMapping(
+                node_label="SnowflakeComputePool",
+                fields=[
+                    OntologyFieldMapping(ontology_field="name", node_field="name"),
+                    OntologyFieldMapping(
+                        ontology_field="status",
+                        node_field="state",
+                        special_handling="mapping",
+                        extra={"map": _SNOWFLAKE_COMPUTE_POOL_STATUS},
+                    ),
+                ],
+            ),
+        ],
+    ),
 }

@@ -199,6 +199,12 @@ def transform_ec2_ownership(
             "event_name": record.get("eventname"),
             "aws_account": record.get("account"),
             "aws_region": record.get("awsregion"),
+            # Failed calls are still CloudTrail facts, so we keep the event and record
+            # the error instead of dropping it. A non-null error_code says CloudTrail
+            # reported an error, not that the call left the instances untouched: we
+            # cannot tell a fully rejected call from one with partial side effects.
+            "error_code": record.get("errorcode"),
+            "error_message": record.get("errormessage"),
         }
         events.append(event)
 

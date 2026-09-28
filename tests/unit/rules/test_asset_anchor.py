@@ -11,21 +11,12 @@ failure, every fact's ``asset_id_field`` must:
   * be returned by the fact's ``cypher_query`` (via a ``... AS <name>`` alias).
 """
 
-import re
-
 import pytest
 
 from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import to_serializable
+from cartography.rules.spec.model import returned_aliases
 from cartography.rules.spec.result import FactResult
-
-# Matches the `RETURN expr AS alias` convention every fact query uses.
-_RETURN_ALIAS_RE = re.compile(r"\bAS\s+(\w+)", re.IGNORECASE)
-
-
-def _returned_aliases(cypher_query: str) -> set[str]:
-    return set(_RETURN_ALIAS_RE.findall(cypher_query))
-
 
 # (rule_id, fact_id, rule, fact) for every fact in the registry.
 _ALL_FACTS = [
@@ -71,7 +62,7 @@ def test_asset_id_field_exists_on_output_model(rule_id, fact_id, rule, fact):
 @pytest.mark.parametrize("rule_id, fact_id, rule, fact", _ALL_FACTS)
 def test_asset_id_field_returned_by_query(rule_id, fact_id, rule, fact):
     """asset_id_field must be returned (AS <name>) by the fact's cypher_query."""
-    aliases = _returned_aliases(fact.cypher_query)
+    aliases = returned_aliases(fact.cypher_query)
     assert fact.asset_id_field in aliases, (
         f"Rule '{rule_id}' fact '{fact_id}' asset_id_field "
         f"'{fact.asset_id_field}' is not returned by its cypher_query."

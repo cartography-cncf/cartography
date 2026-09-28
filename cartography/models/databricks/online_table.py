@@ -13,18 +13,44 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksOnlineTableNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    metastore_id: PropertyRef = PropertyRef("metastore_id", extra_index=True)
-    source_table_full_name: PropertyRef = PropertyRef(
-        "source_table_full_name", extra_index=True
+    id: PropertyRef = PropertyRef(
+        "id", description="Metastore-scoped identifier for the online table."
     )
-    pipeline_id: PropertyRef = PropertyRef("pipeline_id", extra_index=True)
-    detailed_state: PropertyRef = PropertyRef("detailed_state")
-    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
-    table_serving_url: PropertyRef = PropertyRef("table_serving_url")
-    primary_key_columns: PropertyRef = PropertyRef("primary_key_columns")
-    timeseries_key: PropertyRef = PropertyRef("timeseries_key")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Full name of the online table."
+    )
+    metastore_id: PropertyRef = PropertyRef(
+        "metastore_id",
+        extra_index=True,
+        description="Identifier of the metastore that contains the online table.",
+    )
+    source_table_full_name: PropertyRef = PropertyRef(
+        "source_table_full_name",
+        extra_index=True,
+        description="Full name of the source Unity Catalog table.",
+    )
+    pipeline_id: PropertyRef = PropertyRef(
+        "pipeline_id",
+        extra_index=True,
+        description="Identifier of the pipeline that updates the online table.",
+    )
+    detailed_state: PropertyRef = PropertyRef(
+        "detailed_state", description="Detailed operational state of the online table."
+    )
+    provisioning_state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Unity Catalog provisioning state of the online table.",
+    )
+    table_serving_url: PropertyRef = PropertyRef(
+        "table_serving_url", description="URL used to access the served online table."
+    )
+    primary_key_columns: PropertyRef = PropertyRef(
+        "primary_key_columns",
+        description="Columns that form the primary key of the online table.",
+    )
+    timeseries_key: PropertyRef = PropertyRef(
+        "timeseries_key", description="Column used as the time-series key."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,6 +62,8 @@ class DatabricksOnlineTableToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksOnlineTable)
 class DatabricksOnlineTableToWorkspaceRel(CartographyRelSchema):
+    """A Databricks online table is a resource within a workspace."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -55,6 +83,8 @@ class DatabricksOnlineTableToSourceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksOnlineTable)-[:SOURCED_FROM]->(:DatabricksTable)
 class DatabricksOnlineTableToSourceRel(CartographyRelSchema):
+    """A Databricks online table is sourced from a Unity Catalog table."""
+
     target_node_label: str = "DatabricksTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("source_table_id")},
@@ -68,6 +98,8 @@ class DatabricksOnlineTableToSourceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksOnlineTableSchema(CartographyNodeSchema):
+    """A low-latency online representation of a Unity Catalog table."""
+
     label: str = "DatabricksOnlineTable"
     properties: DatabricksOnlineTableNodeProperties = (
         DatabricksOnlineTableNodeProperties()

@@ -1,9 +1,41 @@
-## Kandji Configuration
+# Kandji Configuration
 
-Follow these steps to analyze Kandji device objects in Cartography.
+## Authentication
 
-1. Prepare an API token for Kandji
-    1. Follow [Kandji documentation](https://support.kandji.io/support/solutions/articles/72000560412-kandji-api#Generate-an-API-Token) to generate a API token.
-    1. Populate `KANDJI_TOKEN` environment variable with the API token. Alternately, you can pass a different environment variable name containing the API token
-    via CLI with the `--kandji-token-env-var` parameter.
-    1. Provide the Kandji API URL using the `--kandji-base-uri` and a Kandji Tenant (required for establishing relationship) using the `--kandji-tenant-id` parameter.
+Follow the
+[Kandji API documentation](https://support.kandji.io/support/solutions/articles/72000560412-kandji-api#Generate-an-API-Token)
+to generate an API token. Store the token in `KANDJI_TOKEN`, or store it in
+another environment variable and identify that variable with
+`--kandji-token-env-var`.
+
+```bash
+export KANDJI_TOKEN="your-api-token"
+```
+
+## Configure Cartography
+
+Provide the Kandji API URL with `--kandji-base-uri` and the tenant identifier
+with `--kandji-tenant-id`. The tenant identifier is required to establish
+tenant relationships.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules kandji \
+  --kandji-base-uri https://company.api.kandji.io \
+  --kandji-tenant-id "<your-tenant-id>" \
+  --kandji-token-env-var KANDJI_TOKEN
+```
+
+## Advanced Configuration
+
+| Flag | Description |
+|------|-------------|
+| `--kandji-base-uri` | Kandji API base URI |
+| `--kandji-tenant-id` | Kandji tenant identifier |
+| `--kandji-token-env-var` | Name of the environment variable containing the API token |
+
+## References
+
+- [Kandji API token documentation](https://support.kandji.io/support/solutions/articles/72000560412-kandji-api#Generate-an-API-Token)

@@ -78,6 +78,24 @@ gcp_mapping = OntologyMapping(
 )
 
 
+# BBOT - only globally routable addresses populate public_ip_address.
+bbot_mapping = OntologyMapping(
+    module_name="bbot",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="BbotIPAddress",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="ip_address",
+                    node_field="public_ip_address",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
+
 # =============================================================================
 # Relation Mappings - Link PublicIP to ontology abstract nodes via provider nodes
 # Note: Relations to semantic labels (ComputeInstance, LoadBalancer) are defined
@@ -87,6 +105,7 @@ gcp_mapping = OntologyMapping(
 PUBLIC_IPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_eip_mapping,
     "azure": azure_pip_mapping,
+    "bbot": bbot_mapping,
     "gcp": gcp_mapping,
     "scaleway": scaleway_fip_mapping,
 }

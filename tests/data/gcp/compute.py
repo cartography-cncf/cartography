@@ -897,3 +897,289 @@ LIST_GLOBAL_FORWARDING_RULES_RESPONSE = {
     "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/forwardingRules",
     "kind": "compute#forwardingRuleList",
 }
+
+# VPC response for project-abc containing two peerings on network vpc-a:
+# - peering-a-to-b: peer network lives in project-def (synced in some tests)
+# - peering-a-to-ext: peer network lives in project-xyz (never synced -> stub)
+VPC_PEERING_RESPONSE = {
+    "id": "projects/project-abc/global/networks",
+    "items": [
+        {
+            "autoCreateSubnetworks": False,
+            "creationTimestamp": "2024-01-10T10:00:00.000-08:00",
+            "description": "Peered network in project-abc",
+            "id": "345678",
+            "kind": "compute#network",
+            "name": "vpc-a",
+            "routingConfig": {
+                "routingMode": "GLOBAL",
+            },
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+            "peerings": [
+                {
+                    "name": "peering-a-to-b",
+                    "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+                    "peerNetwork": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks/vpc-b",
+                    "state": "ACTIVE",
+                    "stateDetails": "[2024-01-10T10:05:00]: Connected.",
+                    "peerMtu": 1460,
+                    "stackType": "IPV4_ONLY",
+                    "updateStrategy": "CONSERVATIVE",
+                    "autoCreateRoutes": True,
+                    "exchangeSubnetRoutes": True,
+                    "importCustomRoutes": False,
+                    "exportCustomRoutes": True,
+                    "importSubnetRoutesWithPublicIp": False,
+                    "exportSubnetRoutesWithPublicIp": False,
+                },
+                {
+                    "name": "peering-a-to-ext",
+                    "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+                    "peerNetwork": "https://www.googleapis.com/compute/v1/projects/project-xyz/global/networks/vpc-ext",
+                    "state": "INACTIVE",
+                    "stateDetails": "[2024-01-11T09:00:00]: Waiting for peer network to connect.",
+                    "peerMtu": 1460,
+                    "stackType": "IPV4_ONLY",
+                    "updateStrategy": "CONSERVATIVE",
+                    "autoCreateRoutes": True,
+                    "exchangeSubnetRoutes": True,
+                    "importCustomRoutes": True,
+                    "exportCustomRoutes": False,
+                    "importSubnetRoutesWithPublicIp": False,
+                    "exportSubnetRoutesWithPublicIp": False,
+                },
+            ],
+        },
+    ],
+    "kind": "compute#networkList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks",
+}
+
+# The other side of peering-a-to-b, as reported by project-def's networks.list.
+VPC_PEERING_PEER_RESPONSE = {
+    "id": "projects/project-def/global/networks",
+    "items": [
+        {
+            "autoCreateSubnetworks": False,
+            "creationTimestamp": "2024-01-10T10:01:00.000-08:00",
+            "description": "Peered network in project-def",
+            "id": "456789",
+            "kind": "compute#network",
+            "name": "vpc-b",
+            "routingConfig": {
+                "routingMode": "GLOBAL",
+            },
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks/vpc-b",
+            "peerings": [
+                {
+                    "name": "peering-b-to-a",
+                    "network": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks/vpc-b",
+                    "peerNetwork": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+                    "state": "ACTIVE",
+                    "stateDetails": "[2024-01-10T10:05:00]: Connected.",
+                    "peerMtu": 1460,
+                    "stackType": "IPV4_ONLY",
+                    "updateStrategy": "CONSERVATIVE",
+                    "autoCreateRoutes": True,
+                    "exchangeSubnetRoutes": True,
+                    "importCustomRoutes": True,
+                    "exportCustomRoutes": False,
+                    "importSubnetRoutesWithPublicIp": False,
+                    "exportSubnetRoutesWithPublicIp": False,
+                },
+            ],
+        },
+    ],
+    "kind": "compute#networkList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks",
+}
+
+# Same project/network as VPC_PEERING_RESPONSE but with all peerings removed
+# (used for stale-peering cleanup tests).
+VPC_PEERING_RESPONSE_NO_PEERINGS = {
+    "id": "projects/project-abc/global/networks",
+    "items": [
+        {
+            "autoCreateSubnetworks": False,
+            "creationTimestamp": "2024-01-10T10:00:00.000-08:00",
+            "description": "Peered network in project-abc",
+            "id": "345678",
+            "kind": "compute#network",
+            "name": "vpc-a",
+            "routingConfig": {
+                "routingMode": "GLOBAL",
+            },
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+        },
+    ],
+    "kind": "compute#networkList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks",
+}
+
+VPN_GATEWAYS_RESPONSE = {
+    "id": "projects/project-abc/regions/us-central1/vpnGateways",
+    "items": [
+        {
+            "creationTimestamp": "2024-02-01T08:00:00.000-08:00",
+            "description": "HA VPN gateway in project-abc",
+            "id": "111222333",
+            "kind": "compute#vpnGateway",
+            "name": "gw-a",
+            "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/vpc-a",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways/gw-a",
+            "stackType": "IPV4_ONLY",
+            "gatewayIpVersion": "IPV4",
+            "vpnInterfaces": [
+                {
+                    "id": 0,
+                    "ipAddress": "203.0.113.10",
+                    "interconnectAttachment": None,
+                },
+                {
+                    "id": 1,
+                    "ipAddress": "203.0.113.11",
+                    "interconnectAttachment": None,
+                },
+            ],
+        },
+    ],
+    "kind": "compute#vpnGatewayList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways",
+}
+
+# project-abc's tunnels: one HA tunnel to project-def's gw-b, one HA tunnel to
+# project-xyz's gw-ext (never synced -> stub), and one classic tunnel with no
+# vpnGateway. Includes sharedSecret to prove it is never ingested.
+VPN_TUNNELS_RESPONSE = {
+    "id": "projects/project-abc/regions/us-central1/vpnTunnels",
+    "items": [
+        {
+            "creationTimestamp": "2024-02-01T08:05:00.000-08:00",
+            "description": "HA VPN tunnel to project-def",
+            "detailedStatus": "Tunnel is up and running.",
+            "id": "222333444",
+            "ikeVersion": 2,
+            "kind": "compute#vpnTunnel",
+            "localTrafficSelector": ["0.0.0.0/0"],
+            "remoteTrafficSelector": ["0.0.0.0/0"],
+            "name": "tunnel-a-to-b",
+            "peerGcpGateway": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnGateways/gw-b",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnTunnels/tunnel-a-to-b",
+            "sharedSecret": "mock-psk-do-not-ingest",
+            "sharedSecretHash": "HASHED:abc123",
+            "status": "ESTABLISHED",
+            "vpnGateway": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways/gw-a",
+            "vpnGatewayInterface": 0,
+        },
+        {
+            "creationTimestamp": "2024-02-01T08:06:00.000-08:00",
+            "description": "HA VPN tunnel to project-xyz",
+            "detailedStatus": "Tunnel is up and running.",
+            "id": "333444555",
+            "ikeVersion": 2,
+            "kind": "compute#vpnTunnel",
+            "localTrafficSelector": ["10.0.0.0/8"],
+            "remoteTrafficSelector": ["172.16.0.0/12"],
+            "name": "tunnel-a-to-ext",
+            "peerGcpGateway": "https://www.googleapis.com/compute/v1/projects/project-xyz/regions/us-central1/vpnGateways/gw-ext",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnTunnels/tunnel-a-to-ext",
+            "sharedSecret": "mock-psk-do-not-ingest-2",
+            "sharedSecretHash": "HASHED:def456",
+            "status": "ESTABLISHED",
+            "vpnGateway": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways/gw-a",
+            "vpnGatewayInterface": 1,
+        },
+        {
+            "creationTimestamp": "2024-02-01T08:07:00.000-08:00",
+            "description": "Classic VPN tunnel to on-prem",
+            "detailedStatus": "Tunnel is up and running.",
+            "id": "444555666",
+            "ikeVersion": 2,
+            "kind": "compute#vpnTunnel",
+            "localTrafficSelector": ["0.0.0.0/0"],
+            "remoteTrafficSelector": ["0.0.0.0/0"],
+            "name": "tunnel-classic",
+            "peerIp": "198.51.100.1",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1",
+            "router": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/routers/router-a",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnTunnels/tunnel-classic",
+            "sharedSecret": "mock-psk-do-not-ingest-3",
+            "sharedSecretHash": "HASHED:ghi789",
+            "status": "ESTABLISHED",
+            "targetVpnGateway": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/targetVpnGateways/classic-gw",
+        },
+    ],
+    "kind": "compute#vpnTunnelList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnTunnels",
+}
+
+# project-def's side of the HA VPN: gateway gw-b and tunnel back to gw-a.
+VPN_GATEWAYS_PEER_RESPONSE = {
+    "id": "projects/project-def/regions/us-central1/vpnGateways",
+    "items": [
+        {
+            "creationTimestamp": "2024-02-01T08:01:00.000-08:00",
+            "description": "HA VPN gateway in project-def",
+            "id": "555666777",
+            "kind": "compute#vpnGateway",
+            "name": "gw-b",
+            "network": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks/vpc-b",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnGateways/gw-b",
+            "stackType": "IPV4_ONLY",
+            "gatewayIpVersion": "IPV4",
+            "vpnInterfaces": [
+                {
+                    "id": 0,
+                    "ipAddress": "203.0.113.20",
+                    "interconnectAttachment": None,
+                },
+            ],
+        },
+    ],
+    "kind": "compute#vpnGatewayList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnGateways",
+}
+
+VPN_TUNNELS_PEER_RESPONSE = {
+    "id": "projects/project-def/regions/us-central1/vpnTunnels",
+    "items": [
+        {
+            "creationTimestamp": "2024-02-01T08:08:00.000-08:00",
+            "description": "HA VPN tunnel to project-abc",
+            "detailedStatus": "Tunnel is up and running.",
+            "id": "666777888",
+            "ikeVersion": 2,
+            "kind": "compute#vpnTunnel",
+            "localTrafficSelector": ["0.0.0.0/0"],
+            "remoteTrafficSelector": ["0.0.0.0/0"],
+            "name": "tunnel-b-to-a",
+            "peerGcpGateway": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways/gw-a",
+            "region": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnTunnels/tunnel-b-to-a",
+            "sharedSecret": "mock-psk-do-not-ingest-4",
+            "sharedSecretHash": "HASHED:jkl012",
+            "status": "ESTABLISHED",
+            "vpnGateway": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnGateways/gw-b",
+            "vpnGatewayInterface": 0,
+        },
+    ],
+    "kind": "compute#vpnTunnelList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/vpnTunnels",
+}
+
+# Empty regional responses (used for cleanup tests).
+VPN_GATEWAYS_RESPONSE_EMPTY = {
+    "id": "projects/project-abc/regions/us-central1/vpnGateways",
+    "kind": "compute#vpnGatewayList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnGateways",
+}
+
+VPN_TUNNELS_RESPONSE_EMPTY = {
+    "id": "projects/project-abc/regions/us-central1/vpnTunnels",
+    "kind": "compute#vpnTunnelList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-central1/vpnTunnels",
+}

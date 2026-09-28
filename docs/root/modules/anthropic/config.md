@@ -1,7 +1,20 @@
-## Anthropic Configuration
+# Anthropic Configuration
 
-Follow these steps to analyze Anthropic objects with Cartography.
+## Authentication
 
-1. Prepare your Anthropic Admin Key.
-    1. Create a new Admin API Key in [Anthropic Console](https://console.anthropic.com/settings/admin-keys)
-    1. Populate an environment variable with the API Key. You can pass the environment variable name via CLI with the `--anthropic-apikey-env-var` parameter.
+Create an Admin API key in the
+[Anthropic Console](https://console.anthropic.com/settings/admin-keys) and store
+it in an environment variable.
+
+## Configure Cartography
+
+Pass the name of the environment variable containing the Admin API key with
+`--anthropic-apikey-env-var`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules anthropic \
+  --anthropic-apikey-env-var ANTHROPIC_API_KEY
+```

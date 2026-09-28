@@ -65,6 +65,7 @@ def test_load_subimage_neo4jusers(mock_api, neo4j_session):
 
 
 def test_transform():
-    raw = {"usernames": ["user_a", "user_b"]}
-    result = cartography.intel.subimage.neo4jusers.transform(raw)
-    assert result == [{"username": "user_a"}, {"username": "user_b"}]
+    result = cartography.intel.subimage.neo4jusers.transform(
+        tests.data.subimage.neo4jusers.SUBIMAGE_NEO4J_USERS_RAW,
+    )
+    assert result == tests.data.subimage.neo4jusers.SUBIMAGE_NEO4J_USERS_TRANSFORMED

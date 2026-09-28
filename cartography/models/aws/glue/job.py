@@ -15,13 +15,30 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GlueJobNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Name")
-    arn: PropertyRef = PropertyRef("Name", extra_index=True)
-    profile_name: PropertyRef = PropertyRef("ProfileName")
-    job_mode: PropertyRef = PropertyRef("JobMode")
-    connections: PropertyRef = PropertyRef("Connections")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    description: PropertyRef = PropertyRef("Description")
+    id: PropertyRef = PropertyRef(
+        "Name", description="The name you assign to this job definition"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Name",
+        extra_index=True,
+        description="The name you assign to this job definition",
+    )
+    profile_name: PropertyRef = PropertyRef(
+        "ProfileName",
+        description="The name of an AWS Glue usage profile associated with the job",
+    )
+    job_mode: PropertyRef = PropertyRef(
+        "JobMode", description="A mode that describes how a job was created"
+    )
+    connections: PropertyRef = PropertyRef(
+        "Connections", description="The connections used for this job"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region", set_in_kwargs=True, description="The region of the Glue job"
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the job"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,6 +78,8 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GlueJobSchema(CartographyNodeSchema):
+    """Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/webapi/API_GetJobs.html)"""
+
     label: str = "AWSGlueJob"
     # DEPRECATED: legacy GlueJob node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_GLUE_JOB])

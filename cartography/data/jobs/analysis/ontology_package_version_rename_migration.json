@@ -1,0 +1,11 @@
+{
+  "statements": [
+    {
+      "__comment__": "The ontology Package node was keyed on {type}|{namespace/}{name}|{version}, so it always modelled a single version of a package. Relabel those nodes to PackageVersion: an in-place relabel preserves node identity and every DETECTED_AS / DEPLOYED / AFFECTS / SHOULD_UPDATE_TO / DEPENDS_ON edge already attached to them. Guarded on :Ontology because non-ontology :Package nodes belong to the legacy trivy migration in cartography/intel/trivy/scanner.py, and on version IS NOT NULL because that is what distinguishes a legacy node from the new version-independent Package. Idempotent: after the swap no :Package node carries a version.",
+      "query": "MATCH (n:Package:Ontology) WHERE n.version IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n:Package SET n:PackageVersion RETURN count(n) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    }
+  ],
+  "name": "Ontology - rename Package to PackageVersion"
+}

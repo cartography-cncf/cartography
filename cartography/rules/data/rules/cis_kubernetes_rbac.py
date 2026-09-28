@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -108,6 +109,7 @@ kubernetes_cluster_admin_role_usage = Rule(
         cis_kubernetes("5.1.1"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -220,6 +222,7 @@ kubernetes_roles_grant_secret_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.2"),
         iso27001_annex_a("8.3"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -342,6 +345,7 @@ kubernetes_wildcard_roles = Rule(
         cis_kubernetes("5.1.3"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -470,6 +474,7 @@ kubernetes_roles_grant_pod_creation = Rule(
     frameworks=(
         cis_kubernetes("5.1.4"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -533,7 +538,10 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     """,
     asset_label="KubernetesClusterRoleBinding",
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    # SUBJECT is one-to-many and KubernetesServiceAccount ids are namespaced, so one
+    # binding can subject the 'default' account of several namespaces: one row each,
+    # differing only by namespace.
+    identity_fields=("binding_id", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -572,7 +580,9 @@ _k8s_default_sa_role_bindings = Fact(
     """,
     asset_label="KubernetesRoleBinding",
     asset_id_field="binding_id",
-    identity_fields=("binding_id",),
+    # See _k8s_default_sa_cluster_role_bindings: one binding, one row per namespaced
+    # 'default' service account it subjects.
+    identity_fields=("binding_id", "namespace"),
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -676,12 +686,13 @@ kubernetes_default_service_account_bindings = Rule(
         _k8s_default_sa_automount_enabled,
     ),
     tags=("rbac", "service-accounts", "stride:elevation_of_privilege"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_kubernetes("5.1.5"),
         iso27001_annex_a("5.16"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -795,6 +806,7 @@ kubernetes_system_masters_group_usage = Rule(
     frameworks=(
         cis_kubernetes("5.1.7"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -907,6 +919,7 @@ kubernetes_bind_impersonate_escalate_permissions = Rule(
         cis_kubernetes("5.1.8"),
         iso27001_annex_a("5.18"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1020,6 +1033,7 @@ kubernetes_roles_grant_persistent_volume_creation = Rule(
     frameworks=(
         cis_kubernetes("5.1.9"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1094,6 +1108,7 @@ kubernetes_node_proxy_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.10"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -1169,6 +1184,7 @@ kubernetes_csr_approval_subresource_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.11"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -1188,7 +1204,7 @@ class WebhookConfigAccessOutput(Finding):
     role_name: str | None = None
     role_id: str | None = None
     role_type: str | None = None
-    webhook_resources: str | None = None
+    webhook_resources: list[str] | None = None
     cluster_name: str | None = None
 
 
@@ -1215,7 +1231,8 @@ _k8s_webhook_config_clusterroles = Fact(
         'ClusterRole' AS role_type,
         [r IN cr.resources WHERE r IN [
             'validatingwebhookconfigurations',
-            'mutatingwebhookconfigurations'
+            'mutatingwebhookconfigurations',
+            '*'
         ]] AS webhook_resources,
         cluster.name AS cluster_name
     """,
@@ -1258,6 +1275,7 @@ kubernetes_webhook_configuration_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.12"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 
@@ -1339,6 +1357,7 @@ kubernetes_service_account_token_creation_access = Rule(
     frameworks=(
         cis_kubernetes("5.1.13"),
         iso27001_annex_a("5.17"),
+        soc2_tsc("CC6.1"),
     ),
 )
 

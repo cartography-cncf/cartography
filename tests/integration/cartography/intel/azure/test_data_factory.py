@@ -107,6 +107,25 @@ def test_sync_data_factory_internal_rels(
         (MOCK_LINKED_SERVICES[0]["id"],)
     }
 
+    # Assert the fields read out of the SDK `properties` block. These would be null if
+    # the wire payload were read with the pre-10.0.0 key spellings.
+    assert check_nodes(
+        neo4j_session,
+        "AzureDataFactory",
+        ["id", "provisioning_state", "version"],
+    ) == {(MOCK_FACTORIES[0]["id"], "Succeeded", "2018-06-01")}
+    assert check_nodes(
+        neo4j_session,
+        "AzureDataFactoryPipeline",
+        ["id", "description"],
+    ) == {(MOCK_PIPELINES[0]["id"], "A test pipeline.")}
+    assert check_nodes(neo4j_session, "AzureDataFactoryDataset", ["id", "type"]) == {
+        (MOCK_DATASETS[0]["id"], "DelimitedText")
+    }
+    assert check_nodes(
+        neo4j_session, "AzureDataFactoryLinkedService", ["id", "type"]
+    ) == {(MOCK_LINKED_SERVICES[0]["id"], "AzureBlobFS")}
+
     # Assert Relationships
     factory_id = MOCK_FACTORIES[0]["id"]
     pipeline_id = MOCK_PIPELINES[0]["id"]

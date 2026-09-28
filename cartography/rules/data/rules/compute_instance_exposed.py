@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -44,7 +45,10 @@ _gcp_instance_internet_exposed = Fact(
           AND coalesce(rule.toport, rule.fromport, 0) >= managed_port
         )
       )
-    RETURN
+    // DISTINCT because the pattern fans out over NICs, access configs and IP rules:
+    // an instance exposed on two NICs through the same firewall, or by two rules
+    // covering the same port, would otherwise repeat one identity.
+    RETURN DISTINCT
         project.id AS account_id,
         project.id AS account,
         instance.id AS instance_id,
@@ -416,6 +420,25 @@ compute_instance_exposed = Rule(
         "stride:information_disclosure",
         "stride:elevation_of_privilege",
     ),
-    version="0.2.0",
-    frameworks=(iso27001_annex_a("8.20"),),
+    version="0.2.1",
+    frameworks=(
+        iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
+    ),
 )
+
+
+# =============================================================================
+# TODO: SOC 2 A1.1: Capacity monitoring and evaluation
+# Already in the graph: AWSCloudWatchMetricAlarm (state_value,
+# comparison_operator, actions_enabled), AzureMonitorMetricAlert, and
+# AWSAutoScalingGroup desiredcapacity and maxsize. Whether an alarm exists and
+# whether an autoscaling group has configured headroom are queryable today.
+# Neither proves insufficient capacity without utilization data, service
+# criticality, and organization-defined capacity thresholds.
+# Missing datamodel: alarm threshold, metric name and dimensions, which the
+# CloudWatch model does not carry; business-service criticality and capacity
+# policies; Google Cloud alerting policies.
+# Out of reach: utilization and saturation time series, and autoscaling event
+# history. Cartography ingests configuration and inventory, not metric streams.
+# =============================================================================

@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -9,7 +10,12 @@ from google.api_core.exceptions import RetryError
 
 import cartography.intel.gcp
 import cartography.intel.gcp.policy_bindings as policy_bindings
+import cartography.models.gcp as gcp_models
 from cartography.intel.gcp.policy_bindings import _parse_full_resource_name
+from cartography.models.gcp.policy_bindings import GCPPolicyBindingAppliesToMatchLink
+from cartography.models.gcp.resource_catalog import GCP_FULL_NAME_MAPPINGS
+from cartography.models.gcp.resource_catalog import GCP_POLICY_BINDING_TARGET_LABELS
+from cartography.models.introspection import inspect_data_model
 
 TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
@@ -18,6 +24,41 @@ COMMON_JOB_PARAMS = {
     "ORG_RESOURCE_NAME": "organizations/1337",
     "PROJECT_ID": TEST_PROJECT_ID,
 }
+
+
+def test_policy_binding_applies_to_edges_come_from_the_shared_catalog():
+    """
+    The runtime builds every APPLIES_TO edge from one template whose target and owner are
+    arguments, so introspection reads the concrete endpoints from the catalog instead.
+    """
+    # Arrange
+    catalog_labels = {mapping.label for mapping in GCP_FULL_NAME_MAPPINGS}
+
+    # Act
+    model = inspect_data_model(gcp_models)
+    applies_to = {
+        relationship.target_label
+        for relationship in model.relationships
+        if relationship.label == "APPLIES_TO"
+        and relationship.source_label == "GCPPolicyBinding"
+    }
+    template = GCPPolicyBindingAppliesToMatchLink()
+    concrete = policy_bindings.make_policy_binding_applies_to_matchlink(
+        "GCPBucket",
+        "GCPFolder",
+    )
+
+    # Assert
+    assert set(GCP_POLICY_BINDING_TARGET_LABELS) == catalog_labels
+    assert applies_to == catalog_labels
+    # The template alone describes none of those edges, so it must stay out of the model.
+    assert template.target_node_label == "GCPResource"
+    assert not any(
+        relationship.target_label == "GCPResource"
+        for relationship in model.relationships
+    )
+    assert concrete.target_node_label == "GCPBucket"
+    assert concrete.source_node_sub_resource.target_node_label == "GCPFolder"
 
 
 def _policy_results_with_members(members: list[str]) -> dict:
@@ -65,6 +106,22 @@ def test_transform_bindings_keeps_domain_only_binding():
     assert len(bindings) == 1
     assert bindings[0]["members"] == []
     assert bindings[0]["domains"] == ["example.com"]
+
+
+def test_transform_bindings_appends_condition_expression_hash_to_id():
+    data = _policy_results_with_members(["user:alice@example.com"])
+    expression = "request.time < timestamp('2027-01-01T00:00:00Z')"
+    binding = data["policy_results"][0]["policies"][0]["policy"]["bindings"][0]
+    binding["condition"] = {
+        "title": "Temporary access",
+        "expression": expression,
+    }
+
+    transformed = policy_bindings.transform_bindings(data)
+
+    expression_hash = hashlib.sha256(expression.encode("utf-8")).hexdigest()[:8]
+    resource = f"//cloudresourcemanager.googleapis.com/projects/{TEST_PROJECT_ID}"
+    assert transformed[0]["id"] == f"{resource}_roles/viewer_{expression_hash}"
 
 
 @pytest.mark.parametrize(
@@ -149,8 +206,8 @@ def test_transform_bindings_keeps_domain_only_binding():
         ),
         # Service Account
         (
-            "//iam.googleapis.com/projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com",
-            ("GCPServiceAccount", "sa@project-abc.iam.gserviceaccount.com"),
+            "//iam.googleapis.com/projects/project-abc/serviceAccounts/123456789012345678901",
+            ("GCPServiceAccount", "123456789012345678901"),
         ),
         # Cloud Functions
         (
@@ -201,7 +258,7 @@ def test_parse_full_resource_name(full_name, expected):
 def test_policy_bindings_search_asset_types_come_from_full_name_mappings():
     assert policy_bindings.GCP_POLICY_BINDINGS_SEARCH_ASSET_TYPES == [
         asset_type
-        for mapping in policy_bindings._FULL_NAME_MAPPINGS
+        for mapping in GCP_FULL_NAME_MAPPINGS
         for asset_type in (
             ((mapping.asset_type,) if mapping.asset_type is not None else ())
             + mapping.additional_asset_types

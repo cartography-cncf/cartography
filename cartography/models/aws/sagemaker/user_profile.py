@@ -13,15 +13,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("UserProfileArn")
-    arn: PropertyRef = PropertyRef("UserProfileArn", extra_index=True)
-    user_profile_name: PropertyRef = PropertyRef("UserProfileName")
-    domain_id: PropertyRef = PropertyRef("DomainId")
-    status: PropertyRef = PropertyRef("Status")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
-    execution_role: PropertyRef = PropertyRef("ExecutionRole")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "UserProfileArn", description="The ARN of the User Profile"
+    )
+    arn: PropertyRef = PropertyRef(
+        "UserProfileArn", extra_index=True, description="The ARN of the User Profile"
+    )
+    user_profile_name: PropertyRef = PropertyRef(
+        "UserProfileName", description="The name of the User Profile"
+    )
+    domain_id: PropertyRef = PropertyRef(
+        "DomainId", description="The Domain ID that this profile belongs to"
+    )
+    status: PropertyRef = PropertyRef(
+        "Status", description="The status of the User Profile"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the User Profile was created"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime", description="When the User Profile was last modified"
+    )
+    execution_role: PropertyRef = PropertyRef(
+        "ExecutionRole", description="The IAM execution role ARN for the user"
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the User Profile exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -83,6 +103,8 @@ class AWSSageMakerUserProfileToAWSSageMakerDomainRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerUserProfileSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain."""
+
     label: str = "AWSSageMakerUserProfile"
     properties: AWSSageMakerUserProfileNodeProperties = (
         AWSSageMakerUserProfileNodeProperties()

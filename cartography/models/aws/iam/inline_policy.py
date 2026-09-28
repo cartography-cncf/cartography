@@ -15,11 +15,21 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSInlinePolicyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Unique identifier for this `AWSInlinePolicy` node."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    type: PropertyRef = PropertyRef("type")
-    arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of this `AWSInlinePolicy` node."
+    )
+    type: PropertyRef = PropertyRef(
+        "type", description="Type of this `AWSInlinePolicy` node."
+    )
+    arn: PropertyRef = PropertyRef(
+        "arn",
+        extra_index=True,
+        description="Amazon Resource Name (ARN) of this `AWSInlinePolicy` node.",
+    )
 
 
 @dataclass(frozen=True)
@@ -64,9 +74,7 @@ class AWSInlinePolicyToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSInlinePolicySchema(CartographyNodeSchema):
-    """
-    Inline policies are defined on the given principal and are therefore scoped to that principal's account.
-    """
+    """Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "inline". An inline policy is a policy that is defined on a principal. Inline policies cannot be shared across principals."""
 
     label: str = "AWSInlinePolicy"
     properties: AWSInlinePolicyNodeProperties = AWSInlinePolicyNodeProperties()

@@ -19,14 +19,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitHubActionNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Organization-scoped identifier derived from the raw `uses` reference.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    owner: PropertyRef = PropertyRef("owner", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    version: PropertyRef = PropertyRef("version")
-    is_pinned: PropertyRef = PropertyRef("is_pinned", extra_index=True)
-    is_local: PropertyRef = PropertyRef("is_local", extra_index=True)
-    full_name: PropertyRef = PropertyRef("full_name")
+    owner: PropertyRef = PropertyRef(
+        "owner",
+        extra_index=True,
+        description="Owner of the referenced action repository, when applicable.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Action name or local action path."
+    )
+    version: PropertyRef = PropertyRef(
+        "version", description="Tag, branch, or commit reference used by the workflow."
+    )
+    is_pinned: PropertyRef = PropertyRef(
+        "is_pinned",
+        extra_index=True,
+        description="Whether the action is pinned to a full commit SHA.",
+    )
+    is_local: PropertyRef = PropertyRef(
+        "is_local",
+        extra_index=True,
+        description="Whether the workflow references a repository-local action.",
+    )
+    full_name: PropertyRef = PropertyRef(
+        "full_name", description="Action repository name in `owner/name` form."
+    )
 
 
 @dataclass(frozen=True)

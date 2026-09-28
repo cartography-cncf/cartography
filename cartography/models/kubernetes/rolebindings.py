@@ -13,18 +13,49 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    namespace: PropertyRef = PropertyRef("namespace")
-    uid: PropertyRef = PropertyRef("uid")
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    resource_version: PropertyRef = PropertyRef("resource_version")
-    role_name: PropertyRef = PropertyRef("role_name")
-    role_kind: PropertyRef = PropertyRef("role_kind")
-    service_account_ids: PropertyRef = PropertyRef("service_account_ids")
-    user_ids: PropertyRef = PropertyRef("user_ids")
-    group_ids: PropertyRef = PropertyRef("group_ids")
-    role_id: PropertyRef = PropertyRef("role_id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Identifier for the RoleBinding derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-binding`).",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the Kubernetes RoleBinding."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        description="The Kubernetes namespace where this RoleBinding is deployed.",
+    )
+    uid: PropertyRef = PropertyRef(
+        "uid", description="UID of the Kubernetes RoleBinding."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp of the creation time of the Kubernetes RoleBinding.",
+    )
+    resource_version: PropertyRef = PropertyRef(
+        "resource_version",
+        description="The resource version of the RoleBinding for optimistic concurrency control.",
+    )
+    role_name: PropertyRef = PropertyRef(
+        "role_name", description="Name of the Role that this RoleBinding references."
+    )
+    role_kind: PropertyRef = PropertyRef(
+        "role_kind",
+        description="Kind of the role reference (e.g. `Role` or `ClusterRole`).",
+    )
+    service_account_ids: PropertyRef = PropertyRef(
+        "service_account_ids",
+        description="Identifiers of bound service account subjects.",
+    )
+    user_ids: PropertyRef = PropertyRef(
+        "user_ids", description="Identifiers of bound user subjects."
+    )
+    group_ids: PropertyRef = PropertyRef(
+        "group_ids", description="Identifiers of bound group subjects."
+    )
+    role_id: PropertyRef = PropertyRef(
+        "role_id",
+        description="Identifier for the target Role (used for relationship matching).",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,6 +66,8 @@ class KubernetesRoleBindingToNamespaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToNamespaceRel(CartographyRelSchema):
+    """Links a namespace to a role binding it contains."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -56,6 +89,8 @@ class KubernetesRoleBindingToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its role bindings."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -74,6 +109,8 @@ class KubernetesRoleBindingToServiceAccountRelProperties(CartographyRelPropertie
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToServiceAccountRel(CartographyRelSchema):
+    """Links a role binding to a service account it grants its role to."""
+
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("service_account_ids", one_to_many=True)}
@@ -92,6 +129,8 @@ class KubernetesRoleBindingToUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToUserRel(CartographyRelSchema):
+    """Links a role binding to a user it grants its role to."""
+
     target_node_label: str = "KubernetesUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_ids", one_to_many=True)}
@@ -110,6 +149,8 @@ class KubernetesRoleBindingToGroupRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToGroupRel(CartographyRelSchema):
+    """Links a role binding to a group it grants its role to."""
+
     target_node_label: str = "KubernetesGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_ids", one_to_many=True)}
@@ -128,6 +169,8 @@ class KubernetesRoleBindingToRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingToRoleRel(CartographyRelSchema):
+    """Links a role binding to the role it grants."""
+
     target_node_label: str = "KubernetesRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("role_id")}
@@ -141,6 +184,8 @@ class KubernetesRoleBindingToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesRoleBindingSchema(CartographyNodeSchema):
+    "A namespace-scoped binding between RBAC subjects and a role."
+
     label: str = "KubernetesRoleBinding"
     properties: KubernetesRoleBindingNodeProperties = (
         KubernetesRoleBindingNodeProperties()

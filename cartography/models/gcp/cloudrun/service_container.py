@@ -15,15 +15,38 @@ from cartography.models.ontology.labels import CONTAINER
 
 @dataclass(frozen=True)
 class GCPCloudRunServiceContainerProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    service_id: PropertyRef = PropertyRef("service_id")
-    image: PropertyRef = PropertyRef("image")
-    image_digest: PropertyRef = PropertyRef("image_digest")
-    architecture: PropertyRef = PropertyRef("architecture")
-    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    architecture_source: PropertyRef = PropertyRef("architecture_source")
-    project_id: PropertyRef = PropertyRef("project_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Name of the container as declared in the spec. Falls back to the container index when the Cloud Run API omits the field (single-container deployments).",
+    )
+    service_id: PropertyRef = PropertyRef(
+        "service_id", description="Full resource name of the parent GCPCloudRunService."
+    )
+    image: PropertyRef = PropertyRef(
+        "image", description="The container image reference as declared in the spec."
+    )
+    image_digest: PropertyRef = PropertyRef(
+        "image_digest",
+        description="The digest portion of the image reference (e.g., `sha256:abc...`) when the image is pinned by digest; `None` for tag-based references.",
+    )
+    architecture: PropertyRef = PropertyRef(
+        "architecture",
+        description="CPU architecture (always `amd64`; Cloud Run does not support ARM).",
+    )
+    architecture_normalized: PropertyRef = PropertyRef(
+        "architecture_normalized",
+        description="Normalized architecture value (always `amd64`).",
+    )
+    architecture_source: PropertyRef = PropertyRef(
+        "architecture_source",
+        description="How the architecture was determined (always `platform_requirement`).",
+    )
+    project_id: PropertyRef = PropertyRef(
+        "project_id", description="The GCP project ID this container belongs to."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -165,6 +188,8 @@ class CloudRunServiceContainerToGitHubContainerImageRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPCloudRunServiceContainerSchema(CartographyNodeSchema):
+    """A Google Cloud Cloud Run Service Container resource."""
+
     label: str = "GCPCloudRunServiceContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CONTAINER])
     properties: GCPCloudRunServiceContainerProperties = (

@@ -4,7 +4,8 @@ from typing import Any
 import neo4j
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
-from azure.mgmt.resource import ResourceManagementClient
+from azure.core.serialization import as_attribute_dict
+from azure.mgmt.resource.resources import ResourceManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -24,7 +25,9 @@ logger = logging.getLogger(__name__)
 def get_resource_groups(credentials: Credentials, subscription_id: str) -> list[dict]:
     try:
         client = ResourceManagementClient(credentials.credential, subscription_id)
-        return [rg.as_dict() for rg in client.resource_groups.list()]
+        # azure-mgmt-resource 26.x uses hybrid models, whose as_dict() emits camelCase
+        # REST keys. as_attribute_dict() keeps the snake_case keys the transform expects.
+        return [as_attribute_dict(rg) for rg in client.resource_groups.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
             f"Failed to get Resource Groups for subscription {subscription_id}: {str(e)}"

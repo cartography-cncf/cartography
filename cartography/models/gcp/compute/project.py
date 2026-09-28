@@ -9,16 +9,19 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class GCPProjectComputeMetadataNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Stable identifier for this resource."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     compute_project_enable_oslogin: PropertyRef = PropertyRef(
         "compute_project_enable_oslogin",
+        description="Project metadata setting that enables OS Login for Compute Engine instances.",
     )
 
 
 @dataclass(frozen=True)
 class GCPProjectComputeMetadataSchema(CartographyNodeSchema):
-    """Composite schema for Compute API properties on an existing GCP project."""
+    """A Google Cloud Project resource."""
 
     label: str = "GCPProject"
     properties: GCPProjectComputeMetadataNodeProperties = (

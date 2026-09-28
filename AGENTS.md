@@ -79,6 +79,12 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Ensure `__init__.py` files exist in all module directories
 - Look at `tests/integration/cartography/intel/` for similar test patterns
 - Review `cartography/models/` for existing relationship patterns
+- For concrete node schema views (docs, autocomplete, agents), use
+  `DataModel.relationships_for_node(label)`. It projects materialized ontology
+  edges onto concretes that carry semantic labels (for example
+  `AWSECSContainer` inherits `RESOLVED_IMAGE` → `Image`). Do **not** treat
+  `ontology_relationship_constraints` as expected edges; those are
+  validation-only name/direction rules and are not inherited onto concretes.
 
 **Manual Write Queries:**
 - Prefer `load()` / `load_matchlinks()` for normal ingestion and `GraphJob` for cleanup.

@@ -14,6 +14,13 @@
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+
+from sphinx.util import logging as sphinx_logging
+
+from cartography.models.introspection import inspect_data_model
+from cartography.models.schema_docs import generated_schema_modules
+from cartography.models.schema_docs import write_schema_docs
 
 # Use __file__ for robustness when conf.py is copied to generated/rst/ by build.sh
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,6 +35,36 @@ _source_asset_prefix = (
 
 def setup(app):
     app.add_config_value("release_level", "", "env")
+    logger = sphinx_logging.getLogger(__name__)
+    srcdir = Path(app.srcdir).resolve()
+    # Schema pages are build artifacts. Building straight from docs/root/ would drop
+    # dozens of untracked files into the working tree; see docs/README.md.
+    if srcdir == Path(_config_dir).resolve() / "root":
+        raise RuntimeError(
+            "Refusing to generate schema pages inside docs/root/. "
+            "Build from generated/rst/ instead; see docs/README.md."
+        )
+    model = inspect_data_model()
+    # Anything introspection could not read would silently vanish from the docs, so make
+    # it a build warning rather than a field nobody looks at.
+    for diagnostic in model.diagnostics:
+        logger.warning("data model introspection: %s", diagnostic)
+    modules = generated_schema_modules(model)
+    write_schema_docs(model, srcdir / "modules")
+    logger.info("generated %d module schema pages", len(modules))
+
+    generated_pages = {f"modules/{module}/schema" for module in modules}
+
+    def drop_edit_link_on_generated_pages(
+        app, pagename, templatename, context, doctree
+    ):
+        # These pages are build artifacts with no committed source file, so the theme's
+        # "Edit this page" link would point at a path that does not exist. The theme
+        # only renders the link when page_source_suffix is set.
+        if pagename in generated_pages:
+            context["page_source_suffix"] = ""
+
+    app.connect("html-page-context", drop_edit_link_on_generated_pages)
 
 
 # -- General configuration ------------------------------------------------
@@ -143,14 +180,10 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "globaltoc_depth": 0,
-    "globaltoc_collapse": True,
     "github_url": "https://github.com/cartography-cncf/cartography",
-    "repo_name": "cartography",
-    "repo_type": "github",
     "page_layout": "default",
     "accent_color": "cyan",
-    "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
+    "slack_url": "https://slack.cncf.io/",
 }
 
 html_context = {
@@ -182,6 +215,7 @@ html_favicon = os.path.join(_source_asset_prefix, "images/logo-vertical.svg")
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = [os.path.join(_source_asset_prefix, "_static")]
 html_css_files = ["custom.css"]
+html_js_files = ["expand-intel-modules.js"]
 
 # html_style = 'css/cartography.css'
 
@@ -265,6 +299,9 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
 myst_fence_as_directive = ["mermaid"]
+# Without this, `[text](#some-heading)` links resolve to nothing. Kept at 3 because
+# generated schema pages repeat `#### Properties` per node, which would collide at 4.
+myst_heading_anchors = 3
 
 # Napoleon settings
 napoleon_google_docstring = True

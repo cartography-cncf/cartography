@@ -13,14 +13,32 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksDataSourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    data_source_id: PropertyRef = PropertyRef("data_source_id", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    type: PropertyRef = PropertyRef("type")
-    warehouse_id: PropertyRef = PropertyRef("warehouse_id", extra_index=True)
-    syntax: PropertyRef = PropertyRef("syntax")
-    paused: PropertyRef = PropertyRef("paused")
-    view_only: PropertyRef = PropertyRef("view_only")
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the Databricks data source."
+    )
+    data_source_id: PropertyRef = PropertyRef(
+        "data_source_id",
+        extra_index=True,
+        description="Databricks data source identifier.",
+    )
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the data source."
+    )
+    type: PropertyRef = PropertyRef("type", description="Type of the data source.")
+    warehouse_id: PropertyRef = PropertyRef(
+        "warehouse_id",
+        extra_index=True,
+        description="Identifier of the backing SQL warehouse.",
+    )
+    syntax: PropertyRef = PropertyRef(
+        "syntax", description="SQL dialect supported by the data source."
+    )
+    paused: PropertyRef = PropertyRef(
+        "paused", description="Whether the data source is paused."
+    )
+    view_only: PropertyRef = PropertyRef(
+        "view_only", description="Whether the data source is restricted to viewing."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +50,8 @@ class DatabricksDataSourceToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksDataSource)
 class DatabricksDataSourceToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this data source resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -51,6 +71,8 @@ class DatabricksDataSourceToWarehouseRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksDataSource)-[:BACKED_BY]->(:DatabricksSqlWarehouse)
 class DatabricksDataSourceToWarehouseRel(CartographyRelSchema):
+    """A Databricks data source is backed by a SQL warehouse."""
+
     target_node_label: str = "DatabricksSqlWarehouse"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("warehouse_scoped_id")},
@@ -64,6 +86,8 @@ class DatabricksDataSourceToWarehouseRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksDataSourceSchema(CartographyNodeSchema):
+    """A Databricks SQL data source backed by a warehouse."""
+
     label: str = "DatabricksDataSource"
     properties: DatabricksDataSourceNodeProperties = (
         DatabricksDataSourceNodeProperties()

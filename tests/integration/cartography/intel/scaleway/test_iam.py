@@ -199,9 +199,18 @@ def test_load_scaleway_groups(_mock_get, neo4j_session):
         (
             "1f767996-f6f6-4b0e-a7b1-6a255e809ed6",
             "Administrators",
+            False,
+            False,
         )
     }
-    assert check_nodes(neo4j_session, "ScalewayGroup", ["id", "name"]) == expected_nodes
+    assert (
+        check_nodes(
+            neo4j_session,
+            "ScalewayGroup",
+            ["id", "name", "all_users", "all_applications"],
+        )
+        == expected_nodes
+    )
 
     # Assert groups are linked to the organization
     expected_rels = {

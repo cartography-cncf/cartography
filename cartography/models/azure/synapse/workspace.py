@@ -12,10 +12,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureSynapseWorkspaceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    connectivity_endpoints: PropertyRef = PropertyRef("connectivity_endpoints")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the Synapse workspace."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the Synapse workspace."
+    )
+    location: PropertyRef = PropertyRef(
+        "location", description="Azure region where the workspace is deployed."
+    )
+    connectivity_endpoints: PropertyRef = PropertyRef(
+        "connectivity_endpoints",
+        description="Workspace service endpoints for web, SQL, and development access.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -26,6 +35,8 @@ class AzureSynapseWorkspaceToSubscriptionRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AzureSynapseWorkspaceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this Synapse workspace resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -39,6 +50,8 @@ class AzureSynapseWorkspaceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSynapseWorkspaceSchema(CartographyNodeSchema):
+    """An Azure Synapse workspace that groups analytics data and services."""
+
     label: str = "AzureSynapseWorkspace"
     properties: AzureSynapseWorkspaceProperties = AzureSynapseWorkspaceProperties()
     sub_resource_relationship: AzureSynapseWorkspaceToSubscriptionRel = (

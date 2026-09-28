@@ -14,11 +14,21 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class AnthropicUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    role: PropertyRef = PropertyRef("role")
-    added_at: PropertyRef = PropertyRef("added_at")
+    id: PropertyRef = PropertyRef("id", description="Anthropic user ID.")
+    name: PropertyRef = PropertyRef("name", description="User name.")
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="User email address.",
+    )
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Organization role: admin or user.",
+    )
+    added_at: PropertyRef = PropertyRef(
+        "added_at",
+        description="RFC 3339 timestamp when the user was added.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +40,8 @@ class AnthropicUserToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicUser)
 class AnthropicUserToOrganizationRel(CartographyRelSchema):
+    """The organization contains the user."""
+
     target_node_label: str = "AnthropicOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -43,6 +55,8 @@ class AnthropicUserToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AnthropicUserSchema(CartographyNodeSchema):
+    """A user account in an Anthropic organization."""
+
     label: str = "AnthropicUser"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [USER_ACCOUNT]

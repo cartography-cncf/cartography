@@ -1,39 +1,42 @@
-## CVE Metadata Configuration
+# CVE Metadata Configuration
 
-This module enriches existing CVE nodes in the graph with metadata from external sources. Unlike the deprecated [CVE](../cve/) module which imports all CVEs from NIST, this module only fetches metadata for CVEs already present in the graph from other modules (e.g., CrowdStrike, Semgrep, SentinelOne).
+## Authentication
 
-### Data Sources
+An NVD API key is optional. When provided, Cartography fetches current CVE
+metadata from the NVD API v2.0. Store the key in an environment variable and
+pass its name with `--cve-metadata-nist-api-key-env-var`.
 
-- **NVD** — CVSS scores, descriptions, references, weaknesses, and CISA KEV (Known Exploited Vulnerabilities) data from the [NIST NVD API v2.0](https://nvd.nist.gov/developers/vulnerabilities) when an API key is provided, otherwise from the [NVD JSON feeds](https://nvd.nist.gov/vuln/data-feeds).
-- **EPSS** — Exploit Prediction Scoring System scores from [FIRST.org](https://www.first.org/epss/).
+Without an API key, Cartography downloads the NVD yearly JSON feeds.
 
-### Usage
+## Configure Cartography
 
-No explicit enable flag is needed. Include `cve_metadata` in your module list or run all modules.
+No explicit enable flag is required. Include `cve_metadata` in the selected
+module list or run all modules.
 
-### Enrichment order
+Use `--cve-metadata-src` multiple times to select metadata sources. Valid
+values are `nvd` and `epss`. All sources are enabled by default.
 
-`cve_metadata` only enriches `:CVE` nodes that are already present in the graph — it does not create them. Modules that produce `:CVE` nodes (e.g. CrowdStrike, Semgrep, SentinelOne, Trivy) must run **before** `cve_metadata` in the same sync. Running all modules in a single cartography invocation is sufficient: the module ordering in `cartography/sync.py` places `cve_metadata` after the CVE-producing modules, so the enrichment pass picks up every freshly ingested CVE.
-
-If you only run `cve_metadata` in isolation, it will enrich the CVEs from the previous sync and skip the step silently if no `:CVE` nodes exist yet.
-
-### Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--cve-metadata-src` | List of metadata sources to enable. Can be specified multiple times. Valid values: `nvd`, `epss`. | All sources enabled |
-| `--cve-metadata-nist-api-key-env-var` | Environment variable name holding an NVD API v2.0 key. When set, CVEs are fetched one-by-one via the API (fresher data); otherwise the module downloads yearly JSON feeds. | None |
-
-### Examples
+## Run Cartography
 
 Enrich CVEs with all sources:
 
 ```bash
-cartography --cve-metadata-src nvd --cve-metadata-src epss
+cartography \
+  --selected-modules cve_metadata \
+  --cve-metadata-src nvd \
+  --cve-metadata-src epss
 ```
 
 Enrich CVEs with only EPSS scores:
 
 ```bash
-cartography --cve-metadata-src epss
+cartography \
+  --selected-modules cve_metadata \
+  --cve-metadata-src epss
 ```
+
+## References
+
+- [NIST NVD API v2.0](https://nvd.nist.gov/developers/vulnerabilities)
+- [NVD JSON feeds](https://nvd.nist.gov/vuln/data-feeds)
+- [FIRST EPSS](https://www.first.org/epss/)

@@ -13,15 +13,31 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class UbuntuSecurityNoticeNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="USN identifier, for example `USN-6600-1`."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    title: PropertyRef = PropertyRef("title")
-    summary: PropertyRef = PropertyRef("summary")
-    description: PropertyRef = PropertyRef("description")
-    published: PropertyRef = PropertyRef("published")
-    notice_type: PropertyRef = PropertyRef("notice_type")
-    instructions: PropertyRef = PropertyRef("instructions")
-    is_hidden: PropertyRef = PropertyRef("is_hidden")
+    title: PropertyRef = PropertyRef(
+        "title", description="Title of the security notice."
+    )
+    summary: PropertyRef = PropertyRef(
+        "summary", description="Brief summary of the notice."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Full description of the notice."
+    )
+    published: PropertyRef = PropertyRef(
+        "published", description="Date the notice was published."
+    )
+    notice_type: PropertyRef = PropertyRef(
+        "notice_type", description="Type of notice, for example USN."
+    )
+    instructions: PropertyRef = PropertyRef(
+        "instructions", description="Remediation instructions."
+    )
+    is_hidden: PropertyRef = PropertyRef(
+        "is_hidden", description="Whether Ubuntu marks this notice as hidden."
+    )
 
 
 @dataclass(frozen=True)
@@ -31,7 +47,7 @@ class UbuntuNoticeToUbuntuCVEFeedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class UbuntuNoticeToUbuntuCVEFeedRel(CartographyRelSchema):
-    """(:UbuntuSecurityNotice)<-[:RESOURCE]-(:UbuntuCVEFeed)"""
+    """Links the Ubuntu Security feed to a notice it publishes."""
 
     target_node_label: str = "UbuntuCVEFeed"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -51,7 +67,7 @@ class UbuntuNoticeToUbuntuCVERelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class UbuntuNoticeToUbuntuCVERel(CartographyRelSchema):
-    """(:UbuntuSecurityNotice)-[:ADDRESSES]->(:UbuntuCVE)"""
+    """Links a security notice to each CVE it remediates."""
 
     target_node_label: str = "UbuntuCVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -66,6 +82,9 @@ class UbuntuNoticeToUbuntuCVERel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class UbuntuSecurityNoticeSchema(CartographyNodeSchema):
+    """A Ubuntu Security Notice (USN) from the
+    [Ubuntu Security API](https://ubuntu.com/security/notices)."""
+
     label: str = "UbuntuSecurityNotice"
     properties: UbuntuSecurityNoticeNodeProperties = (
         UbuntuSecurityNoticeNodeProperties()

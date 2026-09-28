@@ -15,15 +15,37 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayMethodNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    httpmethod: PropertyRef = PropertyRef("httpMethod")
-    resource_id: PropertyRef = PropertyRef("resourceId")
-    api_id: PropertyRef = PropertyRef("apiId")
-    authorization_type: PropertyRef = PropertyRef("authorizationType")
-    authorizer_id: PropertyRef = PropertyRef("authorizerId")
-    request_validator_id: PropertyRef = PropertyRef("requestValidatorId")
-    operation_name: PropertyRef = PropertyRef("operationName")
-    api_key_required: PropertyRef = PropertyRef("apiKeyRequired")
+    id: PropertyRef = PropertyRef(
+        "id", description="The id represented as ApiId/ResourceId/HttpMethod"
+    )
+    httpmethod: PropertyRef = PropertyRef(
+        "httpMethod", description="The method's HTTP verb"
+    )
+    resource_id: PropertyRef = PropertyRef(
+        "resourceId", description="Identifier for respective resource"
+    )
+    api_id: PropertyRef = PropertyRef(
+        "apiId", description="The  identifier for the API"
+    )
+    authorization_type: PropertyRef = PropertyRef(
+        "authorizationType", description="The method's authorization type"
+    )
+    authorizer_id: PropertyRef = PropertyRef(
+        "authorizerId",
+        description="The identifier of an authorizer to use on this method",
+    )
+    request_validator_id: PropertyRef = PropertyRef(
+        "requestValidatorId",
+        description="The identifier of a RequestValidator for request validation",
+    )
+    operation_name: PropertyRef = PropertyRef(
+        "operationName",
+        description="A human-friendly operation identifier for the method",
+    )
+    api_key_required: PropertyRef = PropertyRef(
+        "apiKeyRequired",
+        description="A boolean flag specifying whether a valid ApiKey is required to invoke this method",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -66,6 +88,8 @@ class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class APIGatewayMethodSchema(CartographyNodeSchema):
+    """Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigateway/latest/api/API_GetMethod.html)."""
+
     label: str = "AWSAPIGatewayMethod"
     # DEPRECATED: legacy APIGatewayMethod node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_API_GATEWAY_METHOD])

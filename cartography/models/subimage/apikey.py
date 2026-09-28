@@ -14,11 +14,20 @@ from cartography.models.ontology.labels import API_KEY
 
 @dataclass(frozen=True)
 class SubImageAPIKeyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("app_id")
-    client_id: PropertyRef = PropertyRef("client_id")
-    role: PropertyRef = PropertyRef("role")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
+    id: PropertyRef = PropertyRef("app_id", description="Application ID.")
+    client_id: PropertyRef = PropertyRef(
+        "client_id",
+        description="Client ID.",
+    )
+    role: PropertyRef = PropertyRef(
+        "role",
+        description="Role associated with the API key.",
+    )
+    name: PropertyRef = PropertyRef("name", description="API key name.")
+    description: PropertyRef = PropertyRef(
+        "description",
+        description="API key description.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +39,8 @@ class SubImageAPIKeyToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:SubImageTenant)-[:RESOURCE]->(:SubImageAPIKey)
 class SubImageAPIKeyToTenantRel(CartographyRelSchema):
+    """The tenant contains the API key."""
+
     target_node_label: str = "SubImageTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -43,6 +54,8 @@ class SubImageAPIKeyToTenantRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SubImageAPIKeySchema(CartographyNodeSchema):
+    """An API key configured in SubImage."""
+
     label: str = "SubImageAPIKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     properties: SubImageAPIKeyNodeProperties = SubImageAPIKeyNodeProperties()

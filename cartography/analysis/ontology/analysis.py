@@ -37,6 +37,9 @@ AWS_USER_PROJECTION = AnalysisJob(
         ),
     ),
 )
+# TODO: Normalize CrowdStrike and Jamf source emails during ingestion before
+# moving their device ownership joins to User.normalized_email; test Unicode
+# whitespace consistently on both sides and cleanup across update tags.
 DEVICE_OWNS_LINKING = AnalysisJob(
     name="Ontology - Devices OWNS relationship linking",
     short_name="ontology_devices_linking",
@@ -126,6 +129,15 @@ DEVICE_OWNS_LINKING = AnalysisJob(
             ),
             incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:MiradoreUser)-[:OWNS]->(:MiradoreDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
     ),
 )
 DEVICE_AFFECTS_S1_FINDING = AnalysisJob(
@@ -166,10 +178,30 @@ DEVICE_AFFECTS_CROWDSTRIKE_FINDING = AnalysisJob(
         ),
     ),
 )
+DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT = AnalysisJob(
+    name="Ontology - HuntressIncidentReport AFFECTS Device linking",
+    short_name="ontology_devices_huntress_incident_report_affects",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (d:Device)-[obs:OBSERVED_AS]->(:HuntressAgent)<-[:AFFECTS]-(f:HuntressIncidentReport)",
+            effects=(
+                AddRelationship(
+                    "f",
+                    "AFFECTS",
+                    "d",
+                    source_label="HuntressIncidentReport",
+                    target_label="Device",
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+    ),
+)
 DEVICE_LINKING_JOBS = (
     DEVICE_OWNS_LINKING,
     DEVICE_AFFECTS_S1_FINDING,
     DEVICE_AFFECTS_CROWDSTRIKE_FINDING,
+    DEVICE_AFFECTS_HUNTRESS_INCIDENT_REPORT,
 )
 DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
     name="Ontology - DNSRecord to KubernetesIngress linking",
@@ -185,6 +217,24 @@ DNS_RECORD_TO_KUBERNETES_INGRESS = AnalysisJob(
                     "ing",
                     source_label="DNSRecord",
                     target_label="KubernetesIngress",
+                ),
+            ),
+        ),
+    ),
+)
+BBOT_DNS_MATCHES_PROVIDER = AnalysisJob(
+    name="Ontology - BbotDNSName to provider DNSRecord linking",
+    short_name="ontology_bbot_dns_matches_provider",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (bbot:BbotDNSName), (provider:DNSRecord) WHERE NOT provider:BbotDNSName AND bbot._ont_name IS NOT NULL AND toLower(rtrim(bbot._ont_name, '.')) = toLower(rtrim(provider._ont_name, '.'))",
+            effects=(
+                AddRelationship(
+                    "bbot",
+                    "MATCHES_DNS_RECORD",
+                    "provider",
+                    source_label="BbotDNSName",
+                    target_label="DNSRecord",
                 ),
             ),
         ),
@@ -214,7 +264,10 @@ DNS_RECORD_TARGETS = (
     ("AzureAppService", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
     ("AzureFunctionApp", "default_host_name", "AND NOT dns:GCPRecordSet", ""),
 )
-DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
+DNS_RECORD_LINKING_JOBS = (
+    DNS_RECORD_TO_KUBERNETES_INGRESS,
+    BBOT_DNS_MATCHES_PROVIDER,
+) + tuple(
     (
         AnalysisJob(
             name=f"Ontology - DNSRecord to {target_label} linking",
@@ -241,8 +294,16 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
                             "dns",
                             "DNS_POINTS_TO",
                             "target",
+                            # Declared identically to the statement above, cleanup_where
+                            # included, so the two cleanup effects dedupe into a single
+                            # guarded delete. GCPRecordSet carries the DNSRecord label and is
+                            # never an AWSDNSRecord, so that one delete already covers these
+                            # edges; declaring GCPRecordSet here would only add a redundant
+                            # cleanup, and omitting cleanup_where would add an unguarded one
+                            # that deletes the provider-owned edges the guard protects.
                             source_label="DNSRecord",
                             target_label=target_label,
+                            cleanup_where=cleanup_where,
                         ),
                     ),
                 ),
@@ -251,19 +312,37 @@ DNS_RECORD_LINKING_JOBS = (DNS_RECORD_TO_KUBERNETES_INGRESS,) + tuple(
         for target_label, target_property, match_filter, cleanup_where in DNS_RECORD_TARGETS
     )
 )
+BBOT_IP_MATCHES_PUBLIC_IP = AnalysisJob(
+    name="Ontology - BbotIPAddress to PublicIP linking",
+    short_name="ontology_bbot_ip_matches_public_ip",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (bbot:BbotIPAddress) WHERE bbot.is_global = true AND bbot.ip_address IS NOT NULL WITH bbot MATCH (public_ip:PublicIP {ip_address: bbot.ip_address})",
+            effects=(
+                AddRelationship(
+                    "bbot",
+                    "MATCHES_PUBLIC_IP",
+                    "public_ip",
+                    source_label="BbotIPAddress",
+                    target_label="PublicIP",
+                ),
+            ),
+        ),
+    ),
+)
 PACKAGE_DEPLOYED_IMAGE_JOBS = (
     AnalysisJob(
-        name="Ontology - Trivy Package DEPLOYED Image linking",
+        name="Ontology - Trivy PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_trivy_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
                 ),
@@ -271,72 +350,90 @@ PACKAGE_DEPLOYED_IMAGE_JOBS = (
         ),
     ),
     AnalysisJob(
-        name="Ontology - Syft Package DEPLOYED Image linking",
+        name="Ontology - Syft PackageVersion DEPLOYED Image linking",
         short_name="ontology_packages_syft_deployed",
         statements=(
             AnalysisStatement(
-                match="MATCH (p:Package)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
+                match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(sp:SyftPackage)-[:DEPLOYED]->(img:Image)",
                 effects=(
                     AddRelationship(
                         "p",
                         "DEPLOYED",
                         "img",
-                        source_label="Package",
+                        source_label="PackageVersion",
                         target_label="Image",
                     ),
+                ),
+            ),
+        ),
+    ),
+)
+PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT = AnalysisJob(
+    name="Ontology - Trivy PackageVersion DEPLOYED FilesystemSnapshot linking",
+    short_name="ontology_packages_trivy_deployed_filesystem_snapshot",
+    statements=(
+        AnalysisStatement(
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:DEPLOYED]->(snapshot:FilesystemSnapshot)",
+            effects=(
+                AddRelationship(
+                    "p",
+                    "DEPLOYED",
+                    "snapshot",
+                    source_label="PackageVersion",
+                    target_label="FilesystemSnapshot",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_AFFECTS_LINKING = AnalysisJob(
-    name="Ontology - TrivyImageFinding AFFECTS Package linking",
+    name="Ontology - TrivyImageFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:TrivyImageFinding)-[:AFFECTS]->(tp:TrivyPackage)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="TrivyImageFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_AFFECTS_SEMGREP_SCA_LINKING = AnalysisJob(
-    name="Ontology - SemgrepSCAFinding AFFECTS Package linking",
+    name="Ontology - SemgrepSCAFinding AFFECTS PackageVersion linking",
     short_name="ontology_packages_semgrep_sca_affects",
     statements=(
         AnalysisStatement(
-            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:Package)",
+            match="MATCH (f:SemgrepSCAFinding)-[:AFFECTS]->(d:SemgrepDependency)<-[:DETECTED_AS]-(p:PackageVersion)",
             effects=(
                 AddRelationship(
                     "f",
                     "AFFECTS",
                     "p",
                     source_label="SemgrepSCAFinding",
-                    target_label="Package",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
     ),
 )
 PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
-    name="Ontology - Package SHOULD_UPDATE_TO TrivyFix linking",
+    name="Ontology - PackageVersion SHOULD_UPDATE_TO TrivyFix linking",
     short_name="ontology_packages_should_update_to",
     statements=(
         AnalysisStatement(
-            match="MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
+            match="MATCH (p:PackageVersion)-[:DETECTED_AS]->(tp:TrivyPackage)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)",
             effects=(
                 AddRelationship(
                     "p",
                     "SHOULD_UPDATE_TO",
                     "fix",
-                    source_label="Package",
+                    source_label="PackageVersion",
                     target_label="TrivyFix",
                 ),
             ),
@@ -344,18 +441,18 @@ PACKAGE_SHOULD_UPDATE_TO_LINKING = AnalysisJob(
     ),
 )
 PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
-    name="Ontology - Package DEPENDS_ON Package linking",
+    name="Ontology - PackageVersion DEPENDS_ON PackageVersion linking",
     short_name="ontology_packages_depends_on",
     statements=(
         AnalysisStatement(
-            match="MATCH (p1:Package)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:Package)",
+            match="MATCH (p1:PackageVersion)-[:DETECTED_AS]->(sp1:SyftPackage)-[:DEPENDS_ON]->(sp2:SyftPackage)<-[:DETECTED_AS]-(p2:PackageVersion)",
             effects=(
                 AddRelationship(
                     "p1",
                     "DEPENDS_ON",
                     "p2",
-                    source_label="Package",
-                    target_label="Package",
+                    source_label="PackageVersion",
+                    target_label="PackageVersion",
                 ),
             ),
         ),
@@ -363,6 +460,7 @@ PACKAGE_DEPENDS_ON_LINKING = AnalysisJob(
 )
 PACKAGE_LINKING_JOBS = (
     *PACKAGE_DEPLOYED_IMAGE_JOBS,
+    PACKAGE_DEPLOYED_FILESYSTEM_SNAPSHOT,
     PACKAGE_AFFECTS_LINKING,
     PACKAGE_AFFECTS_SEMGREP_SCA_LINKING,
     PACKAGE_SHOULD_UPDATE_TO_LINKING,
@@ -487,6 +585,31 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
                 ),
             ),
         ),
+        AnalysisStatement(
+            match=(
+                "MATCH (g:GitHubUser)-[:MEMBER_OF]->(org:GitHubOrganization)"
+                "-[:RESOURCE]->(identity:GitHubExternalIdentity)<-[:HAS_IDENTITY]-(g) "
+                "MATCH (u:User {normalized_email: identity.saml_name_id_normalized}) "
+                "WHERE u.normalized_email CONTAINS '@' "
+                "WITH g, collect(DISTINCT u) AS candidates "
+                "WHERE size(candidates) = 1 "
+                "WITH g, candidates[0] AS u "
+                "WHERE g.normalized_emails IS NOT NULL "
+                "AND NOT EXISTS { "
+                "UNWIND g.normalized_emails AS email "
+                "MATCH (other:User {normalized_email: email}) "
+                "WHERE other <> u }"
+            ),
+            effects=(
+                AddRelationship(
+                    "u",
+                    "HAS_ACCOUNT",
+                    "g",
+                    source_label="User",
+                    target_label="GitHubUser",
+                ),
+            ),
+        ),
     ),
 )
 USER_OWNS_API_KEY = AnalysisJob(
@@ -521,7 +644,7 @@ USER_AUTHORIZED_THIRD_PARTY_APP = AnalysisJob(
             ),
         ),
         AnalysisStatement(
-            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)-[:APPLICATION]->(a:ThirdPartyApp)",
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:MEMBER_OF]->(:OktaGroup)-[:APPLICATION]->(a:ThirdPartyApp)",
             effects=(
                 AddRelationship(
                     "u",
@@ -666,6 +789,8 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
                     "r",
                     "dockerfile_path",
                     Var("i.source_file"),
+                    source_label="Image",
+                    rel_label="PACKAGED_FROM",
                 ),
             ),
         ),

@@ -75,6 +75,43 @@ def test_get_gcp_buckets_permission_denied_logs_concisely(monkeypatch, caplog):
     assert "googleapiclient.errors.HttpError" not in caplog.text
 
 
+def test_get_gcp_buckets_skips_vpc_service_controls_denial(monkeypatch, caplog):
+    """
+    A VPC Service Controls perimeter denies bucket listing with reason
+    'vpcServiceControls' rather than an IAM-style reason. This used to fall
+    through to `raise` and crash the entire org-wide sync; it should be
+    skipped the same way any other permission-denied reason is.
+    """
+    storage = MagicMock()
+    request = MagicMock()
+    storage.buckets.return_value.list.return_value = request
+
+    resp = MagicMock()
+    resp.status = 403
+    error = HttpError(
+        resp=resp,
+        content=json.dumps(
+            {
+                "error": {
+                    "message": "Request is prohibited by organization's policy.",
+                    "errors": [{"reason": "vpcServiceControls"}],
+                }
+            }
+        ).encode("utf-8"),
+    )
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.storage.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        buckets = cartography.intel.gcp.storage.get_gcp_buckets(storage, "test-project")
+
+    assert buckets == {}
+    assert "vpcServiceControls" in caplog.text
+
+
 def test_get_gcp_buckets_reraises_generic_403(monkeypatch):
     storage = MagicMock()
     request = MagicMock()

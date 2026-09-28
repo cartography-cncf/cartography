@@ -58,8 +58,12 @@ def load_members(
 def transform_members(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for member in data:
-        member["roles_ids"] = [role["id"] for role in member.get("roles", [])]
-        member["policies_ids"] = [policy["id"] for policy in member.get("policies", [])]
+        # Both fields are optional, so a member without any comes back with the
+        # key absent or explicitly null.
+        member["roles_ids"] = [role["id"] for role in member.get("roles") or []]
+        member["policies_ids"] = [
+            policy["id"] for policy in member.get("policies") or []
+        ]
         result.append(member)
     return result
 

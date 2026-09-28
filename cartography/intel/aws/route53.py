@@ -20,6 +20,13 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# ELB DNS names live under AWS-owned domains, so a suffix match here cannot collide with a
+# customer zone. GovCloud ELBs use the commercial domain; only China has its own.
+_ELB_DNS_SUFFIXES = (
+    ".elb.amazonaws.com",
+    ".elb.amazonaws.com.cn",
+)
+
 DnsData = namedtuple(
     "DnsData",
     [
@@ -40,6 +47,42 @@ def _create_dns_record_id(zoneid: str, name: str, record_type: str) -> str:
 
 def _normalize_dns_address(address: str) -> str:
     return address.rstrip(".")
+
+
+def _normalize_dns_target(value: str) -> str:
+    """
+    Normalize a hostname-valued record target so it can be matched for equality against
+    node properties such as AWSLoadBalancerV2.dnsname or AWSEC2Instance.publicdnsname.
+
+    Strips the trailing root dot and lowercases: DNS names are case-insensitive, Route53
+    lowercases the names it stores, and the load balancer nodes lowercase their dnsname at
+    ingestion for the same reason.
+    """
+    if value.endswith("."):
+        value = value[:-1]
+    return value.lower()
+
+
+def _normalize_alias_target(value: str) -> str:
+    """
+    Normalize an AliasTarget's DNSName, additionally removing the `dualstack.` prefix that
+    Route53 puts on alias targets pointing at an ELB: the ELB APIs return the same load
+    balancer's DNSName without it, so leaving it in place means the alias never matches.
+
+    The prefix is only an ELB artifact, hence the suffix check against the AWS-owned ELB
+    domains. An alias may also point at another record in the same hosted zone, and an ordinary
+    CNAME's value is zone data written by the operator; in both of those a leading `dualstack.`
+    belongs to a genuinely different hostname and stripping it would rewrite the target. A
+    hostname in an arbitrary zone can contain `.elb.` too, so only the suffix is conclusive.
+    """
+    normalized = _normalize_dns_target(value)
+    if not normalized.startswith("dualstack."):
+        return normalized
+
+    without_dualstack = normalized.removeprefix("dualstack.")
+    if without_dualstack.endswith(_ELB_DNS_SUFFIXES):
+        return without_dualstack
+    return normalized
 
 
 @timeit
@@ -79,9 +122,7 @@ def transform_record_set(
     if record_set["Type"] == "CNAME":
         if "AliasTarget" in record_set:
             # this is a weighted CNAME record
-            value = record_set["AliasTarget"]["DNSName"]
-            if value.endswith("."):
-                value = value[:-1]
+            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "CNAME",
@@ -91,9 +132,7 @@ def transform_record_set(
             }
         else:
             # This is a normal CNAME record
-            value = record_set["ResourceRecords"][0]["Value"]
-            if value.endswith("."):
-                value = value[:-1]
+            value = _normalize_dns_target(record_set["ResourceRecords"][0]["Value"])
             return {
                 "name": name,
                 "type": "CNAME",
@@ -110,7 +149,7 @@ def transform_record_set(
                 "name": name,
                 "type": "ALIAS",
                 "zoneid": zone_id,
-                "value": record_set["AliasTarget"]["DNSName"][:-1],
+                "value": _normalize_alias_target(record_set["AliasTarget"]["DNSName"]),
                 "id": _create_dns_record_id(zone_id, name, "ALIAS"),
             }
         else:
@@ -132,9 +171,7 @@ def transform_record_set(
     elif record_set["Type"] == "AAAA":
         if "AliasTarget" in record_set:
             # AAAA alias records follow the same pattern as A aliases but map to IPv6 targets
-            value = record_set["AliasTarget"]["DNSName"]
-            if value.endswith("."):
-                value = value[:-1]
+            value = _normalize_alias_target(record_set["AliasTarget"]["DNSName"])
             return {
                 "name": name,
                 "type": "ALIAS",

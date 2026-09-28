@@ -1,6 +1,10 @@
-# AWS IAM Privilege Escalation Methods and Mitigation
+# AWS IAM Privilege Escalation Permission Candidates
 
-This document outlines various methods for privilege escalation in AWS IAM environments, along with required permissions, potential impact, and Cartography queries for detection.
+This document outlines various methods for privilege escalation in AWS IAM environments, along with required permissions, potential impact, and Cartography queries that identify candidates for further investigation.
+
+```{warning}
+These queries are triage aids, not effective-permission evaluations. They match action strings on `Allow` policy statements and do not account for resource scope, conditions, explicit denies, wildcard actions, permissions boundaries, service control policies, or whether a principal can reach a suitable target. A query result does not prove that the method is exploitable, and an empty result does not prove that the method is unavailable.
+```
 
 ## 1. Creating a New Policy Version
 
@@ -354,7 +358,7 @@ This would give a user access to the privileges associated with any Lambda servi
 **Cartography Query:**
 ```cypher
 MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:AddPermission") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction"))
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateFunction") AND any(x in stmt.action WHERE x = "lambda:AddPermission"))
 RETURN p
 ```
 
@@ -380,7 +384,7 @@ This would give an attacker access to the privileges associated with any Lambda 
 **Cartography Query:**
 ```cypher
 MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateEventSourceMapping") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction" AND any(x in stmt.action WHERE x = "dynamodb:PutItem") AND any(x in stmt.action WHERE x = "dynamodb:CreateTable")))
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateFunction") AND any(x in stmt.action WHERE x = "lambda:CreateEventSourceMapping"))
 RETURN p
 ```
 

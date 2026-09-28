@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_aws
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -102,6 +103,7 @@ aws_ebs_volume_encryption = Rule(
     frameworks=(
         cis_aws("6.1.1"),
         iso27001_annex_a("8.24"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -205,6 +207,7 @@ aws_cifs_access_restricted_to_trusted_networks = Rule(
     frameworks=(
         cis_aws("6.1.2"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -321,6 +324,7 @@ aws_ipv4_remote_administration_ports_open_to_internet = Rule(
     frameworks=(
         cis_aws("6.3"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -437,6 +441,7 @@ aws_ipv6_remote_administration_ports_open_to_internet = Rule(
     frameworks=(
         cis_aws("6.4"),
         iso27001_annex_a("8.20"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -529,6 +534,8 @@ aws_default_security_group_restricts_traffic = Rule(
         cis_aws("6.5"),
         iso27001_annex_a("8.20"),
         iso27001_annex_a("8.22"),
+        soc2_tsc("CC6.1"),
+        soc2_tsc("CC6.6"),
     ),
 )
 
@@ -611,6 +618,7 @@ aws_ec2_instances_use_imdsv2 = Rule(
     frameworks=(
         cis_aws("6.7"),
         iso27001_annex_a("8.9"),
+        soc2_tsc("CC7.1"),
     ),
 )
 

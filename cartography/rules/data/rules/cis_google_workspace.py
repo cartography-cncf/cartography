@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.data.frameworks.cis import cis_google_workspace
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -96,6 +97,7 @@ googleworkspace_users_without_enforced_2sv = Rule(
     frameworks=(
         cis_google_workspace("4.1.1.3"),
         iso27001_annex_a("8.5"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -126,7 +128,7 @@ _gw_admin_2sv_not_enforced = Fact(
     id="gw_admin_2sv_not_enforced",
     name="Google Workspace admin accounts without enforced 2-Step Verification",
     description=(
-        "Detects Google Workspace admin accounts that do not have 2-Step Verification enforced. "
+        "Detects active Google Workspace admin accounts that do not have 2-Step Verification enforced. "
         "Admin accounts have elevated privileges and are high-value targets for attackers. "
         "Requires admin.directory.user.security scope."
     ),
@@ -134,6 +136,7 @@ _gw_admin_2sv_not_enforced = Fact(
     MATCH (t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
     WHERE
         (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
+        AND coalesce(u._ont_active, true) = true
         AND coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN
         u.id AS user_id,
@@ -149,12 +152,14 @@ _gw_admin_2sv_not_enforced = Fact(
     MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
     WHERE
         (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
+        AND coalesce(u._ont_active, true) = true
         AND coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN *
     """,
     cypher_count_query="""
     MATCH (u:GoogleWorkspaceUser)
-    WHERE coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true
+    WHERE (coalesce(u.is_admin, false) = true OR coalesce(u.is_delegated_admin, false) = true)
+      AND coalesce(u._ont_active, true) = true
     RETURN COUNT(u) AS count
     """,
     asset_id_field="user_id",
@@ -174,12 +179,13 @@ googleworkspace_admins_without_enforced_2sv = Rule(
     output_model=AdminWithout2SVOutput,
     facts=(_gw_admin_2sv_not_enforced,),
     tags=("iam", "authentication", "privileged_access", "stride:spoofing"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_google_workspace("4.1.1.1"),
         iso27001_annex_a("8.5"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.1"),
     ),
 )
 
@@ -329,6 +335,7 @@ googleworkspace_too_many_super_admin_accounts = Rule(
         cis_google_workspace("1.1.2"),
         iso27001_annex_a("8.2"),
         iso27001_annex_a("5.18"),
+        soc2_tsc("CC6.3"),
     ),
 )
 
@@ -350,12 +357,14 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     id="gw_super_admin_with_delegated_admin_role",
     name="Google Workspace Super Admin accounts also marked as delegated admins",
     description=(
-        "Finds accounts that are simultaneously Super Admins and delegated admins, "
+        "Finds active accounts that are simultaneously Super Admins and delegated admins, "
         "which violates the benchmark's dedicated-admin-account guidance."
     ),
     cypher_query="""
     MATCH (t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
-    WHERE coalesce(u.is_admin, false) = true AND coalesce(u.is_delegated_admin, false) = true
+    WHERE coalesce(u.is_admin, false) = true
+      AND coalesce(u.is_delegated_admin, false) = true
+      AND coalesce(u._ont_active, true) = true
     RETURN
         u.id AS user_id,
         u.primary_email AS primary_email,
@@ -364,12 +373,15 @@ _gw_super_admin_with_delegated_admin_role = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
-    WHERE coalesce(u.is_admin, false) = true AND coalesce(u.is_delegated_admin, false) = true
+    WHERE coalesce(u.is_admin, false) = true
+      AND coalesce(u.is_delegated_admin, false) = true
+      AND coalesce(u._ont_active, true) = true
     RETURN *
     """,
     cypher_count_query="""
     MATCH (u:GoogleWorkspaceUser)
     WHERE coalesce(u.is_admin, false) = true
+      AND coalesce(u._ont_active, true) = true
     RETURN COUNT(u) AS count
     """,
     asset_id_field="user_id",
@@ -389,11 +401,12 @@ googleworkspace_super_admin_accounts_used_for_daily_admin = Rule(
     output_model=SuperAdminDualRoleOutput,
     facts=(_gw_super_admin_with_delegated_admin_role,),
     tags=("iam", "privileged_access", "least_privilege"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_google_workspace("1.1.3"),
         iso27001_annex_a("8.2"),
+        soc2_tsc("CC6.3"),
     ),
 )
 

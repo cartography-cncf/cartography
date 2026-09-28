@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID of the load balancer backend pool."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the load balancer backend pool."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -28,6 +32,8 @@ class AzureLoadBalancerBackendPoolToLBRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolToLBRel(CartographyRelSchema):
+    """An Azure Load Balancer contains the backend pool."""
+
     target_node_label: str = "AzureLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LOAD_BALANCER_ID", set_in_kwargs=True)},
@@ -46,6 +52,8 @@ class AzureLoadBalancerBackendPoolToNICRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolToNICRel(CartographyRelSchema):
+    """A load balancer backend pool routes traffic to a network interface."""
+
     target_node_label: str = "AzureNetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NIC_IDS", one_to_many=True)},
@@ -64,6 +72,8 @@ class AzureLoadBalancerBackendPoolToSubscriptionRelProperties(CartographyRelProp
 
 @dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the load balancer backend pool as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -77,6 +87,8 @@ class AzureLoadBalancerBackendPoolToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolSchema(CartographyNodeSchema):
+    """A collection of backend targets for an Azure Load Balancer."""
+
     label: str = "AzureLoadBalancerBackendPool"
     properties: AzureLoadBalancerBackendPoolProperties = (
         AzureLoadBalancerBackendPoolProperties()

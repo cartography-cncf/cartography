@@ -15,13 +15,37 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 @dataclass(frozen=True)
 class DatabricksAccountUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    scim_id: PropertyRef = PropertyRef("scim_id", extra_index=True)
-    user_name: PropertyRef = PropertyRef("user_name", extra_index=True)
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name")
-    external_id: PropertyRef = PropertyRef("external_id")
-    active: PropertyRef = PropertyRef("active")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped Databricks SCIM user ID.",
+    )
+    scim_id: PropertyRef = PropertyRef(
+        "scim_id",
+        extra_index=True,
+        description="Databricks account SCIM user ID.",
+    )
+    user_name: PropertyRef = PropertyRef(
+        "user_name",
+        extra_index=True,
+        description="SCIM user name, typically the user's email address.",
+    )
+    email: PropertyRef = PropertyRef(
+        "email",
+        extra_index=True,
+        description="Primary email address for the user.",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name",
+        description="User display name.",
+    )
+    external_id: PropertyRef = PropertyRef(
+        "external_id",
+        description="External identity provider ID for the user.",
+    )
+    active: PropertyRef = PropertyRef(
+        "active",
+        description="Whether the user is active.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,6 +57,8 @@ class DatabricksAccountUserToAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccount)-[:RESOURCE]->(:DatabricksAccountUser)
 class DatabricksAccountUserToAccountRel(CartographyRelSchema):
+    """A Databricks account owns an account-level resource."""
+
     target_node_label: str = "DatabricksAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -52,6 +78,8 @@ class DatabricksAccountUserToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksAccountUser)-[:MEMBER_OF]->(:DatabricksAccountGroup)
 class DatabricksAccountUserToGroupRel(CartographyRelSchema):
+    """A Databricks account user is a member of an account group."""
+
     target_node_label: str = "DatabricksAccountGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_ids", one_to_many=True)},
@@ -65,6 +93,8 @@ class DatabricksAccountUserToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksAccountUserSchema(CartographyNodeSchema):
+    """A Databricks account-level SCIM user."""
+
     label: str = "DatabricksAccountUser"
     properties: DatabricksAccountUserNodeProperties = (
         DatabricksAccountUserNodeProperties()

@@ -13,10 +13,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureCosmosDBAccountFailoverPolicyProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Unique identifier of the failover policy entry.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    locationname: PropertyRef = PropertyRef("location_name")
-    failoverpriority: PropertyRef = PropertyRef("failover_priority")
+    locationname: PropertyRef = PropertyRef(
+        "location_name",
+        description="Azure region name.",
+    )
+    failoverpriority: PropertyRef = PropertyRef(
+        "failover_priority",
+        description="Failover priority of the region, where zero is the write region.",
+    )
 
 
 @dataclass(frozen=True)
@@ -29,6 +38,8 @@ class AzureCosmosDBAccountFailoverPolicyToCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccountFailoverPolicy)<-[:CONTAINS]-(:AzureCosmosDBAccount)
 class AzureCosmosDBAccountFailoverPolicyToCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account contains the failover policy entry."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
@@ -50,6 +61,8 @@ class AzureCosmosDBAccountFailoverPolicyToSubscriptionRelProperties(
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBAccountFailoverPolicy)
 class AzureCosmosDBAccountFailoverPolicyToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the failover policy entry as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -63,6 +76,8 @@ class AzureCosmosDBAccountFailoverPolicyToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureCosmosDBAccountFailoverPolicySchema(CartographyNodeSchema):
+    """A regional failover priority configured for an Azure Cosmos DB account."""
+
     label: str = "AzureCosmosDBAccountFailoverPolicy"
     properties: AzureCosmosDBAccountFailoverPolicyProperties = (
         AzureCosmosDBAccountFailoverPolicyProperties()

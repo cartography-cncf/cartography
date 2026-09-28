@@ -123,6 +123,12 @@ def transform(
         formatted_container["image_digest"] = _resolve_image_digest(
             container.registry_image, registry_image_digests
         )
+        # privacy = 'public' means anonymous callers can invoke it over its auto-assigned
+        # HTTPS domain with no token. Readiness is filtered downstream by the ontology
+        # WORKLOAD_HAS_RUNTIME_IMAGE job, so status is not considered here.
+        exposed = formatted_container.get("privacy") == "public"
+        formatted_container["exposed_internet"] = exposed
+        formatted_container["exposed_internet_type"] = ["direct"] if exposed else None
         containers_by_project.setdefault(project_id, []).append(formatted_container)
 
     return namespaces_by_project, containers_by_project

@@ -1,4 +1,5 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
+from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -539,5 +540,8 @@ eol_software = Rule(
     ),
     version="0.3.0",
     references=EOL_SOFTWARE_REFERENCES,
-    frameworks=(iso27001_annex_a("8.8"),),
+    frameworks=(
+        iso27001_annex_a("8.8"),
+        soc2_tsc("CC7.1"),
+    ),
 )

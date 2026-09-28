@@ -10,12 +10,13 @@ from cartography.rules.spec.result import RuleResult
 RULE_DATA_DIR = Path(__file__).parents[3] / "cartography" / "rules" / "data" / "rules"
 
 COMPLIANCE_NAME_PREFIX = re.compile(
-    r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|NIST AI RMF)\b"
+    r"^(CIS AWS|CIS GCP|CIS Google Workspace|CIS Kubernetes|CIS K8s|"
+    r"NIST AI RMF|SOC ?2)\b"
 )
 HELPER_CONTROL_TITLE_ARG = re.compile(
     r"\b("
     r"cis_aws|cis_gcp|cis_google_workspace|cis_kubernetes|"
-    r"iso27001_annex_a|nist_ai_rmf"
+    r"iso27001_annex_a|nist_ai_rmf|soc2_tsc"
     r")\([^)]*\bcontrol_title\s*=",
     re.DOTALL,
 )
@@ -187,6 +188,14 @@ def test_framework_filtering_returns_renamed_rule_ids():
     assert "aws_root_user_access_keys" in filter_rules_by_framework(
         rule_ids,
         "ISO27001",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "SOC2:tsc",
+    )
+    assert "aws_root_user_access_keys" in filter_rules_by_framework(
+        rule_ids,
+        "SOC2:tsc:2022",
     )
     assert "ai_provider_api_key_hygiene" in filter_rules_by_framework(
         rule_ids,

@@ -17,16 +17,39 @@ from cartography.models.ontology.labels import ONTOLOGY
 
 @dataclass(frozen=True)
 class DeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("serial_number")
+    id: PropertyRef = PropertyRef(
+        "serial_number",
+        description="Canonical device identifier.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
-    instance_id: PropertyRef = PropertyRef("instance_id")
-    manufacturer: PropertyRef = PropertyRef("manufacturer")
-    os: PropertyRef = PropertyRef("os")
-    os_version: PropertyRef = PropertyRef("os_version")
-    model: PropertyRef = PropertyRef("model")
-    platform: PropertyRef = PropertyRef("platform")
-    serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
+    hostname: PropertyRef = PropertyRef(
+        "hostname",
+        extra_index=True,
+        description="Device hostname.",
+    )
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Provider-specific instance identifier when available.",
+    )
+    manufacturer: PropertyRef = PropertyRef(
+        "manufacturer",
+        description="Device manufacturer.",
+    )
+    os: PropertyRef = PropertyRef("os", description="Operating system name.")
+    os_version: PropertyRef = PropertyRef(
+        "os_version",
+        description="Operating system version.",
+    )
+    model: PropertyRef = PropertyRef("model", description="Device model.")
+    platform: PropertyRef = PropertyRef(
+        "platform",
+        description="Platform or device family reported by the source.",
+    )
+    serial_number: PropertyRef = PropertyRef(
+        "serial_number",
+        extra_index=True,
+        description="Device serial number.",
+    )
 
 
 @dataclass(frozen=True)
@@ -57,7 +80,26 @@ class DeviceOwnedByUserRel(CartographyRelSchema):
 # (:S1AppFinding)-[:AFFECTS]->(:Device)
 @dataclass(frozen=True)
 class DeviceAffectedByS1AppFindingRel(CartographyRelSchema):
+    """Links a SentinelOne finding to the canonical device it affects."""
+
     target_node_label: str = "S1AppFinding"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_cleanup_finding_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "AFFECTS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# Cleanup-only relationship.
+# Created by the devices linking query (walking OBSERVED_AS -> HuntressAgent <- AFFECTS),
+# not by load(DeviceSchema()). Kept on the schema so GraphJob cleanup removes stale edges.
+# (:HuntressIncidentReport)-[:AFFECTS]->(:Device)
+@dataclass(frozen=True)
+class DeviceAffectedByHuntressIncidentReportRel(CartographyRelSchema):
+    """Links a Huntress incident report to the canonical device it affects."""
+
+    target_node_label: str = "HuntressIncidentReport"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_cleanup_finding_id")},
     )
@@ -160,7 +202,23 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
 @dataclass(frozen=True)
 class DeviceToS1AgentBySerialRel(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent, matched on serial number."""
+
     target_node_label: str = "S1Agent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:HuntressAgent) via serial_number
+@dataclass(frozen=True)
+class DeviceToHuntressAgentBySerialRel(CartographyRelSchema):
+    """Links a canonical device to its Huntress agent, matched on serial number."""
+
+    target_node_label: str = "HuntressAgent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"serial_number": PropertyRef("serial_number")},
     )
@@ -192,6 +250,18 @@ class DeviceToJamfComputerBySerialRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:MiradoreDevice) via serial_number
+@dataclass(frozen=True)
+class DeviceToMiradoreDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "MiradoreDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "JamfMobileDevice"
@@ -205,6 +275,8 @@ class DeviceToJamfMobileDeviceBySerialRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
+    """A canonical physical or virtual device aggregated across providers."""
+
     label: str = "Device"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ONTOLOGY])
     properties: DeviceNodeProperties = DeviceNodeProperties()
@@ -214,6 +286,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceOwnedByUserRel(),
             DeviceAffectedByS1AppFindingRel(),
             DeviceAffectedByCrowdstrikeFindingRel(),
+            DeviceAffectedByHuntressIncidentReportRel(),
             DeviceToJumpCloudSystemRel(),
             # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),
@@ -222,9 +295,11 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToTailscaleDeviceBySerialRel(),
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
             DeviceToS1AgentBySerialRel(),
+            DeviceToHuntressAgentBySerialRel(),
             DeviceToIntuneManagedDeviceBySerialRel(),
             DeviceToJamfComputerBySerialRel(),
             DeviceToJamfMobileDeviceBySerialRel(),
+            DeviceToMiradoreDeviceBySerialRel(),
         ],
     )
 
@@ -381,9 +456,29 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via hostname
 @dataclass(frozen=True)
 class DeviceToS1AgentHostnameMatchLink(CartographyRelSchema):
+    """Links a canonical device to its SentinelOne agent, matched on hostname when no serial number is available."""
+
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computer_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:HuntressAgent) via hostname
+@dataclass(frozen=True)
+class DeviceToHuntressAgentHostnameMatchLink(CartographyRelSchema):
+    """Links a canonical device to its Huntress agent, matched on hostname when no serial number is available."""
+
+    target_node_label: str = "HuntressAgent"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
     )
     source_node_label: str = "Device"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
@@ -425,6 +520,22 @@ class DeviceToJamfComputerHostnameMatchLink(CartographyRelSchema):
     properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:MiradoreDevice) via hostname
+@dataclass(frozen=True)
+class DeviceToMiradoreDeviceHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "MiradoreDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
 # Configuration for hostname matchlinks used by the intel module.
 # Each tuple: (target_label, target_hostname_field, matchlink_schema)
 HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
@@ -438,6 +549,7 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
     ),
     ("S1Agent", "computer_name", DeviceToS1AgentHostnameMatchLink()),
+    ("HuntressAgent", "hostname", DeviceToHuntressAgentHostnameMatchLink()),
     ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
     ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
     (
@@ -451,4 +563,5 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
         DeviceToIntuneManagedDeviceHostnameMatchLink(),
     ),
     ("JamfComputer", "name", DeviceToJamfComputerHostnameMatchLink()),
+    ("MiradoreDevice", "hostname", DeviceToMiradoreDeviceHostnameMatchLink()),
 ]

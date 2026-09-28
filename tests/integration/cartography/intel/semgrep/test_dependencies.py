@@ -267,8 +267,8 @@ def test_sync_dependencies_promotes_sca_finding_to_package_ontology(
     """
     A SemgrepSCAFinding that AFFECTS a SemgrepDependency should reach the
     canonical Package ontology node once the packages ontology sync runs:
-    the dependency dedups into a :Package via DETECTED_AS, and the finding's
-    AFFECTS edge is propagated onto that :Package.
+    the dependency dedups into a :PackageVersion via DETECTED_AS, and the finding's
+    AFFECTS edge is propagated onto that :PackageVersion.
     """
     # Arrange: real dependency nodes (carrying normalized_id) + a SCA finding
     # that affects one of them.
@@ -305,7 +305,7 @@ def test_sync_dependencies_promotes_sca_finding_to_package_ontology(
     # Assert: the dependency deduped into a canonical Package...
     detected = neo4j_session.run(
         """
-        MATCH (p:Package)-[:DETECTED_AS]->(:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
+        MATCH (p:PackageVersion)-[:DETECTED_AS]->(:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
         RETURN count(p) AS c
         """,
     ).single()
@@ -314,7 +314,7 @@ def test_sync_dependencies_promotes_sca_finding_to_package_ontology(
     # ...and the finding's AFFECTS edge reached that canonical Package.
     affects = neo4j_session.run(
         """
-        MATCH (:SemgrepSCAFinding {id: 'test-sca-finding'})-[:AFFECTS]->(p:Package)
+        MATCH (:SemgrepSCAFinding {id: 'test-sca-finding'})-[:AFFECTS]->(p:PackageVersion)
               -[:DETECTED_AS]->(:SemgrepDependency {id: 'github.com/foo/baz|1.2.3'})
         RETURN count(p) AS c
         """,

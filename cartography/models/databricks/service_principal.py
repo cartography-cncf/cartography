@@ -15,12 +15,29 @@ from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 @dataclass(frozen=True)
 class DatabricksServicePrincipalNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    scim_id: PropertyRef = PropertyRef("scim_id", extra_index=True)
-    application_id: PropertyRef = PropertyRef("application_id", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name")
-    external_id: PropertyRef = PropertyRef("external_id")
-    active: PropertyRef = PropertyRef("active")
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the service principal."
+    )
+    scim_id: PropertyRef = PropertyRef(
+        "scim_id",
+        extra_index=True,
+        description="Databricks SCIM service principal identifier.",
+    )
+    application_id: PropertyRef = PropertyRef(
+        "application_id",
+        extra_index=True,
+        description="Application identifier of the service principal.",
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", description="Display name of the service principal."
+    )
+    external_id: PropertyRef = PropertyRef(
+        "external_id",
+        description="Identifier assigned by the external identity provider.",
+    )
+    active: PropertyRef = PropertyRef(
+        "active", description="Whether the service principal is active."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,6 +49,8 @@ class DatabricksServicePrincipalToWorkspaceRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksServicePrincipal)
 class DatabricksServicePrincipalToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the service principal as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -51,6 +70,8 @@ class DatabricksServicePrincipalToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksServicePrincipal)-[:MEMBER_OF]->(:DatabricksGroup)
 class DatabricksServicePrincipalToGroupRel(CartographyRelSchema):
+    """A Databricks principal is a member of a Databricks group."""
+
     target_node_label: str = "DatabricksGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_ids", one_to_many=True)},
@@ -64,6 +85,8 @@ class DatabricksServicePrincipalToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksServicePrincipalSchema(CartographyNodeSchema):
+    """A nonhuman identity in a Databricks workspace."""
+
     label: str = "DatabricksServicePrincipal"
     properties: DatabricksServicePrincipalNodeProperties = (
         DatabricksServicePrincipalNodeProperties()

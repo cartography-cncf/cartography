@@ -17,9 +17,13 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class TailscaleGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Group ID (eg. `group:example` or `autogroup:admin`)."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef(
+        "name", description="The group name (eg. `example`)."
+    )
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,8 @@ class TailscaleGroupToTailnetRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleGroup)
 class TailscaleGroupToTailnetRel(CartographyRelSchema):
+    """Defines the RESOURCE relationship to TailscaleTailnet nodes."""
+
     target_node_label: str = "TailscaleTailnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("org", set_in_kwargs=True)},
@@ -49,6 +55,8 @@ class TailscaleGroupToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleUser)-[:MEMBER_OF]->(:TailscaleGroup)
 class TailscaleGroupToUserRel(CartographyRelSchema):
+    """Defines the MEMBER_OF relationship to TailscaleUser nodes."""
+
     target_node_label: str = "TailscaleUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"login_name": PropertyRef("members", one_to_many=True)},
@@ -66,6 +74,8 @@ class TailscaleGroupToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:TailscaleGroup)-[:MEMBER_OF]->(:TailscaleGroup)
 class TailscaleGroupToGroupRel(CartographyRelSchema):
+    """Defines the MEMBER_OF relationship to TailscaleGroup nodes."""
+
     target_node_label: str = "TailscaleGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("sub_groups", one_to_many=True)},
@@ -79,6 +89,8 @@ class TailscaleGroupToGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class TailscaleGroupSchema(CartographyNodeSchema):
+    """A group in Tailscale (either `group` or `autogroup`)."""
+
     label: str = "TailscaleGroup"
     properties: TailscaleGroupNodeProperties = TailscaleGroupNodeProperties()
     sub_resource_relationship: TailscaleGroupToTailnetRel = TailscaleGroupToTailnetRel()
@@ -102,18 +114,18 @@ class TailscaleUserInheritedMemberRelProperties(CartographyRelProperties):
     _sub_resource_label: PropertyRef = PropertyRef(
         "_sub_resource_label",
         set_in_kwargs=True,
+        description="Label used to scope relationship cleanup.",
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+        description="Identifier used to scope relationship cleanup.",
+    )
 
 
 @dataclass(frozen=True)
 class TailscaleUserToGroupInheritedMemberMatchLink(CartographyRelSchema):
-    """MatchLink: (:TailscaleUser)-[:INHERITED_MEMBER_OF]->(:TailscaleGroup)
-
-    Represents transitive group membership resolved from the graph:
-    User -[:MEMBER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
-    creates: User -[:INHERITED_MEMBER_OF]-> ParentGroup
-    """
+    """Indicates that a Tailscale user belongs to a parent group through nested group membership."""
 
     source_node_label: str = "TailscaleUser"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(

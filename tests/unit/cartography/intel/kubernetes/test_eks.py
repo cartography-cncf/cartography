@@ -64,6 +64,40 @@ def test_parse_aws_auth_map_handles_missing_map_accounts():
     assert result["accounts"] == []
 
 
+def test_transform_aws_auth_mappings_handles_null_groups():
+    # A mapRoles/mapUsers entry may set `groups: null` (valid aws-auth: the
+    # principal maps to a username with no extra RBAC groups). YAML null becomes
+    # None, so `.get("groups", [])` returns None and iterating it used to raise
+    # TypeError, aborting the whole kubernetes sync stage.
+    auth_mappings = {
+        "roles": [
+            {
+                "rolearn": "arn:aws:iam::000000000000:role/AdminSSO",
+                "username": "admin",
+                "groups": None,
+            },
+        ],
+        "users": [
+            {
+                "userarn": "arn:aws:iam::000000000000:user/dev",
+                "username": "dev",
+                "groups": None,
+            },
+        ],
+        "accounts": [],
+    }
+
+    result = eks.transform_aws_auth_mappings(
+        MagicMock(),
+        auth_mappings,
+        EXAMPLE_CLUSTER_NAME,
+    )
+
+    # The usernames are still ingested; the null groups simply add nothing.
+    assert {user["name"] for user in result["users"]} == {"admin", "dev"}
+    assert result["groups"] == []
+
+
 def test_list_access_entry_principal_arns_skips_config_map_auth_mode(caplog):
     error = _list_access_entries_client_error(
         "InvalidRequestException",

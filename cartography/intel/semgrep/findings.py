@@ -150,9 +150,9 @@ def transform_sca_vulns(
         sca_vuln["description"] = vuln["rule"]["message"]
         sca_vuln["ecosystem"] = vuln["found_dependency"]["ecosystem"]
         sca_vuln["severity"] = vuln["severity"].upper()
-        sca_vuln["reachability"] = vuln[
-            "reachability"
-        ].upper()  # Check done to determine rechabilitity
+        sca_vuln["reachability"] = (
+            vuln["reachability"].upper() if vuln["reachability"] else None
+        )
         sca_vuln["reachableIf"] = (
             vuln["reachable_condition"].upper() if vuln["reachable_condition"] else None
         )

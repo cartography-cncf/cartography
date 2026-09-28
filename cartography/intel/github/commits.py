@@ -91,6 +91,16 @@ def get_repo_commits(
             since=since_iso,
         )
 
+        # This caller has no retry path, so it owns the severity of any errors
+        # that call_github_api() logged at DEBUG.
+        if response.get("errors"):
+            logger.warning(
+                "GitHub returned errors fetching commits for %s/%s; results may be incomplete. Errors: %s",
+                organization,
+                repo_name,
+                response["errors"],
+            )
+
         # Navigate to the nested commit history
         repo_data = response.get("data", {}).get("organization", {}).get("repository")
         if not repo_data:

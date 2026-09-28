@@ -14,17 +14,31 @@ from cartography.models.ontology.labels import CERTIFICATE
 
 @dataclass(frozen=True)
 class AWSServerCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ServerCertificateId")
-    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "ServerCertificateId", description="The server certificate ID"
+    )
+    arn: PropertyRef = PropertyRef(
+        "Arn", extra_index=True, description="The ARN of the server certificate"
+    )
     server_certificate_id: PropertyRef = PropertyRef(
-        "ServerCertificateId", extra_index=True
+        "ServerCertificateId",
+        extra_index=True,
+        description="The stable and unique ID for the server certificate",
     )
     server_certificate_name: PropertyRef = PropertyRef(
-        "ServerCertificateName", extra_index=True
+        "ServerCertificateName",
+        extra_index=True,
+        description="The name of the server certificate",
     )
-    path: PropertyRef = PropertyRef("Path")
-    expiration: PropertyRef = PropertyRef("Expiration")
-    upload_date: PropertyRef = PropertyRef("UploadDate")
+    path: PropertyRef = PropertyRef(
+        "Path", description="The path to the server certificate"
+    )
+    expiration: PropertyRef = PropertyRef(
+        "Expiration", description="The date on which the certificate is set to expire"
+    )
+    upload_date: PropertyRef = PropertyRef(
+        "UploadDate", description="The date the server certificate was uploaded"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -48,6 +62,8 @@ class AWSServerCertificateToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSServerCertificateSchema(CartographyNodeSchema):
+    """Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServerCertificateMetadata.html)."""
+
     label: str = "AWSServerCertificate"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CERTIFICATE])
     properties: AWSServerCertificateNodeProperties = (

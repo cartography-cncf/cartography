@@ -86,6 +86,8 @@ def _flatten_rdb_endpoints(formatted: dict[str, Any]) -> None:
                 public_port = endpoint.get("port")
 
     formatted["is_public"] = is_public
+    formatted["exposed_internet"] = is_public
+    formatted["exposed_internet_type"] = ["direct"] if is_public else None
     formatted["public_endpoint_ip"] = public_ip
     formatted["public_endpoint_hostname"] = public_hostname
     formatted["public_endpoint_port"] = public_port

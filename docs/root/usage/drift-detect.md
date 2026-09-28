@@ -28,7 +28,7 @@ The quickest way to get started using drift-detection is through an example. We 
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type",
 	  "properties": [],
 	  "results": []
 	}
@@ -76,7 +76,7 @@ All set 👍
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type"
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type",
 	  "properties": ["n.instancetype", "n.privateipaddress", "n.publicdnsname", "n.exposed_internet_type"],
 	  "results": [
 	    ["c4.large", "10.255.255.251", "ec2.1.compute.amazonaws.com", "direct"],
@@ -96,7 +96,7 @@ All set 👍
 	```
 	{
 	  "name": "Internet Exposed EC2 Instances",
-	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type""
+	  "validation_query": "match (n:AWSEC2Instance) where n.exposed_internet = True return n.instancetype, n.privateipaddress, n.publicdnsname, n.exposed_internet_type",
 	  "properties": ["n.instancetype", "n.privateipaddress", "n.publicdnsname", "n.exposed_internet_type"],
 	  "results": [
 	    ["t2.micro", "10.255.255.250", "ec2.0.compute.amazonaws.com", "direct"],
@@ -149,13 +149,13 @@ It can be cumbersome to always type Unix timestamp filenames. To make this easie
 
 	Let's try adding shortcuts. We will name the first state "first-run" and the second state "second-run" with
 
-	`cartography-detectdrift add-shortcut --shortcut first-run --file <unix_timestamp_1>.json`
+	`cartography-detectdrift add-shortcut --query-directory ${DRIFT_DETECTION_DIRECTORY}/internet-exposure-query --shortcut first-run --filename <unix_timestamp_1>.json`
 
-	`cartography-detectdrift add-shortcut --shortcut second-run --file <unix_timestamp_2>.json`
+	`cartography-detectdrift add-shortcut --query-directory ${DRIFT_DETECTION_DIRECTORY}/internet-exposure-query --shortcut second-run --filename <unix_timestamp_2>.json`
 
 	We can even use aliases instead of filenames when adding shortcuts!
 
-	`cartography-detectdrift add-shortcut --shortcut baseline --file most-recent`
+	`cartography-detectdrift add-shortcut --query-directory ${DRIFT_DETECTION_DIRECTORY}/internet-exposure-query --shortcut baseline --filename most-recent`
 
 2. **Comparing state files with shortcuts**
 

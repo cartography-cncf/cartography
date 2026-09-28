@@ -15,16 +15,42 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EKSAccessEntryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    arn: PropertyRef = PropertyRef("accessEntryArn", extra_index=True)
+    id: PropertyRef = PropertyRef("id", description="EKS access entry ARN.")
+    arn: PropertyRef = PropertyRef(
+        "accessEntryArn",
+        extra_index=True,
+        description="EKS access entry ARN.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    cluster_name: PropertyRef = PropertyRef("clusterName")
-    principal_arn: PropertyRef = PropertyRef("principalArn", extra_index=True)
-    username: PropertyRef = PropertyRef("username")
-    type: PropertyRef = PropertyRef("type")
-    kubernetes_groups: PropertyRef = PropertyRef("kubernetesGroups")
-    created_at: PropertyRef = PropertyRef("createdAt")
-    modified_at: PropertyRef = PropertyRef("modifiedAt")
+    cluster_name: PropertyRef = PropertyRef(
+        "clusterName",
+        description="Name of the EKS cluster that contains the access entry.",
+    )
+    principal_arn: PropertyRef = PropertyRef(
+        "principalArn",
+        extra_index=True,
+        description="ARN of the IAM principal granted cluster access.",
+    )
+    username: PropertyRef = PropertyRef(
+        "username",
+        description="Kubernetes username associated with the IAM principal.",
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="EKS access entry type.",
+    )
+    kubernetes_groups: PropertyRef = PropertyRef(
+        "kubernetesGroups",
+        description="Kubernetes groups assigned to the IAM principal.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "createdAt",
+        description="Timestamp when the access entry was created.",
+    )
+    modified_at: PropertyRef = PropertyRef(
+        "modifiedAt",
+        description="Timestamp when the access entry was last modified.",
+    )
 
 
 @dataclass(frozen=True)
@@ -34,6 +60,8 @@ class EKSAccessEntryToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EKSAccessEntryToAWSAccountRel(CartographyRelSchema):
+    """An EKS access entry is a resource within an AWS account."""
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -52,6 +80,8 @@ class EKSClusterToAccessEntryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EKSClusterToAccessEntryRel(CartographyRelSchema):
+    """An EKS cluster contains an access entry."""
+
     target_node_label: str = "AWSEKSCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("cluster_arn")},
@@ -70,6 +100,8 @@ class AWSPrincipalToEKSAccessEntryRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
+    """An AWS principal is granted cluster access through an EKS access entry."""
+
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("principalArn")},
@@ -83,6 +115,8 @@ class AWSPrincipalToEKSAccessEntryRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EKSAccessEntrySchema(CartographyNodeSchema):
+    """Representation of an AWS [EKS Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html), which grants an IAM principal access to an EKS cluster through the EKS API authentication mode."""
+
     label: str = "AWSEKSAccessEntry"
     # DEPRECATED: legacy EKSAccessEntry node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([LEGACY_EKS_ACCESS_ENTRY])

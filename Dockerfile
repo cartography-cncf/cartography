@@ -18,7 +18,12 @@ FROM base AS builder
 COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
 # Install cartography
 RUN ls -alh /var/cartography
-RUN uv tool install cartography${VERSION_SPECIFIER}
+# The neo4j-rust extra swaps in Neo4j's Rust Bolt codec, worth ~20-30% off sync time.
+# It is an extra rather than a hard dependency because a platform without a pre-built
+# wheel would have to build it from source, which needs a Rust toolchain. That is not a
+# concern here: the linux/amd64 and linux/arm64 images this Dockerfile targets are both
+# covered by manylinux wheels.
+RUN uv tool install "cartography[neo4j-rust]${VERSION_SPECIFIER}"
 RUN ls -alh /var/cartography
 
 

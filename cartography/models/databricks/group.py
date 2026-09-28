@@ -15,10 +15,19 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class DatabricksGroupNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    scim_id: PropertyRef = PropertyRef("scim_id", extra_index=True)
-    display_name: PropertyRef = PropertyRef("display_name", extra_index=True)
-    external_id: PropertyRef = PropertyRef("external_id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the group."
+    )
+    scim_id: PropertyRef = PropertyRef(
+        "scim_id", extra_index=True, description="Databricks SCIM group identifier."
+    )
+    display_name: PropertyRef = PropertyRef(
+        "display_name", extra_index=True, description="Display name of the group."
+    )
+    external_id: PropertyRef = PropertyRef(
+        "external_id",
+        description="Identifier assigned by the external identity provider.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +39,8 @@ class DatabricksGroupToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksGroup)
 class DatabricksGroupToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains the group as a resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -49,6 +60,8 @@ class DatabricksGroupToParentGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksGroup)-[:MEMBER_OF]->(:DatabricksGroup)
 class DatabricksGroupToParentGroupRel(CartographyRelSchema):
+    """A Databricks principal is a member of a Databricks group."""
+
     target_node_label: str = "DatabricksGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_group_ids", one_to_many=True)},
@@ -62,6 +75,8 @@ class DatabricksGroupToParentGroupRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksGroupSchema(CartographyNodeSchema):
+    """A group of principals in a Databricks workspace."""
+
     label: str = "DatabricksGroup"
     properties: DatabricksGroupNodeProperties = DatabricksGroupNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])

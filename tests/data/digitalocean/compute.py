@@ -1,27 +1,124 @@
-from digitalocean import Droplet
-from digitalocean import Image
-from digitalocean import Region
+from typing import Any
 
-DROPLETS_RESPONSE = [
-    Droplet(
-        id="12345678",
-        name="test-droplet-1",
-        locked=False,
-        status="active",
-        features=[],
-        region=Region(slug="nyc1").__dict__,
-        created_at="2021-03-03T21:29:35Z",
-        image=Image(slug="ubuntu-18-04-x64").__dict__,
-        size_slug="s-1vcpu-2gb",
-        kernel=None,
-        tags=[],
-        volume_ids=[
-            "dfa32d234-2418-112b-af81-0a584fe1449b9",
-            "cca32d234-2418-112b-af81-12ab4fe1449b9",
-        ],
-        vpc_uuid="123445bc-dcd4-12e8-80bc-3dfea149fba1",
-        ip_address="30.1.2.3",
-        ip_v6_address="",
-        private_ip_address="192.128.10.1",
-    ),
-]
+DROPLETS_RESPONSE: dict[str, Any] = {
+    "droplets": [
+        {
+            "id": 568030246,
+            "name": "ubuntu-s-4vcpu-8gb-sfo3",
+            "memory": 8192,
+            "vcpus": 4,
+            "disk": 160,
+            "disk_info": [{"type": "local", "size": {"amount": 160, "unit": "gib"}}],
+            "locked": False,
+            "status": "active",
+            "kernel": None,
+            "created_at": "2026-04-29T19:04:21Z",
+            "features": ["droplet_agent", "private_networking"],
+            "backup_ids": [237973777],
+            "next_backup_window": None,
+            "snapshot_ids": [227406367],
+            "image": {
+                "id": 195932981,
+                "name": "24.04 (LTS) x64",
+                "distribution": "Ubuntu",
+                "slug": None,
+                "public": False,
+                "regions": [],
+                "created_at": "2025-08-08T15:11:27Z",
+                "min_disk_size": 7,
+                "type": "base",
+                "size_gigabytes": 3.76,
+                "description": "Ubuntu 24.04 (LTS) x64",
+                "tags": [],
+                "status": "retired",
+            },
+            "volume_ids": [],
+            "size": {
+                "slug": "s-4vcpu-8gb",
+                "memory": 8192,
+                "vcpus": 4,
+                "disk": 160,
+                "transfer": 5.0,
+                "price_monthly": 48,
+                "price_hourly": 0.07143,
+                "regions": [
+                    "ams3",
+                    "blr1",
+                    "fra1",
+                    "lon1",
+                    "nyc1",
+                    "nyc2",
+                    "nyc3",
+                    "sfo2",
+                    "sfo3",
+                    "sgp1",
+                    "syd1",
+                    "tor1",
+                ],
+                "available": True,
+                "description": "Basic",
+                "networking_throughput": 2000,
+                "disk_info": [
+                    {"type": "local", "size": {"amount": 160, "unit": "gib"}}
+                ],
+            },
+            "size_slug": "s-4vcpu-8gb",
+            "networks": {
+                "v4": [
+                    {
+                        "ip_address": "111.222.333.444",
+                        "netmask": "255.255.240.0",
+                        "gateway": "111.222.333.1",
+                        "type": "public",
+                    },
+                    {
+                        "ip_address": "555.666.777.888",
+                        "netmask": "255.255.240.0",
+                        "gateway": "555.666.0.1",
+                        "type": "private",
+                    },
+                ],
+                "v6": [
+                    {
+                        "ip_address": "2604:a880:800:10::1",
+                        "netmask": "64",
+                        "gateway": "2604:a880:800:10::1",
+                        "type": "public",
+                    }
+                ],
+            },
+            "region": {
+                "name": "San Francisco 3",
+                "slug": "sfo3",
+                "features": [
+                    "backups",
+                    "ipv6",
+                    "metadata",
+                    "install_agent",
+                    "storage",
+                    "image_transfer",
+                ],
+                "available": True,
+                "sizes": [
+                    "s-2vcpu-8gb-160gb-intel",
+                    "s-4vcpu-8gb",
+                    "s-4vcpu-8gb-amd",
+                    "s-4vcpu-8gb-intel",
+                    "c5-2vcpu-4gb",
+                    "g-2vcpu-8gb",
+                    "s-4vcpu-8gb-240gb-intel",
+                    "gd-2vcpu-8gb",
+                    "g-2vcpu-8gb-intel",
+                    "gd-2vcpu-8gb-intel",
+                    "s-4vcpu-16gb-amd",
+                    "m-2vcpu-16gb",
+                    "c-4",
+                ],
+            },
+            "tags": [],
+            "vpc_uuid": "136f05f6-48a2-4b34-bf10-151f00299d1a",
+        }
+    ],
+    "links": {},
+    "meta": {"total": 1},
+}

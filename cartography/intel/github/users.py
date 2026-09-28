@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import normalize_email_for_matching
 from cartography.intel.github.util import fetch_all
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
@@ -185,6 +186,19 @@ def transform_users(
     for url, owner in owners_dict.items():
         if url not in users_dict:
             unaffiliated_users.append(owner)
+
+    for user in affiliated_users + unaffiliated_users:
+        emails = [
+            user.get("email"),
+            *(user.get("organizationVerifiedDomainEmails") or []),
+        ]
+        user["normalized_emails"] = sorted(
+            {
+                normalized
+                for email in emails
+                if (normalized := normalize_email_for_matching(email))
+            }
+        )
 
     return affiliated_users, unaffiliated_users
 

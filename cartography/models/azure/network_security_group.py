@@ -17,9 +17,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AzureNetworkSecurityGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the network security group."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the network security group."
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        description="Azure region where the network security group is deployed.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +37,8 @@ class AzureNetworkSecurityGroupToSubscriptionRelProperties(CartographyRelPropert
 
 @dataclass(frozen=True)
 class AzureNetworkSecurityGroupToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the network security group as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -43,6 +52,8 @@ class AzureNetworkSecurityGroupToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureNetworkSecurityGroupSchema(CartographyNodeSchema):
+    """An Azure network security group that filters network traffic."""
+
     label: str = "AzureNetworkSecurityGroup"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([NETWORK_ACCESS_CONTROL])
     properties: AzureNetworkSecurityGroupProperties = (

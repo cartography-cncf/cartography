@@ -9,12 +9,14 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class OpenAIOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="OpenAI organization ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class OpenAIOrganizationSchema(CartographyNodeSchema):
+    """An OpenAI organization containing users, projects, and admin API keys."""
+
     label: str = "OpenAIOrganization"
     properties: OpenAIOrganizationNodeProperties = OpenAIOrganizationNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([TENANT])

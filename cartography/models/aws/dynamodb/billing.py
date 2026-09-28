@@ -15,11 +15,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummaryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef(
+        "Id", description='Unique identifier (table ARN + "/billing")'
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    billing_mode: PropertyRef = PropertyRef("BillingMode")
+    billing_mode: PropertyRef = PropertyRef(
+        "BillingMode", description="The billing mode (PROVISIONED or PAY_PER_REQUEST)"
+    )
     last_update_to_pay_per_request_date_time: PropertyRef = PropertyRef(
         "LastUpdateToPayPerRequestDateTime",
+        description="When the table was last switched to PAY_PER_REQUEST mode",
     )
 
 
@@ -61,6 +66,8 @@ class DynamoDBBillingModeSummaryToTableRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DynamoDBBillingModeSummarySchema(CartographyNodeSchema):
+    """Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html)."""
+
     label: str = "AWSDynamoDBBillingModeSummary"
     # DEPRECATED: legacy DynamoDBBillingModeSummary node label will be removed in v1.0.0.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

@@ -18,29 +18,40 @@ from cartography.models.ontology.labels import USER_GROUP
 
 @dataclass(frozen=True)
 class GSuiteGroupNodeProperties(CartographyNodeProperties):
-    """
-    GSuite group node properties
-    """
-
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Unique GSuite group ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Group identifiers and basic info
-    group_id: PropertyRef = PropertyRef("id")  # Alias for id
-    email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
+    group_id: PropertyRef = PropertyRef(
+        "id", description="Alias of the unique GSuite group ID."
+    )
+    email: PropertyRef = PropertyRef(
+        "email", extra_index=True, description="Email address of the group."
+    )
+    name: PropertyRef = PropertyRef("name", description="Display name of the group.")
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the group."
+    )
 
     # Group settings
-    admin_created: PropertyRef = PropertyRef("adminCreated")
-    direct_members_count: PropertyRef = PropertyRef("directMembersCount")
+    admin_created: PropertyRef = PropertyRef(
+        "adminCreated",
+        description="Whether an administrator created the group.",
+    )
+    direct_members_count: PropertyRef = PropertyRef(
+        "directMembersCount", description="Number of direct group members."
+    )
 
     # Metadata
-    etag: PropertyRef = PropertyRef("etag")
-    kind: PropertyRef = PropertyRef("kind")
+    etag: PropertyRef = PropertyRef("etag", description="API resource ETag.")
+    kind: PropertyRef = PropertyRef("kind", description="API resource type.")
 
     # Tenant relationship
-    customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
+    customer_id: PropertyRef = PropertyRef(
+        "CUSTOMER_ID",
+        set_in_kwargs=True,
+        description="ID of the GSuite tenant that contains the group.",
+    )
 
 
 @dataclass(frozen=True)
@@ -54,9 +65,7 @@ class GSuiteGroupToTenantRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GSuiteGroupToTenantRel(CartographyRelSchema):
-    """
-    Relationship from GSuite group to GSuite tenant
-    """
+    """A GSuite tenant contains a group."""
 
     target_node_label: str = "GSuiteTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -83,9 +92,7 @@ class GSuiteGroupToMemberRelProperties(CartographyRelProperties):
 # edge (GSuiteGroupToMemberMemberOfRel). Kept for backward compatibility, will be
 # removed in v1.0.0.
 class GSuiteGroupToMemberRel(CartographyRelSchema):
-    """
-    Relationship from GSuite group to its members (users or groups)
-    """
+    """Deprecated compatibility edge linking a user to a GSuite group."""
 
     target_node_label: str = "GSuiteUser"  # or GSuiteGroup for subgroup relationships
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -106,9 +113,7 @@ class GSuiteGroupToMemberMemberOfRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserAccount)-[:MEMBER_OF]->(:UserGroup)
 class GSuiteGroupToMemberMemberOfRel(CartographyRelSchema):
-    """
-    Canonical membership edge from a GSuite group to its members.
-    """
+    """A GSuite user account is a member of a GSuite group."""
 
     target_node_label: str = "GSuiteUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -134,9 +139,7 @@ class GSuiteGroupToOwnerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GSuiteGroupToOwnerRel(CartographyRelSchema):
-    """
-    Relationship from GSuite group to its owners (users)
-    """
+    """A GSuite user account owns a GSuite group."""
 
     target_node_label: str = "GSuiteUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -151,9 +154,7 @@ class GSuiteGroupToOwnerRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GSuiteGroupSchema(CartographyNodeSchema):
-    """
-    GSuite group node schema
-    """
+    """A GSuite group with the canonical UserGroup label."""
 
     label: str = "GSuiteGroup"
     properties: GSuiteGroupNodeProperties = GSuiteGroupNodeProperties()
@@ -190,9 +191,7 @@ class GSuiteGroupToGroupMemberRelProperties(CartographyRelProperties):
 # edge (GSuiteGroupToGroupMemberMemberOfRel). Kept for backward compatibility,
 # will be removed in v1.0.0.
 class GSuiteGroupToGroupMemberRel(CartographyRelSchema):
-    """
-    MatchLink relationship from GSuite parent group to member group
-    """
+    """Deprecated compatibility edge linking a member group to its parent group."""
 
     target_node_label: str = "GSuiteGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -216,10 +215,7 @@ class GSuiteGroupToGroupMemberRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:UserGroup)-[:MEMBER_OF]->(:UserGroup)
 class GSuiteGroupToGroupMemberMemberOfRel(CartographyRelSchema):
-    """
-    Canonical MatchLink membership edge from a GSuite parent group to a member
-    group.
-    """
+    """A GSuite group is a member of another GSuite group."""
 
     target_node_label: str = "GSuiteGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -256,9 +252,7 @@ class GSuiteGroupToGroupOwnerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GSuiteGroupToGroupOwnerRel(CartographyRelSchema):
-    """
-    MatchLink relationship from GSuite parent group to owner group
-    """
+    """A GSuite group owns another GSuite group."""
 
     target_node_label: str = "GSuiteGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

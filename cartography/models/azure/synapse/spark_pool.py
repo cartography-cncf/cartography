@@ -13,13 +13,29 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureSynapseSparkPoolProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    state: PropertyRef = PropertyRef("provisioning_state")
-    node_size: PropertyRef = PropertyRef("node_size")
-    node_count: PropertyRef = PropertyRef("node_count")
-    spark_version: PropertyRef = PropertyRef("spark_version")
+    id: PropertyRef = PropertyRef(
+        "id", description="Full Azure resource ID of the Apache Spark pool."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the Apache Spark pool."
+    )
+    location: PropertyRef = PropertyRef(
+        "location",
+        description="Azure region where the Apache Spark pool is deployed.",
+    )
+    state: PropertyRef = PropertyRef(
+        "provisioning_state",
+        description="Current provisioning state of the Apache Spark pool.",
+    )
+    node_size: PropertyRef = PropertyRef(
+        "node_size", description="Size of each compute node in the pool."
+    )
+    node_count: PropertyRef = PropertyRef(
+        "node_count", description="Number of compute nodes assigned to the pool."
+    )
+    spark_version: PropertyRef = PropertyRef(
+        "spark_version", description="Apache Spark version used by the pool."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +46,8 @@ class AzureSynapseSparkPoolToWorkspaceRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AzureSynapseSparkPoolToWorkspaceRel(CartographyRelSchema):
+    """An Azure Synapse workspace contains this Apache Spark pool."""
+
     target_node_label: str = "AzureSynapseWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -48,6 +66,8 @@ class AzureSynapseSparkPoolToSubscriptionRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class AzureSynapseSparkPoolToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this Apache Spark pool resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -61,6 +81,8 @@ class AzureSynapseSparkPoolToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureSynapseSparkPoolSchema(CartographyNodeSchema):
+    """An Azure Synapse Apache Spark pool for distributed data processing."""
+
     label: str = "AzureSynapseSparkPool"
     properties: AzureSynapseSparkPoolProperties = AzureSynapseSparkPoolProperties()
     sub_resource_relationship: AzureSynapseSparkPoolToSubscriptionRel = (

@@ -13,11 +13,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureServerADAdministratorProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID for the SQL server administrator."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    login: PropertyRef = PropertyRef("login")
-    administratortype: PropertyRef = PropertyRef("administrator_type")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    login: PropertyRef = PropertyRef(
+        "login", description="Login name of the server administrator."
+    )
+    administratortype: PropertyRef = PropertyRef(
+        "administrator_type", description="Type of server administrator."
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,8 @@ class AzureServerADAdministratorToSQLServerRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:AzureSQLServer)-[:ADMINISTERED_BY]->(:AzureServerADAdministrator)
 class AzureServerADAdministratorToSQLServerRel(CartographyRelSchema):
+    """An Azure SQL logical server is administered by this identity."""
+
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
@@ -47,6 +55,8 @@ class AzureServerADAdministratorToSubscriptionRelProperties(CartographyRelProper
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureServerADAdministrator)
 class AzureServerADAdministratorToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this SQL server administrator resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -60,6 +70,8 @@ class AzureServerADAdministratorToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureServerADAdministratorSchema(CartographyNodeSchema):
+    """A Microsoft Entra administrator configured for an Azure SQL server."""
+
     label: str = "AzureServerADAdministrator"
     properties: AzureServerADAdministratorProperties = (
         AzureServerADAdministratorProperties()

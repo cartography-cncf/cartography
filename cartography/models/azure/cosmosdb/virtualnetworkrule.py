@@ -13,10 +13,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Azure resource ID of the allowed virtual network subnet.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ignoremissingvnetserviceendpoint: PropertyRef = PropertyRef(
-        "ignore_missing_v_net_service_endpoint"
+        "ignore_missing_v_net_service_endpoint",
+        description="Whether the rule may reference a subnet without a service endpoint.",
     )
 
 
@@ -30,6 +34,8 @@ class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccount)-[:CONFIGURED_WITH]->(:AzureCosmosDBVirtualNetworkRule)
 class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account is configured with the virtual network rule."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
@@ -51,6 +57,8 @@ class AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties(
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBVirtualNetworkRule)
 class AzureCosmosDBVirtualNetworkRuleToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the virtual network rule as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -64,6 +72,8 @@ class AzureCosmosDBVirtualNetworkRuleToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureCosmosDBVirtualNetworkRuleSchema(CartographyNodeSchema):
+    """A subnet access rule configured for an Azure Cosmos DB account."""
+
     label: str = "AzureCosmosDBVirtualNetworkRule"
     properties: AzureCosmosDBVirtualNetworkRuleProperties = (
         AzureCosmosDBVirtualNetworkRuleProperties()

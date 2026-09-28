@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -16,19 +17,54 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    role: PropertyRef = PropertyRef("role")
-    resource: PropertyRef = PropertyRef("resource")
-    resource_type: PropertyRef = PropertyRef("resource_type")
-    members: PropertyRef = PropertyRef("members")
-    wif_pools: PropertyRef = PropertyRef("wif_pools")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description=(
+            "Binding identifier in `{resource}_{role}` form. Conditional bindings "
+            "append `_{hash}`, where `hash` is the first eight hexadecimal "
+            "characters of the SHA-256 condition-expression digest."
+        ),
+    )
+    role: PropertyRef = PropertyRef(
+        "role", description="The name of the GCP role being granted."
+    )
+    resource: PropertyRef = PropertyRef(
+        "resource",
+        description="The full resource name where the policy binding is attached.",
+    )
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type", description="The type of resource."
+    )
+    members: PropertyRef = PropertyRef(
+        "members",
+        description="A list of principal email addresses that are granted the role. The synthetic GCP principals `allUsers` and `allAuthenticatedUsers` are NOT included here; presence of either is reflected in `is_public` instead.",
+    )
+    wif_pools: PropertyRef = PropertyRef(
+        "wif_pools",
+        description="A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding.",
+    )
     # Domain-scoped grants (domain:{domain}). These don't resolve to a single
     # GCPPrincipal node, but are retained for visibility (e.g. broad-access audits).
-    domains: PropertyRef = PropertyRef("domains")
-    is_public: PropertyRef = PropertyRef("is_public", extra_index=True)
-    has_condition: PropertyRef = PropertyRef("has_condition", extra_index=True)
-    condition_title: PropertyRef = PropertyRef("condition_title")
-    condition_expression: PropertyRef = PropertyRef("condition_expression")
+    domains: PropertyRef = PropertyRef(
+        "domains",
+        description="A list of domains (`domain:{domain}`) granted the role. These do not resolve to a single `GCPPrincipal` node, but are retained for visibility (e.g. broad-access audits).",
+    )
+    is_public: PropertyRef = PropertyRef(
+        "is_public",
+        extra_index=True,
+        description="True if the binding includes the `allUsers` or `allAuthenticatedUsers` principal. Combine with `has_condition = false` to reason about unconditional public exposure.",
+    )
+    has_condition: PropertyRef = PropertyRef(
+        "has_condition",
+        extra_index=True,
+        description="A boolean indicating if the policy binding has a condition attached.",
+    )
+    condition_title: PropertyRef = PropertyRef(
+        "condition_title", description="The title of the condition."
+    )
+    condition_expression: PropertyRef = PropertyRef(
+        "condition_expression", description="The expression of the condition."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -132,6 +168,8 @@ class GCPPolicyBindingToRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPPolicyBindingSchema(CartographyNodeSchema):
+    """A Google Cloud IAM policy binding that grants a role on a resource."""
+
     label: str = "GCPPolicyBinding"
     properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
     sub_resource_relationship: GCPPolicyBindingToProjectRel = (
@@ -148,6 +186,8 @@ class GCPPolicyBindingSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
+    """A Google Cloud IAM policy binding that grants a role on a resource."""
+
     label: str = "GCPPolicyBinding"
     properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
     sub_resource_relationship: GCPPolicyBindingToOrganizationRel = (
@@ -164,6 +204,8 @@ class GCPOrganizationPolicyBindingSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
+    """A Google Cloud IAM policy binding that grants a role on a resource."""
+
     label: str = "GCPPolicyBinding"
     properties: GCPPolicyBindingNodeProperties = GCPPolicyBindingNodeProperties()
     sub_resource_relationship: GCPPolicyBindingToFolderRel = (
@@ -182,9 +224,13 @@ class GCPFolderPolicyBindingSchema(CartographyNodeSchema):
 class GCPPolicyBindingAppliesToRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
-    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -193,11 +239,15 @@ class GCPPolicyBindingAppliesToMatchLink(CartographyRelSchema):
     MatchLink schema that connects a GCPPolicyBinding to the concrete resource
     node it applies to.
 
-    target_node_label is set dynamically at instantiation (e.g. "GCPProject",
-    "GCPBucket") so a single binding can be matched unambiguously by (id, label)
-    — raw resource_id alone is ambiguous across resource types.
+    target_node_label and the sub-resource owner are both set at instantiation, so a
+    binding can be matched unambiguously by (id, label): a raw resource_id is ambiguous
+    across resource types, and a binding can be scoped to a project, a folder or an
+    organization. Instantiating this template with no argument would therefore describe
+    none of the edges it creates, so introspection skips it and reads the concrete
+    endpoints from GCP_POLICY_BINDING_TARGET_LABELS instead.
     """
 
+    __cartography_introspection_exclude__: ClassVar[bool] = True
     source_node_label: str = "GCPPolicyBinding"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("binding_id")},

@@ -271,7 +271,7 @@ def transform_aws_auth_mappings(
         for mapping in auth_mappings.get("roles", []):
             role_arn = mapping.get("rolearn")
             username = mapping.get("username")
-            group_names = mapping.get("groups", [])
+            group_names = mapping.get("groups") or []
 
             if not role_arn:
                 continue
@@ -328,7 +328,7 @@ def transform_aws_auth_mappings(
         for mapping in auth_mappings.get("users", []):
             user_arn = mapping.get("userarn")
             username = mapping.get("username")
-            group_names = mapping.get("groups", [])
+            group_names = mapping.get("groups") or []
 
             if not user_arn:
                 continue
@@ -553,7 +553,7 @@ def transform_access_entries(
     for entry in access_entries:
         principal_arn = entry["principalArn"]
         username = entry["username"]
-        group_names = entry.get("kubernetesGroups", [])
+        group_names = entry.get("kubernetesGroups") or []
 
         is_role = ":role/" in principal_arn
         is_user = ":user/" in principal_arn

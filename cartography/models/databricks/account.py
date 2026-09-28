@@ -9,14 +9,23 @@ from cartography.models.ontology.labels import TENANT
 
 @dataclass(frozen=True)
 class DatabricksAccountNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    account_id: PropertyRef = PropertyRef("account_id", extra_index=True)
-    host: PropertyRef = PropertyRef("host")
+    id: PropertyRef = PropertyRef("id", description="Databricks account ID.")
+    account_id: PropertyRef = PropertyRef(
+        "account_id",
+        extra_index=True,
+        description="Databricks account ID.",
+    )
+    host: PropertyRef = PropertyRef(
+        "host",
+        description="Host URL for the Databricks account API.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class DatabricksAccountSchema(CartographyNodeSchema):
+    """A Databricks account that owns workspaces and account-level resources."""
+
     label: str = "DatabricksAccount"
     properties: DatabricksAccountNodeProperties = DatabricksAccountNodeProperties()
     # `Tenant` is the ontology label for the top-level resource container; the

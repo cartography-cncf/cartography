@@ -1,3 +1,6 @@
+# These payloads mirror `as_dict()` on azure-mgmt-datafactory 10.0.0 hybrid models: the
+# resource fields live under `properties` with ARM camelCase names.
+
 # Mock data for a top-level Data Factory
 MOCK_FACTORIES = [
     {
@@ -19,7 +22,7 @@ MOCK_LINKED_SERVICES = [
         "name": "MyTestDataLakeLink",
         "properties": {
             "type": "AzureBlobFS",
-            "type_properties": {
+            "typeProperties": {
                 "connectionString": "DefaultEndpointsProtocol=https;AccountName=mytestdatalake;EndpointSuffix=core.windows.net;",
             },
         },
@@ -33,9 +36,9 @@ MOCK_DATASETS = [
         "name": "MyTestSourceDataset",
         "properties": {
             "type": "DelimitedText",
-            "linked_service_name": {
+            "linkedServiceName": {
                 "type": "LinkedServiceReference",
-                "reference_name": "MyTestDataLakeLink",
+                "referenceName": "MyTestDataLakeLink",
             },
         },
     },
@@ -48,20 +51,19 @@ MOCK_PIPELINES = [
         "name": "MyTestPipeline",
         "properties": {
             "description": "A test pipeline.",
+            "activities": [
+                {
+                    "name": "MyCopyActivity",
+                    "type": "Copy",
+                    "inputs": [
+                        {
+                            "type": "DatasetReference",
+                            "referenceName": "MyTestSourceDataset",
+                        },
+                    ],
+                    "outputs": [],
+                },
+            ],
         },
-        # This is the key correction: `activities` is at the top level
-        "activities": [
-            {
-                "name": "MyCopyActivity",
-                "type": "Copy",
-                "inputs": [
-                    {
-                        "type": "DatasetReference",
-                        "reference_name": "MyTestSourceDataset",
-                    },
-                ],
-                "outputs": [],
-            },
-        ],
     },
 ]

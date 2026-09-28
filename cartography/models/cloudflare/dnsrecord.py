@@ -8,23 +8,65 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.ontology.labels import DNS_RECORD
 
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    value: PropertyRef = PropertyRef("content")
-    type: PropertyRef = PropertyRef("type")
-    comment: PropertyRef = PropertyRef("comment")
-    proxied: PropertyRef = PropertyRef("proxied")
-    ttl: PropertyRef = PropertyRef("ttl")
-    created_on: PropertyRef = PropertyRef("created_on")
-    modified_on: PropertyRef = PropertyRef("modified_on")
-    proxiable: PropertyRef = PropertyRef("proxiable")
+    id: PropertyRef = PropertyRef("id", description="DNS record ID.")
+    name: PropertyRef = PropertyRef(
+        "name",
+        extra_index=True,
+        description="DNS record name.",
+    )
+    value: PropertyRef = PropertyRef(
+        "content",
+        description="Value or address to which the record points.",
+    )
+    type: PropertyRef = PropertyRef("type", description="DNS record type.")
+    comment: PropertyRef = PropertyRef("comment", description="DNS record comment.")
+    proxied: PropertyRef = PropertyRef(
+        "proxied",
+        description="Whether Cloudflare proxies the record.",
+    )
+    ttl: PropertyRef = PropertyRef(
+        "ttl",
+        description="DNS record TTL; 1 indicates automatic TTL.",
+    )
+    created_on: PropertyRef = PropertyRef(
+        "created_on",
+        description="Timestamp when the record was created.",
+    )
+    modified_on: PropertyRef = PropertyRef(
+        "modified_on",
+        description="Timestamp when the record was last modified.",
+    )
+    proxiable: PropertyRef = PropertyRef(
+        "proxiable",
+        description="Whether Cloudflare can proxy the record.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudflareDNSRecordToAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareAccount)
+class CloudflareDNSRecordToAccountRel(CartographyRelSchema):
+    target_node_label: str = "CloudflareAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: CloudflareDNSRecordToAccountRelProperties = (
+        CloudflareDNSRecordToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -33,8 +75,24 @@ class CloudflareDNSRecordToZoneRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareZone)
+# (:CloudflareZone)-[:HAS_RECORD]->(:CloudflareDNSRecord)
 class CloudflareDNSRecordToZoneRel(CartographyRelSchema):
+    """The DNS zone contains the DNS record."""
+
+    target_node_label: str = "CloudflareZone"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("zone_id", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_RECORD"
+    properties: CloudflareDNSRecordToZoneRelProperties = (
+        CloudflareDNSRecordToZoneRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:CloudflareZone)-[:RESOURCE]->(:CloudflareDNSRecord) - Backwards compatibility
+class CloudflareDNSRecordToZoneDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "CloudflareZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("zone_id", set_in_kwargs=True)},
@@ -48,9 +106,18 @@ class CloudflareDNSRecordToZoneRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordSchema(CartographyNodeSchema):
+    """A DNS record in Cloudflare."""
+
     label: str = "CloudflareDNSRecord"
     properties: CloudflareDNSRecordNodeProperties = CloudflareDNSRecordNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([DNS_RECORD])
-    sub_resource_relationship: CloudflareDNSRecordToZoneRel = (
-        CloudflareDNSRecordToZoneRel()
+    sub_resource_relationship: CloudflareDNSRecordToAccountRel = (
+        CloudflareDNSRecordToAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            CloudflareDNSRecordToZoneRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            CloudflareDNSRecordToZoneDeprecatedRel(),
+        ]
     )

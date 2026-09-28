@@ -17,6 +17,7 @@ from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
+from cartography.intel.kubernetes.storage import sync_storage
 from cartography.intel.kubernetes.util import get_k8s_clients
 from cartography.intel.kubernetes.workloads import sync_workloads
 from cartography.util import run_typed_analysis_job
@@ -74,6 +75,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             replicaset_owner_map = sync_workloads(
                 session, client, config.update_tag, common_job_parameters
             )
+            sync_storage(session, client, config.update_tag, common_job_parameters)
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             region: str | None = None

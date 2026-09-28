@@ -56,11 +56,24 @@ def test_load_scaleway_network(_mock_ips, _mock_pn, _mock_vpc, neo4j_session):
         )
 
     # Assert nodes exist
-    assert check_nodes(neo4j_session, "ScalewayVpc", ["id", "name"]) == {
-        (TEST_VPC_ID, "demo-vpc"),
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayVpc",
+        [
+            "id",
+            "name",
+            "transitivity_enabled",
+            "object_storage_private_access_enabled",
+        ],
+    ) == {
+        (TEST_VPC_ID, "demo-vpc", False, False),
     }
-    assert check_nodes(neo4j_session, "ScalewayPrivateNetwork", ["id", "name"]) == {
-        (TEST_PRIVATE_NETWORK_ID, "demo-pn"),
+    assert check_nodes(
+        neo4j_session,
+        "ScalewayPrivateNetwork",
+        ["id", "name", "has_object_storage_private_access"],
+    ) == {
+        (TEST_PRIVATE_NETWORK_ID, "demo-pn", False),
     }
     assert check_nodes(neo4j_session, "ScalewaySubnet", ["id", "subnet"]) == {
         (TEST_SUBNET_ID, "172.16.8.0/22"),

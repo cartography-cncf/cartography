@@ -13,11 +13,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DatabricksGenieSpaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    space_id: PropertyRef = PropertyRef("space_id", extra_index=True)
-    title: PropertyRef = PropertyRef("title", extra_index=True)
-    description: PropertyRef = PropertyRef("description")
-    warehouse_id: PropertyRef = PropertyRef("warehouse_id", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "id", description="Workspace-scoped identifier for the Databricks Genie space."
+    )
+    space_id: PropertyRef = PropertyRef(
+        "space_id", extra_index=True, description="Databricks Genie space identifier."
+    )
+    title: PropertyRef = PropertyRef(
+        "title", extra_index=True, description="Title of the Genie space."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="Description of the Genie space."
+    )
+    warehouse_id: PropertyRef = PropertyRef(
+        "warehouse_id",
+        extra_index=True,
+        description="Identifier of the SQL warehouse used by the Genie space.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -29,6 +41,8 @@ class DatabricksGenieSpaceToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksWorkspace)-[:RESOURCE]->(:DatabricksGenieSpace)
 class DatabricksGenieSpaceToWorkspaceRel(CartographyRelSchema):
+    """A Databricks workspace contains this Genie space resource."""
+
     target_node_label: str = "DatabricksWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("WORKSPACE_ID", set_in_kwargs=True)},
@@ -48,6 +62,8 @@ class DatabricksGenieSpaceToWarehouseRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksGenieSpace)-[:USES_WAREHOUSE]->(:DatabricksSqlWarehouse)
 class DatabricksGenieSpaceToWarehouseRel(CartographyRelSchema):
+    """A Databricks Genie space uses a SQL warehouse."""
+
     target_node_label: str = "DatabricksSqlWarehouse"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("warehouse_scoped_id")},
@@ -61,6 +77,8 @@ class DatabricksGenieSpaceToWarehouseRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DatabricksGenieSpaceSchema(CartographyNodeSchema):
+    """A Databricks Genie space for natural-language data analysis."""
+
     label: str = "DatabricksGenieSpace"
     properties: DatabricksGenieSpaceNodeProperties = (
         DatabricksGenieSpaceNodeProperties()

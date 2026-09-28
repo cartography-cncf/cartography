@@ -4,7 +4,9 @@ from unittest.mock import patch
 import pytest
 from botocore.exceptions import ClientError
 from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import ProxyConnectionError
 
+from cartography.intel.aws.s3 import _sync_s3_notifications
 from cartography.intel.aws.s3 import FETCH_FAILED
 from cartography.intel.aws.s3 import get_acl
 from cartography.intel.aws.s3 import get_bucket_logging
@@ -129,6 +131,66 @@ def test_get_s3_bucket_list_connect_timeout_preserves_other_buckets():
         {"Name": "slow-bucket", "Region": None},
         {"Name": "last-bucket", "Region": "eu-west-1"},
     ]
+
+
+def test_get_s3_bucket_list_proxy_error_preserves_other_buckets():
+    """An egress proxy that cannot reach a bucket's region must not abort discovery.
+
+    ProxyConnectionError is a sibling of EndpointConnectionError rather than a
+    subclass of it, so enumerating leaf exception classes does not catch it. This
+    covers the case where a bucket lives in a region unreachable from the network
+    the sync runs on, and the proxy answers the CONNECT with a 5xx.
+    """
+    mock_session = MagicMock()
+    mock_client = mock_session.client.return_value
+
+    mock_client.list_buckets.return_value = {
+        "Buckets": [
+            {"Name": "reachable-bucket"},
+            {"Name": "unreachable-region-bucket"},
+        ],
+    }
+    mock_client.head_bucket.side_effect = [
+        {
+            "BucketRegion": "us-east-1",
+            "ResponseMetadata": {"HTTPHeaders": {}},
+        },
+        ProxyConnectionError(proxy_url="http://127.0.0.1:12002"),
+    ]
+
+    result = get_s3_bucket_list(mock_session)
+    assert result["Buckets"] == [
+        {"Name": "reachable-bucket", "Region": "us-east-1"},
+        {"Name": "unreachable-region-bucket", "Region": None},
+    ]
+
+
+@patch("cartography.intel.aws.s3._cleanup_s3_notifications")
+@patch("cartography.intel.aws.s3._load_s3_notifications")
+def test_sync_s3_notifications_survives_a_transport_error(_mock_load, _mock_cleanup):
+    """An unreachable bucket must not abort the notification sync for the rest.
+
+    This path only caught ClientError, so a transport failure here aborted the
+    whole account's sync even once region discovery tolerated it.
+    """
+    mock_session = MagicMock()
+    mock_client = mock_session.client.return_value
+    mock_client.get_bucket_notification_configuration.side_effect = [
+        ProxyConnectionError(proxy_url="http://127.0.0.1:12002"),
+        {"TopicConfigurations": []},
+    ]
+
+    bucket_data = {
+        "Buckets": [
+            {"Name": "unreachable-region-bucket", "Region": None},
+            {"Name": "reachable-bucket", "Region": "us-east-1"},
+        ],
+    }
+
+    # Must not raise, and must still reach the second bucket.
+    _sync_s3_notifications(MagicMock(), mock_session, bucket_data, update_tag=1)
+
+    assert mock_client.get_bucket_notification_configuration.call_count == 2
 
 
 @pytest.mark.parametrize(

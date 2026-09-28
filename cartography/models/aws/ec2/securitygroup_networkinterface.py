@@ -19,9 +19,17 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class EC2SecurityGroupNetworkInterfaceNodeProperties(CartographyNodeProperties):
     # arn: PropertyRef = PropertyRef('Arn', extra_index=True) # TODO use arn; issue #1024
-    id: PropertyRef = PropertyRef("GroupId")
-    groupid: PropertyRef = PropertyRef("GroupId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("GroupId", description="Same as `groupid`")
+    groupid: PropertyRef = PropertyRef(
+        "GroupId",
+        extra_index=True,
+        description="The ID of the security group. Note that these are globally unique in AWS.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region this security group is installed in",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -45,9 +53,10 @@ class EC2SecurityGroupToNetworkInterfaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2SecurityGroupNetworkInterfaceSchema(CartographyNodeSchema):
-    """
-    Security groups as known by describe-network-interfaces.
-    """
+    """Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html)."""
+
+    # Implementation note:
+    # Security groups as known by describe-network-interfaces.
 
     label: str = "AWSEC2SecurityGroup"
     # DEPRECATED: legacy EC2SecurityGroup node label will be removed in v1.0.0.

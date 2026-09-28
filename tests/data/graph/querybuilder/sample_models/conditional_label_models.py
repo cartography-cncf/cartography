@@ -159,3 +159,23 @@ class VulnerabilitySchema(CartographyNodeSchema):
         ],
     )
     scoped_cleanup: bool = False
+
+
+@dataclass(frozen=True)
+class VulnerabilitySchemaSharedLabel(CartographyNodeSchema):
+    """
+    Schema where one label is declared twice with different conditions.
+
+    The two declarations are ORed together, so a node matching either one carries the label.
+    """
+
+    label: str = "Vulnerability"
+    properties: VulnerabilityProperties = VulnerabilityProperties()
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+        [
+            SECURITY_FINDING,
+            URGENT.when(severity="critical"),
+            URGENT.when(is_exploitable="true"),
+        ],
+    )
+    scoped_cleanup: bool = False

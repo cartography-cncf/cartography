@@ -15,17 +15,40 @@ from cartography.models.ontology.labels import SERVICE_ACCOUNT
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    namespace: PropertyRef = PropertyRef("namespace")
-    automount_service_account_token: PropertyRef = PropertyRef(
-        "automount_service_account_token"
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`).",
     )
-    aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
-    gcp_service_account: PropertyRef = PropertyRef("gcp_service_account")
-    uid: PropertyRef = PropertyRef("uid")
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    resource_version: PropertyRef = PropertyRef("resource_version")
+    name: PropertyRef = PropertyRef(
+        "name", description="Name of the Kubernetes ServiceAccount."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        description="The Kubernetes namespace where this ServiceAccount is deployed.",
+    )
+    automount_service_account_token: PropertyRef = PropertyRef(
+        "automount_service_account_token",
+        description="Whether the ServiceAccount token should be automatically mounted in pods.",
+    )
+    aws_role_arn: PropertyRef = PropertyRef(
+        "aws_role_arn",
+        description="ARN from the IRSA annotation `eks.amazonaws.com/role-arn`, when present. Used to link the ServiceAccount to an `AWSRole`.",
+    )
+    gcp_service_account: PropertyRef = PropertyRef(
+        "gcp_service_account",
+        description="Email from the GKE Workload Identity annotation `iam.gke.io/gcp-service-account`, when present. Used to link the ServiceAccount to a `GCPServiceAccount`.",
+    )
+    uid: PropertyRef = PropertyRef(
+        "uid", description="UID of the Kubernetes ServiceAccount."
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp of the creation time of the Kubernetes ServiceAccount.",
+    )
+    resource_version: PropertyRef = PropertyRef(
+        "resource_version",
+        description="The resource version of the ServiceAccount for optimistic concurrency control.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,6 +59,8 @@ class KubernetesServiceAccountToNamespaceRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToNamespaceRel(CartographyRelSchema):
+    """Links a namespace to a service account it contains."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -57,6 +82,8 @@ class KubernetesServiceAccountToClusterRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its service accounts."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -75,6 +102,8 @@ class KubernetesServiceAccountToAWSRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToAWSRoleRel(CartographyRelSchema):
+    """Links a service account to the AWS IAM role it can assume through IRSA."""
+
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("aws_role_arn")}
@@ -95,10 +124,7 @@ class KubernetesServiceAccountToGCPServiceAccountRelProperties(
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
-    """
-    GKE Workload Identity binding: a Kubernetes ServiceAccount annotated with
-    iam.gke.io/gcp-service-account=<email> impersonates that GCP SA.
-    """
+    """Links a service account to the Google Cloud service account it impersonates through Workload Identity."""
 
     target_node_label: str = "GCPServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -113,6 +139,8 @@ class KubernetesServiceAccountToGCPServiceAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class KubernetesServiceAccountSchema(CartographyNodeSchema):
+    "A service account used by workloads in a Kubernetes cluster."
+
     label: str = "KubernetesServiceAccount"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([SERVICE_ACCOUNT])
     properties: KubernetesServiceAccountNodeProperties = (

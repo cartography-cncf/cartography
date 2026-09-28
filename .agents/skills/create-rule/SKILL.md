@@ -25,8 +25,10 @@ Rule (e.g., "database-exposed")
 1. **`cypher_query` aliases must match `Finding` field names exactly.** Use `RETURN x.id AS id, x.name AS name`.
 2. **`cypher_visual_query` returns nodes**, not properties — used for graph viz.
 3. **All `Finding` fields are `| None` with default `None`.** The `source` field is auto-populated.
-4. **Compliance metadata uses `frameworks=`**, not tags. Keep `tags` for categories only (`iam`, `credentials`, `stride:*`).
-5. **Rule IDs and names describe the Cartography security detection, not the compliance control.** Put framework scope, requirement/control id, and external control title in `frameworks=`.
+4. **`source` and `extra` are reserved.** Never alias them in a `cypher_query`; use `ontology_source` for `_ont_source`.
+5. **The `cypher_query` must match the declared `asset_label`.** `MATCH (k:APIKey) WHERE k:OpenAIApiKey ...`, not `MATCH (k) WHERE k:OpenAIApiKey ...`, so the rows returned cannot diverge from the asset claimed.
+6. **Compliance metadata uses `frameworks=`**, not tags. Keep `tags` for categories only (`iam`, `credentials`, `stride:*`).
+7. **Rule IDs and names describe the Cartography security detection, not the compliance control.** Put framework scope, requirement/control id, and external control title in `frameworks=`.
 
 ## Instructions
 
@@ -101,7 +103,7 @@ class DatabaseExposedOutput(Finding):
 - Inherit from `Finding`.
 - Field names must match `cypher_query` aliases **exactly**.
 - All fields are `| None` with default `None`.
-- The `source` field is auto-populated with the module name.
+- The `source` field is auto-populated with the module name and is reserved: do not return a `source` column. Alias the per-row ontology provider `ontology_source` and declare it on the model.
 - **Declare a human-readable label as the first field.** Downstream consumers derive the finding's title from the first non-empty field in declaration order, so leading with an opaque id, ARN, URI, digest, region, or boolean produces an unreadable title. If the node has no natural name, alias one in the `cypher_query` (e.g. `coalesce(n.friendly_name, n.short_id) AS name`, or an AWS `Name` tag) and declare it first. This is independent of `identity_fields`/`asset_id_field` and of `RETURN` order. See "Display field order (finding title)" in `docs/root/usage/rules.md`.
 - Set `identity_fields` on the Fact (required) to the subset of these fields that forms the finding's stable logical identity, excluding volatile context (`*_count`, `days_*`, `last_used*`, `*_date`, posture booleans, aggregate lists) so downstream lifecycle tracking does not treat a changed metric as a new finding. See "Finding identity vs. display fields" in `docs/root/usage/rules.md`.
 
@@ -252,7 +254,7 @@ _unmanaged_accounts = Fact(
     cypher_query="""
     MATCH (ua:UserAccount)
     WHERE NOT (ua)<-[:HAS_ACCOUNT]-(:User)
-    RETURN ua.id AS id, ua._ont_email AS email, ua._ont_source AS source
+    RETURN ua.id AS id, ua._ont_email AS email, ua._ont_source AS ontology_source
     """,
     cypher_visual_query="""
     MATCH (ua:UserAccount)
@@ -263,6 +265,9 @@ _unmanaged_accounts = Fact(
     MATCH (ua:UserAccount)
     RETURN COUNT(ua) AS count
     """,
+    asset_label="UserAccount",
+    asset_id_field="id",
+    identity_fields=("ontology_source", "id"),
     module=Module.CROSS_CLOUD,
     maturity=Maturity.STABLE,
 )

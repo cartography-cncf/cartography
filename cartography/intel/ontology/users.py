@@ -7,6 +7,7 @@ from cartography.analysis.ontology.analysis import AWS_USER_PROJECTION
 from cartography.analysis.ontology.analysis import USER_LINKING_JOBS
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.helpers import normalize_email_for_matching
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.models.ontology.user import UserSchema
 from cartography.util import run_typed_analysis_job
@@ -25,7 +26,7 @@ def sync(
     data = get_source_nodes_from_graph(neo4j_session, source_of_truth, "users")
     load_users(
         neo4j_session,
-        data,
+        transform_users(data),
         update_tag,
     )
     # Derive `_ont_has_mfa` and `_ont_active` on AWSUser from related
@@ -39,6 +40,16 @@ def sync(
     for job in USER_LINKING_JOBS:
         run_typed_analysis_job(job, neo4j_session, common_job_parameters)
     cleanup(neo4j_session, common_job_parameters)
+
+
+def transform_users(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            **user,
+            "normalized_email": normalize_email_for_matching(user.get("email")),
+        }
+        for user in data
+    ]
 
 
 @timeit

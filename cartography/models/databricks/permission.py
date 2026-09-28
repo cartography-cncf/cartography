@@ -17,10 +17,13 @@ class DatabricksPermissionRelProperties(CartographyRelProperties):
         "_sub_resource_label", set_in_kwargs=True
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    permission_level: PropertyRef = PropertyRef("permission_level")
+    permission_level: PropertyRef = PropertyRef(
+        "permission_level",
+        description="Permission levels granted to the principal on the object.",
+    )
 
 
-# The three principal rels all match the source by ``principal_id`` — the
+# The three principal rels all match the source by ``principal_id``. This is the
 # workspace-scoped node id resolved from the ACL entry's principal name in the
 # intel layer. Matching by the scoped id (not the bare name) keeps ACLs from two
 # workspaces that share an email / group name / application id from attaching to
@@ -33,6 +36,8 @@ class DatabricksPermissionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:DatabricksUser)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
 class DatabricksUserPermissionRel(CartographyRelSchema):
+    """A Databricks principal has permissions on an ACL object."""
+
     target_node_label: str = "DatabricksAclObject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("object_id")},
@@ -49,6 +54,8 @@ class DatabricksUserPermissionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksGroup)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
 class DatabricksGroupPermissionRel(CartographyRelSchema):
+    """A Databricks principal has permissions on an ACL object."""
+
     target_node_label: str = "DatabricksAclObject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("object_id")},
@@ -65,6 +72,8 @@ class DatabricksGroupPermissionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 # (:DatabricksServicePrincipal)-[:HAS_PERMISSION {permission_level}]->(:DatabricksAclObject)
 class DatabricksServicePrincipalPermissionRel(CartographyRelSchema):
+    """A Databricks principal has permissions on an ACL object."""
+
     target_node_label: str = "DatabricksAclObject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("object_id")},

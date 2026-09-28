@@ -64,6 +64,7 @@ SCALEWAY_APPLE_SILICON_SERVERS = [
         public_bandwidth_bps=1000000000,
         tags=["demo"],
         applied_runner_configuration_ids=[],
+        kext_enabled=False,
         created_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
         updated_at=datetime(2025, 3, 20, 10, 58, 0, 784077, tzinfo=tzutc()),
     ),

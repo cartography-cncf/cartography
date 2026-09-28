@@ -18,9 +18,14 @@ class GCPSubnetStubNodeProperties(CartographyNodeProperties):
     even before the full subnet data is loaded.
     """
 
-    id: PropertyRef = PropertyRef("partial_uri")
+    id: PropertyRef = PropertyRef(
+        "partial_uri",
+        description="A partial resource URI representing this Subnet.  Has the form `projects/{project}/regions/{region}/subnetworks/{subnet name}`.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    partial_uri: PropertyRef = PropertyRef("partial_uri", extra_index=True)
+    partial_uri: PropertyRef = PropertyRef(
+        "partial_uri", extra_index=True, description="Same as `id`."
+    )
 
 
 @dataclass(frozen=True)
@@ -45,10 +50,7 @@ class GCPSubnetStubToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPSubnetStubSchema(CartographyNodeSchema):
-    """
-    Schema for creating minimal GCPSubnet stub nodes.
-    Used to ensure the subnet node exists before creating relationships to it.
-    """
+    """Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks)."""
 
     label: str = "GCPSubnet"
     properties: GCPSubnetStubNodeProperties = GCPSubnetStubNodeProperties()

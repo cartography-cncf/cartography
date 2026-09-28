@@ -15,10 +15,16 @@ from cartography.models.ontology.labels import API_KEY
 
 @dataclass(frozen=True)
 class AnthropicApiKeyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
-    status: PropertyRef = PropertyRef("status")
-    created_at: PropertyRef = PropertyRef("created_at")
+    id: PropertyRef = PropertyRef("id", description="Anthropic API key ID.")
+    name: PropertyRef = PropertyRef("name", description="API key name.")
+    status: PropertyRef = PropertyRef(
+        "status",
+        description="API key status: active, inactive, or archived.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="RFC 3339 timestamp when the API key was created.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,6 +36,8 @@ class AnthropicApiKeyToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicApiKey)
 class AnthropicApiKeyToOrganizationRel(CartographyRelSchema):
+    """The organization contains the API key."""
+
     target_node_label: str = "AnthropicOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
@@ -52,6 +60,8 @@ class AnthropicApiKeyToUserRelProperties(CartographyRelProperties):
 # be removed in v1.0.0.
 # (:AnthropicUser)-[:OWNS]->(:AnthropicApiKey)
 class AnthropicApiKeyToUserRel(CartographyRelSchema):
+    """Deprecated compatibility edge for a user that owns an API key."""
+
     target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("created_by.id")},
@@ -71,6 +81,8 @@ class AnthropicApiKeyToUserOwnedByRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # Canonical ontology edge: (:APIKey)-[:OWNED_BY]->(:UserAccount)
 class AnthropicApiKeyToUserOwnedByRel(CartographyRelSchema):
+    """An API key is owned by a user account."""
+
     target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("created_by.id")},
@@ -90,6 +102,8 @@ class AnthropicApiKeyToWorkspaceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:AnthropicWorkspace)-[:CONTAINS]->(:AnthropicApiKey)
 class AnthropicApiKeyToWorkspaceRel(CartographyRelSchema):
+    """A workspace contains the API key."""
+
     target_node_label: str = "AnthropicWorkspace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("workspace_id")},
@@ -103,6 +117,8 @@ class AnthropicApiKeyToWorkspaceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AnthropicApiKeySchema(CartographyNodeSchema):
+    """An API key in an Anthropic workspace."""
+
     label: str = "AnthropicApiKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [API_KEY]

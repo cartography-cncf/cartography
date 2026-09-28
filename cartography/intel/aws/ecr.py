@@ -12,7 +12,6 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
-from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
 from cartography.util import aws_handle_regions
@@ -364,7 +363,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     GraphJob.from_node_schema(ECRRepositoryImageSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(ECRImageSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
         neo4j_session
     )
 

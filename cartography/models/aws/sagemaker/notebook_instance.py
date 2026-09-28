@@ -13,24 +13,72 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("NotebookInstanceArn")
-    arn: PropertyRef = PropertyRef("NotebookInstanceArn", extra_index=True)
-    notebook_instance_name: PropertyRef = PropertyRef("NotebookInstanceName")
-    notebook_instance_status: PropertyRef = PropertyRef("NotebookInstanceStatus")
-    instance_type: PropertyRef = PropertyRef("InstanceType")
-    url: PropertyRef = PropertyRef("Url")
-    creation_time: PropertyRef = PropertyRef("CreationTime")
-    last_modified_time: PropertyRef = PropertyRef("LastModifiedTime")
-    subnet_id: PropertyRef = PropertyRef("SubnetId")
-    security_groups: PropertyRef = PropertyRef("SecurityGroups")
-    role_arn: PropertyRef = PropertyRef("RoleArn")
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
-    network_interface_id: PropertyRef = PropertyRef("NetworkInterfaceId")
-    direct_internet_access: PropertyRef = PropertyRef("DirectInternetAccess")
-    volume_size_in_gb: PropertyRef = PropertyRef("VolumeSizeInGB")
-    root_access: PropertyRef = PropertyRef("RootAccess")
-    platform_identifier: PropertyRef = PropertyRef("PlatformIdentifier")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "NotebookInstanceArn", description="The ARN of the Notebook Instance"
+    )
+    arn: PropertyRef = PropertyRef(
+        "NotebookInstanceArn",
+        extra_index=True,
+        description="The ARN of the Notebook Instance",
+    )
+    notebook_instance_name: PropertyRef = PropertyRef(
+        "NotebookInstanceName", description="The name of the Notebook Instance"
+    )
+    notebook_instance_status: PropertyRef = PropertyRef(
+        "NotebookInstanceStatus", description="The status of the Notebook Instance"
+    )
+    instance_type: PropertyRef = PropertyRef(
+        "InstanceType", description="The ML compute instance type"
+    )
+    url: PropertyRef = PropertyRef(
+        "Url", description="The URL to connect to the Jupyter notebook"
+    )
+    creation_time: PropertyRef = PropertyRef(
+        "CreationTime", description="When the Notebook Instance was created"
+    )
+    last_modified_time: PropertyRef = PropertyRef(
+        "LastModifiedTime", description="When the Notebook Instance was last modified"
+    )
+    subnet_id: PropertyRef = PropertyRef(
+        "SubnetId",
+        description="Identifier of the subnet linked to this `AWSSageMakerNotebookInstance` node.",
+    )
+    security_groups: PropertyRef = PropertyRef(
+        "SecurityGroups",
+        description="Security group IDs attached to the notebook instance.",
+    )
+    role_arn: PropertyRef = PropertyRef(
+        "RoleArn", description="The IAM role ARN associated with the instance"
+    )
+    kms_key_id: PropertyRef = PropertyRef(
+        "KmsKeyId",
+        description="Identifier of the KMS key linked to this `AWSSageMakerNotebookInstance` node.",
+    )
+    network_interface_id: PropertyRef = PropertyRef(
+        "NetworkInterfaceId",
+        description="Identifier of the network interface linked to this `AWSSageMakerNotebookInstance` node.",
+    )
+    direct_internet_access: PropertyRef = PropertyRef(
+        "DirectInternetAccess",
+        description="Whether the notebook instance has direct internet access.",
+    )
+    volume_size_in_gb: PropertyRef = PropertyRef(
+        "VolumeSizeInGB",
+        description="Size in GiB of the notebook instance's attached storage volume.",
+    )
+    root_access: PropertyRef = PropertyRef(
+        "RootAccess",
+        description="Whether notebook users have root access.",
+    )
+    platform_identifier: PropertyRef = PropertyRef(
+        "PlatformIdentifier",
+        description="SageMaker notebook platform version identifier.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="The AWS region where the Notebook Instance exists",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -93,6 +141,8 @@ class AWSSageMakerNotebookInstanceToTrainingJobRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSSageMakerNotebookInstanceSchema(CartographyNodeSchema):
+    """Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks."""
+
     label: str = "AWSSageMakerNotebookInstance"
     properties: AWSSageMakerNotebookInstanceNodeProperties = (
         AWSSageMakerNotebookInstanceNodeProperties()

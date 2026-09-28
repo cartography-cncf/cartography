@@ -13,13 +13,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureCDBPrivateEndpointConnectionProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    privateendpointid: PropertyRef = PropertyRef("private_endpoint.id")
-    status: PropertyRef = PropertyRef("private_link_service_connection_state.status")
+    name: PropertyRef = PropertyRef(
+        "name",
+        description="Name of the Azure resource.",
+    )
+    privateendpointid: PropertyRef = PropertyRef(
+        "private_endpoint.id",
+        description="Azure resource ID of the private endpoint.",
+    )
+    status: PropertyRef = PropertyRef(
+        "private_link_service_connection_state.status",
+        description="Approval status of the private endpoint connection.",
+    )
     actionrequired: PropertyRef = PropertyRef(
-        "private_link_service_connection_state.actions_required"
+        "private_link_service_connection_state.actions_required",
+        description="Actions required to complete the private endpoint connection.",
     )
 
 
@@ -33,6 +43,8 @@ class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties(
 @dataclass(frozen=True)
 # (:AzureCosmosDBAccount)-[:CONFIGURED_WITH]->(:AzureCDBPrivateEndpointConnection)
 class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(CartographyRelSchema):
+    """A Cosmos DB account is configured with the private endpoint connection."""
+
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
@@ -54,6 +66,8 @@ class AzureCDBPrivateEndpointConnectionToSubscriptionRelProperties(
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureCDBPrivateEndpointConnection)
 class AzureCDBPrivateEndpointConnectionToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the private endpoint connection as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -67,6 +81,8 @@ class AzureCDBPrivateEndpointConnectionToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureCDBPrivateEndpointConnectionSchema(CartographyNodeSchema):
+    """A private endpoint connection configured for an Azure Cosmos DB account."""
+
     label: str = "AzureCDBPrivateEndpointConnection"
     properties: AzureCDBPrivateEndpointConnectionProperties = (
         AzureCDBPrivateEndpointConnectionProperties()

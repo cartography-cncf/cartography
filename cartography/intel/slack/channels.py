@@ -1,13 +1,17 @@
+import logging
 from typing import Any
 
 import neo4j
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.slack.utils import slack_paginate
 from cartography.models.slack.channels import SlackChannelSchema
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 @timeit
@@ -28,13 +32,33 @@ def get(
     slack_client: WebClient, team_id: str, get_memberships: bool
 ) -> list[dict[str, Any]]:
     channels: list[dict[str, Any]] = []
-    for channel in slack_paginate(
-        slack_client,
-        "conversations_list",
-        "channels",
-        team_id=team_id,
-        exclude_archived=True,
-    ):
+    try:
+        channel_data = slack_paginate(
+            slack_client,
+            "conversations_list",
+            "channels",
+            team_id=team_id,
+            exclude_archived=True,
+            types="public_channel,private_channel",
+        )
+    except SlackApiError as error:
+        error_code = error.response.get("error")
+        if error_code not in {"invalid_types", "missing_scope"}:
+            raise
+        logger.warning(
+            "Slack token cannot list private channels (%s); syncing public channels only.",
+            error_code,
+        )
+        channel_data = slack_paginate(
+            slack_client,
+            "conversations_list",
+            "channels",
+            team_id=team_id,
+            exclude_archived=True,
+            types="public_channel",
+        )
+
+    for channel in channel_data:
         if get_memberships:
             for member in slack_paginate(
                 slack_client,

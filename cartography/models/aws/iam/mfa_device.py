@@ -16,17 +16,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSMfaDeviceNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    id: PropertyRef = PropertyRef("serialnumber")
-    serialnumber: PropertyRef = PropertyRef("serialnumber", extra_index=True)
+    id: PropertyRef = PropertyRef(
+        "serialnumber",
+        description="The serial number of the MFA device (same as serialnumber)",
+    )
+    serialnumber: PropertyRef = PropertyRef(
+        "serialnumber",
+        extra_index=True,
+        description="The serial number that uniquely identifies the MFA device",
+    )
 
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Business fields from AWS IAM mfa devices
-    username: PropertyRef = PropertyRef("username")
-    user_arn: PropertyRef = PropertyRef("user_arn")
-    enabledate: PropertyRef = PropertyRef("enabledate")
-    enabledate_dt: PropertyRef = PropertyRef("enabledate_dt")
+    username: PropertyRef = PropertyRef(
+        "username",
+        description="The username of the IAM user associated with the MFA device",
+    )
+    user_arn: PropertyRef = PropertyRef(
+        "user_arn", description="The ARN of the IAM user associated with the MFA device"
+    )
+    enabledate: PropertyRef = PropertyRef(
+        "enabledate",
+        description="ISO 8601 date-time string when the MFA device was enabled",
+    )
+    enabledate_dt: PropertyRef = PropertyRef(
+        "enabledate_dt",
+        description="DateTime object representing when the MFA device was enabled",
+    )
 
 
 @dataclass(frozen=True)
@@ -71,6 +89,8 @@ class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSMfaDeviceSchema(CartographyNodeSchema):
+    """Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/APIReference/API_MFADevice.html)."""
+
     label: str = "AWSMfaDevice"
     properties: AWSMfaDeviceNodeProperties = AWSMfaDeviceNodeProperties()
     sub_resource_relationship: AWSMfaDeviceToAWSAccountRel = (

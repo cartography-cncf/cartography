@@ -5,12 +5,18 @@ documents from S3, converting them to embeddings, and storing vectors for semant
 """
 
 import logging
+from functools import wraps
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -18,13 +24,57 @@ from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.knowledge_base import AWSBedrockKnowledgeBaseSchema
 from cartography.util import aws_handle_regions
+from cartography.util import AWSGetFunc
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
+class BedrockKnowledgeBaseTransientRegionFailure(Exception):
+    """Raised when Bedrock knowledge base collection cannot complete for one region."""
+
+
+_BEDROCK_TRANSIENT_REGION_ERRORS = (
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
+
+
+def _is_bedrock_knowledge_base_region_server_error(
+    error: ClientError,
+) -> bool:
+    """Return whether Bedrock reported a regional ListKnowledgeBases failure."""
+    return error.response.get("Error", {}).get("Code") in {
+        "InternalServerException",
+        "InternalServerErrorException",
+    }
+
+
+def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
+    """Keep regional Bedrock server errors out of the shared retry decorator."""
+
+    @wraps(func)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except ClientError as error:
+            if _is_bedrock_knowledge_base_region_server_error(error):
+                raise BedrockKnowledgeBaseTransientRegionFailure(
+                    func.__name__,
+                ) from error
+            raise
+        except _BEDROCK_TRANSIENT_REGION_ERRORS as error:
+            raise BedrockKnowledgeBaseTransientRegionFailure(
+                func.__name__,
+            ) from error
+
+    return cast(AWSGetFunc, wrapped)
+
+
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_knowledge_bases(
     boto3_session: boto3.session.Session, region: str
 ) -> List[Dict[str, Any]]:
@@ -182,9 +232,21 @@ def sync(
         len(regions),
     )
 
+    cleanup_safe = True
+
     for region in regions:
         # Fetch knowledge bases from AWS
-        knowledge_bases = get_knowledge_bases(boto3_session, region)
+        try:
+            knowledge_bases = get_knowledge_bases(boto3_session, region)
+        except BedrockKnowledgeBaseTransientRegionFailure:
+            logger.warning(
+                "Bedrock ListKnowledgeBases failed for account %s in region %s. "
+                "Skipping the region and preserving last-known-good knowledge bases.",
+                current_aws_account_id,
+                region,
+            )
+            cleanup_safe = False
+            continue
 
         if not knowledge_bases:
             logger.info("No knowledge bases found in region %s", region)
@@ -202,5 +264,12 @@ def sync(
             update_tag,
         )
 
-    # Clean up stale nodes (once, after all regions)
-    cleanup_knowledge_bases(neo4j_session, common_job_parameters)
+    # Clean up stale nodes only when every region produced a complete snapshot.
+    if cleanup_safe:
+        cleanup_knowledge_bases(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Bedrock knowledge base cleanup for account %s because one or more "
+            "regions were unavailable. Preserving last-known-good data.",
+            current_aws_account_id,
+        )

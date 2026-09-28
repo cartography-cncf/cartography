@@ -17,11 +17,17 @@ class SpaceliftWorkerNodeProperties(CartographyNodeProperties):
     Properties for a Spacelift Worker node.
     """
 
-    id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    status: PropertyRef = PropertyRef("status")
-    worker_pool_id: PropertyRef = PropertyRef("worker_pool_id")
-    spacelift_account_id: PropertyRef = PropertyRef("spacelift_account_id")
+    id: PropertyRef = PropertyRef("id", description="Spacelift worker ID.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Worker name."
+    )
+    status: PropertyRef = PropertyRef("status", description="Current worker status.")
+    worker_pool_id: PropertyRef = PropertyRef(
+        "worker_pool_id", description="ID of the worker's pool."
+    )
+    spacelift_account_id: PropertyRef = PropertyRef(
+        "spacelift_account_id", description="ID of the containing Spacelift account."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,10 +42,7 @@ class SpaceliftWorkerToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftWorkerToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from a Worker to its Account.
-    (:SpaceliftWorker)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
+    """A Spacelift account contains a worker."""
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -63,10 +66,7 @@ class SpaceliftWorkerToWorkerPoolRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SpaceliftWorkerToWorkerPoolRel(CartographyRelSchema):
-    """
-    CONTAINS relationship from a Worker to its parent Worker Pool.
-    (:SpaceliftWorker)<-[:CONTAINS]-(:SpaceliftWorkerPool)
-    """
+    """A Spacelift worker pool contains a worker."""
 
     target_node_label: str = "SpaceliftWorkerPool"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,9 +81,7 @@ class SpaceliftWorkerToWorkerPoolRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class SpaceliftWorkerSchema(CartographyNodeSchema):
-    """
-    Schema for a Spacelift Worker node.
-    """
+    """An execution worker in a Spacelift worker pool."""
 
     label: str = "SpaceliftWorker"
     properties: SpaceliftWorkerNodeProperties = SpaceliftWorkerNodeProperties()

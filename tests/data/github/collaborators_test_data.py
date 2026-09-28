@@ -26,6 +26,8 @@ COLLABORATORS_TEST_REPOS: list[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        "isFork": False,
+        "parent": None,
         "owner": {
             "url": "https://github.com/testorg",
             "login": "testorg",
@@ -54,6 +56,8 @@ COLLABORATORS_TEST_REPOS: list[dict[str, Any]] = [
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
+        "isFork": False,
+        "parent": None,
         "owner": {
             "url": "https://github.com/testorg",
             "login": "testorg",

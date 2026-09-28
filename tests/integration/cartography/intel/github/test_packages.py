@@ -520,3 +520,18 @@ def test_sync_ghcr_idempotent_across_runs(
     assert next_rows, "expected at least one NEXT rel between layers"
     stale_next = [r for r in next_rows if r["u"] != second_update_tag]
     assert not stale_next, f"stale lastupdated on NEXT rels: {stale_next}"
+
+    # Package membership is observed independently of the cached OCI closure.
+    package_image_rows = neo4j_session.run(
+        """
+        MATCH (:GitHubPackage)-[r:HAS_IMAGE]->(:GitHubContainerImage)
+        RETURN r.lastupdated AS u
+        """,
+    ).data()
+    assert package_image_rows
+    stale_package_images = [
+        row for row in package_image_rows if row["u"] != second_update_tag
+    ]
+    assert (
+        not stale_package_images
+    ), f"stale lastupdated on HAS_IMAGE rels: {stale_package_images}"

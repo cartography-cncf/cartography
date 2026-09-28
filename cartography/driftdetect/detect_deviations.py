@@ -76,7 +76,7 @@ def perform_drift_detection(start_state: State, end_state: State):
     :type end_state: State
     :param end_state: The later state chronologically to be compared to.
     :return: tuple of additions and subtractions between the end and start detector in the form of drift_info_detector
-    pairs
+        pairs
     """
     if start_state.name != end_state.name:
         raise ValueError("State names do not match.")

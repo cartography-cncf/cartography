@@ -14,17 +14,27 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GCPFolderNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef(
-        "name"
+        "name",
+        description='The name of the folder, e.g. "folders/1234".',
     )  # Use full folder name as ID (e.g., "folders/1414")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    foldername: PropertyRef = PropertyRef("name")
-    displayname: PropertyRef = PropertyRef("displayName")
-    lifecyclestate: PropertyRef = PropertyRef("lifecycleState")
+    foldername: PropertyRef = PropertyRef(
+        "name", description='The name of the folder, e.g. "folders/1234".'
+    )
+    displayname: PropertyRef = PropertyRef(
+        "displayName", description='A friendly name of the folder, e.g. "My Folder".'
+    )
+    lifecyclestate: PropertyRef = PropertyRef(
+        "lifecycleState",
+        description="The folder's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v2/folders#LifecycleState).",
+    )
     parent_org: PropertyRef = PropertyRef(
-        "parent_org"
+        "parent_org",
+        description='If the folder\'s parent is an organization, this field contains the organization ID, e.g. "organizations/1234".',
     )  # Will be set to org ID if parent is org
     parent_folder: PropertyRef = PropertyRef(
-        "parent_folder"
+        "parent_folder",
+        description='If the folder\'s parent is another folder, this field contains the folder ID, e.g. "folders/5678".',
     )  # Will be set to folder ID if parent is folder
 
 
@@ -86,6 +96,8 @@ class GCPFolderToOrganizationRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPFolderSchema(CartographyNodeSchema):
+    """A Google Cloud Folder resource."""
+
     label: str = "GCPFolder"
     properties: GCPFolderNodeProperties = GCPFolderNodeProperties()
     # Organization owns the folder as a resource

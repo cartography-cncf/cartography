@@ -1,8 +1,24 @@
-## Airbyte Configuration
+# Airbyte Configuration
 
-Follow these steps to analyze Airbyte objects with Cartography.
+## Authentication
 
-1. On your Airbyte admin panel create a new `application` (note that the application will have the permissions of the user creating the application)
-    1. Pass `Client ID` via the CLI parameter `--airbyte-client-id`.
-    1. Populate an environment variable with the `Client Secret`. You can pass the environment variable name via CLI with the `--airbyte-client-secret-env-var` parameter.
-1. If you are on a self-hosted instance you must provide the base URL with the `--airbyte-api-url` parameter
+Create an application in the Airbyte admin panel. The application has the
+permissions of the user who creates it.
+
+Store its client secret in an environment variable. Pass the client ID with
+`--airbyte-client-id` and the environment variable name with
+`--airbyte-client-secret-env-var`.
+
+## Configure Cartography
+
+For a self-hosted Airbyte instance, set its API base URL with
+`--airbyte-api-url`. The default is `https://api.airbyte.com/v1`.
+
+## Run Cartography
+
+```bash
+cartography \
+  --selected-modules airbyte \
+  --airbyte-client-id "$AIRBYTE_CLIENT_ID" \
+  --airbyte-client-secret-env-var AIRBYTE_CLIENT_SECRET
+```

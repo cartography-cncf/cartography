@@ -16,16 +16,27 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class GCPBigtableAppProfileProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name")
-    name: PropertyRef = PropertyRef("name")
-    description: PropertyRef = PropertyRef("description")
+    id: PropertyRef = PropertyRef(
+        "name", description="Stable identifier for this resource."
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="The full resource name of the App Profile."
+    )
+    description: PropertyRef = PropertyRef(
+        "description", description="The user-provided description of the app profile."
+    )
     multi_cluster_routing_use_any: PropertyRef = PropertyRef(
-        "multiClusterRoutingUseAny"
+        "multiClusterRoutingUseAny",
+        description="Whether the Bigtable app profile may route to any available cluster.",
     )
     single_cluster_routing_cluster_id: PropertyRef = PropertyRef(
-        "single_cluster_routing_cluster_id"
+        "single_cluster_routing_cluster_id",
+        description="Cluster selected by the app profile's single-cluster routing policy.",
     )
-    instance_id: PropertyRef = PropertyRef("instance_id")
+    instance_id: PropertyRef = PropertyRef(
+        "instance_id",
+        description="Identifier of the parent service instance.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -81,6 +92,8 @@ class AppProfileToClusterRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class GCPBigtableAppProfileSchema(CartographyNodeSchema):
+    """Representation of a GCP [Bigtable App Profile](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.appProfiles)."""
+
     label: str = "GCPBigtableAppProfile"
     properties: GCPBigtableAppProfileProperties = GCPBigtableAppProfileProperties()
     sub_resource_relationship: ProjectToBigtableAppProfileRel = (

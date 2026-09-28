@@ -13,23 +13,62 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("UUID")
-    batchsize: PropertyRef = PropertyRef("BatchSize")
-    startingposition: PropertyRef = PropertyRef("StartingPosition")
-    startingpositiontimestamp: PropertyRef = PropertyRef("StartingPositionTimestamp")
-    parallelizationfactor: PropertyRef = PropertyRef("ParallelizationFactor")
-    maximumbatchingwindowinseconds: PropertyRef = PropertyRef(
-        "MaximumBatchingWindowInSeconds"
+    id: PropertyRef = PropertyRef(
+        "UUID", description="The id of the event source mapping"
     )
-    eventsourcearn: PropertyRef = PropertyRef("EventSourceArn")
-    lastmodified: PropertyRef = PropertyRef("LastModified")
-    lastprocessingresult: PropertyRef = PropertyRef("LastProcessingResult")
-    state: PropertyRef = PropertyRef("State")
-    maximumrecordage: PropertyRef = PropertyRef("MaximumRecordAgeInSeconds")
-    bisectbatchonfunctionerror: PropertyRef = PropertyRef("BisectBatchOnFunctionError")
-    maximumretryattempts: PropertyRef = PropertyRef("MaximumRetryAttempts")
-    tumblingwindowinseconds: PropertyRef = PropertyRef("TumblingWindowInSeconds")
-    functionarn: PropertyRef = PropertyRef("FunctionArn")
+    batchsize: PropertyRef = PropertyRef(
+        "BatchSize",
+        description="The maximum number of items to retrieve in a single batch.",
+    )
+    startingposition: PropertyRef = PropertyRef(
+        "StartingPosition",
+        description="The position in a stream from which to start reading.",
+    )
+    startingpositiontimestamp: PropertyRef = PropertyRef(
+        "StartingPositionTimestamp", description="The time from which to start reading."
+    )
+    parallelizationfactor: PropertyRef = PropertyRef(
+        "ParallelizationFactor",
+        description="The number of batches to process from each shard concurrently.",
+    )
+    maximumbatchingwindowinseconds: PropertyRef = PropertyRef(
+        "MaximumBatchingWindowInSeconds",
+        description="The maximum amount of time to gather records before invoking the function, in seconds.",
+    )
+    eventsourcearn: PropertyRef = PropertyRef(
+        "EventSourceArn",
+        description="The Amazon Resource Name (ARN) of the event source.",
+    )
+    lastmodified: PropertyRef = PropertyRef(
+        "LastModified",
+        description="The date that the event source mapping was last updated, or its state changed.",
+    )
+    lastprocessingresult: PropertyRef = PropertyRef(
+        "LastProcessingResult",
+        description="The result of the last AWS Lambda invocation of your Lambda function.",
+    )
+    state: PropertyRef = PropertyRef(
+        "State", description="The state of the event source mapping."
+    )
+    maximumrecordage: PropertyRef = PropertyRef(
+        "MaximumRecordAgeInSeconds",
+        description="Discard records older than the specified age.",
+    )
+    bisectbatchonfunctionerror: PropertyRef = PropertyRef(
+        "BisectBatchOnFunctionError",
+        description="If the function returns an error, split the batch in two and retry.",
+    )
+    maximumretryattempts: PropertyRef = PropertyRef(
+        "MaximumRetryAttempts",
+        description="Discard records after the specified number of retries.",
+    )
+    tumblingwindowinseconds: PropertyRef = PropertyRef(
+        "TumblingWindowInSeconds",
+        description="The duration in seconds of a processing window.",
+    )
+    functionarn: PropertyRef = PropertyRef(
+        "FunctionArn", description="The ARN of the Lambda function"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -74,6 +113,8 @@ class AWSLambdaEventSourceMappingToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaEventSourceMapping](https://docs.aws.amazon.com/lambda/latest/dg/API_ListEventSourceMappings.html)."""
+
     label: str = "AWSLambdaEventSourceMapping"
     properties: AWSLambdaEventSourceMappingNodeProperties = (
         AWSLambdaEventSourceMappingNodeProperties()

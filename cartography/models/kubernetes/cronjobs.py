@@ -15,16 +15,38 @@ from cartography.models.ontology.labels import COMPUTE_SERVICE
 
 @dataclass(frozen=True)
 class KubernetesCronJobNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
-    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    schedule: PropertyRef = PropertyRef("schedule")
-    suspend: PropertyRef = PropertyRef("suspend")
-    labels: PropertyRef = PropertyRef("labels")
+    id: PropertyRef = PropertyRef("uid", description="UID of the Kubernetes CronJob.")
+    name: PropertyRef = PropertyRef(
+        "name", extra_index=True, description="Name of the Kubernetes CronJob."
+    )
+    namespace: PropertyRef = PropertyRef(
+        "namespace",
+        extra_index=True,
+        description="Kubernetes namespace containing the CronJob.",
+    )
+    creation_timestamp: PropertyRef = PropertyRef(
+        "creation_timestamp",
+        description="Timestamp when the Kubernetes CronJob was created.",
+    )
+    deletion_timestamp: PropertyRef = PropertyRef(
+        "deletion_timestamp",
+        description="Timestamp when the Kubernetes CronJob was marked for deletion.",
+    )
+    schedule: PropertyRef = PropertyRef(
+        "schedule", description="Cron schedule used to create Jobs."
+    )
+    suspend: PropertyRef = PropertyRef(
+        "suspend", description="Whether creation of new Jobs is suspended."
+    )
+    labels: PropertyRef = PropertyRef(
+        "labels",
+        description="Metadata labels on the CronJob, stored as a JSON-encoded string.",
+    )
     cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+        "CLUSTER_NAME",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Name of the Kubernetes cluster containing the CronJob.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -37,6 +59,8 @@ class KubernetesCronJobToKubernetesClusterRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 # (:KubernetesCronJob)<-[:RESOURCE]-(:KubernetesCluster)
 class KubernetesCronJobToKubernetesClusterRel(CartographyRelSchema):
+    """Links a cluster to one of its cron jobs."""
+
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -58,6 +82,8 @@ class KubernetesCronJobToKubernetesNamespaceWorkloadParentRelProperties(
 @dataclass(frozen=True)
 # (:KubernetesCronJob)-[:WORKLOAD_PARENT]->(:KubernetesNamespace)
 class KubernetesCronJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSchema):
+    """Links a cron job to the namespace that owns it."""
+
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -74,6 +100,8 @@ class KubernetesCronJobToKubernetesNamespaceWorkloadParentRel(CartographyRelSche
 
 @dataclass(frozen=True)
 class KubernetesCronJobSchema(CartographyNodeSchema):
+    "A Kubernetes CronJob that creates Jobs on a recurring schedule."
+
     label: str = "KubernetesCronJob"
     # ComputeService is the cross-provider "logical workload / controller" label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([COMPUTE_SERVICE])

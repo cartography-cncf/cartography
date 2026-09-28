@@ -664,7 +664,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     Args:
         func: An AWS API function that returns an iterable (typically a list)
-              of resources. Should be a 'get_' function that queries AWS services.
+              of resources. Should be a ``get_`` function that queries AWS services.
 
     Returns:
         The decorated function with error handling and retry logic applied.

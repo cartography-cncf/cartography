@@ -13,10 +13,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureStorageFileServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Azure resource ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    type: PropertyRef = PropertyRef("type")
-    name: PropertyRef = PropertyRef("name")
+    type: PropertyRef = PropertyRef("type", description="Azure resource type.")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,8 @@ class AzureStorageFileServiceToStorageAccountRelProperties(CartographyRelPropert
 @dataclass(frozen=True)
 # (:AzureStorageAccount)-[:USES]->(:AzureStorageFileService)
 class AzureStorageFileServiceToStorageAccountRel(CartographyRelSchema):
+    """An Azure Storage account uses the file service."""
+
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("storage_account_id")},
@@ -46,6 +48,8 @@ class AzureStorageFileServiceToSubscriptionRelProperties(CartographyRelPropertie
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureStorageFileService)
 class AzureStorageFileServiceToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains the file service as a resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -59,6 +63,8 @@ class AzureStorageFileServiceToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureStorageFileServiceSchema(CartographyNodeSchema):
+    """The Azure Files service of an Azure Storage account."""
+
     label: str = "AzureStorageFileService"
     properties: AzureStorageFileServiceProperties = AzureStorageFileServiceProperties()
     sub_resource_relationship: AzureStorageFileServiceToSubscriptionRel = (

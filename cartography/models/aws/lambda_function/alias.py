@@ -13,13 +13,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("AliasArn")
-    arn: PropertyRef = PropertyRef("AliasArn", extra_index=True)
-    aliasname: PropertyRef = PropertyRef("Name")
-    functionversion: PropertyRef = PropertyRef("FunctionVersion")
-    description: PropertyRef = PropertyRef("Description")
-    revisionid: PropertyRef = PropertyRef("RevisionId")
-    functionarn: PropertyRef = PropertyRef("FunctionArn")
+    id: PropertyRef = PropertyRef(
+        "AliasArn", description="The arn of the lambda function alias"
+    )
+    arn: PropertyRef = PropertyRef(
+        "AliasArn", extra_index=True, description="The arn of the lambda function alias"
+    )
+    aliasname: PropertyRef = PropertyRef(
+        "Name", description="The name of the lambda function alias"
+    )
+    functionversion: PropertyRef = PropertyRef(
+        "FunctionVersion", description="The function version that the alias invokes."
+    )
+    description: PropertyRef = PropertyRef(
+        "Description", description="The description of the alias."
+    )
+    revisionid: PropertyRef = PropertyRef(
+        "RevisionId",
+        description="A unique identifier that changes when you update the alias.",
+    )
+    functionarn: PropertyRef = PropertyRef(
+        "FunctionArn", description="The ARN of the Lambda function this alias points to"
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -60,6 +75,8 @@ class AWSLambdaFunctionAliasToAWSAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasSchema(CartographyNodeSchema):
+    """Representation of an [AWSLambdaFunctionAlias](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)."""
+
     label: str = "AWSLambdaFunctionAlias"
     properties: AWSLambdaFunctionAliasNodeProperties = (
         AWSLambdaFunctionAliasNodeProperties()

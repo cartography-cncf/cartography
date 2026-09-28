@@ -104,11 +104,13 @@ def test_load_ecr_image_layer_memberships_flattens_has_layer(monkeypatch):
 
 def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     from_node_schema_mock = MagicMock(return_value=MagicMock())
+    run_write_query_mock = MagicMock()
     monkeypatch.setattr(
         ecr_layers.GraphJob,
         "from_node_schema",
         from_node_schema_mock,
     )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
 
     neo4j_session = MagicMock()
     ecr_layers.cleanup(
@@ -122,7 +124,31 @@ def test_cleanup_runs_layer_cleanup_job(monkeypatch):
     assert from_node_schema_mock.call_args.args[0].__class__.__name__ == (
         "ECRImageLayerSchema"
     )
-    assert from_node_schema_mock.return_value.run.call_args.args == (neo4j_session,)
+    assert from_node_schema_mock.return_value.run.call_count == 1
+    relationship_cleanup_query = run_write_query_mock.call_args.args[1]
+    assert "HAS_LAYER|BUILT_FROM" in relationship_cleanup_query
+    assert "DELETE relationship" in relationship_cleanup_query
+    assert "DETACH DELETE" not in relationship_cleanup_query
+
+
+def test_cleanup_skips_all_writes_when_fetch_incomplete(monkeypatch):
+    from_node_schema_mock = MagicMock()
+    run_write_query_mock = MagicMock()
+    monkeypatch.setattr(
+        ecr_layers.GraphJob,
+        "from_node_schema",
+        from_node_schema_mock,
+    )
+    monkeypatch.setattr(ecr_layers, "run_write_query", run_write_query_mock)
+
+    ecr_layers.cleanup(
+        MagicMock(),
+        {"UPDATE_TAG": 123, "AWS_ID": "123456789012"},
+        fetch_complete=False,
+    )
+
+    run_write_query_mock.assert_not_called()
+    from_node_schema_mock.assert_not_called()
 
 
 def test_extract_circleci_label_provenance_normalizes_namespaced_labels():
@@ -520,13 +546,17 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=2,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
         )
     )
 
@@ -535,12 +565,65 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
     assert isinstance(history_by_diff_id, dict)
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
-def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
+@pytest.mark.asyncio
+async def test_fetch_image_layers_async_cancels_siblings_on_unexpected_failure(mocker):
+    repo_uri = "111122223333.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}:slow",
+            "imageDigest": "sha256:slow",
+            "repo_uri": repo_uri,
+        },
+        {
+            "uri": f"{repo_uri}:invalid",
+            "imageDigest": "sha256:invalid",
+            "repo_uri": repo_uri,
+        },
+    ]
+    slow_started = asyncio.Event()
+    slow_cancelled = asyncio.Event()
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:slow":
+            slow_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                slow_cancelled.set()
+                raise
+        await slow_started.wait()
+        raise ClientError(
+            {
+                "Error": {
+                    "Code": "InvalidClientTokenId",
+                    "Message": "Synthetic AWS client error",
+                },
+            },
+            "AssumeRole",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+
+    with pytest.raises(ClientError):
+        await fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
+        )
+
+    assert slow_cancelled.is_set()
+
+
+def test_fetch_image_layers_async_discards_manifest_list_when_one_child_fails_transiently(
     mocker,
 ):
-    """A transient child failure should not poison the whole manifest list."""
+    """A transient child failure must discard all partial manifest-list data."""
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -575,20 +658,25 @@ def test_fetch_image_layers_async_still_processes_successful_children_when_one_c
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=4,
-            )
+    (
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+        image_attestation_map,
+        fetch_complete,
+    ) = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=4,
         )
     )
 
-    assert f"{repo_uri}:manifest-list" in image_layers_data
-    assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
-    assert isinstance(history_by_diff_id, dict)
+    assert image_layers_data == {}
+    assert image_digest_map == {}
+    assert history_by_diff_id == {}
     assert image_attestation_map == {}
+    assert fetch_complete is False
 
 
 @pytest.mark.asyncio
@@ -882,6 +970,55 @@ def test_transform_ecr_image_layers_marks_source_only_attestation_provenance():
     ]
 
 
+def test_transform_ecr_image_layers_applies_new_provenance_to_skipped_image():
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend@sha256:image"
+
+    layers, memberships = transform_ecr_image_layers(
+        {},
+        {image_uri: "sha256:image"},
+        image_attestation_map={
+            image_uri: {
+                ecr_layers.ATTESTATION_PROVENANCE_FIELD: True,
+                "source_uri": "https://github.com/example/service",
+            },
+        },
+        existing_properties_map={
+            "sha256:image": {
+                "type": "image",
+                "layer_diff_ids": ["sha256:layer"],
+                "source_revision": "existing-revision",
+                "source_file": "Dockerfile",
+                "invocation_uri": "https://github.com/example/actions/runs/1",
+                "invocation_workflow": ".github/workflows/build.yml",
+                "invocation_run_number": "1",
+                "parent_image_digest": "sha256:parent",
+                "parent_image_uri": "docker.io/library/alpine:3",
+                "from_attestation": True,
+                "confidence": "explicit",
+            },
+        },
+    )
+
+    assert layers == []
+    assert memberships == [
+        {
+            "imageDigest": "sha256:image",
+            "type": "image",
+            "layer_diff_ids": ["sha256:layer"],
+            "source_uri": "https://github.com/example/service",
+            "source_revision": "existing-revision",
+            "source_file": "Dockerfile",
+            "invocation_uri": "https://github.com/example/actions/runs/1",
+            "invocation_workflow": ".github/workflows/build.yml",
+            "invocation_run_number": "1",
+            "parent_image_digest": "sha256:parent",
+            "parent_image_uri": "docker.io/library/alpine:3",
+            "from_attestation": True,
+            "confidence": "explicit",
+        },
+    ]
+
+
 def test_transform_ecr_image_layers_without_attestation_data():
     """Test that transform works without attestation data (backward compatibility)."""
     image_layers_data = {
@@ -1038,3 +1175,165 @@ def test_transform_ecr_image_layers_with_partial_history():
 def testextract_workflow_path_from_ref(workflow_ref, expected_path):
     """Test extracting workflow path from GitHub workflow ref."""
     assert extract_workflow_path_from_ref(workflow_ref) == expected_path
+
+
+def _credential_error(error_code: str) -> ClientError:
+    return ClientError(
+        {"Error": {"Code": error_code, "Message": "Synthetic credential error"}},
+        "GetDownloadUrlForLayer",
+    )
+
+
+def _stub_sync_dependencies(mocker, sessions_seen: list) -> None:
+    """
+    Neutralize everything sync() touches around the credential-retry loop so the tests
+    only exercise that loop.
+    """
+    mocker.patch.object(
+        ecr_layers,
+        "get_complete_layer_digests",
+        return_value=set(),
+    )
+    mocker.patch.object(
+        ecr_layers,
+        "partition_layer_fetches",
+        side_effect=lambda images, complete, digest_key: (images, []),
+    )
+    mocker.patch.object(ecr_layers, "refresh_layer_closures")
+    mocker.patch.object(
+        ecr_layers,
+        "transform_ecr_image_layers",
+        return_value=([], []),
+    )
+    mocker.patch.object(ecr_layers, "load_ecr_image_layers")
+    mocker.patch.object(ecr_layers, "load_ecr_image_layer_memberships")
+    mocker.patch.object(ecr_layers, "cleanup")
+
+    class _FakeClientContext:
+        def __init__(self, session):
+            sessions_seen.append(session)
+
+        async def __aenter__(self):
+            return AsyncMock()
+
+        async def __aexit__(self, *_args):
+            return False
+
+    mocker.patch.object(
+        ecr_layers,
+        "create_aioboto3_client",
+        side_effect=lambda session, _service, **_kwargs: _FakeClientContext(session),
+    )
+
+
+def _neo4j_session_with_one_image() -> MagicMock:
+    neo4j_session = MagicMock()
+    neo4j_session.execute_read.return_value = [
+        {
+            "digest": "sha256:aaa",
+            "uri": "1234.dkr.ecr.us-east-1.amazonaws.com/repo@sha256:aaa",
+            "repo_uri": "1234.dkr.ecr.us-east-1.amazonaws.com/repo",
+            "type": "image",
+        }
+    ]
+    return neo4j_session
+
+
+def _run_sync(neo4j_session, session_factory=None, initial_session="session-0"):
+    ecr_layers.sync(
+        neo4j_session,
+        initial_session,
+        ["us-east-1"],
+        "1234",
+        123456789,
+        {"UPDATE_TAG": 123456789, "AWS_ID": "1234"},
+        aioboto3_session_factory=session_factory,
+    )
+
+
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "InvalidClientTokenId",
+        "RequestExpired",
+    ],
+)
+def test_sync_retries_with_fresh_session_on_credential_error(mocker, error_code):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=[
+            _credential_error(error_code),
+            ({}, {}, {}, {}, True),
+        ],
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert fetch_mock.call_count == 2
+    factory.assert_called_once_with()
+    assert sessions_seen == ["session-0", "session-refreshed"]
+    # The region completed, so cleanup is allowed to delete stale layers.
+    assert ecr_layers.cleanup.call_args.kwargs["fetch_complete"] is True
+
+
+def test_sync_raises_when_credential_retry_budget_is_exhausted(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=[
+            _credential_error("ExpiredTokenException"),
+            _credential_error("ExpiredTokenException"),
+        ],
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert excinfo.value.response["Error"]["Code"] == "ExpiredTokenException"
+    assert fetch_mock.call_count == 2
+    factory.assert_called_once_with()
+    ecr_layers.cleanup.assert_not_called()
+
+
+def test_sync_raises_credential_error_when_no_session_factory(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=_credential_error("ExpiredTokenException"),
+    )
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=None)
+
+    assert excinfo.value.response["Error"]["Code"] == "ExpiredTokenException"
+    assert fetch_mock.call_count == 1
+    ecr_layers.cleanup.assert_not_called()
+
+
+def test_sync_does_not_retry_non_credential_client_error(mocker):
+    sessions_seen: list = []
+    _stub_sync_dependencies(mocker, sessions_seen)
+    fetch_mock = mocker.patch.object(
+        ecr_layers,
+        "fetch_image_layers_async",
+        side_effect=_credential_error("AccessDeniedException"),
+    )
+    factory = MagicMock(return_value="session-refreshed")
+
+    with pytest.raises(ClientError) as excinfo:
+        _run_sync(_neo4j_session_with_one_image(), session_factory=factory)
+
+    assert excinfo.value.response["Error"]["Code"] == "AccessDeniedException"
+    assert fetch_mock.call_count == 1
+    factory.assert_not_called()

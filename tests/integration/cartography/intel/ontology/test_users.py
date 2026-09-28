@@ -241,7 +241,7 @@ def test_okta_group_authorization_does_not_overwrite_direct_scopes(neo4j_session
         MERGE (okta:OktaUser {id: 'okta-1'})
         MERGE (u)-[:HAS_ACCOUNT]->(okta)
         MERGE (group:OktaGroup {id: 'group-1'})
-        MERGE (okta)-[:MEMBER_OF_OKTA_GROUP]->(group)
+        MERGE (okta)-[:MEMBER_OF]->(group)
         MERGE (group)-[:APPLICATION]->(app)
         """
     )

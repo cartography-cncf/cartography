@@ -13,16 +13,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureDatabaseThreatDetectionPolicyProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Azure resource ID for the database security alert policy."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    emailadmins: PropertyRef = PropertyRef("email_account_admins")
-    emailaddresses: PropertyRef = PropertyRef("email_addresses")
-    retentiondays: PropertyRef = PropertyRef("retention_days")
-    state: PropertyRef = PropertyRef("state")
-    storageendpoint: PropertyRef = PropertyRef("storage_endpoint")
-    disabledalerts: PropertyRef = PropertyRef("disabled_alerts")
-    creationtime: PropertyRef = PropertyRef("creation_time")
+    name: PropertyRef = PropertyRef("name", description="Azure resource name.")
+    emailadmins: PropertyRef = PropertyRef(
+        "email_account_admins",
+        description="Whether alerts are sent to account administrators.",
+    )
+    emailaddresses: PropertyRef = PropertyRef(
+        "email_addresses",
+        description="Additional email addresses that receive alerts.",
+    )
+    retentiondays: PropertyRef = PropertyRef(
+        "retention_days",
+        description="Number of days threat detection audit logs are retained.",
+    )
+    state: PropertyRef = PropertyRef(
+        "state", description="Current state of the security alert policy."
+    )
+    storageendpoint: PropertyRef = PropertyRef(
+        "storage_endpoint",
+        description="Blob storage endpoint for threat detection audit logs.",
+    )
+    disabledalerts: PropertyRef = PropertyRef(
+        "disabled_alerts", description="Alert types disabled by the policy."
+    )
+    creationtime: PropertyRef = PropertyRef(
+        "creation_time", description="Timestamp when the policy was created."
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +55,8 @@ class AzureDatabaseThreatDetectionPolicyToSQLDatabaseRelProperties(
 @dataclass(frozen=True)
 # (:AzureSQLDatabase)-[:CONTAINS]->(:AzureDatabaseThreatDetectionPolicy)
 class AzureDatabaseThreatDetectionPolicyToSQLDatabaseRel(CartographyRelSchema):
+    """An Azure SQL database contains this security alert policy."""
+
     target_node_label: str = "AzureSQLDatabase"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("database_id")},
@@ -56,6 +78,8 @@ class AzureDatabaseThreatDetectionPolicyToSubscriptionRelProperties(
 @dataclass(frozen=True)
 # (:AzureSubscription)-[:RESOURCE]->(:AzureDatabaseThreatDetectionPolicy)
 class AzureDatabaseThreatDetectionPolicyToSubscriptionRel(CartographyRelSchema):
+    """An Azure subscription contains this database security policy resource."""
+
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
@@ -69,6 +93,8 @@ class AzureDatabaseThreatDetectionPolicyToSubscriptionRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AzureDatabaseThreatDetectionPolicySchema(CartographyNodeSchema):
+    """A security alert policy for an Azure SQL database."""
+
     label: str = "AzureDatabaseThreatDetectionPolicy"
     properties: AzureDatabaseThreatDetectionPolicyProperties = (
         AzureDatabaseThreatDetectionPolicyProperties()

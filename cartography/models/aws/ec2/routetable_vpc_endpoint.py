@@ -13,9 +13,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSRouteTableVPCEndpointNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("RouteTableId")
-    route_table_id: PropertyRef = PropertyRef("RouteTableId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    id: PropertyRef = PropertyRef(
+        "RouteTableId", description="Unique identifier for this `AWSRouteTable` node."
+    )
+    route_table_id: PropertyRef = PropertyRef(
+        "RouteTableId",
+        extra_index=True,
+        description="Identifier of the route table linked to this `AWSRouteTable` node.",
+    )
+    region: PropertyRef = PropertyRef(
+        "Region",
+        set_in_kwargs=True,
+        description="AWS Region containing this `AWSRouteTable` node.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
