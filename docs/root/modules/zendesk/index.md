@@ -21,8 +21,9 @@ endpoint's removal for April 30, 2027. See
 [Zendesk's legacy-token documentation](https://support.zendesk.com/hc/en-us/articles/4408889192858-Managing-API-token-access-to-the-Zendesk-API)
 for the credential's security implications and retirement schedule.
 
-Users carry the `UserAccount` ontology label, with normalized email, display name,
-and last-login properties. Accounts carry the `Tenant` label. IDs include the
+Users carry the `UserAccount` ontology label, with email, display name, and
+last-login properties. The stored email is the value returned by Zendesk, without
+module-level normalization. Accounts carry the `Tenant` label. IDs include the
 normalized subdomain so multiple accounts can coexist. Syncing removes stale
 users and tokens only within the configured account, after successfully fetching
 the complete collection. An API or pagination failure aborts that collection's

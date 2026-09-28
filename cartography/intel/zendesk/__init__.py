@@ -7,6 +7,7 @@ from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.intel.zendesk import api_tokens
 from cartography.intel.zendesk import users
+from cartography.intel.zendesk.util import configure_session
 from cartography.intel.zendesk.util import normalize_subdomain
 from cartography.models.zendesk.tenant import ZendeskTenantSchema
 from cartography.util import timeit
@@ -24,6 +25,7 @@ def start_zendesk_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     common_job_parameters = {"UPDATE_TAG": config.update_tag, "TENANT_ID": subdomain}
     logger.info("Starting Zendesk ingestion for %s", subdomain)
     with requests.Session() as session:
+        configure_session(session)
         session.headers.update(
             {"Authorization": f"Bearer {config.zendesk_oauth_token}"},
         )

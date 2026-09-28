@@ -3,6 +3,31 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+_RETRY_STATUS_CODES = (408, 429, *range(500, 600))
+_RETRY_TOTAL = 4
+_RETRY_BACKOFF_FACTOR = 1
+_RETRY_BACKOFF_MAX = 16
+
+
+def configure_session(session: requests.Session) -> None:
+    """Configure bounded retries for the shared, read-only Zendesk session."""
+    retry_policy = Retry(
+        total=_RETRY_TOTAL,
+        connect=_RETRY_TOTAL,
+        read=_RETRY_TOTAL,
+        status=_RETRY_TOTAL,
+        other=0,
+        allowed_methods=frozenset({"GET"}),
+        status_forcelist=_RETRY_STATUS_CODES,
+        backoff_factor=_RETRY_BACKOFF_FACTOR,
+        backoff_max=_RETRY_BACKOFF_MAX,
+        respect_retry_after_header=True,
+        raise_on_status=False,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
 
 def normalize_subdomain(subdomain: str) -> str:
@@ -41,8 +66,12 @@ def get_paginated(
         results.extend(page[key])
         if not page["meta"]["has_more"]:
             break
-        url = page["links"]["next"]
-        if not url:
-            raise ValueError("Zendesk reports more results without a next-page URL.")
+        links = page.get("links")
+        next_url = links.get("next") if isinstance(links, dict) else None
+        if not isinstance(next_url, str) or not next_url.strip():
+            raise ValueError(
+                "Zendesk reports more results without a usable next-page URL."
+            )
+        url = next_url
         query = None
     return results

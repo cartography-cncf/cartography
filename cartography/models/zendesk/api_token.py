@@ -19,7 +19,9 @@ class ZendeskAPITokenNodeProperties(CartographyNodeProperties):
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     token_id: PropertyRef = PropertyRef(
-        "token_id", description="Native legacy API token ID; never the token value."
+        "token_id",
+        extra_index=True,
+        description="Native legacy API token ID; never the token value.",
     )
     creator_user_id: PropertyRef = PropertyRef(
         "creator_user_id",
