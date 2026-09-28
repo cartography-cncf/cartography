@@ -9,10 +9,14 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.airbyte.util import AirbyteClient
+from cartography.models.airbyte.user import AirbyteUserAdminOfOrganizationMatchLink
+from cartography.models.airbyte.user import AirbyteUserAdminOfWorkspaceMatchLink
+from cartography.models.airbyte.user import AirbyteUserMemberOfWorkspaceMatchLink
 from cartography.models.airbyte.user import AirbyteUserSchema
+from cartography.models.airbyte.user import AirbyteUserToOrganizationMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -140,6 +144,17 @@ def transform_permissions(
     return org_admin, workspace_admin, workspace_member
 
 
+# The user node is shared across organizations, so its organization and access
+# edges are MatchLinks scoped to the organization that wrote them. See
+# cartography/models/airbyte/user.py.
+_MATCHLINKS = (
+    AirbyteUserToOrganizationMatchLink(),
+    AirbyteUserAdminOfOrganizationMatchLink(),
+    AirbyteUserAdminOfWorkspaceMatchLink(),
+    AirbyteUserMemberOfWorkspaceMatchLink(),
+)
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -147,90 +162,40 @@ def load_users(
     org_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        AirbyteUserSchema(),
-        data,
-        ORG_ID=org_id,
-        lastupdated=update_tag,
-    )
+    load(neo4j_session, AirbyteUserSchema(), data, lastupdated=update_tag)
 
+    def scope_links(field: str) -> list[dict[str, str]]:
+        return [
+            {"user_id": u["id"], "scope_id": scope} for u in data for scope in u[field]
+        ]
 
-# AirbyteUser ids are global, so one user node can belong to several
-# organizations. The cleanup generated from AirbyteUserSchema is scoped by the
-# user's RESOURCE edge only: while syncing one organization it would delete the
-# stale ADMIN_OF/MEMBER_OF edges that another organization wrote for a shared
-# user, and delete a shared user that left this organization. That is unsafe when
-# the other organization's users could not be read this run. Workspaces cannot be
-# used to tell the organizations apart because GET /workspaces is not filtered by
-# organization. Instead:
-# - a user is deleted only once no other organization lists it;
-# - a user's stale access edges are deleted only when every other organization
-#   that lists the user has already refreshed it in this run. The last
-#   organization to sync a shared user cleans it up, and a user that belongs to
-#   an organization whose users were not collected keeps its edges.
-_CLEANUP_QUERIES = [
-    """
-    MATCH (:AirbyteOrganization {id: $ORG_ID})-[r:RESOURCE]->(n:AirbyteUser)
-    WHERE r.lastupdated <> $UPDATE_TAG
-        AND NOT EXISTS {
-            MATCH (n)<-[:RESOURCE]-(other:AirbyteOrganization)
-            WHERE other.id <> $ORG_ID
-        }
-    WITH n LIMIT $LIMIT_SIZE
-    DETACH DELETE n;
-    """,
-    """
-    MATCH (:AirbyteOrganization {id: $ORG_ID})-[:RESOURCE]->(n:AirbyteUser)
-    WHERE NOT EXISTS {
-        MATCH (n)<-[other_r:RESOURCE]-(other:AirbyteOrganization)
-        WHERE other.id <> $ORG_ID AND other_r.lastupdated <> $UPDATE_TAG
-    }
-    MATCH (n)-[r:ADMIN_OF]->(:AirbyteOrganization)
-    WHERE r.lastupdated <> $UPDATE_TAG
-    WITH r LIMIT $LIMIT_SIZE
-    DELETE r;
-    """,
-    """
-    MATCH (:AirbyteOrganization {id: $ORG_ID})-[:RESOURCE]->(n:AirbyteUser)
-    WHERE NOT EXISTS {
-        MATCH (n)<-[other_r:RESOURCE]-(other:AirbyteOrganization)
-        WHERE other.id <> $ORG_ID AND other_r.lastupdated <> $UPDATE_TAG
-    }
-    MATCH (n)-[r:ADMIN_OF|MEMBER_OF]->(:AirbyteWorkspace)
-    WHERE r.lastupdated <> $UPDATE_TAG
-    WITH r LIMIT $LIMIT_SIZE
-    DELETE r;
-    """,
-    """
-    MATCH (:AirbyteOrganization {id: $ORG_ID})-[r:RESOURCE]->(:AirbyteUser)
-    WHERE r.lastupdated <> $UPDATE_TAG
-    WITH r LIMIT $LIMIT_SIZE
-    DELETE r;
-    """,
-]
+    for matchlink, rows in (
+        (
+            AirbyteUserToOrganizationMatchLink(),
+            [{"user_id": u["id"], "organization_id": org_id} for u in data],
+        ),
+        (AirbyteUserAdminOfOrganizationMatchLink(), scope_links("adminOfOrganization")),
+        (AirbyteUserAdminOfWorkspaceMatchLink(), scope_links("adminOfWorkspace")),
+        (AirbyteUserMemberOfWorkspaceMatchLink(), scope_links("memberOfWorkspace")),
+    ):
+        load_matchlinks(
+            neo4j_session,
+            matchlink,
+            rows,
+            lastupdated=update_tag,
+            _sub_resource_label="AirbyteOrganization",
+            _sub_resource_id=org_id,
+        )
 
 
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    parameters = {
-        "ORG_ID": common_job_parameters["ORG_ID"],
-        "UPDATE_TAG": common_job_parameters["UPDATE_TAG"],
-    }
-    GraphJob(
-        "Cleanup AirbyteUser",
-        [
-            GraphStatement(
-                query,
-                parameters=parameters,
-                iterative=True,
-                iterationsize=10000,
-                parent_job_name="AirbyteUser",
-                parent_job_sequence_num=idx,
-            )
-            for idx, query in enumerate(_CLEANUP_QUERIES, start=1)
-        ],
-        "AirbyteUser",
-    ).run(neo4j_session)
+    for matchlink in _MATCHLINKS:
+        GraphJob.from_matchlink(
+            matchlink,
+            "AirbyteOrganization",
+            common_job_parameters["ORG_ID"],
+            common_job_parameters["UPDATE_TAG"],
+        ).run(neo4j_session)

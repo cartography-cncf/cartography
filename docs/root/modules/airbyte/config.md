@@ -24,10 +24,8 @@ permissions needs Organization Admin. If Airbyte denies either request (HTTP
 403) for an organization, Cartography logs a warning and still syncs that
 organization's other resources and the remaining organizations. It does not
 update or clean up that organization's users: users and access relationships
-from an earlier sync are kept as they were. A user that also belongs to that
-organization keeps its access relationships from other organizations until the
-organization's users can be read again. The sync ends with a warning that lists
-the organizations without user data.
+from an earlier sync are kept as they were. The sync ends with a warning that
+lists the organizations without user data.
 
 Any other error, such as a failed token request, an HTTP 401, 429 or 5xx, or a
 403 from another endpoint, stops the Airbyte sync.
