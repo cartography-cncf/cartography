@@ -151,7 +151,10 @@ def test_users_denial_does_not_stop_inventory_or_later_organizations(
         source_id=multi_org.SOURCE_BETA,
     ).single()["tag"]
     assert source_tag == 2
-    assert (ORG_GAMMA, "RESOURCE", GAMMA_USER) in _identity_graph(neo4j_session)
+    assert ("GET", "/users", {"organizationId": ORG_GAMMA, "offset": "0"}) in (
+        api.requests[denied + 1 :]
+    )
+    assert _identity_graph(neo4j_session)[(ORG_GAMMA, "RESOURCE", GAMMA_USER)] == 2
 
     # Assert: the caller is told which organization is missing identity data.
     assert f"GET /users for organization {ORG_BETA}" in caplog.text
