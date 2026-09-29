@@ -10,6 +10,13 @@ from urllib3.util.retry import Retry
 from cartography.util import DEFAULT_MAX_PAGES
 
 
+def require_array(value: Any, context: str) -> list[Any]:
+    # An empty object must not masquerade as an empty inventory.
+    if not isinstance(value, list):
+        raise ValueError(f"Jira {context} must be an array")
+    return value
+
+
 class _CappedRetry(Retry):
     def get_retry_after(self, response: BaseHTTPResponse) -> float | None:
         retry_after = super().get_retry_after(response)
@@ -95,31 +102,31 @@ class JiraClient:
                 maxResults=1000 if path == "users/search" else 50,
                 **params,
             )
-            values = page if path == "users/search" else page["values"]
-            # An empty object must not masquerade as an empty inventory.
-            if not isinstance(values, list):
-                raise ValueError("Jira page values must be an array")
+            context = f"{path} at startAt={start}"
+            values = require_array(
+                page if path == "users/search" else page["values"], context
+            )
             if path == "users/search":
                 # This endpoint has no pagination metadata and may cap page size.
                 done = not values
             else:
                 if page["startAt"] != start:
                     raise ValueError(
-                        "Jira pagination did not advance to the requested offset"
+                        f"Jira {context}: pagination did not advance to the requested offset"
                     )
                 done = page.get("isLast")
                 if done is None:
                     done = start + len(values) >= page["total"]
                 if not isinstance(done, bool):
-                    raise ValueError("Jira pagination isLast must be a boolean")
+                    raise ValueError(f"Jira {context}: isLast must be a boolean")
                 if done and "total" in page and start + len(values) < page["total"]:
                     raise ValueError(
-                        "Jira final page does not cover the reported total"
+                        f"Jira {context}: final page does not cover the reported total"
                     )
                 if not values and not done:
-                    raise ValueError("Jira returned an incomplete empty page")
+                    raise ValueError(f"Jira {context}: incomplete empty page")
             if values and values == previous:
-                raise ValueError("Jira returned a repeated page")
+                raise ValueError(f"Jira {context}: repeated page")
             result.extend(values)
             if done:
                 return result

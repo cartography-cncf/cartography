@@ -426,3 +426,31 @@ def test_nested_profiles_preserve_listed_user_fields(
         "HAS_ACCOUNT",
         rel_direction_right=True,
     ) == {("user@example.com", "user-1")}
+
+
+@pytest.mark.parametrize("value", [{}, ""])  # type: ignore[misc]
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "path, field",
+    [
+        ("project/100/roledetails", None),
+        ("project/100/role/10", "actors"),
+        ("permissionscheme/500", "permissions"),
+    ],
+)
+def test_malformed_arrays_preserve_previous_snapshot(
+    neo4j_session: neo4j.Session, path: str, field: str | None, value: object
+) -> None:
+    # Arrange
+    client, state = api_client()
+    sync(neo4j_session, client, 1)
+    nodes = "MATCH (n) RETURN properties(n) AS props ORDER BY n.id"
+    rels = "MATCH (a)-[r]->(b) RETURN a.id, type(r), b.id, properties(r) ORDER BY a.id, type(r), b.id"
+    before = (neo4j_session.run(nodes).data(), neo4j_session.run(rels).data())
+    if field is None:
+        state["responses"][path] = value
+    else:
+        state["responses"][path][field] = value
+    # Act and assert
+    with pytest.raises(ValueError, match="must be an array"):
+        sync(neo4j_session, client, 2)
+    assert (neo4j_session.run(nodes).data(), neo4j_session.run(rels).data()) == before

@@ -8,6 +8,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.jira.util import JiraClient
+from cartography.intel.jira.util import require_array
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.jira.access import JiraGroupSchema
 from cartography.models.jira.access import JiraPermissionGrantSchema
@@ -54,9 +55,10 @@ def get(client: JiraClient) -> dict[str, Any]:
     schemes: dict[str, Any] = {}
     for project in projects:
         project_id = quote(project["id"], safe="")
+        roles_path = f"project/{project_id}/roledetails"
         roles[project["id"]] = [
             client.get(f"project/{project_id}/role/{quote(str(role['id']), safe='')}")
-            for role in client.get(f"project/{project_id}/roledetails")
+            for role in require_array(client.get(roles_path), roles_path)
         ]
         # Team-managed projects do not use the company-managed permission schemes.
         if project.get("style") == "next-gen":
@@ -97,6 +99,14 @@ def _is_deleted_user(user: dict[str, Any]) -> bool:
     return True
 
 
+def _require_group(groups: dict[str, Any], group_id: str | None, context: str) -> str:
+    if group_id is None or group_id not in groups:
+        raise ValueError(
+            f"Jira {context} references a group missing from group/bulk: {group_id}"
+        )
+    return group_id
+
+
 @timeit
 def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
     groups = {g["groupId"]: g for g in raw["groups"]}
@@ -104,7 +114,10 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
     for access, admin_groups in raw["admin_groups"].items():
         for group in admin_groups:
             # A concurrent group change makes this snapshot unsafe to clean up.
-            admin_types[group["groupId"]].append(access)
+            admin_group_id = _require_group(
+                groups, group["groupId"], f"{access} listing"
+            )
+            admin_types[admin_group_id].append(access)
     group_names = {g["name"]: g["groupId"] for g in groups.values()}
     users = {u["accountId"]: dict(u) for u in raw["users"] if not _is_deleted_user(u)}
     user_groups: dict[str, set[str]] = {}
@@ -148,7 +161,8 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
         for role in raw["roles"][project["id"]]:
             role_users: set[str] = set()
             role_groups: set[str] = set()
-            for actor in role["actors"]:
+            context = f"project {project['id']} role {role['id']}"
+            for actor in require_array(role["actors"], f"{context} actors"):
                 if actor["type"] == "atlassian-user-role-actor":
                     account_id = actor["actorUser"]["accountId"]
                     if account_id == "unknown":
@@ -162,10 +176,10 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
                     )
                     role_users.add(resource_id(tenant_id, "user", account_id))
                 elif actor["type"] == "atlassian-group-role-actor":
-                    group_id = actor["actorGroup"]["groupId"]
-                    # Require the group to be present in the completed group inventory.
-                    groups[group_id]
-                    role_groups.add(resource_id(tenant_id, "group", group_id))
+                    actor_group_id = _require_group(
+                        groups, actor["actorGroup"]["groupId"], context
+                    )
+                    role_groups.add(resource_id(tenant_id, "group", actor_group_id))
                 else:
                     raise ValueError(
                         f"Unsupported Jira role actor type: {actor['type']}"
@@ -184,7 +198,10 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             )
         if scheme_id is None:
             continue
-        for grant in raw["schemes"][scheme_id]["permissions"]:
+        for grant in require_array(
+            raw["schemes"][scheme_id]["permissions"],
+            f"permissionscheme/{scheme_id} permissions",
+        ):
             holder = grant["holder"]
             holder_type = holder["type"]
             value = holder.get("value") or holder.get("parameter")
@@ -195,9 +212,12 @@ def transform(raw: dict[str, Any], tenant_id: str) -> dict[str, Any]:
             elif holder_type == "group":
                 # Empty group holders mean any logged-in user; keep the raw fact.
                 if value:
-                    group_id = holder.get("value") or group_names[holder["parameter"]]
-                    groups[group_id]
-                    group_id = resource_id(tenant_id, "group", group_id)
+                    raw_group_id = _require_group(
+                        groups,
+                        holder.get("value") or group_names.get(value),
+                        f"project {project['id']} grant {grant['id']}",
+                    )
+                    group_id = resource_id(tenant_id, "group", raw_group_id)
             elif holder_type == "projectRole":
                 role_id = resource_id(tenant_id, "role", project["id"], value)
             elif holder_type == "projectLead" and lead:

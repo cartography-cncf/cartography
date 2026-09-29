@@ -387,3 +387,99 @@ def test_advancing_pages_stop_at_page_budget(path: str, mocker: MockerFixture) -
     with client.session, pytest.raises(RuntimeError, match="exceeded 2 pages"):
         client.pages(path)
     assert get_response.call_count == 2
+
+
+@pytest.fixture  # type: ignore[misc]
+def raw_snapshot() -> dict[str, Any]:
+    from tests.data.jira.access import API_RESPONSES
+    from tests.data.jira.access import GROUPS
+    from tests.data.jira.access import PROJECTS
+    from tests.data.jira.access import ROLE
+    from tests.data.jira.access import SCHEME
+    from tests.data.jira.access import USERS
+
+    raw: dict[str, Any] = {
+        "info": API_RESPONSES["serverInfo"],
+        "users": USERS,
+        "groups": GROUPS,
+        "admin_groups": {"admin": [GROUPS[1]]},
+        "memberships": {"group-1": USERS},
+        "projects": PROJECTS,
+        "roles": {"100": [ROLE]},
+        "schemes": {"500": SCHEME},
+    }
+    raw = {key: deepcopy(value) for key, value in raw.items()}
+    raw["projects"] = [raw["projects"][0]]
+    raw["projects"][0]["permission_scheme_id"] = "500"
+    return raw
+
+
+@pytest.mark.parametrize("record", [None, "invalid", []])  # type: ignore[misc]
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "surface", ["users", "groups", "memberships", "projects", "actors", "permissions"]
+)
+def test_malformed_records_fail_during_transform(
+    raw_snapshot: dict[str, Any], surface: str, record: Any
+) -> None:
+    # Arrange
+    collections = {
+        "users": raw_snapshot["users"],
+        "groups": raw_snapshot["groups"],
+        "memberships": raw_snapshot["memberships"]["group-1"],
+        "projects": raw_snapshot["projects"],
+        "actors": raw_snapshot["roles"]["100"][0]["actors"],
+        "permissions": raw_snapshot["schemes"]["500"]["permissions"],
+    }
+    collections[surface].append(record)
+    # Act and assert
+    with pytest.raises(TypeError):
+        transform(raw_snapshot, CLOUD_ID)
+
+
+@pytest.mark.parametrize("surface", ["admin", "role", "grant", "grant-name"])  # type: ignore[misc]
+def test_missing_group_references_abort(
+    raw_snapshot: dict[str, Any], surface: str
+) -> None:
+    # Arrange
+    if surface == "admin":
+        raw_snapshot["admin_groups"]["admin"][0]["groupId"] = "missing"
+    elif surface == "role":
+        raw_snapshot["roles"]["100"][0]["actors"][1]["actorGroup"][
+            "groupId"
+        ] = "missing"
+    else:
+        holder = raw_snapshot["schemes"]["500"]["permissions"][1]["holder"]
+        if surface == "grant":
+            holder["value"] = "missing"
+        else:
+            del holder["value"]
+            holder["parameter"] = "missing"
+    # Act and assert
+    with pytest.raises(ValueError, match="group missing from group/bulk"):
+        transform(raw_snapshot, CLOUD_ID)
+
+
+def test_group_grant_resolves_by_name(raw_snapshot: dict[str, Any]) -> None:
+    # Arrange
+    del raw_snapshot["schemes"]["500"]["permissions"][1]["holder"]["value"]
+    # Act
+    data = transform(raw_snapshot, CLOUD_ID)
+    # Assert
+    assert data["grants"][1]["group_id"] == resource_id(CLOUD_ID, "group", "group-2")
+
+
+def test_pagination_without_is_last_uses_total(mocker: MockerFixture) -> None:
+    # Arrange
+    client = JiraClient(CLOUD_ID, "reader@example.com", "test-token")
+    mocker.patch.object(
+        client.session,
+        "get",
+        side_effect=[
+            response({"values": [{"groupId": "1"}], "startAt": 0, "total": 2}),
+            response({"values": [{"groupId": "2"}], "startAt": 1, "total": 2}),
+        ],
+    )
+    # Act
+    groups = client.pages("group/bulk")
+    # Assert
+    assert groups == [{"groupId": "1"}, {"groupId": "2"}]
