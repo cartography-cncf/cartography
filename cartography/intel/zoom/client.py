@@ -1,13 +1,32 @@
 import time
+from dataclasses import dataclass
+from dataclasses import field
+from threading import Lock
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.response import BaseHTTPResponse
 from urllib3.util.retry import Retry
 
+from cartography.util import DEFAULT_MAX_PAGES
+
 TOKEN_URL = "https://zoom.us/oauth/token"
-USERS_URL = "https://api.zoom.us/v2/users"
+API_URL = "https://api.zoom.us/v2"
+USERS_URL = f"{API_URL}/users"
+
+
+@dataclass
+class RequestBudget:
+    remaining: int = 10000
+    lock: Lock = field(default_factory=Lock)
+
+    def consume(self) -> None:
+        with self.lock:
+            if self.remaining <= 0:
+                raise ValueError("Zoom sync exceeded its 10000-request safety limit")
+            self.remaining -= 1
 
 
 class _CappedRetry(Retry):
@@ -23,7 +42,14 @@ class _CappedRetry(Retry):
 class ZoomClient:
     """Account-scoped OAuth with three retries and capped Retry-After delays."""
 
-    def __init__(self, account_id: str, client_id: str, client_secret: str) -> None:
+    def __init__(
+        self,
+        account_id: str,
+        client_id: str,
+        client_secret: str,
+        budget: RequestBudget | None = None,
+    ) -> None:
+        self.budget = budget if budget is not None else RequestBudget()
         self.account_id = account_id
         self.auth = (client_id, client_secret)
         self.session = requests.Session()
@@ -60,13 +86,35 @@ class ZoomClient:
         self._access_token = token["access_token"]
         self._expires_at = time.monotonic() + int(token["expires_in"]) - 60
 
+    def fork(self) -> "ZoomClient":
+        """Give an enrichment worker its own session and the shared request budget."""
+        worker = ZoomClient(self.account_id, *self.auth, budget=self.budget)
+        worker._access_token = self._access_token
+        worker._expires_at = self._expires_at
+        return worker
+
     def get_users_page(self, params: dict[str, Any]) -> dict[str, Any]:
+        return self.get("/users", params)
+
+    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        parsed = urlsplit(path)
+        if (
+            not path.startswith("/")
+            or parsed.netloc
+            or parsed.scheme
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "Zoom API paths must be relative paths without query strings"
+            )
+        self.budget.consume()
         if time.monotonic() >= self._expires_at:
             self._refresh_token()
         # Refresh once on early revocation/expiry; a second 401 is fatal.
         for attempt in range(2):
             response = self.session.get(
-                USERS_URL,
+                f"{API_URL}{path}",
                 params=params,
                 headers={"Authorization": f"Bearer {self._access_token}"},
                 timeout=(10, 60),
@@ -78,6 +126,35 @@ class ZoomClient:
         response.raise_for_status()
         if response.status_code != 200:
             raise requests.HTTPError(
-                "Unexpected Zoom users response status", response=response
+                "Unexpected Zoom API response status", response=response
             )
         return response.json()
+
+    def get_paginated(
+        self,
+        path: str,
+        key: str,
+        params: dict[str, Any] | None = None,
+        page_size: int = 300,
+    ) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        query = {"page_size": page_size, **(params or {})}
+        seen_tokens: set[str] = set()
+        for _ in range(DEFAULT_MAX_PAGES):
+            page = self.get(path, query)
+            records = page[key]
+            if not isinstance(records, list):
+                raise ValueError(f"Zoom {key} response must contain a list")
+            result.extend(records)
+            token = page.get("next_page_token")
+            if not token:
+                if len(result) < page.get("total_records", len(result)):
+                    raise ValueError(
+                        f"Zoom {key} pagination ended before all records were retrieved"
+                    )
+                return result
+            if token in seen_tokens:
+                raise ValueError(f"Zoom {key} returned a repeated pagination token")
+            seen_tokens.add(token)
+            query["next_page_token"] = token
+        raise ValueError(f"Zoom {key} pagination exceeded the page limit")

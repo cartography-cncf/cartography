@@ -64,6 +64,11 @@ class ZoomUserNodeProperties(CartographyNodeProperties):
         "login_types",
         description="Provider login method codes; 101 denotes SSO, 100 Zoom work email.",
     )
+    last_client_version: PropertyRef = PropertyRef(
+        "last_client_version",
+        extra_index=True,
+        description="Users API last_client_version; last observed login client, not a complete device inventory.",
+    )
     created_at: PropertyRef = PropertyRef(
         "created_at",
         description="Provider user_created_at as a native datetime, when available.",

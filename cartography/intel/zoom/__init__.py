@@ -3,8 +3,16 @@ import logging
 import neo4j
 
 from cartography.config import Config
+from cartography.graph.statement import GraphStatement
+from cartography.intel.zoom import access
+from cartography.intel.zoom import activity
+from cartography.intel.zoom import apps
+from cartography.intel.zoom import meetings
+from cartography.intel.zoom import recordings
+from cartography.intel.zoom import settings
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.users import sync
+from cartography.intel.zoom.util import optional_call
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -21,5 +29,93 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     client = ZoomClient(
         config.zoom_account_id, config.zoom_client_id, config.zoom_client_secret
     )
+    sections = {
+        section.strip()
+        for section in config.zoom_sections.split(",")
+        if section.strip()
+    }
+    unknown = sections - {
+        "groups",
+        "roles",
+        "settings",
+        "apps",
+        "meetings",
+        "recordings",
+        "reports",
+        "dashboard",
+    }
+    if unknown:
+        raise ValueError(f"Unknown Zoom sections: {sorted(unknown)}")
+    if not 1 <= config.zoom_lookback_days <= 30:
+        raise ValueError("Zoom lookback days must be between 1 and 30")
+    account_id, tag = config.zoom_account_id, config.update_tag
     with client.session:
-        sync(neo4j_session, client, config.zoom_account_id, config.update_tag)
+        users = sync(neo4j_session, client, account_id, tag)
+        groups = None
+        if "groups" in sections or "settings" in sections:
+            groups = optional_call(
+                "groups",
+                lambda: access.sync_groups(
+                    neo4j_session, client, account_id, tag, users
+                ),
+            )
+        if "roles" in sections:
+            optional_call(
+                "roles",
+                lambda: access.sync_roles(
+                    neo4j_session, client, account_id, tag, users
+                ),
+            )
+        if "settings" in sections:
+            settings.sync(neo4j_session, client, account_id, tag, users, groups)
+            # Membership is complete before reaching this point. Only vanished
+            # owners are removed; denied settings for current owners are retained.
+            for kind, owners in (
+                ("user", [u["zoom_id"] for u in users if u.get("zoom_id")]),
+                ("group", None if groups is None else [g["id"] for g in groups]),
+            ):
+                if owners is not None:
+                    GraphStatement(
+                        """
+                        MATCH (n:ZoomSecuritySettings {account_id:$account, scope_type:$kind})
+                        WHERE NOT n.scope_id IN $owners
+                        WITH n LIMIT $LIMIT_SIZE
+                        DETACH DELETE n
+                        """,
+                        parameters={
+                            "account": account_id,
+                            "kind": kind,
+                            "owners": owners,
+                        },
+                        iterative=True,
+                        iterationsize=1000,
+                        parent_job_name="ZoomSecuritySettings",
+                    ).run(neo4j_session)
+        if "apps" in sections:
+            optional_call(
+                "apps", lambda: apps.sync(neo4j_session, client, account_id, tag)
+            )
+        if "meetings" in sections:
+            meetings.sync(
+                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
+            )
+        if "recordings" in sections:
+            recordings.sync(
+                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
+            )
+        if "reports" in sections:
+            activity.sync_reports(
+                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
+            )
+        if "dashboard" in sections:
+            optional_call(
+                "dashboard",
+                lambda: activity.sync_dashboard(
+                    neo4j_session,
+                    client,
+                    account_id,
+                    tag,
+                    users,
+                    config.zoom_lookback_days,
+                ),
+            )

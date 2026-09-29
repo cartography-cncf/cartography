@@ -520,6 +520,10 @@ class Config:
     :param zoom_client_id: Zoom server-to-server OAuth client ID. Optional.
     :type zoom_client_secret: str
     :param zoom_client_secret: Zoom server-to-server OAuth client secret. Optional.
+    :type zoom_sections: str
+    :param zoom_sections: Comma-separated optional Zoom inventories. Empty syncs users only.
+    :type zoom_lookback_days: int
+    :param zoom_lookback_days: UTC calendar days of recordings and activity to inventory, from 1 to 30.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -761,6 +765,8 @@ class Config:
         zoom_account_id=None,
         zoom_client_id=None,
         zoom_client_secret=None,
+        zoom_sections="",
+        zoom_lookback_days=7,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1044,6 +1050,8 @@ class Config:
         self.zoom_account_id = zoom_account_id
         self.zoom_client_id = zoom_client_id
         self.zoom_client_secret = zoom_client_secret
+        self.zoom_sections = zoom_sections
+        self.zoom_lookback_days = zoom_lookback_days
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
