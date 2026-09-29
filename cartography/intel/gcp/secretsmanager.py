@@ -137,6 +137,14 @@ def get_secret_versions(
                 summarize_gcp_http_error(e),
             )
             return []
+        elif category == "not_found":
+            logger.warning(
+                "Secret %s was not found while listing versions. "
+                "Skipping versions sync for this secret. %s",
+                secret_name,
+                summarize_gcp_http_error(e),
+            )
+            return []
         else:
             raise
 

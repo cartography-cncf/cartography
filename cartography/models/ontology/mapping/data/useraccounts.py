@@ -774,6 +774,37 @@ huntress_mapping = OntologyMapping(
 )
 
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": OntologyMapping(
+        module_name="zoom",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZoomUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="firstname", node_field="first_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastname", node_field="last_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="status",
+                        special_handling="equal_boolean",
+                        extra={"values": ["active"]},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity", node_field="last_login_time"
+                    ),
+                ],
+            )
+        ],
+    ),
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,

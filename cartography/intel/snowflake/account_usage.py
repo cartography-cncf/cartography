@@ -32,7 +32,10 @@ not requiring a privilege that can also grant and revoke access account-wide.
 """
 
 import logging
+import re
 from typing import Any
+
+import requests
 
 from cartography.intel.snowflake.sql_values import to_bool
 from cartography.intel.snowflake.sql_values import to_text
@@ -60,7 +63,7 @@ WHERE deleted_on IS NULL
 
 _GRANTS_TO_ROLES_QUERY = """
 SELECT privilege, granted_on, name, table_catalog, table_schema, granted_to,
-       grantee_name, grant_option, granted_by, created_on
+       grantee_name, grant_option, granted_by, created_on{optional_columns}
 FROM snowflake.account_usage.grants_to_roles
 WHERE deleted_on IS NULL
 """
@@ -100,7 +103,48 @@ def get_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
 @timeit
 def get_grants_to_roles(client: SnowflakeClient) -> list[dict[str, Any]] | None:
     """Every live grant to a role, or None when ACCOUNT_USAGE is unreadable."""
-    return _run(client, _GRANTS_TO_ROLES_QUERY, "grants from ACCOUNT_USAGE")
+    # Some roles can SELECT the view without being able to inspect its metadata.
+    optional = (
+        ", is_inherited, inherited_from, inherited_from_database, inherited_from_schema"
+    )
+    try:
+        return _run(
+            client,
+            _GRANTS_TO_ROLES_QUERY.format(optional_columns=optional),
+            "grants from ACCOUNT_USAGE",
+        )
+    except SnowflakeSqlError as error:
+        cause = error.__cause__
+        if not isinstance(cause, requests.HTTPError) or cause.response is None:
+            raise
+        try:
+            detail = cause.response.json()
+        except ValueError:
+            raise error
+        if not isinstance(detail, dict) or str(detail.get("code")).zfill(6) != "000904":
+            raise
+        missing = re.search(
+            r"invalid identifier '(IS_INHERITED|INHERITED_FROM)'",
+            str(detail.get("message", "")),
+            re.IGNORECASE,
+        )
+        if not missing:
+            raise
+        if missing[1].upper() == "IS_INHERITED":
+            optional = ""
+        else:
+            # Some accounts expose the source account instead of a scope enum.
+            optional = """, is_inherited,
+                CASE WHEN inherited_from_schema IS NOT NULL THEN 'SCHEMA'
+                     WHEN inherited_from_database IS NOT NULL THEN 'DATABASE'
+                     WHEN inherited_from_account IS NOT NULL THEN 'ACCOUNT'
+                END AS inherited_from,
+                inherited_from_database, inherited_from_schema"""
+    return _run(
+        client,
+        _GRANTS_TO_ROLES_QUERY.format(optional_columns=optional),
+        "grants from ACCOUNT_USAGE",
+    )
 
 
 @timeit
@@ -154,10 +198,14 @@ def split_roles(
 def split_grants(
     grants_to_roles: list[dict[str, Any]],
     grants_to_users: list[dict[str, Any]],
-) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+) -> tuple[
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+    list[dict[str, Any]],
+]:
     """Reshape the two grant views into the REST-shaped structures grants.py expects.
 
-    Returns ``(grants_by_role, grants_of_by_role)``:
+    Returns ``(grants_by_role, grants_of_by_role, inherited_grants)``:
 
     - ``grants_by_role`` maps a grantee to the privileges it holds, one row per
       privilege, matching ``SHOW GRANTS TO ROLE``. ``grants.transform_grants`` then
@@ -175,7 +223,15 @@ def split_grants(
     grants_by_role: dict[str, list[dict[str, Any]]] = {}
     grants_of_by_role: dict[str, list[dict[str, Any]]] = {}
 
+    inherited_grants: list[dict[str, Any]] = []
     for row in grants_to_roles:
+        # Role hierarchy rows must reach the assignment transform even if flagged.
+        if (
+            to_bool(row.get("is_inherited"))
+            and to_text(row.get("granted_on")) not in _ROLE_SECURABLE_TYPES
+        ):
+            inherited_grants.append(row)
+            continue
         raw_grantee = to_text(row.get("grantee_name"))
         privilege = to_text(row.get("privilege"))
         granted_on = to_text(row.get("granted_on"))
@@ -238,7 +294,7 @@ def split_grants(
             },
         )
 
-    return grants_by_role, grants_of_by_role
+    return grants_by_role, grants_of_by_role, inherited_grants
 
 
 def _granted_role_name(row: dict[str, Any], granted_on: str, name: str) -> str:
