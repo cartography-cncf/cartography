@@ -81,24 +81,6 @@ cartography \
 The example uses Zoom as the source for canonical `User` nodes in a standalone
 test. For an existing graph, use your normal `--ontology-users-source` setting.
 
-## Verify the sync
-
-Look for the Zoom stage starting and finishing, plus loaded `ZoomAccount` and
-`ZoomUser` counts. When `ontology` is selected, canonical `User` nodes and
-`HAS_ACCOUNT` relationships should also be present. For example:
-
-```cypher
-MATCH (:ZoomAccount)-[:RESOURCE]->(u:ZoomUser)
-RETURN u.status AS status, u.plan_type AS plan_type, count(*) AS users;
-```
-
-An empty inactive or pending list is valid. A second complete sync updates the
-same users without duplicating them. Only users absent from all three status
-lists are removed from the current account's scope.
-
-For temporary testing, use a disposable graph. After testing, deactivate the app
-on its **Activation** page and remove local credentials and provider data.
-
 ## Advanced Configuration
 
 Run Cartography separately for each account using that account's OAuth app.
