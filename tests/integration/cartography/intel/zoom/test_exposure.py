@@ -410,3 +410,86 @@ def test_host_transfer_preserves_identity_and_replaces_host_relationship(
     assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
         (f"{account}:user:user-2", f"{account}:{suffix}")
     }
+
+
+def transfer_client(
+    module: ModuleType, listing_owner: str | None, denied_owner: str | None
+) -> MagicMock:
+    client = MagicMock(spec=ZoomClient)
+    client.fork.return_value = client
+    raw = {**(MEETING if module is meetings else RECORDING), "uuid": "instance-1"}
+
+    def get_paginated(path: str, key: str, params: Any = None) -> list[dict[str, Any]]:
+        owner = path.split("/")[2]
+        if owner == denied_owner:
+            response = requests.Response()
+            response.status_code = 403
+            response._content = json.dumps({"code": 200}).encode()
+            raise requests.HTTPError(response=response)
+        return [{**raw, "host_id": owner}] if owner == listing_owner else []
+
+    def get(path: str, params: Any = None) -> dict[str, Any]:
+        if path.endswith("settings"):
+            return RECORDING_SETTINGS
+        return {**raw, "host_id": listing_owner}
+
+    client.get_paginated.side_effect = get_paginated
+    client.get.side_effect = get
+    return client
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
+)
+def test_transfer_while_prior_host_denied_survives_current_host_denial(
+    neo4j_session: neo4j.Session, module: ModuleType, label: str
+) -> None:
+    # Arrange: user-1 reports the resource.
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    module.sync(
+        neo4j_session,
+        transfer_client(module, "user-1", None),
+        account,
+        1,
+        users(account),
+    )
+    suffix = "meeting:12345678901" if module is meetings else "recording:instance-1"
+    # The resource moves to user-2 while user-1 is unreadable.
+    module.sync(
+        neo4j_session,
+        transfer_client(module, "user-2", "user-1"),
+        account,
+        2,
+        users(account),
+    )
+
+    # Act: user-1 is readable and empty; the current host user-2 is denied.
+    module.sync(
+        neo4j_session,
+        transfer_client(module, None, "user-2"),
+        account,
+        3,
+        users(account),
+    )
+
+    # Assert: the denied current host's snapshot survives unchanged.
+    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
+        (f"{account}:{suffix}", 2)
+    }
+    assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
+        (f"{account}:{suffix}", f"{account}:user:user-2")
+    }
+    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
+        (f"{account}:user:user-2", f"{account}:{suffix}")
+    }
+    assert check_rels(neo4j_session, "ZoomAccount", "id", label, "id", "RESOURCE") == {
+        (account, f"{account}:{suffix}")
+    }
