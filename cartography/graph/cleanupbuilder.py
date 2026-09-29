@@ -1,5 +1,7 @@
 from dataclasses import asdict
+from dataclasses import fields
 from string import Template
+from typing import Any
 from typing import Dict
 from typing import List
 
@@ -12,9 +14,26 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
 
+_NODE_FILTERS_PARAMETER = "_cartography_node_filters"
+_EXCLUDED_NODE_FILTERS_PARAMETER = "_cartography_excluded_node_filters"
+
+
+def _cleanup_predicate(
+    variable: str, node_filter_clause: str, delete_current: bool = False
+) -> str:
+    predicates = [] if delete_current else [f"{variable}.lastupdated <> $UPDATE_TAG"]
+    if node_filter_clause:
+        predicates.append(node_filter_clause)
+    return " AND ".join(predicates)
+
 
 def build_cleanup_queries(
-    node_schema: CartographyNodeSchema, cascade_delete: bool = False
+    node_schema: CartographyNodeSchema,
+    cascade_delete: bool = False,
+    *,
+    node_filters: dict[str, Any] | None = None,
+    excluded_node_filters: dict[str, list[Any]] | None = None,
+    delete_current: bool = False,
 ) -> List[str]:
     """
     Generate Neo4j queries to clean up stale nodes and relationships.
@@ -29,6 +48,10 @@ def build_cleanup_queries(
         cascade_delete (bool): If True, also delete all child nodes that have a
             relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
             Defaults to False to preserve existing behavior. Only valid when scoped_cleanup=True.
+        node_filters: Equality filters on declared node properties. Values are bound by GraphJob.
+        excluded_node_filters: NOT IN filters on declared node properties, bound by GraphJob.
+        delete_current: Omit node staleness checks when filters identify an authoritative
+            deletion scope. Relationship and cascade-child staleness checks stay in place.
 
     Returns:
         List[str]: A list of Neo4j queries to clean up stale nodes and relationships.
@@ -52,6 +75,28 @@ def build_cleanup_queries(
 
         Nodes without relationships (like SyncMetadata) are left for manual management.
     """
+    node_filters = node_filters or {}
+    excluded_node_filters = excluded_node_filters or {}
+    if delete_current and not (node_filters or excluded_node_filters):
+        raise ValueError("delete_current requires nonempty node filters")
+    unknown = (node_filters.keys() | excluded_node_filters.keys()) - {
+        field.name for field in fields(node_schema.properties)
+    }
+    if unknown:
+        raise ValueError(
+            f"Cleanup filters reference undeclared node properties: {sorted(unknown)}"
+        )
+    node_filter_clause = " AND ".join(
+        [
+            f"n.`{key}` = ${_NODE_FILTERS_PARAMETER}.`{key}`"
+            for key in sorted(node_filters)
+        ]
+        + [
+            f"NOT n.`{key}` IN ${_EXCLUDED_NODE_FILTERS_PARAMETER}.`{key}`"
+            for key in sorted(excluded_node_filters)
+        ]
+    )
+
     # Validate: cascade_delete only makes sense with scoped cleanup
     if cascade_delete and not node_schema.scoped_cleanup:
         raise ValueError(
@@ -76,6 +121,8 @@ def build_cleanup_queries(
             node_schema,
             node_schema.sub_resource_relationship,
             cascade_delete,
+            node_filter_clause=node_filter_clause,
+            delete_current=delete_current,
         )
 
     # Case 2: The node has a sub resource but scoped cleanup is false => this does not make sense
@@ -98,24 +145,40 @@ def build_cleanup_queries(
             else []
         )
         for rel in other_rels:
-            query = _build_cleanup_rel_query_no_sub_resource(node_schema, rel)
+            query = _build_cleanup_rel_query_no_sub_resource(
+                node_schema, rel, node_filter_clause=node_filter_clause
+            )
             queries.append(query)
         return queries
 
     # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
     else:
-        queries = [_build_cleanup_node_query_unscoped(node_schema)]
+        queries = [
+            _build_cleanup_node_query_unscoped(
+                node_schema,
+                node_filter_clause=node_filter_clause,
+                delete_current=delete_current,
+            )
+        ]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
             if node_schema.scoped_cleanup:
                 # [0] is the delete node query, [1] is the delete relationship query. We only want the latter.
                 _, rel_query = _build_cleanup_node_and_rel_queries(
-                    node_schema, rel, cascade_delete
+                    node_schema,
+                    rel,
+                    cascade_delete,
+                    node_filter_clause=node_filter_clause,
+                    delete_current=delete_current,
                 )
                 queries.append(rel_query)
             else:
-                queries.append(_build_cleanup_rel_queries_unscoped(node_schema, rel))
+                queries.append(
+                    _build_cleanup_rel_queries_unscoped(
+                        node_schema, rel, node_filter_clause=node_filter_clause
+                    )
+                )
 
     return queries
 
@@ -123,6 +186,8 @@ def build_cleanup_queries(
 def _build_cleanup_rel_query_no_sub_resource(
     node_schema: CartographyNodeSchema,
     selected_relationship: CartographyRelSchema,
+    *,
+    node_filter_clause: str = "",
 ) -> str:
     """
     Generate a cleanup query for relationships when no sub resource is defined.
@@ -167,13 +232,14 @@ def _build_cleanup_rel_query_no_sub_resource(
         """
         MATCH (n:$node_label)
         $selected_rel_clause
-        WHERE r.lastupdated <> $UPDATE_TAG
+        WHERE $cleanup_predicate
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """,
     )
     return query_template.safe_substitute(
         node_label=node_schema.label,
+        cleanup_predicate=_cleanup_predicate("r", node_filter_clause),
         selected_rel_clause=_build_selected_rel_clause(selected_relationship),
     )
 
@@ -245,6 +311,9 @@ def _build_cleanup_node_and_rel_queries(
     node_schema: CartographyNodeSchema,
     selected_relationship: CartographyRelSchema,
     cascade_delete: bool = False,
+    *,
+    node_filter_clause: str = "",
+    delete_current: bool = False,
 ) -> List[str]:
     """
     Generate cleanup queries for both nodes and relationships.
@@ -322,7 +391,7 @@ def _build_cleanup_node_and_rel_queries(
         # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
         delete_action_clauses = [
             f"""
-        WHERE n.lastupdated <> $UPDATE_TAG
+        WHERE {_cleanup_predicate("n", node_filter_clause, delete_current)}
         WITH n LIMIT $LIMIT_SIZE
         CALL (n) {{
             OPTIONAL MATCH (n){cascade_rel_clause}(child)
@@ -334,8 +403,8 @@ def _build_cleanup_node_and_rel_queries(
         ]
     else:
         delete_action_clauses = [
-            """
-        WHERE n.lastupdated <> $UPDATE_TAG
+            f"""
+        WHERE {_cleanup_predicate("n", node_filter_clause, delete_current)}
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n;
         """,
@@ -346,16 +415,16 @@ def _build_cleanup_node_and_rel_queries(
             node_schema.sub_resource_relationship.target_node_matcher,
         )
         delete_action_clauses.append(
-            """
-            WHERE s.lastupdated <> $UPDATE_TAG
+            f"""
+            WHERE {_cleanup_predicate("s", node_filter_clause)}
             WITH s LIMIT $LIMIT_SIZE
             DELETE s;
             """,
         )
     else:
         delete_action_clauses.append(
-            """
-            WHERE r.lastupdated <> $UPDATE_TAG
+            f"""
+            WHERE {_cleanup_predicate("r", node_filter_clause)}
             WITH r LIMIT $LIMIT_SIZE
             DELETE r;
             """,
@@ -385,6 +454,9 @@ def _build_cleanup_node_and_rel_queries(
 
 def _build_cleanup_node_query_unscoped(
     node_schema: CartographyNodeSchema,
+    *,
+    node_filter_clause: str = "",
+    delete_current: bool = False,
 ) -> str:
     """
     Generate an unscoped cleanup query for nodes.
@@ -432,8 +504,8 @@ def _build_cleanup_node_query_unscoped(
         )
 
     # The cleanup node query must always be before the cleanup rel query
-    delete_action_clause = """
-        WHERE n.lastupdated <> $UPDATE_TAG
+    delete_action_clause = f"""
+        WHERE {_cleanup_predicate("n", node_filter_clause, delete_current)}
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n;
     """
@@ -454,6 +526,8 @@ def _build_cleanup_node_query_unscoped(
 def _build_cleanup_rel_queries_unscoped(
     node_schema: CartographyNodeSchema,
     selected_relationship: CartographyRelSchema,
+    *,
+    node_filter_clause: str = "",
 ) -> str:
     """
     Generate an unscoped relationship cleanup query.
@@ -493,7 +567,7 @@ def _build_cleanup_rel_queries_unscoped(
         )
 
     # The cleanup node query must always be before the cleanup rel query
-    delete_action_clause = """WHERE r.lastupdated <> $UPDATE_TAG
+    delete_action_clause = f"""WHERE {_cleanup_predicate("r", node_filter_clause)}
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """

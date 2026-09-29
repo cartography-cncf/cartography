@@ -1,16 +1,15 @@
 import hashlib
 import json
 from typing import Any
-from urllib.parse import quote
 
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.helpers import normalize_email_for_matching
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import date_windows
+from cartography.intel.zoom.util import encode_uuid
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
 from cartography.models.zoom.activity import ZoomActivityEventSchema
@@ -52,7 +51,7 @@ def transform_events(
         # Meeting audit times use yyyy-MM-dd HH:mm:ss:SSS, in UTC.
         if source == "meeting_audit" and value and len(value) > 19 and value[19] == ":":
             value = value[:19] + "." + value[20:]
-        meeting_id = str(row.get("meeting_number", "")).replace(" ", "")
+        meeting_id = str(row.get("meeting_number") or "").replace(" ", "")
         result.append(
             {
                 "id": f"{account_id}:event:{source}:{fingerprint(row)}",
@@ -98,30 +97,13 @@ def sync_reports(
             ACCOUNT_ID=account_id,
             lastupdated=update_tag,
         )
-        # Each report is independently authorized; never clean up a denied report.
-        # A stable event can acquire a different user match as account emails change.
-        for query in (
-            """
-            MATCH (n:ZoomActivityEvent {account_id:$account, source:$source})
-            WHERE n.lastupdated <> $tag
-            WITH n LIMIT $LIMIT_SIZE
-            DETACH DELETE n
-            """,
-            """
-            MATCH (:ZoomActivityEvent {account_id:$account, source:$source})
-                -[r:PERFORMED_BY|IN_MEETING]->()
-            WHERE r.lastupdated <> $tag
-            WITH r LIMIT $LIMIT_SIZE
-            DELETE r
-            """,
-        ):
-            GraphStatement(
-                query,
-                parameters={"account": account_id, "source": source, "tag": update_tag},
-                iterative=True,
-                iterationsize=1000,
-                parent_job_name="ZoomActivityEvent",
-            ).run(session)
+        # Each report is independently authorized; preserve denied sources and edges.
+        GraphJob.from_node_schema(
+            ZoomActivityEventSchema(),
+            {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
+            iterationsize=1000,
+            node_filters={"source": source},
+        ).run(session)
 
 
 def get_sessions(client: ZoomClient, days: int) -> list[dict[str, Any]]:
@@ -149,9 +131,7 @@ def sync_dashboard(
     participants = []
     for meeting in meetings:
         uuid = meeting["uuid"]
-        encoded = quote(uuid, safe="")
-        if uuid.startswith("/") or "//" in uuid:
-            encoded = quote(encoded, safe="")
+        encoded = encode_uuid(uuid)
         rows = client.get_paginated(
             f"/metrics/meetings/{encoded}/participants",
             "participants",

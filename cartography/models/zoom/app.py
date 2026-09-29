@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import THIRD_PARTY_APP
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 
 
@@ -52,15 +54,23 @@ class ZoomAppProperties(CartographyNodeProperties):
     )
     app_scopes: PropertyRef = PropertyRef(
         "app_scopes",
-        description="Exact OAuth scope identifiers from app_scopes; empty when none are returned.",
+        description="Exact OAuth scope identifiers from app_scopes; unknown if omitted, empty if explicitly returned empty.",
         extra_index=False,
     )
 
 
 @dataclass(frozen=True)
 class ZoomAppSchema(CartographyNodeSchema):
-    """An account-added or approved Marketplace app. Approval and installation are independent states."""
+    """An account-added or approved Marketplace app. Approval and installation are independent states.
+
+    > **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable
+    cross-platform queries for third-party applications.
+
+    `_ont_client_id` uses the Marketplace app ID as a surrogate identifier, not
+    an OAuth client ID. Publication status does not imply enabled state or protocol.
+    """
 
     label: str = "ZoomApp"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
     properties: ZoomAppProperties = ZoomAppProperties()
     sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()

@@ -390,7 +390,22 @@ salesforce_mapping = OntologyMapping(
     ],
 )
 
+zoom_mapping = OntologyMapping(
+    module_name="zoom",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZoomGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": zoom_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
     "salesforce": salesforce_mapping,

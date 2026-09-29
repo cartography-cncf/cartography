@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.zoom.resource import ZoomAccountResourceRel
+from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 
 @dataclass(frozen=True)
@@ -86,22 +87,6 @@ class ZoomMeetingNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ZoomMeetingRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ZoomAccountToMeetingRel(CartographyRelSchema):
-    target_node_label: str = "ZoomAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomMeetingRelProperties = ZoomMeetingRelProperties()
-
-
-@dataclass(frozen=True)
 class ZoomMeetingToHostRel(CartographyRelSchema):
     target_node_label: str = "ZoomUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -109,7 +94,7 @@ class ZoomMeetingToHostRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HOSTED_BY"
-    properties: ZoomMeetingRelProperties = ZoomMeetingRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -122,7 +107,7 @@ class ZoomMeetingSchema(CartographyNodeSchema):
 
     label: str = "ZoomMeeting"
     properties: ZoomMeetingNodeProperties = ZoomMeetingNodeProperties()
-    sub_resource_relationship: ZoomAccountToMeetingRel = ZoomAccountToMeetingRel()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [ZoomMeetingToHostRel()]
     )

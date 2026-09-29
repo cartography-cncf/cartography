@@ -31,8 +31,10 @@ from tests.integration.util import check_rels
 @pytest.fixture(autouse=True)  # type: ignore[misc]
 def clean_graph(neo4j_session: neo4j.Session) -> Iterator[None]:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    yield
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    try:
+        yield
+    finally:
+        neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def client_for() -> MagicMock:
@@ -192,6 +194,54 @@ def test_denied_detail_preserves_existing_apps(neo4j_session: neo4j.Session) -> 
     }
 
 
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "scope_fields,expected_scopes",
+    [({}, None), ({"app_scopes": []}, [])],
+)
+def test_app_resync_clears_unknown_metadata_without_conflating_empty_scopes(
+    neo4j_session: neo4j.Session,
+    scope_fields: dict[str, list[str]],
+    expected_scopes: list[str] | None,
+) -> None:
+    # Arrange
+    seed(neo4j_session, "account-a")
+    client = client_for()
+    apps.sync(neo4j_session, client, "account-a", 1)
+    client.get_paginated.side_effect = None
+    client.get_paginated.return_value = [{**APP, "approval_info": None}]
+    client.get.side_effect = None
+    client.get.return_value = {
+        **{key: value for key, value in APP_DETAIL.items() if key != "app_scopes"},
+        **scope_fields,
+    }
+
+    # Act
+    apps.sync(neo4j_session, client, "account-a", 2)
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "ZoomApp",
+        [
+            "id",
+            "lastupdated",
+            "installed",
+            "approved",
+            "approval_type",
+            "approval_required",
+        ],
+    ) == {("account-a:app:app-1", 2, True, True, None, None)}
+    # check_nodes returns a set and cannot represent list-valued properties.
+    scopes = neo4j_session.run(
+        "MATCH (n:ZoomApp {id: $id}) RETURN n.app_scopes AS scopes",
+        id="account-a:app:app-1",
+    ).single()["scopes"]
+    assert scopes == expected_scopes
+    assert check_rels(
+        neo4j_session, "ZoomAccount", "id", "ZoomApp", "id", "RESOURCE"
+    ) == {("account-a", "account-a:app:app-1")}
+
+
 def test_report_cleanup_batches_preserve_denied_sources_and_other_accounts(
     neo4j_session: neo4j.Session,
 ) -> None:
@@ -328,9 +378,16 @@ def test_report_identity_links_follow_current_email_mapping(
         )
         or set()
     )
-    signin_id = neo4j_session.run(
-        "MATCH (n:ZoomActivityEvent {account_id:'account-a', source:'signins'}) RETURN n.id AS id",
-    ).single()["id"]
+    signin_id = next(
+        node_id
+        for node_id, account_id, source in (
+            check_nodes(
+                neo4j_session, "ZoomActivityEvent", ["id", "account_id", "source"]
+            )
+            or set()
+        )
+        if account_id == "account-a" and source == "signins"
+    )
     expected_links.remove((signin_id, "account-a:user:user-1"))
     if replacement_email == SIGNIN["email"]:
         expected_links.add((signin_id, "account-a:user:user-2"))

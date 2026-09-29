@@ -173,7 +173,9 @@ Exceeding a limit fails the incomplete read instead of treating it as empty.
 
 A denied optional endpoint emits a warning and retains the affected snapshot.
 A recording whose sharing settings are still processing preserves its host's
-recording snapshot until a later sync. Successful independent sections and owners
+recording snapshot until a later sync. Existing recordings also remain when their
+owner becomes inactive or loses a Licensed seat; cleanup resumes after a successful
+read or removes the snapshot when the owner leaves the account. Successful independent sections and owners
 can still refresh. Credential failures,
 server errors, and incomplete pagination fail explicitly. Stale cleanup requires
 a complete read for the relevant account, owner, or report. Review warnings as well

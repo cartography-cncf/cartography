@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.zoom.resource import ZoomAccountResourceRel
+from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 
 @dataclass(frozen=True)
@@ -95,22 +96,6 @@ class ZoomRecordingNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ZoomRecordingRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ZoomAccountToRecordingRel(CartographyRelSchema):
-    target_node_label: str = "ZoomAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomRecordingRelProperties = ZoomRecordingRelProperties()
-
-
-@dataclass(frozen=True)
 class ZoomRecordingToHostRel(CartographyRelSchema):
     target_node_label: str = "ZoomUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -118,7 +103,7 @@ class ZoomRecordingToHostRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HOSTED_BY"
-    properties: ZoomRecordingRelProperties = ZoomRecordingRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -129,7 +114,7 @@ class ZoomRecordingToMeetingRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RECORDED_FROM"
-    properties: ZoomRecordingRelProperties = ZoomRecordingRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -143,7 +128,7 @@ class ZoomRecordingSchema(CartographyNodeSchema):
 
     label: str = "ZoomRecording"
     properties: ZoomRecordingNodeProperties = ZoomRecordingNodeProperties()
-    sub_resource_relationship: ZoomAccountToRecordingRel = ZoomAccountToRecordingRel()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [ZoomRecordingToHostRel(), ZoomRecordingToMeetingRel()]
     )

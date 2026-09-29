@@ -243,7 +243,30 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+zoom_mapping = OntologyMapping(
+    module_name="zoom",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZoomApp",
+            fields=[
+                # Marketplace app_id is a stable surrogate, not an OAuth client ID.
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="app_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # enabled/native_app/protocol: Publication status and app type do
+                # not establish these properties for all Marketplace app types.
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": zoom_mapping,
     "googleworkspace": googleworkspace_mapping,
     "salesforce": salesforce_mapping,
     "keycloak": keycloak_mapping,

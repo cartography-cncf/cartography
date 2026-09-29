@@ -14,6 +14,7 @@ from cartography.intel.zoom import start_zoom_ingestion
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.settings import sync
 from cartography.models.zoom.account import ZoomAccountSchema
+from cartography.models.zoom.group import ZoomGroupSchema
 from cartography.models.zoom.settings import ZoomSecuritySettingsSchema
 from cartography.models.zoom.user import ZoomUserSchema
 from tests.data.zoom.settings import LOCKED_SETTINGS_RESPONSES
@@ -68,10 +69,19 @@ def test_settings_preserve_denied_kind_and_isolate_accounts(
             ACCOUNT_ID=account,
             lastupdated=1,
         )
-        # A minimal prerequisite group lets this test exercise settings independently
-        # of the separate groups API surface.
-        neo4j_session.run(
-            "CREATE (:ZoomGroup {id: $id})", id=f"{account}:group:group-one"
+        load(
+            neo4j_session,
+            ZoomGroupSchema(),
+            [
+                {
+                    "id": f"{account}:group:group-one",
+                    "zoom_id": "group-one",
+                    "name": "Group one",
+                    "member_ids": [],
+                }
+            ],
+            ACCOUNT_ID=account,
+            lastupdated=1,
         )
 
     # Act
@@ -122,6 +132,8 @@ def test_settings_preserve_denied_kind_and_isolate_accounts(
     assert check_nodes(neo4j_session, "ZoomSecuritySettings", ["id"]) == {
         (node_id,) for node_id in expected_ids
     }
+    # Read all properties to catch accidental secret ingestion, including fields
+    # outside the allowlist that an explicit check_nodes projection would omit.
     settings = {
         record["n"]["id"]: record["n"]
         for record in neo4j_session.run("MATCH (n:ZoomSecuritySettings) RETURN n")
@@ -215,6 +227,8 @@ def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
     expected_resource_edges = check_rels(
         neo4j_session, "ZoomAccount", "id", "ZoomSecuritySettings", "id", "RESOURCE"
     )
+    # Preserve the complete property maps so cleanup cannot silently alter any
+    # metadata on a denied owner or another account.
     preserved = {
         record["n"]["id"]: dict(record["n"])
         for record in neo4j_session.run(
@@ -242,6 +256,23 @@ def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
         ],
         ACCOUNT_ID="account-one",
         lastupdated=1,
+    )
+    # Authoritative owner removal also deletes orphan settings written with the
+    # current tag, rather than retaining them because they look freshly updated.
+    load(
+        neo4j_session,
+        ZoomSecuritySettingsSchema(),
+        [
+            {
+                "id": f"account-one:settings:{scope}:absent-current-tag:configured",
+                "scope_type": scope,
+                "scope_id": "absent-current-tag",
+                "kind": "configured",
+            }
+            for scope in ("user", "group")
+        ],
+        ACCOUNT_ID="account-one",
+        lastupdated=2,
     )
     deny_current_user = True
     configs[0].update_tag = 2

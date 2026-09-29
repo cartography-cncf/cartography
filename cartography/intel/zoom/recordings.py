@@ -6,9 +6,10 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.graph.statement import GraphStatement
+from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import date_windows
+from cartography.intel.zoom.util import encode_uuid
 from cartography.intel.zoom.util import fetch_many
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
@@ -19,11 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def settings_path(uuid: str) -> str:
-    # Zoom requires a second encoding for UUIDs starting with / or containing //.
-    encoded = quote(uuid, safe="")
-    if uuid.startswith("/") or "//" in uuid:
-        encoded = quote(encoded, safe="")
-    return f"/meetings/{encoded}/recordings/settings"
+    return f"/meetings/{encode_uuid(uuid)}/recordings/settings"
 
 
 def get(
@@ -103,38 +100,11 @@ def transform(
 def cleanup(
     neo4j_session: neo4j.Session, account_id: str, host_id: str, update_tag: int
 ) -> None:
-    # A tenant-wide GraphJob would delete snapshots belonging to denied hosts.
-    GraphStatement(
-        """
-        MATCH (n:ZoomRecording {account_id: $account_id, host_id: $host_id})
-        WHERE n.lastupdated <> $update_tag
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        parameters={
-            "account_id": account_id,
-            "host_id": host_id,
-            "update_tag": update_tag,
-        },
-        iterative=True,
+    GraphJob.from_node_schema(
+        ZoomRecordingSchema(),
+        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
         iterationsize=1000,
-        parent_job_name="ZoomRecording",
-    ).run(neo4j_session)
-    GraphStatement(
-        """
-        MATCH (n:ZoomRecording {account_id: $account_id, host_id: $host_id})-[r:HOSTED_BY|RECORDED_FROM]->()
-        WHERE r.lastupdated <> $update_tag
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r
-        """,
-        parameters={
-            "account_id": account_id,
-            "host_id": host_id,
-            "update_tag": update_tag,
-        },
-        iterative=True,
-        iterationsize=1000,
-        parent_job_name="ZoomRecording",
+        node_filters={"host_id": host_id},
     ).run(neo4j_session)
 
 
@@ -163,18 +133,13 @@ def sync(
             lastupdated=update_tag,
         )
         cleanup(neo4j_session, account_id, host_id, update_tag)
-    GraphStatement(
-        """
-        MATCH (n:ZoomRecording {account_id: $account_id})
-        WHERE NOT n.host_id IN $host_ids
-        WITH n LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        parameters={
-            "account_id": account_id,
-            "host_ids": [user["zoom_id"] for user in users if user.get("zoom_id")],
-        },
-        iterative=True,
+    # Complete user inventory is authoritative even for same-tag orphan snapshots.
+    GraphJob.from_node_schema(
+        ZoomRecordingSchema(),
+        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
         iterationsize=1000,
-        parent_job_name="ZoomRecording",
+        excluded_node_filters={
+            "host_id": [user["zoom_id"] for user in users if user.get("zoom_id")],
+        },
+        delete_current=True,
     ).run(neo4j_session)
