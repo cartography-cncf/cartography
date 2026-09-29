@@ -3,11 +3,21 @@ from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
-
-from cartography.client.http import CappedRetry
+from urllib3.response import BaseHTTPResponse
+from urllib3.util.retry import Retry
 
 TOKEN_URL = "https://zoom.us/oauth/token"
 USERS_URL = "https://api.zoom.us/v2/users"
+
+
+class _CappedRetry(Retry):
+    """Cap server-directed delays on the supported urllib3 2.0 dependency floor."""
+
+    def get_retry_after(self, response: BaseHTTPResponse) -> float | None:
+        retry_after = super().get_retry_after(response)
+        if retry_after is None:
+            return None
+        return min(retry_after, 8)
 
 
 class ZoomClient:
@@ -20,7 +30,7 @@ class ZoomClient:
         self.session.mount(
             "https://",
             HTTPAdapter(
-                max_retries=CappedRetry(
+                max_retries=_CappedRetry(
                     total=3,
                     backoff_factor=1,
                     status_forcelist={429, 500, 502, 503, 504},
