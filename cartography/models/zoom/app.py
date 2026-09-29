@@ -52,6 +52,11 @@ class ZoomAppProperties(CartographyNodeProperties):
     app_type: PropertyRef = PropertyRef(
         "app_type", description="Detail app_type.", extra_index=False
     )
+    developer_type: PropertyRef = PropertyRef(
+        "developer_type",
+        description="List app_developer_type: THIRD_PARTY, ZOOM or INTERNAL; unknown if omitted.",
+        extra_index=False,
+    )
     app_scopes: PropertyRef = PropertyRef(
         "app_scopes",
         description="Exact OAuth scope identifiers from app_scopes; unknown if omitted, empty if explicitly returned empty.",

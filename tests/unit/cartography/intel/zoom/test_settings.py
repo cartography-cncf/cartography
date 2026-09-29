@@ -35,8 +35,17 @@ def test_transform_keeps_only_policy_scalars() -> None:
     assert record["encryption_type"] == "e2ee"
     assert record["screen_sharing"] is True
     assert record["recording_embed_passcode_in_link"] is False
+    assert record["private_chat"] is False
+    assert record["allow_participants_to_rename"] is False
+    assert record["auto_delete_cloud_recordings"] is True
+    assert record["auto_delete_cloud_recordings_days"] == 90
+    assert record["waiting_room_scope"] == 1
+    assert record["sign_again_period_for_inactivity_on_client"] == 30
+    assert record["sign_again_period_for_inactivity_on_web"] == 0
+    assert record["two_factor_auth_group_ids"] is None
     assert all(
-        value is None or isinstance(value, (str, bool)) for value in record.values()
+        value is None or isinstance(value, (str, bool, int))
+        for value in record.values()
     )
     assert "synthetic-secret" not in str(record)
     assert "example.com" not in str(record)
@@ -63,6 +72,11 @@ def test_transform_distinguishes_owner_kind_and_account() -> None:
     assert records[1]["meeting_authentication"] is True
     assert records[1]["recording_authentication"] is True
     assert records[1]["encryption_type"] is None
+    assert records[1]["private_chat"] is True
+    assert records[1]["auto_delete_cloud_recordings"] is True
+    # Lock endpoints return flags only, never configured values.
+    assert records[1]["auto_delete_cloud_recordings_days"] is None
+    assert records[1]["waiting_room_scope"] is None
     assert records[1]["group_owner_id"] == "account-one:group:group-one"
     assert records[3]["account_owner_id"] == "account-one"
 
@@ -110,6 +124,59 @@ def test_transform_omitted_fields_are_unknown_not_false() -> None:
     assert record["meeting_authentication"] is None
     assert record["cloud_recording"] is None
     assert record["sign_in_with_two_factor_auth"] is None
+
+
+def test_transform_keeps_two_factor_group_and_role_ids() -> None:
+    # Arrange
+    responses = deepcopy(SETTINGS_RESPONSES)
+    security = responses["security"]["security"]
+    security["sign_in_with_two_factor_auth"] = "group"
+    security["sign_in_with_two_factor_auth_groups"] = ["group-one", "group-two"]
+    security["sign_in_with_two_factor_auth_roles"] = []
+
+    # Act
+    configured = transform(
+        responses, "account-one", "account", "account-one", "configured"
+    )
+    locked = transform(responses, "account-one", "account", "account-one", "locked")
+
+    # Assert
+    assert configured["sign_in_with_two_factor_auth"] == "group"
+    assert configured["two_factor_auth_group_ids"] == ["group-one", "group-two"]
+    assert configured["two_factor_auth_role_ids"] == []
+    assert locked["two_factor_auth_group_ids"] is None
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "field,path,value",
+    [
+        ("auto_delete_cloud_recordings_days", ("default", "recording"), "90"),
+        ("waiting_room_scope", ("meeting_security", "meeting_security"), True),
+        (
+            "two_factor_auth_group_ids",
+            ("security", "security"),
+            ["group-one", 2],
+        ),
+    ],
+)
+def test_transform_rejects_malformed_non_boolean_values(
+    field: str, path: tuple[str, str], value: Any
+) -> None:
+    # Arrange
+    responses = deepcopy(SETTINGS_RESPONSES)
+    section = responses[path[0]][path[1]]
+    if field == "waiting_room_scope":
+        section["waiting_room_settings"][
+            "participants_to_place_in_waiting_room"
+        ] = value
+    elif field == "two_factor_auth_group_ids":
+        section["sign_in_with_two_factor_auth_groups"] = value
+    else:
+        section["auto_delete_cmr_days"] = value
+
+    # Act and assert
+    with pytest.raises(ValueError, match=field):
+        transform(responses, "account-one", "account", "account-one", "configured")
 
 
 @pytest.mark.parametrize("value", ["false", {}, 1])  # type: ignore[misc]
@@ -173,6 +240,8 @@ def test_get_fetches_only_required_response_variants(
 def test_settings_missing_scope_skips_later_owners_but_not_other_kinds() -> None:
     # Arrange
     client = MagicMock(spec=ZoomClient)
+    client.session = MagicMock()
+    client.fork.return_value = client
     denied = requests.Response()
     denied.status_code = 400
     denied._content = (
@@ -193,12 +262,18 @@ def test_settings_missing_scope_skips_later_owners_but_not_other_kinds() -> None
         sync(MagicMock(), client, "account-one", 1, [], groups)
 
     # Assert
+    # Concurrent workers share the cache, so at most one read per worker can
+    # race past it; the denial is never retried after it is cached.
     paths = [args.args[0] for args in client.get.call_args_list]
-    assert paths.count("/groups/group-one/settings") == 1
-    assert "/groups/group-two/settings" not in paths
+    denied_reads = paths.count("/groups/group-one/settings") + paths.count(
+        "/groups/group-two/settings"
+    )
+    assert denied_reads in (1, 2)
     assert paths.count("/groups/group-one/lock_settings") == 2
     assert paths.count("/groups/group-two/lock_settings") == 2
-    assert mocked_load.call_count == 4  # Both account kinds and both group locks.
+    # One batched write: both account kinds and both group locks.
+    mocked_load.assert_called_once()
+    assert len(mocked_load.call_args.args[2]) == 4
 
     # Act: a later sync receives a fresh cache and can retry the denied surface.
     with patch("cartography.intel.zoom.settings.load"):
@@ -206,4 +281,8 @@ def test_settings_missing_scope_skips_later_owners_but_not_other_kinds() -> None
 
     # Assert
     paths = [args.args[0] for args in client.get.call_args_list]
-    assert paths.count("/groups/group-one/settings") == 2
+    assert (
+        paths.count("/groups/group-one/settings")
+        + paths.count("/groups/group-two/settings")
+        > denied_reads
+    )

@@ -17,6 +17,7 @@ from cartography.models.zoom.account import ZoomAccountSchema
 from cartography.models.zoom.user import ZoomUserSchema
 from tests.data.zoom.security import APP
 from tests.data.zoom.security import APP_DETAIL
+from tests.data.zoom.security import CLIENT_VERSIONS
 from tests.data.zoom.security import GROUPS
 from tests.data.zoom.security import PARTICIPANT
 from tests.data.zoom.security import ROLE_DETAIL
@@ -49,6 +50,8 @@ def client_for() -> MagicMock:
             return deepcopy(ROLE_DETAIL)
         if path == "/marketplace/apps/app-1":
             return deepcopy(APP_DETAIL)
+        if path == "/metrics/client_versions":
+            return deepcopy(CLIENT_VERSIONS)
         raise AssertionError(path)
 
     def pages(
@@ -94,6 +97,7 @@ def test_access_apps_activity_relationships_and_scoped_cleanup(
         apps.sync(neo4j_session, client, account, 1)
         activity.sync_reports(neo4j_session, client, account, 1, users, 1)
         activity.sync_dashboard(neo4j_session, client, account, 1, users, 1)
+        activity.sync_client_versions(neo4j_session, client, account, 1)
     # Assert
     assert check_rels(
         neo4j_session, "ZoomUser", "id", "ZoomRole", "id", "HAS_ROLE"
@@ -144,8 +148,32 @@ def test_access_apps_activity_relationships_and_scoped_cleanup(
         == 2
     )
     assert check_nodes(
-        neo4j_session, "ZoomMeetingParticipant", ["device", "client_version"]
-    ) == {("Mac", "6.1.0")}
+        neo4j_session,
+        "ZoomMeetingParticipant",
+        ["device", "client_version", "os", "os_version"],
+    ) == {("Mac", "6.1.0", "Mac", "15.0")}
+    participant = neo4j_session.run(
+        "MATCH (n:ZoomMeetingParticipant) RETURN n LIMIT 1"
+    ).single()["n"]
+    assert "192.0.2.1" not in str(dict(participant))
+    assert "synthetic-host-name" not in str(dict(participant))
+    assert check_nodes(neo4j_session, "ZoomApp", ["developer_type"]) == {
+        ("THIRD_PARTY",)
+    }
+    assert check_nodes(
+        neo4j_session, "ZoomClientVersion", ["id", "client_version", "total_count"]
+    ) == {
+        (f"{a}:client_version:{version}", version, count)
+        for a in ("account-a", "account-b")
+        for version, count in (("mac_6.1.0", 3), ("win_6.0.0", 1))
+    }
+    assert check_rels(
+        neo4j_session, "ZoomAccount", "id", "ZoomClientVersion", "id", "RESOURCE"
+    ) == {
+        (a, f"{a}:client_version:{version}")
+        for a in ("account-a", "account-b")
+        for version in ("mac_6.1.0", "win_6.0.0")
+    }
     # Act: repeat snapshot updates existing identities.
     apps.sync(neo4j_session, client, "account-a", 2)
     activity.sync_dashboard(neo4j_session, client, "account-a", 2, users_a, 1)
@@ -158,13 +186,14 @@ def test_access_apps_activity_relationships_and_scoped_cleanup(
     client.get_paginated.return_value = []
     client.get_paginated.side_effect = None
     client.get.side_effect = None
-    client.get.return_value = {"roles": []}
+    client.get.return_value = {"roles": [], "client_versions": []}
     # Act
     access.sync_groups(neo4j_session, client, "account-a", 3, users_a)
     access.sync_roles(neo4j_session, client, "account-a", 3, users_a)
     apps.sync(neo4j_session, client, "account-a", 3)
     activity.sync_reports(neo4j_session, client, "account-a", 3, users_a, 1)
     activity.sync_dashboard(neo4j_session, client, "account-a", 3, users_a, 1)
+    activity.sync_client_versions(neo4j_session, client, "account-a", 3)
     # Assert
     for label in (
         "ZoomRole",
@@ -174,8 +203,91 @@ def test_access_apps_activity_relationships_and_scoped_cleanup(
         "ZoomActivityEvent",
         "ZoomMeetingSession",
         "ZoomMeetingParticipant",
+        "ZoomClientVersion",
     ):
         assert check_nodes(neo4j_session, label, ["account_id"]) == {("account-b",)}
+
+
+def test_unfinished_dashboard_meeting_preserves_prior_snapshot(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    users = seed(neo4j_session, "account-a")
+    client = client_for()
+    activity.sync_dashboard(neo4j_session, client, "account-a", 1, users, 1)
+    before = check_nodes(neo4j_session, "ZoomMeetingParticipant", ["id", "lastupdated"])
+    healthy = client.get_paginated.side_effect
+    unread = requests.Response()
+    unread.status_code = 404
+    unread._content = (
+        b'{"code": 3001, "message": "Meeting ID is invalid or has not ended"}'
+    )
+
+    def pages(
+        path: str, key: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        if path.endswith("/participants"):
+            raise requests.HTTPError(response=unread)
+        return healthy(path, key, params)
+
+    client.get_paginated.side_effect = pages
+
+    # Act: Zoom cannot report participants for the listed meeting yet.
+    activity.sync_dashboard(neo4j_session, client, "account-a", 2, users, 1)
+
+    # Assert: nothing is written or pruned.
+    assert before
+    assert (
+        check_nodes(neo4j_session, "ZoomMeetingParticipant", ["id", "lastupdated"])
+        == before
+    )
+    assert check_nodes(neo4j_session, "ZoomMeetingSession", ["lastupdated"]) == {(1,)}
+
+    # Act: a later successful read returns an empty participant list.
+    client.get_paginated.side_effect = lambda path, key, params=None: (
+        [] if path.endswith("/participants") else healthy(path, key, params)
+    )
+    activity.sync_dashboard(neo4j_session, client, "account-a", 3, users, 1)
+
+    # Assert: the complete empty read prunes the old participants.
+    assert not check_nodes(neo4j_session, "ZoomMeetingParticipant", ["id"])
+    assert check_nodes(neo4j_session, "ZoomMeetingSession", ["lastupdated"]) == {(3,)}
+
+
+def test_deleted_app_detail_omits_only_that_app(neo4j_session: neo4j.Session) -> None:
+    # Arrange
+    seed(neo4j_session, "account-a")
+    client = client_for()
+    other = {**APP, "app_id": "app-2", "app_name": "Other"}
+    client.get_paginated.side_effect = lambda path, key, params=None: [
+        deepcopy(APP),
+        deepcopy(other),
+    ]
+    healthy = client.get.side_effect
+    client.get.side_effect = lambda path, params=None: (
+        {**APP_DETAIL, "app_id": "app-2"}
+        if path == "/marketplace/apps/app-2"
+        else healthy(path, params)
+    )
+    apps.sync(neo4j_session, client, "account-a", 1)
+    missing = requests.Response()
+    missing.status_code = 404
+    missing._content = b'{"code": 1401, "message": "APP ID does not exist"}'
+
+    def get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if path == "/marketplace/apps/app-1":
+            raise requests.HTTPError(response=missing)
+        return {**APP_DETAIL, "app_id": "app-2"}
+
+    client.get.side_effect = get
+
+    # Act: app-1 was deleted between the list and detail reads.
+    apps.sync(neo4j_session, client, "account-a", 2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "ZoomApp", ["id", "lastupdated"]) == {
+        ("account-a:app:app-2", 2)
+    }
 
 
 def test_denied_detail_preserves_existing_apps(neo4j_session: neo4j.Session) -> None:

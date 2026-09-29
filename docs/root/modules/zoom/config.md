@@ -104,7 +104,11 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
   app and verify the app owner's permissions.
 - **429**: Zoom's Users API has the `MEDIUM` rate-limit label. Requests retry
   up to three times, capping each `Retry-After` delay at eight seconds. A sustained
-  rate limit aborts the sync without deleting prior users; retry after the quota resets.
+  rate limit on the user inventory aborts the sync without deleting prior users;
+  on an optional section it preserves that section's data. Retry after the quota resets.
+- **403 with code 2306 on meetings**: Zoom documents this when **Display
+  meetings scheduled for others** is disabled in the account settings. The
+  affected host's meetings are preserved; other hosts still refresh.
 - **Incomplete/repeated pagination**: Retry the sync. Page tokens expire after
   15 minutes. Each status list has a safety limit of 10,000 pages; hitting it or
   receiving a truncated list aborts the sync before stale-user cleanup.
@@ -128,7 +132,7 @@ cartography --selected-modules zoom,ontology \
   --zoom-account-id "$ZOOM_ACCOUNT_ID" \
   --zoom-client-id "$ZOOM_CLIENT_ID" \
   --zoom-client-secret-env-var ZOOM_CLIENT_SECRET \
-  --zoom-sections groups,roles,settings,apps,meetings,recordings,reports,dashboard \
+  --zoom-sections groups,roles,settings,apps,meetings,recordings,reports,dashboard,client_versions \
   --zoom-lookback-days 7
 ```
 
@@ -139,12 +143,13 @@ activate it. All scopes below are read-only; write scopes are unnecessary.
 | --- | --- | --- |
 | `groups` | `group:read:list_groups:admin` | Pro or higher. Groups and memberships from the complete user inventory. |
 | `roles` | `role:read:list_roles:admin`, `role:read:role:admin` | Pro or higher. Common account roles, their privileges and group restrictions; primary user roles come from the user inventory. Select `groups` to link privilege restrictions to groups. |
-| `settings` | `account:read:settings:admin`, `account:read:lock_settings:admin`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls, including account and group lock flags. |
-| `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps and exact OAuth scope identifiers. This does not enumerate individual user installations. |
+| `settings` | `account:read:settings:admin`, `account:read:lock_settings:admin`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls, including account and group lock flags, private chat, recording auto-delete, waiting-room scope, and the account's 2FA group/role lists and inactivity sign-out periods. |
+| `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps, their developer type, and exact OAuth scope identifiers. This does not enumerate individual user installations, account-created apps or restricted apps. |
 | `meetings` | `meeting:read:list_meetings:admin`, `meeting:read:meeting:admin` | Unexpired scheduled meetings and recurring series of Basic/Licensed users. Instant meetings and per-occurrence exceptions are not included. |
 | `recordings` | `cloud_recording:read:list_user_recordings:admin`, `cloud_recording:read:recording_settings:admin` | Pro or higher with cloud recording enabled. Active Licensed users' recorded meeting instances and sharing/protection controls. The app's authorizing role must allow viewing recording content to read these settings. |
 | `reports` | `report:read:user_activities:admin`, `report:read:operation_logs:admin`, `report:read:meeting_activity_log:admin` | Pro or higher. Sign-in/out, administrative, and meeting audit metadata. Meeting audit trails must be enabled by Zoom Support. |
-| `dashboard` | `dashboard:read:list_meetings:admin`, `dashboard:read:list_meeting_participants:admin` | Business or higher. Past meeting instances, including single-participant meetings, with participant device category and client version where Zoom returns them. |
+| `dashboard` | `dashboard:read:list_meetings:admin`, `dashboard:read:list_meeting_participants:admin` | Business or higher. Past meeting instances, including single-participant meetings, with participant device category, client version and operating system where Zoom returns them. |
+| `client_versions` | `dashboard:read:client_versions:admin` | Business or higher with the Dashboard enabled. One account-wide count per client version; counts are not attributed to users or devices. |
 
 Settings are separate `configured` and `locked` snapshots. Locked values describe
 whether users can change a control; they are not enabled/disabled policy values.
@@ -165,15 +170,33 @@ may be withheld for external users; participant rows are observations, not a
 persistent device inventory. `ZoomUser.last_client_version` is the last login
 client reported by the Users API, not every client used by the account.
 
-Details are fetched with at most four workers, each with its own HTTP session.
-Settings use up to five reads per account, four per user/group, and two per locked
-account/group snapshot. Pagination is capped at 10,000 pages and the full sync at
-10,000 logical GET requests; each request retains the client's three-retry limit.
-Exceeding a limit fails the incomplete read instead of treating it as empty.
+Per-owner and per-item reads use at most four workers, each with its own HTTP
+session, pooled across all owners of a section. Settings use up to five reads per
+account, four per user/group, and two per locked account/group snapshot; all
+readable snapshots are written in one batch. Pagination is capped at 10,000 pages.
+
+`--zoom-request-limit` (default 100,000) caps logical GET requests per sync, and
+`--zoom-heavy-request-limit` (default 10,000) caps report and dashboard requests,
+which Zoom counts toward a daily limit shared by every app on the account. These
+are Cartography safeguards, not Zoom quotas. Each request keeps the client's
+three-retry limit. An optional section that reaches a limit, or is still rate
+limited after retries, stops further reads for that section, keeps its unread
+snapshots, and lets independent sections continue. The required user inventory
+still fails on a limit or sustained rate limit.
 
 A denied optional endpoint emits a warning and retains the affected snapshot.
 A recording whose sharing settings are still processing preserves its host's
-recording snapshot until a later sync. Existing recordings also remain when their
+prior recording snapshot until a later sync; other hosts still refresh and prune.
+Meetings and recordings belong to the account and link to their current host with
+`HOSTED_BY`. A stale meeting or recording is removed only when its last known host
+was read completely, or when that host is absent from the complete user
+inventory. A transfer keeps the resource identity and only the new host
+relationship. A resource moved to a host that cannot be read while its previous
+host is readable cannot be distinguished from a deletion and is removed until the
+new host is read. Documented not-found responses for a single meeting, role, app or
+settings owner affect only that item. If the dashboard reports a listed meeting
+as invalid or not yet ended, the whole dashboard snapshot is kept until a later
+complete read. Existing recordings also remain when their
 owner becomes inactive or loses a Licensed seat. Meetings are likewise preserved
 for pending users and users without a Basic/Licensed seat. Cleanup resumes after a
 successful read or removes the snapshot when the owner leaves the account. Successful independent sections and owners

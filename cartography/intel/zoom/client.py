@@ -17,15 +17,31 @@ API_URL = "https://api.zoom.us/v2"
 USERS_URL = f"{API_URL}/users"
 
 
+DEFAULT_REQUEST_LIMIT = 100000
+DEFAULT_HEAVY_REQUEST_LIMIT = 10000
+# Every report and dashboard endpoint in use has Zoom's Heavy or
+# Resource-intensive rate-limit label.
+HEAVY_PATH_PREFIXES = ("/report/", "/metrics/")
+
+
+class ZoomRequestLimitError(RuntimeError):
+    """The operator-configured logical request limit for one sync was reached."""
+
+
 @dataclass
 class RequestBudget:
-    remaining: int = 10000
+    """Operator-configured bound on logical GETs; not a Zoom provider quota."""
+
+    remaining: int = DEFAULT_REQUEST_LIMIT
+    name: str = "request"
     lock: Lock = field(default_factory=Lock)
 
     def consume(self) -> None:
         with self.lock:
             if self.remaining <= 0:
-                raise ValueError("Zoom sync exceeded its 10000-request safety limit")
+                raise ZoomRequestLimitError(
+                    f"Zoom sync reached its configured {self.name} limit"
+                )
             self.remaining -= 1
 
 
@@ -48,8 +64,14 @@ class ZoomClient:
         client_id: str,
         client_secret: str,
         budget: RequestBudget | None = None,
+        heavy_budget: RequestBudget | None = None,
     ) -> None:
         self.budget = budget if budget is not None else RequestBudget()
+        self.heavy_budget = (
+            heavy_budget
+            if heavy_budget is not None
+            else RequestBudget(DEFAULT_HEAVY_REQUEST_LIMIT, "heavy request")
+        )
         self.account_id = account_id
         self.auth = (client_id, client_secret)
         self.session = requests.Session()
@@ -87,8 +109,13 @@ class ZoomClient:
         self._expires_at = time.monotonic() + int(token["expires_in"]) - 60
 
     def fork(self) -> "ZoomClient":
-        """Give an enrichment worker its own session and the shared request budget."""
-        worker = ZoomClient(self.account_id, *self.auth, budget=self.budget)
+        """Give an enrichment worker its own session and the shared request budgets."""
+        worker = ZoomClient(
+            self.account_id,
+            *self.auth,
+            budget=self.budget,
+            heavy_budget=self.heavy_budget,
+        )
         worker._access_token = self._access_token
         worker._expires_at = self._expires_at
         return worker
@@ -109,6 +136,8 @@ class ZoomClient:
                 "Zoom API paths must be relative paths without query strings"
             )
         self.budget.consume()
+        if path.startswith(HEAVY_PATH_PREFIXES):
+            self.heavy_budget.consume()
         if time.monotonic() >= self._expires_at:
             self._refresh_token()
         # Refresh once on early revocation/expiry; a second 401 is fatal.

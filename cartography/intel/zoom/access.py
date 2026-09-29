@@ -1,18 +1,25 @@
+import logging
 from collections import defaultdict
 from typing import Any
 from urllib.parse import quote
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.models.zoom.group import ZoomGroupSchema
 from cartography.models.zoom.privilege import ZoomRolePrivilegeSchema
 from cartography.models.zoom.role import ZoomRoleSchema
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
+@timeit
 def sync_groups(
     session: neo4j.Session,
     client: ZoomClient,
@@ -47,6 +54,18 @@ def sync_groups(
     return groups
 
 
+def get_role(client: ZoomClient, role_id: str) -> dict[str, Any] | None:
+    try:
+        return client.get(f"/roles/{quote(role_id, safe='')}")
+    except requests.HTTPError as exc:
+        # Documented for a role deleted after the role list was read.
+        if is_zoom_error(exc, 400, 1034):
+            logger.warning("Zoom role no longer exists; omitting it from this sync")
+            return None
+        raise
+
+
+@timeit
 def sync_roles(
     session: neo4j.Session,
     client: ZoomClient,
@@ -64,12 +83,12 @@ def sync_roles(
     for user in users:
         if (role_id := user.get("role_id")) is not None:
             members[role_id].append(user["id"])
-    details = fetch_many(
-        client, [f"/roles/{quote(role['id'], safe='')}" for role in roles]
-    )
+    details = fetch_many(client, [role["id"] for role in roles], get_role)
     role_data = []
     privileges = []
-    for role, detail in zip(roles, details):
+    for role, detail in zip(roles, details, strict=True):
+        if detail is None:
+            continue
         node_id = f"{account_id}:role:{role['id']}"
         role_data.append(
             {

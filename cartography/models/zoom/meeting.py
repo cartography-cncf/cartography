@@ -10,7 +10,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
-from cartography.models.zoom.resource import ZoomUserResourceRel
 
 
 @dataclass(frozen=True)
@@ -104,11 +103,13 @@ class ZoomMeetingSchema(CartographyNodeSchema):
 
     Protection settings describe provider configuration, not verified public access.
     Meeting passcodes, join/start URLs, agendas and invitees are never ingested.
+    Cleanup is filtered by host (see ``cleanup_hosted``), not schema-wide: denied
+    or ineligible hosts keep their snapshots, and a transfer keeps one HOSTED_BY.
     """
 
     label: str = "ZoomMeeting"
     properties: ZoomMeetingNodeProperties = ZoomMeetingNodeProperties()
-    sub_resource_relationship: ZoomUserResourceRel = ZoomUserResourceRel()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ZoomAccountResourceRel(), ZoomMeetingToHostRel()]
+        [ZoomMeetingToHostRel()]
     )

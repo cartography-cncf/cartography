@@ -3,9 +3,12 @@ from typing import Any
 from urllib.parse import quote
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
 from cartography.models.zoom.settings import ZoomSecuritySettingsSchema
 from cartography.util import timeit
@@ -47,6 +50,13 @@ BOOLEAN_FIELDS = {
     ),
     "join_before_host": ("default", "schedule_meeting", "join_before_host"),
     "file_transfer": ("default", "in_meeting", "file_transfer"),
+    "private_chat": ("default", "in_meeting", "private_chat"),
+    # Account settings only; group and user responses do not expose it.
+    "allow_participants_to_rename": (
+        "default",
+        "in_meeting",
+        "allow_participants_to_rename",
+    ),
     "screen_sharing": ("default", "in_meeting", "screen_sharing"),
     "remote_control": ("default", "in_meeting", "remote_control"),
     "cloud_recording": ("default", "recording", "cloud_recording"),
@@ -78,7 +88,38 @@ BOOLEAN_FIELDS = {
         "recording",
         "allow_invitees_access_recordings_without_passcode",
     ),
+    # Account and user settings; account and group lock flags.
+    "auto_delete_cloud_recordings": ("default", "recording", "auto_delete_cmr"),
 }
+
+# Configured-only non-boolean values. Lock endpoints return flags, not values.
+INTEGER_FIELDS = {
+    "auto_delete_cloud_recordings_days": (
+        "default",
+        "recording",
+        "auto_delete_cmr_days",
+    ),
+    "waiting_room_scope": (
+        "meeting_security",
+        "waiting_room_settings",
+        "participants_to_place_in_waiting_room",
+    ),
+    "sign_again_period_for_inactivity_on_client": (
+        "security",
+        "sign_again_period_for_inactivity_on_client",
+    ),
+    "sign_again_period_for_inactivity_on_web": (
+        "security",
+        "sign_again_period_for_inactivity_on_web",
+    ),
+}
+# Returned only when sign_in_with_two_factor_auth is group or role.
+ID_LIST_FIELDS = {
+    "two_factor_auth_group_ids": ("security", "sign_in_with_two_factor_auth_groups"),
+    "two_factor_auth_role_ids": ("security", "sign_in_with_two_factor_auth_roles"),
+}
+# Documented codes for an owner deleted after the group or user list was read.
+MISSING_OWNER_CODES = {"group": 4130, "user": 1001}
 
 
 def get(
@@ -181,7 +222,47 @@ def transform(
         if value is not None and (not isinstance(value, str) or value not in allowed):
             raise ValueError(f"Zoom settings {field} has an unsupported value")
         result[field] = value
+
+    for field, path in INTEGER_FIELDS.items():
+        value = _value(data, path) if kind == "configured" else None
+        if value is not None and (
+            not isinstance(value, int) or isinstance(value, bool)
+        ):
+            raise ValueError(f"Zoom settings {field} must be an integer")
+        result[field] = value
+    for field, path in ID_LIST_FIELDS.items():
+        value = _value(data, path) if kind == "configured" else None
+        if value is not None and (
+            not isinstance(value, list)
+            or not all(isinstance(item, str) for item in value)
+        ):
+            raise ValueError(f"Zoom settings {field} must be a list of IDs")
+        result[field] = value
     return result
+
+
+def read(
+    client: ZoomClient,
+    owner: tuple[str, str, str, str],
+    unavailable: set[str],
+) -> dict[str, dict[str, Any]] | None:
+    scope_type, _, path, kind = owner
+    endpoint = "settings" if kind == "configured" else "lock_settings"
+
+    def fetch() -> dict[str, dict[str, Any]] | None:
+        try:
+            return get(client, f"{path}/{endpoint}", scope_type, kind)
+        except requests.HTTPError as exc:
+            code = MISSING_OWNER_CODES.get(scope_type)
+            if code is not None and is_zoom_error(exc, 404, code):
+                logger.warning(
+                    "Zoom %s no longer exists; preserving its settings until removed",
+                    scope_type,
+                )
+                return None
+            raise
+
+    return optional_call(f"{scope_type} {kind} settings", fetch, unavailable)
 
 
 @timeit
@@ -204,26 +285,37 @@ def sync(
         for user in users
         if user.get("zoom_id") and user["status"] != "pending"
     )
+    reads = [
+        (scope_type, scope_id, path, kind)
+        for scope_type, scope_id, path in owners
+        for kind in (
+            ("configured",) if scope_type == "user" else ("configured", "locked")
+        )
+    ]
     unavailable: set[str] = set()
-    for scope_type, scope_id, path in owners:
-        kinds = ("configured",) if scope_type == "user" else ("configured", "locked")
-        for kind in kinds:
-            endpoint = "settings" if kind == "configured" else "lock_settings"
-            responses = optional_call(
-                f"{scope_type} {kind} settings",
-                lambda: get(client, f"{path}/{endpoint}", scope_type, kind),
-                unavailable,
-            )
-            if responses is None:
-                continue
-            record = transform(responses, account_id, scope_type, scope_id, kind)
-            load(
-                neo4j_session,
-                ZoomSecuritySettingsSchema(),
-                [record],
-                lastupdated=update_tag,
-                ACCOUNT_ID=account_id,
-            )
-            # Each owner/kind has one stable node. load() clears absent properties;
-            # denied kinds never reach it. Removed groups and users take their
-            # settings with them during their own cleanup.
+    responses = fetch_many(
+        client, reads, lambda worker, owner: read(worker, owner, unavailable)
+    )
+    records = [
+        transform(response, account_id, scope_type, scope_id, kind)
+        for (scope_type, scope_id, _, kind), response in zip(
+            reads, responses, strict=True
+        )
+        if response is not None
+    ]
+    # Each owner/kind has one stable node. load() clears absent properties;
+    # unread owner/kinds are not loaded and keep their snapshots. Removed groups
+    # and users take their settings with them during their own cleanup.
+    load(
+        neo4j_session,
+        ZoomSecuritySettingsSchema(),
+        records,
+        lastupdated=update_tag,
+        ACCOUNT_ID=account_id,
+    )
+    if len(records) < len(reads):
+        logger.warning(
+            "Zoom settings: %d of %d owner snapshots were not read; preserving them.",
+            len(reads) - len(records),
+            len(reads),
+        )

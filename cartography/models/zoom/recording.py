@@ -10,7 +10,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
-from cartography.models.zoom.resource import ZoomUserResourceRel
 
 
 @dataclass(frozen=True)
@@ -124,15 +123,15 @@ class ZoomRecordingSchema(CartographyNodeSchema):
 
     Contains aggregate file metadata and sharing configuration, never recordings,
     transcripts, passcodes, or URLs. Links to a scheduled meeting when it is ingested.
-    Successful owner syncs expire records outside the rolling lookback window.
+    Completely read hosts expire records outside the rolling lookback window.
+    Cleanup is filtered by host (see ``cleanup_hosted``), not schema-wide.
     """
 
     label: str = "ZoomRecording"
     properties: ZoomRecordingNodeProperties = ZoomRecordingNodeProperties()
-    sub_resource_relationship: ZoomUserResourceRel = ZoomUserResourceRel()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            ZoomAccountResourceRel(),
             ZoomRecordingToHostRel(),
             ZoomRecordingToMeetingRel(),
         ]

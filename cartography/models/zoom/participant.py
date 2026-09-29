@@ -45,6 +45,16 @@ class ZoomMeetingParticipantProperties(CartographyNodeProperties):
         description="Dashboard version at the time of the meeting.",
         extra_index=True,
     )
+    os: PropertyRef = PropertyRef(
+        "os",
+        description="Dashboard participant operating system at the time of the meeting.",
+        extra_index=False,
+    )
+    os_version: PropertyRef = PropertyRef(
+        "os_version",
+        description="Dashboard participant operating system version at the time of the meeting.",
+        extra_index=False,
+    )
     join_time: PropertyRef = PropertyRef(
         "join_time",
         description="Dashboard join_time as native datetime.",

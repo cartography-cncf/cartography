@@ -10,6 +10,7 @@ ROLE_DETAIL = {
 APP = {
     "app_id": "app-1",
     "app_name": "Inventory",
+    "app_developer_type": "THIRD_PARTY",
     "approval_info": {"approved_type": "forAllUser", "app_approval_closed": False},
 }
 APP_DETAIL = {
@@ -53,4 +54,14 @@ PARTICIPANT = {
     "role": "host",
     "device": "Mac",
     "version": "6.1.0",
+    "os": "Mac",
+    "os_version": "15.0",
+    "ip_address": "192.0.2.1",
+    "pc_name": "synthetic-host-name",
+}
+CLIENT_VERSIONS = {
+    "client_versions": [
+        {"client_version": "mac_6.1.0", "total_count": 3},
+        {"client_version": "win_6.0.0", "total_count": 1},
+    ]
 }

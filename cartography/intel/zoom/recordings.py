@@ -6,12 +6,12 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
-from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.util import cleanup_hosted
 from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import encode_uuid
 from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
 from cartography.models.zoom.recording import ZoomRecordingSchema
@@ -24,37 +24,85 @@ def settings_path(uuid: str) -> str:
     return f"/meetings/{encode_uuid(uuid)}/recordings/settings"
 
 
-def get(
+def list_recordings(
     client: ZoomClient, host_id: str, lookback_days: int
 ) -> list[dict[str, Any]] | None:
+    """Return a host's cloud recordings in the window, or None if not read."""
     recordings: dict[str, dict[str, Any]] = {}
-    for window in date_windows(lookback_days):
-        for recording in client.get_paginated(
-            f"/users/{quote(host_id, safe='')}/recordings",
-            "meetings",
-            params={**window, "recording_source_type": "cloud_recording_only"},
-        ):
-            recordings[recording["uuid"]] = recording
     try:
-        settings = fetch_many(client, [settings_path(uuid) for uuid in recordings])
+        for window in date_windows(lookback_days):
+            for recording in client.get_paginated(
+                f"/users/{quote(host_id, safe='')}/recordings",
+                "meetings",
+                params={**window, "recording_source_type": "cloud_recording_only"},
+            ):
+                recordings[recording["uuid"]] = recording
     except requests.HTTPError as exc:
-        response = exc.response
-        if response is None or response.status_code != 404:
-            raise
-        try:
-            code = response.json().get("code")
-        except requests.exceptions.JSONDecodeError:
-            raise exc
-        if code != 3301:
-            raise
-        logger.warning(
-            "Zoom recording is still processing (HTTP 404, code 3301); preserving this host's prior recording snapshot."
-        )
-        return None
+        # Documented when the user left after the user inventory was read.
+        if is_zoom_error(exc, 404, 1001):
+            logger.warning("Zoom recording host no longer exists; preserving its data")
+            return None
+        raise
+    return list(recordings.values())
+
+
+def get_settings(client: ZoomClient, uuid: str) -> dict[str, Any] | None:
+    """Return sharing settings, or None while Zoom is still processing the recording."""
+    try:
+        return client.get(settings_path(uuid))
+    except requests.HTTPError as exc:
+        if is_zoom_error(exc, 404, 3301):
+            logger.warning(
+                "Zoom recording is still processing (HTTP 404, code 3301); preserving its host's prior recording snapshot."
+            )
+            return None
+        raise
+
+
+def get(
+    client: ZoomClient,
+    host_ids: list[str],
+    lookback_days: int,
+    unavailable: set[str],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return recordings with settings and the hosts whose inventories were complete."""
+    listed = fetch_many(
+        client,
+        host_ids,
+        lambda worker, host_id: optional_call(
+            "recordings",
+            lambda: list_recordings(worker, host_id, lookback_days),
+            unavailable,
+        ),
+    )
+    recordings = {
+        recording["uuid"]: recording
+        for items in listed
+        if items is not None
+        for recording in items
+    }
+    settings = fetch_many(
+        client,
+        list(recordings),
+        lambda worker, uuid: optional_call(
+            "recordings", lambda: get_settings(worker, uuid), unavailable
+        ),
+    )
+    unread = {
+        uuid
+        for uuid, setting in zip(recordings, settings, strict=True)
+        if setting is None
+    }
+    readable = [
+        host_id
+        for host_id, items in zip(host_ids, listed, strict=True)
+        if items is not None and unread.isdisjoint(item["uuid"] for item in items)
+    ]
     return [
         {**recording, "settings": setting}
         for recording, setting in zip(recordings.values(), settings, strict=True)
-    ]
+        if setting is not None
+    ], readable
 
 
 def transform(
@@ -107,45 +155,34 @@ def sync(
     users: list[dict[str, Any]],
     lookback_days: int = 7,
 ) -> None:
-    readable_owners = []
+    # Inactive users and users without a Licensed seat are not read; existing
+    # recordings keep the prior snapshot until read or the owner leaves.
+    host_ids = [
+        user["zoom_id"]
+        for user in users
+        if user.get("zoom_id") and user["status"] == "active" and user["type"] == 2
+    ]
     unavailable: set[str] = set()
-    for user in users:
-        # Ineligible or unreadable owners keep their prior snapshot.
-        if not user.get("zoom_id") or user["status"] != "active" or user["type"] != 2:
-            continue
-        host_id = user["zoom_id"]
-        raw = optional_call(
-            "recordings", lambda: get(client, host_id, lookback_days), unavailable
-        )
-        if raw is None:
-            continue
-        load(
-            neo4j_session,
-            ZoomRecordingSchema(),
-            transform(raw, account_id),
-            ACCOUNT_ID=account_id,
-            OWNER_ID=user["id"],
-            lastupdated=update_tag,
-        )
-        readable_owners.append(user["id"])
-    # A fresh report supersedes stale claims by other owners, e.g. a transfer
-    # while the prior host was unreadable; otherwise that host's later cleanup
-    # would delete the resource even if its current host is then denied.
-    run_write_query(
+    recordings, readable = get(client, host_ids, lookback_days, unavailable)
+    load(
         neo4j_session,
-        """
-        MATCH (:ZoomAccount {id: $ACCOUNT_ID})-[:RESOURCE]->(n:ZoomRecording)<-[r:RESOURCE]-(:ZoomUser)
-        WHERE n.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
-        DELETE r
-        """,
+        ZoomRecordingSchema(),
+        transform(recordings, account_id),
         ACCOUNT_ID=account_id,
-        UPDATE_TAG=update_tag,
+        lastupdated=update_tag,
     )
-    # Finish all readable owners before pruning, preserving identity on host
-    # transfers. Removed users' snapshots are deleted with the user.
-    for owner_id in readable_owners:
-        GraphJob.from_node_schema(
-            ZoomRecordingSchema(),
-            {"OWNER_ID": owner_id, "UPDATE_TAG": update_tag},
-            iterationsize=1000,
-        ).run(neo4j_session)
+    if len(readable) < len(host_ids):
+        logger.warning(
+            "Zoom recordings: %d of %d eligible hosts were not completely read; preserving their prior recordings.",
+            len(host_ids) - len(readable),
+            len(host_ids),
+        )
+    # Successful hosts also expire recordings that left the rolling window.
+    cleanup_hosted(
+        neo4j_session,
+        "ZoomRecording",
+        account_id,
+        update_tag,
+        readable,
+        [user["zoom_id"] for user in users if user.get("zoom_id")],
+    )

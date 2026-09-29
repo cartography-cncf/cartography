@@ -139,11 +139,8 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
         for account in ("account-a", "account-b")
         for i in (1, 2)
     }
-    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
-        (f"{account}:user:user-{i}", f"{account}:{suffix}{i}")
-        for account in ("account-a", "account-b")
-        for i in (1, 2)
-    }
+    # Hosts are business relationships; the account is the only sub-resource.
+    assert not check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE")
     if module is recordings:
         assert check_rels(
             neo4j_session, label, "id", "ZoomMeeting", "id", "RECORDED_FROM"
@@ -407,15 +404,14 @@ def test_host_transfer_preserves_identity_and_replaces_host_relationship(
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
         (f"{account}:{suffix}", f"{account}:user:user-2")
     }
-    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
-        (f"{account}:user:user-2", f"{account}:{suffix}")
-    }
+    assert not check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE")
 
 
 def transfer_client(
     module: ModuleType, listing_owner: str | None, denied_owner: str | None
 ) -> MagicMock:
     client = MagicMock(spec=ZoomClient)
+    client.session = MagicMock()
     client.fork.return_value = client
     raw = {**(MEETING if module is meetings else RECORDING), "uuid": "instance-1"}
 
@@ -462,7 +458,9 @@ def test_transfer_while_prior_host_denied_survives_current_host_denial(
         users(account),
     )
     suffix = "meeting:12345678901" if module is meetings else "recording:instance-1"
-    # The resource moves to user-2 while user-1 is unreadable.
+    before = check_nodes(neo4j_session, label, ["id", "firstseen"])
+
+    # Act: the resource moves to user-2 while user-1 is unreadable.
     module.sync(
         neo4j_session,
         transfer_client(module, "user-2", "user-1"),
@@ -470,6 +468,12 @@ def test_transfer_while_prior_host_denied_survives_current_host_denial(
         2,
         users(account),
     )
+
+    # Assert: the current report replaces the prior host relationship.
+    assert check_nodes(neo4j_session, label, ["id", "firstseen"]) == before
+    assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
+        (f"{account}:{suffix}", f"{account}:user:user-2")
+    }
 
     # Act: user-1 is readable and empty; the current host user-2 is denied.
     module.sync(
@@ -487,9 +491,212 @@ def test_transfer_while_prior_host_denied_survives_current_host_denial(
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
         (f"{account}:{suffix}", f"{account}:user:user-2")
     }
-    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
-        (f"{account}:user:user-2", f"{account}:{suffix}")
-    }
+    assert not check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE")
     assert check_rels(neo4j_session, "ZoomAccount", "id", label, "id", "RESOURCE") == {
         (account, f"{account}:{suffix}")
+    }
+
+
+def many_transfer_client(module: ModuleType, count: int) -> MagicMock:
+    client = MagicMock(spec=ZoomClient)
+    client.session = MagicMock()
+    client.fork.return_value = client
+    fixture = MEETING if module is meetings else RECORDING
+    raw = [
+        {**fixture, "id": number, "uuid": f"instance-{number}", "host_id": "user-2"}
+        for number in range(1, count + 1)
+    ]
+
+    def get_paginated(path: str, key: str, params: Any = None) -> list[dict[str, Any]]:
+        if path.startswith("/users/user-1/"):
+            response = requests.Response()
+            response.status_code = 403
+            response._content = json.dumps({"code": 200}).encode()
+            raise requests.HTTPError(response=response)
+        return raw
+
+    def get(path: str, params: Any = None) -> dict[str, Any]:
+        if path.endswith("settings"):
+            return RECORDING_SETTINGS
+        return {**MEETING, "id": int(path.rsplit("/", 1)[1]), "host_id": "user-2"}
+
+    client.get_paginated.side_effect = get_paginated
+    client.get.side_effect = get
+    return client
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
+)
+def test_bulk_transfer_replaces_host_relationships_across_batches(
+    neo4j_session: neo4j.Session, module: ModuleType, label: str
+) -> None:
+    # Arrange: user-1 hosts more resources than one cleanup batch.
+    account = "account-a"
+    count = 1002
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    raw = [
+        {
+            **(MEETING if module is meetings else RECORDING),
+            "id": number,
+            "uuid": f"instance-{number}",
+            "host_id": "user-1",
+            "settings": (
+                MEETING["settings"] if module is meetings else RECORDING_SETTINGS
+            ),
+        }
+        for number in range(1, count + 1)
+    ]
+    schema = ZoomMeetingSchema() if module is meetings else ZoomRecordingSchema()
+    load(
+        neo4j_session,
+        schema,
+        module.transform(raw, account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+
+    # Act: every resource moved to user-2 while user-1 is denied.
+    module.sync(
+        neo4j_session, many_transfer_client(module, count), account, 2, users(account)
+    )
+
+    # Assert: each current resource has only its new host relationship.
+    hosts = check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY")
+    assert hosts is not None
+    assert len(hosts) == count
+    assert {host for _, host in hosts} == {f"{account}:user:user-2"}
+    assert check_nodes(neo4j_session, label, ["lastupdated"]) == {(2,)}
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
+)
+def test_host_missing_after_user_inventory_is_preserved_until_removed(
+    neo4j_session: neo4j.Session, module: ModuleType, label: str
+) -> None:
+    # Arrange
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    module.sync(neo4j_session, client_for(), account, 1, users(account))
+    client = client_for()
+    healthy = client.get_paginated.side_effect
+
+    def get_paginated(path: str, key: str, params: Any = None) -> list[dict[str, Any]]:
+        if path.startswith("/users/user-1/"):
+            response = requests.Response()
+            response.status_code = 404
+            response._content = json.dumps({"code": 1001}).encode()
+            raise requests.HTTPError(response=response)
+        return healthy(path, key, params)
+
+    client.get_paginated.side_effect = get_paginated
+    suffix = "meeting:1234567890" if module is meetings else "recording:instance-"
+
+    # Act: user-1 left after the user inventory was read.
+    module.sync(neo4j_session, client, account, 2, users(account))
+
+    # Assert: the peer refreshes and the missing host is not pruned yet.
+    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
+        (f"{account}:{suffix}1", 1),
+        (f"{account}:{suffix}2", 2),
+    }
+
+    # Act: the next complete user inventory no longer contains user-1.
+    module.sync(neo4j_session, client, account, 3, users(account)[1:])
+
+    # Assert
+    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
+        (f"{account}:{suffix}2", 3)
+    }
+
+
+def test_deleted_meeting_detail_skips_only_that_meeting(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    meetings.sync(neo4j_session, client_for(), account, 1, users(account))
+    client = client_for()
+    healthy = client.get.side_effect
+
+    def get(path: str, params: Any = None) -> dict[str, Any]:
+        if path == "/meetings/12345678901":
+            response = requests.Response()
+            response.status_code = 404
+            response._content = json.dumps({"code": 3001}).encode()
+            raise requests.HTTPError(response=response)
+        return healthy(path, params)
+
+    client.get.side_effect = get
+
+    # Act: user-1's meeting was deleted between listing and detail reads.
+    meetings.sync(neo4j_session, client, account, 2, users(account))
+
+    # Assert: the deleted meeting leaves; the peer host's meeting refreshes.
+    assert check_nodes(neo4j_session, "ZoomMeeting", ["id", "lastupdated"]) == {
+        (f"{account}:meeting:12345678902", 2)
+    }
+
+
+def test_meeting_display_denial_is_local_to_the_denied_host(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    meetings.sync(neo4j_session, client_for(), account, 1, users(account))
+    client = client_for()
+
+    def get_paginated(path: str, key: str, params: Any = None) -> list[dict[str, Any]]:
+        if path.startswith("/users/user-1/"):
+            response = requests.Response()
+            response.status_code = 403
+            response._content = json.dumps(
+                {"code": 2306, "message": "Not allowed to view meetings"}
+            ).encode()
+            raise requests.HTTPError(response=response)
+        return []
+
+    client.get_paginated.side_effect = get_paginated
+
+    # Act: user-1 is denied first; user-2 is readable and now empty.
+    meetings.sync(neo4j_session, client, account, 2, users(account))
+
+    # Assert: the healthy host is still read and pruned; the denied host is kept.
+    assert {c.args[0] for c in client.get_paginated.call_args_list} == {
+        "/users/user-1/meetings",
+        "/users/user-2/meetings",
+    }
+    assert check_nodes(neo4j_session, "ZoomMeeting", ["id", "lastupdated"]) == {
+        (f"{account}:meeting:12345678901", 1)
     }

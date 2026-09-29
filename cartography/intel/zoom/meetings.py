@@ -1,27 +1,85 @@
+import logging
 from typing import Any
 from urllib.parse import quote
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
-from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.util import cleanup_hosted
 from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
 from cartography.models.zoom.meeting import ZoomMeetingSchema
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
 
-def get(client: ZoomClient, host_id: str) -> list[dict[str, Any]]:
-    meetings = client.get_paginated(
-        f"/users/{quote(host_id, safe='')}/meetings",
-        "meetings",
-        params={"type": "scheduled"},
+
+def list_meeting_ids(client: ZoomClient, host_id: str) -> list[int] | None:
+    """Return a host's scheduled meeting IDs, or None if the host was not read."""
+    try:
+        meetings = client.get_paginated(
+            f"/users/{quote(host_id, safe='')}/meetings",
+            "meetings",
+            params={"type": "scheduled"},
+        )
+    except requests.HTTPError as exc:
+        # Documented when the user left after the user inventory was read.
+        if is_zoom_error(exc, 404, 1001):
+            logger.warning("Zoom meeting host no longer exists; preserving its data")
+            return None
+        raise
+    return list(dict.fromkeys(int(item["id"]) for item in meetings))
+
+
+def get_meeting(client: ZoomClient, meeting_id: int) -> dict[str, Any]:
+    """Return meeting details; an empty result means Zoom reports it deleted."""
+    try:
+        return client.get(f"/meetings/{meeting_id}")
+    except requests.HTTPError as exc:
+        # Documented for a meeting deleted after its host's list was read.
+        if is_zoom_error(exc, 404, 3001):
+            return {}
+        raise
+
+
+def get(
+    client: ZoomClient, host_ids: list[str], unavailable: set[str]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return meeting details and the hosts whose inventories were completely read."""
+    listed = fetch_many(
+        client,
+        host_ids,
+        lambda worker, host_id: optional_call(
+            "meetings", lambda: list_meeting_ids(worker, host_id), unavailable
+        ),
     )
-    paths = list(dict.fromkeys(f"/meetings/{int(item['id'])}" for item in meetings))
-    return fetch_many(client, paths)
+    meeting_ids = list(
+        dict.fromkeys(
+            meeting_id for ids in listed if ids is not None for meeting_id in ids
+        )
+    )
+    details = fetch_many(
+        client,
+        meeting_ids,
+        lambda worker, meeting_id: optional_call(
+            "meetings", lambda: get_meeting(worker, meeting_id), unavailable
+        ),
+    )
+    denied = {
+        meeting_id
+        for meeting_id, detail in zip(meeting_ids, details, strict=True)
+        if detail is None
+    }
+    readable = [
+        host_id
+        for host_id, ids in zip(host_ids, listed, strict=True)
+        if ids is not None and denied.isdisjoint(ids)
+    ]
+    return [detail for detail in details if detail], readable
 
 
 def transform(meetings: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
@@ -65,47 +123,35 @@ def sync(
     update_tag: int,
     users: list[dict[str, Any]],
 ) -> None:
-    readable_owners = []
+    # Pending users and users without a Basic/Licensed seat are not read; their
+    # meetings keep the prior snapshot until they are read or leave the account.
+    host_ids = [
+        user["zoom_id"]
+        for user in users
+        if user.get("zoom_id")
+        and user["status"] != "pending"
+        and user["type"] in (1, 2)
+    ]
     unavailable: set[str] = set()
-    for user in users:
-        # Ineligible or unreadable owners keep their prior snapshot.
-        if (
-            not user.get("zoom_id")
-            or user["status"] == "pending"
-            or user["type"] not in (1, 2)
-        ):
-            continue
-        host_id = user["zoom_id"]
-        raw = optional_call("meetings", lambda: get(client, host_id), unavailable)
-        if raw is None:
-            continue
-        load(
-            neo4j_session,
-            ZoomMeetingSchema(),
-            transform(raw, account_id),
-            ACCOUNT_ID=account_id,
-            OWNER_ID=user["id"],
-            lastupdated=update_tag,
-        )
-        readable_owners.append(user["id"])
-    # A fresh report supersedes stale claims by other owners, e.g. a transfer
-    # while the prior host was unreadable; otherwise that host's later cleanup
-    # would delete the resource even if its current host is then denied.
-    run_write_query(
+    meetings, readable = get(client, host_ids, unavailable)
+    load(
         neo4j_session,
-        """
-        MATCH (:ZoomAccount {id: $ACCOUNT_ID})-[:RESOURCE]->(n:ZoomMeeting)<-[r:RESOURCE]-(:ZoomUser)
-        WHERE n.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
-        DELETE r
-        """,
+        ZoomMeetingSchema(),
+        transform(meetings, account_id),
         ACCOUNT_ID=account_id,
-        UPDATE_TAG=update_tag,
+        lastupdated=update_tag,
     )
-    # Finish all readable owners before pruning, preserving identity on host
-    # transfers. Removed users' snapshots are deleted with the user.
-    for owner_id in readable_owners:
-        GraphJob.from_node_schema(
-            ZoomMeetingSchema(),
-            {"OWNER_ID": owner_id, "UPDATE_TAG": update_tag},
-            iterationsize=1000,
-        ).run(neo4j_session)
+    if len(readable) < len(host_ids):
+        logger.warning(
+            "Zoom meetings: %d of %d eligible hosts were not completely read; preserving their prior meetings.",
+            len(host_ids) - len(readable),
+            len(host_ids),
+        )
+    cleanup_hosted(
+        neo4j_session,
+        "ZoomMeeting",
+        account_id,
+        update_tag,
+        readable,
+        [user["zoom_id"] for user in users if user.get("zoom_id")],
+    )
