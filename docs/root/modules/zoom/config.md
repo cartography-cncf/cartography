@@ -139,7 +139,7 @@ activate it. All scopes below are read-only; write scopes are unnecessary.
 | --- | --- | --- |
 | `groups` | `group:read:list_groups:admin` | Pro or higher. Groups and memberships from the complete user inventory. |
 | `roles` | `role:read:list_roles:admin`, `role:read:role:admin` | Pro or higher. Common account roles, their privileges and group restrictions; primary user roles come from the user inventory. Select `groups` to link privilege restrictions to groups. |
-| `settings` | `account:read:settings:admin`, `account:read:lock_settings:master`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls. Account locked settings additionally require Zoom's master/sub-account capability; an ordinary Business account may be denied. |
+| `settings` | `account:read:settings:admin`, `account:read:lock_settings:admin`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls, including account and group lock flags. |
 | `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps and exact OAuth scope identifiers. This does not enumerate individual user installations. |
 | `meetings` | `meeting:read:list_meetings:admin`, `meeting:read:meeting:admin` | Unexpired scheduled meetings and recurring series of Basic/Licensed users. Instant meetings and per-occurrence exceptions are not included. |
 | `recordings` | `cloud_recording:read:list_user_recordings:admin`, `cloud_recording:read:recording_settings:admin` | Pro or higher with cloud recording enabled. Active Licensed users' recorded meeting instances and sharing/protection controls. The app's authorizing role must allow viewing recording content to read these settings. |
@@ -172,7 +172,9 @@ account/group snapshot. Pagination is capped at 10,000 pages and the full sync a
 Exceeding a limit fails the incomplete read instead of treating it as empty.
 
 A denied optional endpoint emits a warning and retains the affected snapshot.
-Successful independent sections and owners can still refresh. Credential failures,
+A recording whose sharing settings are still processing preserves its host's
+recording snapshot until a later sync. Successful independent sections and owners
+can still refresh. Credential failures,
 server errors, and incomplete pagination fail explicitly. Stale cleanup requires
 a complete read for the relevant account, owner, or report. Review warnings as well
 as the process exit status when assessing coverage.

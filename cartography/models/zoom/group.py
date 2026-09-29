@@ -14,10 +14,13 @@ from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 @dataclass(frozen=True)
 class ZoomGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", description="Account-scoped Zoom group ID.")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     zoom_id: PropertyRef = PropertyRef(
         "zoom_id", description="Group id.", extra_index=False

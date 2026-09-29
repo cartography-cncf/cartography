@@ -18,7 +18,10 @@ class ZoomSecuritySettingsNodeProperties(CartographyNodeProperties):
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     scope_type: PropertyRef = PropertyRef(
         "scope_type", description="Owner type: account, group, or user."

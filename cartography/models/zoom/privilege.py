@@ -14,10 +14,15 @@ from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 @dataclass(frozen=True)
 class ZoomRolePrivilegeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Account-scoped role ID and privilege identifier."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     privilege: PropertyRef = PropertyRef(
         "privilege", description="Role privileges entry.", extra_index=True

@@ -1,7 +1,9 @@
+import logging
 from typing import Any
 from urllib.parse import quote
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.statement import GraphStatement
@@ -13,6 +15,8 @@ from cartography.intel.zoom.util import parse_datetime
 from cartography.models.zoom.recording import ZoomRecordingSchema
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
+
 
 def settings_path(uuid: str) -> str:
     # Zoom requires a second encoding for UUIDs starting with / or containing //.
@@ -22,7 +26,9 @@ def settings_path(uuid: str) -> str:
     return f"/meetings/{encoded}/recordings/settings"
 
 
-def get(client: ZoomClient, host_id: str, lookback_days: int) -> list[dict[str, Any]]:
+def get(
+    client: ZoomClient, host_id: str, lookback_days: int
+) -> list[dict[str, Any]] | None:
     recordings: dict[str, dict[str, Any]] = {}
     for window in date_windows(lookback_days):
         for recording in client.get_paginated(
@@ -31,7 +37,22 @@ def get(client: ZoomClient, host_id: str, lookback_days: int) -> list[dict[str, 
             params={**window, "recording_source_type": "cloud_recording_only"},
         ):
             recordings[recording["uuid"]] = recording
-    settings = fetch_many(client, [settings_path(uuid) for uuid in recordings])
+    try:
+        settings = fetch_many(client, [settings_path(uuid) for uuid in recordings])
+    except requests.HTTPError as exc:
+        response = exc.response
+        if response is None or response.status_code != 404:
+            raise
+        try:
+            code = response.json().get("code")
+        except requests.exceptions.JSONDecodeError:
+            raise exc
+        if code != 3301:
+            raise
+        logger.warning(
+            "Zoom recording is still processing (HTTP 404, code 3301); preserving this host's prior recording snapshot."
+        )
+        return None
     return [
         {**recording, "settings": setting}
         for recording, setting in zip(recordings.values(), settings, strict=True)

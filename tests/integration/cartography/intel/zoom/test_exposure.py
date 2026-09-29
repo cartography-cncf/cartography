@@ -257,3 +257,57 @@ def test_cleanup_exhausts_multiple_batches(
 
     # Assert
     assert check_nodes(neo4j_session, label, ["id"]) == set()
+
+
+@pytest.mark.parametrize("code", [3301, 3001])  # type: ignore[misc]
+def test_processing_recording_preserves_owner_and_continues_only_for_known_error(
+    neo4j_session: neo4j.Session, code: int
+) -> None:
+    # Arrange
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    recordings.sync(neo4j_session, client_for(), account, 1, users(account))
+    client = client_for()
+
+    def get(path: str, params: Any = None) -> dict[str, Any]:
+        if path == "/meetings/instance-1/recordings/settings":
+            response = requests.Response()
+            response.status_code = 404
+            response._content = json.dumps({"code": code}).encode()
+            raise requests.HTTPError(response=response)
+        return RECORDING_SETTINGS
+
+    client.get.side_effect = get
+
+    # Act: processing is recoverable, other missing-recording errors remain fatal.
+    if code == 3301:
+        recordings.sync(neo4j_session, client, account, 2, users(account))
+    else:
+        with pytest.raises(requests.HTTPError):
+            recordings.sync(neo4j_session, client, account, 2, users(account))
+
+    # Assert: the failed owner's posture and relationships remain unchanged.
+    assert check_nodes(
+        neo4j_session,
+        "ZoomRecording",
+        ["id", "lastupdated", "password_protected", "share_recording"],
+    ) == {
+        ("account-a:recording:instance-1", 1, True, "publicly"),
+        ("account-a:recording:instance-2", 2 if code == 3301 else 1, True, "publicly"),
+    }
+    assert check_rels(
+        neo4j_session, "ZoomAccount", "id", "ZoomRecording", "id", "RESOURCE"
+    ) == {(account, f"account-a:recording:instance-{i}") for i in (1, 2)}
+    assert check_rels(
+        neo4j_session, "ZoomRecording", "id", "ZoomUser", "id", "HOSTED_BY"
+    ) == {
+        (f"account-a:recording:instance-{i}", f"account-a:user:user-{i}")
+        for i in (1, 2)
+    }

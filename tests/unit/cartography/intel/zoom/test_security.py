@@ -25,7 +25,7 @@ def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> N
         raise requests.HTTPError(response=response(status, {"code": code}))
 
     # Act and assert
-    for status, code in ((403, 0), (400, 200), (400, 4700)):
+    for status, code in ((403, 0), (400, 200), (400, 4700), (400, 4711)):
         assert optional_call("roles", lambda: failure(status, code)) is None
     for status, code in ((401, 124), (400, 124), (500, 0), (429, 0)):
         with pytest.raises(requests.HTTPError):
