@@ -4,6 +4,7 @@ from urllib.parse import quote
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import fetch_many
@@ -87,6 +88,19 @@ def sync(
             lastupdated=update_tag,
         )
         readable_owners.append(user["id"])
+    # A fresh report supersedes stale claims by other owners, e.g. a transfer
+    # while the prior host was unreadable; otherwise that host's later cleanup
+    # would delete the resource even if its current host is then denied.
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:ZoomAccount {id: $ACCOUNT_ID})-[:RESOURCE]->(n:ZoomMeeting)<-[r:RESOURCE]-(:ZoomUser)
+        WHERE n.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        ACCOUNT_ID=account_id,
+        UPDATE_TAG=update_tag,
+    )
     # Finish all readable owners before pruning, preserving identity on host
     # transfers. Removed users' snapshots are deleted with the user.
     for owner_id in readable_owners:
