@@ -302,6 +302,13 @@ def test_report_cleanup_batches_preserve_denied_sources_and_other_accounts(
         ("account-b", "meeting_audit", 1),
     }
     assert len(check_nodes(neo4j_session, "ZoomActivityEvent", ["id"]) or set()) == 5
+    # Each report has its own label, which scopes its cleanup.
+    for label, source in (
+        ("ZoomSignInEvent", "signins"),
+        ("ZoomOperationEvent", "operations"),
+        ("ZoomMeetingAuditEvent", "meeting_audit"),
+    ):
+        assert check_nodes(neo4j_session, label, ["source"]) == {(source,)}
     assert (
         len(
             check_rels(

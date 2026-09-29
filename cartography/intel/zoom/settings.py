@@ -225,5 +225,5 @@ def sync(
                 ACCOUNT_ID=account_id,
             )
             # Each owner/kind has one stable node. load() clears absent properties;
-            # denied kinds never reach it. Deleted owners are cleaned up separately
-            # only after their complete inventory is available.
+            # denied kinds never reach it. Removed groups and users take their
+            # settings with them during their own cleanup.

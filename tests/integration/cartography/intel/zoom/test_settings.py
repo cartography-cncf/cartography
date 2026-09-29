@@ -171,7 +171,7 @@ def test_settings_preserve_denied_kind_and_isolate_accounts(
     assert "synthetic-secret" not in str(settings)
 
 
-def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
+def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
     neo4j_session: neo4j.Session,
 ) -> None:
     # Arrange
@@ -239,8 +239,32 @@ def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
             """,
         )
     }
-    # Seed an orphan backlog left after user/group removal; no provider calls or
-    # internal cleanup mocks are needed to create this prerequisite graph state.
+    # Seed owners that have since left the account, each with a settings snapshot.
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        [
+            {"id": f"account-one:user:absent-{i}", "email": f"absent-{i}@example.com"}
+            for i in range(1001)
+        ],
+        ACCOUNT_ID="account-one",
+        lastupdated=1,
+    )
+    load(
+        neo4j_session,
+        ZoomGroupSchema(),
+        [
+            {
+                "id": f"account-one:group:absent-{i}",
+                "zoom_id": f"absent-{i}",
+                "name": f"Absent {i}",
+                "member_ids": [],
+            }
+            for i in range(1001)
+        ],
+        ACCOUNT_ID="account-one",
+        lastupdated=1,
+    )
     load(
         neo4j_session,
         ZoomSecuritySettingsSchema(),
@@ -250,29 +274,13 @@ def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
                 "scope_type": scope,
                 "scope_id": f"absent-{i}",
                 "kind": "configured",
+                f"{scope}_owner_id": f"account-one:{scope}:absent-{i}",
             }
             for scope in ("user", "group")
             for i in range(1001)
         ],
         ACCOUNT_ID="account-one",
         lastupdated=1,
-    )
-    # Authoritative owner removal also deletes orphan settings written with the
-    # current tag, rather than retaining them because they look freshly updated.
-    load(
-        neo4j_session,
-        ZoomSecuritySettingsSchema(),
-        [
-            {
-                "id": f"account-one:settings:{scope}:absent-current-tag:configured",
-                "scope_type": scope,
-                "scope_id": "absent-current-tag",
-                "kind": "configured",
-            }
-            for scope in ("user", "group")
-        ],
-        ACCOUNT_ID="account-one",
-        lastupdated=2,
     )
     deny_current_user = True
     configs[0].update_tag = 2
@@ -308,3 +316,20 @@ def test_ingestion_batches_orphans_without_deleting_current_denied_settings(
         )
         for account in ("account-one", "account-two")
     }
+    for label, scope in (("ZoomUser", "user"), ("ZoomGroup", "group")):
+        assert check_nodes(neo4j_session, label, ["id"]) == {
+            (f"{account}:{scope}:current-{scope}",)
+            for account in ("account-one", "account-two")
+        }
+        assert check_rels(
+            neo4j_session, label, "id", "ZoomSecuritySettings", "id", "RESOURCE"
+        ) == {
+            (
+                f"{account}:{scope}:current-{scope}",
+                f"{account}:settings:{scope}:current-{scope}:{kind}",
+            )
+            for account in ("account-one", "account-two")
+            for kind in (
+                ("configured",) if scope == "user" else ("configured", "locked")
+            )
+        }
