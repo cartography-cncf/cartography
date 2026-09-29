@@ -95,14 +95,14 @@ class JiraClient:
                 maxResults=1000 if path == "users/search" else 50,
                 **params,
             )
+            values = page if path == "users/search" else page["values"]
+            # An empty object must not masquerade as an empty inventory.
+            if not isinstance(values, list):
+                raise ValueError("Jira page values must be an array")
             if path == "users/search":
-                if not isinstance(page, list):
-                    raise ValueError("Jira users response must be an array")
-                values = page
                 # This endpoint has no pagination metadata and may cap page size.
                 done = not values
             else:
-                values = page["values"]
                 if page["startAt"] != start:
                     raise ValueError(
                         "Jira pagination did not advance to the requested offset"
@@ -118,10 +118,6 @@ class JiraClient:
                     )
                 if not values and not done:
                     raise ValueError("Jira returned an incomplete empty page")
-            if not isinstance(values, list) or any(
-                not isinstance(v, dict) for v in values
-            ):
-                raise ValueError("Jira page values must be objects")
             if values and values == previous:
                 raise ValueError("Jira returned a repeated page")
             result.extend(values)

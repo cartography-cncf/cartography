@@ -87,6 +87,21 @@ def test_repeated_user_page_raises():
         client.pages("users/search")
 
 
+@pytest.mark.parametrize("path", ["users/search", "group/bulk"])  # type: ignore[misc]
+def test_empty_object_is_not_an_empty_inventory(
+    path: str, mocker: MockerFixture
+) -> None:
+    # Arrange
+    client = JiraClient(CLOUD_ID, "reader@example.com", "test-token")
+    payload = (
+        {} if path == "users/search" else {"values": {}, "startAt": 0, "isLast": True}
+    )
+    mocker.patch.object(client.session, "get", return_value=response(payload))
+    # Act and assert
+    with pytest.raises(ValueError, match="must be an array"):
+        client.pages(path)
+
+
 @pytest.mark.parametrize("status", [302, 401, 403, 429, 500])
 def test_http_errors_and_redirects_raise(status):
     # Arrange

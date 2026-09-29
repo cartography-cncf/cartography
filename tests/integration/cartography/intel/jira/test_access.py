@@ -293,6 +293,21 @@ def test_api_failure_preserves_entire_previous_snapshot(
     )
 
 
+def test_malformed_record_preserves_previous_snapshot(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    client, state = api_client()
+    sync(neo4j_session, client, 1)
+    query = "MATCH (n) RETURN properties(n) AS props ORDER BY n.id"
+    before = neo4j_session.run(query).data()
+    state["users"].append(None)
+    # Act and assert
+    with pytest.raises(TypeError):
+        sync(neo4j_session, client, 2)
+    assert neo4j_session.run(query).data() == before
+
+
 def test_deleted_user_tombstones_leave_references_unlinked(
     neo4j_session: neo4j.Session,
 ) -> None:
