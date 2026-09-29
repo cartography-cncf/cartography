@@ -204,6 +204,7 @@ def sync(
         for user in users
         if user.get("zoom_id") and user["status"] != "pending"
     )
+    unavailable: set[str] = set()
     for scope_type, scope_id, path in owners:
         kinds = ("configured",) if scope_type == "user" else ("configured", "locked")
         for kind in kinds:
@@ -211,6 +212,7 @@ def sync(
             responses = optional_call(
                 f"{scope_type} {kind} settings",
                 lambda: get(client, f"{path}/{endpoint}", scope_type, kind),
+                unavailable,
             )
             if responses is None:
                 continue

@@ -178,8 +178,17 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
     }
 
 
-def test_ineligible_recording_owner_retains_prior_snapshot(
-    neo4j_session: neo4j.Session,
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "module,status,plan_type",
+    [
+        (recordings, "inactive", 2),
+        (recordings, "active", 1),
+        (meetings, "pending", 2),
+        (meetings, "active", 4),
+    ],
+)
+def test_ineligible_owner_retains_prior_snapshot(
+    neo4j_session: neo4j.Session, module: ModuleType, status: str, plan_type: int
 ) -> None:
     # Arrange
     account = "account-a"
@@ -191,18 +200,19 @@ def test_ineligible_recording_owner_retains_prior_snapshot(
         ACCOUNT_ID=account,
         lastupdated=1,
     )
-    recordings.sync(neo4j_session, client_for(), account, 1, users(account))
-    changed = [{**user, "status": "inactive"} for user in users(account)]
+    module.sync(neo4j_session, client_for(), account, 1, users(account))
+    changed = [{**user, "status": status, "type": plan_type} for user in users(account)]
     client = client_for(empty_first=True)
 
     # Act
-    recordings.sync(neo4j_session, client, account, 2, changed)
+    module.sync(neo4j_session, client, account, 2, changed)
 
     # Assert
     client.get_paginated.assert_not_called()
-    assert check_nodes(neo4j_session, "ZoomRecording", ["id", "lastupdated"]) == {
-        ("account-a:recording:instance-1", 1),
-        ("account-a:recording:instance-2", 1),
+    label = "ZoomMeeting" if module is meetings else "ZoomRecording"
+    suffix = "meeting:1234567890" if module is meetings else "recording:instance-"
+    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
+        (f"{account}:{suffix}{i}", 1) for i in (1, 2)
     }
 
 
@@ -244,7 +254,13 @@ def test_cleanup_exhausts_multiple_batches(
     )
 
     # Act
-    module.cleanup(neo4j_session, account, "user-1", 2)
+    module.sync(
+        neo4j_session,
+        client_for(empty_first=True, denied_second=True),
+        account,
+        2,
+        users(account),
+    )
 
     # Assert: all 1001 stale nodes were removed, not merely the first batch.
     remaining = check_nodes(neo4j_session, label, ["id"])
@@ -310,4 +326,49 @@ def test_processing_recording_preserves_owner_and_continues_only_for_known_error
     ) == {
         (f"account-a:recording:instance-{i}", f"account-a:user:user-{i}")
         for i in (1, 2)
+    }
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
+)
+def test_host_transfer_preserves_identity_and_replaces_host_relationship(
+    neo4j_session: neo4j.Session, module: ModuleType, label: str
+) -> None:
+    # Arrange
+    account = "account-a"
+    load(neo4j_session, ZoomAccountSchema(), [{"id": account}], lastupdated=1)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users(account),
+        ACCOUNT_ID=account,
+        lastupdated=1,
+    )
+    module.sync(neo4j_session, client_for(), account, 1, users(account))
+    suffix = "meeting:12345678901" if module is meetings else "recording:instance-1"
+    before = check_nodes(neo4j_session, label, ["id", "firstseen"])
+    assert before is not None
+    firstseen = dict(before)[f"{account}:{suffix}"]
+    client = client_for()
+    raw = {
+        **(MEETING if module is meetings else RECORDING),
+        "host_id": "user-2",
+        "uuid": "instance-1",
+    }
+    client.get_paginated.side_effect = lambda path, key, params=None: (
+        [raw] if path.startswith("/users/user-2/") else []
+    )
+    client.get.return_value = raw if module is meetings else RECORDING_SETTINGS
+    client.get.side_effect = None
+
+    # Act: the old host is read first, before the new host loads the same resource.
+    module.sync(neo4j_session, client, account, 2, users(account))
+
+    # Assert
+    assert check_nodes(neo4j_session, label, ["id", "firstseen", "lastupdated"]) == {
+        (f"{account}:{suffix}", firstseen, 2)
+    }
+    assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
+        (f"{account}:{suffix}", f"{account}:user:user-2")
     }

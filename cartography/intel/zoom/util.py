@@ -16,8 +16,14 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def optional_call(surface: str, callback: Callable[[], T]) -> T | None:
-    """Preserve unreadable optional surfaces; credential and server failures raise."""
+def optional_call(
+    surface: str,
+    callback: Callable[[], T],
+    unavailable: set[str] | None = None,
+) -> T | None:
+    """Preserve denied surfaces and cache confirmed missing scopes for one sync."""
+    if unavailable is not None and surface in unavailable:
+        return None
     try:
         return callback()
     except requests.HTTPError as exc:
@@ -25,15 +31,28 @@ def optional_call(surface: str, callback: Callable[[], T]) -> T | None:
         if response is None:
             raise
         code = None
+        missing_scope = False
         if response.status_code == 400:
             try:
-                code = response.json().get("code")
+                error = response.json()
             except requests.exceptions.JSONDecodeError:
                 raise exc
+            code = error.get("code")
+            message = error.get("message")
+            # These codes also cover missing tokens and other authentication
+            # failures. Only this scope-specific message establishes a denial.
+            missing_scope = (
+                code in (4700, 4711)
+                and isinstance(message, str)
+                and message.startswith("Invalid access token, does not contain ")
+                and "scope" in message
+            )
         if response.status_code != 403 and not (
-            response.status_code == 400 and code in (200, 4700, 4711)
+            response.status_code == 400 and (code == 200 or missing_scope)
         ):
             raise
+        if missing_scope and unavailable is not None:
+            unavailable.add(surface)
         logger.warning(
             "Zoom %s unavailable (HTTP %s, code %s); check account tier and read scopes. Preserving prior data.",
             surface,
@@ -49,6 +68,8 @@ def fetch_many(
     """Fetch details with at most four independent sessions and a shared budget."""
     if not paths:
         return []
+    if len(paths) == 1:
+        return [client.get(paths[0], params)]
     logger.info("Fetching %d Zoom detail records with up to four workers", len(paths))
 
     def fetch_chunk(chunk: list[str]) -> list[dict[str, Any]]:

@@ -73,6 +73,7 @@ def test_filter_parameters_are_bound_without_mutating_inputs() -> None:
     "options",
     [
         {"node_filters": {"unknown": "x"}},
+        {"node_filters": {"id": None}},
         {"excluded_node_filters": {"id` OR true //": []}},
         {"delete_current": True},
         {"delete_current": True, "node_filters": {}, "excluded_node_filters": {}},
@@ -85,6 +86,17 @@ def test_invalid_cleanup_filters_are_rejected(options: dict[str, Any]) -> None:
             InterestingAssetSchema(),
             {"UPDATE_TAG": 2, "sub_resource_id": "account"},
             **options,
+        )
+
+
+def test_relationship_only_cleanup_rejects_delete_current() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="relationship-only cleanup"):
+        GraphJob.from_node_schema(
+            GitHubOrganizationUserSchema(),
+            {"UPDATE_TAG": 2},
+            node_filters={"id": "orphan"},
+            delete_current=True,
         )
 
 
