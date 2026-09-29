@@ -205,7 +205,12 @@ class JiraGroupProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class JiraGroupSchema(CartographyNodeSchema):
-    """A Jira group and its API-reported administrative access levels."""
+    """A Jira group and its API-reported administrative access levels.
+
+    ADMIN_OF reflects the experimental group accessType filters, not arbitrary
+    global permission grants, organization admins, or effective per-user access.
+    Group names are never used to infer administrative privileges.
+    """
 
     label: str = "JiraGroup"
     properties: JiraGroupProperties = JiraGroupProperties()
@@ -247,7 +252,13 @@ class JiraUserProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class JiraUserSchema(CartographyNodeSchema):
-    """A Jira account. Atlassian human accounts carry the UserAccount ontology label."""
+    """A Jira account. Only account_type=atlassian carries the UserAccount ontology label.
+
+    Visible emails can link these accounts to canonical User nodes. The complete
+    user listing supplies profile fields; nested profiles supply fields only for
+    otherwise unlisted accounts. Inactive deleted-user tombstones with accountId
+    unknown are omitted, and references to them remain unlinked.
+    """
 
     label: str = "JiraUser"
     properties: JiraUserProperties = JiraUserProperties()
@@ -290,7 +301,12 @@ class JiraProjectProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class JiraProjectSchema(CartographyNodeSchema):
-    """A live Jira project; permission grants describe configuration, not effective issue access."""
+    """A live Jira project; archived and deleted projects are excluded.
+
+    Team-managed projects include role actors, but their permission schemes and
+    project access-level policy are not exported. Permission grants describe
+    configuration, not effective issue access.
+    """
 
     label: str = "JiraProject"
     properties: JiraProjectProperties = JiraProjectProperties()
@@ -371,7 +387,14 @@ class JiraPermissionGrantProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class JiraPermissionGrantSchema(CartographyNodeSchema):
-    """A permission-scheme grant applied to a project. Conditional holder types remain explicit without invented effective-access edges."""
+    """A permission-scheme grant applied to a project.
+
+    Conditional holders such as reporter, assignee, application roles, custom
+    fields, and anyone remain configuration facts without inferred holder edges.
+    Grants referencing deleted-user tombstones are retained without user links.
+    Licensing, account suspension, issue security, and service-project portal
+    rules can further restrict access.
+    """
 
     label: str = "JiraPermissionGrant"
     properties: JiraPermissionGrantProperties = JiraPermissionGrantProperties()

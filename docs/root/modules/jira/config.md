@@ -95,6 +95,9 @@ cartography --neo4j-uri bolt://localhost:7687 \
   --jira-email reader@example.com
 ```
 
+To link accounts to canonical users, select `jira,ontology` and add
+`--ontology-users-source jira`.
+
 ## Troubleshooting
 
 - **401/403**: Check token expiry, token scopes, email address, and the two
@@ -108,7 +111,11 @@ cartography --neo4j-uri bolt://localhost:7687 \
   these are not an overall request deadline.
 - **Missing emails**: Atlassian profile visibility may hide an email even from
   administrators. The account is still inventoried by account ID.
-- **Admin or team-managed coverage**: See [access facts and coverage](index.md#access-facts-and-coverage).
+- **Incomplete reads**: A failed or malformed required response aborts before
+  graph writes and cleanup. Successful syncs remove stale records only within
+  the configured Cloud ID.
+- **Admin or team-managed coverage**: See the [group](schema.md#jiragroup) and
+  [project](schema.md#jiraproject) schema descriptions.
   Bulk get groups, including its admin access filters, is experimental and may
   change; unsupported responses abort the sync rather than guessing access.
 
