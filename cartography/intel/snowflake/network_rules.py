@@ -1,8 +1,7 @@
 """Snowflake network rules: the reusable network identifier lists policies reference.
 
-Network rules are listed per schema. A 403 or 404 on one schema is recorded as
-incomplete rather than fatal, so a collector role missing ``USAGE`` on a single schema
-does not cost the whole account.
+Network rules are listed per schema. A 400, 403, or 404 on one schema is recorded as
+incomplete rather than fatal, so an unavailable schema does not cost the whole account.
 """
 
 import logging
@@ -13,6 +12,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.snowflake.util import http_error_detail
 from cartography.intel.snowflake.util import iso_to_datetime
 from cartography.intel.snowflake.util import sf_fqn
 from cartography.intel.snowflake.util import sf_id
@@ -37,12 +37,13 @@ def get_schema_network_rules(
             f"/api/v2/databases/{sf_path_segment(database_name)}/schemas/{sf_path_segment(schema_name)}/network-rules",
         )
     except requests.HTTPError as error:
-        skip_or_raise_http(error, 403, 404)
+        skip_or_raise_http(error, 400, 403, 404)
         logger.warning(
-            "Cannot list network rules of Snowflake schema %s.%s (permission denied); "
-            "they will be missing from the graph.",
+            "Cannot list network rules of Snowflake schema %s.%s (%s); they will be "
+            "missing from the graph.",
             database_name,
             schema_name,
+            http_error_detail(error),
         )
         return None
 

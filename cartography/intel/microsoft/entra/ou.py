@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
@@ -44,9 +45,9 @@ async def get_entra_ous(
                     current_request = None
             else:
                 current_request = None
-        except Exception as e:
-            logger.error(f"Failed to retrieve administrative units: {str(e)}")
-            current_request = None
+        except Exception:
+            logger.exception("Failed to retrieve administrative units")
+            raise
 
 
 def transform_ous(
@@ -95,16 +96,23 @@ def cleanup_ous(
 async def sync_entra_ous(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
-    Sync Entra OUs
+    Sync Entra OUs, preserving stale data for delegated authentication.
     """
     # Initialize Graph client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
@@ -113,20 +121,30 @@ async def sync_entra_ous(
     batch_size = 100  # OUs are typically fewer than users/groups
     units_batch = []
 
-    async for unit in get_entra_ous(client):
-        units_batch.append(unit)
+    delegated_denial: APIError | None = None
+    try:
+        async for unit in get_entra_ous(client):
+            units_batch.append(unit)
 
-        if len(units_batch) >= batch_size:
-            transformed_units = list(transform_ous(units_batch, tenant_id))
-            load_ous(
-                neo4j_session, transformed_units, update_tag, common_job_parameters
-            )
-            units_batch.clear()
+            if len(units_batch) >= batch_size:
+                transformed_units = list(transform_ous(units_batch, tenant_id))
+                load_ous(
+                    neo4j_session, transformed_units, update_tag, common_job_parameters
+                )
+                units_batch.clear()
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = error
 
     # Process any remaining OUs
     if units_batch:
         transformed_units = list(transform_ous(units_batch, tenant_id))
         load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
 
+    if delegated_denial:
+        raise delegated_denial
+
     # Cleanup stale data
-    cleanup_ous(neo4j_session, common_job_parameters)
+    if not delegated_auth:
+        cleanup_ous(neo4j_session, common_job_parameters)

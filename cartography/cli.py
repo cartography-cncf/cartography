@@ -97,6 +97,7 @@ PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
+PANEL_ZOOM = "Zoom Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
@@ -132,6 +133,7 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "zoom": PANEL_ZOOM,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
     "jira": PANEL_JIRA,
@@ -260,6 +262,7 @@ def _resolve_report_source_option(
 
 def _resolve_microsoft_credential_options(
     *,
+    microsoft_delegated_auth: bool,
     microsoft_tenant_id: str | None,
     microsoft_client_id: str | None,
     microsoft_client_secret_env_var: str | None,
@@ -282,6 +285,27 @@ def _resolve_microsoft_credential_options(
 
     has_microsoft_values = any(value is not None for value in microsoft_values)
     has_entra_values = any(value is not None for value in entra_values)
+    client_credentials = (
+        microsoft_client_id,
+        microsoft_client_secret_env_var,
+        entra_client_id,
+        entra_client_secret_env_var,
+    )
+    if microsoft_delegated_auth and any(
+        value is not None for value in client_credentials
+    ):
+        raise typer.BadParameter(
+            "--microsoft-delegated-auth cannot be combined with a Microsoft "
+            "client ID or client secret.",
+        )
+    if (
+        microsoft_delegated_auth
+        and microsoft_tenant_id is None
+        and entra_tenant_id is None
+    ):
+        raise typer.BadParameter(
+            "--microsoft-delegated-auth requires --microsoft-tenant-id.",
+        )
     if has_microsoft_values and has_entra_values:
         raise typer.BadParameter(
             "Cannot mix Microsoft credential flags "
@@ -774,6 +798,18 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = None,
+            microsoft_delegated_auth: Annotated[
+                bool,
+                typer.Option(
+                    "--microsoft-delegated-auth",
+                    help=(
+                        "EXPERIMENTAL: use the current Azure CLI user for a "
+                        "best-effort Entra-only sync. Prefer application authentication."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = False,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -1346,6 +1382,36 @@ class CLI:
                     hidden=PANEL_LASTPASS not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Zoom Options
+            # =================================================================
+            zoom_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-account-id",
+                    help="Zoom account ID for server-to-server OAuth.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-id",
+                    help="Zoom server-to-server OAuth client ID.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-secret-env-var",
+                    help="Environment variable containing the Zoom OAuth client secret.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "ZOOM_CLIENT_SECRET",
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -2877,6 +2943,7 @@ class CLI:
                 microsoft_client_id,
                 microsoft_client_secret_env_var,
             ) = _resolve_microsoft_credential_options(
+                microsoft_delegated_auth=microsoft_delegated_auth,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret_env_var=microsoft_client_secret_env_var,
@@ -3653,6 +3720,7 @@ class CLI:
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
+                microsoft_delegated_auth=microsoft_delegated_auth,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
@@ -3711,6 +3779,13 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_account_id=zoom_account_id,
+                zoom_client_id=zoom_client_id,
+                zoom_client_secret=(
+                    os.environ.get(zoom_client_secret_env_var)
+                    if zoom_client_secret_env_var
+                    else None
+                ),
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
                 socketdev_token=socketdev_token,
