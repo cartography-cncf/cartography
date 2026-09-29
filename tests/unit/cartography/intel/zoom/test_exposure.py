@@ -103,14 +103,15 @@ def test_lists_are_deduplicated_before_detail_fanout() -> None:
     client.get.return_value = MEETING
 
     # Act
-    data = meetings.get(client, "user/1")
+    data, readable = meetings.get(client, ["user/1"], set())
 
     # Assert
     assert data == [MEETING]
+    assert readable == ["user/1"]
     client.get_paginated.assert_called_once_with(
         "/users/user%2F1/meetings", "meetings", params={"type": "scheduled"}
     )
-    client.get.assert_called_once_with("/meetings/12345678901", None)
+    client.get.assert_called_once_with("/meetings/12345678901")
 
 
 def test_recordings_set_bounded_dates_and_exclude_my_notes() -> None:
@@ -122,13 +123,12 @@ def test_recordings_set_bounded_dates_and_exclude_my_notes() -> None:
     client.get.return_value = RECORDING_SETTINGS
 
     # Act
-    data = recordings.get(client, "user-1", 7)
+    data, readable = recordings.get(client, ["user-1"], 7, set())
 
     # Assert
     assert data == [{**RECORDING, "settings": RECORDING_SETTINGS}]
-    client.get.assert_called_once_with(
-        recordings.settings_path(RECORDING["uuid"]), None
-    )
+    assert readable == ["user-1"]
+    client.get.assert_called_once_with(recordings.settings_path(RECORDING["uuid"]))
     for call in client.get_paginated.call_args_list:
         assert call.args == ("/users/user-1/recordings", "meetings")
         assert call.kwargs["params"]["recording_source_type"] == "cloud_recording_only"

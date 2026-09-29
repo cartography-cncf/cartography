@@ -1,8 +1,10 @@
 import hashlib
 import json
+import logging
 from typing import Any
 
 import neo4j
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -10,13 +12,19 @@ from cartography.helpers import normalize_email_for_matching
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import encode_uuid
+from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
 from cartography.models.zoom.activity import ZoomMeetingAuditEventSchema
 from cartography.models.zoom.activity import ZoomOperationEventSchema
 from cartography.models.zoom.activity import ZoomSignInEventSchema
+from cartography.models.zoom.client_version import ZoomClientVersionSchema
 from cartography.models.zoom.participant import ZoomMeetingParticipantSchema
 from cartography.models.zoom.session import ZoomMeetingSessionSchema
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 
 
 def fingerprint(data: dict[str, Any]) -> str:
@@ -75,6 +83,7 @@ def transform_events(
     return result
 
 
+@timeit
 def sync_reports(
     session: neo4j.Session,
     client: ZoomClient,
@@ -123,6 +132,25 @@ def get_sessions(client: ZoomClient, days: int) -> list[dict[str, Any]]:
     return list(meetings.values())
 
 
+def get_participants(
+    client: ZoomClient, meeting: dict[str, Any]
+) -> list[dict[str, Any]] | None:
+    """Return participants, or None when Zoom cannot report them yet."""
+    try:
+        return client.get_paginated(
+            f"/metrics/meetings/{encode_uuid(meeting['uuid'])}/participants",
+            "participants",
+            {"type": meeting["dashboard_type"]},
+        )
+    except requests.HTTPError as exc:
+        # Documented when a listed meeting ID is invalid or has not ended; this
+        # is an unread response, not an empty participant list.
+        if is_zoom_error(exc, 404, 3001):
+            return None
+        raise
+
+
+@timeit
 def sync_dashboard(
     session: neo4j.Session,
     client: ZoomClient,
@@ -135,14 +163,18 @@ def sync_dashboard(
     by_email = {user["email"]: user["id"] for user in users}
     session_data = []
     participants = []
-    for meeting in meetings:
-        uuid = meeting["uuid"]
-        encoded = encode_uuid(uuid)
-        rows = client.get_paginated(
-            f"/metrics/meetings/{encoded}/participants",
-            "participants",
-            {"type": meeting["dashboard_type"]},
+    # Participant reads are Heavy requests; they share the heavy request limit.
+    results = fetch_many(client, meetings, get_participants)
+    participant_rows = [rows for rows in results if rows is not None]
+    if len(participant_rows) < len(meetings):
+        logger.warning(
+            "Zoom dashboard: %d of %d meetings are invalid or have not ended (HTTP 404, code 3001); preserving the prior dashboard snapshot.",
+            len(meetings) - len(participant_rows),
+            len(meetings),
         )
+        return
+    for meeting, rows in zip(meetings, participant_rows, strict=True):
+        uuid = meeting["uuid"]
         node_id = f"{account_id}:session:{uuid}"
         session_data.append(
             {
@@ -170,6 +202,8 @@ def sync_dashboard(
                     "user_node_id": f"{account_id}:user:{user_id}" if user_id else None,
                     "device": participant.get("device"),
                     "client_version": participant.get("version"),
+                    "os": participant.get("os"),
+                    "os_version": participant.get("os_version"),
                     "join_time": parse_datetime(participant.get("join_time")),
                     "leave_time": parse_datetime(participant.get("leave_time")),
                     "role": participant.get("role"),
@@ -193,3 +227,30 @@ def sync_dashboard(
     parameters = {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag}
     GraphJob.from_node_schema(ZoomMeetingParticipantSchema(), parameters).run(session)
     GraphJob.from_node_schema(ZoomMeetingSessionSchema(), parameters).run(session)
+
+
+@timeit
+def sync_client_versions(
+    session: neo4j.Session, client: ZoomClient, account_id: str, update_tag: int
+) -> None:
+    versions = client.get("/metrics/client_versions")["client_versions"]
+    if not isinstance(versions, list):
+        raise ValueError("Zoom client_versions response must contain a list")
+    data = {
+        f"{account_id}:client_version:{version['client_version']}": {
+            "id": f"{account_id}:client_version:{version['client_version']}",
+            "client_version": version["client_version"],
+            "total_count": version.get("total_count"),
+        }
+        for version in versions
+    }
+    load(
+        session,
+        ZoomClientVersionSchema(),
+        list(data.values()),
+        ACCOUNT_ID=account_id,
+        lastupdated=update_tag,
+    )
+    GraphJob.from_node_schema(
+        ZoomClientVersionSchema(), {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag}
+    ).run(session)

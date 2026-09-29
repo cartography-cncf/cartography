@@ -101,6 +101,14 @@ class ZoomSecuritySettingsNodeProperties(CartographyNodeProperties):
     file_transfer: PropertyRef = PropertyRef(
         "file_transfer", description="in_meeting.file_transfer."
     )
+    private_chat: PropertyRef = PropertyRef(
+        "private_chat",
+        description="in_meeting.private_chat; allows participants to message each other privately.",
+    )
+    allow_participants_to_rename: PropertyRef = PropertyRef(
+        "allow_participants_to_rename",
+        description="in_meeting.allow_participants_to_rename; configured account snapshots only.",
+    )
     screen_sharing: PropertyRef = PropertyRef(
         "screen_sharing", description="in_meeting.screen_sharing."
     )
@@ -142,6 +150,34 @@ class ZoomSecuritySettingsNodeProperties(CartographyNodeProperties):
     recording_invitees_without_passcode: PropertyRef = PropertyRef(
         "recording_invitees_without_passcode",
         description="recording.allow_invitees_access_recordings_without_passcode.",
+    )
+    auto_delete_cloud_recordings: PropertyRef = PropertyRef(
+        "auto_delete_cloud_recordings",
+        description="recording.auto_delete_cmr; account and user values, account and group lock flags.",
+    )
+    auto_delete_cloud_recordings_days: PropertyRef = PropertyRef(
+        "auto_delete_cloud_recordings_days",
+        description="recording.auto_delete_cmr_days, such as 30, 60, 90 or 120; configured account and user only.",
+    )
+    waiting_room_scope: PropertyRef = PropertyRef(
+        "waiting_room_scope",
+        description="meeting_security.waiting_room_settings.participants_to_place_in_waiting_room: 0 all participants, 1 users outside the account, 2 users outside the account and allowed domains; configured only.",
+    )
+    two_factor_auth_group_ids: PropertyRef = PropertyRef(
+        "two_factor_auth_group_ids",
+        description="security.sign_in_with_two_factor_auth_groups; provider group IDs requiring 2FA when sign_in_with_two_factor_auth is group. Configured account only.",
+    )
+    two_factor_auth_role_ids: PropertyRef = PropertyRef(
+        "two_factor_auth_role_ids",
+        description="security.sign_in_with_two_factor_auth_roles; provider role IDs requiring 2FA when sign_in_with_two_factor_auth is role. Configured account only.",
+    )
+    sign_again_period_for_inactivity_on_client: PropertyRef = PropertyRef(
+        "sign_again_period_for_inactivity_on_client",
+        description="security.sign_again_period_for_inactivity_on_client; minutes of client inactivity before sign-out, 0 when disabled. Configured account only.",
+    )
+    sign_again_period_for_inactivity_on_web: PropertyRef = PropertyRef(
+        "sign_again_period_for_inactivity_on_web",
+        description="security.sign_again_period_for_inactivity_on_web; minutes of web inactivity before sign-out, 0 when disabled. Configured account only.",
     )
 
 

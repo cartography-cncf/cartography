@@ -11,8 +11,11 @@ from cartography.intel.zoom.access import sync_roles
 from cartography.intel.zoom.activity import transform_events
 from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.client import ZoomRequestLimitError
 from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import fetch_many
+from cartography.intel.zoom.util import get_detail
+from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
 from tests.data.zoom.security import SIGNIN
 from tests.data.zoom.security import USERS
@@ -33,7 +36,6 @@ def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> N
         (401, 124, ""),
         (400, 124, ""),
         (500, 0, ""),
-        (429, 0, ""),
         (400, 4700, ""),
         (400, 4700, "Token cannot be empty."),
         (400, 4700, "Exception message"),
@@ -136,11 +138,71 @@ def test_budget_and_origin_validation_apply_before_network() -> None:
         ):
             with pytest.raises(ValueError, match="relative"):
                 client.get(path)
-        with pytest.raises(ValueError, match="safety limit"):
+        with pytest.raises(ZoomRequestLimitError, match="request limit"):
             client.get("/roles")
         fork = client.fork()
-        with fork.session, pytest.raises(ValueError, match="safety limit"):
+        with fork.session, pytest.raises(ZoomRequestLimitError):
             fork.get("/roles")
+
+
+def test_heavy_limit_counts_only_report_and_dashboard_requests() -> None:
+    # Arrange
+    heavy = RequestBudget(1, "heavy request")
+    client = ZoomClient("a", "b", "c", RequestBudget(10), heavy)
+    client._access_token = "token"
+    client._expires_at = float("inf")
+    ok = response(200, {"users": []})
+
+    # Act and assert
+    with client.session, patch.object(client.session, "get", return_value=ok) as get:
+        client.get("/users")
+        client.get("/report/activities")
+        with pytest.raises(ZoomRequestLimitError, match="heavy request limit"):
+            client.get("/metrics/meetings")
+        client.get("/roles")
+    assert get.call_count == 3
+    assert heavy.remaining == 0
+    assert client.budget.remaining == 6
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "error",
+    [
+        ZoomRequestLimitError("Zoom sync reached its configured request limit"),
+        requests.HTTPError(response=response(429, {"code": 429})),
+    ],
+)
+def test_limits_and_sustained_rate_limits_skip_the_rest_of_one_surface(
+    error: Exception,
+) -> None:
+    # Arrange
+    unavailable: set[str] = set()
+    limited = MagicMock(side_effect=error)
+    healthy = MagicMock(return_value={"id": 1})
+
+    # Act
+    first = optional_call("meetings", limited, unavailable)
+    second = optional_call("meetings", limited, unavailable)
+    other = optional_call("recordings", healthy, unavailable)
+
+    # Assert
+    assert first is None and second is None
+    limited.assert_called_once_with()
+    assert other == {"id": 1}
+    assert unavailable == {"meetings"}
+
+
+def test_endpoint_errors_match_only_the_documented_status_and_code() -> None:
+    # Arrange
+    def error(status: int, body: Any) -> requests.HTTPError:
+        return requests.HTTPError(response=response(status, body))
+
+    # Act and assert
+    assert is_zoom_error(error(404, {"code": 3001}), 404, 3001)
+    assert not is_zoom_error(error(404, {"code": 1001}), 404, 3001)
+    assert not is_zoom_error(error(400, {"code": 3001}), 404, 3001)
+    assert not is_zoom_error(error(404, ["code", 3001]), 404, 3001)
+    assert not is_zoom_error(requests.HTTPError(), 404, 3001)
 
 
 def test_fetch_many_preserves_order_and_closes_worker_sessions() -> None:
@@ -151,14 +213,14 @@ def test_fetch_many_preserves_order_and_closes_worker_sessions() -> None:
     def fork() -> MagicMock:
         worker = MagicMock(spec=ZoomClient)
         worker.session = MagicMock()
-        worker.get.side_effect = lambda path, params: {"path": path}
+        worker.get.side_effect = lambda path: {"path": path}
         workers.append(worker)
         return worker
 
     client.fork.side_effect = fork
     paths = [f"/roles/{i}" for i in range(9)]
     # Act
-    result = fetch_many(client, paths)
+    result = fetch_many(client, paths, get_detail)
     # Assert
     assert result == [{"path": path} for path in paths]
     assert len(workers) <= 4
@@ -218,9 +280,9 @@ def test_fetch_single_detail_reuses_the_existing_session() -> None:
     client.get.return_value = {"id": "role-1"}
 
     # Act
-    result = fetch_many(client, ["/roles/role-1"])
+    result = fetch_many(client, ["/roles/role-1"], get_detail)
 
     # Assert
     assert result == [{"id": "role-1"}]
-    client.get.assert_called_once_with("/roles/role-1", None)
+    client.get.assert_called_once_with("/roles/role-1")
     client.fork.assert_not_called()

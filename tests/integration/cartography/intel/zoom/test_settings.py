@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 from copy import deepcopy
 from typing import Any
@@ -11,8 +12,11 @@ import requests
 from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.intel.zoom import start_zoom_ingestion
+from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.client import ZoomRequestLimitError
 from cartography.intel.zoom.settings import sync
+from cartography.intel.zoom.users import sync as users_sync
 from cartography.models.zoom.account import ZoomAccountSchema
 from cartography.models.zoom.group import ZoomGroupSchema
 from cartography.models.zoom.settings import ZoomSecuritySettingsSchema
@@ -43,6 +47,8 @@ def test_settings_preserve_denied_kind_and_isolate_accounts(
     configured = deepcopy(SETTINGS_RESPONSES)
     denied_group_locks = False
     client = MagicMock(spec=ZoomClient)
+    client.session = MagicMock()
+    client.fork.return_value = client
 
     def response(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         option = (params or {}).get("option", "default")
@@ -177,6 +183,7 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
     # Arrange
     client = MagicMock(spec=ZoomClient)
     client.session = MagicMock()
+    client.fork.return_value = client
     client.get_users_page.side_effect = lambda params: {
         "users": (
             [
@@ -333,3 +340,119 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
                 ("configured",) if scope == "user" else ("configured", "locked")
             )
         }
+
+
+def http_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[str]:
+    """Serve synthetic settings at the HTTP boundary of a real ZoomClient."""
+    calls: list[str] = []
+
+    def post(self: requests.Session, url: str, **kwargs: Any) -> requests.Response:
+        result = requests.Response()
+        result.status_code = 200
+        result._content = json.dumps(
+            {"access_token": "synthetic-token", "expires_in": 3600}
+        ).encode()
+        return result
+
+    def get(self: requests.Session, url: str, **kwargs: Any) -> requests.Response:
+        calls.append(url)
+        option = (kwargs.get("params") or {}).get("option", "default")
+        values = (
+            LOCKED_SETTINGS_RESPONSES
+            if url.endswith("lock_settings")
+            else SETTINGS_RESPONSES
+        )
+        result = requests.Response()
+        result.status_code = 200
+        result._content = json.dumps(values[option]).encode()
+        return result
+
+    monkeypatch.setattr(requests.Session, "post", post)
+    monkeypatch.setattr(requests.Session, "get", get)
+    return calls
+
+
+def many_users(count: int) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": f"account-one:user:user-{i}",
+            "zoom_id": f"user-{i}",
+            "email": f"user-{i}@example.com",
+            "status": "active",
+        }
+        for i in range(count)
+    ]
+
+
+def test_default_limits_cover_large_user_settings_inventory(
+    neo4j_session: neo4j.Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    calls = http_settings(monkeypatch)
+    users = many_users(2500)
+    load(neo4j_session, ZoomAccountSchema(), [{"id": "account-one"}], lastupdated=1)
+    load(
+        neo4j_session, ZoomUserSchema(), users, ACCOUNT_ID="account-one", lastupdated=1
+    )
+    client = ZoomClient("account-one", "synthetic-client", "synthetic-secret")
+
+    # Act
+    sync(neo4j_session, client, "account-one", 1, users, None)
+
+    # Assert: two account kinds plus four configured reads for each user.
+    assert len(calls) == 7 + 4 * len(users)
+    assert client.budget.remaining == 100000 - len(calls)
+    records = check_nodes(neo4j_session, "ZoomSecuritySettings", ["id", "lastupdated"])
+    assert records is not None
+    assert len(records) == 2 + len(users)
+    assert {tag for _, tag in records} == {1}
+
+
+def test_request_limit_preserves_unread_settings_and_users_still_fail(
+    neo4j_session: neo4j.Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange
+    calls = http_settings(monkeypatch)
+    users = many_users(30)
+    load(neo4j_session, ZoomAccountSchema(), [{"id": "account-one"}], lastupdated=1)
+    load(
+        neo4j_session, ZoomUserSchema(), users, ACCOUNT_ID="account-one", lastupdated=1
+    )
+    sync(
+        neo4j_session,
+        ZoomClient("account-one", "synthetic-client", "synthetic-secret"),
+        "account-one",
+        1,
+        users,
+        None,
+    )
+    before = {
+        record["n"]["id"]: dict(record["n"])
+        for record in neo4j_session.run("MATCH (n:ZoomSecuritySettings) RETURN n")
+    }
+    calls.clear()
+    limited = ZoomClient(
+        "account-one", "synthetic-client", "synthetic-secret", RequestBudget(40)
+    )
+
+    # Act: the limit is reached partway through the owner reads.
+    sync(neo4j_session, limited, "account-one", 2, users, None)
+
+    # Assert: no request is attempted past the limit, and every snapshot is
+    # either completely refreshed or left exactly as it was.
+    assert len(calls) == 40
+    after = {
+        record["n"]["id"]: dict(record["n"])
+        for record in neo4j_session.run("MATCH (n:ZoomSecuritySettings) RETURN n")
+    }
+    assert set(after) == set(before)
+    refreshed = {node_id for node_id, node in after.items() if node["lastupdated"] == 2}
+    assert 0 < len(refreshed) < len(after)
+    for node_id in set(after) - refreshed:
+        assert after[node_id] == before[node_id]
+
+    # Act and assert: the required user inventory still fails on the limit.
+    with pytest.raises(ZoomRequestLimitError):
+        users_sync(neo4j_session, limited, "account-one", 3)

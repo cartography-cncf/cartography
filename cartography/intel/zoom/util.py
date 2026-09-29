@@ -5,15 +5,21 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from typing import Any
+from typing import Literal
 from typing import TypeVar
 from urllib.parse import quote
 
+import neo4j
 import requests
 
+from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.client import ZoomRequestLimitError
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+R = TypeVar("R")
 
 
 def optional_call(
@@ -21,15 +27,36 @@ def optional_call(
     callback: Callable[[], T],
     unavailable: set[str] | None = None,
 ) -> T | None:
-    """Preserve denied surfaces and cache confirmed missing scopes for one sync."""
+    """Preserve denied surfaces and cache surface-wide denials for one sync.
+
+    Missing scopes, a sustained rate limit and the configured request limit apply
+    to every later read of the surface, so they are not retried within the sync.
+    """
     if unavailable is not None and surface in unavailable:
         return None
     try:
         return callback()
+    except ZoomRequestLimitError as exc:
+        if unavailable is not None:
+            unavailable.add(surface)
+        logger.warning(
+            "Zoom %s skipped: %s. Preserving prior data; raise the Zoom request limits to cover it.",
+            surface,
+            exc,
+        )
+        return None
     except requests.HTTPError as exc:
         response = exc.response
         if response is None:
             raise
+        if response.status_code == 429:
+            if unavailable is not None:
+                unavailable.add(surface)
+            logger.warning(
+                "Zoom %s rate limit persisted after retries (HTTP 429). Preserving prior data.",
+                surface,
+            )
+            return None
         code = None
         missing_scope = False
         if response.status_code == 400:
@@ -62,24 +89,42 @@ def optional_call(
         return None
 
 
-def fetch_many(
-    client: ZoomClient, paths: list[str], params: dict[str, Any] | None = None
-) -> list[dict[str, Any]]:
-    """Fetch details with at most four independent sessions and a shared budget."""
-    if not paths:
-        return []
-    if len(paths) == 1:
-        return [client.get(paths[0], params)]
-    logger.info("Fetching %d Zoom detail records with up to four workers", len(paths))
+def is_zoom_error(exc: requests.HTTPError, status: int, code: int) -> bool:
+    """Match one documented endpoint-specific status and Zoom error code."""
+    response = exc.response
+    if response is None or response.status_code != status:
+        return False
+    try:
+        body = response.json()
+    except requests.exceptions.JSONDecodeError:
+        return False
+    return isinstance(body, dict) and body.get("code") == code
 
-    def fetch_chunk(chunk: list[str]) -> list[dict[str, Any]]:
+
+def get_detail(client: ZoomClient, path: str) -> dict[str, Any]:
+    return client.get(path)
+
+
+def fetch_many(
+    client: ZoomClient,
+    items: list[T],
+    fetch: Callable[[ZoomClient, T], R],
+) -> list[R]:
+    """Run fetch per item with at most four sessions sharing the request budgets."""
+    if not items:
+        return []
+    if len(items) == 1:
+        return [fetch(client, items[0])]
+    logger.info("Fetching %d Zoom records with up to four workers", len(items))
+
+    def fetch_chunk(chunk: list[T]) -> list[R]:
         worker = client.fork()
         with worker.session:
-            return [worker.get(path, params) for path in chunk]
+            return [fetch(worker, item) for item in chunk]
 
-    # Contiguous chunks keep response order identical to the input paths.
-    size = (len(paths) + 3) // 4
-    chunks = [paths[i : i + size] for i in range(0, len(paths), size)]
+    # Contiguous chunks keep results in input order.
+    size = (len(items) + 3) // 4
+    chunks = [items[i : i + size] for i in range(0, len(items), size)]
     with ThreadPoolExecutor(max_workers=4) as executor:
         return [item for chunk in executor.map(fetch_chunk, chunks) for item in chunk]
 
@@ -114,3 +159,57 @@ def encode_uuid(uuid: str) -> str:
     # Zoom requires a second encoding for UUIDs starting with / or containing //.
     encoded = quote(uuid, safe="")
     return quote(encoded, safe="") if uuid.startswith("/") or "//" in uuid else encoded
+
+
+def cleanup_hosted(
+    neo4j_session: neo4j.Session,
+    label: Literal["ZoomMeeting", "ZoomRecording"],
+    account_id: str,
+    update_tag: int,
+    readable_host_ids: list[str],
+    present_host_ids: list[str],
+) -> None:
+    """Prune hosted resources only where a read or the user inventory proves them stale.
+
+    A current node keeps only the host relationship refreshed by this sync, so a
+    transfer leaves exactly one HOSTED_BY. A stale node is deleted only when its
+    last known host was completely read, or is absent from the complete user
+    inventory. Denied, processing and ineligible hosts keep their snapshots.
+    Schema cleanup cannot express this owner filter, so these fixed statements
+    run through the standard iterative GraphJob runner.
+    """
+    parameters = {
+        "ACCOUNT_ID": account_id,
+        "UPDATE_TAG": update_tag,
+        "READABLE_HOST_IDS": readable_host_ids,
+        "PRESENT_HOST_IDS": present_host_ids,
+    }
+    statements = [
+        GraphStatement(
+            f"""
+            MATCH (:ZoomAccount {{id: $ACCOUNT_ID}})-[:RESOURCE]->(n:{label})-[r:HOSTED_BY]->(:ZoomUser)
+            WHERE n.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
+            WITH r ORDER BY n.id LIMIT $LIMIT_SIZE
+            DELETE r
+            """,
+            parameters,
+            iterative=True,
+            iterationsize=1000,
+        ),
+        GraphStatement(
+            f"""
+            MATCH (:ZoomAccount {{id: $ACCOUNT_ID}})-[:RESOURCE]->(n:{label})
+            WHERE n.lastupdated <> $UPDATE_TAG
+                AND (
+                    n.host_id IN $READABLE_HOST_IDS
+                    OR NOT n.host_id IN $PRESENT_HOST_IDS
+                )
+            WITH n ORDER BY n.id LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            """,
+            parameters,
+            iterative=True,
+            iterationsize=1000,
+        ),
+    ]
+    GraphJob(f"Cleanup {label}", statements, label).run(neo4j_session)

@@ -24,19 +24,3 @@ class ZoomAccountResourceRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
-
-
-@dataclass(frozen=True)
-class ZoomUserResourceRel(CartographyRelSchema):
-    """The Zoom user whose inventory reported this resource owns it.
-
-    Each readable owner is cleaned up independently; removing the user removes its resources.
-    """
-
-    target_node_label: str = "ZoomUser"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("OWNER_ID", set_in_kwargs=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()

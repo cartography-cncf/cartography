@@ -30,7 +30,6 @@ class ZoomRolePrivilegeProperties(CartographyNodeProperties):
     restricted_to_groups: PropertyRef = PropertyRef(
         "restricted_to_groups",
         description="True when privilege_scopes restricts this privilege to group_ids; false indicates no group restriction returned.",
-        extra_index=True,
     )
     group_ids: PropertyRef = PropertyRef(
         "group_ids",

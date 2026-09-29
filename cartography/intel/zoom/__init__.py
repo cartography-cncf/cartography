@@ -9,6 +9,7 @@ from cartography.intel.zoom import apps
 from cartography.intel.zoom import meetings
 from cartography.intel.zoom import recordings
 from cartography.intel.zoom import settings
+from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.users import cleanup as cleanup_users
 from cartography.intel.zoom.users import sync
@@ -26,8 +27,14 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         logger.info("Zoom import is not configured - skipping this module.")
         return
 
+    if config.zoom_request_limit < 1 or config.zoom_heavy_request_limit < 1:
+        raise ValueError("Zoom request limits must be positive")
     client = ZoomClient(
-        config.zoom_account_id, config.zoom_client_id, config.zoom_client_secret
+        config.zoom_account_id,
+        config.zoom_client_id,
+        config.zoom_client_secret,
+        RequestBudget(config.zoom_request_limit),
+        RequestBudget(config.zoom_heavy_request_limit, "heavy request"),
     )
     sections = {
         section.strip()
@@ -43,6 +50,7 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "recordings",
         "reports",
         "dashboard",
+        "client_versions",
     }
     if unknown:
         raise ValueError(f"Unknown Zoom sections: {sorted(unknown)}")
@@ -92,6 +100,13 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                     tag,
                     users,
                     config.zoom_lookback_days,
+                ),
+            )
+        if "client_versions" in sections:
+            optional_call(
+                "client_versions",
+                lambda: activity.sync_client_versions(
+                    neo4j_session, client, account_id, tag
                 ),
             )
         cleanup_users(neo4j_session, account_id, tag)
