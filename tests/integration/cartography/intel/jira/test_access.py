@@ -62,7 +62,23 @@ def api_client(cloud_id=CLOUD_ID):
 
 def test_sync_access_graph_and_ontology(neo4j_session: neo4j.Session) -> None:
     # Arrange
-    client, _ = api_client()
+    client, state = api_client()
+    state["users"].extend(
+        {
+            **USERS[0],
+            "accountId": account_type,
+            "accountType": account_type,
+            "emailAddress": f"{account_type}@example.com",
+        }
+        for account_type in ("app", "customer")
+    )
+    state["responses"]["permissionscheme/500"]["permissions"].append(
+        {
+            "id": 5,
+            "permission": "ADMINISTER_PROJECTS",
+            "holder": {"type": "projectLead"},
+        }
+    )
     # Act
     sync(neo4j_session, client, 1)
     sync_ontology_users(neo4j_session, ["jira"], 1, {"UPDATE_TAG": 1})
@@ -70,7 +86,14 @@ def test_sync_access_graph_and_ontology(neo4j_session: neo4j.Session) -> None:
     assert check_nodes(neo4j_session, "JiraUser", ["account_id", "active"]) == {
         ("user-1", True),
         ("user-2", False),
+        ("app", True),
+        ("customer", True),
     }
+    assert check_nodes(neo4j_session, "UserAccount", ["account_id"]) == {
+        ("user-1",),
+        ("user-2",),
+    }
+    assert check_nodes(neo4j_session, "User", ["email"]) == {("user@example.com",)}
     assert check_rels(
         neo4j_session,
         "JiraUser",
@@ -118,7 +141,7 @@ def test_sync_access_graph_and_ontology(neo4j_session: neo4j.Session) -> None:
         "grant_id",
         "HAS_PERMISSION",
         rel_direction_right=True,
-    ) == {("user-1", "3")}
+    ) == {("user-1", "3"), ("user-1", "5")}
     assert check_rels(
         neo4j_session,
         "User",
@@ -214,23 +237,50 @@ def test_cleanup_removes_stale_nodes_and_edges_without_cross_tenant_loss(
     }
 
 
-def test_late_api_failure_preserves_entire_previous_snapshot(
-    neo4j_session: neo4j.Session,
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "operation, failed_path",
+    [("pages", "group/member"), ("get", "project/200/role/10")],
+)
+def test_api_failure_preserves_entire_previous_snapshot(
+    neo4j_session: neo4j.Session, operation: str, failed_path: str
 ) -> None:
     # Arrange
-    client, state = api_client()
+    client, _ = api_client()
     sync(neo4j_session, client, 1)
     before = neo4j_session.run("MATCH (n) RETURN count(n) AS count").single()["count"]
+    memberships = check_rels(
+        neo4j_session,
+        "JiraUser",
+        "id",
+        "JiraGroup",
+        "id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    )
+    request = getattr(client, operation)
+    original = request.side_effect
 
     def get_with_failure(path, **params):
-        if path == "project/200/role/10":
+        if path == failed_path:
             raise requests.HTTPError("403 Forbidden")
-        return deepcopy(state["responses"][path])
+        return original(path, **params)
 
-    client.get.side_effect = get_with_failure
+    request.side_effect = get_with_failure
     # Act and assert
     with pytest.raises(requests.HTTPError):
         sync(neo4j_session, client, 2)
+    assert (
+        check_rels(
+            neo4j_session,
+            "JiraUser",
+            "id",
+            "JiraGroup",
+            "id",
+            "MEMBER_OF",
+            rel_direction_right=True,
+        )
+        == memberships
+    )
     assert (
         neo4j_session.run("MATCH (n) RETURN count(n) AS count").single()["count"]
         == before

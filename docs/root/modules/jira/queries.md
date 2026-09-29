@@ -25,5 +25,6 @@ RETURN DISTINCT u.display_name, u.email, p.key, grant.permission, grant.holder_t
 The path covers direct user holders, group holders, direct role actors, and
 members of groups acting in project roles. Results describe configured grants;
 conditional holders and additional Jira access restrictions must be evaluated
-separately. Team-managed project role membership is visible through `ROLE_OF`,
-without an inferred permission-scheme grant.
+separately. Team-managed role actors link to `JiraProjectRole` through `MEMBER_OF`;
+the role links to its project through `ROLE_OF`, without an inferred
+permission-scheme grant.

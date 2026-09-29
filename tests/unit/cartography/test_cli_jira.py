@@ -1,12 +1,23 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
+
 from cartography.cli import CLI
 
 
-def test_jira_cli_resolves_token_environment_and_options(monkeypatch):
+@pytest.mark.parametrize(
+    "token_env, token_args",
+    [
+        ("JIRA_API_TOKEN", []),
+        ("CUSTOM_JIRA_TOKEN", ["--jira-api-token-env-var", "CUSTOM_JIRA_TOKEN"]),
+    ],
+)
+def test_jira_cli_resolves_token_environment_and_options(
+    monkeypatch, token_env, token_args
+):
     # Arrange
-    monkeypatch.setenv("CUSTOM_JIRA_TOKEN", "test-token")
+    monkeypatch.setenv(token_env, "test-token")
     cli = CLI(Mock(), "test")
     # Act
     with patch("cartography.sync.run_with_config", return_value=0) as run:
@@ -20,8 +31,7 @@ def test_jira_cli_resolves_token_environment_and_options(monkeypatch):
                 "11111111-1111-4111-8111-111111111111",
                 "--jira-email",
                 "reader@example.com",
-                "--jira-api-token-env-var",
-                "CUSTOM_JIRA_TOKEN",
+                *token_args,
                 "--jira-site-url",
                 "https://example.atlassian.net",
             ]
