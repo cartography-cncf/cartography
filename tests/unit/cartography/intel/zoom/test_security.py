@@ -111,13 +111,14 @@ def test_date_windows_split_month_boundaries() -> None:
 
 def test_activity_retains_queryable_fields_without_free_text_or_ip() -> None:
     # Arrange
-    event = {**SIGNIN, "operation_detail": "secret-placeholder"}
+    event = {**SIGNIN, "operation_detail": "secret-placeholder", "meeting_number": None}
     # Act
     result = transform_events([event], "signins", "account-a", USERS)[0]
     # Assert
     assert result["user_node_id"] == USERS[0]["id"]
     assert result["occurred_at"] == datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
     assert result["client_version"] == "6.1.0"
+    assert result["meeting_node_id"] is None
     assert "secret-placeholder" not in str(result)
     assert "192.0.2.1" not in str(result)
 

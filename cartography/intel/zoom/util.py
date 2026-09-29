@@ -6,6 +6,7 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Any
 from typing import TypeVar
+from urllib.parse import quote
 
 import requests
 
@@ -86,3 +87,9 @@ def parse_datetime(value: Any) -> datetime | None:
     except (ValueError, TypeError):
         logger.warning("Ignoring malformed optional Zoom timestamp")
         return None
+
+
+def encode_uuid(uuid: str) -> str:
+    # Zoom requires a second encoding for UUIDs starting with / or containing //.
+    encoded = quote(uuid, safe="")
+    return quote(encoded, safe="") if uuid.startswith("/") or "//" in uuid else encoded

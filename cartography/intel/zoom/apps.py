@@ -26,7 +26,7 @@ def sync(
     )
     data = []
     for (app_id, app), detail in zip(apps.items(), details):
-        approval = app.get("approval_info", {})
+        approval = app.get("approval_info") or {}
         closed = approval.get("app_approval_closed")
         data.append(
             {
@@ -39,7 +39,7 @@ def sync(
                 "approval_required": None if closed is None else not closed,
                 "app_status": detail.get("app_status"),
                 "app_type": detail.get("app_type"),
-                "app_scopes": detail["app_scopes"],
+                "app_scopes": detail.get("app_scopes"),
             }
         )
     load(session, ZoomAppSchema(), data, lastupdated=update_tag, ACCOUNT_ID=account_id)

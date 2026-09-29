@@ -3,7 +3,7 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.graph.statement import GraphStatement
+from cartography.graph.job import GraphJob
 from cartography.intel.zoom import access
 from cartography.intel.zoom import activity
 from cartography.intel.zoom import apps
@@ -13,6 +13,7 @@ from cartography.intel.zoom import settings
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.users import sync
 from cartography.intel.zoom.util import optional_call
+from cartography.models.zoom.settings import ZoomSecuritySettingsSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -75,30 +76,20 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 ("group", None if groups is None else [g["id"] for g in groups]),
             ):
                 if owners is not None:
-                    GraphStatement(
-                        """
-                        MATCH (n:ZoomSecuritySettings {account_id:$account, scope_type:$kind})
-                        WHERE NOT n.scope_id IN $owners
-                        WITH n LIMIT $LIMIT_SIZE
-                        DETACH DELETE n
-                        """,
-                        parameters={
-                            "account": account_id,
-                            "kind": kind,
-                            "owners": owners,
-                        },
-                        iterative=True,
+                    GraphJob.from_node_schema(
+                        ZoomSecuritySettingsSchema(),
+                        {"ACCOUNT_ID": account_id, "UPDATE_TAG": tag},
                         iterationsize=1000,
-                        parent_job_name="ZoomSecuritySettings",
+                        node_filters={"scope_type": kind},
+                        excluded_node_filters={"scope_id": owners},
+                        delete_current=True,
                     ).run(neo4j_session)
         if "apps" in sections:
             optional_call(
                 "apps", lambda: apps.sync(neo4j_session, client, account_id, tag)
             )
         if "meetings" in sections:
-            meetings.sync(
-                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
-            )
+            meetings.sync(neo4j_session, client, account_id, tag, users)
         if "recordings" in sections:
             recordings.sync(
                 neo4j_session, client, account_id, tag, users, config.zoom_lookback_days

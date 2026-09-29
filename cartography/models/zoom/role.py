@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import PERMISSION_ROLE
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
 
@@ -51,9 +53,14 @@ class ZoomRoleMemberRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ZoomRoleSchema(CartographyNodeSchema):
-    """A common account role and its assigned primary users; privileges are separate nodes."""
+    """A common account role and its assigned primary users; privileges are separate nodes.
+
+    > **Ontology Mapping**: This node has the extra label `PermissionRole` to enable
+    cross-platform queries for permission roles.
+    """
 
     label: str = "ZoomRole"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([PERMISSION_ROLE])
     properties: ZoomRoleProperties = ZoomRoleProperties()
     sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships([ZoomRoleMemberRel()])

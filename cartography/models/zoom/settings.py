@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.zoom.resource import ZoomAccountResourceRel
+from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 
 @dataclass(frozen=True)
@@ -145,22 +146,6 @@ class ZoomSecuritySettingsNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ZoomSettingsRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ZoomAccountToSecuritySettingsRel(CartographyRelSchema):
-    target_node_label: str = "ZoomAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomSettingsRelProperties = ZoomSettingsRelProperties()
-
-
-@dataclass(frozen=True)
 class ZoomAccountHasSettingsRel(CartographyRelSchema):
     target_node_label: str = "ZoomAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -168,7 +153,7 @@ class ZoomAccountHasSettingsRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_SETTINGS"
-    properties: ZoomSettingsRelProperties = ZoomSettingsRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -179,7 +164,7 @@ class ZoomGroupHasSettingsRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_SETTINGS"
-    properties: ZoomSettingsRelProperties = ZoomSettingsRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -190,7 +175,7 @@ class ZoomUserHasSettingsRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_SETTINGS"
-    properties: ZoomSettingsRelProperties = ZoomSettingsRelProperties()
+    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
 
 
 @dataclass(frozen=True)
@@ -207,9 +192,7 @@ class ZoomSecuritySettingsSchema(CartographyNodeSchema):
     properties: ZoomSecuritySettingsNodeProperties = (
         ZoomSecuritySettingsNodeProperties()
     )
-    sub_resource_relationship: ZoomAccountToSecuritySettingsRel = (
-        ZoomAccountToSecuritySettingsRel()
-    )
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ZoomAccountHasSettingsRel(),

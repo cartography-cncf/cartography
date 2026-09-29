@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import USER_GROUP
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
 
@@ -46,9 +48,14 @@ class ZoomGroupMemberRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ZoomGroupSchema(CartographyNodeSchema):
-    """A Zoom account group with members correlated from the complete Users API snapshot."""
+    """A Zoom account group with members correlated from the complete Users API snapshot.
+
+    > **Ontology Mapping**: This node has the extra label `UserGroup` to enable
+    cross-platform queries for user groups.
+    """
 
     label: str = "ZoomGroup"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([USER_GROUP])
     properties: ZoomGroupProperties = ZoomGroupProperties()
     sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships([ZoomGroupMemberRel()])

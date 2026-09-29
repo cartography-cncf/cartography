@@ -55,7 +55,7 @@ class ZoomUserNodeProperties(CartographyNodeProperties):
     )
     role_id: PropertyRef = PropertyRef(
         "role_id",
-        description="Assigned account role ID; role permissions are not ingested.",
+        description="Assigned primary account role ID; the optional roles surface links the user to its role and ingests role privileges.",
     )
     group_ids: PropertyRef = PropertyRef(
         "group_ids", description="IDs of groups where the user is a member."
