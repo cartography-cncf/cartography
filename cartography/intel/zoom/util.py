@@ -30,7 +30,7 @@ def optional_call(surface: str, callback: Callable[[], T]) -> T | None:
             except requests.exceptions.JSONDecodeError:
                 raise exc
         if response.status_code != 403 and not (
-            response.status_code == 400 and code in (200, 4700)
+            response.status_code == 400 and code in (200, 4700, 4711)
         ):
             raise
         logger.warning(

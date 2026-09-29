@@ -13,18 +13,41 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ZoomMeetingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Account-scoped Zoom meeting number."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
-    meeting_id: PropertyRef = PropertyRef("meeting_id")
-    host_id: PropertyRef = PropertyRef("host_id", extra_index=True)
-    topic: PropertyRef = PropertyRef("topic")
-    type: PropertyRef = PropertyRef("type")
-    status: PropertyRef = PropertyRef("status")
-    start_time: PropertyRef = PropertyRef("start_time")
-    created_at: PropertyRef = PropertyRef("created_at")
+    meeting_id: PropertyRef = PropertyRef(
+        "meeting_id",
+        description="Provider meeting ID (meeting number), stored as a string.",
+    )
+    host_id: PropertyRef = PropertyRef(
+        "host_id", extra_index=True, description="Provider user ID of the meeting host."
+    )
+    topic: PropertyRef = PropertyRef(
+        "topic", description="Meeting topic from the meeting details response."
+    )
+    type: PropertyRef = PropertyRef(
+        "type",
+        description="Provider meeting type code for instant, scheduled, or recurring meetings.",
+    )
+    status: PropertyRef = PropertyRef(
+        "status", description="Meeting status from the meeting details response."
+    )
+    start_time: PropertyRef = PropertyRef(
+        "start_time",
+        description="Scheduled start_time as a native datetime, when available.",
+    )
+    created_at: PropertyRef = PropertyRef(
+        "created_at",
+        description="Provider created_at as a native datetime, when available.",
+    )
     duration: PropertyRef = PropertyRef(
         "duration", description="Scheduled duration in minutes."
     )
@@ -32,16 +55,34 @@ class ZoomMeetingNodeProperties(CartographyNodeProperties):
         "password_protected",
         description="Whether the response supplies a nonempty passcode; unknown if omitted. Passcodes are never stored.",
     )
-    waiting_room: PropertyRef = PropertyRef("waiting_room")
-    meeting_authentication: PropertyRef = PropertyRef("meeting_authentication")
-    authentication_domains: PropertyRef = PropertyRef("authentication_domains")
-    join_before_host: PropertyRef = PropertyRef("join_before_host")
+    waiting_room: PropertyRef = PropertyRef(
+        "waiting_room",
+        description="Whether settings.waiting_room enables the waiting room.",
+    )
+    meeting_authentication: PropertyRef = PropertyRef(
+        "meeting_authentication",
+        description="Whether settings.meeting_authentication requires authenticated participants.",
+    )
+    authentication_domains: PropertyRef = PropertyRef(
+        "authentication_domains",
+        description="Allowed domains from settings.authentication_domains, when returned.",
+    )
+    join_before_host: PropertyRef = PropertyRef(
+        "join_before_host",
+        description="Whether settings.join_before_host allows participants to join before the host.",
+    )
     approval_type: PropertyRef = PropertyRef(
         "approval_type",
         description="Registration: 0 automatic approval, 1 manual approval, 2 not required.",
     )
-    encryption_type: PropertyRef = PropertyRef("encryption_type")
-    auto_recording: PropertyRef = PropertyRef("auto_recording")
+    encryption_type: PropertyRef = PropertyRef(
+        "encryption_type",
+        description="Configured encryption mode from settings.encryption_type.",
+    )
+    auto_recording: PropertyRef = PropertyRef(
+        "auto_recording",
+        description="Configured automatic recording mode from settings.auto_recording.",
+    )
 
 
 @dataclass(frozen=True)

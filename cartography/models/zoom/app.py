@@ -8,10 +8,15 @@ from cartography.models.zoom.resource import ZoomAccountResourceRel
 
 @dataclass(frozen=True)
 class ZoomAppProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Account-scoped Marketplace app ID."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     app_id: PropertyRef = PropertyRef(
         "app_id", description="Marketplace app_id.", extra_index=False

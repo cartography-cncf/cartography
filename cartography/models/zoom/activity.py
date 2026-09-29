@@ -14,10 +14,16 @@ from cartography.models.zoom.resource import ZoomResourceRelProperties
 
 @dataclass(frozen=True)
 class ZoomActivityEventProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id",
+        description="Account-scoped report source and SHA-256 fingerprint of the provider event.",
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     source: PropertyRef = PropertyRef(
         "source",

@@ -13,26 +13,46 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ZoomRecordingNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef(
+        "id", description="Account-scoped recorded meeting occurrence UUID."
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     account_id: PropertyRef = PropertyRef(
-        "ACCOUNT_ID", set_in_kwargs=True, extra_index=True
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
     )
     meeting_uuid: PropertyRef = PropertyRef(
         "meeting_uuid",
         description="Identifies this recorded meeting instance, including recurring meetings.",
     )
-    meeting_id: PropertyRef = PropertyRef("meeting_id")
-    host_id: PropertyRef = PropertyRef("host_id", extra_index=True)
-    topic: PropertyRef = PropertyRef("topic")
-    start_time: PropertyRef = PropertyRef("start_time")
+    meeting_id: PropertyRef = PropertyRef(
+        "meeting_id",
+        description="Provider meeting ID (meeting number), stored as a string.",
+    )
+    host_id: PropertyRef = PropertyRef(
+        "host_id",
+        extra_index=True,
+        description="Provider user ID of the recorded meeting host.",
+    )
+    topic: PropertyRef = PropertyRef(
+        "topic", description="Topic of the recorded meeting."
+    )
+    start_time: PropertyRef = PropertyRef(
+        "start_time",
+        description="Recorded meeting start_time as a native datetime, when available.",
+    )
     duration: PropertyRef = PropertyRef(
         "duration", description="Recorded meeting duration in minutes."
     )
     total_size: PropertyRef = PropertyRef(
         "total_size", description="Aggregate recording size in bytes."
     )
-    recording_count: PropertyRef = PropertyRef("recording_count")
+    recording_count: PropertyRef = PropertyRef(
+        "recording_count",
+        description="Provider recording_count for this meeting instance.",
+    )
     file_types: PropertyRef = PropertyRef(
         "file_types",
         description="Types of available recording files; file contents and access URLs are never fetched.",
@@ -45,8 +65,14 @@ class ZoomRecordingNodeProperties(CartographyNodeProperties):
         "share_recording",
         description="Provider sharing mode: publicly, internally, or none. Public sharing can still require authentication or a passcode.",
     )
-    recording_authentication: PropertyRef = PropertyRef("recording_authentication")
-    authentication_domains: PropertyRef = PropertyRef("authentication_domains")
+    recording_authentication: PropertyRef = PropertyRef(
+        "recording_authentication",
+        description="Whether settings.recording_authentication restricts viewing to authenticated users.",
+    )
+    authentication_domains: PropertyRef = PropertyRef(
+        "authentication_domains",
+        description="Allowed viewer domains from settings.authentication_domains, when returned.",
+    )
     on_demand: PropertyRef = PropertyRef(
         "on_demand", description="Whether viewing requires registration."
     )
@@ -54,9 +80,18 @@ class ZoomRecordingNodeProperties(CartographyNodeProperties):
         "approval_type",
         description="Registration: 0 automatic approval, 1 manual approval, 2 not required.",
     )
-    viewer_download: PropertyRef = PropertyRef("viewer_download")
-    auto_delete: PropertyRef = PropertyRef("auto_delete")
-    auto_delete_date: PropertyRef = PropertyRef("auto_delete_date")
+    viewer_download: PropertyRef = PropertyRef(
+        "viewer_download",
+        description="Whether settings.viewer_download permits recording downloads.",
+    )
+    auto_delete: PropertyRef = PropertyRef(
+        "auto_delete",
+        description="Whether settings.auto_delete enables automatic deletion.",
+    )
+    auto_delete_date: PropertyRef = PropertyRef(
+        "auto_delete_date",
+        description="Provider settings.auto_delete_date, when automatic deletion is configured.",
+    )
 
 
 @dataclass(frozen=True)
