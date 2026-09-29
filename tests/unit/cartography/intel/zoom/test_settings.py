@@ -2,11 +2,14 @@ from copy import deepcopy
 from typing import Any
 from unittest.mock import call
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
+import requests
 
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.settings import get
+from cartography.intel.zoom.settings import sync
 from cartography.intel.zoom.settings import transform
 from tests.data.zoom.settings import LOCKED_SETTINGS_RESPONSES
 from tests.data.zoom.settings import SETTINGS_RESPONSES
@@ -165,3 +168,42 @@ def test_get_fetches_only_required_response_variants(
         call(path, {"option": option}) for option in options
     ]
     assert set(responses) == {"default", *options}
+
+
+def test_settings_missing_scope_skips_later_owners_but_not_other_kinds() -> None:
+    # Arrange
+    client = MagicMock(spec=ZoomClient)
+    denied = requests.Response()
+    denied.status_code = 400
+    denied._content = (
+        b'{"code":4711,"message":"Invalid access token, does not contain '
+        b'scopes:[group:read:settings:admin]."}'
+    )
+
+    def response(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if path.startswith("/groups/") and path.endswith("/settings"):
+            raise requests.HTTPError(response=denied)
+        return {}
+
+    client.get.side_effect = response
+    groups = [{"id": "group-one"}, {"id": "group-two"}]
+
+    # Act
+    with patch("cartography.intel.zoom.settings.load") as mocked_load:
+        sync(MagicMock(), client, "account-one", 1, [], groups)
+
+    # Assert
+    paths = [args.args[0] for args in client.get.call_args_list]
+    assert paths.count("/groups/group-one/settings") == 1
+    assert "/groups/group-two/settings" not in paths
+    assert paths.count("/groups/group-one/lock_settings") == 2
+    assert paths.count("/groups/group-two/lock_settings") == 2
+    assert mocked_load.call_count == 4  # Both account kinds and both group locks.
+
+    # Act: a later sync receives a fresh cache and can retry the denied surface.
+    with patch("cartography.intel.zoom.settings.load"):
+        sync(MagicMock(), client, "account-one", 2, [], groups)
+
+    # Assert
+    paths = [args.args[0] for args in client.get.call_args_list]
+    assert paths.count("/groups/group-one/settings") == 2

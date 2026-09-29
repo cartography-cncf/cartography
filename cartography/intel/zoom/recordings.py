@@ -97,17 +97,6 @@ def transform(
     return result
 
 
-def cleanup(
-    neo4j_session: neo4j.Session, account_id: str, host_id: str, update_tag: int
-) -> None:
-    GraphJob.from_node_schema(
-        ZoomRecordingSchema(),
-        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
-        iterationsize=1000,
-        node_filters={"host_id": host_id},
-    ).run(neo4j_session)
-
-
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -117,12 +106,20 @@ def sync(
     users: list[dict[str, Any]],
     lookback_days: int = 7,
 ) -> None:
+    preserved_hosts = []
+    unavailable: set[str] = set()
     for user in users:
-        if not user.get("zoom_id") or user["status"] != "active" or user["type"] != 2:
+        if not user.get("zoom_id"):
             continue
         host_id = user["zoom_id"]
-        raw = optional_call("recordings", lambda: get(client, host_id, lookback_days))
+        if user["status"] != "active" or user["type"] != 2:
+            preserved_hosts.append(host_id)
+            continue
+        raw = optional_call(
+            "recordings", lambda: get(client, host_id, lookback_days), unavailable
+        )
         if raw is None:
+            preserved_hosts.append(host_id)
             continue
         data = transform(raw, account_id)
         load(
@@ -132,7 +129,13 @@ def sync(
             ACCOUNT_ID=account_id,
             lastupdated=update_tag,
         )
-        cleanup(neo4j_session, account_id, host_id, update_tag)
+    # Finish all healthy hosts before pruning, preserving identity on host transfers.
+    GraphJob.from_node_schema(
+        ZoomRecordingSchema(),
+        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
+        iterationsize=1000,
+        excluded_node_filters={"host_id": preserved_hosts},
+    ).run(neo4j_session)
     # Complete user inventory is authoritative even for same-tag orphan snapshots.
     GraphJob.from_node_schema(
         ZoomRecordingSchema(),

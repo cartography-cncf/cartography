@@ -21,16 +21,85 @@ from tests.unit.cartography.intel.zoom.test_client import response
 
 def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> None:
     # Arrange
-    def failure(status: int, code: int) -> None:
-        raise requests.HTTPError(response=response(status, {"code": code}))
+    def failure(status: int, code: int, message: str = "") -> None:
+        raise requests.HTTPError(
+            response=response(status, {"code": code, "message": message})
+        )
 
     # Act and assert
-    for status, code in ((403, 0), (400, 200), (400, 4700), (400, 4711)):
+    for status, code in ((403, 0), (400, 200)):
         assert optional_call("roles", lambda: failure(status, code)) is None
-    for status, code in ((401, 124), (400, 124), (500, 0), (429, 0)):
+    for status, code, message in (
+        (401, 124, ""),
+        (400, 124, ""),
+        (500, 0, ""),
+        (429, 0, ""),
+        (400, 4700, ""),
+        (400, 4700, "Token cannot be empty."),
+        (400, 4700, "Exception message"),
+        (400, 4711, "Refresh token invalid."),
+        (400, 4711, ""),
+    ):
         with pytest.raises(requests.HTTPError):
-            optional_call("roles", lambda: failure(status, code))
+            optional_call("roles", lambda: failure(status, code, message))
     assert optional_call("roles", lambda: []) == []
+
+
+@pytest.mark.parametrize(  # type: ignore[misc]
+    "code,message",
+    [
+        (4700, "Invalid access token, does not contain role:read:admin scope."),
+        (
+            4711,
+            "Invalid access token, does not contain scopes:[group:read:settings:admin].",
+        ),
+    ],
+)
+def test_missing_scope_is_cached_for_only_the_affected_surface(
+    code: int, message: str
+) -> None:
+    # Arrange
+    unavailable: set[str] = set()
+    denied = MagicMock(
+        side_effect=requests.HTTPError(
+            response=response(400, {"code": code, "message": message})
+        )
+    )
+    healthy = MagicMock(return_value={"waiting_room": True})
+
+    # Act
+    first = optional_call("group configured settings", denied, unavailable)
+    second = optional_call("group configured settings", denied, unavailable)
+    other = optional_call("group locked settings", healthy, unavailable)
+
+    # Assert
+    assert first is None and second is None
+    denied.assert_called_once_with()
+    healthy.assert_called_once_with()
+    assert other == {"waiting_room": True}
+    assert unavailable == {"group configured settings"}
+
+
+@pytest.mark.parametrize("status,code", [(403, 0), (400, 200)])  # type: ignore[misc]
+def test_owner_denials_do_not_disable_later_owners(status: int, code: int) -> None:
+    # Arrange
+    unavailable: set[str] = set()
+    fetch = MagicMock(
+        side_effect=[
+            requests.HTTPError(response=response(status, {"code": code})),
+            {"waiting_room": True},
+        ]
+    )
+
+    # Act
+    first = optional_call("user configured settings", fetch, unavailable)
+    second = optional_call("user configured settings", fetch, unavailable)
+
+    # Assert
+    assert first is None
+    assert second == {"waiting_room": True}
+    assert fetch.call_count == 2
+    assert unavailable == set()
 
 
 def test_paginated_reads_fail_before_returning_incomplete_data() -> None:
@@ -141,3 +210,17 @@ def test_roles_reject_incomplete_inventory_before_graph_writes(
     client.get.assert_called_once_with("/roles")
     client.fork.assert_not_called()
     assert not session.mock_calls
+
+
+def test_fetch_single_detail_reuses_the_existing_session() -> None:
+    # Arrange
+    client = MagicMock(spec=ZoomClient)
+    client.get.return_value = {"id": "role-1"}
+
+    # Act
+    result = fetch_many(client, ["/roles/role-1"])
+
+    # Assert
+    assert result == [{"id": "role-1"}]
+    client.get.assert_called_once_with("/roles/role-1", None)
+    client.fork.assert_not_called()

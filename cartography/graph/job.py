@@ -363,12 +363,14 @@ class GraphJob:
                 relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
                 Defaults to False to preserve existing behavior.
             node_filters: Additional node property equality filters, combined with AND.
-                Names must be declared on the node schema; values are parameterized.
+                Names must be declared on the node schema; values must not be None and are parameterized.
             excluded_node_filters: Exclude nodes whose property is in the supplied list.
                 An empty list excludes nothing. Filters apply to node and relationship cleanup.
+                Cypher null semantics apply: missing properties do not match nonempty filters.
             delete_current: Delete matching nodes regardless of their update tag. Requires
                 a nonempty filter mapping and is intended for authoritative orphan inventories.
                 Relationship and cascade-child staleness checks remain unchanged.
+                Not valid for relationship-only cleanup.
 
         Returns:
             GraphJob: A new GraphJob instance configured for cleanup operations.

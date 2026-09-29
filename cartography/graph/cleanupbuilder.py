@@ -48,10 +48,12 @@ def build_cleanup_queries(
         cascade_delete (bool): If True, also delete all child nodes that have a
             relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
             Defaults to False to preserve existing behavior. Only valid when scoped_cleanup=True.
-        node_filters: Equality filters on declared node properties. Values are bound by GraphJob.
+        node_filters: Equality filters on declared node properties. Non-None values are bound by GraphJob.
         excluded_node_filters: NOT IN filters on declared node properties, bound by GraphJob.
+            Cypher null semantics apply: missing properties do not match nonempty filters.
         delete_current: Omit node staleness checks when filters identify an authoritative
             deletion scope. Relationship and cascade-child staleness checks stay in place.
+            Not valid for relationship-only cleanup.
 
     Returns:
         List[str]: A list of Neo4j queries to clean up stale nodes and relationships.
@@ -79,6 +81,14 @@ def build_cleanup_queries(
     excluded_node_filters = excluded_node_filters or {}
     if delete_current and not (node_filters or excluded_node_filters):
         raise ValueError("delete_current requires nonempty node filters")
+    if any(value is None for value in node_filters.values()):
+        raise ValueError("Cleanup equality filter values must not be None")
+    if (
+        delete_current
+        and node_schema.scoped_cleanup
+        and not node_schema.sub_resource_relationship
+    ):
+        raise ValueError("delete_current is not valid for relationship-only cleanup")
     unknown = (node_filters.keys() | excluded_node_filters.keys()) - {
         field.name for field in fields(node_schema.properties)
     }
