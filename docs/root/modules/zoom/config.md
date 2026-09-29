@@ -107,6 +107,9 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
 
 ## Troubleshooting
 
+- **400 from `/oauth/token`**: Verify the app's activation state and the Account
+  ID from **App Credentials**. Zoom returns 400 when a deactivated
+  Server-to-Server OAuth app attempts to obtain an access token.
 - **401**: Check the credentials and app activation. An expired API token is
   renewed once automatically; repeated authorization failures abort the sync.
 - **403 or insufficient scope**: Add `user:read:list_users:admin` to the active
