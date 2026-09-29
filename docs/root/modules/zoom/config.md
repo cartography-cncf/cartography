@@ -20,21 +20,27 @@ authenticating the read-only connector.
    **Developers**, then **+** → **Build app** on the **Created apps** page.
    First-time developers are prompted to review and accept the Marketplace
    Terms of Use and, separately, the API License and Terms of Use.
-2. Select **Server to Server OAuth App**, click **Create**, enter an app name,
-   and click **Create** again. This creates an account-level app for internal use;
-   Marketplace publication and OAuth redirect URLs are not required.
+2. Select **Server to Server OAuth App**, click **Create**, enter an app name
+   such as `Cartography`, and click **Create** again. This creates an account-level
+   app for internal use; Marketplace publication and OAuth redirect URLs are not
+   required.
 3. On **App Credentials**, copy the **Account ID**, **Client ID**, and **Client
    Secret**. The account ID is the app's OAuth account identifier, not an email,
    vanity domain, or display account number.
-4. On **Information**, fill in the short description, company name, and developer
-   contact name and email. These fields save automatically.
+4. On **Information**, use a short description such as
+   `Read-only Zoom user inventory for Cartography`. Enter your organization's
+   company name and the responsible administrator's name and monitored contact
+   email. These fields save automatically.
 5. Continue through **Feature** without enabling event subscriptions. The token
    on that page is for webhook verification; it is not the client secret or an
    API access token used by Cartography.
 6. On **Scopes**, click **Add Scopes**, search for
    `user:read:list_users:admin`, select **View users** with that exact scope,
    and click **Done**. Leave the scope required, and describe how your deployment
-   uses and stores user data in the scope-description field.
+   uses and stores user data in the scope-description field. For example:
+   `Reads Zoom user profiles and assigned plan types to map account membership.
+   Stores this metadata in our organization's Neo4j database for security inventory.`
+   Adapt the description to your deployment's actual data handling.
 7. On **Activation**, click **Activate your app**. Creating credentials or saving
    a scope alone does not activate the app. Confirm that Zoom displays
    **Your app is activated on the account**.
