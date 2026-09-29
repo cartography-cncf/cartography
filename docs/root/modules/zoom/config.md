@@ -204,3 +204,13 @@ can still refresh. Credential failures,
 server errors, and incomplete pagination fail explicitly. Stale cleanup requires
 a complete read for the relevant account, owner, or report. Review warnings as well
 as the process exit status when assessing coverage.
+
+## Security review
+
+Run `cartography-rules run zoom_security_review` against the ingested graph to
+check meeting/recording protections, account policies, privileged roles, app
+scopes and stale licensed users. Select the corresponding inventories above.
+These experimental checks use the last collected snapshot, skip unknown values,
+and identify access worth reviewing; they do not infer individual MFA enrollment
+or verify public reachability. See [Running Rules](../../usage/rules.md) for
+connection options.
