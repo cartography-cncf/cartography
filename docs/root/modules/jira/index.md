@@ -50,7 +50,8 @@ Requests scale with pages of users (up to 1,000 per page), groups and membership
 (50 per page), and projects (50 per page), plus two paginated admin-group queries.
 Each project needs one role-list request and one request per role. Each
 company-managed project needs one permission-scheme assignment request; each
-unique scheme is fetched once. There are also two preflight/site-info requests.
+unique scheme is fetched once. There are also two preflight/site-info requests,
+plus one Cloud ID check when using the site URL override.
 No per-user by per-project permission checks are performed.
 Requests reuse one session and run sequentially to limit concurrent API load.
 The module logs group and project counts before fetching their detail records.

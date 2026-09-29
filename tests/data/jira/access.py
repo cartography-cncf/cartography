@@ -76,7 +76,7 @@ API_RESPONSES = {
     "mypermissions": {
         "permissions": {
             "ADMINISTER": {"havePermission": True},
-            "BROWSE_USERS": {"havePermission": True},
+            "USER_PICKER": {"havePermission": True},
         }
     },
     "serverInfo": {

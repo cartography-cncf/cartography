@@ -14,9 +14,15 @@ site rename. Jira Data Center and Server are not supported.
 
 ### Scoped API token
 
-Create an [API token with scopes](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)
-for the importing account. Cartography sends Basic authentication using its
-email address and token to
+1. Open the importing account's [API token settings](https://id.atlassian.com/manage-profile/security/api-tokens)
+   and select **Create API token with scopes**. Complete identity verification if prompted.
+2. Name it `Cartography`, choose an expiry date, and select **Jira** as the app.
+3. Add all 15 granular read scopes listed under **Required Permissions** below,
+   review the selection, and create the token.
+4. Copy the token before closing the dialog; Atlassian only displays it once.
+
+See Atlassian's [API token instructions](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)
+for details. Cartography sends Basic authentication using the account's email and token to
 `https://api.atlassian.com/ex/jira/<cloud-id>/rest/api/3`.
 Store the token in `JIRA_API_TOKEN` or another environment variable selected
 with `--jira-api-token-env-var`.
@@ -26,8 +32,9 @@ with `--jira-api-token-env-var`.
 For an existing unscoped token, also provide
 `--jira-site-url https://example.atlassian.net`. This uses the site's REST API
 origin with the same email/token credentials. The site URL must correspond to
-the configured Cloud ID. HTTPS Atlassian Cloud site origins are the only accepted
-override destinations; redirects are rejected.
+the configured Cloud ID; Cartography verifies this before inventory begins.
+HTTPS Atlassian Cloud site origins are the only accepted override destinations;
+redirects are rejected.
 
 ## Required Permissions
 
@@ -97,7 +104,8 @@ cartography --neo4j-uri bolt://localhost:7687 \
   times on 429, 502, 503, and 504. Each `Retry-After` delay is capped at eight
   seconds; without that header, retries use exponential backoff.
   Exhausted retries abort the snapshot and preserve the previous graph. The
-  connect/read timeouts are 10/60 seconds per request.
+  connect timeout is 10 seconds and the socket read timeout is 60 seconds;
+  these are not an overall request deadline.
 - **Missing emails**: Atlassian profile visibility may hide an email even from
   administrators. The account is still inventoried by account ID.
 - **Admin or team-managed coverage**: See [access facts and coverage](index.md#access-facts-and-coverage).

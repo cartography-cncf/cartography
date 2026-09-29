@@ -13,6 +13,7 @@ from cartography.intel.jira.access import resource_id
 from cartography.intel.jira.access import transform
 from cartography.intel.jira.util import JiraClient
 from tests.data.jira.access import CLOUD_ID
+from tests.data.jira.access import OTHER_CLOUD_ID
 
 
 def response(payload, status=200):
@@ -119,13 +120,60 @@ def test_missing_permission_aborts_before_inventory():
     client.get.return_value = {
         "permissions": {
             "ADMINISTER": {"havePermission": False},
-            "BROWSE_USERS": {"havePermission": True},
+            "USER_PICKER": {"havePermission": True},
         }
     }
     # Act and assert
     with pytest.raises(PermissionError):
         get(client)
     client.pages.assert_not_called()
+    client.get.assert_called_once_with(
+        "mypermissions", permissions="ADMINISTER,USER_PICKER"
+    )
+
+
+def test_site_override_mismatch_aborts_before_inventory(mocker: MockerFixture) -> None:
+    # Arrange
+    client = JiraClient(
+        CLOUD_ID, "reader@example.com", "test-token", "https://example.atlassian.net"
+    )
+    request = mocker.patch.object(
+        client.session, "get", return_value=response({"cloudId": OTHER_CLOUD_ID})
+    )
+    # Act and assert
+    with client.session, pytest.raises(ValueError, match="does not match"):
+        get(client)
+    request.assert_called_once_with(
+        "https://example.atlassian.net/_edge/tenant_info",
+        params={},
+        timeout=(10, 60),
+        allow_redirects=False,
+    )
+
+
+def test_matching_site_override_allows_api_reads(mocker: MockerFixture) -> None:
+    # Arrange
+    client = JiraClient(
+        CLOUD_ID, "reader@example.com", "test-token", "https://example.atlassian.net/"
+    )
+    request = mocker.patch.object(
+        client.session,
+        "get",
+        side_effect=[
+            response({"cloudId": CLOUD_ID}),
+            response({"deploymentType": "Cloud"}),
+        ],
+    )
+    # Act
+    with client.session:
+        client.validate_site()
+        info = client.get("serverInfo")
+    # Assert
+    assert info == {"deploymentType": "Cloud"}
+    assert [call.args[0] for call in request.call_args_list] == [
+        "https://example.atlassian.net/_edge/tenant_info",
+        "https://example.atlassian.net/rest/api/3/serverInfo",
+    ]
 
 
 def test_unconfigured_skips():
@@ -155,7 +203,7 @@ def test_shared_permission_scheme_fetched_once():
     client.get.side_effect = lambda path, **params: {
         "mypermissions": {
             "permissions": {
-                p: {"havePermission": True} for p in ("ADMINISTER", "BROWSE_USERS")
+                p: {"havePermission": True} for p in ("ADMINISTER", "USER_PICKER")
             }
         },
         "serverInfo": {"deploymentType": "Cloud"},

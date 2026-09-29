@@ -4,9 +4,16 @@ from uuid import UUID
 
 import requests
 from requests.adapters import HTTPAdapter
+from urllib3.response import BaseHTTPResponse
+from urllib3.util.retry import Retry
 
-from cartography.client.http import CappedRetry
 from cartography.util import DEFAULT_MAX_PAGES
+
+
+class _CappedRetry(Retry):
+    def get_retry_after(self, response: BaseHTTPResponse) -> float | None:
+        retry_after = super().get_retry_after(response)
+        return min(retry_after, 8) if retry_after is not None else None
 
 
 class JiraClient:
@@ -17,6 +24,7 @@ class JiraClient:
     ) -> None:
         # Cloud ID remains stable when a site is renamed and scopes every graph ID.
         self.cloud_id = str(UUID(cloud_id))
+        self.site_url = site_url
         self.base_url = f"https://api.atlassian.com/ex/jira/{self.cloud_id}"
         if site_url:
             parsed = urlsplit(site_url)
@@ -41,7 +49,7 @@ class JiraClient:
         self.session.mount(
             "https://",
             HTTPAdapter(
-                max_retries=CappedRetry(
+                max_retries=_CappedRetry(
                     total=3,
                     backoff_factor=1,
                     status_forcelist=(429, 502, 503, 504),
@@ -52,8 +60,18 @@ class JiraClient:
         )
 
     def get(self, path: str, **params: Any) -> Any:
+        return self._get_json(f"{self.base_url}/rest/api/3/{path}", **params)
+
+    def validate_site(self) -> None:
+        """Reject a site override that would write into another tenant's scope."""
+        if self.site_url is not None:
+            info = self._get_json(f"{self.base_url}/_edge/tenant_info")
+            if str(UUID(info["cloudId"])) != self.cloud_id:
+                raise ValueError("jira-site-url does not match jira-cloud-id")
+
+    def _get_json(self, url: str, **params: Any) -> Any:
         response = self.session.get(
-            f"{self.base_url}/rest/api/3/{path}",
+            url,
             params=params,
             timeout=(10, 60),
             allow_redirects=False,

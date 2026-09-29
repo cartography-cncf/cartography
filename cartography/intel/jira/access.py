@@ -22,12 +22,11 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(client: JiraClient) -> dict[str, Any]:
-    permissions = client.get("mypermissions", permissions="ADMINISTER,BROWSE_USERS")[
+    client.validate_site()
+    permissions = client.get("mypermissions", permissions="ADMINISTER,USER_PICKER")[
         "permissions"
     ]
-    if not all(
-        permissions[p]["havePermission"] for p in ("ADMINISTER", "BROWSE_USERS")
-    ):
+    if not all(permissions[p]["havePermission"] for p in ("ADMINISTER", "USER_PICKER")):
         raise PermissionError(
             "Jira ingestion requires Administer Jira and Browse users and groups"
         )
