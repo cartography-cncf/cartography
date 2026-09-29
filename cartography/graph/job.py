@@ -12,8 +12,6 @@ from typing import Union
 
 import neo4j
 
-from cartography.graph.cleanupbuilder import _EXCLUDED_NODE_FILTERS_PARAMETER
-from cartography.graph.cleanupbuilder import _NODE_FILTERS_PARAMETER
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
 from cartography.graph.statement import get_job_shortname
@@ -334,10 +332,6 @@ class GraphJob:
         parameters: Dict[str, Any],
         iterationsize: int = 10000,
         cascade_delete: bool = False,
-        *,
-        node_filters: dict[str, Any] | None = None,
-        excluded_node_filters: dict[str, list[Any]] | None = None,
-        delete_current: bool = False,
     ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema.
@@ -362,15 +356,6 @@ class GraphJob:
             cascade_delete (bool): If True, also delete all child nodes that have a
                 relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
                 Defaults to False to preserve existing behavior.
-            node_filters: Additional node property equality filters, combined with AND.
-                Names must be declared on the node schema; values must not be None and are parameterized.
-            excluded_node_filters: Exclude nodes whose property is in the supplied list.
-                An empty list excludes nothing. Filters apply to node and relationship cleanup.
-                Cypher null semantics apply: missing properties do not match nonempty filters.
-            delete_current: Delete matching nodes regardless of their update tag. Requires
-                a nonempty filter mapping and is intended for authoritative orphan inventories.
-                Relationship and cascade-child staleness checks remain unchanged.
-                Not valid for relationship-only cleanup.
 
         Returns:
             GraphJob: A new GraphJob instance configured for cleanup operations.
@@ -379,31 +364,7 @@ class GraphJob:
             ValueError: If the provided parameters don't match the expected
                 parameters for the cleanup queries.
         """
-        filter_parameters: dict[str, Any] = {}
-        if node_filters:
-            filter_parameters[_NODE_FILTERS_PARAMETER] = dict(node_filters)
-        if excluded_node_filters:
-            filter_parameters[_EXCLUDED_NODE_FILTERS_PARAMETER] = {
-                key: list(values) for key, values in excluded_node_filters.items()
-            }
-        if filter_parameters:
-            existing = set(parameters) | get_parameters(
-                build_cleanup_queries(node_schema, cascade_delete)
-            )
-            collisions = existing & filter_parameters.keys()
-            if collisions:
-                raise ValueError(
-                    f"Reserved cleanup filter parameter collision: {sorted(collisions)}"
-                )
-        # GraphStatement adds LIMIT_SIZE; neither caller parameters nor filter maps are mutated.
-        parameters = {**parameters, **filter_parameters}
-        queries: List[str] = build_cleanup_queries(
-            node_schema,
-            cascade_delete,
-            node_filters=node_filters,
-            excluded_node_filters=excluded_node_filters,
-            delete_current=delete_current,
-        )
+        queries: List[str] = build_cleanup_queries(node_schema, cascade_delete)
 
         expected_param_keys: Set[str] = get_parameters(queries)
         actual_param_keys: Set[str] = set(parameters.keys())

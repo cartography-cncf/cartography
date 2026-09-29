@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.zoom.extra_labels import ZOOM_ACTIVITY_EVENT
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
 
@@ -85,10 +87,37 @@ class ZoomActivityMeetingRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ZoomActivityEventSchema(CartographyNodeSchema):
-    """A deduplicated sign-in, operation, or meeting-audit event within the configured UTC lookback window. Free-form event details are not retained."""
+class ZoomSignInEventSchema(CartographyNodeSchema):
+    """A deduplicated sign-in or sign-out report event within the configured UTC lookback window. Free-form event details are not retained."""
 
-    label: str = "ZoomActivityEvent"
+    label: str = "ZoomSignInEvent"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ZOOM_ACTIVITY_EVENT])
+    properties: ZoomActivityEventProperties = ZoomActivityEventProperties()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ZoomActivityUserRel(), ZoomActivityMeetingRel()]
+    )
+
+
+@dataclass(frozen=True)
+class ZoomOperationEventSchema(CartographyNodeSchema):
+    """A deduplicated administrative operation-log event within the configured UTC lookback window. Free-form event details are not retained."""
+
+    label: str = "ZoomOperationEvent"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ZOOM_ACTIVITY_EVENT])
+    properties: ZoomActivityEventProperties = ZoomActivityEventProperties()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [ZoomActivityUserRel(), ZoomActivityMeetingRel()]
+    )
+
+
+@dataclass(frozen=True)
+class ZoomMeetingAuditEventSchema(CartographyNodeSchema):
+    """A deduplicated meeting-audit report event within the configured UTC lookback window. Free-form event details are not retained."""
+
+    label: str = "ZoomMeetingAuditEvent"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([ZOOM_ACTIVITY_EVENT])
     properties: ZoomActivityEventProperties = ZoomActivityEventProperties()
     sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(

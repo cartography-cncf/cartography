@@ -12,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.intel.zoom import meetings
 from cartography.intel.zoom import recordings
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.users import cleanup as cleanup_users
 from cartography.models.zoom.account import ZoomAccountSchema
 from cartography.models.zoom.meeting import ZoomMeetingSchema
 from cartography.models.zoom.recording import ZoomRecordingSchema
@@ -103,19 +104,18 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
             lastupdated=1,
         )
         if module is recordings:
-            load(
-                neo4j_session,
-                ZoomMeetingSchema(),
-                meetings.transform(
-                    [
-                        {**MEETING, "id": 12345678900 + i, "host_id": f"user-{i}"}
-                        for i in (1, 2)
-                    ],
-                    account,
-                ),
-                ACCOUNT_ID=account,
-                lastupdated=1,
-            )
+            for i in (1, 2):
+                load(
+                    neo4j_session,
+                    ZoomMeetingSchema(),
+                    meetings.transform(
+                        [{**MEETING, "id": 12345678900 + i, "host_id": f"user-{i}"}],
+                        account,
+                    ),
+                    ACCOUNT_ID=account,
+                    OWNER_ID=f"{account}:user:user-{i}",
+                    lastupdated=1,
+                )
 
     # Act
     for account in ("account-a", "account-b"):
@@ -136,6 +136,11 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
     }
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
         (f"{account}:{suffix}{i}", f"{account}:user:user-{i}")
+        for account in ("account-a", "account-b")
+        for i in (1, 2)
+    }
+    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
+        (f"{account}:user:user-{i}", f"{account}:{suffix}{i}")
         for account in ("account-a", "account-b")
         for i in (1, 2)
     }
@@ -163,7 +168,14 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
     }
     assert check_nodes(neo4j_session, label, ["password_protected"]) == {(True,)}
 
-    # Act: removed owner can be pruned from complete users inventory independently.
+    # Act: a complete users inventory removes the departed owner's snapshot.
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        users("account-a")[:1],
+        ACCOUNT_ID="account-a",
+        lastupdated=3,
+    )
     module.sync(
         neo4j_session,
         client_for(empty_first=True),
@@ -171,11 +183,15 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
         3,
         users("account-a")[:1],
     )
+    cleanup_users(neo4j_session, "account-a", 3)
 
     # Assert
     assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
         (f"account-b:{suffix}{i}", 1) for i in (1, 2)
     }
+    assert ("account-a:user:user-1",) in (
+        check_nodes(neo4j_session, "ZoomUser", ["id"]) or set()
+    )
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]
@@ -245,13 +261,15 @@ def test_cleanup_exhausts_multiple_batches(
         for number in range(1, 2003)
     ]
     schema = ZoomMeetingSchema() if module is meetings else ZoomRecordingSchema()
-    load(
-        neo4j_session,
-        schema,
-        module.transform(raw, account),
-        ACCOUNT_ID=account,
-        lastupdated=1,
-    )
+    for host in ("user-1", "user-2"):
+        load(
+            neo4j_session,
+            schema,
+            module.transform([r for r in raw if r["host_id"] == host], account),
+            ACCOUNT_ID=account,
+            OWNER_ID=f"{account}:user:{host}",
+            lastupdated=1,
+        )
 
     # Act
     module.sync(
@@ -268,11 +286,13 @@ def test_cleanup_exhausts_multiple_batches(
     assert len(remaining) == 1001
     assert check_nodes(neo4j_session, label, ["host_id"]) == {("user-2",)}
 
-    # Act: a complete empty user inventory removes every orphan in batches.
+    # Act: a complete empty user inventory removes every owned snapshot.
     module.sync(neo4j_session, client_for(), account, 3, [])
+    cleanup_users(neo4j_session, account, 3)
 
     # Assert
     assert check_nodes(neo4j_session, label, ["id"]) == set()
+    assert check_nodes(neo4j_session, "ZoomUser", ["id"]) == set()
 
 
 @pytest.mark.parametrize("code", [3301, 3001])  # type: ignore[misc]
@@ -329,11 +349,15 @@ def test_processing_recording_preserves_owner_and_continues_only_for_known_error
     }
 
 
+@pytest.mark.parametrize("old_host_removed", [False, True])  # type: ignore[misc]
 @pytest.mark.parametrize(  # type: ignore[misc]
     "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
 )
 def test_host_transfer_preserves_identity_and_replaces_host_relationship(
-    neo4j_session: neo4j.Session, module: ModuleType, label: str
+    neo4j_session: neo4j.Session,
+    module: ModuleType,
+    label: str,
+    old_host_removed: bool,
 ) -> None:
     # Arrange
     account = "account-a"
@@ -362,8 +386,19 @@ def test_host_transfer_preserves_identity_and_replaces_host_relationship(
     client.get.return_value = raw if module is meetings else RECORDING_SETTINGS
     client.get.side_effect = None
 
+    # Offboarding can delete the old host after transferring its resources.
+    current_users = users(account)[1:] if old_host_removed else users(account)
+    load(
+        neo4j_session,
+        ZoomUserSchema(),
+        current_users,
+        ACCOUNT_ID=account,
+        lastupdated=2,
+    )
+
     # Act: the old host is read first, before the new host loads the same resource.
-    module.sync(neo4j_session, client, account, 2, users(account))
+    module.sync(neo4j_session, client, account, 2, current_users)
+    cleanup_users(neo4j_session, account, 2)
 
     # Assert
     assert check_nodes(neo4j_session, label, ["id", "firstseen", "lastupdated"]) == {
@@ -371,4 +406,7 @@ def test_host_transfer_preserves_identity_and_replaces_host_relationship(
     }
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
         (f"{account}:{suffix}", f"{account}:user:user-2")
+    }
+    assert check_rels(neo4j_session, "ZoomUser", "id", label, "id", "RESOURCE") == {
+        (f"{account}:user:user-2", f"{account}:{suffix}")
     }

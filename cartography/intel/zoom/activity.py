@@ -12,7 +12,9 @@ from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import encode_uuid
 from cartography.intel.zoom.util import optional_call
 from cartography.intel.zoom.util import parse_datetime
-from cartography.models.zoom.activity import ZoomActivityEventSchema
+from cartography.models.zoom.activity import ZoomMeetingAuditEventSchema
+from cartography.models.zoom.activity import ZoomOperationEventSchema
+from cartography.models.zoom.activity import ZoomSignInEventSchema
 from cartography.models.zoom.participant import ZoomMeetingParticipantSchema
 from cartography.models.zoom.session import ZoomMeetingSessionSchema
 
@@ -81,28 +83,32 @@ def sync_reports(
     users: list[dict[str, Any]],
     days: int,
 ) -> None:
-    for source, path, key in (
-        ("signins", "/report/activities", "activity_logs"),
-        ("operations", "/report/operationlogs", "operation_logs"),
-        ("meeting_audit", "/report/meeting_activities", "meeting_activity_logs"),
+    for source, path, key, schema in (
+        ("signins", "/report/activities", "activity_logs", ZoomSignInEventSchema()),
+        (
+            "operations",
+            "/report/operationlogs",
+            "operation_logs",
+            ZoomOperationEventSchema(),
+        ),
+        (
+            "meeting_audit",
+            "/report/meeting_activities",
+            "meeting_activity_logs",
+            ZoomMeetingAuditEventSchema(),
+        ),
     ):
         rows = optional_call(source, lambda: get_report(client, path, key, days))
         if rows is None:
             continue
         data = transform_events(rows, source, account_id, users)
-        load(
-            session,
-            ZoomActivityEventSchema(),
-            data,
-            ACCOUNT_ID=account_id,
-            lastupdated=update_tag,
-        )
-        # Each report is independently authorized; preserve denied sources and edges.
+        load(session, schema, data, ACCOUNT_ID=account_id, lastupdated=update_tag)
+        # Each report is independently authorized; its own label scopes cleanup
+        # so denied sources and their edges are preserved.
         GraphJob.from_node_schema(
-            ZoomActivityEventSchema(),
+            schema,
             {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
             iterationsize=1000,
-            node_filters={"source": source},
         ).run(session)
 
 

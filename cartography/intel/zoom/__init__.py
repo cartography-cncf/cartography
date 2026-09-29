@@ -3,7 +3,6 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.graph.job import GraphJob
 from cartography.intel.zoom import access
 from cartography.intel.zoom import activity
 from cartography.intel.zoom import apps
@@ -11,9 +10,9 @@ from cartography.intel.zoom import meetings
 from cartography.intel.zoom import recordings
 from cartography.intel.zoom import settings
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.users import cleanup as cleanup_users
 from cartography.intel.zoom.users import sync
 from cartography.intel.zoom.util import optional_call
-from cartography.models.zoom.settings import ZoomSecuritySettingsSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -69,21 +68,6 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             )
         if "settings" in sections:
             settings.sync(neo4j_session, client, account_id, tag, users, groups)
-            # Membership is complete before reaching this point. Only vanished
-            # owners are removed; denied settings for current owners are retained.
-            for kind, owners in (
-                ("user", [u["zoom_id"] for u in users if u.get("zoom_id")]),
-                ("group", None if groups is None else [g["id"] for g in groups]),
-            ):
-                if owners is not None:
-                    GraphJob.from_node_schema(
-                        ZoomSecuritySettingsSchema(),
-                        {"ACCOUNT_ID": account_id, "UPDATE_TAG": tag},
-                        iterationsize=1000,
-                        node_filters={"scope_type": kind},
-                        excluded_node_filters={"scope_id": owners},
-                        delete_current=True,
-                    ).run(neo4j_session)
         if "apps" in sections:
             optional_call(
                 "apps", lambda: apps.sync(neo4j_session, client, account_id, tag)
@@ -110,3 +94,4 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                     config.zoom_lookback_days,
                 ),
             )
+        cleanup_users(neo4j_session, account_id, tag)

@@ -108,7 +108,7 @@ def sync(
     neo4j_session: neo4j.Session, client: ZoomClient, account_id: str, update_tag: int
 ) -> list[dict[str, Any]]:
     logger.info("Syncing Zoom users")
-    # Fetch and validate every status/page before any writes or stale-data cleanup.
+    # Fetch and validate every status/page before any writes; see cleanup().
     data = transform(get(client), account_id)
     load(
         neo4j_session, ZoomAccountSchema(), [{"id": account_id}], lastupdated=update_tag
@@ -120,9 +120,16 @@ def sync(
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
     )
+    return data
+
+
+@timeit
+def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
+    # Removed users take their stale meetings, recordings, and settings with them.
+    # Run after owned resources load so a resource transferred to another user
+    # during offboarding is current and keeps its identity.
     GraphJob.from_node_schema(
         ZoomUserSchema(),
         {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
+        cascade_delete=True,
     ).run(neo4j_session)
-
-    return data

@@ -10,6 +10,7 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.zoom.resource import ZoomAccountResourceRel
 from cartography.models.zoom.resource import ZoomResourceRelProperties
+from cartography.models.zoom.resource import ZoomUserResourceRel
 
 
 @dataclass(frozen=True)
@@ -107,7 +108,7 @@ class ZoomMeetingSchema(CartographyNodeSchema):
 
     label: str = "ZoomMeeting"
     properties: ZoomMeetingNodeProperties = ZoomMeetingNodeProperties()
-    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()
+    sub_resource_relationship: ZoomUserResourceRel = ZoomUserResourceRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ZoomMeetingToHostRel()]
+        [ZoomAccountResourceRel(), ZoomMeetingToHostRel()]
     )
