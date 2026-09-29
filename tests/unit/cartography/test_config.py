@@ -225,3 +225,16 @@ def test_config_rejects_legacy_prefix_without_bucket() -> None:
             neo4j_uri="bolt://localhost:7687",
             syft_s3_prefix="reports/syft/",
         )
+
+
+def test_jira_config_preserves_legacy_positional_slots() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters[72] == "lastpass_cid"
+    assert parameters[225] == "orca_api_token"
+    assert all(
+        parameters.index(name) > parameters.index("zoom_client_secret")
+        for name in ("jira_cloud_id", "jira_email", "jira_api_token", "jira_site_url")
+    )

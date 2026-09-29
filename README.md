@@ -107,6 +107,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [Google Cloud Platform](https://docs.cartography.dev/modules/gcp/index.html) - Artifact Registry, Bigtable, Cloud Functions, Cloud Resource Manager, Cloud Run, Cloud SQL, Compute including SSL policies and target proxies, DNS, IAM, KMS, Secret Manager, Storage, Google Kubernetes Engine, Vertex AI
 - [Google Workspace](https://docs.cartography.dev/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Huntress](https://docs.cartography.dev/modules/huntress/index.html) - accounts, organizations, agents, incident reports, console users and roles
+- [Jira Cloud](https://docs.cartography.dev/modules/jira/index.html) - users, groups, project roles, permission grants, and API-reported admin groups
 - [Jumpcloud](https://docs.cartography.dev/modules/jumpcloud/index.html)
 - [Kandji](https://docs.cartography.dev/modules/kandji/index.html) - Devices
 - [Keycloak](https://docs.cartography.dev/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
