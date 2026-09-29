@@ -1441,6 +1441,26 @@ class CLI:
                     hidden=PANEL_ZOOM not in visible_panels,
                 ),
             ] = "ZOOM_CLIENT_SECRET",
+            zoom_sections: Annotated[
+                str,
+                typer.Option(
+                    "--zoom-sections",
+                    help="Optional comma-separated Zoom inventories: groups,roles,settings,apps,meetings,recordings,reports,dashboard. Users always sync.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "",
+            zoom_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--zoom-lookback-days",
+                    min=1,
+                    max=30,
+                    help="UTC days of recordings and activity to inventory (1-30).",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = 7,
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -3851,6 +3871,8 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_sections=zoom_sections,
+                zoom_lookback_days=zoom_lookback_days,
                 zoom_account_id=zoom_account_id,
                 zoom_client_id=zoom_client_id,
                 zoom_client_secret=(
