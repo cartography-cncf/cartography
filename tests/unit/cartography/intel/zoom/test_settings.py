@@ -28,6 +28,7 @@ def test_transform_keeps_only_policy_scalars() -> None:
     assert record["account_owner_id"] is None
     assert record["group_owner_id"] is None
     assert record["pmi_passcode_required"] is True
+    assert record["waiting_room"] is False
     assert record["file_transfer"] is False
     assert record["allow_authentication_exception"] is False
     assert record["sign_in_with_two_factor_auth"] == "all"
@@ -68,6 +69,8 @@ def test_transform_distinguishes_owner_kind_and_account() -> None:
     # Assert
     assert len({record["id"] for record in records}) == 4
     assert records[0]["cloud_recording"] is True
+    assert records[0]["waiting_room"] is False
+    assert records[1]["waiting_room"] is True
     assert records[1]["cloud_recording"] is False
     assert records[1]["meeting_authentication"] is True
     assert records[1]["recording_authentication"] is True
