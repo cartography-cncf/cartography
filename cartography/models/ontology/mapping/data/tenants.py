@@ -807,6 +807,21 @@ orca_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                OntologyFieldMapping(ontology_field="domain", node_field="domain"),
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -835,6 +850,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             )
         ],
     ),
+    "zendesk": zendesk_mapping,
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
