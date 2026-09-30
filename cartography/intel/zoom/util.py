@@ -102,10 +102,6 @@ def is_zoom_error(exc: requests.HTTPError, status: int, code: int) -> bool:
     return isinstance(body, dict) and body.get("code") == code
 
 
-def get_detail(client: ZoomClient, path: str) -> dict[str, Any]:
-    return client.get(path)
-
-
 def fetch_many(
     client: ZoomClient,
     items: list[T],

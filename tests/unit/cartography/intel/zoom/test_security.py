@@ -8,18 +8,19 @@ import pytest
 import requests
 
 from cartography.intel.zoom.access import sync_roles
-from cartography.intel.zoom.activity import transform_events
 from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.client import ZoomRequestLimitError
 from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import fetch_many
-from cartography.intel.zoom.util import get_detail
 from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
-from tests.data.zoom.security import SIGNIN
 from tests.data.zoom.security import USERS
 from tests.unit.cartography.intel.zoom.test_client import response
+
+
+def get_detail(client: ZoomClient, path: str) -> dict[str, Any]:
+    return client.get(path)
 
 
 def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> None:
@@ -145,26 +146,6 @@ def test_budget_and_origin_validation_apply_before_network() -> None:
             fork.get("/roles")
 
 
-def test_heavy_limit_counts_only_report_and_dashboard_requests() -> None:
-    # Arrange
-    heavy = RequestBudget(1, "heavy request")
-    client = ZoomClient("a", "b", "c", RequestBudget(10), heavy)
-    client._access_token = "token"
-    client._expires_at = float("inf")
-    ok = response(200, {"users": []})
-
-    # Act and assert
-    with client.session, patch.object(client.session, "get", return_value=ok) as get:
-        client.get("/users")
-        client.get("/report/activities")
-        with pytest.raises(ZoomRequestLimitError, match="heavy request limit"):
-            client.get("/metrics/meetings")
-        client.get("/roles")
-    assert get.call_count == 3
-    assert heavy.remaining == 0
-    assert client.budget.remaining == 6
-
-
 @pytest.mark.parametrize(  # type: ignore[misc]
     "error",
     [
@@ -238,20 +219,6 @@ def test_date_windows_split_month_boundaries() -> None:
         {"from": "2026-09-26", "to": "2026-09-30"},
         {"from": "2026-10-01", "to": "2026-10-02"},
     ]
-
-
-def test_activity_retains_queryable_fields_without_free_text_or_ip() -> None:
-    # Arrange
-    event = {**SIGNIN, "operation_detail": "secret-placeholder", "meeting_number": None}
-    # Act
-    result = transform_events([event], "signins", "account-a", USERS)[0]
-    # Assert
-    assert result["user_node_id"] == USERS[0]["id"]
-    assert result["occurred_at"] == datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
-    assert result["client_version"] == "6.1.0"
-    assert result["meeting_node_id"] is None
-    assert "secret-placeholder" not in str(result)
-    assert "192.0.2.1" not in str(result)
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]

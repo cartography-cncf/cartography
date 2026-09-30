@@ -132,7 +132,7 @@ cartography --selected-modules zoom,ontology \
   --zoom-account-id "$ZOOM_ACCOUNT_ID" \
   --zoom-client-id "$ZOOM_CLIENT_ID" \
   --zoom-client-secret-env-var ZOOM_CLIENT_SECRET \
-  --zoom-sections groups,roles,settings,apps,meetings,recordings,reports,dashboard,client_versions \
+  --zoom-sections groups,roles,settings,apps,meetings,recordings,client_versions \
   --zoom-lookback-days 7
 ```
 
@@ -147,27 +147,23 @@ activate it. All scopes below are read-only; write scopes are unnecessary.
 | `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps, their developer type, and exact OAuth scope identifiers. This does not enumerate individual user installations, account-created apps or restricted apps. |
 | `meetings` | `meeting:read:list_meetings:admin`, `meeting:read:meeting:admin` | Unexpired scheduled meetings and recurring series of Basic/Licensed users. Instant meetings and per-occurrence exceptions are not included. |
 | `recordings` | `cloud_recording:read:list_user_recordings:admin`, `cloud_recording:read:recording_settings:admin` | Pro or higher with cloud recording enabled. Active Licensed users' recorded meeting instances and sharing/protection controls. The app's authorizing role must allow viewing recording content to read these settings. |
-| `reports` | `report:read:user_activities:admin`, `report:read:operation_logs:admin`, `report:read:meeting_activity_log:admin` | Pro or higher. Sign-in/out, administrative, and meeting audit metadata. Meeting audit trails must be enabled by Zoom Support. |
-| `dashboard` | `dashboard:read:list_meetings:admin`, `dashboard:read:list_meeting_participants:admin` | Business or higher. Past meeting instances, including single-participant meetings, with participant device category, client version and operating system where Zoom returns them. |
-| `client_versions` | `dashboard:read:client_versions:admin` | Business or higher with the Dashboard enabled. One account-wide count per client version; counts are not attributed to users or devices. |
+| `client_versions` | `dashboard:read:client_versions:admin` | Business or higher with the Dashboard enabled. One account-wide count per client version; counts are not attributed to users or devices. Zoom labels this endpoint Heavy, and it is read once per sync. |
 
 Settings are separate `configured` and `locked` snapshots. Locked values describe
 whether users can change a control; they are not enabled/disabled policy values.
 The connector does not calculate effective policy inheritance. Fields absent from
 a successful response remain unknown rather than being interpreted as disabled.
 Meeting and recording passcodes become protection flags; passwords, access URLs,
-media, transcripts, and free-form audit details are not stored.
+media, and transcripts are not stored. Sign-in, administrative and meeting audit
+events, and per-meeting participant activity, are not ingested; use a SIEM for
+those logs.
 
-`--zoom-lookback-days` accepts 1–30 UTC calendar days (default 7) for recordings,
-reports, and dashboard data. The current day is included, and requests are split
-at month boundaries. Each successful scan replaces that section's rolling window;
-older events and recordings leave the graph. This is not a historical archive.
-The scheduled-meeting inventory is independent of this lookback.
-
-Zoom limits dashboard queries to the last six months and report/recording queries
-to monthly ranges. Data may arrive late. Participant identities and device fields
-may be withheld for external users; participant rows are observations, not a
-persistent device inventory. `ZoomUser.last_client_version` is the last login
+`--zoom-lookback-days` accepts 1–30 UTC calendar days (default 7) for recordings.
+The current day is included, and requests are split at month boundaries, since Zoom
+limits a recordings query to a one-month range. Each successful scan replaces the
+recordings rolling window; older recordings leave the graph. This is not a
+historical archive. The scheduled-meeting inventory is independent of this
+lookback. Data may arrive late. `ZoomUser.last_client_version` is the last login
 client reported by the Users API, not every client used by the account.
 
 Per-owner and per-item reads use at most four workers, each with its own HTTP
@@ -175,11 +171,9 @@ session, pooled across all owners of a section. Settings use up to five reads pe
 account, four per user/group, and two per locked account/group snapshot; all
 readable snapshots are written in one batch. Pagination is capped at 10,000 pages.
 
-`--zoom-request-limit` (default 100,000) caps logical GET requests per sync, and
-`--zoom-heavy-request-limit` (default 10,000) caps report and dashboard requests,
-which Zoom counts toward a daily limit shared by every app on the account. These
-are Cartography safeguards, not Zoom quotas. Each request keeps the client's
-three-retry limit. An optional section that reaches a limit, or is still rate
+`--zoom-request-limit` (default 100,000) caps logical GET requests per sync. This
+is a Cartography safeguard, not a Zoom quota. Each request keeps the client's
+three-retry limit. An optional section that reaches the limit, or is still rate
 limited after retries, stops further reads for that section, keeps its unread
 snapshots, and lets independent sections continue. The required user inventory
 still fails on a limit or sustained rate limit.
@@ -194,15 +188,13 @@ inventory. A transfer keeps the resource identity and only the new host
 relationship. A resource moved to a host that cannot be read while its previous
 host is readable cannot be distinguished from a deletion and is removed until the
 new host is read. Documented not-found responses for a single meeting, role, app or
-settings owner affect only that item. If the dashboard reports a listed meeting
-as invalid or not yet ended, the whole dashboard snapshot is kept until a later
-complete read. Existing recordings also remain when their
+settings owner affect only that item. Existing recordings also remain when their
 owner becomes inactive or loses a Licensed seat. Meetings are likewise preserved
 for pending users and users without a Basic/Licensed seat. Cleanup resumes after a
 successful read or removes the snapshot when the owner leaves the account. Successful independent sections and owners
 can still refresh. Credential failures,
 server errors, and incomplete pagination fail explicitly. Stale cleanup requires
-a complete read for the relevant account, owner, or report. Review warnings as well
+a complete read for the relevant account or owner. Review warnings as well
 as the process exit status when assessing coverage.
 
 ## Security review

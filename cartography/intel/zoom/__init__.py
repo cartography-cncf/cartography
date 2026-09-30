@@ -4,8 +4,8 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel.zoom import access
-from cartography.intel.zoom import activity
 from cartography.intel.zoom import apps
+from cartography.intel.zoom import client_versions
 from cartography.intel.zoom import meetings
 from cartography.intel.zoom import recordings
 from cartography.intel.zoom import settings
@@ -27,14 +27,13 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         logger.info("Zoom import is not configured - skipping this module.")
         return
 
-    if config.zoom_request_limit < 1 or config.zoom_heavy_request_limit < 1:
-        raise ValueError("Zoom request limits must be positive")
+    if config.zoom_request_limit < 1:
+        raise ValueError("Zoom request limit must be positive")
     client = ZoomClient(
         config.zoom_account_id,
         config.zoom_client_id,
         config.zoom_client_secret,
         RequestBudget(config.zoom_request_limit),
-        RequestBudget(config.zoom_heavy_request_limit, "heavy request"),
     )
     sections = {
         section.strip()
@@ -48,8 +47,6 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "apps",
         "meetings",
         "recordings",
-        "reports",
-        "dashboard",
         "client_versions",
     }
     if unknown:
@@ -86,28 +83,10 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             recordings.sync(
                 neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
             )
-        if "reports" in sections:
-            activity.sync_reports(
-                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
-            )
-        if "dashboard" in sections:
-            optional_call(
-                "dashboard",
-                lambda: activity.sync_dashboard(
-                    neo4j_session,
-                    client,
-                    account_id,
-                    tag,
-                    users,
-                    config.zoom_lookback_days,
-                ),
-            )
         if "client_versions" in sections:
             optional_call(
                 "client_versions",
-                lambda: activity.sync_client_versions(
-                    neo4j_session, client, account_id, tag
-                ),
+                lambda: client_versions.sync(neo4j_session, client, account_id, tag),
             )
         cleanup_users(neo4j_session, account_id, tag)
         settings.cleanup(neo4j_session, account_id, tag)

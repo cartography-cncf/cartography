@@ -1445,7 +1445,7 @@ class CLI:
                 str,
                 typer.Option(
                     "--zoom-sections",
-                    help="Optional comma-separated Zoom inventories: groups,roles,settings,apps,meetings,recordings,reports,dashboard,client_versions. Users always sync.",
+                    help="Optional comma-separated Zoom inventories: groups,roles,settings,apps,meetings,recordings,client_versions. Users always sync.",
                     rich_help_panel=PANEL_ZOOM,
                     hidden=PANEL_ZOOM not in visible_panels,
                 ),
@@ -1456,7 +1456,7 @@ class CLI:
                     "--zoom-lookback-days",
                     min=1,
                     max=30,
-                    help="UTC days of recordings and activity to inventory (1-30).",
+                    help="UTC days of recordings to inventory (1-30).",
                     rich_help_panel=PANEL_ZOOM,
                     hidden=PANEL_ZOOM not in visible_panels,
                 ),
@@ -1471,16 +1471,6 @@ class CLI:
                     hidden=PANEL_ZOOM not in visible_panels,
                 ),
             ] = 100000,
-            zoom_heavy_request_limit: Annotated[
-                int,
-                typer.Option(
-                    "--zoom-heavy-request-limit",
-                    min=1,
-                    help="Maximum Zoom report and dashboard GET requests per sync. These endpoints count toward Zoom's daily account limit shared by all apps.",
-                    rich_help_panel=PANEL_ZOOM,
-                    hidden=PANEL_ZOOM not in visible_panels,
-                ),
-            ] = 10000,
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -3894,7 +3884,6 @@ class CLI:
                 zoom_sections=zoom_sections,
                 zoom_lookback_days=zoom_lookback_days,
                 zoom_request_limit=zoom_request_limit,
-                zoom_heavy_request_limit=zoom_heavy_request_limit,
                 zoom_account_id=zoom_account_id,
                 zoom_client_id=zoom_client_id,
                 zoom_client_secret=(
