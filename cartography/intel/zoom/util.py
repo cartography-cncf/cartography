@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 import neo4j
 import requests
+from dateutil.parser import isoparse
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import GraphStatement
@@ -148,7 +149,7 @@ def parse_datetime(value: Any) -> datetime | None:
     if value is None or value == "":
         return None
     try:
-        timestamp = datetime.fromisoformat(value)
+        timestamp = isoparse(value)
         return timestamp.replace(tzinfo=timestamp.tzinfo or timezone.utc)
     except (ValueError, TypeError):
         logger.warning("Ignoring malformed optional Zoom timestamp")

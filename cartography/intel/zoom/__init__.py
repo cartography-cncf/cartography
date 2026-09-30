@@ -110,3 +110,4 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 ),
             )
         cleanup_users(neo4j_session, account_id, tag)
+        settings.cleanup(neo4j_session, account_id, tag)

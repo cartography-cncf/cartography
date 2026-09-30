@@ -6,6 +6,8 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.graph.statement import GraphStatement
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import fetch_many
 from cartography.intel.zoom.util import is_zoom_error
@@ -122,6 +124,7 @@ ID_LIST_FIELDS = {
 MISSING_OWNER_CODES = {"group": 4130, "user": 1001}
 
 
+@timeit
 def get(
     client: ZoomClient,
     path: str,
@@ -304,8 +307,8 @@ def sync(
         if response is not None
     ]
     # Each owner/kind has one stable node. load() clears absent properties;
-    # unread owner/kinds are not loaded and keep their snapshots. Removed groups
-    # and users take their settings with them during their own cleanup.
+    # unread owner/kinds are not loaded and keep their snapshots. Settings whose
+    # owner was removed are swept by cleanup().
     load(
         neo4j_session,
         ZoomSecuritySettingsSchema(),
@@ -319,3 +322,31 @@ def sync(
             len(reads) - len(records),
             len(reads),
         )
+
+
+@timeit
+def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
+    """Delete stale settings whose owning group or user left the account.
+
+    Run after the user and group cleanups, which detach-delete removed owners, so a
+    removed owner's settings no longer have a HAS_SETTINGS edge. A stale snapshot
+    whose owner still exists was denied or unread this sync and keeps its prior
+    values. Schema cleanup drops every stale node and cannot express this owner
+    filter, so this fixed statement runs through the standard iterative GraphJob
+    runner.
+    """
+    statement = GraphStatement(
+        """
+        MATCH (:ZoomAccount {id: $ACCOUNT_ID})-[:RESOURCE]->(n:ZoomSecuritySettings)
+        WHERE n.lastupdated <> $UPDATE_TAG
+            AND NOT EXISTS { (n)<-[:HAS_SETTINGS]-() }
+        WITH n ORDER BY n.id LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
+        iterative=True,
+        iterationsize=1000,
+    )
+    GraphJob("Cleanup ZoomSecuritySettings", [statement], "ZoomSecuritySettings").run(
+        neo4j_session
+    )

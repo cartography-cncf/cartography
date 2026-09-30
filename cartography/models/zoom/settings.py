@@ -215,32 +215,6 @@ class ZoomUserHasSettingsRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ZoomGroupOwnsSettingsRel(CartographyRelSchema):
-    """The group owns these settings; removing the group removes them."""
-
-    target_node_label: str = "ZoomGroup"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("group_owner_id")}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
-
-
-@dataclass(frozen=True)
-class ZoomUserOwnsSettingsRel(CartographyRelSchema):
-    """The user owns these settings; removing the user removes them."""
-
-    target_node_label: str = "ZoomUser"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("user_owner_id")}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: ZoomResourceRelProperties = ZoomResourceRelProperties()
-
-
-@dataclass(frozen=True)
 class ZoomSecuritySettingsSchema(CartographyNodeSchema):
     """Allowlisted security policy metadata from Zoom's settings endpoints.
 
@@ -261,7 +235,5 @@ class ZoomSecuritySettingsSchema(CartographyNodeSchema):
             ZoomAccountHasSettingsRel(),
             ZoomGroupHasSettingsRel(),
             ZoomUserHasSettingsRel(),
-            ZoomGroupOwnsSettingsRel(),
-            ZoomUserOwnsSettingsRel(),
         ]
     )

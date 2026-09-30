@@ -46,6 +46,7 @@ def get_meeting(client: ZoomClient, meeting_id: int) -> dict[str, Any]:
         raise
 
 
+@timeit
 def get(
     client: ZoomClient, host_ids: list[str], unavailable: set[str]
 ) -> tuple[list[dict[str, Any]], list[str]]:

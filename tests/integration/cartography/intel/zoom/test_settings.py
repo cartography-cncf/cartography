@@ -329,7 +329,7 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
             for account in ("account-one", "account-two")
         }
         assert check_rels(
-            neo4j_session, label, "id", "ZoomSecuritySettings", "id", "RESOURCE"
+            neo4j_session, label, "id", "ZoomSecuritySettings", "id", "HAS_SETTINGS"
         ) == {
             (
                 f"{account}:{scope}:current-{scope}",

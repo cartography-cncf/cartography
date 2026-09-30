@@ -244,6 +244,7 @@ def test_cli_wires_request_limits_to_the_client(
         patch("cartography.intel.zoom.sync", return_value=[]),
         patch("cartography.intel.zoom.activity.sync_client_versions") as versions,
         patch("cartography.intel.zoom.cleanup_users"),
+        patch("cartography.intel.zoom.settings.cleanup"),
     ):
         start_zoom_ingestion(MagicMock(), config)
 

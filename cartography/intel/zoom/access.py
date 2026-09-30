@@ -45,11 +45,9 @@ def sync_groups(
     load(
         session, ZoomGroupSchema(), data, lastupdated=update_tag, ACCOUNT_ID=account_id
     )
-    # Removed groups take their stale settings with them.
     GraphJob.from_node_schema(
         ZoomGroupSchema(),
         {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
-        cascade_delete=True,
     ).run(session)
     return groups
 

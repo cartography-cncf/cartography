@@ -59,6 +59,7 @@ def get_settings(client: ZoomClient, uuid: str) -> dict[str, Any] | None:
         raise
 
 
+@timeit
 def get(
     client: ZoomClient,
     host_ids: list[str],
