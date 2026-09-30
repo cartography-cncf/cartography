@@ -110,9 +110,11 @@ def test_sync_inventory(mock_get, neo4j_session):
         not {"token", "visible_token", "scopes", "expires_at"}
         & row["properties"].keys()
     )
-    assert check_nodes(neo4j_session, "UserAccount", ["id", "_ont_source"]) == {
-        ("acme:101", "zendesk"),
-        ("acme:102", "zendesk"),
+    assert check_nodes(
+        neo4j_session, "UserAccount", ["id", "_ont_source", "_ont_active"]
+    ) == {
+        ("acme:101", "zendesk", True),
+        ("acme:102", "zendesk", False),
     }
 
 

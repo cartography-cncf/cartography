@@ -833,6 +833,11 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
                     ),
                     OntologyFieldMapping(ontology_field="fullname", node_field="name"),
                     OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="suspended",
+                        special_handling="invert_boolean",
+                    ),
+                    OntologyFieldMapping(
                         ontology_field="lastactivity", node_field="last_login_at"
                     ),
                 ],
