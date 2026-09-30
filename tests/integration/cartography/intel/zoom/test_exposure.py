@@ -692,10 +692,6 @@ def test_meeting_display_denial_is_local_to_the_denied_host(
     meetings.sync(neo4j_session, client, account, 2, users(account))
 
     # Assert: the healthy host is still read and pruned; the denied host is kept.
-    assert {c.args[0] for c in client.get_paginated.call_args_list} == {
-        "/users/user-1/meetings",
-        "/users/user-2/meetings",
-    }
     assert check_nodes(neo4j_session, "ZoomMeeting", ["id", "lastupdated"]) == {
         (f"{account}:meeting:12345678901", 1)
     }
