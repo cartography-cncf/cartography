@@ -376,6 +376,13 @@ GLOBAL_NODE_LABELS: Set[str] = {
     # global `name|requirements` id and is referenced by repos across orgs, so
     # it uses unscoped cleanup like PythonLibrary.
     "GitHubDependency",
+    # A LangSmith user keeps the same `ls_user_id` across every organization they belong
+    # to, and each organization has its own view of whether that identity is disabled and
+    # what role it holds. Anchoring the identity to one organization would both let that
+    # organization overwrite another's state and let its cleanup DETACH DELETE someone who
+    # merely left it, so the per-organization facts live on LangSmithOrgMembership instead
+    # (same reasoning as GitHubUser, ModalUser and RailwayUser).
+    "LangSmithUser",
     # A Modal user keeps the same `us-...` id in every workspace they belong to. Anchoring the
     # identity to one workspace would let that workspace's cleanup DETACH DELETE someone who
     # merely left it, destroying the other workspaces' memberships, so the workspace link is a

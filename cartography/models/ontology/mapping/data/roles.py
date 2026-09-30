@@ -422,6 +422,21 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "huntress": huntress_mapping,
@@ -486,4 +501,5 @@ ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }

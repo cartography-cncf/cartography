@@ -200,6 +200,23 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithSecret",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # created_at / updated_at: Not available - the workspace secrets endpoint
+                # returns key names only, with no timestamps.
+            ],
+        ),
+    ],
+)
+
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -228,4 +245,5 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }

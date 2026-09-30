@@ -96,6 +96,9 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
             "cartography.intel.digitalocean", "start_digitalocean_ingestion"
         ),
         "kandji": _LazyStage("cartography.intel.kandji", "start_kandji_ingestion"),
+        "langsmith": _LazyStage(
+            "cartography.intel.langsmith", "start_langsmith_ingestion"
+        ),
         "keycloak": _LazyStage(
             "cartography.intel.keycloak", "start_keycloak_ingestion"
         ),

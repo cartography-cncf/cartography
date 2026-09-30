@@ -132,6 +132,25 @@ modal_mapping = OntologyMapping(
     ],
 )
 
+langsmith_mapping = OntologyMapping(
+    module_name="langsmith",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="LangSmithServiceAccount",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # email: Not available - LangSmith service accounts are not mailboxes and
+                # carry no email address.
+                # active: Not available - the service account endpoint reports no
+                # enabled/disabled state.
+            ],
+        ),
+    ],
+)
+
+
 SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "kubernetes": kubernetes_mapping,
@@ -188,4 +207,5 @@ SERVICEACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             ),
         ],
     ),
+    "langsmith": langsmith_mapping,
 }
