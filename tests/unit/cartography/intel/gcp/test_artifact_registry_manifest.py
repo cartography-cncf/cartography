@@ -103,3 +103,35 @@ def test_transform_manifests_uses_parent_digest_directly():
             "child_image_digests": ["sha256:child"],
         }
     ]
+
+
+def test_transform_manifests_reads_top_level_platform_from_docker_images_api():
+    manifests = transform_manifests(
+        [
+            {
+                "digest": "sha256:child",
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8",
+                "osVersion": "10.0.17763.1234",
+                "osFeatures": ["win32k"],
+            }
+        ],
+        "sha256:parent",
+    )
+
+    assert manifests == [
+        {
+            "digest": "sha256:child",
+            "type": "image",
+            "architecture": "arm64",
+            "os": "linux",
+            "os_version": "10.0.17763.1234",
+            "os_features": ["win32k"],
+            "variant": "v8",
+            "media_type": None,
+            "parent_digest": "sha256:parent",
+            "child_digest": "sha256:child",
+            "child_image_digests": ["sha256:child"],
+        }
+    ]
