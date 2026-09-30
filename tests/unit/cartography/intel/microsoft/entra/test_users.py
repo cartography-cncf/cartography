@@ -45,7 +45,7 @@ def test_activity_timestamps_and_missing_activity() -> None:
     assert result[0]["last_non_interactive_sign_in_date_time"] == non_interactive
     assert result[0]["manager_id"] == "manager"
     assert result[0]["sign_in_activity_available"] is True
-    assert result[1]["sign_in_activity_available"] is False
+    assert result[1]["sign_in_activity_available"] is True
     assert result[2]["sign_in_activity_available"] is True
     for row in result[1:]:
         assert row["last_successful_sign_in_date_time"] is None
@@ -64,8 +64,8 @@ def _client() -> MagicMock:
     return client
 
 
-async def _collect(client: MagicMock) -> list[User]:
-    return [user async for user in get_users(client)]
+async def _collect(client: MagicMock) -> list[tuple[list[User], bool]]:
+    return [page async for page in get_users(client)]
 
 
 def test_activity_request_paginates() -> None:
@@ -84,7 +84,7 @@ def test_activity_request_paginates() -> None:
     result = asyncio.run(_collect(client))
 
     # Assert
-    assert result == [first, second]
+    assert result == [([first], True), ([second], True)]
     parameters = client.users.get.call_args.kwargs[
         "request_configuration"
     ].query_parameters

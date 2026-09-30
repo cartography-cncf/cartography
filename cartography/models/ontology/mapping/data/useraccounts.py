@@ -23,6 +23,10 @@ entra_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="active", node_field="account_enabled"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity",
+                    node_field="last_successful_sign_in_date_time",
+                ),
             ],
         ),
     ],

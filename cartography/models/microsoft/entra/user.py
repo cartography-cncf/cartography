@@ -81,7 +81,8 @@ class EntraUserBaseNodeProperties(CartographyNodeProperties):
     )
     sign_in_activity_available: PropertyRef = PropertyRef(
         "sign_in_activity_available",
-        description="Whether this sync received signInActivity for the user. "
+        description="Whether the user inventory request included signInActivity "
+        "without a permission fallback. True does not imply a recorded sign-in. "
         "When false, retained sign-in timestamps may be stale.",
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -163,3 +164,10 @@ class EntraUserSchema(CartographyNodeSchema):
             ENTRA_PRINCIPAL,
         ]  # UserAccount label is used for ontology mapping
     )
+
+
+@dataclass(frozen=True)
+class EntraUserWithoutActivitySchema(EntraUserSchema):
+    """Refresh Entra user inventory without overwriting unavailable activity."""
+
+    properties: EntraUserBaseNodeProperties = EntraUserBaseNodeProperties()
