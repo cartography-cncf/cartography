@@ -320,9 +320,11 @@ from cartography.rules.data.rules.unpinned_github_actions import unpinned_github
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
+from cartography.rules.data.rules.zoom_security_review import zoom_security_review
 
 # Rule registry - all available rules
 RULES = {
+    zoom_security_review.id: zoom_security_review,
     # Databricks Rules
     databricks_pat_never_expires.id: databricks_pat_never_expires,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,
