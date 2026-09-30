@@ -194,3 +194,13 @@ section. A denied groups, roles or apps section keeps all of its prior data. For
 settings, meetings and recordings, items that were read are refreshed, unread
 items are retained, and cleanup is skipped. Review warnings as well as the
 process exit status when assessing coverage.
+
+## Security review
+
+Run `cartography-rules run zoom_security_review` against the ingested graph to
+check meeting/recording protections, account policies, privileged roles, app
+scopes and stale licensed users. Select the corresponding inventories above.
+These experimental checks use the last collected snapshot, skip unknown values,
+and identify access worth reviewing; they do not infer individual MFA enrollment
+or verify public reachability. See [Running Rules](../../usage/rules.md) for
+connection options.
