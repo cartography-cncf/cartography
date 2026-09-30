@@ -1,10 +1,12 @@
 from typing import Any
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 import yaml
+from msgraph.generated.models.user_collection_response import UserCollectionResponse
 
 import cartography.intel.azure.compute
 import cartography.intel.azure.cosmosdb
@@ -84,8 +86,12 @@ async def async_return_empty_tuple():
 )
 @patch.object(
     cartography.intel.microsoft.entra.users,
-    "get_users",
-    return_value=async_generator_from_list(ENTRA_USERS),
+    "GraphServiceClient",
+    return_value=MagicMock(
+        users=MagicMock(
+            get=AsyncMock(return_value=UserCollectionResponse(value=ENTRA_USERS)),
+        ),
+    ),
 )
 @patch.object(
     cartography.intel.azure.storage,
@@ -294,7 +300,7 @@ async def async_return_empty_tuple():
 )
 @pytest.mark.asyncio
 async def test_sync_azure_permission_relationships(
-    mock_get_users,
+    mock_graph_client,
     mock_get_tenant,
     mock_get_entra_groups,
     mock_get_group_members,
