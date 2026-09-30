@@ -61,7 +61,8 @@ class ZoomSecuritySettingsNodeProperties(CartographyNodeProperties):
         description="option=recording_authentication recording_authentication, or recording.recording_authentication for locks.",
     )
     waiting_room: PropertyRef = PropertyRef(
-        "waiting_room", description="meeting_security.waiting_room."
+        "waiting_room",
+        description="in_meeting.waiting_room for configured snapshots, or meeting_security.waiting_room for locks.",
     )
     auto_security: PropertyRef = PropertyRef(
         "auto_security",
