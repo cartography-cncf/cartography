@@ -107,6 +107,7 @@ PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
+PANEL_ZENDESK = "Zendesk Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -176,6 +177,7 @@ MODULE_PANELS = {
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
     "snowflake": PANEL_SNOWFLAKE,
+    "zendesk": PANEL_ZENDESK,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1902,6 +1904,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Zendesk Options
+            # =================================================================
+            zendesk_subdomain: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-subdomain",
+                    help="Zendesk subdomain, e.g. acme for acme.zendesk.com.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
+                ),
+            ] = None,
+            zendesk_oauth_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-oauth-token-env-var",
+                    help="Environment variable name containing the Zendesk OAuth access token used to authenticate ingestion.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Snowflake Options
             # =================================================================
             snowflake_account: Annotated[
@@ -3473,6 +3496,9 @@ class CLI:
                 s3_bucket=None,
                 s3_prefix=None,
             )
+            zendesk_oauth_token = None
+            if zendesk_oauth_token_env_var:
+                zendesk_oauth_token = os.environ.get(zendesk_oauth_token_env_var)
             snowflake_pat = None
             if snowflake_pat_env_var:
                 logger.debug(
@@ -3881,6 +3907,8 @@ class CLI:
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
                 bbot_source=bbot_source,
+                zendesk_subdomain=zendesk_subdomain,
+                zendesk_oauth_token=zendesk_oauth_token,
                 snowflake_account=snowflake_account,
                 snowflake_user=snowflake_user,
                 snowflake_pat=snowflake_pat,
