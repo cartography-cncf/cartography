@@ -1,6 +1,9 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
+import requests
+
 from cartography.config import Config
 from cartography.intel.zendesk import start_zendesk_ingestion
 from tests.data.zendesk.api_tokens import API_TOKENS
@@ -110,4 +113,123 @@ def test_sync_inventory(mock_get, neo4j_session):
     assert check_nodes(neo4j_session, "UserAccount", ["id", "_ont_source"]) == {
         ("acme:101", "zendesk"),
         ("acme:102", "zendesk"),
+    }
+
+
+@patch("requests.Session.get")
+def test_sync_cleanup_is_tenant_scoped(mock_get, neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    mock_get.side_effect = [
+        response("users", USERS),
+        response("api_tokens", API_TOKENS),
+        response("users", USERS),
+        response("api_tokens", API_TOKENS),
+    ]
+    sync(neo4j_session, subdomain="acme", update_tag=1)
+    sync(neo4j_session, subdomain="other", update_tag=1)
+    assert check_nodes(neo4j_session, "ZendeskUser", ["id"]) == {
+        ("acme:101",),
+        ("acme:102",),
+        ("other:101",),
+        ("other:102",),
+    }
+    assert check_nodes(neo4j_session, "ZendeskAPIToken", ["id"]) == {
+        ("acme:201",),
+        ("acme:202",),
+        ("acme:203",),
+        ("other:201",),
+        ("other:202",),
+        ("other:203",),
+    }
+    mock_get.side_effect = [
+        response("users", [USERS[1]]),
+        response("api_tokens", [API_TOKENS[0]]),
+    ]
+
+    # Act
+    sync(neo4j_session, subdomain="acme", update_tag=2)
+
+    # Assert
+    assert check_nodes(neo4j_session, "ZendeskUser", ["id", "lastupdated"]) == {
+        ("acme:102", 2),
+        ("other:101", 1),
+        ("other:102", 1),
+    }
+    assert check_nodes(neo4j_session, "ZendeskAPIToken", ["id", "lastupdated"]) == {
+        ("acme:201", 2),
+        ("other:201", 1),
+        ("other:202", 1),
+        ("other:203", 1),
+    }
+    assert check_rels(
+        neo4j_session, "ZendeskTenant", "id", "ZendeskUser", "id", "RESOURCE"
+    ) == {
+        ("acme", "acme:102"),
+        ("other", "other:101"),
+        ("other", "other:102"),
+    }
+    assert check_rels(
+        neo4j_session, "ZendeskTenant", "id", "ZendeskAPIToken", "id", "RESOURCE"
+    ) == {
+        ("acme", "acme:201"),
+        ("other", "other:201"),
+        ("other", "other:202"),
+        ("other", "other:203"),
+    }
+    assert check_rels(
+        neo4j_session, "ZendeskAPIToken", "id", "ZendeskUser", "id", "OWNED_BY"
+    ) == {("acme:201", "acme:102"), ("other:201", "other:102")}
+    assert check_rels(
+        neo4j_session, "ZendeskUser", "id", "ZendeskAPIToken", "id", "CREATED"
+    ) == {("other:101", "other:201"), ("other:102", "other:202")}
+
+
+@pytest.mark.parametrize("status_code", [403, 404])
+@patch("requests.Session.get")
+def test_token_access_error_cleanup(mock_get, neo4j_session, status_code, caplog):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    mock_get.side_effect = [
+        response("users", USERS),
+        response("api_tokens", API_TOKENS),
+        response("users", USERS),
+        response("api_tokens", API_TOKENS),
+    ]
+    sync(neo4j_session, subdomain="acme", update_tag=1)
+    sync(neo4j_session, subdomain="other", update_tag=1)
+    denied_response = requests.Response()
+    denied_response.status_code = status_code
+    mock_get.side_effect = [response("users", USERS), denied_response]
+
+    # Act
+    sync(neo4j_session, subdomain="acme", update_tag=2)
+
+    # Assert
+    expected_tokens = {
+        ("other:201", 1),
+        ("other:202", 1),
+        ("other:203", 1),
+    }
+    if status_code == 403:
+        expected_tokens |= {("acme:201", 1), ("acme:202", 1), ("acme:203", 1)}
+        assert "preserving prior inventory" in caplog.text
+    assert (
+        check_nodes(neo4j_session, "ZendeskAPIToken", ["id", "lastupdated"])
+        == expected_tokens
+    )
+    expected_owners = {("other:201", "other:102")}
+    if status_code == 403:
+        expected_owners.add(("acme:201", "acme:102"))
+    assert (
+        check_rels(
+            neo4j_session, "ZendeskAPIToken", "id", "ZendeskUser", "id", "OWNED_BY"
+        )
+        == expected_owners
+    )
+    assert check_nodes(neo4j_session, "ZendeskUser", ["id", "lastupdated"]) == {
+        ("acme:101", 2),
+        ("acme:102", 2),
+        ("other:101", 1),
+        ("other:102", 1),
     }

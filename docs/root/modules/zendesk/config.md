@@ -56,10 +56,11 @@ cartography \
 - `401`: Check that the OAuth access token is valid and belongs to the configured
   Zendesk account.
 - `403`: Check the token's `read` scope and the authenticating user's administrator
-  role or Manage APIs permission.
+  role or Manage APIs permission. For the API Tokens endpoint, the module warns
+  and skips token load and cleanup, preserving the previous inventory.
 - `404` from the API Tokens endpoint: Zendesk documents this when API token access
-  is disabled. The module raises the error and preserves the previous token
-  inventory; it does not interpret an unavailable inventory as an empty one.
+  is disabled. The module treats this as an empty token inventory and cleans up
+  previously ingested tokens for that account, allowing the run to continue.
   The endpoint is also scheduled for removal on April 30, 2027.
 - `429`: Zendesk rate-limited the request. Rerun after the response's `Retry-After`
   interval; failed collections retain their previously ingested graph data.
