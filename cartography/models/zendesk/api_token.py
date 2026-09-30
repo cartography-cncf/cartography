@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.labels import API_KEY
 from cartography.models.zendesk.tenant import ZendeskRelProperties
 from cartography.models.zendesk.tenant import ZendeskResourceToTenantRel
 
@@ -26,10 +28,6 @@ class ZendeskAPITokenNodeProperties(CartographyNodeProperties):
     creator_user_id: PropertyRef = PropertyRef(
         "creator_user_id",
         description="Creator's user ID, from the API's user_id field with include_users=true; not an authentication identity.",
-    )
-    assigned_user_id: PropertyRef = PropertyRef(
-        "assigned_user_id",
-        description="Assigned agent or admin ID, if returned by Zendesk. Distinct from the creator.",
     )
     description: PropertyRef = PropertyRef(
         "description", description="Token description displayed in Admin Center."
@@ -64,8 +62,26 @@ class ZendeskAPITokenToCreatorRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:ZendeskAPIToken)-[:OWNED_BY]->(:ZendeskUser)
+class ZendeskAPITokenToAssignedUserRel(CartographyRelSchema):
+    """Links an API token to the agent or admin it is assigned to."""
+
+    target_node_label: str = "ZendeskUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("assigned_user_node_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNED_BY"
+    properties: ZendeskRelProperties = ZendeskRelProperties()
+
+
+@dataclass(frozen=True)
 class ZendeskAPITokenSchema(CartographyNodeSchema):
     """Legacy API-token metadata for a Zendesk account; no values or prefixes.
+
+    > **Ontology Mapping**: This node has the extra label `APIKey` to enable
+    cross-platform queries for API keys. Description, creation and modification
+    times, and last use map to the corresponding ontology fields.
 
     Source API: `GET /api/v2/api_tokens?include_users=true` (`ListApiTokens`),
     documented in [Zendesk's official OpenAPI specification](https://developer.zendesk.com/zendesk/oas.yaml)
@@ -80,7 +96,8 @@ class ZendeskAPITokenSchema(CartographyNodeSchema):
 
     label: str = "ZendeskAPIToken"
     properties: ZendeskAPITokenNodeProperties = ZendeskAPITokenNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([API_KEY])
     sub_resource_relationship: ZendeskResourceToTenantRel = ZendeskResourceToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ZendeskAPITokenToCreatorRel()]
+        [ZendeskAPITokenToAssignedUserRel(), ZendeskAPITokenToCreatorRel()]
     )

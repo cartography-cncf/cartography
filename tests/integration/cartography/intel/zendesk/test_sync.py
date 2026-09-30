@@ -78,12 +78,30 @@ def test_sync_inventory(mock_get, neo4j_session):
         ("acme:101", "acme:201"),
         ("acme:102", "acme:202"),
     }
+    assert check_rels(
+        neo4j_session,
+        "ZendeskAPIToken",
+        "id",
+        "ZendeskUser",
+        "id",
+        "OWNED_BY",
+    ) == {("acme:201", "acme:102")}
     row = neo4j_session.run(
         "MATCH (t:ZendeskAPIToken {id: 'acme:201'}) RETURN properties(t) AS properties",
     ).single()
-    assert row["properties"]["assigned_user_id"] == 102
+    assert "assigned_user_id" not in row["properties"]
     assert row["properties"]["last_used"] == "2026-01-02T00:00:00Z"
     assert row["properties"]["description"] == "Legacy integration"
+    assert row["properties"]["_ont_source"] == "zendesk"
+    assert row["properties"]["_ont_name"] == "Legacy integration"
+    assert row["properties"]["_ont_created_at"] == "2025-01-01T00:00:00Z"
+    assert row["properties"]["_ont_updated_at"] == "2026-01-01T00:00:00Z"
+    assert row["properties"]["_ont_last_used_at"] == "2026-01-02T00:00:00Z"
+    assert check_nodes(neo4j_session, "APIKey", ["id", "_ont_name"]) == {
+        ("acme:201", "Legacy integration"),
+        ("acme:202", "Disabled integration"),
+        ("acme:203", "Former staff integration"),
+    }
     assert "secret" not in str(row["properties"])
     assert (
         not {"token", "visible_token", "scopes", "expires_at"}

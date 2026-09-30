@@ -47,7 +47,11 @@ def transform(tokens: list[dict[str, Any]], subdomain: str) -> list[dict[str, An
                 if token.get("user_id") is not None
                 else None
             ),
-            "assigned_user_id": token.get("assigned_user_id"),
+            "assigned_user_node_id": (
+                f"{subdomain}:{token['assigned_user_id']}"
+                if token.get("assigned_user_id") is not None
+                else None
+            ),
             "description": token.get("description"),
             "active": token.get("active"),
             "created_at": token.get("created_at"),
