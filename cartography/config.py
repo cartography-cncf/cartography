@@ -536,6 +536,10 @@ class Config:
     :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
     :type orca_api_token: str
     :param orca_api_token: Orca Security API token. Optional.
+    :type zendesk_subdomain: str
+    :param zendesk_subdomain: Zendesk account subdomain, e.g. acme. Optional.
+    :type zendesk_oauth_token: str
+    :param zendesk_oauth_token: OAuth access token used to authenticate Zendesk ingestion. Optional.
     """
 
     def __init__(
@@ -773,6 +777,8 @@ class Config:
         jira_email=None,
         jira_api_token=None,
         jira_site_url=None,
+        zendesk_subdomain=None,
+        zendesk_oauth_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1073,3 +1079,5 @@ class Config:
         self.snowflake_databases = snowflake_databases
         self.orca_api_endpoint = orca_api_endpoint
         self.orca_api_token = orca_api_token
+        self.zendesk_subdomain = zendesk_subdomain
+        self.zendesk_oauth_token = zendesk_oauth_token
