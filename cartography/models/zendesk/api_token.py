@@ -29,6 +29,10 @@ class ZendeskAPITokenNodeProperties(CartographyNodeProperties):
         "creator_user_id",
         description="Creator's user ID, from the API's user_id field with include_users=true; not an authentication identity.",
     )
+    assigned_user_id: PropertyRef = PropertyRef(
+        "assigned_user_id",
+        description="Assigned agent or admin ID, if returned by Zendesk. Distinct from the creator.",
+    )
     description: PropertyRef = PropertyRef(
         "description", description="Token description displayed in Admin Center."
     )
@@ -89,8 +93,9 @@ class ZendeskAPITokenSchema(CartographyNodeSchema):
 
     The creator is distinct from the token's authentication authority. See
     [Zendesk's API token documentation](https://support.zendesk.com/hc/en-us/articles/4408889192858-Managing-API-token-access-to-the-Zendesk-API).
-    Tokens whose creators are absent from the staff inventory retain their creator
-    ID without a CREATED relationship. OAuth tokens are not inventoried.
+    Tokens whose creators or assignees are absent from the staff inventory retain
+    their user IDs without CREATED or OWNED_BY relationships. OAuth tokens are not
+    inventoried.
     Zendesk schedules this endpoint for removal on April 30, 2027.
     """
 

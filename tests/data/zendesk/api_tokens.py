@@ -25,6 +25,7 @@ API_TOKENS = [
     {
         "id": 203,
         "user_id": 103,
+        "assigned_user_id": 103,
         "description": "Former staff integration",
         "active": True,
     },

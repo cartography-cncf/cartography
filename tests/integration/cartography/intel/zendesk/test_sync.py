@@ -89,10 +89,18 @@ def test_sync_inventory(mock_get, neo4j_session):
         "id",
         "OWNED_BY",
     ) == {("acme:201", "acme:102")}
+    # Assignees absent from the staff inventory keep their ID without OWNED_BY.
+    assert check_nodes(
+        neo4j_session, "ZendeskAPIToken", ["id", "assigned_user_id"]
+    ) == {
+        ("acme:201", 102),
+        ("acme:202", None),
+        ("acme:203", 103),
+    }
     row = neo4j_session.run(
         "MATCH (t:ZendeskAPIToken {id: 'acme:201'}) RETURN properties(t) AS properties",
     ).single()
-    assert "assigned_user_id" not in row["properties"]
+    assert row["properties"]["assigned_user_id"] == 102
     assert row["properties"]["last_used"] == "2026-01-02T00:00:00Z"
     assert row["properties"]["description"] == "Legacy integration"
     assert row["properties"]["_ont_source"] == "zendesk"
