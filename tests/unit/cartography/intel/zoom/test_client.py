@@ -206,10 +206,9 @@ def test_cli_wires_account_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.zoom_client_id == "client-id"
     assert config.zoom_client_secret == "secret"
     assert config.zoom_request_limit == 100000
-    assert config.zoom_heavy_request_limit == 10000
 
 
-def test_cli_wires_request_limits_to_the_client(
+def test_cli_wires_request_limit_to_the_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange
@@ -232,8 +231,6 @@ def test_cli_wires_request_limits_to_the_client(
                 "client_versions",
                 "--zoom-request-limit",
                 "50",
-                "--zoom-heavy-request-limit",
-                "5",
             ]
         )
     config = run.call_args[0][1]
@@ -242,15 +239,15 @@ def test_cli_wires_request_limits_to_the_client(
     with (
         patch("cartography.intel.zoom.ZoomClient") as client,
         patch("cartography.intel.zoom.sync", return_value=[]),
-        patch("cartography.intel.zoom.activity.sync_client_versions") as versions,
+        patch("cartography.intel.zoom.client_versions.sync") as versions,
         patch("cartography.intel.zoom.cleanup_users"),
         patch("cartography.intel.zoom.settings.cleanup"),
     ):
         start_zoom_ingestion(MagicMock(), config)
 
     # Assert
-    budget, heavy = client.call_args.args[3:]
-    assert (budget.remaining, heavy.remaining) == (50, 5)
+    (budget,) = client.call_args.args[3:]
+    assert budget.remaining == 50
     versions.assert_called_once()
 
 

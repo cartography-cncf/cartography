@@ -30,35 +30,6 @@ USERS: list[dict[str, Any]] = [
         "type": 2,
     }
 ]
-SIGNIN = {
-    "email": "alice@example.com",
-    "time": "2026-09-29T12:00:00Z",
-    "type": "Sign in",
-    "client_type": "Browser",
-    "version": "6.1.0",
-    "ip_address": "192.0.2.1",
-}
-SESSION = {
-    "uuid": "/session//one",
-    "id": 12345678901,
-    "email": "alice@example.com",
-    "start_time": "2026-09-29T12:00:00Z",
-    "end_time": "2026-09-29T12:01:00Z",
-    "participants": 1,
-}
-PARTICIPANT = {
-    "user_id": "1",
-    "participant_user_id": "user-1",
-    "join_time": "2026-09-29T12:00:00Z",
-    "leave_time": "2026-09-29T12:01:00Z",
-    "role": "host",
-    "device": "Mac",
-    "version": "6.1.0",
-    "os": "Mac",
-    "os_version": "15.0",
-    "ip_address": "192.0.2.1",
-    "pc_name": "synthetic-host-name",
-}
 CLIENT_VERSIONS = {
     "client_versions": [
         {"client_version": "mac_6.1.0", "total_count": 3},

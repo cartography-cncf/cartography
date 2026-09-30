@@ -18,10 +18,6 @@ USERS_URL = f"{API_URL}/users"
 
 
 DEFAULT_REQUEST_LIMIT = 100000
-DEFAULT_HEAVY_REQUEST_LIMIT = 10000
-# Every report and dashboard endpoint in use has Zoom's Heavy or
-# Resource-intensive rate-limit label.
-HEAVY_PATH_PREFIXES = ("/report/", "/metrics/")
 
 
 class ZoomRequestLimitError(RuntimeError):
@@ -64,14 +60,8 @@ class ZoomClient:
         client_id: str,
         client_secret: str,
         budget: RequestBudget | None = None,
-        heavy_budget: RequestBudget | None = None,
     ) -> None:
         self.budget = budget if budget is not None else RequestBudget()
-        self.heavy_budget = (
-            heavy_budget
-            if heavy_budget is not None
-            else RequestBudget(DEFAULT_HEAVY_REQUEST_LIMIT, "heavy request")
-        )
         self.account_id = account_id
         self.auth = (client_id, client_secret)
         self.session = requests.Session()
@@ -109,13 +99,8 @@ class ZoomClient:
         self._expires_at = time.monotonic() + int(token["expires_in"]) - 60
 
     def fork(self) -> "ZoomClient":
-        """Give an enrichment worker its own session and the shared request budgets."""
-        worker = ZoomClient(
-            self.account_id,
-            *self.auth,
-            budget=self.budget,
-            heavy_budget=self.heavy_budget,
-        )
+        """Give an enrichment worker its own session and the shared request budget."""
+        worker = ZoomClient(self.account_id, *self.auth, budget=self.budget)
         worker._access_token = self._access_token
         worker._expires_at = self._expires_at
         return worker
@@ -136,8 +121,6 @@ class ZoomClient:
                 "Zoom API paths must be relative paths without query strings"
             )
         self.budget.consume()
-        if path.startswith(HEAVY_PATH_PREFIXES):
-            self.heavy_budget.consume()
         if time.monotonic() >= self._expires_at:
             self._refresh_token()
         # Refresh once on early revocation/expiry; a second 401 is fatal.
