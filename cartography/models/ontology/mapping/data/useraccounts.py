@@ -773,6 +773,29 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_login_at"
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "jira": OntologyMapping(
         module_name="jira",
@@ -822,28 +845,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
             )
         ],
     ),
-    "zendesk": OntologyMapping(
-        module_name="zendesk",
-        nodes=[
-            OntologyNodeMapping(
-                node_label="ZendeskUser",
-                fields=[
-                    OntologyFieldMapping(
-                        ontology_field="email", node_field="email", required=True
-                    ),
-                    OntologyFieldMapping(ontology_field="fullname", node_field="name"),
-                    OntologyFieldMapping(
-                        ontology_field="active",
-                        node_field="suspended",
-                        special_handling="invert_boolean",
-                    ),
-                    OntologyFieldMapping(
-                        ontology_field="lastactivity", node_field="last_login_at"
-                    ),
-                ],
-            ),
-        ],
-    ),
+    "zendesk": zendesk_mapping,
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,
