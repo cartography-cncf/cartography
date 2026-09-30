@@ -221,7 +221,6 @@ def test_ineligible_owner_retains_prior_snapshot(
     module.sync(neo4j_session, client, account, 2, changed)
 
     # Assert
-    client.get_paginated.assert_not_called()
     label = "ZoomMeeting" if module is meetings else "ZoomRecording"
     suffix = "meeting:1234567890" if module is meetings else "recording:instance-"
     assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {

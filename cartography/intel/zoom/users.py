@@ -125,11 +125,7 @@ def sync(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
-    # Removed users take their stale meetings, recordings, and settings with them.
-    # Run after owned resources load so a resource transferred to another user
-    # during offboarding is current and keeps its identity.
     GraphJob.from_node_schema(
         ZoomUserSchema(),
         {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
-        cascade_delete=True,
     ).run(neo4j_session)
