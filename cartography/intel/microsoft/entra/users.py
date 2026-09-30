@@ -88,6 +88,7 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
 
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
+            # Graph caps pages at 500 when signInActivity is selected.
             top=500,
             select=[*USER_SELECT_FIELDS, "signInActivity"],
             expand=["manager($select=id)"],

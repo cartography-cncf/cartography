@@ -14,6 +14,7 @@ from msgraph.generated.users.users_request_builder import UsersRequestBuilder
 
 from cartography.intel.microsoft.entra.users import get_users
 from cartography.intel.microsoft.entra.users import transform_users
+from cartography.intel.microsoft.entra.users import USER_SELECT_FIELDS
 
 
 def test_activity_timestamps_and_missing_activity() -> None:
@@ -89,6 +90,8 @@ def test_activity_request_paginates() -> None:
     ].query_parameters
     assert parameters.top == 500
     assert "signInActivity" in parameters.select
+    assert set(USER_SELECT_FIELDS) <= set(parameters.select)
+    assert "manager($select=id)" in parameters.expand
     client.users.with_url.assert_called_once_with(next_link)
 
 
