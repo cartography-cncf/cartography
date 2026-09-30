@@ -134,7 +134,7 @@ password options in [the rules docs](https://docs.cartography.dev/usage/rules.ht
 - [SubImage](https://docs.cartography.dev/modules/subimage/index.html) - Tenant, TeamMember, APIKey, Neo4jUser, Module, Framework
 - [Tailscale](https://docs.cartography.dev/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations, DevicePostures, DevicePostureConditions, device posture compliance relationships
 - [Trivy Scanner](https://docs.cartography.dev/modules/trivy/index.html) - AWS ECR Images
-- [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, and Marketplace apps
+- [Zoom](https://docs.cartography.dev/modules/zoom/index.html) - Accounts, users, plan types, groups, roles, security settings, Marketplace apps, meetings, recordings, and activity
 
 </details>
 
