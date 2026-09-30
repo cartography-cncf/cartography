@@ -10,14 +10,12 @@ import requests
 from cartography.client.core.tx import load
 from cartography.intel.zoom import access
 from cartography.intel.zoom import apps
-from cartography.intel.zoom import client_versions
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import optional_call
 from cartography.models.zoom.account import ZoomAccountSchema
 from cartography.models.zoom.user import ZoomUserSchema
 from tests.data.zoom.security import APP
 from tests.data.zoom.security import APP_DETAIL
-from tests.data.zoom.security import CLIENT_VERSIONS
 from tests.data.zoom.security import GROUPS
 from tests.data.zoom.security import ROLE_DETAIL
 from tests.data.zoom.security import ROLES
@@ -47,8 +45,6 @@ def client_for() -> MagicMock:
             return deepcopy(ROLE_DETAIL)
         if path == "/marketplace/apps/app-1":
             return deepcopy(APP_DETAIL)
-        if path == "/metrics/client_versions":
-            return deepcopy(CLIENT_VERSIONS)
         raise AssertionError(path)
 
     def pages(
@@ -72,7 +68,7 @@ def seed(session: neo4j.Session, account: str) -> list[dict[str, Any]]:
     return users
 
 
-def test_access_apps_client_versions_and_scoped_cleanup(
+def test_access_apps_and_scoped_cleanup(
     neo4j_session: neo4j.Session,
 ) -> None:
     # Arrange
@@ -84,7 +80,6 @@ def test_access_apps_client_versions_and_scoped_cleanup(
         access.sync_groups(neo4j_session, client, account, 1, users)
         access.sync_roles(neo4j_session, client, account, 1, users)
         apps.sync(neo4j_session, client, account, 1)
-        client_versions.sync(neo4j_session, client, account, 1)
     # Assert
     assert check_rels(
         neo4j_session, "ZoomUser", "id", "ZoomRole", "id", "HAS_ROLE"
@@ -111,20 +106,6 @@ def test_access_apps_client_versions_and_scoped_cleanup(
     assert check_nodes(neo4j_session, "ZoomApp", ["developer_type"]) == {
         ("THIRD_PARTY",)
     }
-    assert check_nodes(
-        neo4j_session, "ZoomClientVersion", ["id", "client_version", "total_count"]
-    ) == {
-        (f"{a}:client_version:{version}", version, count)
-        for a in ("account-a", "account-b")
-        for version, count in (("mac_6.1.0", 3), ("win_6.0.0", 1))
-    }
-    assert check_rels(
-        neo4j_session, "ZoomAccount", "id", "ZoomClientVersion", "id", "RESOURCE"
-    ) == {
-        (a, f"{a}:client_version:{version}")
-        for a in ("account-a", "account-b")
-        for version in ("mac_6.1.0", "win_6.0.0")
-    }
     # Act: repeat snapshot updates existing identities.
     apps.sync(neo4j_session, client, "account-a", 2)
     # Assert
@@ -133,19 +114,17 @@ def test_access_apps_client_versions_and_scoped_cleanup(
     client.get_paginated.return_value = []
     client.get_paginated.side_effect = None
     client.get.side_effect = None
-    client.get.return_value = {"roles": [], "client_versions": []}
+    client.get.return_value = {"roles": []}
     # Act
     access.sync_groups(neo4j_session, client, "account-a", 3, users_a)
     access.sync_roles(neo4j_session, client, "account-a", 3, users_a)
     apps.sync(neo4j_session, client, "account-a", 3)
-    client_versions.sync(neo4j_session, client, "account-a", 3)
     # Assert
     for label in (
         "ZoomRole",
         "ZoomRolePrivilege",
         "ZoomGroup",
         "ZoomApp",
-        "ZoomClientVersion",
     ):
         assert check_nodes(neo4j_session, label, ["account_id"]) == {("account-b",)}
 
