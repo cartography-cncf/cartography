@@ -246,6 +246,14 @@ class Config:
     :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
     :type googleworkspace_config: str
     :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type jira_cloud_id: str
+    :param jira_cloud_id: Jira Cloud ID, used to scope all resource IDs. Optional.
+    :type jira_email: str
+    :param jira_email: Email address of the Jira API-token owner. Optional.
+    :type jira_api_token: str
+    :param jira_api_token: Jira API token. Optional.
+    :type jira_site_url: str
+    :param jira_site_url: HTTPS site origin for unscoped API tokens. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -514,6 +522,12 @@ class Config:
     :param zizmor_source: Report source locator for the Zizmor repository mapping file.
         Accepts a local file, s3://bucket/key, gs://bucket/object, or
         azblob://account/container/blob. Optional.
+    :type zoom_account_id: str
+    :param zoom_account_id: Zoom account ID for server-to-server OAuth. Optional.
+    :type zoom_client_id: str
+    :param zoom_client_id: Zoom server-to-server OAuth client ID. Optional.
+    :type zoom_client_secret: str
+    :param zoom_client_secret: Zoom server-to-server OAuth client secret. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -752,6 +766,13 @@ class Config:
         orca_api_endpoint=None,
         orca_api_token=None,
         microsoft_delegated_auth=False,
+        zoom_account_id=None,
+        zoom_client_id=None,
+        zoom_client_secret=None,
+        jira_cloud_id=None,
+        jira_email=None,
+        jira_api_token=None,
+        jira_site_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -868,6 +889,10 @@ class Config:
         self.gsuite_config = gsuite_config
         self.googleworkspace_auth_method = googleworkspace_auth_method
         self.googleworkspace_config = googleworkspace_config
+        self.jira_cloud_id = jira_cloud_id
+        self.jira_email = jira_email
+        self.jira_api_token = jira_api_token
+        self.jira_site_url = jira_site_url
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username
@@ -1032,6 +1057,9 @@ class Config:
         self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
+        self.zoom_account_id = zoom_account_id
+        self.zoom_client_id = zoom_client_id
+        self.zoom_client_secret = zoom_client_secret
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token

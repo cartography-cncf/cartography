@@ -65,6 +65,31 @@ def test_config_stores_orca_credentials() -> None:
     assert config.orca_api_token == "secret-token"
 
 
+def test_zoom_preserves_existing_positional_config_arguments() -> None:
+    # Arrange: construct the positional argument list available before Zoom.
+    parameters = inspect.signature(Config).parameters
+    names = [name for name in parameters if not name.startswith("zoom_")]
+    names = names[: names.index("microsoft_delegated_auth") + 1]
+    args = [parameters[name].default for name in names]
+    args[0] = "bolt://localhost:7687"
+    args[names.index("jumpcloud_api_key")] = "legacy-api-key"
+    args[names.index("orca_api_token")] = "legacy-orca-token"
+    args[names.index("microsoft_tenant_id")] = "legacy-tenant-id"
+    args[names.index("microsoft_delegated_auth")] = True
+
+    # Act
+    config = Config(*args)
+
+    # Assert
+    assert config.jumpcloud_api_key == "legacy-api-key"
+    assert config.orca_api_token == "legacy-orca-token"
+    assert config.microsoft_tenant_id == "legacy-tenant-id"
+    assert config.microsoft_delegated_auth is True
+    assert config.zoom_account_id is None
+    assert config.zoom_client_id is None
+    assert config.zoom_client_secret is None
+
+
 def test_config_microsoft_credentials_are_canonical(caplog) -> None:
     # Arrange and act
     with caplog.at_level(logging.WARNING):
@@ -200,3 +225,16 @@ def test_config_rejects_legacy_prefix_without_bucket() -> None:
             neo4j_uri="bolt://localhost:7687",
             syft_s3_prefix="reports/syft/",
         )
+
+
+def test_jira_config_preserves_legacy_positional_slots() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters[72] == "lastpass_cid"
+    assert parameters[225] == "orca_api_token"
+    assert all(
+        parameters.index(name) > parameters.index("zoom_client_secret")
+        for name in ("jira_cloud_id", "jira_email", "jira_api_token", "jira_site_url")
+    )
