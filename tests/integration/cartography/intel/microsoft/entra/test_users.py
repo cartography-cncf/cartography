@@ -91,7 +91,11 @@ def test_sign_in_activity_datetimes(neo4j_session: neo4j.Session) -> None:
 
     # Act
     load_users(
-        neo4j_session, list(transform_users([user])), TEST_TENANT_ID, TEST_UPDATE_TAG
+        neo4j_session,
+        list(transform_users([user])),
+        TEST_TENANT_ID,
+        TEST_UPDATE_TAG,
+        activity_available=True,
     )
 
     # Assert: native datetimes support inactivity filtering.
@@ -134,6 +138,7 @@ async def test_successful_activity_read_with_no_recorded_sign_in(
         ),
         TEST_TENANT_ID,
         1,
+        activity_available=True,
     )
     client = MagicMock()
     client.users.get = AsyncMock(
@@ -208,6 +213,7 @@ async def test_permission_fallback_preserves_activity_and_cleans_inventory(
         ),
         tenant_id,
         1,
+        activity_available=True,
     )
     client = MagicMock()
     client.users.UsersRequestBuilderGetRequestConfiguration = (
@@ -326,6 +332,7 @@ async def test_later_page_failure_preserves_existing_inventory(
         list(transform_users([User(id="existing-user")])),
         TEST_TENANT_ID,
         1,
+        activity_available=True,
     )
     client = MagicMock()
     client.users.get = AsyncMock(

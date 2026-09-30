@@ -230,7 +230,7 @@ def load_users(
     tenant_id: str,
     update_tag: int,
     *,
-    activity_available: bool = True,
+    activity_available: bool,
 ) -> None:
     # A permission fallback must not erase previously observed activity.
     schema = (
