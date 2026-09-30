@@ -835,9 +835,6 @@ class Module(str, Enum):
     SUBIMAGE = "SubImage"
     """SubImage platform"""
 
-    ZOOM = "Zoom"
-    """Zoom collaboration platform"""
-
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -888,7 +885,6 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.SPACELIFT: "spacelift",
     Module.TAILSCALE: "tailscale",
     Module.TRIVY: "trivy",
-    Module.ZOOM: "zoom",
     Module.SUBIMAGE: "subimage",
 }
 

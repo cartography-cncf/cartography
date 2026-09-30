@@ -30,9 +30,3 @@ USERS: list[dict[str, Any]] = [
         "type": 2,
     }
 ]
-CLIENT_VERSIONS = {
-    "client_versions": [
-        {"client_version": "mac_6.1.0", "total_count": 3},
-        {"client_version": "win_6.0.0", "total_count": 1},
-    ]
-}
