@@ -3,6 +3,7 @@ from typing import Any
 SETTINGS_RESPONSES: dict[str, dict[str, Any]] = {
     "default": {
         "in_meeting": {
+            "waiting_room": False,
             "file_transfer": False,
             "private_chat": False,
             "allow_participants_to_rename": False,
@@ -38,7 +39,6 @@ SETTINGS_RESPONSES: dict[str, dict[str, Any]] = {
     },
     "meeting_security": {
         "meeting_security": {
-            "waiting_room": True,
             "auto_security": True,
             "meeting_password": True,
             "pmi_password": True,

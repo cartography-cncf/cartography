@@ -198,6 +198,9 @@ def transform(
         ),
     }
     for field, path in BOOLEAN_FIELDS.items():
+        # Configured waiting rooms use in_meeting; locks use meeting_security.
+        if field == "waiting_room" and kind == "configured":
+            path = ("default", "in_meeting", "waiting_room")
         value = _value(data, path)
         if value is not None and not isinstance(value, bool):
             raise ValueError(f"Zoom settings {field} must be a boolean")
