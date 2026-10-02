@@ -24,6 +24,12 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 100
+# Orca's terminal workflow statuses. Missing and unrecognized statuses are
+# retained so that an unexpected value never silently drops an alert.
+TERMINAL_STATUSES = frozenset({"close", "dismiss"})
+# Each deleted alert removes ~23 index entries; smaller batches keep cleanup
+# transactions from delaying other sessions waiting on causal bookmarks.
+CLEANUP_ITERATION_SIZE = 2000
 
 
 def build_query() -> dict[str, Any]:
@@ -65,12 +71,19 @@ def _asset_data(data: dict[str, Any]) -> dict[str, Any]:
     return require_object(asset_data, "Orca Alert.AssetData")
 
 
+def _is_terminal_status(status: str | None) -> bool:
+    if status is None:
+        return False
+    return status.strip().casefold() in TERMINAL_STATUSES
+
+
 def transform(
     raw_alerts: list[dict[str, Any]],
     organization_id: str,
 ) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
     unresolved_targets = 0
+    terminal_alerts = 0
     for raw_alert in raw_alerts:
         data = require_object(
             raw_alert.get("data"),
@@ -80,6 +93,11 @@ def transform(
             field_value(data, "AlertId"),
             "Orca AlertId",
         )
+
+        status = optional_string(field_value(data, "Status"), "Orca Alert.Status")
+        if _is_terminal_status(status):
+            terminal_alerts += 1
+            continue
 
         target_context = _target_context_from_alert(raw_alert)
         if not any(
@@ -135,10 +153,7 @@ def transform(
                     field_value(data, "OrcaScore"),
                     "Orca Alert.OrcaScore",
                 ),
-                "status": optional_string(
-                    field_value(data, "Status"),
-                    "Orca Alert.Status",
-                ),
+                "status": status,
                 "created_at": parse_datetime(
                     field_value(data, "CreatedAt"),
                     "Orca Alert.CreatedAt",
@@ -162,6 +177,8 @@ def transform(
             "%d Orca alerts loaded without exact target identifiers.",
             unresolved_targets,
         )
+    if terminal_alerts:
+        logger.debug("Skipped %d closed or dismissed Orca alerts.", terminal_alerts)
     return transformed
 
 
@@ -208,6 +225,8 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(OrcaAlertSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    GraphJob.from_node_schema(
+        OrcaAlertSchema(),
+        common_job_parameters,
+        iterationsize=CLEANUP_ITERATION_SIZE,
+    ).run(neo4j_session)

@@ -274,7 +274,7 @@ def test_start_orca_ingestion_loads_finding_only_ontology_graph(
             "Deleted asset retained for investigation",
             "low",
             "DATA_AT_RISK",
-            "ignored",
+            "open",
             "orca",
         ),
     }
@@ -533,6 +533,66 @@ def test_complete_sync_cleans_stale_findings_and_retargets_alert_context(
         id=_sync_metadata_id(ORGANIZATION_ID),
     ).single()
     assert metadata["lastupdated"] == TEST_UPDATE_TAG + 1
+
+
+def test_terminal_alerts_are_cleaned_up_and_reopened_alerts_return(
+    neo4j_session,
+    mocker,
+):
+    # Arrange
+    state, _ = _patch_orca_api(mocker)
+    state["organization"] = {
+        "id": OTHER_ORGANIZATION_ID,
+        "name": "Other synthetic Orca organization",
+        "api_url": API_ENDPOINT,
+    }
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    state["organization"] = deepcopy(ORGANIZATION)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG),
+    )
+    closed_alert = deepcopy(ALERTS[0])
+    closed_alert["data"]["Status"] = {"value": "CLOSE"}
+    state["Alert"] = [closed_alert, deepcopy(ALERTS[1])]
+
+    # Act
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 1),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OrcaAlert", ["id", "lastupdated"]) == {
+        (f"orca:{ORGANIZATION_ID}:{ALERT_ID_2}", TEST_UPDATE_TAG + 1),
+        (f"orca:{OTHER_ORGANIZATION_ID}:{ALERT_ID_1}", TEST_UPDATE_TAG),
+        (f"orca:{OTHER_ORGANIZATION_ID}:{ALERT_ID_2}", TEST_UPDATE_TAG),
+    }
+
+    # Act
+    state["Alert"] = deepcopy(ALERTS)
+    cartography.intel.orca.start_orca_ingestion(
+        neo4j_session,
+        _config(TEST_UPDATE_TAG + 2),
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "OrcaOrganization",
+        "id",
+        "OrcaAlert",
+        "orca_id",
+        "RESOURCE",
+    ) == {
+        (ORGANIZATION_ID, ALERT_ID_1),
+        (ORGANIZATION_ID, ALERT_ID_2),
+        (OTHER_ORGANIZATION_ID, ALERT_ID_1),
+        (OTHER_ORGANIZATION_ID, ALERT_ID_2),
+    }
 
 
 def test_batched_vulnerability_cleanup_preserves_current_and_other_org_findings(
