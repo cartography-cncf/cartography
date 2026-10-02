@@ -1,0 +1,6 @@
+# Slack
+
+```{toctree}
+config
+schema
+```
