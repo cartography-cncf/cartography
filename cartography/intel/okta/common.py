@@ -169,6 +169,31 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
     return error.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 
 
+def _has_next_link(headers: Any) -> bool:
+    if headers is None:
+        return False
+    link_header = headers.get("Link") or headers.get("link")
+    if not link_header:
+        return False
+    if isinstance(link_header, (list, tuple)):
+        link_header = ",".join(str(part) for part in link_header)
+    return 'rel="next"' in link_header or "rel='next'" in link_header
+
+
+def _next_page_cursor(response: Any) -> str | None:
+    if response is None:
+        return None
+    cursor = PaginationHelper.extract_next_cursor(response.headers)
+    if cursor:
+        return cursor
+    if _has_next_link(response.headers):
+        raise OktaApiError(
+            "collect_paginated",
+            "advertised next page with unusable cursor",
+        )
+    return None
+
+
 async def collect_paginated(
     api_method: Callable[..., Awaitable[tuple[Any, Any, Any]]],
     limit: int = 200,
@@ -189,11 +214,7 @@ async def collect_paginated(
             raise OktaApiError(api_method.__name__, error)
         if data:
             items.extend(data)
-        cursor = (
-            PaginationHelper.extract_next_cursor(response.headers)
-            if response is not None
-            else None
-        )
+        cursor = _next_page_cursor(response)
         if not cursor:
             break
         after = cursor
