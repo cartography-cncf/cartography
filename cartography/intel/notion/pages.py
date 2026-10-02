@@ -155,6 +155,7 @@ def load_pages(
 def delete_confirmed_unpublished_pages(
     neo4j_session: neo4j.Session,
     page_ids: list[str],
+    update_tag: int,
 ) -> None:
     if not page_ids:
         return
@@ -162,10 +163,11 @@ def delete_confirmed_unpublished_pages(
         neo4j_session,
         """
         MATCH (p:NotionPage)
-        WHERE p.id IN $PAGE_IDS
+        WHERE p.id IN $PAGE_IDS AND p.lastupdated <> $UPDATE_TAG
         DETACH DELETE p
         """,
         PAGE_IDS=page_ids,
+        UPDATE_TAG=update_tag,
     )
 
 
@@ -205,9 +207,17 @@ def sync(
         for line in staged_deletes:
             delete_batch.append(json.loads(line))
             if len(delete_batch) == 10_000:
-                delete_confirmed_unpublished_pages(neo4j_session, delete_batch)
+                delete_confirmed_unpublished_pages(
+                    neo4j_session,
+                    delete_batch,
+                    update_tag,
+                )
                 delete_batch = []
-        delete_confirmed_unpublished_pages(neo4j_session, delete_batch)
+        delete_confirmed_unpublished_pages(
+            neo4j_session,
+            delete_batch,
+            update_tag,
+        )
     logger.info(
         "Loaded %d public Notion pages and observed %d unpublished pages",
         public_page_count,

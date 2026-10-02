@@ -174,6 +174,38 @@ def test_sync_deletes_only_confirmed_unpublished_pages(neo4j_session):
     assert check_nodes(neo4j_session, "NotionPage", ["id"]) == set()
 
 
+def test_sync_preserves_page_seen_public_after_unpublished(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _seed_workspace_and_users(neo4j_session)
+    unpublished_page = {**PUBLIC_PAGE, "public_url": None}
+    api_session = MagicMock()
+    api_session.post.side_effect = [
+        _response(_search_payload([unpublished_page], True, "next-page")),
+        _response(_search_payload([PUBLIC_PAGE])),
+    ]
+
+    # Act
+    cartography.intel.notion.pages.sync(
+        neo4j_session,
+        api_session,
+        TEST_WORKSPACE_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "NotionPage",
+        ["id", "public_url"],
+    ) == {
+        (
+            "workspace-1/page-public",
+            "https://example.notion.site/page-public",
+        ),
+    }
+
+
 def test_sync_preserves_page_omitted_from_non_authoritative_search(neo4j_session):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
