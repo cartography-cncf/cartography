@@ -93,6 +93,12 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         # `ec2:security_group` must run before load balancers and network interfaces
         # so that AWSEC2SecurityGroup nodes exist for MEMBER_OF_EC2_SECURITY_GROUP edges.
         "ec2:security_group": sync_ec2_security_groupinfo,
+        # `ec2:vpc` must run before every module whose nodes point at a VPC — `ec2:subnet`,
+        # `ec2:tgw` and `ec2:route_table` among them. A MEMBER_OF_AWS_VPC edge is only written
+        # when the AWSVpc node already exists, so a module that runs first can attach only to
+        # VPCs from accounts that happened to sync earlier, and never to the VPCs of the
+        # account being synced.
+        "ec2:vpc": sync_vpc,
         # `ec2:subnet` and `ec2:instance` must be synced before `ec2:load_balancer` and `ec2:load_balancer_v2`
         # so that AWSEC2Subnet and AWSEC2Instance nodes exist when load balancers create relationships.
         "ec2:subnet": sync_subnets,
@@ -102,7 +108,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:network_interface": sync_network_interfaces,
         "ec2:tgw": sync_transit_gateways,
         "ec2:tgw_route_table": sync_transit_gateway_route_tables,
-        "ec2:vpc": sync_vpc,
         # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
         # ROUTES_TO_VPC_ENDPOINT relationships can be created when routes sync.
         "ec2:vpc_endpoint": sync_vpc_endpoints,

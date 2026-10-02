@@ -151,15 +151,19 @@ class AWSTransitGatewayAttachmentToTGWRel(CartographyRelSchema):
     properties: TGWRelProperties = TGWRelProperties()
 
 
-# (:AWSVpc)-[:RESOURCE]->(:AWSTransitGatewayAttachment)
+# (:AWSTransitGatewayAttachment)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
+# This previously used RESOURCE/INWARD, which collides with this schema's own
+# sub_resource_relationship to AWSAccount: same label, same direction, same source node, so
+# the edge to the VPC was never created. MEMBER_OF_AWS_VPC matches how AWSEC2Subnet and
+# AWSEC2RouteTable already point at their VPC.
 @dataclass(frozen=True)
 class AWSTransitGatewayAttachmentToVpcRel(CartographyRelSchema):
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpcId")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_AWS_VPC"
     properties: TGWRelProperties = TGWRelProperties()
 
 
