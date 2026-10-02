@@ -39,6 +39,7 @@ modules/microsoft/index
 modules/miradore/index
 modules/modal/index
 modules/netlify/index
+modules/notion/index
 modules/oci/index
 modules/okta/index
 modules/ontology/index
