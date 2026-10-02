@@ -79,48 +79,46 @@ def get_unmatched_gitlab_container_images_with_history(
                   _sub_resource_id: $organization_id
               }]->())
           )
-        WITH repo, img, repo_img
-        ORDER BY
-            CASE WHEN repo_img.name = 'latest' THEN 0 ELSE 1 END,
-            repo_img.created_at DESC
-        WITH repo, collect({
-            digest: img.digest,
-            uri: repo_img.id,
-            repository_location: coalesce(repo.uri, repo.id),
-            project_id: repo.project_id,
-            tag: repo_img.name,
-            layer_diff_ids: img.layer_diff_ids,
-            type: img.type,
-            architecture: img.architecture,
-            os: img.os
-        })[0] AS best
-        // Get layer history for each best image
-        WITH best
-        UNWIND range(0, size(best.layer_diff_ids) - 1) AS idx
-        WITH best, best.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
-        WITH best, idx, {
-            diff_id: diff_id,
-            history: layer.history,
-            is_empty: layer.is_empty
-        } AS layer_info
-        ORDER BY idx
-        WITH best, collect(layer_info) AS layer_history
-        RETURN
-            best.digest AS digest,
-            best.uri AS uri,
-            best.repository_location AS repository_location,
-            best.project_id AS project_id,
-            best.tag AS tag,
-            best.layer_diff_ids AS layer_diff_ids,
-            best.type AS type,
-            best.architecture AS architecture,
-            best.os AS os,
-            layer_history
+        // Retain one candidate per repository; DESC timestamps put nulls first.
+        WITH repo, max([
+            CASE WHEN repo_img.name = 'latest' THEN 1 ELSE 0 END,
+            repo_img.created_at IS NULL,
+            repo_img.created_at,
+            img, repo_img
+        ]) AS selected
+        WITH repo, selected[3] AS img, selected[4] AS repo_img
     """
 
-    if limit:
-        query += f" LIMIT {limit}"
+    if limit is not None:
+        query += f"        ORDER BY coalesce(repo.uri, repo.id), img.digest\n        LIMIT {int(limit)}\n"
+
+    query += """
+        // Aggregate one image at a time, including when no limit is set.
+        CALL {
+            WITH img
+            UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+            WITH img.layer_diff_ids[idx] AS diff_id, idx
+            OPTIONAL MATCH (layer:ImageLayer {id: diff_id})
+            WITH idx, {
+                diff_id: diff_id,
+                history: layer.history,
+                is_empty: layer.is_empty
+            } AS layer_info
+            ORDER BY idx
+            RETURN collect(layer_info) AS layer_history
+        }
+        RETURN
+            img.digest AS digest,
+            repo_img.id AS uri,
+            coalesce(repo.uri, repo.id) AS repository_location,
+            repo.project_id AS project_id,
+            repo_img.name AS tag,
+            img.layer_diff_ids AS layer_diff_ids,
+            img.type AS type,
+            img.architecture AS architecture,
+            img.os AS os,
+            layer_history
+    """
 
     result = neo4j_session.run(
         query,

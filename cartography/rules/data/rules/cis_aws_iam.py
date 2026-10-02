@@ -612,6 +612,9 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
+          OR principal.arn CONTAINS 'AWSControlTowerExecution'
+          OR principal.arn CONTAINS 'aws-controltower'
+          OR principal.arn CONTAINS 'AWS-QuickSetup'
       )
     // CIS 2.15 is a per-policy control, but AWS-managed policies are global and
     // shared across accounts, so aggregate per (account, policy) to keep account
@@ -641,6 +644,9 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
+          OR principal.arn CONTAINS 'AWSControlTowerExecution'
+          OR principal.arn CONTAINS 'aws-controltower'
+          OR principal.arn CONTAINS 'AWS-QuickSetup'
       )
     RETURN *
     """,
@@ -651,6 +657,9 @@ _aws_admin_policy_attached = Fact(
           OR principal.arn CONTAINS 'OrganizationAccountAccessRole'
           OR principal.arn CONTAINS 'stacksets-exec'
           OR principal.arn CONTAINS 'StackSetExecutionRole'
+          OR principal.arn CONTAINS 'AWSControlTowerExecution'
+          OR principal.arn CONTAINS 'aws-controltower'
+          OR principal.arn CONTAINS 'AWS-QuickSetup'
     )
     // Dedupe on policy only: an AWS-managed policy shared across accounts is one
     // asset, matching the policy_id anchor used for the failing count.
@@ -681,7 +690,7 @@ aws_policies_with_full_administrative_privileges = Rule(
     output_model=AdminPolicyAttachedOutput,
     facts=(_aws_admin_policy_attached,),
     tags=("iam", "policies", "stride:elevation_of_privilege"),
-    version="1.2.0",
+    version="1.2.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("2.15"),

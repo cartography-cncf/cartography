@@ -377,6 +377,7 @@ def test_vulnerability_sync_skips_duplicate_identity_across_pages(
     "change",
     [
         {"CveId": "GHSA-not-a-cve"},
+        {"CveId": "CVE-not-valid"},
         {"Inventory": {}},
     ],
 )  # type: ignore[misc]
@@ -389,9 +390,48 @@ def test_vulnerability_transform_rejects_missing_canonical_identity(change) -> N
         vulnerabilities.transform([raw], ORGANIZATION_ID)
 
 
-def test_vulnerability_transform_rejects_unknown_boolean_values() -> None:
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Extended", True),
+        (" extended ", True),
+        ("Yes", True),
+        ("No", False),
+        (None, None),
+    ],
+)  # type: ignore[misc]
+def test_vulnerability_transform_patch_availability(
+    value: Any,
+    expected: bool | None,
+) -> None:
     # Arrange
-    raw = {**VULNERABILITIES[0], "PatchAvailable": "perhaps"}
+    raw = {**VULNERABILITIES[0], "PatchAvailable": value}
+
+    # Act
+    result = vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0]["patch_available"] is expected
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("PatchAvailable", "perhaps"),
+        ("PatchAvailable", ["Extended"]),
+        ("PatchAvailable", {"value": "Extended"}),
+        ("HasExploit", "Extended"),
+        ("CisaKev", "Extended"),
+        ("Trending", "Extended"),
+    ],
+)  # type: ignore[misc]
+def test_vulnerability_transform_rejects_unknown_boolean_values(
+    field: str,
+    value: Any,
+) -> None:
+    # Arrange
+    raw = {**VULNERABILITIES[0], field: value}
 
     # Act and assert
     with pytest.raises(ValueError, match="Unexpected Orca boolean"):
@@ -437,6 +477,19 @@ def test_vulnerability_transform_rejects_non_string_package_identity() -> None:
         vulnerabilities.transform([raw], ORGANIZATION_ID)
 
 
+def test_vulnerability_transform_accepts_empty_source_package() -> None:
+    # Arrange
+    raw = deepcopy(VULNERABILITIES[0])
+    raw["InstalledPackage"]["SourcePackage"] = ""
+
+    # Act
+    result = vulnerabilities.transform([raw], ORGANIZATION_ID)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0]["source_package"] == ""
+
+
 def test_vulnerability_transform_rejects_malformed_nonidentity_package_field() -> None:
     # Arrange
     raw = deepcopy(VULNERABILITIES[0])
@@ -457,6 +510,12 @@ def test_vulnerability_query_matches_official_serving_layer_shape() -> None:
         "models": ["Inventory"],
         "type": "object",
         "operator": "has",
+    }
+    assert query["query"]["with"]["values"][1] == {
+        "key": "CveId",
+        "type": "str",
+        "operator": "containing",
+        "values": ["CVE-"],
     }
     assert query["additional_models[]"] == ["InstalledPackage", "Inventory"]
     assert query["flat_json"] is True

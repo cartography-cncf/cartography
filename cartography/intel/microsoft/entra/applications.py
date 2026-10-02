@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 from typing import Generator
 
 import neo4j
+from kiota_abstractions.api_error import APIError
 from msgraph.generated.models.application import Application
 from msgraph.graph_service_client import GraphServiceClient
 
@@ -139,10 +140,12 @@ def cleanup_applications(
 async def sync_entra_applications(
     neo4j_session: neo4j.Session,
     tenant_id: str,
-    client_id: str,
-    client_secret: str,
+    client_id: str | None,
+    client_secret: str | None,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    *,
+    delegated_auth: bool = False,
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
@@ -153,9 +156,15 @@ async def sync_entra_applications(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
+    :param delegated_auth: Use the current Azure CLI user and skip cleanup
     """
     # Create credentials and client
-    credential = credentials.make_credential(tenant_id, client_id, client_secret)
+    credential = credentials.make_credential(
+        tenant_id,
+        client_id,
+        client_secret,
+        delegated_auth=delegated_auth,
+    )
 
     client = GraphServiceClient(
         credential,
@@ -167,21 +176,31 @@ async def sync_entra_applications(
     apps_batch = []
     total_app_count = 0
 
-    # Stream and load applications
-    async for app in get_entra_applications(client):
-        total_app_count += 1
-        apps_batch.append(app)
+    delegated_denial: APIError | None = None
+    try:
+        # Stream and load applications
+        async for app in get_entra_applications(client):
+            total_app_count += 1
+            apps_batch.append(app)
 
-        # Transform and load applications in batches
-        if len(apps_batch) >= app_batch_size:
-            transformed_apps = list(transform_applications(apps_batch))
-            load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
-            logger.info(
-                f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
-            )
-            apps_batch.clear()
-            transformed_apps.clear()
-            gc.collect()  # Force garbage collection
+            # Transform and load applications in batches
+            if len(apps_batch) >= app_batch_size:
+                transformed_apps = list(transform_applications(apps_batch))
+                load_applications(
+                    neo4j_session, transformed_apps, update_tag, tenant_id
+                )
+                logger.debug(
+                    "Loaded batch of %s applications (total: %s)",
+                    len(apps_batch),
+                    total_app_count,
+                )
+                apps_batch.clear()
+                transformed_apps.clear()
+                gc.collect()  # Force garbage collection
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = error
 
     # Process remaining applications
     if apps_batch:
@@ -189,7 +208,10 @@ async def sync_entra_applications(
         load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
         apps_batch.clear()
         transformed_apps.clear()
-    cleanup_applications(neo4j_session, common_job_parameters)
+    if delegated_denial:
+        raise delegated_denial
+    if not delegated_auth:
+        cleanup_applications(neo4j_session, common_job_parameters)
     logger.info(f"Completed syncing {total_app_count} applications")
     # Final garbage collection
     gc.collect()
