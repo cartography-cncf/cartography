@@ -42,12 +42,24 @@ def test_orca_config_is_appended_for_positional_compatibility() -> None:
     assert parameters.index("orca_api_token") > parameters.index("orca_api_endpoint")
 
 
+def test_microsoft_delegated_auth_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters.index("microsoft_delegated_auth") > parameters.index(
+        "orca_api_token",
+    )
+
+
 def test_notion_config_is_appended_for_positional_compatibility() -> None:
     # Act
     parameters = list(inspect.signature(Config.__init__).parameters)
 
     # Assert
-    assert parameters.index("notion_config") > parameters.index("orca_api_token")
+    assert parameters.index("notion_config") > parameters.index(
+        "zendesk_oauth_token",
+    )
 
 
 def test_config_stores_orca_credentials() -> None:
@@ -61,6 +73,31 @@ def test_config_stores_orca_credentials() -> None:
     # Assert
     assert config.orca_api_endpoint == "https://api.orcasecurity.io"
     assert config.orca_api_token == "secret-token"
+
+
+def test_zoom_preserves_existing_positional_config_arguments() -> None:
+    # Arrange: construct the positional argument list available before Zoom.
+    parameters = inspect.signature(Config).parameters
+    names = [name for name in parameters if not name.startswith("zoom_")]
+    names = names[: names.index("microsoft_delegated_auth") + 1]
+    args = [parameters[name].default for name in names]
+    args[0] = "bolt://localhost:7687"
+    args[names.index("jumpcloud_api_key")] = "legacy-api-key"
+    args[names.index("orca_api_token")] = "legacy-orca-token"
+    args[names.index("microsoft_tenant_id")] = "legacy-tenant-id"
+    args[names.index("microsoft_delegated_auth")] = True
+
+    # Act
+    config = Config(*args)
+
+    # Assert
+    assert config.jumpcloud_api_key == "legacy-api-key"
+    assert config.orca_api_token == "legacy-orca-token"
+    assert config.microsoft_tenant_id == "legacy-tenant-id"
+    assert config.microsoft_delegated_auth is True
+    assert config.zoom_account_id is None
+    assert config.zoom_client_id is None
+    assert config.zoom_client_secret is None
 
 
 def test_config_microsoft_credentials_are_canonical(caplog) -> None:
@@ -111,6 +148,26 @@ def test_config_rejects_mixed_microsoft_and_entra_credentials() -> None:
             neo4j_uri="bolt://localhost:7687",
             microsoft_tenant_id="tenant-id",
             entra_client_id="client-id",
+        )
+
+
+def test_config_rejects_delegated_auth_with_application_credentials() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            microsoft_client_id="client-id",
+            microsoft_delegated_auth=True,
+        )
+
+
+def test_config_requires_tenant_for_delegated_auth() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="requires a Microsoft tenant ID"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_delegated_auth=True,
         )
 
 
@@ -178,3 +235,16 @@ def test_config_rejects_legacy_prefix_without_bucket() -> None:
             neo4j_uri="bolt://localhost:7687",
             syft_s3_prefix="reports/syft/",
         )
+
+
+def test_jira_config_preserves_legacy_positional_slots() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters[72] == "lastpass_cid"
+    assert parameters[225] == "orca_api_token"
+    assert all(
+        parameters.index(name) > parameters.index("zoom_client_secret")
+        for name in ("jira_cloud_id", "jira_email", "jira_api_token", "jira_site_url")
+    )

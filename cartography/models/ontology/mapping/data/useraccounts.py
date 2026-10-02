@@ -790,7 +790,79 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_login_at"
+                ),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "jira": OntologyMapping(
+        module_name="jira",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="JiraUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(ontology_field="active", node_field="active"),
+                ],
+            )
+        ],
+    ),
+    "zoom": OntologyMapping(
+        module_name="zoom",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZoomUser",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="email", node_field="email", required=True
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="firstname", node_field="first_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastname", node_field="last_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="fullname", node_field="display_name"
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="active",
+                        node_field="status",
+                        special_handling="equal_boolean",
+                        extra={"values": ["active"]},
+                    ),
+                    OntologyFieldMapping(
+                        ontology_field="lastactivity", node_field="last_login_time"
+                    ),
+                ],
+            )
+        ],
+    ),
+    "zendesk": zendesk_mapping,
     "microsoft": entra_mapping,
     "huntress": huntress_mapping,
     "lastpass": lastpass_mapping,

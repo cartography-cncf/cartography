@@ -29,6 +29,7 @@ modules/googleworkspace/index
 modules/gsuite/index
 modules/huntress/index
 modules/jamf/index
+modules/jira/index
 modules/jumpcloud/index
 modules/kandji/index
 modules/keycloak/index
@@ -67,5 +68,7 @@ modules/vercel/index
 modules/wiz/index
 modules/workday/index
 modules/workos/index
+modules/zendesk/index
 modules/zizmor/index
+modules/zoom/index
 ```

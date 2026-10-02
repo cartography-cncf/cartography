@@ -1,10 +1,35 @@
+from unittest.mock import MagicMock
+
 from cartography.intel.gitlab.supply_chain import (
     build_singleton_dockerfile_fallback_matchlinks,
+)
+from cartography.intel.gitlab.supply_chain import (
+    get_unmatched_gitlab_container_images_with_history,
 )
 from cartography.intel.gitlab.supply_chain import (
     GITLAB_SINGLETON_DOCKERFILE_FALLBACK_CONFIDENCE,
 )
 from cartography.intel.supply_chain import ContainerImage
+
+
+def test_get_unmatched_container_images_limits_before_layer_history_expansion():
+    neo4j_session = MagicMock()
+    neo4j_session.run.return_value = []
+
+    get_unmatched_gitlab_container_images_with_history(
+        neo4j_session,
+        organization_id=1,
+        gitlab_url="https://gitlab.example.com",
+        update_tag=1,
+        limit=10,
+    )
+
+    query = neo4j_session.run.call_args.args[0]
+    assert (
+        query.index("ORDER BY coalesce(repo.uri, repo.id)")
+        < query.index("LIMIT 10")
+        < query.index("UNWIND range")
+    )
 
 
 def test_build_singleton_dockerfile_fallback_matchlinks_uses_scoped_singleton():

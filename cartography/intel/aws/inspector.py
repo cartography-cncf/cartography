@@ -189,6 +189,9 @@ def transform_inspector_findings(
             finding["epss_score_inspector"] = f["epss"].get("score")
         if f.get("inspectorScoreDetails"):
             finding["cvssscore"] = f["inspectorScoreDetails"]["adjustedCvss"]["score"]
+            finding["cvssvector"] = f["inspectorScoreDetails"]["adjustedCvss"][
+                "scoringVector"
+            ]
         if f["resources"][0]["type"] == "AWS_EC2_INSTANCE":
             finding["instanceid"] = f["resources"][0]["id"]
         if f["resources"][0]["type"] == "AWS_ECR_CONTAINER_IMAGE":
@@ -218,6 +221,13 @@ def transform_inspector_findings(
             finding["relatedvulnerabilities"] = f["packageVulnerabilityDetails"].get(
                 "relatedVulnerabilities",
             )
+            # packageVulnerabilityDetails.cvss is a list of per-source (vendor/NVD)
+            # CVSS entries.
+            finding["vendorcvssvectors"] = []
+            finding["vendorcvssscores"] = []
+            for cvss in f["packageVulnerabilityDetails"].get("cvss", []):
+                finding["vendorcvssvectors"].append(cvss["scoringVector"])
+                finding["vendorcvssscores"].append(cvss["baseScore"])
             finding["source"] = f["packageVulnerabilityDetails"].get("source")
             finding["sourceurl"] = f["packageVulnerabilityDetails"].get("sourceUrl")
             finding["vendorcreatedat"] = f["packageVulnerabilityDetails"].get(
