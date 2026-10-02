@@ -67,6 +67,8 @@ def start_notion_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                     workspace["id"],
                     config.update_tag,
                 )
+            else:
+                pages.delete_workspace_pages(neo4j_session, workspace["id"])
             logger.info("Completed Notion workspace sync")
     finally:
         for api_session in api_sessions:

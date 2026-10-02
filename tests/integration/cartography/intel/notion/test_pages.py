@@ -282,3 +282,88 @@ def test_sync_preserves_page_when_search_pagination_fails(neo4j_session):
         "NotionPage",
         ["id", "lastupdated"],
     ) == {("workspace-1/page-public", TEST_UPDATE_TAG)}
+
+
+def test_sync_preserves_page_when_search_is_incomplete(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _seed_workspace_and_users(neo4j_session)
+    first_session = MagicMock()
+    first_session.post.return_value = _response(_search_payload([PUBLIC_PAGE]))
+    cartography.intel.notion.pages.sync(
+        neo4j_session,
+        first_session,
+        TEST_WORKSPACE_ID,
+        TEST_UPDATE_TAG,
+    )
+    incomplete_payload = _search_payload([{**PUBLIC_PAGE, "public_url": None}])
+    incomplete_payload["request_status"] = {
+        "type": "incomplete",
+        "incomplete_reason": "query_result_limit_reached",
+    }
+    incomplete_session = MagicMock()
+    incomplete_session.post.return_value = _response(incomplete_payload)
+
+    # Act and assert
+    with pytest.raises(ValueError, match="incomplete result set"):
+        cartography.intel.notion.pages.sync(
+            neo4j_session,
+            incomplete_session,
+            TEST_WORKSPACE_ID,
+            TEST_UPDATE_TAG + 1,
+        )
+
+    assert check_nodes(
+        neo4j_session,
+        "NotionPage",
+        ["id", "lastupdated"],
+    ) == {("workspace-1/page-public", TEST_UPDATE_TAG)}
+
+
+def test_delete_workspace_pages_is_scoped(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _seed_workspace_and_users(neo4j_session)
+    workspace_two_token = {
+        **TOKEN_USER,
+        "bot": {
+            **TOKEN_USER["bot"],
+            "workspace_id": "workspace-2",
+            "workspace_name": "Workspace Two",
+        },
+    }
+    workspace_two = cartography.intel.notion.workspaces.transform(workspace_two_token)
+    cartography.intel.notion.workspaces.load_workspace(
+        neo4j_session,
+        workspace_two,
+        TEST_UPDATE_TAG,
+    )
+    for workspace_id in (TEST_WORKSPACE_ID, "workspace-2"):
+        api_session = MagicMock()
+        api_session.post.return_value = _response(_search_payload([PUBLIC_PAGE]))
+        cartography.intel.notion.pages.sync(
+            neo4j_session,
+            api_session,
+            workspace_id,
+            TEST_UPDATE_TAG,
+        )
+
+    # Act
+    cartography.intel.notion.pages.delete_workspace_pages(
+        neo4j_session,
+        TEST_WORKSPACE_ID,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "NotionPage", ["id"]) == {
+        ("workspace-2/page-public",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "NotionWorkspace",
+        "id",
+        "NotionPage",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {("workspace-2", "workspace-2/page-public")}

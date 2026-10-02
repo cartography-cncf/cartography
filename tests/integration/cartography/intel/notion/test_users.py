@@ -202,3 +202,45 @@ def test_malformed_response_does_not_trigger_cleanup(neo4j_session):
         ("workspace-1/bot-1",),
         ("workspace-1/bot-2",),
     }
+
+
+def test_incomplete_response_does_not_trigger_cleanup(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _sync(neo4j_session, "workspace-1", "One", USERS, TEST_UPDATE_TAG)
+    token_user = {
+        **TOKEN_USER,
+        "bot": {
+            **TOKEN_USER["bot"],
+            "workspace_id": "workspace-1",
+            "workspace_name": "One",
+        },
+    }
+    workspace = cartography.intel.notion.workspaces.transform(token_user)
+    workspace["token_user"] = token_user
+    api_session = MagicMock()
+    response = _response(USERS[:1])
+    response.json.return_value["request_status"] = {
+        "type": "incomplete",
+        "incomplete_reason": "query_result_limit_reached",
+    }
+    api_session.get.return_value = response
+
+    # Act and assert
+    with pytest.raises(ValueError, match="incomplete result set"):
+        cartography.intel.notion.users.sync(
+            neo4j_session,
+            api_session,
+            workspace,
+            TEST_UPDATE_TAG + 1,
+            {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "WORKSPACE_ID": "workspace-1"},
+        )
+
+    assert check_nodes(neo4j_session, "NotionUser", ["id", "lastupdated"]) == {
+        ("workspace-1/person-1", TEST_UPDATE_TAG),
+        ("workspace-1/person-2", TEST_UPDATE_TAG),
+    }
+    assert check_nodes(neo4j_session, "NotionBot", ["id", "lastupdated"]) == {
+        ("workspace-1/bot-1", TEST_UPDATE_TAG),
+        ("workspace-1/bot-2", TEST_UPDATE_TAG),
+    }

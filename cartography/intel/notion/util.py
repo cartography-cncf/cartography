@@ -124,10 +124,12 @@ def get_paginated(
             timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
+        payload = require_object(response.json(), "Notion paginated response")
         page_results, has_more, next_cursor_value = _validate_paginated_payload(
-            response.json(),
+            payload,
             expected_type,
         )
+        _raise_if_incomplete(payload, endpoint)
         results.extend(page_results)
 
         if not has_more:
@@ -169,7 +171,7 @@ def _validate_paginated_payload(
     return page_results, has_more, payload.get("next_cursor")
 
 
-def _warn_if_incomplete(payload: dict[str, Any], endpoint: str) -> None:
+def _raise_if_incomplete(payload: dict[str, Any], endpoint: str) -> None:
     request_status = payload.get("request_status")
     if request_status is None:
         return
@@ -195,6 +197,7 @@ def _warn_if_incomplete(payload: dict[str, Any], endpoint: str) -> None:
         endpoint,
         f" ({reason})" if reason else "",
     )
+    raise ValueError(f"Notion {endpoint} returned an incomplete result set")
 
 
 def post_paginated(
@@ -221,7 +224,7 @@ def post_paginated(
             payload,
             expected_type,
         )
-        _warn_if_incomplete(payload, endpoint)
+        _raise_if_incomplete(payload, endpoint)
         yield page_results
 
         if not has_more:

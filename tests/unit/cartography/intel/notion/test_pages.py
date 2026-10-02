@@ -37,7 +37,7 @@ def test_transform_keeps_only_public_page_metadata():
 def test_transform_records_explicitly_unpublished_pages():
     # Act
     public_pages, unpublished_page_ids = transform(
-        [PRIVATE_PAGE],
+        [{"object": "page", "id": "page-private", "public_url": None}],
         "workspace-1",
     )
 

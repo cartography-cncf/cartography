@@ -1,5 +1,6 @@
 import base64
 import json
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -22,6 +23,7 @@ def _config(workspaces):
 
 
 @patch("cartography.intel.notion.pages.sync")
+@patch("cartography.intel.notion.pages.delete_workspace_pages")
 @patch("cartography.intel.notion.users.sync")
 @patch("cartography.intel.notion.workspaces.load_workspace")
 @patch("cartography.intel.notion.workspaces.get")
@@ -31,6 +33,7 @@ def test_start_discovers_workspace_and_honors_public_page_option(
     get_workspace,
     sync_workspace,
     sync_users,
+    delete_workspace_pages,
     sync_pages,
 ):
     # Arrange
@@ -50,6 +53,7 @@ def test_start_discovers_workspace_and_honors_public_page_option(
     assert workspace["name"] == "Example Workspace"
     sync_users.assert_called_once()
     sync_pages.assert_called_once()
+    delete_workspace_pages.assert_not_called()
     api_session.close.assert_called_once()
 
     # The option is off by default.
@@ -59,6 +63,10 @@ def test_start_discovers_workspace_and_honors_public_page_option(
         _config([{"api_token": "token"}]),
     )
     sync_pages.assert_not_called()
+    delete_workspace_pages.assert_called_once_with(
+        ANY,
+        "workspace-1",
+    )
 
 
 @patch("cartography.intel.notion.users.sync")

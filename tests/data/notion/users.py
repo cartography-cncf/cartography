@@ -52,6 +52,6 @@ TOKEN_USER = {
         },
         "workspace_name": "Example Workspace",
         "workspace_id": "workspace-1",
-        "workspace_limits": {"max_file_upload_size_in_bytes": 5_000_000},
+        "workspace_limits": {"max_file_upload_size_in_bytes": 5000000},
     },
 }

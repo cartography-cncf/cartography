@@ -72,6 +72,9 @@ def transform(
                 public_url,
                 "Notion page public_url",
             )
+        else:
+            unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))
+            continue
 
         created_time = require_nonempty_string(
             page.get("created_time"),
@@ -107,10 +110,6 @@ def transform(
                 "Notion page parent id",
             )
         )
-
-        if public_url is None:
-            unpublished_page_ids.append(scoped_id(workspace_id, notion_page_id))
-            continue
 
         public_pages.append(
             {
@@ -168,6 +167,20 @@ def delete_confirmed_unpublished_pages(
         """,
         PAGE_IDS=page_ids,
         UPDATE_TAG=update_tag,
+    )
+
+
+def delete_workspace_pages(
+    neo4j_session: neo4j.Session,
+    workspace_id: str,
+) -> None:
+    run_write_query(
+        neo4j_session,
+        """
+        MATCH (:NotionWorkspace {id: $WORKSPACE_ID})-[:RESOURCE]->(p:NotionPage)
+        DETACH DELETE p
+        """,
+        WORKSPACE_ID=workspace_id,
     )
 
 
