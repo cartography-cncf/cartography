@@ -530,6 +530,8 @@ class Config:
     :param zoom_client_secret: Zoom server-to-server OAuth client secret. Optional.
     :type zoom_sections: str
     :param zoom_sections: Comma-separated optional Zoom inventories. Empty syncs users only.
+    :type zoom_lookback_days: int
+    :param zoom_lookback_days: UTC calendar days of recordings to inventory, from 1 to 30.
     :type zoom_request_limit: int
     :param zoom_request_limit: Maximum logical Zoom GET requests per sync. Optional.
     :type jumpcloud_api_key: str
@@ -784,6 +786,7 @@ class Config:
         zendesk_subdomain=None,
         zendesk_oauth_token=None,
         zoom_sections="",
+        zoom_lookback_days=7,
         zoom_request_limit=100000,
     ):
         self.neo4j_uri = neo4j_uri
@@ -1073,6 +1076,7 @@ class Config:
         self.zoom_client_id = zoom_client_id
         self.zoom_client_secret = zoom_client_secret
         self.zoom_sections = zoom_sections
+        self.zoom_lookback_days = zoom_lookback_days
         self.zoom_request_limit = zoom_request_limit
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
