@@ -15,6 +15,7 @@ from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
 from cartography.models.microsoft.entra.user import EntraUserSchema
+from cartography.models.microsoft.entra.user import EntraUserWithoutActivitySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -75,8 +76,10 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
 
 
 @timeit
-async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
-    """Fetch all users with their manager reference in as few requests as possible.
+async def get_users(
+    client: GraphServiceClient,
+) -> AsyncGenerator[tuple[list[User], bool], None]:
+    """Yield user pages and whether the request included sign-in activity.
 
     We leverage `$expand=manager($select=id)` so the manager's *id* is hydrated
     alongside every user record.  This avoids making a second round-trip per
@@ -86,24 +89,36 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
 
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
-            top=999,
-            select=USER_SELECT_FIELDS,
+            # Graph caps pages at 500 when signInActivity is selected.
+            top=500,
+            select=[*USER_SELECT_FIELDS, "signInActivity"],
             expand=["manager($select=id)"],
         ),
     )
 
+    activity_available = True
     try:
         page = await call_with_retries(
             lambda: client.users.get(request_configuration=request_configuration),
         )
-    except Exception:
-        logger.exception("Failed to fetch Entra users")
-        raise
+    except APIError as error:
+        if error.response_status_code != 403:
+            raise
+        # Activity requires extra permissions/licensing; basic inventory does not.
+        logger.warning(
+            "Entra user sign-in activity request was forbidden; retrying without "
+            "signInActivity. Check AuditLog.Read.All and Entra ID P1/P2 licensing."
+        )
+        request_configuration.query_parameters.select = USER_SELECT_FIELDS
+        request_configuration.query_parameters.top = 999
+        activity_available = False
+        page = await call_with_retries(
+            lambda: client.users.get(request_configuration=request_configuration),
+        )
 
     while page:
         if page.value:
-            for user in page.value:
-                yield user
+            yield page.value, activity_available
         if not page.odata_next_link:
             break
 
@@ -119,10 +134,13 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
 @timeit
 # The manager reference is now embedded in the user objects courtesy of the
 # `$expand` we added above, so we no longer need a separate `manager_map`.
-def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
+def transform_users(
+    users: list[User], *, activity_available: bool = True
+) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema."""
 
     for user in users:
+        activity = user.sign_in_activity
         manager_id: str | None = None
         if getattr(user, "manager", None) is not None:
             # The SDK materialises `manager` as a DirectoryObject (or subclass)
@@ -150,6 +168,20 @@ def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
             "account_enabled": user.account_enabled,
             "age_group": user.age_group,
             "manager_id": manager_id,
+            "sign_in_activity_available": activity_available,
+            "last_sign_in_date_time": (
+                activity.last_sign_in_date_time if activity is not None else None
+            ),
+            "last_non_interactive_sign_in_date_time": (
+                activity.last_non_interactive_sign_in_date_time
+                if activity is not None
+                else None
+            ),
+            "last_successful_sign_in_date_time": (
+                activity.last_successful_sign_in_date_time
+                if activity is not None
+                else None
+            ),
         }
 
 
@@ -197,10 +229,16 @@ def load_users(
     users: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
+    *,
+    activity_available: bool,
 ) -> None:
+    # A permission fallback must not erase previously observed activity.
+    schema = (
+        EntraUserSchema() if activity_available else EntraUserWithoutActivitySchema()
+    )
     load(
         neo4j_session,
-        EntraUserSchema(),
+        schema,
         users,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
@@ -248,33 +286,18 @@ async def sync_entra_users(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    # Process users in batches to reduce memory consumption
-    batch_size = (
-        500  # Process users in larger batches since they're simpler than groups
-    )
-    users_batch = []
-
-    delegated_denial: APIError | None = None
-    try:
-        async for user in get_users(client):
-            users_batch.append(user)
-
-            if len(users_batch) >= batch_size:
-                transformed_users = list(transform_users(users_batch))
-                load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-                users_batch.clear()
-    except APIError as error:
-        if not delegated_auth or error.response_status_code != 403:
-            raise
-        delegated_denial = error
-
-    # Process any remaining users
-    if users_batch:
-        transformed_users = list(transform_users(users_batch))
-        load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-
-    if delegated_denial:
-        raise delegated_denial
+    # Keep memory bounded to one Graph page; failures propagate before cleanup.
+    async for users, activity_available in get_users(client):
+        transformed_users = list(
+            transform_users(users, activity_available=activity_available)
+        )
+        load_users(
+            neo4j_session,
+            transformed_users,
+            tenant_id,
+            update_tag,
+            activity_available=activity_available,
+        )
 
     if not delegated_auth:
         cleanup(neo4j_session, common_job_parameters)
