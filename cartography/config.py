@@ -528,6 +528,10 @@ class Config:
     :param zoom_client_id: Zoom server-to-server OAuth client ID. Optional.
     :type zoom_client_secret: str
     :param zoom_client_secret: Zoom server-to-server OAuth client secret. Optional.
+    :type zoom_sections: str
+    :param zoom_sections: Comma-separated optional Zoom inventories. Empty syncs users only.
+    :type zoom_request_limit: int
+    :param zoom_request_limit: Maximum logical Zoom GET requests per sync. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -779,6 +783,8 @@ class Config:
         jira_site_url=None,
         zendesk_subdomain=None,
         zendesk_oauth_token=None,
+        zoom_sections="",
+        zoom_request_limit=100000,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -1066,6 +1072,8 @@ class Config:
         self.zoom_account_id = zoom_account_id
         self.zoom_client_id = zoom_client_id
         self.zoom_client_secret = zoom_client_secret
+        self.zoom_sections = zoom_sections
+        self.zoom_request_limit = zoom_request_limit
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token

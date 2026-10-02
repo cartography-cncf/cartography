@@ -1414,6 +1414,25 @@ class CLI:
                     hidden=PANEL_ZOOM not in visible_panels,
                 ),
             ] = "ZOOM_CLIENT_SECRET",
+            zoom_sections: Annotated[
+                str,
+                typer.Option(
+                    "--zoom-sections",
+                    help="Optional comma-separated Zoom inventories: groups,roles,settings,apps. Users always sync.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "",
+            zoom_request_limit: Annotated[
+                int,
+                typer.Option(
+                    "--zoom-request-limit",
+                    min=1,
+                    help="Maximum logical Zoom GET requests per sync; retries of one request count once. Optional sections that reach it keep prior data.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = 100000,
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -3805,6 +3824,8 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_sections=zoom_sections,
+                zoom_request_limit=zoom_request_limit,
                 zoom_account_id=zoom_account_id,
                 zoom_client_id=zoom_client_id,
                 zoom_client_secret=(

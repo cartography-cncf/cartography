@@ -422,7 +422,31 @@ huntress_mapping = OntologyMapping(
     ],
 )
 
+zoom_mapping = OntologyMapping(
+    module_name="zoom",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZoomRole",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # The common Roles API describes account roles. Privilege-level
+                # group restrictions remain on ZoomRolePrivilege.
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "account"},
+                ),
+                # _ont_type: The API does not reliably distinguish builtin/custom roles.
+            ],
+        ),
+    ],
+)
+
 ROLES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "zoom": zoom_mapping,
     "aws": aws_mapping,
     "huntress": huntress_mapping,
     "azure": azure_mapping,
