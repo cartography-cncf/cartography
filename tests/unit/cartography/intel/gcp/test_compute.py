@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import cartography.intel.gcp.compute
 from tests.data.gcp.compute import LIST_FIREWALLS_RESPONSE
 from tests.data.gcp.compute import VPC_PEERING_RESPONSE
@@ -120,6 +122,21 @@ def test_transform_gcp_firewall():
     assert sample_fw_icmp_rule["fromport"] is None
     assert sample_fw_icmp_rule["toport"] is None
     assert sample_fw_icmp_rule["protocol"] == "icmp"
+
+    assert fw_list[0]["log_logging_enabled"] is False
+    assert fw_list[0]["log_logging_metadata"] is None
+    assert fw_list[4]["log_logging_enabled"] is True
+    assert fw_list[4]["log_logging_metadata"] == "INCLUDE_ALL_METADATA"
+
+
+def test_transform_gcp_firewall_handles_missing_log_config():
+    response = deepcopy(LIST_FIREWALLS_RESPONSE)
+    response["items"][0].pop("logConfig")
+
+    fw_list = cartography.intel.gcp.compute.transform_gcp_firewall(response)
+
+    assert fw_list[0]["log_logging_enabled"] is None
+    assert fw_list[0]["log_logging_metadata"] is None
 
 
 def test_transform_gcp_vpc_peerings():

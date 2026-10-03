@@ -17,6 +17,7 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.router import sync_gcp_routers
 from cartography.intel.gcp.ssl_policy import sync_gcp_ssl_policies
 from cartography.intel.gcp.target_https_proxy import sync_gcp_target_https_proxies
 from cartography.intel.gcp.target_ssl_proxy import sync_gcp_target_ssl_proxies
@@ -843,6 +844,8 @@ def transform_gcp_firewall(fw_response: Resource) -> list[dict]:
         fw_partial_uri = f"{prefix}/{fw['name']}"
         fw["id"] = fw_partial_uri
         fw["vpc_partial_uri"] = _parse_compute_full_uri_to_partial_uri(fw["network"])
+        fw["log_logging_enabled"] = fw.get("logConfig", {}).get("enable")
+        fw["log_logging_metadata"] = fw.get("logConfig", {}).get("metadata")
 
         fw["transformed_allow_list"] = []
         fw["transformed_deny_list"] = []
@@ -2204,6 +2207,13 @@ def sync(
             common_job_parameters,
         )
         sync_gcp_vpn_tunnels(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_routers(
             neo4j_session,
             compute,
             project_id,
