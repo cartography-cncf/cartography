@@ -5,6 +5,7 @@ from kubernetes.client.models import V1LoadBalancerStatus
 from kubernetes.client.models import V1ObjectMeta
 from kubernetes.client.models import V1PortStatus
 from kubernetes.client.models import V1Service
+from kubernetes.client.models import V1ServicePort
 from kubernetes.client.models import V1ServiceSpec
 from kubernetes.client.models import V1ServiceStatus
 
@@ -137,3 +138,34 @@ def test_transform_services_prefers_endpoint_slice_backends():
     )
 
     assert without_ready_backends["pod_ids"] == []
+
+
+def test_transform_services_extracts_node_port_and_external_ip_facts():
+    service = V1Service(
+        metadata=V1ObjectMeta(uid="service-4", name="edge", namespace="default"),
+        spec=V1ServiceSpec(
+            type="NodePort",
+            selector={"app": "edge"},
+            cluster_ip="10.0.0.4",
+            external_ips=["8.8.8.8", "10.0.0.8"],
+            external_traffic_policy="Local",
+            ports=[
+                V1ServicePort(
+                    name="https",
+                    protocol="TCP",
+                    port=443,
+                    target_port=8443,
+                    node_port=30443,
+                )
+            ],
+        ),
+        status=V1ServiceStatus(),
+    )
+
+    [transformed] = transform_services([service], all_pods=[])
+
+    assert transformed["port_keys"] == ["TCP/443"]
+    assert transformed["node_port_keys"] == ["TCP/30443"]
+    assert transformed["external_ip_addresses"] == ["10.0.0.8", "8.8.8.8"]
+    assert transformed["global_external_ip_addresses"] == ["8.8.8.8"]
+    assert transformed["external_traffic_policy"] == "Local"

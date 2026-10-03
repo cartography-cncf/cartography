@@ -32,6 +32,12 @@ Because sibling containers share the same Pod IP, identical declared protocol
 and port values can't identify which process actually accepts the traffic; all
 matching siblings are attributed.
 
+Cartography also records Kubernetes-managed network exposure surfaces without
+promoting them to confirmed internet exposure: Service `externalIPs`, allocated
+`nodePort` values, node `ExternalIP` addresses, container `hostPort` bindings,
+and Pod `hostNetwork` settings. These fields need independent routing, firewall,
+kube-proxy, and listening-process validation before they establish reachability.
+
 PersistentVolumes managed by the AWS EBS or Azure Disk CSI drivers connect to
 already-ingested cloud disks with `BACKED_BY` relationships.
 

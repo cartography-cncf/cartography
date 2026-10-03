@@ -24,7 +24,20 @@ KUBERNETES_CONTAINER_DATA = [
         "cpu_request": "100m",
         "memory_limit": "256Mi",
         "cpu_limit": "500m",
-        "host_ports": [],
+        "host_ports": [30080],
+        "host_port_bindings": json.dumps(
+            [
+                {
+                    "name": "http",
+                    "protocol": "TCP",
+                    "container_port": 8080,
+                    "host_port": 30080,
+                    "host_ip": None,
+                }
+            ]
+        ),
+        "host_port_keys": ["TCP/30080"],
+        "node_address_host_port_keys": ["TCP/30080"],
         "container_ports": json.dumps(
             [
                 {"container_port": 8080, "protocol": "TCP", "name": "http"},
@@ -50,6 +63,9 @@ KUBERNETES_CONTAINER_DATA = [
         "memory_limit": "128Mi",
         "cpu_limit": "200m",
         "host_ports": [],
+        "host_port_bindings": "[]",
+        "host_port_keys": [],
+        "node_address_host_port_keys": [],
         "container_ports": json.dumps([]),
         "container_port_numbers": [],
         "container_port_keys": [],

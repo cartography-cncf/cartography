@@ -141,6 +141,18 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
         "host_ports",
         description="List of host ports exposed by the container. Derived from `container.ports[].host_port`.",
     )
+    host_port_bindings: PropertyRef = PropertyRef(
+        "host_port_bindings",
+        description="Declared hostIP, hostPort, containerPort, protocol, and name settings as a JSON-encoded list.",
+    )
+    host_port_keys: PropertyRef = PropertyRef(
+        "host_port_keys",
+        description="Distinct `<protocol>/<hostPort>` values declared by the container.",
+    )
+    node_address_host_port_keys: PropertyRef = PropertyRef(
+        "node_address_host_port_keys",
+        description="Declared `<protocol>/<hostPort>` values whose hostIP is unset or unspecified, so the binding can use node addresses. A public node address still doesn't prove firewall reachability or that a process is listening.",
+    )
     container_ports: PropertyRef = PropertyRef(
         "container_ports",
         description="The ports the container *declares* in its pod spec. Derived from `container.ports[]`, stored as a JSON-encoded list of `{container_port, protocol, name}`. `containerPort` is optional in Kubernetes, so this reflects declared ports only, not necessarily every port the process listens on.",
