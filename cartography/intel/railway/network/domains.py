@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.dns_utils import normalize_hostname
 from cartography.intel.railway.serviceinstances import iter_service_instances
 from cartography.intel.railway.utils import is_live_entrypoint
 from cartography.models.railway.network.customdomain import RailwayCustomDomainSchema
@@ -77,6 +78,9 @@ def transform(
                 project_service_domains.append(
                     {
                         **service_domain,
+                        "domain_normalized": normalize_hostname(
+                            service_domain.get("domain")
+                        ),
                         **owner,
                         **_exposure_keys(service_domain, owner),
                     },
@@ -86,6 +90,9 @@ def transform(
                 project_custom_domains.append(
                     {
                         **custom_domain,
+                        "domain_normalized": normalize_hostname(
+                            custom_domain.get("domain")
+                        ),
                         **owner,
                         "verified": bool(status.get("verified")),
                         "certificate_status": status.get("certificateStatus"),
