@@ -165,6 +165,51 @@ class GCPArtifactRegistryImageContainsImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GCPArtifactRegistryImageToLayerRel(CartographyRelSchema):
+    """Links an image to each content-addressed layer it contains."""
+
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_LAYER"
+    properties: GCPArtifactRegistryImageRelProperties = (
+        GCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageToHeadLayerRel(CartographyRelSchema):
+    """Links an image to the first layer in its ordered OCI root filesystem."""
+
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("head_layer_diff_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HEAD"
+    properties: GCPArtifactRegistryImageRelProperties = (
+        GCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageToTailLayerRel(CartographyRelSchema):
+    """Links an image to the last layer in its ordered OCI root filesystem."""
+
+    target_node_label: str = "GCPArtifactRegistryImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("tail_layer_diff_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAIL"
+    properties: GCPArtifactRegistryImageRelProperties = (
+        GCPArtifactRegistryImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPArtifactRegistryImageMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
@@ -288,3 +333,34 @@ class GCPArtifactRegistryImageProvenanceSchema(CartographyNodeSchema):
     )
     scoped_cleanup: bool = True
     extra_node_labels: ExtraNodeLabels = GCP_IMAGE_EXTRA_LABELS
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerRelImageProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "digest",
+        description="Immutable OCI content digest used as the node ID.",
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPArtifactRegistryImageLayerRelSchema(CartographyNodeSchema):
+    """Relationship-only writes for immutable Artifact Registry image layers.
+
+    These digest-derived edges are global because the same image can be referenced
+    by multiple projects. Project-scoped cleanup would let one project delete
+    another project's valid edges; incomplete closures are instead reloaded.
+    """
+
+    label: str = "GCPArtifactRegistryImage"
+    properties: GCPArtifactRegistryImageLayerRelImageProperties = (
+        GCPArtifactRegistryImageLayerRelImageProperties()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPArtifactRegistryImageToLayerRel(),
+            GCPArtifactRegistryImageToHeadLayerRel(),
+            GCPArtifactRegistryImageToTailLayerRel(),
+        ],
+    )
