@@ -72,10 +72,15 @@ def build_cleanup_queries(
     # Case 1 [Standard]: the node has a sub resource and scoped cleanup is true => clean up stale nodes
     # of this type, scoped to the sub resource. Continue on to clean up the other_relationships too.
     if node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
-        queries = _build_cleanup_node_and_rel_queries(
-            node_schema,
-            node_schema.sub_resource_relationship,
-            cascade_delete,
+        # Detach first so each delete transaction is bounded by a count of relationships
+        # rather than an unbounded per-node cascade. See _build_cleanup_detach_query().
+        queries = [_build_cleanup_detach_query(node_schema)]
+        queries.extend(
+            _build_cleanup_node_and_rel_queries(
+                node_schema,
+                node_schema.sub_resource_relationship,
+                cascade_delete,
+            ),
         )
 
     # Case 2: The node has a sub resource but scoped cleanup is false => this does not make sense
@@ -104,7 +109,10 @@ def build_cleanup_queries(
 
     # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
     else:
-        queries = [_build_cleanup_node_query_unscoped(node_schema)]
+        queries = [
+            _build_cleanup_detach_query(node_schema),
+            _build_cleanup_node_query_unscoped(node_schema),
+        ]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
@@ -238,6 +246,70 @@ def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> st
         sub_resource_link=sub_resource_link,
         sub_resource_label=sub_resource_label,
         match_sub_res_clause=match_sub_res_clause,
+    )
+
+
+def _build_cleanup_detach_query(node_schema: CartographyNodeSchema) -> str:
+    """
+    Generate a query that deletes a stale node's relationships in bounded batches.
+
+    This function is meant to run immediately before the cleanup node query, which uses
+    ``DETACH DELETE``. That bounds batches by node count, but the relationship cascade it
+    deletes is unbounded per node, so a single batch on a densely connected label can cascade
+    into far more relationship deletions than the batch size implies and breach
+    ``db.memory.transaction.max``. Pre-deleting relationships here re-counts each batch by
+    relationship instead, so both this query and the ``DETACH DELETE`` that follows do a
+    bounded amount of work regardless of how connected the label is.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema whose stale nodes'
+            relationships should be deleted.
+
+    Returns:
+        str: A Neo4j query that deletes the relationships attached to stale nodes of
+            this type, excluding any relationship sharing the sub resource's type.
+
+    Examples:
+        >>> query = _build_cleanup_detach_query(node_schema)
+        >>> print(query)
+        MATCH (n:AWSUser)<-[s:RESOURCE]-(:AWSAccount{id: $account_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        WHERE type(r) <> 'RESOURCE'
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+
+    Note:
+        Excludes by type rather than by the specific relationship instance (``s``): the
+        node cleanup query still needs a relationship of that type to find stale nodes, and
+        ``cascade_delete`` reaches owned children through relationships of that same type in
+        the opposite direction. A node can also have more than one relationship of this type
+        for reasons outside this function's control (a duplicate sub resource node, a schema
+        with an unrelated relationship that happens to share the type name); excluding by
+        type protects all of them uniformly. Excluding only the one specific instance ``s``
+        was tried and reverted: when more than one relationship of that type exists, each
+        one is `s` in its own row of the underlying query, so per-row identity exclusion
+        ends up protecting none of them -- see the discussion on cartography-cncf/cartography#3298.
+    """
+    rel_filter_clause = ""
+    if node_schema.sub_resource_relationship:
+        rel_filter_clause = (
+            f"WHERE type(r) <> '{node_schema.sub_resource_relationship.rel_label}'"
+        )
+
+    query_template = Template(
+        """
+        $match_statement
+        WHERE n.lastupdated <> $UPDATE_TAG
+        MATCH (n)-[r]-()
+        $rel_filter_clause
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+    )
+    return query_template.safe_substitute(
+        match_statement=_build_match_statement_for_cleanup(node_schema),
+        rel_filter_clause=rel_filter_clause,
     )
 
 
