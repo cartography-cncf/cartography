@@ -45,6 +45,10 @@ class KubernetesEndpointSliceNodeProperties(CartographyNodeProperties):
         "port_numbers",
         description="Distinct non-null endpoint port numbers in this slice.",
     )
+    port_keys: PropertyRef = PropertyRef(
+        "port_keys",
+        description="Distinct `<protocol>/<port>` values published by this slice, such as `TCP/8080`.",
+    )
     creation_timestamp: PropertyRef = PropertyRef(
         "creation_timestamp",
         description="Timestamp when the EndpointSlice was created.",

@@ -59,8 +59,8 @@ def test_load_endpoint_slices_maps_services_to_ready_pods(neo4j_session):
     ) == {("my-service-abc12", "IPv4")}
     assert neo4j_session.run(
         "MATCH (slice:KubernetesEndpointSlice {name: 'my-service-abc12'}) "
-        "RETURN slice.port_numbers AS ports"
-    ).single()["ports"] == [8080]
+        "RETURN slice.port_numbers AS ports, slice.port_keys AS port_keys"
+    ).single() == {"ports": [8080], "port_keys": ["TCP/8080"]}
     assert json.loads(transformed[0]["endpoints"])[0]["ready"] is True
     assert check_rels(
         neo4j_session,
