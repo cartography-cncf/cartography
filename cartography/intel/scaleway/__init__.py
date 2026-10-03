@@ -28,6 +28,7 @@ import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
 import cartography.intel.scaleway.instances.securitygroups
+import cartography.intel.scaleway.iot.hubs
 import cartography.intel.scaleway.kapsule.clusters
 import cartography.intel.scaleway.kms.keys
 import cartography.intel.scaleway.loadbalancers.loadbalancers
@@ -195,6 +196,16 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.instances.securitygroups.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        projects_id=projects_id,
+        update_tag=config.update_tag,
+    )
+
+    # IoT Hub
+    cartography.intel.scaleway.iot.hubs.sync(
         neo4j_session,
         client,
         common_job_parameters,
