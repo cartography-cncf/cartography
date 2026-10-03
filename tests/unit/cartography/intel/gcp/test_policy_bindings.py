@@ -869,3 +869,18 @@ def test_sync_project_resources_attempts_policy_bindings_without_target_project_
     mock_policy_bindings_sync.assert_called_once()
     mock_permission_relationships_sync.assert_not_called()
     assert result.policy_bindings_cleanup_safe is False
+
+
+def test_gke_members_preserve_selectors_without_fake_email_principals():
+    # Arrange
+    members = [
+        "serviceAccount:example-project.svc.id.goog[namespace/service-account]",
+        "principal://iam.googleapis.com/projects/111122223333/locations/global/workloadIdentityPools/example-project.svc.id.goog/subject/ns/namespace/sa/service-account",
+    ]
+    data = _policy_results_with_members(members)
+    # Act
+    bindings = policy_bindings.transform_bindings(data)
+    # Assert
+    assert len(bindings) == 1
+    assert bindings[0]["raw_members"] == sorted(members)
+    assert bindings[0]["members"] == []

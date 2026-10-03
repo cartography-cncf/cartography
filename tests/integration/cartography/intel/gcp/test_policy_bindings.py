@@ -848,3 +848,59 @@ def test_sync_gcp_policy_bindings_permission_denied(
         == cartography.intel.gcp.policy_bindings.PolicyBindingsSyncStatus.SKIPPED_PERMISSION_DENIED
     )
     mock_get_policy_bindings.assert_called_once()
+
+
+def test_service_account_email_and_numeric_policy_targets(neo4j_session):
+    # Arrange: split loader phase validates both provider representations of the same GSA.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session)
+    account_id = "111122223333444455556"
+    email = "workload@project-abc.iam.gserviceaccount.com"
+    cartography.intel.gcp.iam.load_gcp_service_accounts(
+        neo4j_session,
+        [{"id": account_id, "uniqueId": account_id, "email": email}],
+        TEST_PROJECT_ID,
+        1,
+    )
+    bindings = [
+        {
+            "id": f"binding-{i}",
+            "resource": f"//iam.googleapis.com/projects/{TEST_PROJECT_ID}/serviceAccounts/{target}",
+            "role": "roles/iam.workloadIdentityUser",
+        }
+        for i, target in enumerate([account_id, email])
+    ]
+    # Act
+    cartography.intel.gcp.policy_bindings.load_bindings(
+        neo4j_session, bindings, TEST_PROJECT_ID, 1
+    )
+    # Assert
+    assert check_nodes(neo4j_session, "GCPServiceAccount", ["id", "email"]) == {
+        (account_id, email)
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {("binding-0", account_id), ("binding-1", account_id)}
+    # Act: keeping only the numeric form removes the stale email-form binding and edge.
+    cartography.intel.gcp.policy_bindings.load_bindings(
+        neo4j_session, bindings[:1], TEST_PROJECT_ID, 2
+    )
+    cartography.intel.gcp.policy_bindings.cleanup(
+        neo4j_session, {"PROJECT_ID": TEST_PROJECT_ID, "UPDATE_TAG": 2}
+    )
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "GCPPolicyBinding",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "APPLIES_TO",
+        rel_direction_right=True,
+    ) == {("binding-0", account_id)}

@@ -96,6 +96,7 @@ def transform_pools(
         result.append(
             {
                 "id": pool_name,
+                "pool_id": pool_name.rsplit("/", 1)[-1],
                 "name": pool_name,
                 "displayName": pool.get("displayName"),
                 "description": pool.get("description"),

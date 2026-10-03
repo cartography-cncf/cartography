@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_ingress(client: K8sClient) -> list[V1Ingress]:
-    items = k8s_paginate(client.networking.list_ingress_for_all_namespaces)
+    items = k8s_paginate(
+        client.networking.list_ingress_for_all_namespaces, raise_on_error=True
+    )
     return items
 
 
@@ -125,7 +127,11 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
 
         # extract load balancer DNS names from status for cloud LB matching
         load_balancer_dns_names: list[str] = []
+        load_balancer_ips: list[str] = []
         if item.status and item.status.load_balancer:
+            load_balancer_ips = sorted(
+                {i.ip for i in item.status.load_balancer.ingress or [] if i.ip}
+            )
             load_balancer_dns_names = _extract_load_balancer_dns_names(
                 item.status.load_balancer.ingress
             )
@@ -151,6 +157,7 @@ def transform_ingresses(ingress: list[V1Ingress]) -> list[dict[str, Any]]:
                 "target_services": list(backend_services),
                 "ingress_group_name": ingress_group_name,
                 "load_balancer_dns_names": load_balancer_dns_names,
+                "load_balancer_ips": load_balancer_ips,
             }
         )
     return transformed_ingresses

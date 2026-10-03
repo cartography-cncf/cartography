@@ -182,12 +182,10 @@ gcp_gke_mapping = OntologyMapping(
                     special_handling="mapping",
                     extra={"map": _GCP_GKE_STATUS},
                 ),
-                # privateClusterConfig.enablePrivateEndpoint=true means the master is only
-                # reachable from its internal IP, so its inverse encodes "public endpoint reachable".
+                # Includes authenticated DNS access and respects disabled IP endpoints.
                 OntologyFieldMapping(
                     ontology_field="control_plane_public_access",
-                    node_field="private_endpoint_enabled",
-                    special_handling="invert_boolean",
+                    node_field="control_plane_public_access",
                 ),
             ],
         ),
