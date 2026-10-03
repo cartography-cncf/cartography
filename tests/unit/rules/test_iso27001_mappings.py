@@ -68,6 +68,7 @@ EXPECTED_ISO27001_REQUIREMENTS = {
     "identity_mfa_gaps": {"8.5"},
     "inactive-user-active-accounts": {"5.18"},
     "kubernetes_control_plane_exposed": {"8.20"},
+    "kubernetes_service_exposed": {"8.20"},
     "malicious-npm-dependencies-shai-hulud": {"5.21", "8.8"},
     "mfa-missing": {"8.5"},
     "object_storage_public": {"8.3"},
