@@ -200,6 +200,20 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+runpod_mapping = OntologyMapping(
+    module_name="runpod",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RunPodRegistryCredential",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+            ],
+        ),
+    ],
+)
+
 SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "gcp": gcp_mapping,
@@ -210,6 +224,7 @@ SECRETS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "supabase": supabase_mapping,
     "modal": modal_mapping,
     "netlify": netlify_mapping,
+    "runpod": runpod_mapping,
     "snowflake": OntologyMapping(
         module_name="snowflake",
         nodes=[

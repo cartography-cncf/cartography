@@ -313,6 +313,15 @@ _NETLIFY_DEV_SERVER_STATE = {
     "error": "error",
 }
 
+_RUNPOD_POD_STATUS = {
+    "PROVISIONING": "pending",
+    "STARTING": "starting",
+    "RUNNING": "running",
+    "EXITED": "stopped",
+    "ERROR": "error",
+    "TERMINATED": "terminated",
+}
+
 netlify_mapping = OntologyMapping(
     module_name="netlify",
     nodes=[
@@ -341,6 +350,36 @@ netlify_mapping = OntologyMapping(
     ],
 )
 
+runpod_mapping = OntologyMapping(
+    module_name="runpod",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="RunPodPod",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="region", node_field="data_center_id"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="public_ip_address", node_field="public_ip"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="created_at"
+                ),
+                OntologyFieldMapping(ontology_field="type", node_field="gpu_type_id"),
+                OntologyFieldMapping(
+                    ontology_field="state",
+                    node_field="status",
+                    special_handling="mapping",
+                    extra={"map": _RUNPOD_POD_STATUS},
+                ),
+            ],
+        ),
+    ],
+)
+
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
@@ -348,4 +387,5 @@ COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "gcp": gcp_mapping,
     "azure": azure_mapping,
     "netlify": netlify_mapping,
+    "runpod": runpod_mapping,
 }
