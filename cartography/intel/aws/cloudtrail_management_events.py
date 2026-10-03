@@ -708,8 +708,8 @@ def sync_assume_role_events(
     :param regions: List of AWS regions to sync
     :type current_aws_account_id: str
     :param current_aws_account_id: The AWS account ID being synced
-    :type aws_update_tag: int
-    :param aws_update_tag: Timestamp tag for tracking data freshness
+    :type update_tag: int
+    :param update_tag: Timestamp tag for tracking data freshness
     :rtype: None
     """
     # Extract lookback hours from common_job_parameters (set by CLI parameter)
