@@ -26,6 +26,7 @@ def test_transform_ingresses_lowercases_load_balancer_dns_names():
                     # which preserves the load balancer name's case.
                     V1IngressLoadBalancerIngress(
                         hostname="My-ALB-1234567890.us-east-1.elb.amazonaws.com",
+                        ip="9.9.9.9",
                     ),
                 ],
             ),
@@ -37,3 +38,4 @@ def test_transform_ingresses_lowercases_load_balancer_dns_names():
     assert transformed["load_balancer_dns_names"] == [
         "my-alb-1234567890.us-east-1.elb.amazonaws.com"
     ]
+    assert transformed["load_balancer_ip_addresses"] == ["9.9.9.9"]

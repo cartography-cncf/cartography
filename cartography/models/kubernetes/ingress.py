@@ -59,6 +59,10 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
         "load_balancer_dns_names",
         description="List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB).",
     )
+    load_balancer_ip_addresses: PropertyRef = PropertyRef(
+        "load_balancer_ip_addresses",
+        description="Globally routable IP addresses reported in the Ingress status and used to correlate this Ingress with cloud load balancers.",
+    )
     # AWS Load Balancer Controller group name
     ingress_group_name: PropertyRef = PropertyRef(
         "ingress_group_name",
@@ -138,14 +142,44 @@ class KubernetesIngressToKubernetesServiceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesIngressToLoadBalancerV2RelProperties(CartographyRelProperties):
+class KubernetesIngressToLoadBalancerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
-class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
-    """Links an ingress to the AWS load balancer that exposes it, matched by the DNS hostname from the ingress status to the load balancer's DNS name; both are lowercased at ingestion."""
+# (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:LoadBalancer)
+class KubernetesIngressToLoadBalancerByDNSRel(CartographyRelSchema):
+    """Links an Ingress to a cloud load balancer by its status hostname."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_dns_name": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesIngressToLoadBalancerRelProperties = (
+        KubernetesIngressToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesIngressToLoadBalancerByIPRel(CartographyRelSchema):
+    """Links an Ingress to a cloud load balancer by its status IP address."""
+
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_ip_address": PropertyRef("load_balancer_ip_addresses", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesIngressToLoadBalancerRelProperties = (
+        KubernetesIngressToLoadBalancerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesIngressToAWSLoadBalancerRel(CartographyRelSchema):
+    """Links directly to AWS load balancers when ontology isn't selected."""
 
     target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -153,8 +187,8 @@ class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_LOAD_BALANCER"
-    properties: KubernetesIngressToLoadBalancerV2RelProperties = (
-        KubernetesIngressToLoadBalancerV2RelProperties()
+    properties: KubernetesIngressToLoadBalancerRelProperties = (
+        KubernetesIngressToLoadBalancerRelProperties()
     )
 
 
@@ -171,6 +205,8 @@ class KubernetesIngressSchema(CartographyNodeSchema):
         [
             KubernetesIngressToKubernetesNamespaceRel(),
             KubernetesIngressToKubernetesServiceRel(),
-            KubernetesIngressToLoadBalancerV2Rel(),
+            KubernetesIngressToLoadBalancerByDNSRel(),
+            KubernetesIngressToLoadBalancerByIPRel(),
+            KubernetesIngressToAWSLoadBalancerRel(),
         ]
     )

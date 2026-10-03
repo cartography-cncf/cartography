@@ -157,7 +157,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     exposed_internet: PropertyRef = PropertyRef(
         "exposed_internet",
         extra_index=True,
-        description="`True` when the container's pod is targeted by an internet-exposed service. `False` otherwise.",
+        description="`True` when the container's pod is targeted by a service reached from a correlated internet-facing cloud load balancer.",
     )  # Populated by the K8S_CONTAINER_ASSET_EXPOSURE analysis job.
     exposed_internet_type: PropertyRef = PropertyRef(
         "exposed_internet_type",
