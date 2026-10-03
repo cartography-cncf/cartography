@@ -95,7 +95,9 @@ def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -
 
 
 def transform_services(
-    services: list[V1Service], all_pods: list[dict[str, Any]]
+    services: list[V1Service],
+    all_pods: list[dict[str, Any]],
+    endpoint_slice_pod_ids: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     services_list = []
     for service in services:
@@ -130,18 +132,22 @@ def transform_services(
                     )
                 )
 
-        # check if pod labels match service selector and add pod_ids to item
-        pod_ids = []
-        for pod in all_pods:
-            if pod["namespace"] == service.metadata.namespace:
-                service_selector: dict[str, str] | None = service.spec.selector
-                pod_labels: dict[str, str] | None = json.loads(pod["labels"])
-
-                # check if pod labels match service selector
-                if pod_labels and service_selector:
-                    if all(
-                        service_selector[key] == pod_labels.get(key)
-                        for key in service_selector
+        qualified_name = item["qualified_name"]
+        if endpoint_slice_pod_ids is not None:
+            pod_ids = endpoint_slice_pod_ids.get(qualified_name, [])
+        else:
+            pod_ids = []
+            for pod in all_pods:
+                if pod["namespace"] == service.metadata.namespace:
+                    service_selector: dict[str, str] | None = service.spec.selector
+                    pod_labels: dict[str, str] | None = json.loads(pod["labels"])
+                    if (
+                        pod_labels
+                        and service_selector
+                        and all(
+                            service_selector[key] == pod_labels.get(key)
+                            for key in service_selector
+                        )
                     ):
                         pod_ids.append(pod["uid"])
 
@@ -183,9 +189,14 @@ def sync_services(
     all_pods: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    endpoint_slice_pod_ids: dict[str, list[str]] | None = None,
 ) -> None:
     services = get_services(client)
-    transformed_services = transform_services(services, all_pods)
+    transformed_services = transform_services(
+        services,
+        all_pods,
+        endpoint_slice_pod_ids,
+    )
     load_services(
         session=session,
         services=transformed_services,
