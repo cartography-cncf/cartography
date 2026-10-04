@@ -75,6 +75,7 @@ def _create_base_account(neo4j_session):
         neo4j_session,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        "aws",
     )
 
 

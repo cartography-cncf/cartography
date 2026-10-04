@@ -28,6 +28,7 @@ from cartography.analysis.aws.analysis import AWS_LB_CONTAINER_EXPOSURE
 from cartography.analysis.aws.analysis import AWS_LB_NACL_DIRECT
 from cartography.config import Config
 from cartography.intel.aws.label_migrations import migrate_legacy_aws_labels
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_account_ids
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
@@ -282,6 +283,20 @@ def _resolve_aws_ssm_public_parameter_prefix_allowlist(
     if env_value is not None:
         return env_value
     return ""
+
+
+def _get_account_partition(
+    boto3_session: boto3.Session,
+    regions: list[str] | None,
+) -> str:
+    """
+    Return the AWS partition of an account, for example "aws-us-gov" for GovCloud.
+
+    It matches the partition that the account sync uses for synthesized ARNs: the partition of the
+    regions to sync or, when the regions are discovered, of the session's configured region.
+    Without a region, botocore resolves the account's endpoints in "aws".
+    """
+    return get_account_partition(regions or [], boto3_session.region_name)
 
 
 def _get_boto3_session_for_profile(
@@ -628,7 +643,24 @@ def _sync_multiple_accounts(
     use_explicit_profile: bool = False,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
-    organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
+    # Each account's root principal ARN must use the partition of its credentials, for example
+    # "aws-us-gov" for GovCloud.
+    account_partitions = {
+        account_id: _get_account_partition(
+            boto3.Session(
+                **({"profile_name": profile_name} if use_explicit_profile else {})
+            ),
+            regions,
+        )
+        for profile_name, account_id in accounts.items()
+    }
+    organizations.sync(
+        neo4j_session,
+        accounts,
+        sync_tag,
+        common_job_parameters,
+        account_partitions,
+    )
     _sync_aws_organizations_for_accounts(
         neo4j_session,
         accounts,

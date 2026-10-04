@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.aws.s3
 import cartography.intel.aws.sns
 import tests.data.aws.s3
@@ -549,3 +551,50 @@ def test_load_s3_bucket_logging(neo4j_session):
         for n in nodes
     }
     assert actual_nodes == expected_nodes_disabled
+
+
+@pytest.mark.parametrize(
+    "region, partition",
+    [("us-east-1", "aws"), ("us-gov-west-1", "aws-us-gov")],
+)
+@patch.object(cartography.intel.aws.s3, "_sync_s3_notifications")
+@patch.object(cartography.intel.aws.s3, "get_s3_bucket_details")
+@patch.object(
+    cartography.intel.aws.s3,
+    "get_s3_bucket_list",
+    return_value=LIST_BUCKETS,
+)
+def test_sync_s3_bucket_arn_partition(
+    mock_get_bucket_list,
+    mock_get_bucket_details,
+    mock_sync_notifications,
+    region,
+    partition,
+    neo4j_session,
+):
+    """
+    Bucket ARNs use the partition of the account, so IAM policy resources such as
+    "arn:aws-us-gov:s3:::bucket-1/*" match the bucket node in AWS GovCloud (US).
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n:AWSS3Bucket) DETACH DELETE n")
+    mock_get_bucket_details.return_value = iter(GET_S3_BUCKET_DETAILS)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    sync(
+        neo4j_session,
+        boto3_session,
+        [region],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSS3Bucket", ["id", "arn"]) == {
+        ("bucket-1", f"arn:{partition}:s3:::bucket-1"),
+        ("bucket-2", f"arn:{partition}:s3:::bucket-2"),
+        ("bucket-3", f"arn:{partition}:s3:::bucket-3"),
+    }

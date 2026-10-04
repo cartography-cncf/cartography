@@ -17,6 +17,7 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import create_boto3_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
@@ -611,7 +612,12 @@ def transform_role_trust_policies(
                         # Add what we know about that account to the graph.
                         account_id = get_account_from_arn(principal_arn)
                         if account_id != current_aws_account_id:
-                            external_aws_accounts.append({"id": account_id})
+                            external_aws_accounts.append(
+                                {
+                                    "id": account_id,
+                                    "partition": principal_arn.split(":")[1],
+                                }
+                            )
                     trusted_aws_principals.add(principal_arn)
                 else:
                     # This should not happen but who knows.
@@ -1206,6 +1212,7 @@ def load_external_aws_accounts(
             neo4j_session,
             account["id"],
             aws_update_tag,
+            account["partition"],
         )
 
 
@@ -1549,13 +1556,20 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSSAMLProviderSchema(), common_job_parameters).run(
         neo4j_session
     )
+    # Removes a root principal that no sync refreshed, e.g. one built with the wrong partition.
+    GraphJob.from_node_schema(AWSRootPrincipalSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def sync_root_principal(
-    neo4j_session: neo4j.Session, current_aws_account_id: str, aws_update_tag: int
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    partition: str,
 ) -> None:
     """
-    In the current account, create a node for the AWS root principal "arn:aws:iam::<account_id>:root".
+    In the current account, create a node for the AWS root principal "arn:<partition>:iam::<account_id>:root".
 
     If a role X trusts the root principal in an account A, then any other role Y in A can assume X.
 
@@ -1565,7 +1579,7 @@ def sync_root_principal(
     load(
         neo4j_session,
         AWSRootPrincipalSchema(),
-        [{"arn": f"arn:aws:iam::{current_aws_account_id}:root"}],
+        [{"arn": f"arn:{partition}:iam::{current_aws_account_id}:root"}],
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -1754,6 +1768,7 @@ def sync(
         neo4j_session,
         current_aws_account_id,
         update_tag,
+        get_account_partition(regions, boto3_session.region_name),
     )
     sync_users(
         neo4j_session,

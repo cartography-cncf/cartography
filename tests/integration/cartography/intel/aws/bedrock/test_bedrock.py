@@ -16,6 +16,7 @@ import cartography.intel.aws.bedrock.custom_models
 import cartography.intel.aws.bedrock.foundation_models
 import cartography.intel.aws.bedrock.guardrails
 import cartography.intel.aws.bedrock.knowledge_bases
+from tests.data.aws import govcloud
 from tests.data.aws.bedrock import AGENTS
 from tests.data.aws.bedrock import CUSTOM_MODELS
 from tests.data.aws.bedrock import FOUNDATION_MODELS
@@ -437,6 +438,128 @@ class TestBedrockAgentsSync:
                 f"arn:aws:bedrock:{TEST_REGION}:{TEST_ACCOUNT_ID}:agent/AGENT123ABC",
             ),
         }
+
+    @patch.object(
+        cartography.intel.aws.bedrock.agents,
+        "get_agents",
+        return_value=govcloud.BEDROCK_AGENTS,
+    )
+    @patch.object(
+        cartography.intel.aws.bedrock.knowledge_bases,
+        "get_knowledge_bases",
+        return_value=govcloud.BEDROCK_KNOWLEDGE_BASES,
+    )
+    @patch.object(
+        cartography.intel.aws.bedrock.guardrails,
+        "get_guardrails",
+        return_value=govcloud.BEDROCK_GUARDRAILS,
+    )
+    @patch.object(
+        cartography.intel.aws.bedrock.foundation_models,
+        "get_foundation_models",
+        return_value=govcloud.BEDROCK_FOUNDATION_MODELS,
+    )
+    def test_govcloud_agent_relationships(
+        self, mock_fm, mock_guardrails, mock_kbs, mock_agents, neo4j_session
+    ):
+        """
+        An agent names its foundation model, guardrail and knowledge base by id, and
+        Cartography builds their ARNs. In AWS GovCloud (US), those ARNs must use the
+        "aws-us-gov" partition to match the nodes that the other Bedrock syncs load.
+        """
+        # Arrange
+        neo4j_session.run(
+            "MATCH (n) WHERE n:AWSBedrockAgent OR n:AWSBedrockFoundationModel "
+            "OR n:AWSBedrockGuardrail OR n:AWSBedrockKnowledgeBase DETACH DELETE n",
+        )
+        boto3_session = MagicMock()
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+        agent = (
+            f"arn:aws-us-gov:bedrock:us-gov-west-1:{TEST_ACCOUNT_ID}:agent/AGENT123ABC"
+        )
+        try:
+            for module in (
+                cartography.intel.aws.bedrock.foundation_models,
+                cartography.intel.aws.bedrock.guardrails,
+                cartography.intel.aws.bedrock.knowledge_bases,
+            ):
+                module.sync(
+                    neo4j_session,
+                    boto3_session,
+                    [govcloud.GOV_REGION],
+                    TEST_ACCOUNT_ID,
+                    TEST_UPDATE_TAG,
+                    common_job_parameters,
+                )
+
+            # Act
+            cartography.intel.aws.bedrock.agents.sync(
+                neo4j_session,
+                boto3_session,
+                [govcloud.GOV_REGION],
+                TEST_ACCOUNT_ID,
+                TEST_UPDATE_TAG,
+                common_job_parameters,
+            )
+
+            # Assert
+            assert check_rels(
+                neo4j_session,
+                "AWSBedrockAgent",
+                "id",
+                "AWSBedrockFoundationModel",
+                "id",
+                "USES_MODEL",
+                rel_direction_right=True,
+            ) == {
+                (
+                    agent,
+                    "arn:aws-us-gov:bedrock:us-gov-west-1::foundation-model/"
+                    "anthropic.claude-3-5-sonnet-20240620-v1:0",
+                ),
+            }
+            assert check_rels(
+                neo4j_session,
+                "AWSBedrockAgent",
+                "id",
+                "AWSBedrockKnowledgeBase",
+                "id",
+                "USES_KNOWLEDGE_BASE",
+                rel_direction_right=True,
+            ) == {
+                (
+                    agent,
+                    f"arn:aws-us-gov:bedrock:us-gov-west-1:{TEST_ACCOUNT_ID}:"
+                    "knowledge-base/KB12345ABCD",
+                ),
+            }
+            assert check_rels(
+                neo4j_session,
+                "AWSBedrockGuardrail",
+                "id",
+                "AWSBedrockAgent",
+                "id",
+                "APPLIED_TO",
+                rel_direction_right=True,
+            ) == {
+                (
+                    f"arn:aws-us-gov:bedrock:us-gov-west-1:{TEST_ACCOUNT_ID}:"
+                    "guardrail/abc123def456",
+                    agent,
+                ),
+            }
+        finally:
+            # The graph is only wiped at module teardown, and later tests count every
+            # Bedrock node, so remove the GovCloud nodes this test created.
+            neo4j_session.run(
+                "MATCH (n) WHERE (n:AWSBedrockAgent OR n:AWSBedrockFoundationModel "
+                "OR n:AWSBedrockGuardrail OR n:AWSBedrockKnowledgeBase) "
+                "AND n.id STARTS WITH 'arn:aws-us-gov:' DETACH DELETE n",
+            )
 
 
 class TestBedrockKnowledgeBasesSync:
