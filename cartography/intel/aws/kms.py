@@ -90,15 +90,23 @@ def get_policy(key: Dict, client: botocore.client.BaseClient) -> Any:
 
 
 @timeit
-def get_aliases(key: Dict, client: botocore.client.BaseClient) -> List[Any]:
+def get_aliases(key: Dict, client: botocore.client.BaseClient) -> List[Any] | None:
     """
-    Gets the KMS Key Aliases.
+    Gets the KMS Key Aliases. Returns None if we are unable to retrieve them.
     """
     aliases: List[Any] = []
     paginator = client.get_paginator("list_aliases")
-    for page in paginator.paginate(KeyId=key["KeyId"]):
-        aliases.extend(page["Aliases"])
-
+    try:
+        for page in paginator.paginate(KeyId=key["KeyId"]):
+            aliases.extend(page["Aliases"])
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "AccessDeniedException":
+            logger.warning(
+                "kms:list_aliases on key id %s failed with AccessDeniedException; continuing sync.",
+                key["KeyId"],
+            )
+            return None
+        raise
     return aliases
 
 
@@ -285,7 +293,11 @@ def load_kms_keys(
 
 
 @timeit
-def cleanup_kms(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_kms(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    aliases_complete: bool = True,
+) -> None:
     """
     Run KMS cleanup using schema-based GraphJobs for all node types.
     """
@@ -296,10 +308,11 @@ def cleanup_kms(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
         neo4j_session
     )
 
-    # Clean up aliases
-    GraphJob.from_node_schema(KMSAliasSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    # Clean up aliases, unless an alias list was denied and the synced set is incomplete
+    if aliases_complete:
+        GraphJob.from_node_schema(KMSAliasSchema(), common_job_parameters).run(
+            neo4j_session
+        )
 
     # Clean up keys
     GraphJob.from_node_schema(KMSKeySchema(), common_job_parameters).run(neo4j_session)
@@ -312,7 +325,11 @@ def sync_kms_keys(
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
-) -> None:
+) -> bool:
+    """
+    Sync the KMS keys, aliases and grants of one region. Returns False if any key's
+    alias list could not be read.
+    """
     # Get basic key metadata
     kms_keys = get_kms_key_list(boto3_session, region)
 
@@ -340,8 +357,11 @@ def sync_kms_keys(
     aliases: List[Dict] = []
     grants: List[Dict] = []
 
+    aliases_complete = True
     for key, policy, alias, grant in policy_alias_grants_data:
-        if len(alias) > 0:
+        if alias is None:
+            aliases_complete = False
+        elif len(alias) > 0:
             aliases.extend(alias)
         if len(grant) > 0:
             grants.extend(grant)
@@ -361,6 +381,7 @@ def sync_kms_keys(
     load_kms_grants(
         neo4j_session, transformed_grants, current_aws_account_id, aws_update_tag
     )
+    return aliases_complete
 
 
 @timeit
@@ -372,18 +393,25 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    aliases_complete = True
     for region in regions:
         logger.info(
             "Syncing KMS for region %s in account '%s'.",
             region,
             current_aws_account_id,
         )
-        sync_kms_keys(
+        if not sync_kms_keys(
             neo4j_session,
             boto3_session,
             region,
             current_aws_account_id,
             update_tag,
-        )
+        ):
+            aliases_complete = False
 
-    cleanup_kms(neo4j_session, common_job_parameters)
+    if not aliases_complete:
+        logger.warning(
+            "Skipping KMS alias cleanup for account %s because one or more alias lists could not be read. Preserving last-known-good KMS aliases.",
+            current_aws_account_id,
+        )
+    cleanup_kms(neo4j_session, common_job_parameters, aliases_complete)
