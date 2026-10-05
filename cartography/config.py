@@ -246,6 +246,14 @@ class Config:
     :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
     :type googleworkspace_config: str
     :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type jira_cloud_id: str
+    :param jira_cloud_id: Jira Cloud ID, used to scope all resource IDs. Optional.
+    :type jira_email: str
+    :param jira_email: Email address of the Jira API-token owner. Optional.
+    :type jira_api_token: str
+    :param jira_api_token: Jira API token. Optional.
+    :type jira_site_url: str
+    :param jira_site_url: HTTPS site origin for unscoped API tokens. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -528,6 +536,10 @@ class Config:
     :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
     :type orca_api_token: str
     :param orca_api_token: Orca Security API token. Optional.
+    :type zendesk_subdomain: str
+    :param zendesk_subdomain: Zendesk account subdomain, e.g. acme. Optional.
+    :type zendesk_oauth_token: str
+    :param zendesk_oauth_token: OAuth access token used to authenticate Zendesk ingestion. Optional.
     """
 
     def __init__(
@@ -761,6 +773,12 @@ class Config:
         zoom_account_id=None,
         zoom_client_id=None,
         zoom_client_secret=None,
+        jira_cloud_id=None,
+        jira_email=None,
+        jira_api_token=None,
+        jira_site_url=None,
+        zendesk_subdomain=None,
+        zendesk_oauth_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -877,6 +895,10 @@ class Config:
         self.gsuite_config = gsuite_config
         self.googleworkspace_auth_method = googleworkspace_auth_method
         self.googleworkspace_config = googleworkspace_config
+        self.jira_cloud_id = jira_cloud_id
+        self.jira_email = jira_email
+        self.jira_api_token = jira_api_token
+        self.jira_site_url = jira_site_url
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username
@@ -1057,3 +1079,5 @@ class Config:
         self.snowflake_databases = snowflake_databases
         self.orca_api_endpoint = orca_api_endpoint
         self.orca_api_token = orca_api_token
+        self.zendesk_subdomain = zendesk_subdomain
+        self.zendesk_oauth_token = zendesk_oauth_token
