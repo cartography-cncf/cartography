@@ -55,6 +55,8 @@ def _seed_graph(neo4j_session) -> None:
             MERGE (org)-[:RESOURCE]->(:OktaGroup {id: group_id, lastupdated: $update_tag})
         )
         MERGE (org)-[:RESOURCE]->(:OktaUser {id: '00u-breakglass', lastupdated: $update_tag})
+        MERGE (org)-[:RESOURCE]->(:OktaNetworkZone {id: 'nzo-corp', lastupdated: $update_tag})
+        MERGE (org)-[:RESOURCE]->(:OktaNetworkZone {id: 'nzo-blocklist', lastupdated: $update_tag})
         MERGE (org)-[:RESOURCE]->(stale:OktaPolicy {id: 'stale-policy'})
         SET stale.lastupdated = 1
         MERGE (stale)-[:HAS_RULE]->(stale_rule:OktaPolicyRule {id: 'stale-rule'})
@@ -275,6 +277,23 @@ def test_sync_okta_policies(mock_collect, mock_get_raw_json, neo4j_session) -> N
         "0pr-session-hardened": (["nzo-corp"], []),
         "rul-admin-phishing-resistant": ([], ["nzo-blocklist"]),
     }
+    assert check_rels(
+        neo4j_session,
+        "OktaPolicyRule",
+        "id",
+        "OktaNetworkZone",
+        "id",
+        "APPLIES_TO",
+    ) == {("0pr-session-hardened", "nzo-corp")}
+    assert check_rels(
+        neo4j_session,
+        "OktaPolicyRule",
+        "id",
+        "OktaNetworkZone",
+        "id",
+        "EXCLUDES",
+    ) == {("rul-admin-phishing-resistant", "nzo-blocklist")}
+
     # Assert: raw JSON is kept for fields not modeled as properties
     platform = neo4j_session.run(
         "MATCH (r:OktaPolicyRule {id: 'rul-admin-phishing-resistant'}) "
