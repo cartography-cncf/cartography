@@ -520,6 +520,32 @@ class OktaPolicyRuleExcludesUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OktaPolicyRuleAppliesToNetworkZoneRel(CartographyRelSchema):
+    """An Okta policy rule matches requests from a network zone."""
+
+    target_node_label: str = "OktaNetworkZone"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("network_include_zone_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "APPLIES_TO"
+    properties: OktaPolicyRelProperties = OktaPolicyRelProperties()
+
+
+@dataclass(frozen=True)
+class OktaPolicyRuleExcludesNetworkZoneRel(CartographyRelSchema):
+    """An Okta policy rule does not match requests from a network zone."""
+
+    target_node_label: str = "OktaNetworkZone"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("network_exclude_zone_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "EXCLUDES"
+    properties: OktaPolicyRelProperties = OktaPolicyRelProperties()
+
+
+@dataclass(frozen=True)
 class OktaPolicyRuleSchema(CartographyNodeSchema):
     """
     A rule in an Okta policy. Rules are evaluated in priority order and carry
@@ -540,5 +566,7 @@ class OktaPolicyRuleSchema(CartographyNodeSchema):
             OktaPolicyRuleExcludesGroupRel(),
             OktaPolicyRuleAppliesToUserRel(),
             OktaPolicyRuleExcludesUserRel(),
+            OktaPolicyRuleAppliesToNetworkZoneRel(),
+            OktaPolicyRuleExcludesNetworkZoneRel(),
         ],
     )
