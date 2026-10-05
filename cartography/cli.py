@@ -64,6 +64,7 @@ PANEL_KUBERNETES = "Kubernetes Options"
 PANEL_CVE = "CVE Options"
 PANEL_CVE_METADATA = "CVE Metadata Options"
 PANEL_PAGERDUTY = "PagerDuty Options"
+PANEL_JIRA = "Jira Options"
 PANEL_LASTPASS = "LastPass Options"
 PANEL_BIGFIX = "BigFix Options"
 PANEL_DUO = "Duo Options"
@@ -96,6 +97,7 @@ PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_WORKOS = "WorkOS Options"
+PANEL_ZOOM = "Zoom Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_SOCKETDEV = "Socket.dev Options"
 PANEL_VERCEL = "Vercel Options"
@@ -105,6 +107,7 @@ PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
+PANEL_ZENDESK = "Zendesk Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -131,8 +134,10 @@ MODULE_PANELS = {
     "cve": PANEL_CVE,
     "cve_metadata": PANEL_CVE_METADATA,
     "pagerduty": PANEL_PAGERDUTY,
+    "zoom": PANEL_ZOOM,
     "jumpcloud": PANEL_JUMPCLOUD,
     "socketdev": PANEL_SOCKETDEV,
+    "jira": PANEL_JIRA,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -172,6 +177,7 @@ MODULE_PANELS = {
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
     "snowflake": PANEL_SNOWFLAKE,
+    "zendesk": PANEL_ZENDESK,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1319,6 +1325,45 @@ class CLI:
                 ),
             ] = "GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS",
             # =================================================================
+            # Jira Options
+            # =================================================================
+            jira_cloud_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-cloud-id",
+                    help="Jira Cloud site ID (UUID).",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            jira_email: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-email",
+                    help="Email address of the Jira API-token owner.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            jira_api_token_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--jira-api-token-env-var",
+                    help="Environment variable containing the Jira API token.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = "JIRA_API_TOKEN",
+            jira_site_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--jira-site-url",
+                    help="HTTPS *.atlassian.net origin for an unscoped API token; omit for scoped tokens.",
+                    rich_help_panel=PANEL_JIRA,
+                    hidden=PANEL_JIRA not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # LastPass Options
             # =================================================================
             lastpass_cid_env_var: Annotated[
@@ -1339,6 +1384,36 @@ class CLI:
                     hidden=PANEL_LASTPASS not in visible_panels,
                 ),
             ] = None,
+            # =================================================================
+            # Zoom Options
+            # =================================================================
+            zoom_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-account-id",
+                    help="Zoom account ID for server-to-server OAuth.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-id",
+                    help="Zoom server-to-server OAuth client ID.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = None,
+            zoom_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zoom-client-secret-env-var",
+                    help="Environment variable containing the Zoom OAuth client secret.",
+                    rich_help_panel=PANEL_ZOOM,
+                    hidden=PANEL_ZOOM not in visible_panels,
+                ),
+            ] = "ZOOM_CLIENT_SECRET",
             # =================================================================
             # JumpCloud Options
             # =================================================================
@@ -1807,6 +1882,27 @@ class CLI:
                     help="BBOT report source. Accepts a local file or directory, s3://bucket/prefix, gs://bucket/prefix, or azblob://account/container/prefix.",
                     rich_help_panel=PANEL_BBOT,
                     hidden=PANEL_BBOT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Zendesk Options
+            # =================================================================
+            zendesk_subdomain: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-subdomain",
+                    help="Zendesk subdomain, e.g. acme for acme.zendesk.com.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
+                ),
+            ] = None,
+            zendesk_oauth_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--zendesk-oauth-token-env-var",
+                    help="Environment variable name containing the Zendesk OAuth access token used to authenticate ingestion.",
+                    rich_help_panel=PANEL_ZENDESK,
+                    hidden=PANEL_ZENDESK not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -3381,6 +3477,9 @@ class CLI:
                 s3_bucket=None,
                 s3_prefix=None,
             )
+            zendesk_oauth_token = None
+            if zendesk_oauth_token_env_var:
+                zendesk_oauth_token = os.environ.get(zendesk_oauth_token_env_var)
             snowflake_pat = None
             if snowflake_pat_env_var:
                 logger.debug(
@@ -3706,9 +3805,20 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                zoom_account_id=zoom_account_id,
+                zoom_client_id=zoom_client_id,
+                zoom_client_secret=(
+                    os.environ.get(zoom_client_secret_env_var)
+                    if zoom_client_secret_env_var
+                    else None
+                ),
                 jumpcloud_api_key=jumpcloud_api_key,
                 jumpcloud_org_id=jumpcloud_org_id,
                 socketdev_token=socketdev_token,
+                jira_cloud_id=jira_cloud_id,
+                jira_email=jira_email,
+                jira_api_token=os.environ.get(jira_api_token_env_var),
+                jira_site_url=jira_site_url,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
@@ -3776,6 +3886,8 @@ class CLI:
                 databricks_account_client_id=databricks_account_client_id,
                 databricks_account_client_secret=databricks_account_client_secret,
                 bbot_source=bbot_source,
+                zendesk_subdomain=zendesk_subdomain,
+                zendesk_oauth_token=zendesk_oauth_token,
                 snowflake_account=snowflake_account,
                 snowflake_user=snowflake_user,
                 snowflake_pat=snowflake_pat,
