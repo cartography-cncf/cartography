@@ -11,6 +11,7 @@ from okta.models.user_factor import UserFactor
 
 import cartography.intel.okta.common  # noqa: F401
 from cartography.intel.okta.common import collect_paginated
+from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import OktaApiError
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import BOOKMARK_APPLICATION_WITHOUT_URL
@@ -175,3 +176,59 @@ def test_collect_paginated_raises_on_unusable_next_cursor() -> None:
     # Act and assert
     with pytest.raises(OktaApiError, match="unusable cursor"):
         asyncio.run(collect_paginated(list_devices))
+
+
+class _FakeRequestExecutor:
+    def __init__(self, pages: dict[str, tuple[Any, str | None]]) -> None:
+        self.pages = pages
+        self.urls: list[str] = []
+
+    async def create_request(self, method, url, body, headers):
+        return {"method": method, "url": url}, None
+
+    async def execute(self, request):
+        self.urls.append(request["url"])
+        body, error = self.pages[request["url"]]
+        next_url = {
+            "/api/v1/policies?type=PASSWORD": "https://example.okta.com/api/v1/policies?type=PASSWORD&after=p2",
+        }.get(request["url"])
+        response = MagicMock()
+        response.links = {"next": {"url": next_url}} if next_url else {}
+        return response, json.dumps(body) if body is not None else None, error
+
+
+def test_collect_raw_paginated_follows_next_links() -> None:
+    # Arrange
+    executor = _FakeRequestExecutor(
+        {
+            "/api/v1/policies?type=PASSWORD": ([{"id": "p1"}], None),
+            "https://example.okta.com/api/v1/policies?type=PASSWORD&after=p2": (
+                [{"id": "p2"}],
+                None,
+            ),
+        },
+    )
+    okta_client = MagicMock()
+    okta_client.get_request_executor.return_value = executor
+
+    # Act
+    items = asyncio.run(
+        collect_raw_paginated(okta_client, "/api/v1/policies", {"type": "PASSWORD"}),
+    )
+
+    # Assert
+    assert items == [{"id": "p1"}, {"id": "p2"}]
+    assert len(executor.urls) == 2
+
+
+def test_collect_raw_paginated_raises_okta_api_error() -> None:
+    # Arrange
+    error = MagicMock(error_code="E0000006")
+    executor = _FakeRequestExecutor({"/api/v1/zones": (None, error)})
+    okta_client = MagicMock()
+    okta_client.get_request_executor.return_value = executor
+
+    # Act / Assert
+    with pytest.raises(OktaApiError) as exc_info:
+        asyncio.run(collect_raw_paginated(okta_client, "/api/v1/zones"))
+    assert exc_info.value.error_code == "E0000006"

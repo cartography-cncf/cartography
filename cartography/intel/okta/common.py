@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from urllib.parse import urlencode
 
 from okta.models.application import Application
 from okta.models.application_json_converter import ApplicationJsonConverter
@@ -42,6 +44,8 @@ from okta.models.user_factor_web_authn import UserFactorWebAuthn
 from okta.pagination import PaginationHelper
 
 OKTA_RESOURCE_NOT_FOUND_ERROR_CODE = "E0000007"
+# Returned when the API token or OAuth client lacks the scope an endpoint needs.
+OKTA_MISSING_SCOPE_ERROR_CODE = "E0000006"
 
 # UserFactor and every model the factorType discriminator can resolve to. Each
 # subclass owns its own copy of the inherited FieldInfo, so all of them must be
@@ -169,6 +173,10 @@ def is_resource_not_found_error(error: OktaApiError) -> bool:
     return error.error_code == OKTA_RESOURCE_NOT_FOUND_ERROR_CODE
 
 
+def is_missing_scope_error(error: OktaApiError) -> bool:
+    return error.error_code == OKTA_MISSING_SCOPE_ERROR_CODE
+
+
 def _has_next_link(headers: Any) -> bool:
     if headers is None:
         return False
@@ -225,3 +233,43 @@ def raise_for_okta_error(error: Any, context: str) -> None:
     """Raise an OktaApiError if the Okta SDK returned an error object."""
     if error:
         raise OktaApiError(context, error)
+
+
+async def _get_raw_json(okta_client: Any, url: str) -> tuple[Any, Any]:
+    executor = okta_client.get_request_executor()
+    request, error = await executor.create_request("GET", url, {}, {})
+    raise_for_okta_error(error, url)
+    response, body, error = await executor.execute(request)
+    raise_for_okta_error(error, url)
+    return response, json.loads(body) if body else None
+
+
+async def get_raw_json(okta_client: Any, path: str) -> Any:
+    """Fetch one Okta API resource as plain JSON through the SDK request executor."""
+    _, body = await _get_raw_json(okta_client, path)
+    return body
+
+
+async def collect_raw_paginated(
+    okta_client: Any,
+    path: str,
+    params: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Collect every page of an Okta list endpoint as plain JSON dicts.
+
+    Use this instead of the typed SDK list methods for resources whose SDK models
+    validate nested enums strictly (policies, policy rules, network zones): a
+    single value the SDK does not know yet would otherwise fail the whole sync.
+    Requests still go through the SDK request executor, so authentication,
+    retries, and rate limiting are unchanged.
+    """
+    url: str | None = f"{path}?{urlencode(params)}" if params else path
+    items: list[dict[str, Any]] = []
+    while url:
+        response, page = await _get_raw_json(okta_client, url)
+        if page:
+            items.extend(page)
+        next_link = response.links.get("next") if response is not None else None
+        url = str(next_link["url"]) if next_link else None
+    return items
