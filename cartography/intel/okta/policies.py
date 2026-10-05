@@ -443,8 +443,9 @@ def sync_okta_policies(
     Sync Okta global session, password, authentication, authenticator
     enrollment, and profile enrollment policies with their rules.
 
-    Run after the application sync: authentication policies are linked to the
-    `OktaApplication` nodes it loads.
+    Run after the application and network zone syncs: authentication policies
+    link to the `OktaApplication` nodes, and rules to the `OktaNetworkZone`
+    nodes, that those syncs load.
     """
     logger.info("Syncing Okta policies")
     known_app_ids = _get_known_app_ids(neo4j_session, common_job_parameters)

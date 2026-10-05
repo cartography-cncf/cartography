@@ -12,6 +12,7 @@ from cartography.intel.okta import awssaml
 from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
+from cartography.intel.okta import network_zones
 from cartography.intel.okta import organization
 from cartography.intel.okta import origins
 from cartography.intel.okta import policies
@@ -106,7 +107,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
-    # Runs after applications: authentication policies link to OktaApplication.
+    network_zones.sync_okta_network_zones(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after applications and network zones: policies link to both.
     policies.sync_okta_policies(
         okta_client,
         neo4j_session,
