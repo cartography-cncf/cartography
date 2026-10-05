@@ -16,6 +16,7 @@ resource, and continues the rest of the Okta sync:
 | Resource | OAuth scope |
 | --- | --- |
 | Devices (`OktaDevice`) | `okta.devices.read` |
+| Network zones (`OktaNetworkZone`) | `okta.networkZones.read` |
 | Policies and policy rules (`OktaPolicy`, `OktaPolicyRule`) | `okta.policies.read` |
 | Okta Admin Console session settings on `OktaOrganization` | `okta.apps.read` |
 
