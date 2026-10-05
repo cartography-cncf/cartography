@@ -13,6 +13,7 @@ from cartography.intel.okta import awssaml
 from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
+from cartography.intel.okta import log_streams
 from cartography.intel.okta import network_zones
 from cartography.intel.okta import organization
 from cartography.intel.okta import origins
@@ -104,6 +105,11 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         user_ids,
     )
     devices.sync_okta_devices(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    log_streams.sync_okta_log_streams(
         okta_client,
         neo4j_session,
         common_job_parameters,

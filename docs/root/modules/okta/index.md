@@ -2,8 +2,9 @@
 
 The Okta module ingests organizations, users, groups, applications, trusted
 origins, user and group administration roles, user authentication factors,
-devices, network zones, API token metadata, and policies (global session, password, authentication, authenticator
-enrollment, and profile enrollment) with their rules.
+devices, network zones, API token metadata, System Log streams, and policies
+(global session, password, authentication, authenticator enrollment, and
+profile enrollment) with their rules.
 See the generated [Okta schema](schema.md) for the available properties and
 relationships.
 
