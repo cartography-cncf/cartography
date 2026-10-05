@@ -6,6 +6,7 @@ import neo4j
 from okta.client import Client as OktaClient
 
 from cartography.config import Config
+from cartography.intel.okta import api_tokens
 from cartography.intel.okta import applications
 from cartography.intel.okta import authenticators
 from cartography.intel.okta import awssaml
@@ -108,6 +109,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
     network_zones.sync_okta_network_zones(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+    # Runs after users and network zones: tokens link to both.
+    api_tokens.sync_okta_api_tokens(
         okta_client,
         neo4j_session,
         common_job_parameters,
