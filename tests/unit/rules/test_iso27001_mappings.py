@@ -47,6 +47,8 @@ EXPECTED_ISO27001_REQUIREMENTS = {
     "googleworkspace_super_admin_accounts_used_for_daily_admin": {"8.2"},
     "googleworkspace_admins_without_enforced_2sv": {"8.5", "8.2"},
     "googleworkspace_users_without_enforced_2sv": {"8.5"},
+    "okta_inactive_users_not_disabled": {"5.18"},
+    "okta_verify_fips_compliance_not_required": {"8.5", "8.24"},
     "azure_sql_minimum_tls_below_1_2": {"8.24"},
     "cloud_security_product_deactivated": {"8.16"},
     "compute_instance_exposed": {"8.20"},

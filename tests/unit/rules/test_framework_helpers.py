@@ -5,6 +5,7 @@ from cartography.rules.data.frameworks.cis import cis_kubernetes
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.nist_ai_rmf import nist_ai_rmf
 from cartography.rules.data.frameworks.soc2 import soc2_tsc
+from cartography.rules.data.frameworks.stig import stig_okta
 
 
 def test_framework_helpers_preserve_framework_metadata():
@@ -73,6 +74,15 @@ def test_framework_helpers_preserve_framework_metadata():
             "The entity implements logical access security measures to protect "
             "against threats from sources outside its system boundaries.",
         ),
+        (
+            stig_okta("V-273188"),
+            "disa okta identity as a service (idaas) stig",
+            "stig",
+            "okta",
+            "v1r2",
+            "v-273188",
+            "Okta must automatically disable accounts after a 35-day period of account inactivity.",
+        ),
     ]
 
     for (
@@ -100,3 +110,10 @@ def test_framework_helpers_allow_explicit_control_title_override():
     soc2_framework = soc2_tsc("CC6.1", control_title="Custom SOC 2 criterion")
 
     assert soc2_framework.control_title == "Custom SOC 2 criterion"
+
+
+def test_stig_okta_control_title_lookup_tolerates_casing():
+    assert stig_okta(" v-273205 ").control_title == (
+        "The Okta Verify application must be configured to connect only to "
+        "FIPS-compliant devices."
+    )
