@@ -17,6 +17,7 @@ resource, and continues the rest of the Okta sync:
 | --- | --- |
 | Devices (`OktaDevice`) | `okta.devices.read` |
 | API token metadata (`OktaApiToken`) | `okta.apiTokens.read` |
+| Log streams (`OktaLogStream`) | `okta.logStreams.read` |
 | Network zones (`OktaNetworkZone`) | `okta.networkZones.read` |
 | Policies and policy rules (`OktaPolicy`, `OktaPolicyRule`) | `okta.policies.read` |
 | Okta Admin Console session settings on `OktaOrganization` | `okta.apps.read` |
