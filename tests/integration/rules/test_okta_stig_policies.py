@@ -14,11 +14,13 @@ ORG_B = "synthetic-org-b"
 SEED = """
 CREATE (a:OktaOrganization {
     id: $org_a,
+    lastupdated: 1,
     admin_console_session_idle_timeout_minutes: 60,
     admin_console_session_max_lifetime_minutes: 720
 })
 CREATE (b:OktaOrganization {
     id: $org_b,
+    lastupdated: 1,
     admin_console_session_idle_timeout_minutes: 15,
     admin_console_session_max_lifetime_minutes: 720
 })
@@ -132,7 +134,15 @@ CREATE (b)-[:RESOURCE]->(:OktaPolicy {
     password_max_age_days: 60, password_history_count: 5, lockout_max_attempts: 3
 })
 
-// Log streams
+// Log streams. Org A and B synced them; the unsynced org did not.
+CREATE (:ModuleSyncMetadata {
+    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaLogStream',
+    lastupdated: 1
+})
+CREATE (:ModuleSyncMetadata {
+    grouptype: 'OktaOrganization', groupid: $org_b, syncedtype: 'OktaLogStream',
+    lastupdated: 1
+})
 CREATE (a)-[:RESOURCE]->(:OktaLogStream {id: 'stream-inactive', status: 'INACTIVE'})
 CREATE (b)-[:RESOURCE]->(:OktaLogStream {id: 'stream-active', status: 'ACTIVE'})
 
@@ -154,6 +164,12 @@ CREATE (b)-[:RESOURCE]->(:OktaNetworkZone {
 })
 // An org whose zones were not synced is not evaluated.
 CREATE (:OktaOrganization {id: 'synthetic-org-unsynced'})
+// Log streams were synced once but not in the org's latest sync.
+CREATE (:OktaOrganization {id: 'synthetic-org-stale-coverage', lastupdated: 2})
+CREATE (:ModuleSyncMetadata {
+    grouptype: 'OktaOrganization', groupid: 'synthetic-org-stale-coverage',
+    syncedtype: 'OktaLogStream', lastupdated: 1
+})
 
 // API tokens and their owners
 CREATE (a)-[:RESOURCE]->(super:OktaUser {id: 'u-super', login: 'super@example.invalid'})
@@ -205,7 +221,7 @@ EXPECTED: dict[str, tuple[set[str], int]] = {
     "okta_password_max_age_too_long": ({"pw-weak"}, 2),
     "okta_password_common_password_check_disabled": ({"pw-weak"}, 2),
     "okta_password_history_too_short": ({"pw-weak"}, 2),
-    "okta_system_log_not_streamed": ({ORG_A, "synthetic-org-unsynced"}, 3),
+    "okta_system_log_not_streamed": ({ORG_A}, 2),
     "okta_api_token_without_network_zone": (
         {"token-anywhere-super", "token-exclude-only-group-super", "token-no-network"},
         4,

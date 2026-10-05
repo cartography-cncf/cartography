@@ -989,6 +989,19 @@ class OktaLogStreamMissingOutput(Finding):
     log_stream_count: int | None = None
 
 
+# Orgs whose log streams were read in their latest sync. Without this, an org
+# whose token lacks okta.logStreams.read would look like one with no streams.
+_ORG_WITH_SYNCED_LOG_STREAMS = """
+    MATCH (o:OktaOrganization)
+    WHERE EXISTS {
+        MATCH (m:ModuleSyncMetadata)
+        WHERE m.grouptype = 'OktaOrganization'
+          AND m.syncedtype = 'OktaLogStream'
+          AND m.groupid = o.id
+          AND m.lastupdated = o.lastupdated
+    }
+"""
+
 okta_system_log_not_streamed = Rule(
     id="okta_system_log_not_streamed",
     name="System Log Not Streamed",
@@ -1002,24 +1015,25 @@ okta_system_log_not_streamed = Rule(
             id="okta_org_without_active_log_stream",
             name="Okta orgs without an active log stream",
             description=(
-                "Detects Okta orgs with no active log stream. A SIEM that pulls the "
-                "System Log through the API instead also satisfies the control and is "
-                "not visible here."
+                "Detects Okta orgs with no active log stream. Orgs whose log streams "
+                "were not synced are not evaluated. A SIEM that pulls the System Log "
+                "through the API instead also satisfies the control and is not "
+                "visible here."
             ),
-            cypher_query="""
-            MATCH (o:OktaOrganization)
-            WHERE NOT (o)-[:RESOURCE]->(:OktaLogStream {status: 'ACTIVE'})
+            cypher_query=f"""
+            {_ORG_WITH_SYNCED_LOG_STREAMS}
+              AND NOT (o)-[:RESOURCE]->(:OktaLogStream {{status: 'ACTIVE'}})
             OPTIONAL MATCH (o)-[:RESOURCE]->(s:OktaLogStream)
             RETURN o.id AS org_id, count(s) AS log_stream_count
             """,
-            cypher_visual_query="""
-            MATCH (o:OktaOrganization)
-            WHERE NOT (o)-[:RESOURCE]->(:OktaLogStream {status: 'ACTIVE'})
+            cypher_visual_query=f"""
+            {_ORG_WITH_SYNCED_LOG_STREAMS}
+              AND NOT (o)-[:RESOURCE]->(:OktaLogStream {{status: 'ACTIVE'}})
             OPTIONAL MATCH path=(o)-[:RESOURCE]->(:OktaLogStream)
             RETURN o, path
             """,
-            cypher_count_query="""
-            MATCH (o:OktaOrganization)
+            cypher_count_query=f"""
+            {_ORG_WITH_SYNCED_LOG_STREAMS}
             RETURN COUNT(o) AS count
             """,
             asset_id_field="org_id",
