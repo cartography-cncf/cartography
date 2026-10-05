@@ -134,6 +134,8 @@ EXPECTED_SOC2_REQUIREMENTS = {
     "malicious-npm-dependencies-shai-hulud": {"CC6.8", "CC7.1"},
     "mfa-missing": {"CC6.1"},
     "object_storage_public": {"CC6.1", "CC6.6"},
+    "okta_inactive_users_not_disabled": {"CC6.2"},
+    "okta_verify_fips_compliance_not_required": {"CC6.1"},
     "policy_administration_privileges": {"CC6.3"},
     "public_snapshots": {"CC6.1", "CC6.6", "CC6.7"},
     "serverless_workload_exposed": {"CC6.6"},

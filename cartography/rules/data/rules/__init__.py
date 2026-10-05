@@ -279,6 +279,10 @@ from cartography.rules.data.rules.nist_ai_rmf import ai_third_party_app_sensitiv
 from cartography.rules.data.rules.nist_ai_rmf import aibom_agent_inventory
 from cartography.rules.data.rules.nist_ai_rmf import aibom_coverage_gaps
 from cartography.rules.data.rules.object_storage_public import object_storage_public
+from cartography.rules.data.rules.okta_stig import okta_inactive_users_not_disabled
+from cartography.rules.data.rules.okta_stig import (
+    okta_verify_fips_compliance_not_required,
+)
 from cartography.rules.data.rules.policy_administration_privileges import (
     policy_administration_privileges,
 )
@@ -445,6 +449,9 @@ RULES = {
     googleworkspace_super_admin_accounts_used_for_daily_admin.id: googleworkspace_super_admin_accounts_used_for_daily_admin,
     googleworkspace_users_without_enforced_2sv.id: googleworkspace_users_without_enforced_2sv,
     googleworkspace_admins_without_enforced_2sv.id: googleworkspace_admins_without_enforced_2sv,
+    # DISA Okta IDaaS STIG Rules
+    okta_inactive_users_not_disabled.id: okta_inactive_users_not_disabled,
+    okta_verify_fips_compliance_not_required.id: okta_verify_fips_compliance_not_required,
     # CIS Kubernetes Benchmark v1.12 Rules
     kubernetes_cluster_admin_role_usage.id: kubernetes_cluster_admin_role_usage,
     kubernetes_roles_grant_secret_access.id: kubernetes_roles_grant_secret_access,
