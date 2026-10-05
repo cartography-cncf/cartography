@@ -13,9 +13,12 @@ from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import is_missing_scope_error
 from cartography.intel.okta.common import OktaApiError
 from cartography.models.okta.log_stream import OktaLogStreamSchema
+from cartography.stats import get_stats_client
+from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
 
 
 @timeit
@@ -95,4 +98,14 @@ def sync_okta_log_streams(
     log_streams = _transform_okta_log_streams(raw_log_streams)
     _load_okta_log_streams(neo4j_session, log_streams, common_job_parameters)
     _cleanup_okta_log_streams(neo4j_session, common_job_parameters)
+    # Record that log streams were read, so consumers can tell an org with no
+    # log streams apart from one whose log streams could not be synced.
+    merge_module_sync_metadata(
+        neo4j_session,
+        group_type="OktaOrganization",
+        group_id=common_job_parameters["OKTA_ORG_ID"],
+        synced_type="OktaLogStream",
+        update_tag=common_job_parameters["UPDATE_TAG"],
+        stat_handler=stat_handler,
+    )
     logger.info("Loaded %s Okta log streams", len(log_streams))
