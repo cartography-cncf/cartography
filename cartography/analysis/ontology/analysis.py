@@ -99,6 +99,15 @@ DEVICE_OWNS_LINKING = AnalysisJob(
             incremental_on=("d", IncrementalMatch("obs", relationship=True)),
         ),
         AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:OWNS]->(:OktaDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
             match="MATCH (j)<-[obs:OBSERVED_AS]-(d:Device) WHERE (j:JamfComputer OR j:JamfMobileDevice) AND j.email IS NOT NULL AND trim(j.email) <> '' WITH d, toLower(trim(j.email)) AS jamf_email MATCH (u:User) WHERE u.email IS NOT NULL AND trim(u.email) <> '' AND toLower(trim(u.email)) = jamf_email",
             effects=(
                 AddRelationship(

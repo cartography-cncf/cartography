@@ -205,6 +205,7 @@ from cartography.models.tailscale.group import (
     TailscaleUserToGroupInheritedMemberMatchLink,
 )
 from cartography.models.vercel.accessgroup import VercelAccessGroupToUserRel
+from cartography.models.zendesk.api_token import ZendeskAPITokenToCreatorRel
 
 # DEPRECATED: pre-V1 rel classes tolerated until they are removed in v1.0.0.
 LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
@@ -307,6 +308,9 @@ LEGACY_REL_WHITELIST: frozenset[type] = frozenset(
         # CREATED records who created a Slack usergroup, a historical fact rather
         # than current membership. Distinct from MEMBER_OF.
         SlackGroupToCreatorRel,
+        # CREATED records who created a Zendesk API token, a historical audit
+        # fact distinct from the canonical OWNED_BY assignee edge.
+        ZendeskAPITokenToCreatorRel,
         # MAPS_TO is identity federation (a Kubernetes group maps to an AWS
         # user), not group membership. Distinct from MEMBER_OF.
         KubernetesGroupToAWSUserRel,
