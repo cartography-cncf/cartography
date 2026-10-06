@@ -1,8 +1,8 @@
 import json
 import logging
+from collections.abc import Iterable
+from collections.abc import Iterator
 from typing import Any
-from typing import Iterable
-from typing import Iterator
 
 import neo4j
 from kubernetes.client.models import V1Container

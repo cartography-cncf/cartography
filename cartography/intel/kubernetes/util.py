@@ -1,11 +1,11 @@
 import json
 import logging
+from collections.abc import Callable
+from collections.abc import Iterator
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 from typing import Any
-from typing import Callable
-from typing import Iterator
 
 from dateutil.parser import isoparse
 from kubernetes import config
