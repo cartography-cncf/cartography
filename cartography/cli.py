@@ -812,6 +812,19 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = False,
+            microsoft_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-requested-syncs",
+                    help=(
+                        "Comma-separated list of Microsoft resources to sync. "
+                        'Example: "users,groups". See '
+                        "cartography.intel.microsoft.resources for full list."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -2952,6 +2965,14 @@ class CLI:
 
                 parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
+            # Validate Microsoft options
+            if microsoft_requested_syncs:
+                from cartography.intel.microsoft.util import (
+                    parse_and_validate_microsoft_requested_syncs,
+                )
+
+                parse_and_validate_microsoft_requested_syncs(microsoft_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -3747,6 +3768,7 @@ class CLI:
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
                 microsoft_delegated_auth=microsoft_delegated_auth,
+                microsoft_requested_syncs=microsoft_requested_syncs,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
