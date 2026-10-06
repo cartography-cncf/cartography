@@ -363,7 +363,9 @@ def k8s_paginate(
         all_resources.extend(page)
 
     logger.debug(
-        f"Completed pagination for {list_func.__name__}: retrieved {len(all_resources)} resources"
+        "Completed pagination for %s: retrieved %s resources",
+        list_func.__name__,
+        len(all_resources),
     )
     return all_resources
 
@@ -386,7 +388,7 @@ def k8s_paginate_pages(
     limit = kwargs.pop("limit", 100)
     function_name = list_func.__name__
 
-    logger.debug(f"Starting pagination for {function_name} with limit {limit}.")
+    logger.debug("Starting pagination for %s with limit %s.", function_name, limit)
 
     while True:
         try:
@@ -402,7 +404,11 @@ def k8s_paginate_pages(
             if is_forbidden and (raise_on_forbidden or raise_on_error):
                 raise
             logger.error(
-                f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
+                "Kubernetes API error retrieving %s resources. %s: %s - %s",
+                function_name,
+                e,
+                e.status,
+                e.reason,
             )
             if raise_on_error:
                 raise
@@ -411,21 +417,21 @@ def k8s_paginate_pages(
         # Check if items exists on the response
         if not hasattr(response, "items"):
             logger.warning(
-                f"Response from {function_name} does not contain 'items' attribute."
+                "Response from %s does not contain 'items' attribute.", function_name
             )
             return
 
-        logger.debug(f"Retrieved {len(response.items)} {function_name} resources")
+        logger.debug("Retrieved %s %s resources", len(response.items), function_name)
         yield response.items
 
         # Check if metadata exists on the response
         if not hasattr(response, "metadata"):
             logger.warning(
-                f"Response from {function_name} does not contain 'metadata' attribute."
+                "Response from %s does not contain 'metadata' attribute.", function_name
             )
             return
 
         continue_token = response.metadata._continue
         if not continue_token:
-            logger.debug(f"No more {function_name} resources to retrieve.")
+            logger.debug("No more %s resources to retrieve.", function_name)
             return
