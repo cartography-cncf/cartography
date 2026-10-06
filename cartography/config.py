@@ -144,6 +144,8 @@ class Config:
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_delegated_auth: bool
     :param microsoft_delegated_auth: If True, use the current Azure CLI user for a best-effort Entra-only sync. Optional.
+    :type microsoft_requested_syncs: str
+    :param microsoft_requested_syncs: Comma-separated list of Microsoft resources to sync. Optional.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -180,6 +182,8 @@ class Config:
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
     :param github_config: Base64 encoded config object for GitHub ingestion. Optional.
+    :type notion_config: str
+    :param notion_config: Base64 encoded config object for Notion ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
     :type digitalocean_token: str
@@ -779,6 +783,8 @@ class Config:
         jira_site_url=None,
         zendesk_subdomain=None,
         zendesk_oauth_token=None,
+        notion_config=None,
+        microsoft_requested_syncs=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -841,6 +847,7 @@ class Config:
                     "a Microsoft client ID or client secret.",
                 )
         self.microsoft_delegated_auth = microsoft_delegated_auth
+        self.microsoft_requested_syncs = microsoft_requested_syncs
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
@@ -851,6 +858,7 @@ class Config:
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
+        self.notion_config = notion_config
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
