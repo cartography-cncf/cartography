@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
@@ -96,7 +97,15 @@ def test_delegated_groups_continues_after_denied_group_and_propagates_denial(
         yield visible_group
 
     get_owners = AsyncMock(side_effect=[_forbidden_error(), []])
-    get_members = AsyncMock(side_effect=[(["member-id"], []), ([], [])])
+    member_pages: Iterator[list[tuple[list[str], list[str]]]] = iter(
+        [[(["member-id"], [])], []]
+    )
+
+    async def get_member_pages(client, group_id):
+        for page in next(member_pages):
+            yield page
+
+    get_members = MagicMock(side_effect=get_member_pages)
     graph_client = MagicMock()
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
     monkeypatch.setattr(
@@ -104,7 +113,7 @@ def test_delegated_groups_continues_after_denied_group_and_propagates_denial(
     )
     monkeypatch.setattr(groups, "get_entra_groups", get_groups)
     monkeypatch.setattr(groups, "get_group_owners", get_owners)
-    monkeypatch.setattr(groups, "get_group_members", get_members)
+    monkeypatch.setattr(groups, "get_group_member_pages", get_members)
     load_groups = MagicMock()
     monkeypatch.setattr(groups, "load_groups", load_groups)
 
@@ -131,7 +140,7 @@ def test_delegated_groups_continues_after_denied_group_and_propagates_denial(
     denied = next(group for group in loaded_groups if group["id"] == "denied-group")
     assert denied["owner_ids"] == []
     assert denied["member_ids"] == ["member-id"]
-    assert get_members.await_count == 2
+    assert get_members.call_count == 2
 
 
 def test_delegated_groups_preserves_owners_after_member_denial(monkeypatch) -> None:
@@ -147,11 +156,12 @@ def test_delegated_groups_preserves_owners_after_member_denial(monkeypatch) -> N
     monkeypatch.setattr(
         groups, "get_group_owners", AsyncMock(return_value=["owner-id"])
     )
-    monkeypatch.setattr(
-        groups,
-        "get_group_members",
-        AsyncMock(side_effect=_forbidden_error()),
-    )
+
+    async def denied_member_pages(client, group_id):
+        raise _forbidden_error()
+        yield
+
+    monkeypatch.setattr(groups, "get_group_member_pages", denied_member_pages)
     load_groups = MagicMock()
     monkeypatch.setattr(groups, "load_groups", load_groups)
 
