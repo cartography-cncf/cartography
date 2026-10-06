@@ -131,15 +131,16 @@ def test_delegated_groups_continues_after_denied_group_and_propagates_denial(
             )
         )
 
-    load_groups.assert_called_once()
-    loaded_groups = load_groups.call_args.args[1]
-    assert {group["id"] for group in loaded_groups} == {
+    node_rows, member_rows = (call.args[1] for call in load_groups.call_args_list)
+    assert {group["id"] for group in node_rows} == {
         "denied-group",
         "visible-group",
     }
-    denied = next(group for group in loaded_groups if group["id"] == "denied-group")
+    denied = next(group for group in node_rows if group["id"] == "denied-group")
     assert denied["owner_ids"] == []
-    assert denied["member_ids"] == ["member-id"]
+    assert [(row["id"], row["member_ids"]) for row in member_rows] == [
+        ("denied-group", ["member-id"])
+    ]
     assert get_members.call_count == 2
 
 

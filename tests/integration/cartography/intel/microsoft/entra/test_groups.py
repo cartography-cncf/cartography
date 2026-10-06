@@ -103,7 +103,8 @@ async def mock_get_group_member_pages_side_effect(client, group_id: str):
     members = MOCK_GROUP_MEMBERS[group_id]
     user_ids = [o.id for o in members if o.odata_type == "#microsoft.graph.user"]
     group_ids = [o.id for o in members if o.odata_type == "#microsoft.graph.group"]
-    yield user_ids, group_ids
+    if user_ids or group_ids:
+        yield user_ids, group_ids
 
 
 def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:

@@ -51,6 +51,7 @@ async def get_entra_groups(client: GraphServiceClient) -> AsyncGenerator[Group, 
         page = await client.groups.with_url(page.odata_next_link).get()
 
 
+@timeit
 async def get_group_member_pages(
     client: GraphServiceClient, group_id: str
 ) -> AsyncGenerator[tuple[list[str], list[str]], None]:
@@ -175,24 +176,14 @@ async def sync_entra_groups(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    pending_rows: list[dict[str, Any]] = []
-    # A subgroup's MEMBER_OF edge only matches once the subgroup's node exists,
-    # and Graph can list a group before the groups nested in it. Subgroup
-    # memberships are therefore loaded after every group node.
-    nested_rows: list[dict[str, Any]] = []
-    pending_groups = 0
-    pending_memberships = 0
-
-    def flush() -> None:
-        nonlocal pending_rows, pending_groups, pending_memberships
-        if pending_rows:
-            load_groups(neo4j_session, pending_rows, update_tag, tenant_id)
-        pending_rows = []
-        pending_groups = 0
-        pending_memberships = 0
-
     delegated_denial: APIError | None = None
+    skipped_group_ids: set[str] = set()
 
+    # Pass 1 loads every group node with its owners. A subgroup's MEMBER_OF edge
+    # only matches once the subgroup's node exists, and Graph can list a group
+    # before the groups nested in it, so memberships wait for pass 2. Listing
+    # groups twice costs one call per 999 groups and keeps memory bounded.
+    group_rows: list[dict[str, Any]] = []
     try:
         async for group in get_entra_groups(client):
             # The group may no longer exist by the time we fetch details,
@@ -207,6 +198,7 @@ async def sync_entra_groups(
                         group.display_name,
                         e.response_status_code,
                     )
+                    skipped_group_ids.add(group.id)
                     continue
                 if delegated_auth and e.response_status_code == 403:
                     logger.warning(
@@ -234,36 +226,48 @@ async def sync_entra_groups(
                 )
                 raise
 
-            # Each page of members becomes its own row for this group, so a
-            # group with a huge membership is loaded across several flushes.
-            member_pages_read = 0
+            group_rows.append(transform_group(group, owners))
+            if len(group_rows) >= GROUP_BATCH_SIZE:
+                load_groups(neo4j_session, group_rows, update_tag, tenant_id)
+                group_rows = []
+    except APIError as error:
+        if not delegated_auth or error.response_status_code != 403:
+            raise
+        delegated_denial = delegated_denial or error
+    if group_rows:
+        load_groups(neo4j_session, group_rows, update_tag, tenant_id)
+
+    # Pass 2 streams memberships. Each page of members becomes its own row, and
+    # rows flush on pending membership count, so a group with a huge membership
+    # is loaded across several bounded transactions.
+    pending_rows: list[dict[str, Any]] = []
+    pending_memberships = 0
+
+    def flush() -> None:
+        nonlocal pending_rows, pending_memberships
+        if pending_rows:
+            load_groups(neo4j_session, pending_rows, update_tag, tenant_id)
+        pending_rows = []
+        pending_memberships = 0
+
+    try:
+        async for group in get_entra_groups(client):
+            if group.id in skipped_group_ids:
+                continue
             try:
                 async for users, subgroups in get_group_member_pages(client, group.id):
-                    pending_rows.append(transform_group(group, owners, users))
-                    if subgroups:
-                        nested_rows.append(
-                            transform_group(group, owners, member_group_ids=subgroups)
-                        )
-                    member_pages_read += 1
-                    pending_memberships += len(users)
-                    if pending_memberships >= PENDING_MEMBERSHIP_LIMIT:
+                    pending_rows.append(transform_group(group, [], users, subgroups))
+                    pending_memberships += len(users) + len(subgroups)
+                    if (
+                        pending_memberships >= PENDING_MEMBERSHIP_LIMIT
+                        or len(pending_rows) >= GROUP_BATCH_SIZE
+                    ):
                         flush()
             except APIError as e:
                 if e.response_status_code in (404, 410):
-                    if not member_pages_read:
-                        logger.warning(
-                            "Group %s (%s) not found (%d) while fetching members; "
-                            "skipping.",
-                            group.id,
-                            group.display_name,
-                            e.response_status_code,
-                        )
-                        continue
-                    # Members already read may have been flushed, so keep the
-                    # group rather than load it half-way and then disown it.
                     logger.warning(
-                        "Group %s (%s) not found (%d) part way through its "
-                        "members; keeping the members already read.",
+                        "Group %s (%s) not found (%d) while fetching members; "
+                        "keeping any members already read.",
                         group.id,
                         group.display_name,
                         e.response_status_code,
@@ -292,25 +296,11 @@ async def sync_entra_groups(
                     group.display_name,
                 )
                 raise
-
-            if not member_pages_read:
-                pending_rows.append(transform_group(group, owners))
-            pending_groups += 1
-            if pending_groups >= GROUP_BATCH_SIZE:
-                flush()
     except APIError as error:
         if not delegated_auth or error.response_status_code != 403:
             raise
         delegated_denial = delegated_denial or error
-
     flush()
-    for start in range(0, len(nested_rows), GROUP_BATCH_SIZE):
-        load_groups(
-            neo4j_session,
-            nested_rows[start : start + GROUP_BATCH_SIZE],
-            update_tag,
-            tenant_id,
-        )
 
     if delegated_denial:
         raise delegated_denial

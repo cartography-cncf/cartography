@@ -74,7 +74,8 @@ def test_large_group_membership_is_loaded_across_bounded_flushes(monkeypatch) ->
     expected = {("big", user) for users, _ in big_pages for user in users}
     expected |= {("small", "admin"), ("small", "big")}
     assert loaded_members == expected
-    assert all(row["owner_ids"] == ["owner"] for rows in load_calls for row in rows)
+    assert {row["id"] for row in load_calls[0]} == {"big", "small"}
+    assert all(row["owner_ids"] == ["owner"] for row in load_calls[0])
 
 
 def test_group_without_members_is_still_loaded(monkeypatch) -> None:
@@ -93,7 +94,7 @@ def test_group_without_members_is_still_loaded(monkeypatch) -> None:
     assert row["owner_ids"] == ["owner"]
 
 
-def test_subgroup_memberships_load_after_every_group_node(monkeypatch) -> None:
+def test_every_group_node_loads_before_any_membership(monkeypatch) -> None:
     # Arrange: Graph lists the parent before the group nested in it.
     monkeypatch.setattr(groups, "PENDING_MEMBERSHIP_LIMIT", 1)
     parent = MagicMock(id="parent", display_name="Parent")
@@ -107,13 +108,13 @@ def test_subgroup_memberships_load_after_every_group_node(monkeypatch) -> None:
     load_calls = _sync_groups(monkeypatch, [parent, child], member_pages)
 
     # Assert
-    nested_call = next(
-        i
-        for i, rows in enumerate(load_calls)
-        if any(row["member_group_ids"] for row in rows)
+    node_rows, *membership_loads = load_calls
+    assert {row["id"] for row in node_rows} == {"parent", "child"}
+    assert all(
+        not row["member_ids"] and not row["member_group_ids"] for row in node_rows
     )
-    child_call = next(
-        i for i, rows in enumerate(load_calls) if any(r["id"] == "child" for r in rows)
-    )
-    assert nested_call > child_call
-    assert nested_call == len(load_calls) - 1
+    assert ("parent", ["child"]) in [
+        (row["id"], row["member_group_ids"])
+        for rows in membership_loads
+        for row in rows
+    ]
