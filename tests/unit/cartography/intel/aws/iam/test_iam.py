@@ -342,3 +342,99 @@ def test_get_saml_providers_access_denied_returns_empty_list():
     # transform_policy_data feeds the same [] fallback from sibling getters.
     transformed = transform_policy_data([], PolicyType.inline.value)
     assert transformed.statements_by_policy_id == {}
+
+
+def _mock_iam_resource_with_shared_policy(mocker, role_policy_arns):
+    roles = {}
+    for role_name, policy_arns in role_policy_arns.items():
+        role = mocker.Mock()
+        role.attached_policies.all.return_value = [
+            mocker.Mock(arn=arn) for arn in policy_arns
+        ]
+        roles[role_name] = role
+
+    resource_client = mocker.Mock()
+    resource_client.meta.client.exceptions.NoSuchEntityException = type(
+        "NoSuchEntityException", (Exception,), {}
+    )
+    resource_client.Role.side_effect = lambda name: roles[name]
+
+    def make_policy(arn):
+        policy = mocker.Mock()
+        policy.default_version.document = {"Statement": [{"Sid": arn}]}
+        return policy
+
+    resource_client.Policy.side_effect = make_policy
+    session = mocker.Mock()
+    session.resource.return_value = resource_client
+    return session, resource_client
+
+
+def test_get_role_managed_policy_data_fetches_each_policy_once(mocker):
+    shared_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+    own_arn = "arn:aws:iam::000000000000:policy/role-b-policy"
+    session, resource_client = _mock_iam_resource_with_shared_policy(
+        mocker,
+        {"role-a": [shared_arn], "role-b": [shared_arn, own_arn]},
+    )
+    role_list = [
+        {"RoleName": "role-a", "Arn": "arn:aws:iam::000000000000:role/role-a"},
+        {"RoleName": "role-b", "Arn": "arn:aws:iam::000000000000:role/role-b"},
+    ]
+
+    result = iam.get_role_managed_policy_data(session, role_list)
+
+    assert result == {
+        "arn:aws:iam::000000000000:role/role-a": {
+            shared_arn: [{"Sid": shared_arn}],
+        },
+        "arn:aws:iam::000000000000:role/role-b": {
+            shared_arn: [{"Sid": shared_arn}],
+            own_arn: [{"Sid": own_arn}],
+        },
+    }
+    assert [c.args[0] for c in resource_client.Policy.call_args_list] == [
+        shared_arn,
+        own_arn,
+    ]
+
+
+def test_get_role_managed_policy_data_retry_reuses_fetched_policies(mocker):
+    mocker.patch("time.sleep")
+    first_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+    throttled_arn = "arn:aws:iam::000000000000:policy/role-b-policy"
+    session, resource_client = _mock_iam_resource_with_shared_policy(
+        mocker,
+        {"role-a": [first_arn], "role-b": [throttled_arn]},
+    )
+    make_policy = resource_client.Policy.side_effect
+    throttled_once = []
+
+    def throttle_first_lookup_of_second_policy(arn):
+        if arn == throttled_arn and not throttled_once:
+            throttled_once.append(arn)
+            raise ClientError(
+                {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+                "GetPolicy",
+            )
+        return make_policy(arn)
+
+    resource_client.Policy.side_effect = throttle_first_lookup_of_second_policy
+    role_list = [
+        {"RoleName": "role-a", "Arn": "arn:aws:iam::000000000000:role/role-a"},
+        {"RoleName": "role-b", "Arn": "arn:aws:iam::000000000000:role/role-b"},
+    ]
+
+    result = iam.get_role_managed_policy_data(
+        session, role_list, policy_statement_cache={}
+    )
+
+    assert set(result) == {
+        "arn:aws:iam::000000000000:role/role-a",
+        "arn:aws:iam::000000000000:role/role-b",
+    }
+    assert [c.args[0] for c in resource_client.Policy.call_args_list] == [
+        first_arn,
+        throttled_arn,
+        throttled_arn,
+    ]

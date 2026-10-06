@@ -136,12 +136,37 @@ def get_group_policy_data(
     return policies
 
 
+def _get_managed_policy_statements(
+    resource_client: Any,
+    policy_arn: str,
+    policy_statement_cache: Dict[str, Any],
+) -> Any:
+    """
+    Return the default-version statements of a managed policy, fetching each ARN once.
+
+    The same managed policy is usually attached to many principals, and resolving it
+    costs a GetPolicy plus a GetPolicyVersion call. Fetching it once per attachment
+    multiplies IAM API calls by the attachment count, which trips IAM throttling on
+    large accounts. The caller owns the cache so that a backoff retry of the whole
+    getter reuses the documents fetched before the throttle instead of starting over.
+    """
+    if policy_arn not in policy_statement_cache:
+        policy = resource_client.Policy(policy_arn)
+        policy_statement_cache[policy_arn] = policy.default_version.document[
+            "Statement"
+        ]
+    return policy_statement_cache[policy_arn]
+
+
 @timeit
 @aws_handle_regions
 def get_group_managed_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> Dict:
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for group in group_list:
@@ -149,7 +174,9 @@ def get_group_managed_policy_data(
         group_arn = group["Arn"]
         resource_group = resource_client.Group(name)
         policies[group_arn] = {
-            p.arn: p.default_version.document["Statement"]
+            p.arn: _get_managed_policy_statements(
+                resource_client, p.arn, policy_statement_cache
+            )
             for p in resource_group.attached_policies.all()
         }
     return policies
@@ -184,7 +211,10 @@ def get_user_policy_data(
 def get_user_managed_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> Dict:
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for user in user_list:
@@ -193,7 +223,9 @@ def get_user_managed_policy_data(
         resource_user = resource_client.User(name)
         try:
             policies[user_arn] = {
-                p.arn: p.default_version.document["Statement"]
+                p.arn: _get_managed_policy_statements(
+                    resource_client, p.arn, policy_statement_cache
+                )
                 for p in resource_user.attached_policies.all()
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
@@ -232,7 +264,10 @@ def get_role_policy_data(
 def get_role_managed_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> Dict:
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for role in role_list:
@@ -241,7 +276,9 @@ def get_role_managed_policy_data(
         resource_role = resource_client.Role(name)
         try:
             policies[role_arn] = {
-                p.arn: p.default_version.document["Statement"]
+                p.arn: _get_managed_policy_statements(
+                    resource_client, p.arn, policy_statement_cache
+                )
                 for p in resource_role.attached_policies.all()
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
@@ -1022,7 +1059,9 @@ def sync_user_managed_policies(
     aws_update_tag: int,
     current_aws_account_id: str,
 ) -> None:
-    managed_policy_data = get_user_managed_policy_data(boto3_session, data["Users"])
+    managed_policy_data = get_user_managed_policy_data(
+        boto3_session, data["Users"], policy_statement_cache={}
+    )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
     )
@@ -1158,7 +1197,9 @@ def sync_group_managed_policies(
     aws_update_tag: int,
     current_aws_account_id: str,
 ) -> None:
-    managed_policy_data = get_group_managed_policy_data(boto3_session, data["Groups"])
+    managed_policy_data = get_group_managed_policy_data(
+        boto3_session, data["Groups"], policy_statement_cache={}
+    )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
     )
@@ -1427,7 +1468,9 @@ def sync_role_managed_policies(
         "Syncing IAM role managed policies for account '%s'.",
         current_aws_account_id,
     )
-    managed_policy_data = get_role_managed_policy_data(boto3_session, data["Roles"])
+    managed_policy_data = get_role_managed_policy_data(
+        boto3_session, data["Roles"], policy_statement_cache={}
+    )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
     )
