@@ -999,6 +999,7 @@ def sync_users(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
     logger.info("Syncing IAM users for account '%s'.", current_aws_account_id)
     data = get_user_list_data(boto3_session)
@@ -1010,7 +1011,12 @@ def sync_users(
     )
 
     sync_user_managed_policies(
-        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+        boto3_session,
+        data,
+        neo4j_session,
+        aws_update_tag,
+        current_aws_account_id,
+        policy_statement_cache,
     )
 
     sync_user_mfa_devices(
@@ -1058,9 +1064,12 @@ def sync_user_managed_policies(
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
     current_aws_account_id: str,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     managed_policy_data = get_user_managed_policy_data(
-        boto3_session, data["Users"], policy_statement_cache={}
+        boto3_session, data["Users"], policy_statement_cache
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1174,6 +1183,7 @@ def sync_groups(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
     logger.info("Syncing IAM groups for account '%s'.", current_aws_account_id)
     data = get_group_list_data(boto3_session)
@@ -1186,7 +1196,12 @@ def sync_groups(
     )
 
     sync_group_managed_policies(
-        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+        boto3_session,
+        data,
+        neo4j_session,
+        aws_update_tag,
+        current_aws_account_id,
+        policy_statement_cache,
     )
 
 
@@ -1196,9 +1211,12 @@ def sync_group_managed_policies(
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
     current_aws_account_id: str,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     managed_policy_data = get_group_managed_policy_data(
-        boto3_session, data["Groups"], policy_statement_cache={}
+        boto3_session, data["Groups"], policy_statement_cache
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1434,6 +1452,7 @@ def sync_roles(
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
     logger.info("Syncing IAM roles for account '%s'.", current_aws_account_id)
     data = get_role_list_data(boto3_session)
@@ -1454,6 +1473,7 @@ def sync_roles(
         data,
         neo4j_session,
         aws_update_tag,
+        policy_statement_cache,
     )
 
 
@@ -1463,13 +1483,16 @@ def sync_role_managed_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    policy_statement_cache: Dict[str, Any] | None = None,
 ) -> None:
     logger.info(
         "Syncing IAM role managed policies for account '%s'.",
         current_aws_account_id,
     )
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
     managed_policy_data = get_role_managed_policy_data(
-        boto3_session, data["Roles"], policy_statement_cache={}
+        boto3_session, data["Roles"], policy_statement_cache
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1798,12 +1821,15 @@ def sync(
         current_aws_account_id,
         update_tag,
     )
+    # Users, groups and roles often share managed policies; resolve each one once.
+    policy_statement_cache: Dict[str, Any] = {}
     sync_users(
         neo4j_session,
         boto3_session,
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+        policy_statement_cache,
     )
     sync_groups(
         neo4j_session,
@@ -1811,6 +1837,7 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+        policy_statement_cache,
     )
     sync_roles(
         neo4j_session,
@@ -1818,6 +1845,7 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+        policy_statement_cache,
     )
     # Sync service last accessed details after all principals (users, groups, roles) are synced
     sync_service_last_accessed_details(
