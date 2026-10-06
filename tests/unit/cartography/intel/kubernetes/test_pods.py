@@ -9,6 +9,7 @@ from kubernetes.client import V1Volume
 from kubernetes.client import V1VolumeDevice
 from kubernetes.client import V1VolumeMount
 
+from cartography.intel.kubernetes.pods import get_pods
 from cartography.intel.kubernetes.pods import transform_pods
 from tests.data.kubernetes.storage import RAW_GPU_PODS
 
@@ -393,3 +394,27 @@ def test_transform_pods_excludes_read_only_claim_from_read_write_ids():
     container = transform_pods([pod], "my-cluster-1")[0]["containers"][0]
 
     assert container["persistent_volume_claim_read_write_ids"] == []
+
+
+def test_get_pods_streams_one_page_at_a_time():
+    calls = []
+    pages = [["pod-a", "pod-b"], ["pod-c"]]
+
+    def list_pod_for_all_namespaces(limit, _continue=None):
+        calls.append(_continue)
+        index = int(_continue) if _continue else 0
+        return SimpleNamespace(
+            items=pages[index],
+            metadata=SimpleNamespace(_continue="1" if index == 0 else None),
+        )
+
+    client = SimpleNamespace(
+        core=SimpleNamespace(list_pod_for_all_namespaces=list_pod_for_all_namespaces)
+    )
+    pods = get_pods(client)
+
+    assert next(pods) == "pod-a"
+    assert next(pods) == "pod-b"
+    assert calls == [None]
+    assert list(pods) == ["pod-c"]
+    assert calls == [None, "1"]

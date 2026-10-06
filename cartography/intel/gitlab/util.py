@@ -22,6 +22,15 @@ DEFAULT_TIMEOUT = 30
 _registry_token_cache: dict[str, tuple[str, float]] = {}
 _TOKEN_EXPIRY_BUFFER_SECONDS = 60
 
+# Shared across every call in this module so requests reuse pooled/keep-alive
+# connections. The module-level requests.request() helper opens a brand new
+# Session (and thus a brand new connection) per call, which is expensive and
+# failure-prone when egress goes through an explicit CONNECT-tunnel proxy -
+# each GitLab sync makes thousands of sequential calls (one or more per
+# project), so per-call connection setup meaningfully increases exposure to
+# transient connect failures on that path.
+_session = requests.Session()
+
 
 def get_registry_token(
     gitlab_url: str,
@@ -202,7 +211,7 @@ def make_request_with_retry(
 
     while retry_count <= max_retries:
         try:
-            response = requests.request(
+            response = _session.request(
                 method,
                 url,
                 headers=headers,
