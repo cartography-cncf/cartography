@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 import cartography.intel.notion.pages
 import cartography.intel.notion.users
@@ -206,9 +207,7 @@ def test_sync_preserves_page_seen_public_after_unpublished(neo4j_session):
     }
 
 
-def test_sync_preserves_page_omitted_from_non_authoritative_search(neo4j_session):
-    # Arrange
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
+def _sync_public_page_then_omit_it(neo4j_session, page_lookup_response):
     _seed_workspace_and_users(neo4j_session)
     first_session = MagicMock()
     first_session.post.return_value = _response(
@@ -224,22 +223,87 @@ def test_sync_preserves_page_omitted_from_non_authoritative_search(neo4j_session
     second_session.post.return_value = _response(
         _search_payload([]),
     )
-
-    # Act
+    second_session.get.return_value = page_lookup_response
     cartography.intel.notion.pages.sync(
         neo4j_session,
         second_session,
         TEST_WORKSPACE_ID,
         TEST_UPDATE_TAG + 1,
     )
+    return second_session
+
+
+def test_sync_refreshes_page_omitted_from_search_but_still_public(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    second_session = _sync_public_page_then_omit_it(
+        neo4j_session,
+        _response(PUBLIC_PAGE),
+    )
 
     # Assert
+    second_session.get.assert_called_once()
+    assert second_session.get.call_args.args[0].endswith("/pages/page-public")
+    assert check_nodes(
+        neo4j_session,
+        "NotionPage",
+        ["id", "lastupdated"],
+    ) == {("workspace-1/page-public", TEST_UPDATE_TAG + 1)}
+    assert check_rels(
+        neo4j_session,
+        "NotionPage",
+        "id",
+        "NotionUser",
+        "id",
+        "CREATED_BY",
+        rel_direction_right=True,
+    ) == {("workspace-1/page-public", "workspace-1/person-1")}
+
+
+def test_sync_expires_page_omitted_from_search_and_not_found(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    _sync_public_page_then_omit_it(
+        neo4j_session,
+        _response({"object": "error", "code": "object_not_found"}, 404),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "NotionPage", ["id"]) == set()
+
+
+def test_sync_expires_page_omitted_from_search_and_unpublished(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
+    _sync_public_page_then_omit_it(
+        neo4j_session,
+        _response({**PUBLIC_PAGE, "public_url": None}),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "NotionPage", ["id"]) == set()
+
+
+def test_sync_preserves_page_when_lookup_fails(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    failed_lookup = _response({}, 500)
+    failed_lookup.raise_for_status.side_effect = requests.HTTPError("server error")
+
+    # Act and assert
+    with pytest.raises(requests.HTTPError):
+        _sync_public_page_then_omit_it(neo4j_session, failed_lookup)
     assert check_nodes(
         neo4j_session,
         "NotionPage",
         ["id", "lastupdated"],
     ) == {("workspace-1/page-public", TEST_UPDATE_TAG)}
-    second_session.get.assert_not_called()
 
 
 def test_sync_preserves_page_when_search_pagination_fails(neo4j_session):
@@ -320,7 +384,7 @@ def test_sync_preserves_page_when_search_is_incomplete(neo4j_session):
     ) == {("workspace-1/page-public", TEST_UPDATE_TAG)}
 
 
-def test_delete_workspace_pages_is_scoped(neo4j_session):
+def test_cleanup_is_scoped_to_workspace(neo4j_session):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _seed_workspace_and_users(neo4j_session)
@@ -349,9 +413,9 @@ def test_delete_workspace_pages_is_scoped(neo4j_session):
         )
 
     # Act
-    cartography.intel.notion.pages.delete_workspace_pages(
+    cartography.intel.notion.pages.cleanup(
         neo4j_session,
-        TEST_WORKSPACE_ID,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "WORKSPACE_ID": TEST_WORKSPACE_ID},
     )
 
     # Assert

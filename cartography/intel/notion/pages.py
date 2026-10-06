@@ -8,8 +8,12 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.intel.notion.util import NOTION_API_BASE_URL
 from cartography.intel.notion.util import post_paginated
+from cartography.intel.notion.util import REQUEST_TIMEOUT
 from cartography.intel.notion.util import require_boolean
 from cartography.intel.notion.util import require_nonempty_string
 from cartography.intel.notion.util import require_object
@@ -29,6 +33,23 @@ def get(
         {"filter": {"property": "object", "value": "page"}},
         "page_or_data_source",
     )
+
+
+@timeit
+def get_page(
+    api_session: requests.Session,
+    notion_page_id: str,
+) -> dict[str, Any] | None:
+    response = api_session.get(
+        f"{NOTION_API_BASE_URL}/pages/{notion_page_id}",
+        timeout=REQUEST_TIMEOUT,
+    )
+    # Notion returns 404 both for deleted pages and pages the connection can no
+    # longer read; either way the page is no longer observable as public.
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return require_object(response.json(), "Notion page response")
 
 
 def _get_title(properties: dict[str, Any]) -> str | None:
@@ -170,17 +191,61 @@ def delete_confirmed_unpublished_pages(
     )
 
 
-def delete_workspace_pages(
+def get_unobserved_page_ids(
     neo4j_session: neo4j.Session,
     workspace_id: str,
-) -> None:
-    run_write_query(
+    update_tag: int,
+) -> list[str]:
+    return [
+        str(notion_page_id)
+        for notion_page_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            """
+            MATCH (:NotionWorkspace {id: $WORKSPACE_ID})-[:RESOURCE]->(p:NotionPage)
+            WHERE p.lastupdated <> $UPDATE_TAG
+            RETURN p.notion_page_id
+            """,
+            WORKSPACE_ID=workspace_id,
+            UPDATE_TAG=update_tag,
+        )
+    ]
+
+
+def expire_unobserved_pages(
+    neo4j_session: neo4j.Session,
+    api_session: requests.Session,
+    workspace_id: str,
+    update_tag: int,
+) -> int:
+    # Search omissions are not proof of removal, so retrieve each previously
+    # public page directly. This is bounded by the public page count.
+    still_public_pages: list[dict[str, Any]] = []
+    expired_page_ids: list[str] = []
+    for notion_page_id in get_unobserved_page_ids(
         neo4j_session,
-        """
-        MATCH (:NotionWorkspace {id: $WORKSPACE_ID})-[:RESOURCE]->(p:NotionPage)
-        DETACH DELETE p
-        """,
-        WORKSPACE_ID=workspace_id,
+        workspace_id,
+        update_tag,
+    ):
+        page = get_page(api_session, notion_page_id)
+        if page is None:
+            expired_page_ids.append(scoped_id(workspace_id, notion_page_id))
+            continue
+        public_pages, unpublished_page_ids = transform([page], workspace_id)
+        still_public_pages.extend(public_pages)
+        expired_page_ids.extend(unpublished_page_ids)
+
+    if still_public_pages:
+        load_pages(neo4j_session, still_public_pages, workspace_id, update_tag)
+    delete_confirmed_unpublished_pages(neo4j_session, expired_page_ids, update_tag)
+    return len(expired_page_ids)
+
+
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(NotionPageSchema(), common_job_parameters).run(
+        neo4j_session,
     )
 
 
@@ -194,8 +259,9 @@ def sync(
     logger.info("Starting Notion public page sync")
     public_page_count = 0
     unpublished_page_count = 0
-    # Search is non-authoritative, so only explicit null public URLs drive cleanup.
-    # Keep graph updates staged until every response page is valid.
+    # Search is non-authoritative, so only explicit null public URLs or a direct
+    # page lookup drive cleanup. Keep graph updates staged until every response
+    # page is valid.
     with (
         tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_pages,
         tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as staged_deletes,
@@ -231,9 +297,17 @@ def sync(
             delete_batch,
             update_tag,
         )
+    expired_page_count = expire_unobserved_pages(
+        neo4j_session,
+        api_session,
+        workspace_id,
+        update_tag,
+    )
     logger.info(
-        "Loaded %d public Notion pages and observed %d unpublished pages",
+        "Loaded %d public Notion pages, observed %d unpublished pages, and "
+        "expired %d pages no longer public",
         public_page_count,
         unpublished_page_count,
+        expired_page_count,
     )
     logger.info("Completed Notion public page sync")

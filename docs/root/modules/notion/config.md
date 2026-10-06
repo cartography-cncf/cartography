@@ -85,8 +85,12 @@ access** tab, select **Add pages & databases** and choose the desired roots.
 Access is inherited by their children. Search responses are processed in bounded
 batches so high-cardinality workspaces do not require retaining every page
 object in memory. If Notion reports that its server-side result limit made a
-search incomplete, Cartography logs a warning and leaves the existing page
-inventory unchanged. Setting `sync_public_pages` back to `false` removes the
+search incomplete, Cartography fails the Notion sync with an error and leaves the
+existing page inventory unchanged. Search is not authoritative, so a previously
+ingested page that Search does not return is retrieved directly from
+`/v1/pages/{id}`, and removed only when Notion returns `404` or reports that it is
+no longer published. These lookups are bounded by the number of previously
+ingested public pages. Setting `sync_public_pages` back to `false` removes the
 workspace's previously ingested `NotionPage` nodes. The sync stores page metadata
 such as title, URL, public URL, timestamps, parent ID, and creator. It never stores
 page body or comment content.
