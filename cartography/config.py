@@ -772,7 +772,6 @@ class Config:
         orca_api_endpoint=None,
         orca_api_token=None,
         microsoft_delegated_auth=False,
-        microsoft_requested_syncs=None,
         zoom_account_id=None,
         zoom_client_id=None,
         zoom_client_secret=None,
@@ -782,6 +781,7 @@ class Config:
         jira_site_url=None,
         zendesk_subdomain=None,
         zendesk_oauth_token=None,
+        microsoft_requested_syncs=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
