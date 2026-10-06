@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Awaitable
+from collections.abc import Callable
 
 import neo4j
 from kiota_abstractions.api_error import APIError
@@ -23,6 +24,7 @@ from cartography.intel.microsoft.entra.users import get_tenant
 from cartography.intel.microsoft.entra.users import load_tenant
 from cartography.intel.microsoft.entra.users import sync_entra_users
 from cartography.intel.microsoft.entra.users import transform_tenant
+from cartography.intel.microsoft.util import requested_microsoft_syncs
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -103,18 +105,26 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
         "TENANT_ID": tenant_id,
     }
+    requested = requested_microsoft_syncs(config)
+
+    def is_requested(resource: str) -> bool:
+        return requested is None or resource in requested
 
     async def main() -> None:
         denied_datasets: list[str] = []
 
         async def run_dataset(
+            resource: str,
             name: str,
-            operation: Awaitable[None],
+            operation: Callable[[], Awaitable[None]],
             *,
             allow_application_auth_denial: bool = False,
         ) -> None:
+            if not is_requested(resource):
+                logger.debug("Skipping Entra %s sync: not requested.", name)
+                return
             try:
-                await operation
+                await operation()
             except APIError as e:
                 delegated_denial = delegated_auth and e.response_status_code == 403
                 optional_denial = (
@@ -159,43 +169,54 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         await run_dataset(
             "users",
-            sync_entra_users(*sync_args, delegated_auth=delegated_auth),
+            "users",
+            lambda: sync_entra_users(*sync_args, delegated_auth=delegated_auth),
         )
         await run_dataset(
             "groups",
-            sync_entra_groups(*sync_args, delegated_auth=delegated_auth),
+            "groups",
+            lambda: sync_entra_groups(*sync_args, delegated_auth=delegated_auth),
         )
         await run_dataset(
+            "administrative_units",
             "administrative units",
-            sync_entra_ous(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_ous(*sync_args, delegated_auth=delegated_auth),
         )
         await run_dataset(
             "applications",
-            sync_entra_applications(*sync_args, delegated_auth=delegated_auth),
+            "applications",
+            lambda: sync_entra_applications(*sync_args, delegated_auth=delegated_auth),
         )
         await run_dataset(
+            "service_principals",
             "service principals",
-            sync_service_principals(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_service_principals(*sync_args, delegated_auth=delegated_auth),
         )
         await run_dataset(
+            "app_role_assignments",
             "app role assignments",
-            sync_app_role_assignments(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_app_role_assignments(
+                *sync_args, delegated_auth=delegated_auth
+            ),
         )
         await run_dataset(
+            "directory_roles",
             "directory roles",
-            sync_entra_directory_roles(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_directory_roles(
+                *sync_args, delegated_auth=delegated_auth
+            ),
             allow_application_auth_denial=True,
         )
 
         # Derived federation cleanup is unsafe when delegated visibility is partial.
-        if not delegated_auth:
+        if not delegated_auth and is_requested("federation"):
             await sync_entra_federation(
                 neo4j_session,
                 config.update_tag,
                 tenant_id,
                 common_job_parameters,
             )
-        else:
+        elif delegated_auth:
             logger.warning(
                 "Delegated Entra sync finished with partial-visibility semantics. "
                 "Datasets denied by Microsoft Graph: %s.",

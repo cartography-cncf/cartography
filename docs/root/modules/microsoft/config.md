@@ -53,6 +53,30 @@ cartography \
   --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET
 ```
 
+## Sync selected resources
+
+Use `--microsoft-requested-syncs` to sync only some Microsoft resources, for
+example to isolate a slow or failing dataset in a large tenant:
+
+```bash
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<tenant-id>' \
+  --microsoft-client-id '<client-id>' \
+  --microsoft-client-secret-env-var MICROSOFT_CLIENT_SECRET \
+  --microsoft-requested-syncs users,groups
+```
+
+Valid values are `users`, `groups`, `administrative_units`, `applications`,
+`service_principals`, `app_role_assignments`, `directory_roles`, `federation`,
+`intune`, and `o365`. Intune and O365 run as whole units. The Entra tenant
+always syncs because every other Microsoft node relates to it.
+
+A dataset that isn't requested is neither synced nor cleaned up, so its existing
+graph data stays as it was. Relationships to resources that aren't requested
+are created only when those resources are already in the graph, so run the full
+sync at least once before syncing selected resources.
+
 ## Experimental delegated user authentication
 
 Use delegated authentication only when you can't use an app registration and
