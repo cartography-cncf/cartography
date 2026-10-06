@@ -52,11 +52,6 @@ async def async_return_empty_list():
     return []
 
 
-async def async_return_empty_tuple():
-    """Helper function to return an empty tuple asynchronously."""
-    return ([], [])
-
-
 @patch.object(
     cartography.intel.microsoft.entra.service_principals,
     "get_entra_service_principals",
@@ -69,8 +64,8 @@ async def async_return_empty_tuple():
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
-    "get_group_members",
-    return_value=async_return_empty_tuple(),
+    "get_group_member_pages",
+    return_value=async_generator_from_list([]),
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
