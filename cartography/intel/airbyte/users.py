@@ -49,7 +49,16 @@ def sync(
     try:
         users = get(api_session, org_id=org_id)
         for user in users:
-            permissions = get_permissions(api_session, user["id"], org_id=org_id)
+            # For the application's own user, Airbyte ignores organizationId and
+            # returns every organization's permissions. Drop other organizations'
+            # roles so this organization only writes edges about itself.
+            # Workspace permissions are kept: the API does not say which
+            # organization a workspace belongs to.
+            permissions = [
+                p
+                for p in get_permissions(api_session, user["id"], org_id=org_id)
+                if p["scope"] != "organization" or p["scopeId"] == org_id
+            ]
             org_admin, workspace_admin, workspace_member = transform_permissions(
                 permissions
             )
@@ -146,12 +155,13 @@ def transform_permissions(
 
 # The user node is shared across organizations, so its organization and access
 # edges are MatchLinks scoped to the organization that wrote them. See
-# cartography/models/airbyte/user.py.
+# cartography/models/airbyte/user.py. Each MatchLink is paired with the user
+# field holding its target ids; None means the organization being synced.
 _MATCHLINKS = (
-    AirbyteUserToOrganizationMatchLink(),
-    AirbyteUserAdminOfOrganizationMatchLink(),
-    AirbyteUserAdminOfWorkspaceMatchLink(),
-    AirbyteUserMemberOfWorkspaceMatchLink(),
+    (AirbyteUserToOrganizationMatchLink(), None),
+    (AirbyteUserAdminOfOrganizationMatchLink(), "adminOfOrganization"),
+    (AirbyteUserAdminOfWorkspaceMatchLink(), "adminOfWorkspace"),
+    (AirbyteUserMemberOfWorkspaceMatchLink(), "memberOfWorkspace"),
 )
 
 
@@ -163,25 +173,15 @@ def load_users(
     update_tag: int,
 ) -> None:
     load(neo4j_session, AirbyteUserSchema(), data, lastupdated=update_tag)
-
-    def scope_links(field: str) -> list[dict[str, str]]:
-        return [
-            {"user_id": u["id"], "scope_id": scope} for u in data for scope in u[field]
-        ]
-
-    for matchlink, rows in (
-        (
-            AirbyteUserToOrganizationMatchLink(),
-            [{"user_id": u["id"], "organization_id": org_id} for u in data],
-        ),
-        (AirbyteUserAdminOfOrganizationMatchLink(), scope_links("adminOfOrganization")),
-        (AirbyteUserAdminOfWorkspaceMatchLink(), scope_links("adminOfWorkspace")),
-        (AirbyteUserMemberOfWorkspaceMatchLink(), scope_links("memberOfWorkspace")),
-    ):
+    for matchlink, field in _MATCHLINKS:
         load_matchlinks(
             neo4j_session,
             matchlink,
-            rows,
+            [
+                {"user_id": user["id"], "scope_id": scope_id}
+                for user in data
+                for scope_id in (user[field] if field else [org_id])
+            ],
             lastupdated=update_tag,
             _sub_resource_label="AirbyteOrganization",
             _sub_resource_id=org_id,
@@ -192,7 +192,7 @@ def load_users(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    for matchlink in _MATCHLINKS:
+    for matchlink, _ in _MATCHLINKS:
         GraphJob.from_matchlink(
             matchlink,
             "AirbyteOrganization",

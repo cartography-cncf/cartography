@@ -5,13 +5,9 @@ import pytest
 import requests
 
 import cartography.intel.airbyte
+import cartography.intel.airbyte.users
 from cartography.config import Config
 from tests.data.airbyte import multi_org
-from tests.data.airbyte.fake_api import FakeAirbyteAPI
-from tests.data.airbyte.fake_api import FORBIDDEN_DETAIL
-from tests.data.airbyte.fake_api import make_client
-from tests.data.airbyte.fake_api import TEST_ACCESS_TOKEN
-from tests.data.airbyte.fake_api import TEST_CLIENT_SECRET
 from tests.data.airbyte.multi_org import ALPHA_USER
 from tests.data.airbyte.multi_org import APP_OWNER
 from tests.data.airbyte.multi_org import BETA_USER
@@ -25,6 +21,11 @@ from tests.data.airbyte.multi_org import SHARED_USER
 from tests.data.airbyte.multi_org import WS_ALPHA
 from tests.data.airbyte.multi_org import WS_BETA
 from tests.data.airbyte.multi_org import WS_GAMMA
+from tests.integration.cartography.intel.airbyte.fake_api import FakeAirbyteAPI
+from tests.integration.cartography.intel.airbyte.fake_api import FORBIDDEN_DETAIL
+from tests.integration.cartography.intel.airbyte.fake_api import make_client
+from tests.integration.cartography.intel.airbyte.fake_api import TEST_ACCESS_TOKEN
+from tests.integration.cartography.intel.airbyte.fake_api import TEST_CLIENT_SECRET
 
 
 def _run(neo4j_session, api: FakeAirbyteAPI, update_tag: int) -> None:
@@ -125,6 +126,7 @@ def test_users_denial_does_not_stop_inventory_or_later_organizations(
         del expected[key]
     for key in (
         (ORG_BETA, "RESOURCE", APP_OWNER),
+        (APP_OWNER, "ADMIN_OF", ORG_BETA),
         (ORG_BETA, "RESOURCE", SHARED_USER),
         (ORG_BETA, "RESOURCE", BETA_USER),
         (SHARED_USER, "ADMIN_OF", WS_BETA),
@@ -175,6 +177,7 @@ def test_incomplete_identity_read_keeps_previous_snapshot(neo4j_session, api, de
     expected = _baseline(2)
     for key in (
         (ORG_ALPHA, "RESOURCE", APP_OWNER),
+        (APP_OWNER, "ADMIN_OF", ORG_ALPHA),
         (ORG_ALPHA, "RESOURCE", ALPHA_USER),
         (ORG_ALPHA, "RESOURCE", SHARED_USER),
         (ALPHA_USER, "ADMIN_OF", ORG_ALPHA),
@@ -219,15 +222,12 @@ def test_empty_users_response_is_a_complete_snapshot(neo4j_session, api):
     # Act
     _run(neo4j_session, api, 2)
 
-    # Assert: unlike a denial, every edge Beta wrote is cleaned up. APP_OWNER's
-    # Beta admin edge stays because Alpha's sync reads APP_OWNER's own
-    # permissions, which cover every organization.
+    # Assert: unlike a denial, every edge about Beta is cleaned up.
     expected = {
         key: 2
         for key in _baseline(2)
         if ORG_BETA not in key and WS_BETA not in key and BETA_USER not in key
     }
-    expected[(APP_OWNER, "ADMIN_OF", ORG_BETA)] = 2
     assert _identity_graph(neo4j_session) == expected
 
 
@@ -238,3 +238,38 @@ def test_denial_of_other_endpoints_still_fails(neo4j_session, api):
     # Act and assert
     with pytest.raises(requests.HTTPError):
         _run(neo4j_session, api, 2)
+
+
+@pytest.mark.parametrize(
+    "method,uri,result,expected",
+    [
+        # AirbyteClient.get() exchanges the token first, inside the same call.
+        ("POST", "/applications/token", 401, requests.HTTPError),
+        ("POST", "/applications/token", 403, requests.HTTPError),
+        ("GET", "/users", 401, requests.HTTPError),
+        ("GET", "/permissions", 429, requests.HTTPError),
+        ("GET", "/users", 503, requests.HTTPError),
+        (
+            "GET",
+            "/permissions",
+            requests.ConnectionError("reset"),
+            requests.ConnectionError,
+        ),
+        ("GET", "/users", (200, b"<html>gateway</html>"), requests.JSONDecodeError),
+    ],
+)
+def test_failures_other_than_an_identity_denial_are_raised(
+    neo4j_session, method, uri, result, expected
+):
+    # Arrange
+    api = FakeAirbyteAPI()
+    api.fail(method, uri, result)
+
+    # Act and assert
+    with pytest.raises(expected):
+        cartography.intel.airbyte.users.sync(
+            neo4j_session,
+            make_client(api),
+            ORG_ALPHA,
+            {"UPDATE_TAG": 1, "ORG_ID": ORG_ALPHA},
+        )

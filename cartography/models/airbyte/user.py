@@ -58,7 +58,7 @@ class AirbyteUserToOrganizationMatchLink(CartographyRelSchema):
     )
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("organization_id")},
+        {"id": PropertyRef("scope_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
