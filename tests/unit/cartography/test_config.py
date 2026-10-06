@@ -52,6 +52,16 @@ def test_microsoft_delegated_auth_is_appended_for_positional_compatibility() -> 
     )
 
 
+def test_notion_config_is_appended_for_positional_compatibility() -> None:
+    # Act
+    parameters = list(inspect.signature(Config.__init__).parameters)
+
+    # Assert
+    assert parameters.index("notion_config") > parameters.index(
+        "zendesk_oauth_token",
+    )
+
+
 def test_config_stores_orca_credentials() -> None:
     # Act
     config = Config(
