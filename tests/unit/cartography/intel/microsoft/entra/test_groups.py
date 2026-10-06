@@ -91,3 +91,29 @@ def test_group_without_members_is_still_loaded(monkeypatch) -> None:
     assert row["member_ids"] == []
     assert row["member_group_ids"] == []
     assert row["owner_ids"] == ["owner"]
+
+
+def test_subgroup_memberships_load_after_every_group_node(monkeypatch) -> None:
+    # Arrange: Graph lists the parent before the group nested in it.
+    monkeypatch.setattr(groups, "PENDING_MEMBERSHIP_LIMIT", 1)
+    parent = MagicMock(id="parent", display_name="Parent")
+    child = MagicMock(id="child", display_name="Child")
+    member_pages = {
+        "parent": [(["user-a"], ["child"])],
+        "child": [(["user-b"], [])],
+    }
+
+    # Act
+    load_calls = _sync_groups(monkeypatch, [parent, child], member_pages)
+
+    # Assert
+    nested_call = next(
+        i
+        for i, rows in enumerate(load_calls)
+        if any(row["member_group_ids"] for row in rows)
+    )
+    child_call = next(
+        i for i, rows in enumerate(load_calls) if any(r["id"] == "child" for r in rows)
+    )
+    assert nested_call > child_call
+    assert nested_call == len(load_calls) - 1

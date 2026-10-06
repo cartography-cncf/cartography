@@ -176,6 +176,10 @@ async def sync_entra_groups(
     )
 
     pending_rows: list[dict[str, Any]] = []
+    # A subgroup's MEMBER_OF edge only matches once the subgroup's node exists,
+    # and Graph can list a group before the groups nested in it. Subgroup
+    # memberships are therefore loaded after every group node.
+    nested_rows: list[dict[str, Any]] = []
     pending_groups = 0
     pending_memberships = 0
 
@@ -235,11 +239,13 @@ async def sync_entra_groups(
             member_pages_read = 0
             try:
                 async for users, subgroups in get_group_member_pages(client, group.id):
-                    pending_rows.append(
-                        transform_group(group, owners, users, subgroups)
-                    )
+                    pending_rows.append(transform_group(group, owners, users))
+                    if subgroups:
+                        nested_rows.append(
+                            transform_group(group, owners, member_group_ids=subgroups)
+                        )
                     member_pages_read += 1
-                    pending_memberships += len(users) + len(subgroups)
+                    pending_memberships += len(users)
                     if pending_memberships >= PENDING_MEMBERSHIP_LIMIT:
                         flush()
             except APIError as e:
@@ -298,6 +304,13 @@ async def sync_entra_groups(
         delegated_denial = delegated_denial or error
 
     flush()
+    for start in range(0, len(nested_rows), GROUP_BATCH_SIZE):
+        load_groups(
+            neo4j_session,
+            nested_rows[start : start + GROUP_BATCH_SIZE],
+            update_tag,
+            tenant_id,
+        )
 
     if delegated_denial:
         raise delegated_denial
