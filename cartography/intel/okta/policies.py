@@ -9,7 +9,6 @@ import neo4j
 from okta.client import Client as OktaClient
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.okta.common import collect_raw_paginated
 from cartography.intel.okta.common import get_raw_json
@@ -191,23 +190,6 @@ async def _get_okta_policy_data(
         unknown_app_ids,
     )
     return policies, rules_by_policy, app_ids_by_policy, first_party_app_names
-
-
-def _get_known_app_ids(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-) -> set[str]:
-    return {
-        str(app_id)
-        for app_id in neo4j_session.execute_read(
-            read_list_of_values_tx,
-            """
-            MATCH (:OktaOrganization {id: $OKTA_ORG_ID})-[:RESOURCE]->(app:OktaApplication)
-            RETURN app.id
-            """,
-            OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
-        )
-    }
 
 
 def _transform_okta_policies(
@@ -438,16 +420,18 @@ def sync_okta_policies(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    known_app_ids: set[str],
 ) -> None:
     """
     Sync Okta global session, password, authentication, authenticator
     enrollment, and profile enrollment policies with their rules.
 
     Run after the application sync: authentication policies are linked to the
-    `OktaApplication` nodes it loads.
+    `OktaApplication` nodes it loads, and `known_app_ids` are the IDs it returned.
+    Mapped apps outside that set are Okta first-party apps, whose names are
+    fetched individually.
     """
     logger.info("Syncing Okta policies")
-    known_app_ids = _get_known_app_ids(neo4j_session, common_job_parameters)
     try:
         policies, rules_by_policy, app_ids_by_policy, first_party_app_names = (
             asyncio.run(_get_okta_policy_data(okta_client, known_app_ids))

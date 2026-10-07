@@ -84,7 +84,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)
     groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
-    applications.sync_okta_applications(
+    app_ids = applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -111,6 +111,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         okta_client,
         neo4j_session,
         common_job_parameters,
+        app_ids,
     )
 
     # Sync Okta groups to AWS roles via SAML

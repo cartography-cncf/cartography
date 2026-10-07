@@ -16,6 +16,9 @@ TEST_ORG_ID = "test-okta-org-id"
 TEST_UPDATE_TAG = 123456789
 
 
+KNOWN_APP_IDS = {"0oa-slack", "0oa-github"}
+
+
 def _common_job_parameters() -> dict[str, int | str]:
     return {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -85,6 +88,7 @@ def test_sync_okta_policies(mock_collect, mock_get_raw_json, neo4j_session) -> N
         MagicMock(),
         neo4j_session,
         _common_job_parameters(),
+        KNOWN_APP_IDS,
     )
 
     # Assert: policies and their STIG-relevant settings
@@ -305,6 +309,7 @@ def test_sync_okta_policies_skips_when_scope_missing(mock_collect, neo4j_session
         MagicMock(),
         neo4j_session,
         _common_job_parameters(),
+        KNOWN_APP_IDS,
     )
 
     # Assert: nothing loaded and nothing cleaned up
