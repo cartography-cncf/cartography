@@ -255,6 +255,16 @@ def test_aws_handle_regions(mocker):
 
     assert raises_connect_timeout_error(1, 2) == []
 
+    # a regional endpoint that fails TLS validation should be skipped, not fail the sync
+    @aws_handle_regions
+    def raises_ssl_error(a, b):
+        raise botocore.exceptions.SSLError(
+            endpoint_url="https://cloudtrail.me-central-1.amazonaws.com/",
+            error="certificate verify failed: certificate has expired",
+        )
+
+    assert raises_ssl_error(1, 2) == []
+
 
 def test_is_service_control_policy_explicit_deny():
     scp_error = botocore.exceptions.ClientError(

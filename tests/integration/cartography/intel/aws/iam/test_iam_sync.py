@@ -1,11 +1,13 @@
 from contextlib import ExitStack
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 
 import cartography.intel.aws.iam
+from cartography.intel.aws.iam import AccountAuthorizationDetails
 from cartography.intel.aws.iam import sync
 from tests.data.aws.iam import GET_GROUP_MEMBERSHIPS_DATA
 from tests.data.aws.iam import LIST_GROUPS_SAMPLE
@@ -28,6 +30,11 @@ TEST_ACCOUNT_ID = "1234"
 TEST_UPDATE_TAG = 123456789
 
 
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_account_authorization_details",
+    return_value=None,
+)
 @patch.object(
     cartography.intel.aws.iam,
     "get_server_certificates",
@@ -106,9 +113,10 @@ def test_sync_iam(
     mock_sync_service_last_accessed_details,
     mock_get_saml_providers,
     mock_get_server_certificates,
+    mock_get_account_authorization_details,
     neo4j_session,
 ):
-    """Test IAM sync end-to-end"""
+    """Test IAM sync end-to-end through the per-principal fallback path"""
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -124,6 +132,16 @@ def test_sync_iam(
     )
 
     # Assert
+    # Users, groups and roles resolve managed policies through one shared cache
+    user_cache = mock_get_user_managed_policy_data.call_args.args[2]
+    assert isinstance(user_cache, dict)
+    assert mock_get_group_managed_policy_data.call_args.args[2] is user_cache
+    assert mock_get_role_managed_policy_data.call_args.args[2] is user_cache
+
+    _assert_iam_graph(neo4j_session)
+
+
+def _assert_iam_graph(neo4j_session):
     # Assert: AWSAccount -> AWSPrincipal
     assert check_rels(
         neo4j_session,
@@ -440,7 +458,9 @@ GOV_ROLE_LIST_DATA = {
     ],
 }
 # IAM getters that the GovCloud tests stub to empty results. Only roles carry data.
-_EMPTY_IAM_GETTERS = {
+_EMPTY_IAM_GETTERS: dict[str, Any] = {
+    # None takes the per-principal fallback, which the getters below stub.
+    "get_account_authorization_details": None,
     "get_account_summary": {},
     "get_server_certificates": [],
     "get_saml_providers": [],
@@ -634,3 +654,82 @@ def test_sync_iam_keeps_trusted_root_of_other_synced_account(
         "TRUSTS_AWS_PRINCIPAL",
         rel_direction_right=True,
     )
+
+
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_account_authorization_details",
+    return_value=AccountAuthorizationDetails(
+        user_inline_policies=GET_USER_INLINE_POLS_SAMPLE,
+        user_managed_policies=GET_USER_MANAGED_POLS_SAMPLE,
+        group_inline_policies=GET_GROUP_INLINE_POLS_SAMPLE,
+        group_managed_policies=GET_GROUP_MANAGED_POLICY_DATA,
+        group_memberships=GET_GROUP_MEMBERSHIPS_DATA,
+        role_inline_policies=GET_ROLE_INLINE_POLS_SAMPLE,
+        role_managed_policies=GET_ROLE_MANAGED_POLICY_DATA,
+    ),
+)
+@patch.object(cartography.intel.aws.iam, "get_server_certificates", return_value=[])
+@patch.object(cartography.intel.aws.iam, "get_saml_providers", return_value=[])
+@patch.object(cartography.intel.aws.iam, "sync_service_last_accessed_details")
+@patch.object(
+    cartography.intel.aws.iam, "get_role_list_data", return_value=GET_ROLE_LIST_DATA
+)
+@patch.object(
+    cartography.intel.aws.iam, "get_group_list_data", return_value=LIST_GROUPS_SAMPLE
+)
+@patch.object(
+    cartography.intel.aws.iam, "get_user_list_data", return_value=GET_USER_LIST_DATA
+)
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_access_keys_data",
+    return_value=GET_USER_ACCESS_KEYS_DATA,
+)
+def test_sync_iam_from_account_authorization_details(
+    mock_get_user_access_keys,
+    mock_get_user_list_data,
+    mock_get_group_list_data,
+    mock_get_role_list_data,
+    mock_sync_service_last_accessed_details,
+    mock_get_saml_providers,
+    mock_get_server_certificates,
+    mock_get_account_authorization_details,
+    neo4j_session,
+):
+    """The GetAccountAuthorizationDetails path builds the same graph without per-principal calls."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    per_principal_getters = [
+        "get_user_policy_data",
+        "get_user_managed_policy_data",
+        "get_group_policy_data",
+        "get_group_managed_policy_data",
+        "get_group_memberships",
+        "get_role_policy_data",
+        "get_role_managed_policy_data",
+    ]
+    patches = [
+        patch.object(
+            cartography.intel.aws.iam,
+            name,
+            side_effect=AssertionError(f"{name} should not be called"),
+        )
+        for name in per_principal_getters
+    ]
+    for p in patches:
+        p.start()
+    try:
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        sync(
+            neo4j_session,
+            MagicMock(),
+            ["us-east-1"],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        )
+    finally:
+        for p in patches:
+            p.stop()
+
+    _assert_iam_graph(neo4j_session)
