@@ -69,6 +69,16 @@ def test_parse_and_validate_aws_regions():
     ):
         parse_and_validate_aws_regions(only_empty)
 
+    # Test GovCloud regions
+    assert parse_and_validate_aws_regions("us-gov-west-1,us-gov-east-1") == [
+        "us-gov-west-1",
+        "us-gov-east-1",
+    ]
+
+    # Test regions from two partitions: one sync cannot build ARNs for both
+    with pytest.raises(ValueError, match="must all be in one AWS partition"):
+        parse_and_validate_aws_regions("us-east-1,us-gov-west-1")
+
 
 def test_parse_and_validate_aws_account_ids():
     assert parse_and_validate_aws_account_ids(

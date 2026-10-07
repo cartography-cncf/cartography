@@ -14,6 +14,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.agent import AWSBedrockAgentSchema
@@ -110,6 +111,7 @@ def transform_agents(
     - Inference profile ARN (not supported yet)
     - Imported model ARN (not supported yet)
     """
+    partition = get_partition(region)
     for agent in agents:
         agent["Region"] = region
 
@@ -128,7 +130,7 @@ def transform_agents(
             else:
                 # Bare model ID - assume foundation model
                 agent["foundation_model_arn"] = (
-                    f"arn:aws:bedrock:{region}::foundation-model/{model_identifier}"
+                    f"arn:{partition}:bedrock:{region}::foundation-model/{model_identifier}"
                 )
 
         # Extract knowledge base ARNs for [:USES_KNOWLEDGE_BASE] relationships
@@ -139,10 +141,8 @@ def transform_agents(
             for kb in kb_summaries:
                 kb_id = kb.get("knowledgeBaseId")
                 if kb_id:
-                    # Format: arn:aws:bedrock:region:account:knowledge-base/kb-id
-                    kb_arn = (
-                        f"arn:aws:bedrock:{region}:{account_id}:knowledge-base/{kb_id}"
-                    )
+                    # Format: arn:partition:bedrock:region:account:knowledge-base/kb-id
+                    kb_arn = f"arn:{partition}:bedrock:{region}:{account_id}:knowledge-base/{kb_id}"
                     kb_arns.append(kb_arn)
             agent["knowledge_base_arns"] = kb_arns
 
@@ -171,7 +171,7 @@ def transform_agents(
                     # Build full ARN from guardrail ID
                     # Note: Version is not included in ARN - guardrail nodes use base ARN
                     agent["guardrail_arn"] = (
-                        f"arn:aws:bedrock:{region}:{account_id}:guardrail/{guardrail_id}"
+                        f"arn:{partition}:bedrock:{region}:{account_id}:guardrail/{guardrail_id}"
                     )
 
     return agents

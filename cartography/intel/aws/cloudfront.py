@@ -17,6 +17,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_account_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.cloudfront.distribution import CloudFrontDistributionSchema
 from cartography.stats import get_stats_client
@@ -28,6 +29,9 @@ stat_handler = get_stats_client(__name__)
 
 # CloudFront is a global service, API calls should go to us-east-1
 CLOUDFRONT_REGION = "us-east-1"
+# Partitions whose CloudFront endpoint is reached through CLOUDFRONT_REGION. AWS GovCloud (US)
+# has no CloudFront endpoint, so accounts there skip this module.
+CLOUDFRONT_PARTITIONS = {"aws"}
 
 # Regex pattern to extract S3 bucket name from S3 origin domain names
 # Matches patterns like: mybucket.s3.amazonaws.com, mybucket.s3.us-east-1.amazonaws.com,
@@ -246,9 +250,19 @@ def sync(
     Sync AWS CloudFront distributions.
 
     Note: CloudFront is a global service, so we only query once regardless of
-    the regions parameter. The regions parameter is accepted for interface
-    consistency with other AWS modules but is not used.
+    the regions parameter. The regions parameter only decides the partition.
     """
+    # CloudFront has no endpoint in some partitions, for example AWS GovCloud (US).
+    # Skip it there instead of calling the commercial endpoint with the wrong credentials.
+    partition = get_account_partition(regions, boto3_session.region_name)
+    if partition not in CLOUDFRONT_PARTITIONS:
+        logger.info(
+            "Skipping CloudFront sync for account %s: CloudFront is not available in partition %s.",
+            current_aws_account_id,
+            partition,
+        )
+        return
+
     logger.info(
         "Syncing CloudFront distributions for account %s",
         current_aws_account_id,

@@ -3,10 +3,13 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.instances
+import cartography.intel.aws.rds
+import cartography.intel.aws.redshift
 import cartography.intel.aws.resourcegroupstaggingapi as rgta
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.aws.ec2.load_balancers import load_load_balancers
 from cartography.intel.aws.resourcegroupstaggingapi import sync
+from tests.data.aws import govcloud
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.data.aws.resourcegroupstaggingapi import GET_RESOURCES_RESPONSE
 from tests.data.aws.resourcegroupstaggingapi import GET_RESOURCES_RESPONSE_LB_US_EAST_1
@@ -156,4 +159,113 @@ def test_sync_tags_scopes_to_correct_region(neo4j_session):
     ) == {
         (LOAD_BALANCERS_US_EAST_1[0]["id"], "env:prod"),
         (LOAD_BALANCERS_US_WEST_2[0]["id"], "env:staging"),
+    }
+
+
+@patch.object(cartography.intel.aws.redshift, "get_redshift_cluster_data")
+@patch.object(cartography.intel.aws.rds, "get_rds_event_subscription_data")
+@patch.object(cartography.intel.aws.rds, "get_rds_snapshot_data", return_value=[])
+@patch.object(cartography.intel.aws.rds, "get_rds_cluster_data", return_value=[])
+@patch.object(cartography.intel.aws.rds, "get_rds_instance_data")
+def test_sync_tags_govcloud_arn_ids(
+    mock_get_rds_instances,
+    mock_get_rds_clusters,
+    mock_get_rds_snapshots,
+    mock_get_rds_event_subscriptions,
+    mock_get_redshift_clusters,
+    neo4j_session,
+):
+    """
+    RDS DB subnet groups and Redshift clusters use an ARN that Cartography builds as their
+    node id. In AWS GovCloud (US), the tagging API returns "arn:aws-us-gov:" ARNs, so the
+    built ids must use that partition for the tags to attach.
+    """
+    # Arrange
+    neo4j_session.run(
+        "MATCH (n) WHERE n:AWSTag OR n:AWSDBSubnetGroup OR n:AWSRedshiftCluster "
+        "DETACH DELETE n",
+    )
+    mock_get_rds_instances.return_value = govcloud.DESCRIBE_DBINSTANCES_RESPONSE[
+        "DBInstances"
+    ]
+    mock_get_rds_event_subscriptions.return_value = []
+    mock_get_redshift_clusters.return_value = govcloud.REDSHIFT_CLUSTERS
+    boto3_session = MagicMock()
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    for account_id in ("000000000000", "1111"):
+        create_test_account(neo4j_session, account_id, TEST_UPDATE_TAG)
+    common_job_parameters["AWS_ID"] = "000000000000"
+    cartography.intel.aws.rds.sync(
+        neo4j_session,
+        boto3_session,
+        [govcloud.GOV_REGION],
+        "000000000000",
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    common_job_parameters["AWS_ID"] = "1111"
+    cartography.intel.aws.redshift.sync(
+        neo4j_session,
+        boto3_session,
+        [govcloud.GOV_REGION],
+        "1111",
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    test_mapping = {
+        resource_type: rgta.TAG_RESOURCE_TYPE_MAPPINGS[resource_type]
+        for resource_type in ("rds:subgrp", "redshift:cluster")
+    }
+
+    # Act
+    for account_id in ("000000000000", "1111"):
+        with patch.object(
+            rgta,
+            "get_tags",
+            return_value=copy.deepcopy(
+                [
+                    mapping
+                    for mapping in govcloud.GET_RESOURCES_RESPONSE
+                    if f":{account_id}:" in mapping["ResourceARN"]
+                ],
+            ),
+        ):
+            sync(
+                neo4j_session,
+                boto3_session,
+                [govcloud.GOV_REGION],
+                account_id,
+                TEST_UPDATE_TAG,
+                {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": account_id},
+                tag_resource_type_mappings=test_mapping,
+            )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSDBSubnetGroup",
+        "id",
+        "AWSTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws-us-gov:rds:us-gov-west-1:000000000000:subgrp:subnet-group-1",
+            "TestKey:TestValue",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSRedshiftCluster",
+        "id",
+        "AWSTag",
+        "id",
+        "TAGGED",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws-us-gov:redshift:us-gov-west-1:1111:cluster:my-cluster",
+            "TestKey:TestValue",
+        ),
     }

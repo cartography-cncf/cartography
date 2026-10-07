@@ -60,11 +60,12 @@ def evaluate_action_for_permission(statement: Dict, permission: str) -> bool:
     return False
 
 
-# Prefix of every S3 bucket ARN. S3 ARNs are region- and account-less, so this
-# uniquely identifies a bucket resource. Object ARNs nest under the bucket as
-# "<bucket-arn>/<key>", which is the only AWS resource family where a "/"-scoped
-# grant in a policy maps back to the parent resource node.
-_S3_BUCKET_ARN_PREFIX = "arn:aws:s3:::"
+# Prefix of every S3 bucket ARN, in any partition ("aws", "aws-us-gov", "aws-cn").
+# S3 ARNs are region- and account-less, so this uniquely identifies a bucket
+# resource. Object ARNs nest under the bucket as "<bucket-arn>/<key>", which is
+# the only AWS resource family where a "/"-scoped grant in a policy maps back to
+# the parent resource node.
+_S3_BUCKET_ARN_PREFIX = re.compile(r"arn:[^:]+:s3:::")
 
 
 def evaluate_resource_clause(clause: str, resource_arn: str) -> bool:
@@ -96,7 +97,7 @@ def evaluate_resource_clause(clause: str, resource_arn: str) -> bool:
     """
     if evaluate_clause(clause, resource_arn):
         return True
-    if not resource_arn.startswith(_S3_BUCKET_ARN_PREFIX):
+    if not _S3_BUCKET_ARN_PREFIX.match(resource_arn):
         return False
     # The clause may be a precompiled pattern; recover its regex source so we
     # can isolate the bucket portion. "/" is never a regex metacharacter and
