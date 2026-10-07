@@ -134,6 +134,16 @@ CREATE (b)-[:RESOURCE]->(:OktaPolicy {
     password_max_age_days: 60, password_history_count: 5, lockout_max_attempts: 3
 })
 
+// Admin roles. Only org A synced them, so only org A's tokens are evaluated.
+CREATE (:ModuleSyncMetadata {
+    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaUserRole',
+    lastupdated: 1
+})
+CREATE (:ModuleSyncMetadata {
+    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaGroupRole',
+    lastupdated: 1
+})
+
 // Log streams. Org A and B synced them; the unsynced org did not.
 CREATE (:ModuleSyncMetadata {
     grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaLogStream',
@@ -231,10 +241,10 @@ EXPECTED: dict[str, tuple[set[str], int]] = {
     ),
     "okta_api_token_owned_by_super_admin": (
         {"token-anywhere-super", "token-exclude-only-group-super"},
-        4,
+        3,
     ),
     "okta_anonymizer_blocklist_missing": ({ORG_A}, 2),
-    "okta_app_policy_without_network_zones": ({"app-no-zone"}, 2),
+    "okta_app_policy_without_network_zones": ({"admin-weak"}, 2),
 }
 
 
