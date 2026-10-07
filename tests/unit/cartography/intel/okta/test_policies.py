@@ -208,3 +208,23 @@ def test_get_policy_data_drops_policies_deleted_mid_sync(mock_collect, mock_name
     assert "rst-dashboard" not in policy_ids
     assert set(rules_by_policy) == policy_ids
     assert "rst-dashboard" not in app_ids_by_policy
+
+
+@patch.object(cartography.intel.okta.policies, "collect_raw_paginated")
+def test_get_policy_app_ids_handles_account_management_policy(mock_collect):
+    # Arrange: Okta rejects app mappings for the Okta Account Management Policy.
+    mock_collect.side_effect = OktaApiError(
+        "/api/v1/policies/rst-account-management/mappings",
+        SimpleNamespace(error_code="E0000001"),
+    )
+
+    # Act
+    app_ids = asyncio.run(
+        cartography.intel.okta.policies._get_okta_policy_app_ids(
+            MagicMock(),
+            "rst-account-management",
+        ),
+    )
+
+    # Assert
+    assert app_ids == []

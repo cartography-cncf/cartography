@@ -106,6 +106,10 @@ async def _get_okta_policy_app_ids(
     except OktaApiError as exc:
         if is_resource_not_found_error(exc):
             return None
+        # The Okta Account Management Policy is an ACCESS_POLICY that cannot have
+        # app mappings; Okta rejects the request instead of returning an empty list.
+        if exc.error_code == OKTA_VALIDATION_ERROR_CODE:
+            return []
         raise
     return [
         app_id for app_id in map(_app_id_from_mapping, mappings) if app_id is not None
