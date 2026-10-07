@@ -34,6 +34,9 @@ class FakeAirbyteAPI(BaseAdapter):
         self.permissions = multi_org.initial_permissions()
         # Set to paginate GET /users; the real endpoint returns a single page.
         self.users_page_size: int | None = None
+        # The user that owns the application, whose own permissions Airbyte
+        # returns in full.
+        self.owner = multi_org.APP_OWNER
         self._failures: list[tuple[str, str, dict[str, str], Any]] = []
         self.requests: list[tuple[str, str, dict[str, str]]] = []
 
@@ -121,8 +124,8 @@ class FakeAirbyteAPI(BaseAdapter):
         return {"data": page, "next": "next-page" if more else ""}
 
     def _permissions(self, params: dict[str, str]) -> dict:
-        user_id = params.get("userId", multi_org.APP_OWNER)
-        if user_id == multi_org.APP_OWNER:
+        user_id = params.get("userId", self.owner)
+        if user_id == self.owner:
             # Reading your own permissions ignores organizationId.
             return {
                 "data": [

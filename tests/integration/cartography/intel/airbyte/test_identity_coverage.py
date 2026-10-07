@@ -247,6 +247,27 @@ def test_owner_workspace_grants_refresh_while_an_organization_is_denied(
     assert _identity_graph(neo4j_session) == expected
 
 
+def test_new_application_owner_replaces_previous_owner_workspace_roles(
+    neo4j_session, api
+):
+    # Arrange: the application now belongs to SHARED_USER, which has no
+    # workspace grants.
+    api.owner = SHARED_USER
+
+    # Act
+    _run(neo4j_session, api, 2)
+
+    # Assert: the previous owner's workspace roles are no longer observed.
+    expected = _baseline(2)
+    for key in (
+        (APP_OWNER, "MEMBER_OF", WS_ALPHA),
+        (APP_OWNER, "ADMIN_OF", WS_BETA),
+        (APP_OWNER, "MEMBER_OF", WS_BETA),
+    ):
+        del expected[key]
+    assert _identity_graph(neo4j_session) == expected
+
+
 def test_denial_of_other_endpoints_still_fails(neo4j_session, api):
     # Arrange
     api.fail("GET", "/sources", 403)

@@ -10,6 +10,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.airbyte.util import AirbyteClient
 from cartography.models.airbyte.user import AirbyteUserAdminOfOrganizationMatchLink
@@ -212,25 +213,42 @@ def sync_own_workspace_permissions(
 
     Airbyte returns workspace permissions only when a user reads its own, and
     returns all of them, so this runs once per sync and its cleanup is scoped to
-    that user rather than to an organization.
+    that user rather than to an organization. Cleanup also covers every owner an
+    earlier sync recorded, so the roles of a previous owner, or of an owner with
+    no permissions left, do not linger.
     """
     permissions = api_session.get(_PERMISSIONS_URI)
-    if not permissions:
-        return
-    owner_id = permissions[0]["userId"]
-    owner: Dict[str, Any] = {}
-    _, owner["adminOfWorkspace"], owner["memberOfWorkspace"] = transform_permissions(
-        permissions
+    owner_ids = set(
+        neo4j_session.execute_read(
+            read_list_of_values_tx,
+            """
+            MATCH (:AirbyteUser)-[r:ADMIN_OF|MEMBER_OF]->(:AirbyteWorkspace)
+            WHERE r._sub_resource_label = 'AirbyteUser'
+            RETURN DISTINCT r._sub_resource_id
+            """,
+        ),
     )
-    for matchlink, field in _OWN_WORKSPACE_MATCHLINKS:
-        load_matchlinks(
-            neo4j_session,
-            matchlink,
-            [{"user_id": owner_id, "scope_id": scope_id} for scope_id in owner[field]],
-            lastupdated=update_tag,
-            _sub_resource_label="AirbyteUser",
-            _sub_resource_id=owner_id,
+    if permissions:
+        owner_id = permissions[0]["userId"]
+        owner_ids.add(owner_id)
+        owner: Dict[str, Any] = {}
+        _, owner["adminOfWorkspace"], owner["memberOfWorkspace"] = (
+            transform_permissions(permissions)
         )
-        GraphJob.from_matchlink(matchlink, "AirbyteUser", owner_id, update_tag).run(
-            neo4j_session
-        )
+        for matchlink, field in _OWN_WORKSPACE_MATCHLINKS:
+            load_matchlinks(
+                neo4j_session,
+                matchlink,
+                [
+                    {"user_id": owner_id, "scope_id": scope_id}
+                    for scope_id in owner[field]
+                ],
+                lastupdated=update_tag,
+                _sub_resource_label="AirbyteUser",
+                _sub_resource_id=owner_id,
+            )
+    for scope_id in owner_ids:
+        for matchlink, _ in _OWN_WORKSPACE_MATCHLINKS:
+            GraphJob.from_matchlink(
+                matchlink, "AirbyteUser", str(scope_id), update_tag
+            ).run(neo4j_session)
