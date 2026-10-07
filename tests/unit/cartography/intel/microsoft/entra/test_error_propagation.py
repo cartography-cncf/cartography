@@ -58,7 +58,7 @@ def test_delegated_users_loads_partial_batch_before_propagating_denial(
 ) -> None:
     # Arrange
     async def get_users_then_deny(client):
-        yield MagicMock(id="visible-user")
+        yield [MagicMock(id="visible-user")], True
         raise _forbidden_error()
 
     monkeypatch.setattr(credentials, "make_credential", MagicMock())
