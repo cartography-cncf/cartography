@@ -164,6 +164,8 @@ A denied optional endpoint emits a warning and retains the affected snapshot.
 Documented not-found responses for a single role, app or settings owner affect
 only that item. Successful independent sections and owners can still refresh.
 Credential failures, server errors, and incomplete pagination fail explicitly.
-Stale cleanup for a section runs only after a complete read of that section; a
-section with any denied or unread item keeps all of its prior data. Review
-warnings as well as the process exit status when assessing coverage.
+Stale cleanup for a section runs only after a complete read of that section. A
+denied groups, roles or apps section keeps all of its prior data. For settings,
+snapshots that were read are refreshed, unread snapshots are retained, and
+cleanup is skipped. Review warnings as well as the process exit status when
+assessing coverage.
