@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from typing import AsyncGenerator
 from typing import Awaitable
 from typing import Callable
 
@@ -68,37 +69,41 @@ def is_directory_expired_page_token_error(error: Exception) -> bool:
     return graph_error.code == DIRECTORY_EXPIRED_PAGE_TOKEN
 
 
-async def get_paginated_values_with_expired_page_retry(
+async def iter_paginated_values_with_expired_page_retry(
     first_page_getter: Callable[[], Awaitable[Any]],
     next_page_getter: Callable[[str], Awaitable[Any]],
     resource_description: str,
     max_expired_page_token_restarts: int = MAX_EXPIRED_PAGE_TOKEN_RESTARTS,
-) -> list[Any]:
+    on_restart: Callable[[], None] | None = None,
+) -> AsyncGenerator[list[Any], None]:
     """
-    Fetch all values from a Microsoft Graph paginated request.
+    Yield the values of each page of a Microsoft Graph paginated request.
+
+    Only one page is held at a time, so memory stays bounded however large the
+    collection is.
 
     If a next-link fails with Directory_ExpiredPageToken, restart the whole
-    request from the first page and discard partial results. Retrying the same
-    expired next-link cannot succeed.
+    request from the first page. Retrying the same expired next-link cannot
+    succeed. A restart re-yields pages the caller has already seen, so callers
+    must either tolerate duplicates (idempotent loads) or discard what they have
+    accumulated in ``on_restart``.
     """
     restart_count = 0
 
     while True:
-        values: list[Any] = []
-
         try:
             page = await call_with_retries(first_page_getter)
 
             while page:
                 if page.value:
-                    values.extend(page.value)
+                    yield page.value
 
                 next_link = page.odata_next_link
                 if not next_link:
-                    return values
+                    return
 
                 page = await call_with_retries(lambda: next_page_getter(next_link))
-            return values
+            return
         except APIError as e:
             if (
                 is_directory_expired_page_token_error(e)
@@ -113,5 +118,30 @@ async def get_paginated_values_with_expired_page_retry(
                     restart_count,
                     max_expired_page_token_restarts,
                 )
+                if on_restart is not None:
+                    on_restart()
                 continue
             raise
+
+
+async def get_paginated_values_with_expired_page_retry(
+    first_page_getter: Callable[[], Awaitable[Any]],
+    next_page_getter: Callable[[str], Awaitable[Any]],
+    resource_description: str,
+    max_expired_page_token_restarts: int = MAX_EXPIRED_PAGE_TOKEN_RESTARTS,
+) -> list[Any]:
+    """
+    Fetch all values from a Microsoft Graph paginated request.
+
+    Partial results are discarded when an expired page token forces a restart.
+    """
+    values: list[Any] = []
+    async for page_values in iter_paginated_values_with_expired_page_retry(
+        first_page_getter,
+        next_page_getter,
+        resource_description,
+        max_expired_page_token_restarts,
+        on_restart=values.clear,
+    ):
+        values.extend(page_values)
+    return values

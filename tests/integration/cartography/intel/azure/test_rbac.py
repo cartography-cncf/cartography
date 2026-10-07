@@ -9,11 +9,13 @@ This test follows the VPC integration test pattern:
 
 from typing import Any
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 from azure.core.exceptions import HttpResponseError
+from msgraph.generated.models.user_collection_response import UserCollectionResponse
 
 import cartography.intel.azure.rbac
 import cartography.intel.azure.subscription
@@ -57,11 +59,6 @@ async def async_generator_from_list(items: list[Any]) -> AsyncGenerator[Any, Non
 async def async_return_empty_list():
     """Helper function to return an empty list asynchronously."""
     return []
-
-
-async def async_return_empty_tuple():
-    """Helper function to return an empty tuple asynchronously."""
-    return ([], [])
 
 
 def _create_test_azure_management_group(neo4j_session) -> None:
@@ -123,8 +120,8 @@ def test_get_role_assignments_for_scope_filters_to_direct_scope(
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
-    "get_group_members",
-    return_value=async_return_empty_tuple(),
+    "get_group_member_pages",
+    return_value=async_generator_from_list([]),
 )
 @patch.object(
     cartography.intel.microsoft.entra.groups,
@@ -138,8 +135,12 @@ def test_get_role_assignments_for_scope_filters_to_direct_scope(
 )
 @patch.object(
     cartography.intel.microsoft.entra.users,
-    "get_users",
-    return_value=async_generator_from_list(ENTRA_USERS),
+    "GraphServiceClient",
+    return_value=MagicMock(
+        users=MagicMock(
+            get=AsyncMock(return_value=UserCollectionResponse(value=ENTRA_USERS)),
+        ),
+    ),
 )
 @patch.object(
     cartography.intel.microsoft.entra.service_principals,
@@ -161,7 +162,7 @@ async def test_sync_azure_rbac(
     mock_get_role_definitions,
     mock_get_role_assignments,
     mock_get_entra_service_principals,
-    mock_get_users,
+    mock_graph_client,
     mock_get_tenant,
     mock_get_entra_groups,
     mock_get_group_members,

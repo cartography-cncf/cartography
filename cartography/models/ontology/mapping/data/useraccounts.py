@@ -23,6 +23,10 @@ entra_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="active", node_field="account_enabled"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity",
+                    node_field="last_successful_sign_in_date_time",
+                ),
             ],
         ),
     ],
@@ -423,6 +427,23 @@ slack_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
                 OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
                 OntologyFieldMapping(ontology_field="inactive", node_field="deleted"),
+            ],
+        ),
+    ],
+)
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email",
+                    node_field="email",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="email"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
             ],
         ),
     ],
@@ -868,6 +889,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
     "workos": workos_useraccounts_mapping,
