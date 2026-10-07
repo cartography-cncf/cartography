@@ -55,14 +55,6 @@ class OktaApiTokenNodeProperties(CartographyNodeProperties):
             "only accepted from (or outside) specific network zones."
         ),
     )
-    network_include_zone_ids: PropertyRef = PropertyRef(
-        "network_include_zone_ids",
-        description="IDs of the network zones the token can be used from.",
-    )
-    network_exclude_zone_ids: PropertyRef = PropertyRef(
-        "network_exclude_zone_ids",
-        description="IDs of the network zones the token cannot be used from.",
-    )
 
 
 @dataclass(frozen=True)
