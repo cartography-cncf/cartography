@@ -223,7 +223,8 @@ class ZoomSecuritySettingsSchema(CartographyNodeSchema):
     whether members may change a setting, not whether that setting is enabled.
     These are provider-reported settings, not a computed inheritance hierarchy.
     Missing values are unknown. Passcodes and raw settings payloads are excluded.
-    Denied snapshots are retained until their owning group or user is removed.
+    Cleanup runs only when every owner was read, so denied owners keep their prior
+    settings until a complete sync.
     """
 
     label: str = "ZoomSecuritySettings"

@@ -7,7 +7,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.util import fetch_many
 from cartography.intel.zoom.util import is_zoom_error
@@ -261,11 +260,12 @@ def read(
         except requests.HTTPError as exc:
             code = MISSING_OWNER_CODES.get(scope_type)
             if code is not None and is_zoom_error(exc, 404, code):
+                # The owner left after the user or group inventory was read, so
+                # it has no settings to load.
                 logger.warning(
-                    "Zoom %s no longer exists; preserving its settings until removed",
-                    scope_type,
+                    "Zoom %s no longer exists; skipping its settings", scope_type
                 )
-                return None
+                return {}
             raise
 
     return optional_call(f"{scope_type} {kind} settings", fetch, unavailable)
@@ -279,7 +279,13 @@ def sync(
     update_tag: int,
     users: list[dict[str, Any]],
     groups: list[dict[str, Any]] | None,
-) -> None:
+) -> bool:
+    """Sync security settings and return whether every owner was read.
+
+    Owners whose settings could not be read, and groups when the group inventory
+    was denied, make the snapshot incomplete; cleanup is skipped so their prior
+    settings are not deleted.
+    """
     logger.info("Syncing Zoom security settings")
     owners = [("account", account_id, "/accounts/me")]
     owners.extend(
@@ -307,11 +313,8 @@ def sync(
         for (scope_type, scope_id, _, kind), response in zip(
             reads, responses, strict=True
         )
-        if response is not None
+        if response
     ]
-    # Each owner/kind has one stable node. load() clears absent properties;
-    # unread owner/kinds are not loaded and keep their snapshots. Settings whose
-    # owner was removed are swept by cleanup().
     load(
         neo4j_session,
         ZoomSecuritySettingsSchema(),
@@ -319,37 +322,21 @@ def sync(
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
     )
-    if len(records) < len(reads):
+    unread = sum(response is None for response in responses)
+    if unread or groups is None:
         logger.warning(
-            "Zoom settings: %d of %d owner snapshots were not read; preserving them.",
-            len(reads) - len(records),
+            "Zoom settings: %d of %d owner snapshots were not read%s; skipping cleanup.",
+            unread,
             len(reads),
+            "" if groups is not None else " and groups were not listed",
         )
+        return False
+    return True
 
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
-    """Delete stale settings whose owning group or user left the account.
-
-    Run after the user and group cleanups, which detach-delete removed owners, so a
-    removed owner's settings no longer have a HAS_SETTINGS edge. A stale snapshot
-    whose owner still exists was denied or unread this sync and keeps its prior
-    values. Schema cleanup drops every stale node and cannot express this owner
-    filter, so this fixed statement runs through the standard iterative GraphJob
-    runner.
-    """
-    statement = GraphStatement(
-        """
-        MATCH (:ZoomAccount {id: $ACCOUNT_ID})-[:RESOURCE]->(n:ZoomSecuritySettings)
-        WHERE n.lastupdated <> $UPDATE_TAG
-            AND NOT EXISTS { (n)<-[:HAS_SETTINGS]-() }
-        WITH n ORDER BY n.id LIMIT $LIMIT_SIZE
-        DETACH DELETE n
-        """,
-        {"ACCOUNT_ID": account_id, "UPDATE_TAG": update_tag},
-        iterative=True,
-        iterationsize=1000,
-    )
-    GraphJob("Cleanup ZoomSecuritySettings", [statement], "ZoomSecuritySettings").run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        ZoomSecuritySettingsSchema(),
+        {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
+    ).run(neo4j_session)

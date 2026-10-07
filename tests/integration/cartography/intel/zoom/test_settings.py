@@ -177,7 +177,7 @@ def test_settings_preserve_denied_kind_and_isolate_accounts(
     assert "synthetic-secret" not in str(settings)
 
 
-def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
+def test_ingestion_removes_departed_owner_settings_after_a_complete_read(
     neo4j_session: neo4j.Session,
 ) -> None:
     # Arrange
@@ -231,6 +231,7 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
         for config in configs:
             start_zoom_ingestion(neo4j_session, config)
     expected_ids = check_nodes(neo4j_session, "ZoomSecuritySettings", ["id"])
+    assert expected_ids is not None
     expected_resource_edges = check_rels(
         neo4j_session, "ZoomAccount", "id", "ZoomSecuritySettings", "id", "RESOURCE"
     )
@@ -289,10 +290,33 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
         ACCOUNT_ID="account-one",
         lastupdated=1,
     )
+    departed_ids = {
+        (f"account-one:settings:{scope}:absent-{i}:configured",)
+        for scope in ("user", "group")
+        for i in range(1001)
+    }
+
+    # Act: a denied owner makes the snapshot incomplete, so cleanup is skipped.
     deny_current_user = True
     configs[0].update_tag = 2
+    with patch("cartography.intel.zoom.ZoomClient", return_value=client):
+        start_zoom_ingestion(neo4j_session, configs[0])
 
-    # Act
+    # Assert
+    assert (
+        check_nodes(neo4j_session, "ZoomSecuritySettings", ["id"])
+        == expected_ids | departed_ids
+    )
+    current = {
+        record["n"]["id"]: dict(record["n"])
+        for record in neo4j_session.run("MATCH (n:ZoomSecuritySettings) RETURN n")
+    }
+    for node_id, properties in preserved.items():
+        assert current[node_id] == properties
+
+    # Act: a complete read removes the departed owners' settings.
+    deny_current_user = False
+    configs[0].update_tag = 3
     with patch("cartography.intel.zoom.ZoomClient", return_value=client):
         start_zoom_ingestion(neo4j_session, configs[0])
 
@@ -309,10 +333,11 @@ def test_ingestion_removes_departed_owner_settings_but_keeps_denied_current(
         for record in neo4j_session.run("MATCH (n:ZoomSecuritySettings) RETURN n")
     }
     for node_id, properties in preserved.items():
-        assert current[node_id] == properties
+        if properties["account_id"] == "account-two":
+            assert current[node_id] == properties
     assert (
         current["account-one:settings:group:current-group:configured"]["lastupdated"]
-        == 2
+        == 3
     )
     assert check_rels(
         neo4j_session, "ZoomUser", "id", "ZoomSecuritySettings", "id", "HAS_SETTINGS"

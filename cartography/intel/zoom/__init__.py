@@ -63,11 +63,15 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                     neo4j_session, client, account_id, tag, users
                 ),
             )
+        settings_complete = False
         if "settings" in sections:
-            settings.sync(neo4j_session, client, account_id, tag, users, groups)
+            settings_complete = settings.sync(
+                neo4j_session, client, account_id, tag, users, groups
+            )
         if "apps" in sections:
             optional_call(
                 "apps", lambda: apps.sync(neo4j_session, client, account_id, tag)
             )
         cleanup_users(neo4j_session, account_id, tag)
-        settings.cleanup(neo4j_session, account_id, tag)
+        if settings_complete:
+            settings.cleanup(neo4j_session, account_id, tag)
