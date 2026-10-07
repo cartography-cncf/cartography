@@ -1089,7 +1089,7 @@ _API_TOKEN_WITHOUT_ZONE = """
     MATCH (o:OktaOrganization)-[:RESOURCE]->(t:OktaApiToken)
     WHERE NOT (
         coalesce(t.network_connection, 'ANYWHERE') = 'ZONE'
-        AND size(coalesce(t.network_include_zone_ids, [])) > 0
+        AND EXISTS { (t)-[:ALLOWED_FROM]->(:OktaNetworkZone) }
     )
 """
 

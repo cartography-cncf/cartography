@@ -188,16 +188,19 @@ CREATE (a)-[:RESOURCE]->(t1:OktaApiToken {
 CREATE (t1)-[:OWNED_BY]->(super)
 CREATE (a)-[:RESOURCE]->(t2:OktaApiToken {
     id: 'token-exclude-only-group-super', name: 'exclude only',
-    network_connection: 'ZONE', network_include_zone_ids: [],
-    network_exclude_zone_ids: ['zone-a-legacy'], user_id: 'u-group-super'
+    network_connection: 'ZONE', user_id: 'u-group-super'
 })
 CREATE (t2)-[:OWNED_BY]->(grp_super)
+WITH a, b, t2, svc
+MATCH (legacy:OktaNetworkZone {id: 'zone-a-legacy'})
+CREATE (t2)-[:BLOCKED_FROM]->(legacy)
 CREATE (a)-[:RESOURCE]->(:OktaApiToken {id: 'token-no-network', name: 'legacy'})
 CREATE (b)-[:RESOURCE]->(t3:OktaApiToken {
     id: 'token-zoned-service', name: 'zoned', network_connection: 'ZONE',
-    network_include_zone_ids: ['zone-b-corp'], user_id: 'u-service'
+    user_id: 'u-service'
 })
 CREATE (t3)-[:OWNED_BY]->(svc)
+CREATE (t3)-[:ALLOWED_FROM]->(:OktaNetworkZone {id: 'zone-b-corp'})
 """
 
 # rule -> (asset ids expected in findings, expected count query result)
