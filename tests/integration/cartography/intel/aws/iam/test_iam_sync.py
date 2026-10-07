@@ -120,6 +120,12 @@ def test_sync_iam(
     )
 
     # Assert
+    # Users, groups and roles resolve managed policies through one shared cache
+    user_cache = mock_get_user_managed_policy_data.call_args.args[2]
+    assert isinstance(user_cache, dict)
+    assert mock_get_group_managed_policy_data.call_args.args[2] is user_cache
+    assert mock_get_role_managed_policy_data.call_args.args[2] is user_cache
+
     # Assert: AWSAccount -> AWSPrincipal
     assert check_rels(
         neo4j_session,
