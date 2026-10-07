@@ -8,8 +8,10 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 
+import backoff
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -40,6 +42,7 @@ from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMa
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
+from cartography.util import backoff_handler
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -377,6 +380,152 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
     for page in paginator.paginate():
         roles.extend(page["Roles"])
     return {"Roles": roles}
+
+
+_IAM_THROTTLING_ERROR_CODES = {
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+    "RequestLimitExceeded",
+}
+
+AccountAuthorizationDetails = namedtuple(
+    "AccountAuthorizationDetails",
+    [
+        "user_inline_policies",
+        "user_managed_policies",
+        "group_inline_policies",
+        "group_managed_policies",
+        "group_memberships",
+        "role_inline_policies",
+        "role_managed_policies",
+    ],
+)
+
+
+def _is_iam_throttling_error(error: Exception) -> bool:
+    return (
+        isinstance(error, ClientError)
+        and error.response.get("Error", {}).get("Code") in _IAM_THROTTLING_ERROR_CODES
+    )
+
+
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    ClientError,
+    max_time=600,
+    giveup=lambda e: not _is_iam_throttling_error(e),
+    on_backoff=backoff_handler,
+)
+def _get_account_authorization_details_page(client: Any, marker: str | None) -> Dict:
+    # Retried per page so a throttle resumes from the current marker instead of
+    # restarting the whole account snapshot.
+    kwargs: Dict[str, Any] = {"MaxItems": 1000}
+    if marker:
+        kwargs["Marker"] = marker
+    return client.get_account_authorization_details(**kwargs)
+
+
+def _default_version_statements(policy: Dict) -> Any:
+    for version in policy.get("PolicyVersionList", []):
+        if version.get("IsDefaultVersion"):
+            return version["Document"]["Statement"]
+    return None
+
+
+@timeit
+def get_account_authorization_details(
+    boto3_session: boto3.Session,
+    policy_statement_cache: Dict[str, Any] | None = None,
+) -> AccountAuthorizationDetails | None:
+    """
+    Fetch inline policies, managed policy attachments and group memberships for every
+    principal with GetAccountAuthorizationDetails, which pages through the whole
+    account in a few calls instead of several calls per principal.
+
+    Returns None when the caller lacks iam:GetAccountAuthorizationDetails so the sync
+    can fall back to per-principal calls.
+    """
+    if policy_statement_cache is None:
+        policy_statement_cache = {}
+    client = create_boto3_client(boto3_session, "iam")
+    users: List[Dict] = []
+    groups: List[Dict] = []
+    roles: List[Dict] = []
+    marker = None
+    try:
+        while True:
+            page = _get_account_authorization_details_page(client, marker)
+            users.extend(page.get("UserDetailList", []))
+            groups.extend(page.get("GroupDetailList", []))
+            roles.extend(page.get("RoleDetailList", []))
+            # Every version of every policy is returned; keep only the default
+            # version's statements so memory tracks attached policies, not history.
+            for policy in page.get("Policies", []):
+                statements = _default_version_statements(policy)
+                if statements is not None:
+                    policy_statement_cache.setdefault(policy["Arn"], statements)
+            next_marker = page.get("Marker")
+            if not page.get("IsTruncated") or not next_marker or next_marker == marker:
+                break
+            marker = next_marker
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") in (
+            "AccessDenied",
+            "AccessDeniedException",
+        ):
+            logger.warning(
+                "Missing iam:GetAccountAuthorizationDetails; falling back to "
+                "per-principal IAM policy calls, which are slower and more likely "
+                "to be throttled on large accounts.",
+            )
+            return None
+        raise
+
+    resource_client = create_boto3_resource(boto3_session, "iam")
+
+    def managed(attached: List[Dict]) -> Dict[str, Any]:
+        # A policy missing from the snapshot (e.g. attached mid-pagination) is
+        # fetched directly through the shared cache.
+        return {
+            p["PolicyArn"]: _get_managed_policy_statements(
+                resource_client, p["PolicyArn"], policy_statement_cache
+            )
+            for p in attached
+        }
+
+    def inline(policies: List[Dict]) -> Dict[str, Any]:
+        return {p["PolicyName"]: p["PolicyDocument"]["Statement"] for p in policies}
+
+    group_arn_by_name = {g["GroupName"]: g["Arn"] for g in groups}
+    group_memberships: Dict[str, List[str]] = {g["Arn"]: [] for g in groups}
+    for user in users:
+        for group_name in user.get("GroupList", []):
+            group_arn = group_arn_by_name.get(group_name)
+            if group_arn is not None:
+                group_memberships[group_arn].append(user["Arn"])
+
+    return AccountAuthorizationDetails(
+        user_inline_policies={
+            u["Arn"]: inline(u.get("UserPolicyList", [])) for u in users
+        },
+        user_managed_policies={
+            u["Arn"]: managed(u.get("AttachedManagedPolicies", [])) for u in users
+        },
+        group_inline_policies={
+            g["Arn"]: inline(g.get("GroupPolicyList", [])) for g in groups
+        },
+        group_managed_policies={
+            g["Arn"]: managed(g.get("AttachedManagedPolicies", [])) for g in groups
+        },
+        group_memberships=group_memberships,
+        role_inline_policies={
+            r["Arn"]: inline(r.get("RolePolicyList", [])) for r in roles
+        },
+        role_managed_policies={
+            r["Arn"]: managed(r.get("AttachedManagedPolicies", [])) for r in roles
+        },
+    )
 
 
 @timeit
@@ -1000,6 +1149,7 @@ def sync_users(
     aws_update_tag: int,
     common_job_parameters: Dict,
     policy_statement_cache: Dict[str, Any] | None = None,
+    authorization_details: AccountAuthorizationDetails | None = None,
 ) -> None:
     logger.info("Syncing IAM users for account '%s'.", current_aws_account_id)
     data = get_user_list_data(boto3_session)
@@ -1007,7 +1157,16 @@ def sync_users(
     load_users(neo4j_session, user_data, current_aws_account_id, aws_update_tag)
 
     sync_user_inline_policies(
-        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+        boto3_session,
+        data,
+        neo4j_session,
+        aws_update_tag,
+        current_aws_account_id,
+        policy_data=(
+            authorization_details.user_inline_policies
+            if authorization_details
+            else None
+        ),
     )
 
     sync_user_managed_policies(
@@ -1017,6 +1176,11 @@ def sync_users(
         aws_update_tag,
         current_aws_account_id,
         policy_statement_cache,
+        policy_data=(
+            authorization_details.user_managed_policies
+            if authorization_details
+            else None
+        ),
     )
 
     sync_user_mfa_devices(
@@ -1065,11 +1229,16 @@ def sync_user_managed_policies(
     aws_update_tag: int,
     current_aws_account_id: str,
     policy_statement_cache: Dict[str, Any] | None = None,
+    policy_data: Dict | None = None,
 ) -> None:
     if policy_statement_cache is None:
         policy_statement_cache = {}
-    managed_policy_data = get_user_managed_policy_data(
-        boto3_session, data["Users"], policy_statement_cache
+    managed_policy_data = (
+        policy_data
+        if policy_data is not None
+        else get_user_managed_policy_data(
+            boto3_session, data["Users"], policy_statement_cache
+        )
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1089,8 +1258,10 @@ def sync_user_inline_policies(
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
     current_aws_account_id: str,
+    policy_data: Dict | None = None,
 ) -> None:
-    policy_data = get_user_policy_data(boto3_session, data["Users"])
+    if policy_data is None:
+        policy_data = get_user_policy_data(boto3_session, data["Users"])
     transformed_policy_data = transform_policy_data(
         policy_data, PolicyType.inline.value
     )
@@ -1184,15 +1355,29 @@ def sync_groups(
     aws_update_tag: int,
     common_job_parameters: Dict,
     policy_statement_cache: Dict[str, Any] | None = None,
+    authorization_details: AccountAuthorizationDetails | None = None,
 ) -> None:
     logger.info("Syncing IAM groups for account '%s'.", current_aws_account_id)
     data = get_group_list_data(boto3_session)
-    group_memberships = get_group_memberships(boto3_session, data["Groups"])
+    group_memberships = (
+        authorization_details.group_memberships
+        if authorization_details
+        else get_group_memberships(boto3_session, data["Groups"])
+    )
     group_data = transform_groups(data["Groups"], group_memberships)
     load_groups(neo4j_session, group_data, current_aws_account_id, aws_update_tag)
 
     sync_groups_inline_policies(
-        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+        boto3_session,
+        data,
+        neo4j_session,
+        aws_update_tag,
+        current_aws_account_id,
+        policy_data=(
+            authorization_details.group_inline_policies
+            if authorization_details
+            else None
+        ),
     )
 
     sync_group_managed_policies(
@@ -1202,6 +1387,11 @@ def sync_groups(
         aws_update_tag,
         current_aws_account_id,
         policy_statement_cache,
+        policy_data=(
+            authorization_details.group_managed_policies
+            if authorization_details
+            else None
+        ),
     )
 
 
@@ -1212,11 +1402,16 @@ def sync_group_managed_policies(
     aws_update_tag: int,
     current_aws_account_id: str,
     policy_statement_cache: Dict[str, Any] | None = None,
+    policy_data: Dict | None = None,
 ) -> None:
     if policy_statement_cache is None:
         policy_statement_cache = {}
-    managed_policy_data = get_group_managed_policy_data(
-        boto3_session, data["Groups"], policy_statement_cache
+    managed_policy_data = (
+        policy_data
+        if policy_data is not None
+        else get_group_managed_policy_data(
+            boto3_session, data["Groups"], policy_statement_cache
+        )
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1235,8 +1430,10 @@ def sync_groups_inline_policies(
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
     current_aws_account_id: str,
+    policy_data: Dict | None = None,
 ) -> None:
-    policy_data = get_group_policy_data(boto3_session, data["Groups"])
+    if policy_data is None:
+        policy_data = get_group_policy_data(boto3_session, data["Groups"])
     transformed_policy_data = transform_policy_data(
         policy_data, PolicyType.inline.value
     )
@@ -1453,6 +1650,7 @@ def sync_roles(
     aws_update_tag: int,
     common_job_parameters: Dict,
     policy_statement_cache: Dict[str, Any] | None = None,
+    authorization_details: AccountAuthorizationDetails | None = None,
 ) -> None:
     logger.info("Syncing IAM roles for account '%s'.", current_aws_account_id)
     data = get_role_list_data(boto3_session)
@@ -1465,6 +1663,11 @@ def sync_roles(
         data,
         neo4j_session,
         aws_update_tag,
+        policy_data=(
+            authorization_details.role_inline_policies
+            if authorization_details
+            else None
+        ),
     )
 
     sync_role_managed_policies(
@@ -1474,6 +1677,11 @@ def sync_roles(
         neo4j_session,
         aws_update_tag,
         policy_statement_cache,
+        policy_data=(
+            authorization_details.role_managed_policies
+            if authorization_details
+            else None
+        ),
     )
 
 
@@ -1484,6 +1692,7 @@ def sync_role_managed_policies(
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
     policy_statement_cache: Dict[str, Any] | None = None,
+    policy_data: Dict | None = None,
 ) -> None:
     logger.info(
         "Syncing IAM role managed policies for account '%s'.",
@@ -1491,8 +1700,12 @@ def sync_role_managed_policies(
     )
     if policy_statement_cache is None:
         policy_statement_cache = {}
-    managed_policy_data = get_role_managed_policy_data(
-        boto3_session, data["Roles"], policy_statement_cache
+    managed_policy_data = (
+        policy_data
+        if policy_data is not None
+        else get_role_managed_policy_data(
+            boto3_session, data["Roles"], policy_statement_cache
+        )
     )
     transformed_policy_data = transform_policy_data(
         managed_policy_data, PolicyType.managed.value
@@ -1511,12 +1724,17 @@ def sync_role_inline_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    policy_data: Dict | None = None,
 ) -> None:
     logger.info(
         "Syncing IAM role inline policies for account '%s'.",
         current_aws_account_id,
     )
-    inline_policy_data = get_role_policy_data(boto3_session, data["Roles"])
+    inline_policy_data = (
+        policy_data
+        if policy_data is not None
+        else get_role_policy_data(boto3_session, data["Roles"])
+    )
     transformed_policy_data = transform_policy_data(
         inline_policy_data, PolicyType.inline.value
     )
@@ -1823,6 +2041,9 @@ def sync(
     )
     # Users, groups and roles often share managed policies; resolve each one once.
     policy_statement_cache: Dict[str, Any] = {}
+    authorization_details = get_account_authorization_details(
+        boto3_session, policy_statement_cache
+    )
     sync_users(
         neo4j_session,
         boto3_session,
@@ -1830,6 +2051,7 @@ def sync(
         update_tag,
         common_job_parameters,
         policy_statement_cache,
+        authorization_details,
     )
     sync_groups(
         neo4j_session,
@@ -1838,6 +2060,7 @@ def sync(
         update_tag,
         common_job_parameters,
         policy_statement_cache,
+        authorization_details,
     )
     sync_roles(
         neo4j_session,
@@ -1846,6 +2069,7 @@ def sync(
         update_tag,
         common_job_parameters,
         policy_statement_cache,
+        authorization_details,
     )
     # Sync service last accessed details after all principals (users, groups, roles) are synced
     sync_service_last_accessed_details(
