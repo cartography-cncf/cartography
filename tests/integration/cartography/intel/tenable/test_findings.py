@@ -218,6 +218,8 @@ def test_sync_findings_removes_legacy_cve_state(neo4j_session, mocker):
         neo4j_session.run(
             "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
         )
+        # Index creation is asynchronous; real graphs have it ONLINE.
+        neo4j_session.run("CALL db.awaitIndexes(60)")
         neo4j_session.run(
             """
             MERGE (f:TenableFinding {id: $finding_id})
