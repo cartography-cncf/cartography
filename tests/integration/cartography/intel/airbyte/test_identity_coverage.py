@@ -20,7 +20,6 @@ from tests.data.airbyte.multi_org import permission
 from tests.data.airbyte.multi_org import SHARED_USER
 from tests.data.airbyte.multi_org import WS_ALPHA
 from tests.data.airbyte.multi_org import WS_BETA
-from tests.data.airbyte.multi_org import WS_GAMMA
 from tests.integration.cartography.intel.airbyte.fake_api import FakeAirbyteAPI
 from tests.integration.cartography.intel.airbyte.fake_api import FORBIDDEN_DETAIL
 from tests.integration.cartography.intel.airbyte.fake_api import make_client
@@ -73,12 +72,10 @@ def _baseline(tag: int) -> dict[tuple[str, str, str], int]:
         (APP_OWNER, "ADMIN_OF", ORG_BETA): tag,
         (APP_OWNER, "ADMIN_OF", ORG_GAMMA): tag,
         (ALPHA_USER, "ADMIN_OF", ORG_ALPHA): tag,
-        (ALPHA_USER, "MEMBER_OF", WS_ALPHA): tag,
-        (SHARED_USER, "MEMBER_OF", WS_ALPHA): tag,
-        (SHARED_USER, "ADMIN_OF", WS_BETA): tag,
-        (SHARED_USER, "MEMBER_OF", WS_BETA): tag,
-        (BETA_USER, "MEMBER_OF", WS_BETA): tag,
-        (GAMMA_USER, "MEMBER_OF", WS_GAMMA): tag,
+        (SHARED_USER, "ADMIN_OF", ORG_BETA): tag,
+        (APP_OWNER, "MEMBER_OF", WS_ALPHA): tag,
+        (APP_OWNER, "ADMIN_OF", WS_BETA): tag,
+        (APP_OWNER, "MEMBER_OF", WS_BETA): tag,
     }
 
 
@@ -88,6 +85,13 @@ def _revoke(api: FakeAirbyteAPI, org_id: str, user_id: str, scope_id: str) -> No
         for p in api.permissions[org_id]
         if not (p["userId"] == user_id and p["scopeId"] == scope_id)
     ]
+
+
+def _demote(api: FakeAirbyteAPI, org_id: str, user_id: str) -> None:
+    _revoke(api, org_id, user_id, org_id)
+    api.permissions[org_id].append(
+        permission(user_id, "organization_member", "organization", org_id),
+    )
 
 
 @pytest.fixture
@@ -104,34 +108,31 @@ def test_users_denial_does_not_stop_inventory_or_later_organizations(
     api,
     caplog,
 ):
-    # Arrange: Beta can no longer be read. Alpha revoked an admin and removed
+    # Arrange: Beta can no longer be read. Alpha demoted an admin and removed
     # SHARED_USER, and Beta removed a user that we cannot observe.
     api.fail("GET", "/users", 403, organizationId=ORG_BETA)
-    _revoke(api, ORG_ALPHA, ALPHA_USER, ORG_ALPHA)
-    _revoke(api, ORG_ALPHA, SHARED_USER, WS_ALPHA)
-    _revoke(api, ORG_BETA, BETA_USER, WS_BETA)
+    _demote(api, ORG_ALPHA, ALPHA_USER)
+    _revoke(api, ORG_ALPHA, SHARED_USER, ORG_ALPHA)
+    _revoke(api, ORG_BETA, BETA_USER, ORG_BETA)
 
     # Act
     with caplog.at_level(logging.WARNING):
         _run(neo4j_session, api, 2)
 
-    # Assert: Alpha and Gamma are refreshed and cleaned up, including
-    # SHARED_USER's Alpha edges. Every edge Beta wrote keeps its previous state.
+    # Assert: Alpha and Gamma are refreshed and cleaned up. Every edge Beta
+    # wrote, including SHARED_USER's Beta admin edge, keeps its previous state.
     expected = _baseline(2)
     for key in (
         (ALPHA_USER, "ADMIN_OF", ORG_ALPHA),
         (ORG_ALPHA, "RESOURCE", SHARED_USER),
-        (SHARED_USER, "MEMBER_OF", WS_ALPHA),
     ):
         del expected[key]
     for key in (
         (ORG_BETA, "RESOURCE", APP_OWNER),
         (APP_OWNER, "ADMIN_OF", ORG_BETA),
         (ORG_BETA, "RESOURCE", SHARED_USER),
+        (SHARED_USER, "ADMIN_OF", ORG_BETA),
         (ORG_BETA, "RESOURCE", BETA_USER),
-        (SHARED_USER, "ADMIN_OF", WS_BETA),
-        (SHARED_USER, "MEMBER_OF", WS_BETA),
-        (BETA_USER, "MEMBER_OF", WS_BETA),
     ):
         expected[key] = 1
     assert _identity_graph(neo4j_session) == expected
@@ -157,11 +158,12 @@ def test_users_denial_does_not_stop_inventory_or_later_organizations(
 
 @pytest.mark.parametrize("denial", ["permissions_of_later_user", "later_users_page"])
 def test_incomplete_identity_read_keeps_previous_snapshot(neo4j_session, api, denial):
-    # Arrange: Alpha added and revoked access, then denied part of the read.
+    # Arrange: Alpha added a user and demoted an admin, then denied part of the
+    # read.
     api.permissions[ORG_ALPHA].append(
-        permission(NEW_ALPHA_USER, "workspace_admin", "workspace", WS_ALPHA),
+        permission(NEW_ALPHA_USER, "organization_admin", "organization", ORG_ALPHA),
     )
-    _revoke(api, ORG_ALPHA, ALPHA_USER, ORG_ALPHA)
+    _demote(api, ORG_ALPHA, ALPHA_USER)
     if denial == "permissions_of_later_user":
         api.fail(
             "GET", "/permissions", 403, userId=SHARED_USER, organizationId=ORG_ALPHA
@@ -181,8 +183,6 @@ def test_incomplete_identity_read_keeps_previous_snapshot(neo4j_session, api, de
         (ORG_ALPHA, "RESOURCE", ALPHA_USER),
         (ORG_ALPHA, "RESOURCE", SHARED_USER),
         (ALPHA_USER, "ADMIN_OF", ORG_ALPHA),
-        (ALPHA_USER, "MEMBER_OF", WS_ALPHA),
-        (SHARED_USER, "MEMBER_OF", WS_ALPHA),
     ):
         expected[key] = 1
     assert _identity_graph(neo4j_session) == expected
@@ -193,25 +193,18 @@ def test_restored_access_resumes_refresh_and_cleanup(neo4j_session, api):
     api.fail("GET", "/users", 403, organizationId=ORG_BETA)
     _run(neo4j_session, api, 2)
 
-    # Arrange: Beta is readable again, downgraded SHARED_USER and removed BETA_USER.
+    # Arrange: Beta is readable again, demoted SHARED_USER and removed BETA_USER.
     api.clear_failures()
-    _revoke(api, ORG_BETA, SHARED_USER, WS_BETA)
-    api.permissions[ORG_BETA].append(
-        permission(SHARED_USER, "workspace_reader", "workspace", WS_BETA),
-    )
-    _revoke(api, ORG_BETA, BETA_USER, WS_BETA)
+    _demote(api, ORG_BETA, SHARED_USER)
+    _revoke(api, ORG_BETA, BETA_USER, ORG_BETA)
 
     # Act
     _run(neo4j_session, api, 3)
 
     # Assert
     expected = _baseline(3)
-    for key in (
-        (SHARED_USER, "ADMIN_OF", WS_BETA),
-        (ORG_BETA, "RESOURCE", BETA_USER),
-        (BETA_USER, "MEMBER_OF", WS_BETA),
-    ):
-        del expected[key]
+    del expected[(SHARED_USER, "ADMIN_OF", ORG_BETA)]
+    del expected[(ORG_BETA, "RESOURCE", BETA_USER)]
     assert _identity_graph(neo4j_session) == expected
 
 
@@ -222,12 +215,35 @@ def test_empty_users_response_is_a_complete_snapshot(neo4j_session, api):
     # Act
     _run(neo4j_session, api, 2)
 
-    # Assert: unlike a denial, every edge about Beta is cleaned up.
+    # Assert: unlike a denial, every edge about Beta is cleaned up. The
+    # application owner's Beta workspace grant still holds, so it stays.
     expected = {
-        key: 2
-        for key in _baseline(2)
-        if ORG_BETA not in key and WS_BETA not in key and BETA_USER not in key
+        key: 2 for key in _baseline(2) if ORG_BETA not in key and BETA_USER not in key
     }
+    assert _identity_graph(neo4j_session) == expected
+
+
+def test_owner_workspace_grants_refresh_while_an_organization_is_denied(
+    neo4j_session, api
+):
+    # Arrange: the last organization synced is denied, and the application
+    # owner lost its Alpha workspace grant.
+    api.fail("GET", "/users", 403, organizationId=ORG_GAMMA)
+    _revoke(api, ORG_ALPHA, APP_OWNER, WS_ALPHA)
+
+    # Act
+    _run(neo4j_session, api, 2)
+
+    # Assert: the owner's workspace edges follow its own permissions, which do
+    # not depend on any organization's users being readable.
+    expected = _baseline(2)
+    del expected[(APP_OWNER, "MEMBER_OF", WS_ALPHA)]
+    for key in (
+        (ORG_GAMMA, "RESOURCE", APP_OWNER),
+        (APP_OWNER, "ADMIN_OF", ORG_GAMMA),
+        (ORG_GAMMA, "RESOURCE", GAMMA_USER),
+    ):
+        expected[key] = 1
     assert _identity_graph(neo4j_session) == expected
 
 

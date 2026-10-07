@@ -49,22 +49,17 @@ def sync(
     try:
         users = get(api_session, org_id=org_id)
         for user in users:
-            # For the application's own user, Airbyte ignores organizationId and
-            # returns every organization's permissions. Drop other organizations'
-            # roles so this organization only writes edges about itself.
-            # Workspace permissions are kept: the API does not say which
-            # organization a workspace belongs to.
+            # Keep only this organization's roles, so it writes edges about
+            # itself alone. For the application's own user Airbyte ignores
+            # organizationId and returns every organization's permissions,
+            # including workspace grants; sync_own_workspace_permissions() loads
+            # those. For other users it returns organization roles only.
             permissions = [
                 p
                 for p in get_permissions(api_session, user["id"], org_id=org_id)
-                if p["scope"] != "organization" or p["scopeId"] == org_id
+                if p["scope"] == "organization" and p["scopeId"] == org_id
             ]
-            org_admin, workspace_admin, workspace_member = transform_permissions(
-                permissions
-            )
-            user["adminOfOrganization"] = org_admin
-            user["adminOfWorkspace"] = workspace_admin
-            user["memberOfWorkspace"] = workspace_member
+            user["adminOfOrganization"], _, _ = transform_permissions(permissions)
     except requests.HTTPError as e:
         endpoint = _denied_identity_endpoint(api_session, e)
         if endpoint is None:
@@ -153,13 +148,18 @@ def transform_permissions(
     return org_admin, workspace_admin, workspace_member
 
 
-# The user node is shared across organizations, so its organization and access
-# edges are MatchLinks scoped to the organization that wrote them. See
+# The user node is shared across organizations, so its organization edges are
+# MatchLinks scoped to the organization that wrote them. See
 # cartography/models/airbyte/user.py. Each MatchLink is paired with the user
 # field holding its target ids; None means the organization being synced.
 _MATCHLINKS = (
     (AirbyteUserToOrganizationMatchLink(), None),
     (AirbyteUserAdminOfOrganizationMatchLink(), "adminOfOrganization"),
+)
+# Workspace edges come only from the application's own permissions, which Airbyte
+# returns in full whatever organization is asked about, and which do not say
+# which organization a workspace belongs to. They are scoped to that user.
+_OWN_WORKSPACE_MATCHLINKS = (
     (AirbyteUserAdminOfWorkspaceMatchLink(), "adminOfWorkspace"),
     (AirbyteUserMemberOfWorkspaceMatchLink(), "memberOfWorkspace"),
 )
@@ -199,3 +199,38 @@ def cleanup(
             common_job_parameters["ORG_ID"],
             common_job_parameters["UPDATE_TAG"],
         ).run(neo4j_session)
+
+
+@timeit
+def sync_own_workspace_permissions(
+    neo4j_session: neo4j.Session,
+    api_session: AirbyteClient,
+    update_tag: int,
+) -> None:
+    """
+    Sync the workspace roles of the user that owns the Airbyte application.
+
+    Airbyte returns workspace permissions only when a user reads its own, and
+    returns all of them, so this runs once per sync and its cleanup is scoped to
+    that user rather than to an organization.
+    """
+    permissions = api_session.get(_PERMISSIONS_URI)
+    if not permissions:
+        return
+    owner_id = permissions[0]["userId"]
+    owner: Dict[str, Any] = {}
+    _, owner["adminOfWorkspace"], owner["memberOfWorkspace"] = transform_permissions(
+        permissions
+    )
+    for matchlink, field in _OWN_WORKSPACE_MATCHLINKS:
+        load_matchlinks(
+            neo4j_session,
+            matchlink,
+            [{"user_id": owner_id, "scope_id": scope_id} for scope_id in owner[field]],
+            lastupdated=update_tag,
+            _sub_resource_label="AirbyteUser",
+            _sub_resource_id=owner_id,
+        )
+        GraphJob.from_matchlink(matchlink, "AirbyteUser", owner_id, update_tag).run(
+            neo4j_session
+        )

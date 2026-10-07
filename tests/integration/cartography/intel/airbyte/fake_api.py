@@ -121,7 +121,7 @@ class FakeAirbyteAPI(BaseAdapter):
         return {"data": page, "next": "next-page" if more else ""}
 
     def _permissions(self, params: dict[str, str]) -> dict:
-        user_id = params["userId"]
+        user_id = params.get("userId", multi_org.APP_OWNER)
         if user_id == multi_org.APP_OWNER:
             # Reading your own permissions ignores organizationId.
             return {
@@ -132,11 +132,13 @@ class FakeAirbyteAPI(BaseAdapter):
                     if p["userId"] == user_id
                 ],
             }
+        # Another user's permissions in an organization are its organization
+        # roles only; Airbyte filters out workspace permissions.
         return {
             "data": [
                 p
                 for p in self.permissions[params["organizationId"]]
-                if p["userId"] == user_id
+                if p["userId"] == user_id and p["scope"] == "organization"
             ],
         }
 

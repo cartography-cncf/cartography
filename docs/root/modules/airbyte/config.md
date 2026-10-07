@@ -20,7 +20,9 @@ The data it can collect depends on that user's roles:
 | Users and their organization and workspace permissions | `GET /users`, `GET /permissions` | Organization Admin |
 
 Listing users needs an organization role, and reading another user's
-permissions needs Organization Admin. If Airbyte denies either request (HTTP
+permissions needs Organization Admin. Airbyte returns workspace roles only for
+the application's own user, so Cartography records workspace access for that
+user alone. If Airbyte denies either request (HTTP
 403) for an organization, Cartography logs a warning and still syncs that
 organization's other resources and the remaining organizations. It does not
 update or clean up that organization's users: users and access relationships

@@ -107,6 +107,12 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
             org_common_job_parameters,
         )
 
+    cartography.intel.airbyte.users.sync_own_workspace_permissions(
+        neo4j_session,
+        api_client,
+        config.update_tag,
+    )
+
     if orgs_without_users:
         logger.warning(
             "Airbyte sync finished with incomplete identity coverage: users and "

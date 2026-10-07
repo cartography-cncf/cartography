@@ -94,17 +94,18 @@ def initial_permissions() -> dict[str, list[dict]]:
     return {
         ORG_ALPHA: [
             permission(APP_OWNER, "organization_admin", "organization", ORG_ALPHA),
+            permission(APP_OWNER, "workspace_reader", "workspace", WS_ALPHA),
             permission(ALPHA_USER, "organization_admin", "organization", ORG_ALPHA),
-            permission(ALPHA_USER, "workspace_reader", "workspace", WS_ALPHA),
-            permission(SHARED_USER, "workspace_reader", "workspace", WS_ALPHA),
+            permission(SHARED_USER, "organization_member", "organization", ORG_ALPHA),
         ],
         ORG_BETA: [
             permission(APP_OWNER, "organization_admin", "organization", ORG_BETA),
-            permission(SHARED_USER, "workspace_admin", "workspace", WS_BETA),
-            permission(BETA_USER, "workspace_reader", "workspace", WS_BETA),
+            permission(APP_OWNER, "workspace_admin", "workspace", WS_BETA),
+            permission(SHARED_USER, "organization_admin", "organization", ORG_BETA),
+            permission(BETA_USER, "organization_member", "organization", ORG_BETA),
         ],
         ORG_GAMMA: [
             permission(APP_OWNER, "organization_admin", "organization", ORG_GAMMA),
-            permission(GAMMA_USER, "workspace_reader", "workspace", WS_GAMMA),
+            permission(GAMMA_USER, "organization_member", "organization", ORG_GAMMA),
         ],
     }
