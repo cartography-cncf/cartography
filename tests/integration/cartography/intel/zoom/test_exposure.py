@@ -88,7 +88,7 @@ def client_for(*, empty_first: bool = False, denied_second: bool = False) -> Mag
 @pytest.mark.parametrize(  # type: ignore[misc]
     "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
 )
-def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
+def test_cleanup_waits_for_a_complete_read_and_is_account_scoped(
     neo4j_session: neo4j.Session,
     module: ModuleType,
     label: str,
@@ -159,13 +159,12 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
         users("account-a"),
     )
 
-    # Assert: deny preserves posture and tag, not just node existence.
-    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == expected - {
-        (f"account-a:{suffix}1", 1)
-    }
+    # Assert: a denied read skips cleanup, so every prior node keeps its posture
+    # and tag, including the owner whose list is now empty.
+    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == expected
     assert check_nodes(neo4j_session, label, ["password_protected"]) == {(True,)}
 
-    # Act: a complete users inventory removes the departed owner's snapshot.
+    # Act: a complete read removes account-a's stale nodes only.
     load(
         neo4j_session,
         ZoomUserSchema(),
@@ -200,7 +199,7 @@ def test_owner_cleanup_preserves_denied_enrichment_and_other_accounts(
         (meetings, "active", 4),
     ],
 )
-def test_ineligible_owner_retains_prior_snapshot(
+def test_ineligible_owner_data_is_cleaned_up(
     neo4j_session: neo4j.Session, module: ModuleType, status: str, plan_type: int
 ) -> None:
     # Arrange
@@ -220,12 +219,9 @@ def test_ineligible_owner_retains_prior_snapshot(
     # Act
     module.sync(neo4j_session, client, account, 2, changed)
 
-    # Assert
+    # Assert: ineligible owners are not read, so their prior data is stale.
     label = "ZoomMeeting" if module is meetings else "ZoomRecording"
-    suffix = "meeting:1234567890" if module is meetings else "recording:instance-"
-    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
-        (f"{account}:{suffix}{i}", 1) for i in (1, 2)
-    }
+    assert check_nodes(neo4j_session, label, ["id"]) == set()
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]
@@ -276,13 +272,12 @@ def test_cleanup_exhausts_multiple_batches(
         users(account),
     )
 
-    # Assert: all 1001 stale nodes were removed, not merely the first batch.
+    # Assert: the denied host makes the read incomplete, so nothing is removed.
     remaining = check_nodes(neo4j_session, label, ["id"])
     assert remaining is not None
-    assert len(remaining) == 1001
-    assert check_nodes(neo4j_session, label, ["host_id"]) == {("user-2",)}
+    assert len(remaining) == 2002
 
-    # Act: a complete empty user inventory removes every owned snapshot.
+    # Act: a complete empty user inventory removes every node, across batches.
     module.sync(neo4j_session, client_for(), account, 3, [])
     cleanup_users(neo4j_session, account, 3)
 
@@ -292,7 +287,7 @@ def test_cleanup_exhausts_multiple_batches(
 
 
 @pytest.mark.parametrize("code", [3301, 3001])  # type: ignore[misc]
-def test_processing_recording_preserves_owner_and_continues_only_for_known_error(
+def test_processing_recording_is_skipped_and_other_missing_errors_fail(
     neo4j_session: neo4j.Session, code: int
 ) -> None:
     # Arrange
@@ -325,23 +320,29 @@ def test_processing_recording_preserves_owner_and_continues_only_for_known_error
         with pytest.raises(requests.HTTPError):
             recordings.sync(neo4j_session, client, account, 2, users(account))
 
-    # Assert: the failed owner's posture and relationships remain unchanged.
+    # Assert: a processing recording is skipped without blocking cleanup; a failed
+    # sync leaves the graph unchanged.
+    kept = (2,) if code == 3301 else (1, 2)
     assert check_nodes(
         neo4j_session,
         "ZoomRecording",
         ["id", "lastupdated", "password_protected", "share_recording"],
     ) == {
-        ("account-a:recording:instance-1", 1, True, "publicly"),
-        ("account-a:recording:instance-2", 2 if code == 3301 else 1, True, "publicly"),
+        (
+            f"account-a:recording:instance-{i}",
+            2 if code == 3301 else 1,
+            True,
+            "publicly",
+        )
+        for i in kept
     }
     assert check_rels(
         neo4j_session, "ZoomAccount", "id", "ZoomRecording", "id", "RESOURCE"
-    ) == {(account, f"account-a:recording:instance-{i}") for i in (1, 2)}
+    ) == {(account, f"account-a:recording:instance-{i}") for i in kept}
     assert check_rels(
         neo4j_session, "ZoomRecording", "id", "ZoomUser", "id", "HOSTED_BY"
     ) == {
-        (f"account-a:recording:instance-{i}", f"account-a:user:user-{i}")
-        for i in (1, 2)
+        (f"account-a:recording:instance-{i}", f"account-a:user:user-{i}") for i in kept
     }
 
 
@@ -436,7 +437,7 @@ def transfer_client(
 @pytest.mark.parametrize(  # type: ignore[misc]
     "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
 )
-def test_transfer_while_prior_host_denied_survives_current_host_denial(
+def test_transfer_during_a_denied_read_keeps_both_hosts_until_a_complete_read(
     neo4j_session: neo4j.Session, module: ModuleType, label: str
 ) -> None:
     # Arrange: user-1 reports the resource.
@@ -468,24 +469,25 @@ def test_transfer_while_prior_host_denied_survives_current_host_denial(
         users(account),
     )
 
-    # Assert: the current report replaces the prior host relationship.
+    # Assert: the read was incomplete, so the prior host relationship is kept.
     assert check_nodes(neo4j_session, label, ["id", "firstseen"]) == before
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
-        (f"{account}:{suffix}", f"{account}:user:user-2")
+        (f"{account}:{suffix}", f"{account}:user:user-1"),
+        (f"{account}:{suffix}", f"{account}:user:user-2"),
     }
 
-    # Act: user-1 is readable and empty; the current host user-2 is denied.
+    # Act: a complete read reports the resource under user-2 only.
     module.sync(
         neo4j_session,
-        transfer_client(module, None, "user-2"),
+        transfer_client(module, "user-2", None),
         account,
         3,
         users(account),
     )
 
-    # Assert: the denied current host's snapshot survives unchanged.
-    assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
-        (f"{account}:{suffix}", 2)
+    # Assert: cleanup leaves only the current host relationship.
+    assert check_nodes(neo4j_session, label, ["id", "firstseen", "lastupdated"]) == {
+        (f"{account}:{suffix}", dict(before or set())[f"{account}:{suffix}"], 3)
     }
     assert check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY") == {
         (f"{account}:{suffix}", f"{account}:user:user-2")
@@ -508,10 +510,7 @@ def many_transfer_client(module: ModuleType, count: int) -> MagicMock:
 
     def get_paginated(path: str, key: str, params: Any = None) -> list[dict[str, Any]]:
         if path.startswith("/users/user-1/"):
-            response = requests.Response()
-            response.status_code = 403
-            response._content = json.dumps({"code": 200}).encode()
-            raise requests.HTTPError(response=response)
+            return []
         return raw
 
     def get(path: str, params: Any = None) -> dict[str, Any]:
@@ -562,12 +561,12 @@ def test_bulk_transfer_replaces_host_relationships_across_batches(
         lastupdated=1,
     )
 
-    # Act: every resource moved to user-2 while user-1 is denied.
+    # Act: every resource moved to user-2.
     module.sync(
         neo4j_session, many_transfer_client(module, count), account, 2, users(account)
     )
 
-    # Assert: each current resource has only its new host relationship.
+    # Assert: cleanup removed every old host relationship, not just one batch.
     hosts = check_rels(neo4j_session, label, "id", "ZoomUser", "id", "HOSTED_BY")
     assert hosts is not None
     assert len(hosts) == count
@@ -578,7 +577,7 @@ def test_bulk_transfer_replaces_host_relationships_across_batches(
 @pytest.mark.parametrize(  # type: ignore[misc]
     "module,label", [(meetings, "ZoomMeeting"), (recordings, "ZoomRecording")]
 )
-def test_host_missing_after_user_inventory_is_preserved_until_removed(
+def test_host_removed_mid_sync_counts_as_read(
     neo4j_session: neo4j.Session, module: ModuleType, label: str
 ) -> None:
     # Arrange
@@ -609,10 +608,9 @@ def test_host_missing_after_user_inventory_is_preserved_until_removed(
     # Act: user-1 left after the user inventory was read.
     module.sync(neo4j_session, client, account, 2, users(account))
 
-    # Assert: the peer refreshes and the missing host is not pruned yet.
+    # Assert: the removed host has nothing to load, so its prior data is cleaned up.
     assert check_nodes(neo4j_session, label, ["id", "lastupdated"]) == {
-        (f"{account}:{suffix}1", 1),
-        (f"{account}:{suffix}2", 2),
+        (f"{account}:{suffix}2", 2)
     }
 
     # Act: the next complete user inventory no longer contains user-1.
@@ -660,7 +658,7 @@ def test_deleted_meeting_detail_skips_only_that_meeting(
     }
 
 
-def test_meeting_display_denial_is_local_to_the_denied_host(
+def test_meeting_display_denial_skips_cleanup(
     neo4j_session: neo4j.Session,
 ) -> None:
     # Arrange
@@ -691,7 +689,7 @@ def test_meeting_display_denial_is_local_to_the_denied_host(
     # Act: user-1 is denied first; user-2 is readable and now empty.
     meetings.sync(neo4j_session, client, account, 2, users(account))
 
-    # Assert: the healthy host is still read and pruned; the denied host is kept.
+    # Assert: the denied host makes the read incomplete, so nothing is removed.
     assert check_nodes(neo4j_session, "ZoomMeeting", ["id", "lastupdated"]) == {
-        (f"{account}:meeting:12345678901", 1)
+        (f"{account}:meeting:1234567890{i}", 1) for i in (1, 2)
     }

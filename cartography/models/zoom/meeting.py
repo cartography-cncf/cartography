@@ -103,8 +103,8 @@ class ZoomMeetingSchema(CartographyNodeSchema):
 
     Protection settings describe provider configuration, not verified public access.
     Meeting passcodes, join/start URLs, agendas and invitees are never ingested.
-    Cleanup is filtered by host (see ``cleanup_hosted``), not schema-wide: denied
-    or ineligible hosts keep their snapshots, and a transfer keeps one HOSTED_BY.
+    Cleanup only runs after every eligible host was read, so a denied read keeps the
+    prior meetings, and a transfer keeps one HOSTED_BY.
     """
 
     label: str = "ZoomMeeting"

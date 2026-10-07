@@ -6,8 +6,8 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
-from cartography.intel.zoom.util import cleanup_hosted
 from cartography.intel.zoom.util import fetch_many
 from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def list_meeting_ids(client: ZoomClient, host_id: str) -> list[int] | None:
-    """Return a host's scheduled meeting IDs, or None if the host was not read."""
+    """Return a host's scheduled meeting IDs, or None if the read was denied."""
     try:
         meetings = client.get_paginated(
             f"/users/{quote(host_id, safe='')}/meetings",
@@ -27,10 +27,11 @@ def list_meeting_ids(client: ZoomClient, host_id: str) -> list[int] | None:
             params={"type": "scheduled"},
         )
     except requests.HTTPError as exc:
-        # Documented when the user left after the user inventory was read.
+        # Documented when the user left after the user inventory was read: the
+        # host has no meetings to load.
         if is_zoom_error(exc, 404, 1001):
-            logger.warning("Zoom meeting host no longer exists; preserving its data")
-            return None
+            logger.warning("Zoom meeting host no longer exists; skipping its meetings")
+            return []
         raise
     return list(dict.fromkeys(int(item["id"]) for item in meetings))
 
@@ -49,8 +50,8 @@ def get_meeting(client: ZoomClient, meeting_id: int) -> dict[str, Any]:
 @timeit
 def get(
     client: ZoomClient, host_ids: list[str], unavailable: set[str]
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Return meeting details and the hosts whose inventories were completely read."""
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return meeting details and whether every host and meeting was read."""
     listed = fetch_many(
         client,
         host_ids,
@@ -70,17 +71,10 @@ def get(
             "meetings", lambda: get_meeting(worker, meeting_id), unavailable
         ),
     )
-    denied = {
-        meeting_id
-        for meeting_id, detail in zip(meeting_ids, details, strict=True)
-        if detail is None
-    }
-    readable = [
-        host_id
-        for host_id, ids in zip(host_ids, listed, strict=True)
-        if ids is not None and denied.isdisjoint(ids)
-    ]
-    return [detail for detail in details if detail], readable
+    complete = all(ids is not None for ids in listed) and all(
+        detail is not None for detail in details
+    )
+    return [detail for detail in details if detail], complete
 
 
 def transform(meetings: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
@@ -124,8 +118,7 @@ def sync(
     update_tag: int,
     users: list[dict[str, Any]],
 ) -> None:
-    # Pending users and users without a Basic/Licensed seat are not read; their
-    # meetings keep the prior snapshot until they are read or leave the account.
+    # Pending users and users without a Basic/Licensed seat cannot host meetings.
     host_ids = [
         user["zoom_id"]
         for user in users
@@ -134,7 +127,7 @@ def sync(
         and user["type"] in (1, 2)
     ]
     unavailable: set[str] = set()
-    meetings, readable = get(client, host_ids, unavailable)
+    meetings, complete = get(client, host_ids, unavailable)
     load(
         neo4j_session,
         ZoomMeetingSchema(),
@@ -142,17 +135,12 @@ def sync(
         ACCOUNT_ID=account_id,
         lastupdated=update_tag,
     )
-    if len(readable) < len(host_ids):
+    if not complete:
         logger.warning(
-            "Zoom meetings: %d of %d eligible hosts were not completely read; preserving their prior meetings.",
-            len(host_ids) - len(readable),
-            len(host_ids),
+            "Zoom meetings were not completely read; skipping cleanup so prior meetings are kept."
         )
-    cleanup_hosted(
-        neo4j_session,
-        "ZoomMeeting",
-        account_id,
-        update_tag,
-        readable,
-        [user["zoom_id"] for user in users if user.get("zoom_id")],
-    )
+        return
+    GraphJob.from_node_schema(
+        ZoomMeetingSchema(),
+        {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
+    ).run(neo4j_session)

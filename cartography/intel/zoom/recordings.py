@@ -6,8 +6,8 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.zoom.client import ZoomClient
-from cartography.intel.zoom.util import cleanup_hosted
 from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import encode_uuid
 from cartography.intel.zoom.util import fetch_many
@@ -27,7 +27,7 @@ def settings_path(uuid: str) -> str:
 def list_recordings(
     client: ZoomClient, host_id: str, lookback_days: int
 ) -> list[dict[str, Any]] | None:
-    """Return a host's cloud recordings in the window, or None if not read."""
+    """Return a host's cloud recordings in the window, or None if the read was denied."""
     recordings: dict[str, dict[str, Any]] = {}
     try:
         for window in date_windows(lookback_days):
@@ -38,24 +38,29 @@ def list_recordings(
             ):
                 recordings[recording["uuid"]] = recording
     except requests.HTTPError as exc:
-        # Documented when the user left after the user inventory was read.
+        # Documented when the user left after the user inventory was read: the
+        # host has no recordings to load.
         if is_zoom_error(exc, 404, 1001):
-            logger.warning("Zoom recording host no longer exists; preserving its data")
-            return None
+            logger.warning(
+                "Zoom recording host no longer exists; skipping its recordings"
+            )
+            return []
         raise
     return list(recordings.values())
 
 
 def get_settings(client: ZoomClient, uuid: str) -> dict[str, Any] | None:
-    """Return sharing settings, or None while Zoom is still processing the recording."""
+    """Return sharing settings, or an empty dict while Zoom is still processing it."""
     try:
         return client.get(settings_path(uuid))
     except requests.HTTPError as exc:
+        # A recording still being processed is new, so there is nothing to keep;
+        # it is skipped until a later sync.
         if is_zoom_error(exc, 404, 3301):
             logger.warning(
-                "Zoom recording is still processing (HTTP 404, code 3301); preserving its host's prior recording snapshot."
+                "Zoom recording is still processing (HTTP 404, code 3301); skipping it until a later sync."
             )
-            return None
+            return {}
         raise
 
 
@@ -65,8 +70,8 @@ def get(
     host_ids: list[str],
     lookback_days: int,
     unavailable: set[str],
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Return recordings with settings and the hosts whose inventories were complete."""
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return recordings with settings and whether every host and recording was read."""
     listed = fetch_many(
         client,
         host_ids,
@@ -89,21 +94,14 @@ def get(
             "recordings", lambda: get_settings(worker, uuid), unavailable
         ),
     )
-    unread = {
-        uuid
-        for uuid, setting in zip(recordings, settings, strict=True)
-        if setting is None
-    }
-    readable = [
-        host_id
-        for host_id, items in zip(host_ids, listed, strict=True)
-        if items is not None and unread.isdisjoint(item["uuid"] for item in items)
-    ]
+    complete = all(items is not None for items in listed) and all(
+        setting is not None for setting in settings
+    )
     return [
         {**recording, "settings": setting}
         for recording, setting in zip(recordings.values(), settings, strict=True)
-        if setting is not None
-    ], readable
+        if setting
+    ], complete
 
 
 def transform(
@@ -156,15 +154,14 @@ def sync(
     users: list[dict[str, Any]],
     lookback_days: int = 7,
 ) -> None:
-    # Inactive users and users without a Licensed seat are not read; existing
-    # recordings keep the prior snapshot until read or the owner leaves.
+    # Only active users with a Licensed seat have cloud recordings.
     host_ids = [
         user["zoom_id"]
         for user in users
         if user.get("zoom_id") and user["status"] == "active" and user["type"] == 2
     ]
     unavailable: set[str] = set()
-    recordings, readable = get(client, host_ids, lookback_days, unavailable)
+    recordings, complete = get(client, host_ids, lookback_days, unavailable)
     load(
         neo4j_session,
         ZoomRecordingSchema(),
@@ -172,18 +169,13 @@ def sync(
         ACCOUNT_ID=account_id,
         lastupdated=update_tag,
     )
-    if len(readable) < len(host_ids):
+    if not complete:
         logger.warning(
-            "Zoom recordings: %d of %d eligible hosts were not completely read; preserving their prior recordings.",
-            len(host_ids) - len(readable),
-            len(host_ids),
+            "Zoom recordings were not completely read; skipping cleanup so prior recordings are kept."
         )
-    # Successful hosts also expire recordings that left the rolling window.
-    cleanup_hosted(
-        neo4j_session,
-        "ZoomRecording",
-        account_id,
-        update_tag,
-        readable,
-        [user["zoom_id"] for user in users if user.get("zoom_id")],
-    )
+        return
+    # Also expires recordings that left the rolling window.
+    GraphJob.from_node_schema(
+        ZoomRecordingSchema(),
+        {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
+    ).run(neo4j_session)

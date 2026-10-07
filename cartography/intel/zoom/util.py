@@ -5,16 +5,12 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from typing import Any
-from typing import Literal
 from typing import TypeVar
 from urllib.parse import quote
 
-import neo4j
 import requests
 from dateutil.parser import isoparse
 
-from cartography.graph.job import GraphJob
-from cartography.graph.statement import GraphStatement
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.client import ZoomRequestLimitError
 
@@ -155,57 +151,3 @@ def encode_uuid(uuid: str) -> str:
     # Zoom requires a second encoding for UUIDs starting with / or containing //.
     encoded = quote(uuid, safe="")
     return quote(encoded, safe="") if uuid.startswith("/") or "//" in uuid else encoded
-
-
-def cleanup_hosted(
-    neo4j_session: neo4j.Session,
-    label: Literal["ZoomMeeting", "ZoomRecording"],
-    account_id: str,
-    update_tag: int,
-    readable_host_ids: list[str],
-    present_host_ids: list[str],
-) -> None:
-    """Prune hosted resources only where a read or the user inventory proves them stale.
-
-    A current node keeps only the host relationship refreshed by this sync, so a
-    transfer leaves exactly one HOSTED_BY. A stale node is deleted only when its
-    last known host was completely read, or is absent from the complete user
-    inventory. Denied, processing and ineligible hosts keep their snapshots.
-    Schema cleanup cannot express this owner filter, so these fixed statements
-    run through the standard iterative GraphJob runner.
-    """
-    parameters = {
-        "ACCOUNT_ID": account_id,
-        "UPDATE_TAG": update_tag,
-        "READABLE_HOST_IDS": readable_host_ids,
-        "PRESENT_HOST_IDS": present_host_ids,
-    }
-    statements = [
-        GraphStatement(
-            f"""
-            MATCH (:ZoomAccount {{id: $ACCOUNT_ID}})-[:RESOURCE]->(n:{label})-[r:HOSTED_BY]->(:ZoomUser)
-            WHERE n.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
-            WITH r ORDER BY n.id LIMIT $LIMIT_SIZE
-            DELETE r
-            """,
-            parameters,
-            iterative=True,
-            iterationsize=1000,
-        ),
-        GraphStatement(
-            f"""
-            MATCH (:ZoomAccount {{id: $ACCOUNT_ID}})-[:RESOURCE]->(n:{label})
-            WHERE n.lastupdated <> $UPDATE_TAG
-                AND (
-                    n.host_id IN $READABLE_HOST_IDS
-                    OR NOT n.host_id IN $PRESENT_HOST_IDS
-                )
-            WITH n ORDER BY n.id LIMIT $LIMIT_SIZE
-            DETACH DELETE n
-            """,
-            parameters,
-            iterative=True,
-            iterationsize=1000,
-        ),
-    ]
-    GraphJob(f"Cleanup {label}", statements, label).run(neo4j_session)
