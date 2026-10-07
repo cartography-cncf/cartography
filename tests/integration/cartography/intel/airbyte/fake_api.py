@@ -44,7 +44,8 @@ class FakeAirbyteAPI(BaseAdapter):
         """
         Answer matching requests with ``result``: an HTTP status code, a
         ``(status, body)`` tuple, or an exception to raise from the transport.
-        ``params`` must all match the request's query parameters.
+        ``params`` must all match the request's query parameters; a value of
+        None matches a request without that parameter.
         """
         self._failures.append((method, uri, params, result))
 

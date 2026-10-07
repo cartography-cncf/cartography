@@ -247,6 +247,26 @@ def test_owner_workspace_grants_refresh_while_an_organization_is_denied(
     assert _identity_graph(neo4j_session) == expected
 
 
+def test_owner_permissions_denial_keeps_previous_workspace_roles(neo4j_session, api):
+    # Arrange: the owner's own permissions are denied after it lost a grant.
+    api.fail("GET", "/permissions", 403, userId=None)
+    _revoke(api, ORG_ALPHA, APP_OWNER, WS_ALPHA)
+
+    # Act
+    _run(neo4j_session, api, 2)
+
+    # Assert: the sync completes, and the owner's workspace roles keep their
+    # previous state instead of being replaced or cleaned up.
+    expected = _baseline(2)
+    for key in (
+        (APP_OWNER, "MEMBER_OF", WS_ALPHA),
+        (APP_OWNER, "ADMIN_OF", WS_BETA),
+        (APP_OWNER, "MEMBER_OF", WS_BETA),
+    ):
+        expected[key] = 1
+    assert _identity_graph(neo4j_session) == expected
+
+
 def test_new_application_owner_replaces_previous_owner_workspace_roles(
     neo4j_session, api
 ):

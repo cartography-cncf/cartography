@@ -217,7 +217,17 @@ def sync_own_workspace_permissions(
     earlier sync recorded, so the roles of a previous owner, or of an owner with
     no permissions left, do not linger.
     """
-    permissions = api_session.get(_PERMISSIONS_URI)
+    try:
+        permissions = api_session.get(_PERMISSIONS_URI)
+    except requests.HTTPError as e:
+        if _denied_identity_endpoint(api_session, e) is None:
+            raise
+        logger.warning(
+            "Airbyte denied GET /permissions for the application's own user "
+            "(HTTP 403). Skipping its workspace roles; previously ingested ones "
+            "are kept and not cleaned up.",
+        )
+        return
     owner_ids = set(
         neo4j_session.execute_read(
             read_list_of_values_tx,
