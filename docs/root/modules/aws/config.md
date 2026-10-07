@@ -195,6 +195,25 @@ To avoid `InvalidToken` errors when assuming roles across regions, add
 `sts_regional_endpoints = regional` to the AWS config file or set
 `AWS_STS_REGIONAL_ENDPOINTS=regional`.
 
+### AWS GovCloud (US) and Other Partitions
+
+Cartography supports accounts in AWS GovCloud (US). Set a GovCloud region,
+for example `us-gov-west-1`, on each profile or with `AWS_DEFAULT_REGION`.
+`AWS_DEFAULT_REGION` overrides the profile's region. Without a GovCloud
+region, boto3 sends the account discovery and IAM calls to the commercial
+endpoints, and GovCloud credentials fail there.
+
+When the AWS sync builds an ARN itself, it uses the partition of the regions it
+syncs, for example `aws-us-gov`. These ARNs then match the ARNs that AWS
+returns. All regions in `--aws-regions` must be in one partition, so sync each
+partition in a separate run. `--aws-regions` applies to every account in the
+run, so when you use it with `--aws-sync-all-profiles`, give each partition its
+own AWS config file. Use the GovCloud form of the managed policy ARN, for
+example `arn:aws-us-gov:iam::aws:policy/SecurityAudit`.
+
+CloudFront is not available in AWS GovCloud (US), so Cartography skips the
+`cloudfront` sync for GovCloud accounts.
+
 ## Troubleshooting
 
 If hierarchy APIs are unavailable, Cartography skips AWS Organizations cleanup

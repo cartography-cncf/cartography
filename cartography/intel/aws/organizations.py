@@ -429,6 +429,7 @@ def load_aws_accounts(
     aws_accounts: dict[str, str],
     aws_update_tag: int,
     common_job_parameters: dict[str, Any],
+    account_partitions: dict[str, str],
 ) -> None:
     account_data = [
         {
@@ -445,6 +446,7 @@ def load_aws_accounts(
             neo4j_session,
             account_id,
             aws_update_tag,
+            account_partitions[account_id],
         )
 
 
@@ -454,8 +456,15 @@ def sync(
     accounts: dict[str, str],
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    account_partitions: dict[str, str],
 ) -> None:
-    load_aws_accounts(neo4j_session, accounts, update_tag, common_job_parameters)
+    load_aws_accounts(
+        neo4j_session,
+        accounts,
+        update_tag,
+        common_job_parameters,
+        account_partitions,
+    )
 
 
 def load_aws_organization(
@@ -672,11 +681,14 @@ def sync_aws_organization(
         organization_accounts,
         update_tag,
     )
+    # Organization ARNs carry the partition, e.g. "arn:aws-us-gov:organizations::...".
+    partition = organization["Arn"].split(":")[1]
     for account in active_organization_accounts:
         sync_root_principal(
             neo4j_session,
             account["id"],
             update_tag,
+            partition,
         )
     load_aws_organization(neo4j_session, organization, update_tag)
     load_aws_organization_roots(

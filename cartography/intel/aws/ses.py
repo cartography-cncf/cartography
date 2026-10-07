@@ -11,6 +11,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import get_partition
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.service_regions import (
@@ -75,7 +76,7 @@ def get_ses_email_identities(
                 continue
             dkim_attrs = identity_detail.get("DkimAttributes", {})
             arn = (
-                f"arn:aws:ses:{region}:{current_aws_account_id}"
+                f"arn:{get_partition(region)}:ses:{region}:{current_aws_account_id}"
                 f":identity/{identity_name}"
             )
             identities.append(

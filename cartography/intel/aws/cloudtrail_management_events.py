@@ -599,7 +599,7 @@ def load_web_identity_role_assumptions(
 
 def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     """
-    Convert an assumed role ARN to the original role ARN.
+    Convert an assumed role ARN to the original role ARN. The partition is kept.
 
     Example:
     Input:  "arn:aws:sts::123456789012:assumed-role/MyRole/session-name"
@@ -609,13 +609,14 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     # Split the ARN into parts
     arn_parts = assumed_role_arn.split(":")
     if len(arn_parts) >= 6 and arn_parts[2] == "sts" and "assumed-role" in arn_parts[5]:
-        # Extract account ID and role name
+        # Extract partition, account ID and role name
+        partition = arn_parts[1]
         account_id = arn_parts[4]
         resource_part = arn_parts[5]  # "assumed-role/MyRole/session-name"
         role_name = resource_part.split("/")[1]  # Extract "MyRole"
 
         # Construct the IAM role ARN
-        return f"arn:aws:iam::{account_id}:role/{role_name}"
+        return f"arn:{partition}:iam::{account_id}:role/{role_name}"
 
     # Return original ARN if conversion fails
     return assumed_role_arn
