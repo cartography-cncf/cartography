@@ -93,6 +93,7 @@ PANEL_ORCA = "Orca Security Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SALESFORCE = "Salesforce Options"
 PANEL_SLACK = "Slack Options"
+PANEL_NOTION = "Notion Options"
 PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
@@ -167,6 +168,7 @@ MODULE_PANELS = {
     "keycloak": PANEL_KEYCLOAK,
     "salesforce": PANEL_SALESFORCE,
     "slack": PANEL_SLACK,
+    "notion": PANEL_NOTION,
     "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "workos": PANEL_WORKOS,
@@ -812,6 +814,19 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = False,
+            microsoft_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-requested-syncs",
+                    help=(
+                        "Comma-separated list of Microsoft resources to sync. "
+                        'Example: "users,groups". See '
+                        "cartography.intel.microsoft.resources for full list."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
             # DEPRECATED: `--entra-*` credential flags will be removed in v1.0.0.
             entra_tenant_id: Annotated[
                 str | None,
@@ -984,6 +999,18 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            # =================================================================
+            # Notion Options
+            # =================================================================
+            notion_config_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--notion-config-env-var",
+                    help="Environment variable name containing Base64 encoded Notion config.",
+                    rich_help_panel=PANEL_NOTION,
+                    hidden=PANEL_NOTION not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -2952,6 +2979,14 @@ class CLI:
 
                 parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
+            # Validate Microsoft options
+            if microsoft_requested_syncs:
+                from cartography.intel.microsoft.util import (
+                    parse_and_validate_microsoft_requested_syncs,
+                )
+
+                parse_and_validate_microsoft_requested_syncs(microsoft_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -3007,6 +3042,15 @@ class CLI:
                     github_config_env_var,
                 )
                 github_config = os.environ.get(github_config_env_var)
+
+            # Read Notion config
+            notion_config = None
+            if notion_config_env_var:
+                logger.debug(
+                    "Reading config for Notion from environment variable %s",
+                    notion_config_env_var,
+                )
+                notion_config = os.environ.get(notion_config_env_var)
 
             # Read DigitalOcean token
             digitalocean_token = None
@@ -3747,6 +3791,7 @@ class CLI:
                 microsoft_client_id=microsoft_client_id,
                 microsoft_client_secret=microsoft_client_secret,
                 microsoft_delegated_auth=microsoft_delegated_auth,
+                microsoft_requested_syncs=microsoft_requested_syncs,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,
@@ -3757,6 +3802,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                notion_config=notion_config,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
