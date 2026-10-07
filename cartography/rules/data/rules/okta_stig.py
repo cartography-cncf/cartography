@@ -1157,8 +1157,23 @@ okta_api_token_without_network_zone = Rule(
 
 # A user is a super administrator through a direct role assignment, a group role
 # assignment, or the legacy administration role model.
-_API_TOKEN_OWNED_BY_SUPER_ADMIN = """
-    MATCH (o:OktaOrganization)-[:RESOURCE]->(t:OktaApiToken)
+# Reading admin roles needs more than a read-only token. Only evaluate orgs whose
+# user and group roles were synced, so a missing role is not mistaken for none.
+_ORG_WITH_SYNCED_ADMIN_ROLES = """
+    MATCH (o:OktaOrganization)
+    WHERE all(synced_type IN ['OktaUserRole', 'OktaGroupRole'] WHERE EXISTS {
+        MATCH (m:ModuleSyncMetadata)
+        WHERE m.grouptype = 'OktaOrganization'
+          AND m.syncedtype = synced_type
+          AND m.groupid = o.id
+          AND m.lastupdated = o.lastupdated
+    })
+"""
+
+_API_TOKEN_OWNED_BY_SUPER_ADMIN = (
+    _ORG_WITH_SYNCED_ADMIN_ROLES
+    + """
+    MATCH (o)-[:RESOURCE]->(t:OktaApiToken)
     WHERE EXISTS {
         MATCH (t)-[:OWNED_BY]->(u:OktaUser)
         WHERE EXISTS {
@@ -1173,6 +1188,7 @@ _API_TOKEN_OWNED_BY_SUPER_ADMIN = """
         }
     }
 """
+)
 
 okta_api_token_owned_by_super_admin = Rule(
     id="okta_api_token_owned_by_super_admin",
@@ -1189,7 +1205,8 @@ okta_api_token_owned_by_super_admin = Rule(
             name="Okta API tokens owned by super administrators",
             description=(
                 "Detects Okta API tokens whose owner holds the Super Administrator "
-                "role directly or through a group. Requires Okta admin role data."
+                "role directly or through a group. Only evaluates orgs whose admin "
+                "roles were synced, which needs a token that can read admin roles."
             ),
             cypher_query=f"""
             {_API_TOKEN_OWNED_BY_SUPER_ADMIN}
@@ -1206,8 +1223,9 @@ okta_api_token_owned_by_super_admin = Rule(
             MATCH path=(t)-[:OWNED_BY]->(:OktaUser)
             RETURN path
             """,
-            cypher_count_query="""
-            MATCH (t:OktaApiToken)
+            cypher_count_query=f"""
+            {_ORG_WITH_SYNCED_ADMIN_ROLES}
+            MATCH (o)-[:RESOURCE]->(t:OktaApiToken)
             RETURN COUNT(t) AS count
             """,
             asset_id_field="token_id",
@@ -1323,16 +1341,17 @@ okta_anonymizer_blocklist_missing = Rule(
 # Main node: OktaApplication
 # =============================================================================
 class OktaAppPolicyWithoutZoneOutput(Finding):
-    """Output model for apps whose authentication policy has no network zones."""
+    """Output model for app authentication policies that have no network zones."""
 
-    app_id: str | None = None
-    app_label: str | None = None
-    app_name: str | None = None
     policy_id: str | None = None
     policy_name: str | None = None
+    app_count: int | None = None
+    app_labels: list[str] | None = None
     org_id: str | None = None
 
 
+# One finding per policy, not per app: the fix is a zone rule on the policy, and
+# an org's default policy often covers most of its apps.
 _APP_POLICY_WITHOUT_ZONE = """
     MATCH (o:OktaOrganization)-[:RESOURCE]->(p:OktaPolicy)-[:APPLIES_TO]->(app:OktaApplication)
     WHERE p.type = 'ACCESS_POLICY'
@@ -1341,49 +1360,47 @@ _APP_POLICY_WITHOUT_ZONE = """
           MATCH (p)-[:HAS_RULE]->(r:OktaPolicyRule)
           WHERE r.status = 'ACTIVE' AND r.network_connection = 'ZONE'
       }
+    WITH o, p, collect(DISTINCT coalesce(app.label, app.name, app.id)) AS app_labels
 """
 
 okta_app_policy_without_network_zones = Rule(
     id="okta_app_policy_without_network_zones",
     name="App Authentication Policy Without Network Zones",
     description=(
-        "Each app's authentication policy should allow or deny access by network "
-        "zone according to the app's access control policy."
+        "Each app authentication policy should allow or deny access by network "
+        "zone according to the access control policy of the apps it covers."
     ),
     output_model=OktaAppPolicyWithoutZoneOutput,
     facts=(
         Fact(
             id="okta_app_authentication_policy_without_zone_condition",
-            name="Okta apps whose authentication policy has no network zone condition",
+            name="Okta app authentication policies with no network zone condition",
             description=(
-                "Detects active Okta apps whose authentication policy has no active "
-                "rule with a network zone condition."
+                "Detects Okta app authentication policies that cover active apps but "
+                "have no active rule with a network zone condition."
             ),
             cypher_query=f"""
             {_APP_POLICY_WITHOUT_ZONE}
             RETURN
-                app.id AS app_id,
-                app.label AS app_label,
-                app.name AS app_name,
                 p.id AS policy_id,
                 p.name AS policy_name,
+                size(app_labels) AS app_count,
+                app_labels[0..20] AS app_labels,
                 o.id AS org_id
             """,
             cypher_visual_query=f"""
             {_APP_POLICY_WITHOUT_ZONE}
-            MATCH path=(p)-[:APPLIES_TO]->(app)
+            MATCH path=(p)-[:APPLIES_TO]->(:OktaApplication)
             RETURN path
             """,
             cypher_count_query="""
             MATCH (p:OktaPolicy)-[:APPLIES_TO]->(app:OktaApplication)
             WHERE p.type = 'ACCESS_POLICY' AND coalesce(app.status, 'ACTIVE') = 'ACTIVE'
-            RETURN COUNT(DISTINCT app) AS count
+            RETURN COUNT(DISTINCT p) AS count
             """,
-            asset_id_field="app_id",
-            asset_label="OktaApplication",
-            # An app has one authentication policy; keying on both keeps a policy
-            # reassignment from reusing the previous finding.
-            identity_fields=("app_id", "policy_id"),
+            asset_id_field="policy_id",
+            asset_label="OktaPolicy",
+            identity_fields=("policy_id",),
             module=Module.OKTA,
             maturity=Maturity.EXPERIMENTAL,
         ),
