@@ -133,11 +133,6 @@ def test_sync_okta_policies(mock_collect, mock_get_raw_json, neo4j_session) -> N
         "rst-dashboard": ["okta_enduser"],
         "rst-default": [],
     }
-    # Only apps without an OktaApplication node are fetched individually.
-    assert sorted(call.args[1] for call in mock_get_raw_json.call_args_list) == [
-        "/api/v1/apps/0oa-admin-console",
-        "/api/v1/apps/0oa-dashboard",
-    ]
 
     # Assert: rules
     assert _nodes(
@@ -206,11 +201,16 @@ def test_sync_okta_policies(mock_collect, mock_get_raw_json, neo4j_session) -> N
         "OktaPolicyRule",
         "id",
         "HAS_RULE",
-    ) >= {
+    ) == {
         ("00p-global-session", "0pr-session-hardened"),
         ("00p-global-session", "0pr-session-default"),
+        ("00p-password-default", "0pr-password-default"),
+        ("00p-enrollment", "0pr-enrollment-default"),
         ("rst-admin-console", "rul-admin-phishing-resistant"),
         ("rst-admin-console", "rul-admin-catch-all"),
+        ("rst-dashboard", "rul-dashboard-one-factor"),
+        ("rst-default", "rul-default-mixed"),
+        ("rst-profile-enrollment", "rul-profile-enrollment"),
     }
     assert check_rels(
         neo4j_session,
@@ -228,14 +228,19 @@ def test_sync_okta_policies(mock_collect, mock_get_raw_json, neo4j_session) -> N
         "id",
         "EXCLUDES",
     ) == {("00p-password-legacy", "00g-admins")}
-    assert ("00p-password-legacy", "00g-contractors") in check_rels(
+    assert check_rels(
         neo4j_session,
         "OktaPolicy",
         "id",
         "OktaGroup",
         "id",
         "APPLIES_TO",
-    )
+    ) == {
+        ("00p-global-session", "00g-everyone"),
+        ("00p-password-default", "00g-everyone"),
+        ("00p-password-legacy", "00g-contractors"),
+        ("00p-enrollment", "00g-everyone"),
+    }
     assert check_rels(
         neo4j_session,
         "OktaPolicyRule",

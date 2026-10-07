@@ -80,16 +80,16 @@ async def _get_okta_policies(okta_client: OktaClient) -> list[dict[str, Any]]:
 async def _get_okta_policy_rules(
     okta_client: OktaClient,
     policy_id: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     try:
         return await collect_raw_paginated(
             okta_client,
             f"/api/v1/policies/{policy_id}/rules",
         )
     except OktaApiError as exc:
-        # A policy can be deleted between the list call and this one.
+        # The policy was deleted after the list call; None tells the caller to drop it.
         if is_resource_not_found_error(exc):
-            return []
+            return None
         raise
 
 
@@ -97,7 +97,7 @@ async def _get_okta_policy_rules(
 async def _get_okta_policy_app_ids(
     okta_client: OktaClient,
     policy_id: str,
-) -> list[str]:
+) -> list[str] | None:
     try:
         mappings = await collect_raw_paginated(
             okta_client,
@@ -105,7 +105,7 @@ async def _get_okta_policy_app_ids(
         )
     except OktaApiError as exc:
         if is_resource_not_found_error(exc):
-            return []
+            return None
         raise
     return [
         app_id for app_id in map(_app_id_from_mapping, mappings) if app_id is not None
@@ -131,6 +131,7 @@ async def _get_okta_first_party_app_names(
     return names
 
 
+@timeit
 async def _get_okta_policy_data(
     okta_client: OktaClient,
     known_app_ids: set[str],
@@ -140,19 +141,26 @@ async def _get_okta_policy_data(
     dict[str, list[str]],
     dict[str, str],
 ]:
-    policies = await _get_okta_policies(okta_client)
+    policies: list[dict[str, Any]] = []
     rules_by_policy: dict[str, list[dict[str, Any]]] = {}
     app_ids_by_policy: dict[str, list[str]] = {}
-    for policy in policies:
-        rules_by_policy[policy["id"]] = await _get_okta_policy_rules(
-            okta_client,
-            policy["id"],
-        )
+    for policy in await _get_okta_policies(okta_client):
+        policy_id = policy["id"]
+        rules = await _get_okta_policy_rules(okta_client, policy_id)
+        if rules is None:
+            logger.info("Okta policy %s was deleted during sync; skipping", policy_id)
+            continue
         if policy.get("type") == "ACCESS_POLICY":
-            app_ids_by_policy[policy["id"]] = await _get_okta_policy_app_ids(
-                okta_client,
-                policy["id"],
-            )
+            app_ids = await _get_okta_policy_app_ids(okta_client, policy_id)
+            if app_ids is None:
+                logger.info(
+                    "Okta policy %s was deleted during sync; skipping",
+                    policy_id,
+                )
+                continue
+            app_ids_by_policy[policy_id] = app_ids
+        policies.append(policy)
+        rules_by_policy[policy_id] = rules
     unknown_app_ids = {
         app_id
         for app_ids in app_ids_by_policy.values()

@@ -174,3 +174,37 @@ def test_get_policies_raises_other_errors(mock_collect):
 
     with pytest.raises(OktaApiError):
         asyncio.run(cartography.intel.okta.policies._get_okta_policies(MagicMock()))
+
+
+@patch.object(cartography.intel.okta.policies, "_get_okta_first_party_app_names")
+@patch.object(cartography.intel.okta.policies, "collect_raw_paginated")
+def test_get_policy_data_drops_policies_deleted_mid_sync(mock_collect, mock_names):
+    # Arrange: both policies are listed, then deleted before their rules or
+    # app mappings are read.
+    async def _collect(okta_client, path, params=None):
+        if path == "/api/v1/policies":
+            return POLICIES_BY_TYPE[params["type"]]
+        if path in {
+            "/api/v1/policies/00p-password-legacy/rules",
+            "/api/v1/policies/rst-dashboard/mappings",
+        }:
+            raise OktaApiError(path, SimpleNamespace(error_code="E0000007"))
+        return []
+
+    async def _names(okta_client, app_ids):
+        return {}
+
+    mock_collect.side_effect = _collect
+    mock_names.side_effect = _names
+
+    # Act
+    policies, rules_by_policy, app_ids_by_policy, _ = asyncio.run(
+        cartography.intel.okta.policies._get_okta_policy_data(MagicMock(), set()),
+    )
+
+    # Assert
+    policy_ids = {policy["id"] for policy in policies}
+    assert "00p-password-legacy" not in policy_ids
+    assert "rst-dashboard" not in policy_ids
+    assert set(rules_by_policy) == policy_ids
+    assert "rst-dashboard" not in app_ids_by_policy
