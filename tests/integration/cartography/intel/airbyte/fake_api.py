@@ -37,10 +37,10 @@ class FakeAirbyteAPI(BaseAdapter):
         # The user that owns the application, whose own permissions Airbyte
         # returns in full.
         self.owner = multi_org.APP_OWNER
-        self._failures: list[tuple[str, str, dict[str, str], Any]] = []
+        self._failures: list[tuple[str, str, dict[str, str | None], Any]] = []
         self.requests: list[tuple[str, str, dict[str, str]]] = []
 
-    def fail(self, method: str, uri: str, result: Any, **params: str) -> None:
+    def fail(self, method: str, uri: str, result: Any, **params: str | None) -> None:
         """
         Answer matching requests with ``result``: an HTTP status code, a
         ``(status, body)`` tuple, or an exception to raise from the transport.
