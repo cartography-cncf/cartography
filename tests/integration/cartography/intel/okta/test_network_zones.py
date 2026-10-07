@@ -75,13 +75,47 @@ def test_sync_okta_network_zones(mock_get_zones, neo4j_session) -> None:
         (TEST_ORG_ID, "nzo-tor"),
         (TEST_ORG_ID, "nzo-enhanced-dynamic"),
     }
-    record = neo4j_session.run(
-        """
-        MATCH (z:OktaNetworkZone {id: 'nzo-enhanced-dynamic'})
-        RETURN z.ip_service_categories_include AS categories
-        """,
-    ).single()
-    assert record["categories"] == ["ALL_ANONYMIZERS", "FUTURE_CATEGORY"]
+    zones = {
+        record["id"]: record["zone"]
+        for record in neo4j_session.run(
+            """
+            MATCH (z:OktaNetworkZone)
+            RETURN z.id AS id, {
+                gateways: z.gateways,
+                proxies: z.proxies,
+                use_as_exempt_list: z.use_as_exempt_list,
+                asns_include: z.asns_include,
+                asns_exclude: z.asns_exclude,
+                locations_include: z.locations_include,
+                locations_exclude: z.locations_exclude,
+                proxy_type: z.proxy_type,
+                ip_service_categories_include: z.ip_service_categories_include,
+                ip_service_categories_exclude: z.ip_service_categories_exclude
+            } AS zone
+            """,
+        )
+    }
+    assert zones["nzo-corp"]["gateways"] == [
+        "198.51.100.0/24",
+        "203.0.113.10-203.0.113.20",
+    ]
+    assert zones["nzo-corp"]["proxies"] == ["192.0.2.10/32"]
+    assert zones["nzo-corp"]["use_as_exempt_list"] is False
+    assert zones["nzo-blocked-ips"]["gateways"] == ["233.252.0.0/24"]
+    assert zones["nzo-tor"]["asns_include"] == ["64496", "64497"]
+    assert zones["nzo-tor"]["locations_include"] == ["AQ", "US-AK"]
+    assert zones["nzo-tor"]["proxy_type"] == "TorAnonymizer"
+    assert not zones["nzo-tor"]["asns_exclude"]
+    assert not zones["nzo-tor"]["locations_exclude"]
+    assert not zones["nzo-enhanced-dynamic"]["asns_include"]
+    assert zones["nzo-enhanced-dynamic"]["asns_exclude"] == ["64498"]
+    assert not zones["nzo-enhanced-dynamic"]["locations_include"]
+    assert zones["nzo-enhanced-dynamic"]["locations_exclude"] == ["CA"]
+    assert zones["nzo-enhanced-dynamic"]["ip_service_categories_include"] == [
+        "ALL_ANONYMIZERS",
+        "FUTURE_CATEGORY",
+    ]
+    assert not zones["nzo-enhanced-dynamic"]["ip_service_categories_exclude"]
 
 
 @patch.object(
