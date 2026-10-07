@@ -12,34 +12,49 @@ use the shared `Tag` label and the `TAGGED` relationship. The deprecated `HAS_TA
 compatibility edge is still written in parallel and will be removed in v1.0.0.
 
 Tenable's export names CVEs as bare identifiers and carries no per-CVE scoring of its
-own — a plugin's severity is Tenable's own aggregate over every CVE that plugin
-covers, so it cannot be attributed back to a single CVE. A CVE's own CVSS data comes
-from the canonical record ingested by the [cve](../cve/index.md) module, reached over
-`LINKED_TO`:
+own. A plugin's severity is Tenable's own roll-up over every CVE that plugin covers,
+so it cannot be attributed back to a single CVE. Per-detection severity and state stay
+on `TenableFinding`.
+
+To find findings by CVE:
 
     MATCH (:TenableCve {cve_id: 'CVE-2026-12345'})<-[:HAS_CVE]-(f:TenableFinding)
     RETURN f
 
-    // ... with the CVE's own severity
-    MATCH (f:TenableFinding)-[:HAS_CVE]->(:TenableCve)-[:LINKED_TO]->(c:CVE)
-    RETURN f.id, f.severity AS detection_severity, c.base_severity AS cve_severity
+The `CVE` label gives every `TenableCve` an `_ont_cve_id`. That is how it lines up with
+other providers' records of the same CVE, including the NVD data from the
+[cve](../cve/index.md) module. To read a CVE's own severity:
 
-`TenableCve.id` is prefixed with `TNB|` (for example `TNB|CVE-2026-12345`) so these
-nodes stay distinct from the canonical `(:CVE {id: 'CVE-2026-12345'})` records, which
-are separately owned and separately cleaned up. Match on `cve_id` for the bare
-identifier. This mirrors the `USV|` prefix the Ubuntu module uses.
+    MATCH (f:TenableFinding)-[:HAS_CVE]->(t:TenableCve)
+    MATCH (n:CVE {_ont_cve_id: t._ont_cve_id, _ont_source: 'cve'})
+    RETURN f.id, f.severity AS detection_severity, n._ont_base_severity AS cve_severity
+
+Most scanner modules put the `CVE` label on the finding. Tenable puts it on the
+vulnerability record instead, like the `cve` and Ubuntu modules. Because Tenable's
+export does not score individual CVEs, `TenableCve` has no `_ont_base_severity` or
+`_ont_vuln_status`, and a query that filters `CVE` nodes on those fields will not
+return Tenable data. Use `TenableFinding.severity` and `TenableFinding.state` instead.
+
+`TenableCve.id` is prefixed with `TNB|` (for example `TNB|CVE-2026-12345`). The `cve`
+module merges its records on `(:CVE {id})`, so a bare id would make it adopt
+`TenableCve` nodes as its own. Match on `cve_id` for the bare identifier. This mirrors
+the `USV|` prefix the Ubuntu module uses.
 
 ```{note}
-Before v0.142.0 the CVE identifiers were reachable only through a `cve_list` array
-property, which was indexed on `TenableFinding`. Neo4j keys a list property under a
+In earlier versions `TenableFinding` kept its CVE IDs in an indexed `cve_list` array
+property, and `cve_id` held only the first one. Neo4j keys a list property under a
 single index entry and rejects values over ~8 KB, so a plugin for a cumulative OS
 update naming hundreds of CVEs failed the whole sync. `TenableFinding` also carried
-the `CVE` label itself, which exposed just the first CVE to the ontology.
+the `CVE` label itself.
+
+On a graph synced by an earlier version, the first sync after upgrading drops the old
+`cve_list` index and removes the `CVE` label and `_ont_*` properties from
+`TenableFinding`. No manual step is needed.
 
 `cve_list` is still written on both nodes for backwards compatibility, but it is no
-longer indexed and a predicate like `'CVE-2026-12345' IN f.cve_list` is a label scan
-(a range index on a list can only answer whole-array equality, so it never served
-that query). Use `HAS_CVE` instead.
+longer indexed, so a predicate like `'CVE-2026-12345' IN f.cve_list` is a label scan
+(a range index on a list only answers whole-array equality, so it never served that
+query). Use `HAS_CVE` instead.
 ```
 
 See [configuration](config.md) for connection and scoping options, and the

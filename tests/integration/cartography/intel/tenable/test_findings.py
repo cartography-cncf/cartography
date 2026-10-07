@@ -132,17 +132,35 @@ def test_sync_cves(neo4j_session, mocker):
     assert record["ontology_source"] == "tenable"
 
 
-def test_sync_cves_link_to_canonical_cve(neo4j_session, mocker):
-    """Test that TenableCve links to the canonical NVD CVE without merging into it.
+def _cve_list_index_names(neo4j_session):
+    rows = neo4j_session.run(
+        """
+        SHOW INDEXES YIELD name, labelsOrTypes, properties, entityType
+        WHERE entityType = 'NODE'
+          AND labelsOrTypes = ['TenableFinding'] AND properties = ['cve_list']
+        RETURN name
+        """
+    )
+    return {row["name"] for row in rows}
 
-    Tenable reports bare CVE identifiers and no scoring of its own, so a CVE's real
-    severity is read from the canonical record over :LINKED_TO.
+
+def _drop_cve_list_indexes(neo4j_session):
+    for name in _cve_list_index_names(neo4j_session):
+        neo4j_session.run(f"DROP INDEX `{name}` IF EXISTS")
+
+
+def test_sync_cves_correlate_with_nvd_through_ontology(neo4j_session, mocker):
+    """Test that TenableCve lines up with NVD data through _ont_cve_id, with no edge.
+
+    The :CVE ontology label writes _ont_cve_id in place, so a CVE's own severity is
+    read by joining on it. The NVD record must not absorb Tenable's node.
     """
-    # Arrange: a canonical NVD CVE node, as the `cve` module would ingest it.
+    # Arrange: an NVD record, as the `cve` module would ingest it.
     neo4j_session.run(
         """
-        CREATE (c:CVE {id: $cve_id, cve_id: $cve_id, base_severity: 'HIGH',
-                       base_score: 8.8, lastupdated: $update_tag})
+        MERGE (c:CVE {id: $cve_id})
+        SET c.cve_id = $cve_id, c._ont_cve_id = $cve_id, c._ont_source = 'cve',
+            c._ont_base_severity = 'high', c.lastupdated = $update_tag
         """,
         cve_id=CVE_ID_1,
         update_tag=TEST_UPDATE_TAG,
@@ -152,25 +170,94 @@ def test_sync_cves_link_to_canonical_cve(neo4j_session, mocker):
     # Act
     _sync_findings(neo4j_session, mocker)
 
-    # Assert: the canonical node keeps its own identity and data, and did not absorb
-    # the :TenableCve label or Tenable's tenant ownership.
+    # Assert: the NVD record keeps its own identity and did not absorb :TenableCve.
     record = neo4j_session.run(
-        "MATCH (c:CVE {id: $cve_id}) "
-        "RETURN labels(c) AS labels, c.base_severity AS base_severity",
+        "MATCH (c:CVE {_ont_source: 'cve', _ont_cve_id: $cve_id}) "
+        "RETURN labels(c) AS labels, c._ont_base_severity AS severity",
         cve_id=CVE_ID_1,
-    ).single()
+    ).single(strict=True)
     assert record["labels"] == ["CVE"]
-    assert record["base_severity"] == "HIGH"
+    assert record["severity"] == "high"
 
-    # The CVE's own severity is reachable from the finding in two hops.
+    # The `cve` module MERGEs on (:CVE {id}). Thanks to the TNB| prefix only its own
+    # record answers to the bare id, so it can never adopt a TenableCve.
+    count = neo4j_session.run(
+        "MATCH (c:CVE {id: $cve_id}) RETURN count(c) AS n", cve_id=CVE_ID_1
+    ).single(strict=True)["n"]
+    assert count == 1
+
+    # TenableCve has no outgoing edges: correlation goes through _ont_cve_id.
+    outgoing = neo4j_session.run(
+        "MATCH (:TenableCve)-[r]->() RETURN count(r) AS n"
+    ).single(strict=True)["n"]
+    assert outgoing == 0
+
+    # The CVE's own severity is reachable from the finding by joining on _ont_cve_id.
     record = neo4j_session.run(
-        "MATCH (f:TenableFinding {id: $finding_id})-[:HAS_CVE]->(:TenableCve)"
-        "-[:LINKED_TO]->(c:CVE) "
-        "RETURN c.id AS cve_id, c.base_severity AS base_severity",
+        """
+        MATCH (f:TenableFinding {id: $finding_id})-[:HAS_CVE]->(t:TenableCve)
+        MATCH (n:CVE {_ont_cve_id: t._ont_cve_id, _ont_source: 'cve'})
+        RETURN t.cve_id AS cve_id, n._ont_base_severity AS severity
+        """,
         finding_id=FINDING_ID_1,
-    ).single()
+    ).single(strict=True)
     assert record["cve_id"] == CVE_ID_1
-    assert record["base_severity"] == "HIGH"
+    assert record["severity"] == "high"
+
+
+def test_sync_findings_removes_legacy_cve_state(neo4j_session, mocker):
+    """Test that the first sync after upgrading cleans up what older versions left.
+
+    Older versions indexed TenableFinding.cve_list and put :CVE plus _ont_* on the
+    finding. Cartography never removes either on its own, and the index would still
+    reject large cve_list values, so sync must clear them before loading.
+    """
+    _drop_cve_list_indexes(neo4j_session)
+    try:
+        # Arrange: the index and a finding exactly as an older version left them.
+        neo4j_session.run(
+            "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
+        )
+        neo4j_session.run(
+            """
+            MERGE (f:TenableFinding {id: $finding_id})
+            SET f:CVE, f.lastupdated = $old_tag,
+                f._ont_source = 'tenable', f._ont_cve_id = $cve_id,
+                f._ont_base_severity = 'high', f._ont_vuln_status = 'open'
+            """,
+            finding_id=FINDING_ID_1,
+            cve_id=CVE_ID_1,
+            old_tag=TEST_UPDATE_TAG - 1000,
+        )
+        assert _cve_list_index_names(neo4j_session)
+        _load_assets(neo4j_session, mocker)
+
+        # Act
+        _sync_findings(neo4j_session, mocker)
+
+        # Assert: the index is gone, and the finding lost the legacy label and
+        # ontology properties but carries this sync's data.
+        assert _cve_list_index_names(neo4j_session) == set()
+        record = neo4j_session.run(
+            """
+            MATCH (f:TenableFinding {id: $finding_id})
+            RETURN f:CVE AS has_cve_label, f._ont_source AS ont_source,
+                   f._ont_cve_id AS ont_cve_id,
+                   f._ont_base_severity AS ont_severity,
+                   f._ont_vuln_status AS ont_status,
+                   f.severity AS severity, f.lastupdated AS lastupdated
+            """,
+            finding_id=FINDING_ID_1,
+        ).single(strict=True)
+        assert record["has_cve_label"] is False
+        assert record["ont_source"] is None
+        assert record["ont_cve_id"] is None
+        assert record["ont_severity"] is None
+        assert record["ont_status"] is None
+        assert record["severity"] == "high"
+        assert record["lastupdated"] == TEST_UPDATE_TAG
+    finally:
+        _drop_cve_list_indexes(neo4j_session)
 
 
 def test_sync_findings_has_cve_rel(neo4j_session, mocker):
