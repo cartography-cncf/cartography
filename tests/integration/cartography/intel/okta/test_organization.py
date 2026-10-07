@@ -67,5 +67,10 @@ def test_record_okta_sync_coverage_keeps_org_properties(neo4j_session) -> None:
     assert check_nodes(
         neo4j_session,
         "OktaOrganization",
-        ["id", "admin_console_session_idle_timeout_minutes", "log_streams_synced"],
-    ) == {(TEST_ORG_ID, 15, False)}
+        [
+            "id",
+            "admin_console_session_idle_timeout_minutes",
+            "admin_console_session_max_lifetime_minutes",
+            "log_streams_synced",
+        ],
+    ) == {(TEST_ORG_ID, 15, 720, False)}

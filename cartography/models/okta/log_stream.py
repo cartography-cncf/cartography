@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -86,6 +87,34 @@ class OktaLogStreamToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OktaLogStreamToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef(
+        "lastupdated",
+        set_in_kwargs=True,
+        description="Timestamp of the last sync that observed this relationship.",
+    )
+
+
+@dataclass(frozen=True)
+# (:OktaLogStream)-[:STREAMS_TO]->(:AWSAccount)
+class OktaLogStreamToAWSAccountRel(CartographyRelSchema):
+    """
+    An `aws_eventbridge` log stream delivers System Log events to an AWS
+    account. Only created when that account is already in the graph.
+    """
+
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("aws_account_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "STREAMS_TO"
+    properties: OktaLogStreamToAWSAccountRelProperties = (
+        OktaLogStreamToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class OktaLogStreamSchema(CartographyNodeSchema):
     """
     An Okta log stream that forwards System Log events to an external
@@ -97,4 +126,7 @@ class OktaLogStreamSchema(CartographyNodeSchema):
     properties: OktaLogStreamNodeProperties = OktaLogStreamNodeProperties()
     sub_resource_relationship: OktaLogStreamToOrganizationRel = (
         OktaLogStreamToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [OktaLogStreamToAWSAccountRel()],
     )

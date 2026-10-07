@@ -28,6 +28,7 @@ def _seed_graph(neo4j_session) -> None:
         SET org.lastupdated = $update_tag
         MERGE (org)-[:RESOURCE]->(stale:OktaLogStream {id: 'stale-stream'})
         SET stale.lastupdated = 1
+        MERGE (:AWSAccount {id: '123456789012'})
         """,
         org_id=TEST_ORG_ID,
         update_tag=TEST_UPDATE_TAG,
@@ -75,6 +76,14 @@ def test_sync_okta_log_streams(mock_get_log_streams, neo4j_session) -> None:
         "id",
         "RESOURCE",
     ) == {(TEST_ORG_ID, "0oa-eventbridge"), (TEST_ORG_ID, "0oa-splunk")}
+    assert check_rels(
+        neo4j_session,
+        "OktaLogStream",
+        "id",
+        "AWSAccount",
+        "id",
+        "STREAMS_TO",
+    ) == {("0oa-eventbridge", "123456789012")}
 
 
 @patch.object(
