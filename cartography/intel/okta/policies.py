@@ -129,6 +129,15 @@ async def _get_okta_first_party_app_names(
         except OktaApiError as exc:
             if is_resource_not_found_error(exc):
                 continue
+            # Read-only admins cannot read Okta's own apps (Admin Console,
+            # Dashboard). The names are enrichment, so keep syncing policies.
+            if is_missing_scope_error(exc):
+                logger.warning(
+                    "Unable to read Okta app %s to name the policy it is assigned "
+                    "to - api token needs permission to read Okta first-party apps",
+                    app_id,
+                )
+                continue
             raise
         if app and app.get("name"):
             names[app_id] = app["name"]

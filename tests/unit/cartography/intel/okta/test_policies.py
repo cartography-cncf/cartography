@@ -228,3 +228,25 @@ def test_get_policy_app_ids_handles_account_management_policy(mock_collect):
 
     # Assert
     assert app_ids == []
+
+
+@patch.object(cartography.intel.okta.policies, "get_raw_json")
+def test_get_first_party_app_names_skips_apps_the_token_cannot_read(mock_get):
+    # Arrange: read-only admins get a 403 for Okta's own apps.
+    async def _get(okta_client, path):
+        if path == "/api/v1/apps/0oa-admin-console":
+            raise OktaApiError(path, SimpleNamespace(error_code="E0000006"))
+        return {"name": "okta_enduser"}
+
+    mock_get.side_effect = _get
+
+    # Act
+    names = asyncio.run(
+        cartography.intel.okta.policies._get_okta_first_party_app_names(
+            MagicMock(),
+            {"0oa-admin-console", "0oa-dashboard"},
+        ),
+    )
+
+    # Assert
+    assert names == {"0oa-dashboard": "okta_enduser"}
