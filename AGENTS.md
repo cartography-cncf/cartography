@@ -96,6 +96,16 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Prefer comment-only deprecation markers for internal compatibility code that should stay quiet during normal runs.
 - Use runtime warnings or log warnings only when users are actively invoking a deprecated public module or API surface.
 
+**Documentation Conventions:**
+- Keep `docs/root/modules/<module>/index.md` limited to the page title and its
+  `toctree`. Do not put module descriptions, configuration, examples, migration
+  notes, or architecture guidance in the index.
+- Put explanatory content in focused child pages such as `overview.md`,
+  `config.md`, `queries.md`, `examples.md`, or `analysis.md`, and link to one
+  authoritative location instead of repeating the same guidance.
+- Keep node, relationship, and property documentation in model docstrings and
+  `PropertyRef.description`; Sphinx uses them to generate `schema.md`.
+
 ## Git and Pull Request Guidelines
 
 **Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
