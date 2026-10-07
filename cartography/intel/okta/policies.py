@@ -426,10 +426,11 @@ def sync_okta_policies(
     Sync Okta global session, password, authentication, authenticator
     enrollment, and profile enrollment policies with their rules.
 
-    Run after the application sync: authentication policies are linked to the
-    `OktaApplication` nodes it loads, and `known_app_ids` are the IDs it returned.
-    Mapped apps outside that set are Okta first-party apps, whose names are
-    fetched individually.
+    Run after the application and network zone syncs: authentication policies
+    link to the `OktaApplication` nodes, and rules to the `OktaNetworkZone`
+    nodes, that those syncs load. `known_app_ids` are the IDs the application
+    sync returned; mapped apps outside that set are Okta first-party apps, whose
+    names are fetched individually.
     """
     logger.info("Syncing Okta policies")
     try:
