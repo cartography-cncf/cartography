@@ -32,6 +32,14 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
             "the API token cannot read first-party app settings (`okta.apps.read`)."
         ),
     )
+    log_streams_synced: PropertyRef = PropertyRef(
+        "log_streams_synced",
+        description=(
+            "Whether the last sync could read the org's log streams. False when the "
+            "API token lacks `okta.logStreams.read`, so a missing `OktaLogStream` "
+            "does not mean the org has none."
+        ),
+    )
 
 
 @dataclass(frozen=True)

@@ -34,22 +34,6 @@ def _seed_graph(neo4j_session) -> None:
     )
 
 
-def _log_stream_sync_metadata(neo4j_session) -> list[int]:
-    return [
-        record["lastupdated"]
-        for record in neo4j_session.run(
-            """
-            MATCH (m:ModuleSyncMetadata {
-                grouptype: 'OktaOrganization', syncedtype: 'OktaLogStream'
-            })
-            WHERE m.groupid = $org_id
-            RETURN m.lastupdated AS lastupdated
-            """,
-            org_id=TEST_ORG_ID,
-        )
-    ]
-
-
 @patch.object(
     cartography.intel.okta.log_streams,
     "_get_okta_log_streams",
@@ -61,13 +45,14 @@ def test_sync_okta_log_streams(mock_get_log_streams, neo4j_session) -> None:
     mock_get_log_streams.return_value = LOG_STREAMS
 
     # Act
-    cartography.intel.okta.log_streams.sync_okta_log_streams(
+    synced = cartography.intel.okta.log_streams.sync_okta_log_streams(
         MagicMock(),
         neo4j_session,
         _common_job_parameters(),
     )
 
     # Assert
+    assert synced is True
     assert check_nodes(
         neo4j_session,
         "OktaLogStream",
@@ -90,7 +75,6 @@ def test_sync_okta_log_streams(mock_get_log_streams, neo4j_session) -> None:
         "id",
         "RESOURCE",
     ) == {(TEST_ORG_ID, "0oa-eventbridge"), (TEST_ORG_ID, "0oa-splunk")}
-    assert _log_stream_sync_metadata(neo4j_session) == [TEST_UPDATE_TAG]
 
 
 @patch.object(
@@ -110,12 +94,12 @@ def test_sync_okta_log_streams_skips_when_scope_missing(
     )
 
     # Act
-    cartography.intel.okta.log_streams.sync_okta_log_streams(
+    synced = cartography.intel.okta.log_streams.sync_okta_log_streams(
         MagicMock(),
         neo4j_session,
         _common_job_parameters(),
     )
 
     # Assert
+    assert synced is False
     assert check_nodes(neo4j_session, "OktaLogStream", ["id"]) == {("stale-stream",)}
-    assert _log_stream_sync_metadata(neo4j_session) == []

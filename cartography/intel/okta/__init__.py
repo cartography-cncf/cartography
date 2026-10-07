@@ -79,7 +79,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         }
     )
 
-    organization.sync_okta_organization(
+    org_properties = organization.sync_okta_organization(
         neo4j_session,
         common_job_parameters,
         okta_client,
@@ -109,7 +109,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
     )
-    log_streams.sync_okta_log_streams(
+    log_streams_synced = log_streams.sync_okta_log_streams(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -131,6 +131,13 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         common_job_parameters,
         app_ids,
+    )
+
+    organization.record_okta_sync_coverage(
+        neo4j_session,
+        common_job_parameters,
+        org_properties,
+        {"log_streams_synced": log_streams_synced},
     )
 
     # Sync Okta groups to AWS roles via SAML

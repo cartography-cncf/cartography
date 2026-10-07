@@ -24,14 +24,33 @@ def sync_okta_organization(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
     okta_client: OktaClient | None = None,
-) -> None:
+) -> dict[str, Any]:
     """
-    Add the OktaOrganization subresource
+    Add the OktaOrganization subresource and return the properties loaded on it
     """
     admin_console_settings: dict[str, Any] = {}
     if okta_client is not None:
         admin_console_settings = _get_admin_console_settings(okta_client)
     _load_organization(neo4j_session, common_job_parameters, admin_console_settings)
+    return admin_console_settings
+
+
+def record_okta_sync_coverage(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+    org_properties: dict[str, Any],
+    coverage: dict[str, bool],
+) -> None:
+    """
+    Reload the organization with flags saying whether the API token could read
+    resources that need extra permissions, so an org without them can be told
+    apart from one whose token could not read them.
+    """
+    _load_organization(
+        neo4j_session,
+        common_job_parameters,
+        {**org_properties, **coverage},
+    )
 
 
 @timeit
@@ -70,7 +89,7 @@ async def _fetch_admin_console_settings(okta_client: OktaClient) -> Any:
 def _load_organization(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    admin_console_settings: dict[str, Any] | None = None,
+    properties: dict[str, Any] | None = None,
 ) -> None:
     """
     Load the host node into the graph
@@ -83,7 +102,7 @@ def _load_organization(
         {
             "id": org_id,
             "name": org_id,
-            **(admin_console_settings or {}),
+            **(properties or {}),
         },
     ]
     load(
