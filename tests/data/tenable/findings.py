@@ -15,7 +15,7 @@ CVE_ID_1 = "CVE-2022-21837"
 CVE_ID_2 = "CVE-2022-21840"
 CVE_ID_3 = "CVE-2022-21842"
 PLUGIN_1_CVES = [CVE_ID_1, CVE_ID_2, CVE_ID_3]
-# :TenableCve node ids are namespaced to stay distinct from canonical NVD :CVE nodes.
+# :TenableCve node ids are namespaced to stay distinct from the NVD :CVE records.
 PLUGIN_1_CVE_NODE_IDS = [f"TNB|{cve_id}" for cve_id in PLUGIN_1_CVES]
 
 SCAN_UUID_1 = "270b911b-1fe6-4760-8c49-88d315cb764e"

@@ -335,13 +335,12 @@ def test_transform_cves_empty_input():
     assert transform_cves([]) == []
 
 
-def test_transform_cves_namespaces_node_ids_away_from_canonical_cve():
+def test_transform_cves_namespaces_node_ids_away_from_nvd_records():
     """Node ids must never equal a bare CVE id.
 
-    A :TenableCve carries the :CVE label, so a bare id would collide with the
-    canonical (:CVE {id: 'CVE-...'}) records the `cve` module ingests from NVD, and
-    Tenable's tenant-scoped cleanup would then delete NVD's data along with every
-    other provider's edges into it.
+    A :TenableCve carries the :CVE label, and the `cve` module MERGEs its NVD records
+    on (:CVE {id}). A bare id would make it adopt :TenableCve nodes as its own, and
+    the two modules' cleanups would then delete each other's data.
     """
     # Act
     cves = transform_cves(FINDINGS_DATA)

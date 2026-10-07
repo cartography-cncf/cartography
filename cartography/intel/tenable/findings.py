@@ -7,6 +7,8 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
+from cartography.intel.tenable.deprecated import drop_legacy_cve_list_index
+from cartography.intel.tenable.deprecated import remove_legacy_finding_cve_ontology
 from cartography.models.tenable.cve import TenableCveSchema
 from cartography.models.tenable.findings import TenableFindingSchema
 from cartography.models.tenable.plugins import TenablePluginSchema
@@ -18,10 +20,9 @@ logger = logging.getLogger(__name__)
 
 _FINDING_EXPORT_PATH = "vulns/export"
 _FINDING_RESULT_BASE = "vulns/export"
-# :TenableCve ids are namespaced so they never collide with the canonical
-# (:CVE {id: "CVE-..."}) nodes the `cve` module ingests from NVD. Without this,
-# Tenable's tenant-scoped cleanup would DETACH DELETE NVD's CVE records and every
-# other provider's edges into them. Mirrors Ubuntu's `USV|` prefix.
+# :TenableCve ids are namespaced because the `cve` module MERGEs its NVD records on
+# (:CVE {id}). A bare id would make it adopt :TenableCve nodes as its own, so the
+# two modules' cleanups would delete each other's data. Mirrors Ubuntu's `USV|`.
 _CVE_ID_PREFIX = "TNB|"
 _FINDING_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 500}
 _FINDING_EXPORT_STATES = ["OPEN", "REOPENED", "FIXED"]
@@ -169,9 +170,9 @@ def transform_cves(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     an indexed list property: Neo4j indexes a list property under a single key
     and rejects any value over ~8 KB.
 
-    ``id`` is prefixed to keep these nodes distinct from the canonical NVD CVE
-    records; ``cve_id`` holds the bare identifier used for ontology correlation
-    and for the :LINKED_TO edge to the canonical node.
+    ``id`` is prefixed to keep these nodes distinct from the NVD CVE records the
+    `cve` module ingests; ``cve_id`` holds the bare identifier, which becomes the
+    ``_ont_cve_id`` that correlates them with other providers' CVE records.
     """
     seen: set[str] = set()
     result = []
@@ -287,6 +288,11 @@ def sync(
         tenant_id,
         lookback_days,
     )
+    # DEPRECATED: remove in v1.0.0 along with cartography/intel/tenable/deprecated.py.
+    # Must run before load_findings: the legacy index rejects large cve_list values.
+    drop_legacy_cve_list_index(neo4j_session)
+    remove_legacy_finding_cve_ontology(neo4j_session)
+
     since_epoch = update_tag - (lookback_days * 86400)
     raw_findings = get(session, base_url, since_epoch)
     findings = transform(raw_findings)
