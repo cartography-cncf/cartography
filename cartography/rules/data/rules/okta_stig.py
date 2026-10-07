@@ -564,9 +564,19 @@ class OktaFirstPartyAppPolicyOutput(Finding):
     org_id: str | None = None
 
 
-def _first_party_app_policy(app_name: str, default_policy_name: str) -> str:
+# Okta has shipped both names for the preset Dashboard policy.
+_DASHBOARD_POLICY_NAMES = ("Okta Dashboard", "Okta Dashboard Policy")
+_ADMIN_CONSOLE_POLICY_NAMES = ("Okta Admin Console",)
+
+
+def _first_party_app_policy(
+    app_name: str,
+    default_policy_names: tuple[str, ...],
+) -> str:
     # The policy is identified by the first-party app it is assigned to. If that
-    # app could not be resolved during sync, fall back to the preset policy name.
+    # app could not be resolved during sync (read-only admins cannot read Okta's
+    # own apps), fall back to the preset policy names.
+    names = ", ".join(f"'{name}'" for name in default_policy_names)
     return f"""
     MATCH (o:OktaOrganization)-[:RESOURCE]->(p:OktaPolicy)
     WHERE p.type = 'ACCESS_POLICY' AND p.status = 'ACTIVE'
@@ -574,7 +584,7 @@ def _first_party_app_policy(app_name: str, default_policy_name: str) -> str:
           '{app_name}' IN coalesce(p.first_party_app_names, [])
           OR (
               size(coalesce(p.first_party_app_names, [])) = 0
-              AND p.name = '{default_policy_name}'
+              AND p.name IN [{names}]
           )
       )
     """
@@ -585,10 +595,10 @@ def _first_party_app_fact(
     name: str,
     description: str,
     app_name: str,
-    default_policy_name: str,
+    default_policy_names: tuple[str, ...],
     violation: str,
 ) -> Fact:
-    policy = _first_party_app_policy(app_name, default_policy_name)
+    policy = _first_party_app_policy(app_name, default_policy_names)
     top_allow_rule = f"""
     {policy}
     MATCH (p)-[:HAS_RULE]->(r:OktaPolicyRule)
@@ -656,7 +666,7 @@ okta_dashboard_phishing_resistant_not_required = Rule(
             "Detects Okta Dashboard authentication policies whose highest-priority "
             "allow rule does not require a phishing-resistant possession factor.",
             "okta_enduser",
-            "Okta Dashboard",
+            _DASHBOARD_POLICY_NAMES,
             _PHISHING_RESISTANT_VIOLATION,
         ),
     ),
@@ -685,7 +695,7 @@ okta_admin_console_phishing_resistant_not_required = Rule(
             "Detects Okta Admin Console authentication policies whose highest-priority "
             "allow rule does not require a phishing-resistant possession factor.",
             "saasure",
-            "Okta Admin Console",
+            _ADMIN_CONSOLE_POLICY_NAMES,
             _PHISHING_RESISTANT_VIOLATION,
         ),
     ),
@@ -722,7 +732,7 @@ okta_admin_console_mfa_not_required = Rule(
             "Detects Okta Admin Console authentication policies whose highest-priority "
             "allow rule accepts a single factor type.",
             "saasure",
-            "Okta Admin Console",
+            _ADMIN_CONSOLE_POLICY_NAMES,
             _MFA_VIOLATION,
         ),
     ),
@@ -752,7 +762,7 @@ okta_dashboard_mfa_not_required = Rule(
             "Detects Okta Dashboard authentication policies whose highest-priority "
             "allow rule accepts a single factor type.",
             "okta_enduser",
-            "Okta Dashboard",
+            _DASHBOARD_POLICY_NAMES,
             _MFA_VIOLATION,
         ),
     ),

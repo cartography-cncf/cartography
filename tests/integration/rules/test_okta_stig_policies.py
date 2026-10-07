@@ -66,7 +66,7 @@ CREATE (ac_a)-[:HAS_RULE]->(:OktaPolicyRule {
 })
 CREATE (a)-[:RESOURCE]->(db_a:OktaPolicy {
     id: 'dashboard-weak', type: 'ACCESS_POLICY', status: 'ACTIVE',
-    name: 'Okta Dashboard', first_party_app_names: []
+    name: 'Okta Dashboard Policy', first_party_app_names: []
 })
 CREATE (db_a)-[:HAS_RULE]->(:OktaPolicyRule {
     id: 'dashboard-weak-top', status: 'ACTIVE', priority: 0, access: 'ALLOW',
