@@ -1,7 +1,9 @@
 # Okta
 
 The Okta module ingests organizations, users, groups, applications, trusted
-origins, user and group administration roles, and user authentication factors.
+origins, user and group administration roles, user authentication factors,
+devices, and policies (global session, password, authentication, authenticator
+enrollment, and profile enrollment) with their rules.
 See the generated [Okta schema](schema.md) for the available properties and
 relationships.
 

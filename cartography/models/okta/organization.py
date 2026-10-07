@@ -18,6 +18,20 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
         description="Timestamp of the last sync that observed this resource.",
     )
     name: PropertyRef = PropertyRef("name", description="Okta name.")
+    admin_console_session_idle_timeout_minutes: PropertyRef = PropertyRef(
+        "admin_console_session_idle_timeout_minutes",
+        description=(
+            "Maximum idle time, in minutes, of an Okta Admin Console session. Null when "
+            "the API token cannot read first-party app settings (`okta.apps.read`)."
+        ),
+    )
+    admin_console_session_max_lifetime_minutes: PropertyRef = PropertyRef(
+        "admin_console_session_max_lifetime_minutes",
+        description=(
+            "Maximum lifetime, in minutes, of an Okta Admin Console session. Null when "
+            "the API token cannot read first-party app settings (`okta.apps.read`)."
+        ),
+    )
 
 
 @dataclass(frozen=True)

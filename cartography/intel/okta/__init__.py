@@ -14,6 +14,7 @@ from cartography.intel.okta import factors
 from cartography.intel.okta import groups
 from cartography.intel.okta import organization
 from cartography.intel.okta import origins
+from cartography.intel.okta import policies
 from cartography.intel.okta import users
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -75,11 +76,15 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         }
     )
 
-    organization.sync_okta_organization(neo4j_session, common_job_parameters)
+    organization.sync_okta_organization(
+        neo4j_session,
+        common_job_parameters,
+        okta_client,
+    )
     user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)
     groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
-    applications.sync_okta_applications(
+    app_ids = applications.sync_okta_applications(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -100,6 +105,13 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         okta_client,
         neo4j_session,
         common_job_parameters,
+    )
+    # Runs after applications: authentication policies link to OktaApplication.
+    policies.sync_okta_policies(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+        app_ids,
     )
 
     # Sync Okta groups to AWS roles via SAML
