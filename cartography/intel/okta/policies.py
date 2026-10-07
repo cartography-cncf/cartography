@@ -108,7 +108,10 @@ async def _get_okta_policy_app_ids(
             return None
         # The Okta Account Management Policy is an ACCESS_POLICY that cannot have
         # app mappings; Okta rejects the request instead of returning an empty list.
-        if exc.error_code == OKTA_VALIDATION_ERROR_CODE:
+        if (
+            exc.error_code == OKTA_VALIDATION_ERROR_CODE
+            and "account management policy" in str(exc).lower()
+        ):
             return []
         raise
     return [

@@ -210,12 +210,21 @@ def test_get_policy_data_drops_policies_deleted_mid_sync(mock_collect, mock_name
     assert "rst-dashboard" not in app_ids_by_policy
 
 
+class _OktaError(SimpleNamespace):
+    def __str__(self) -> str:
+        return f"Okta HTTP 400 {self.error_code} {self.message}"
+
+
 @patch.object(cartography.intel.okta.policies, "collect_raw_paginated")
 def test_get_policy_app_ids_handles_account_management_policy(mock_collect):
     # Arrange: Okta rejects app mappings for the Okta Account Management Policy.
     mock_collect.side_effect = OktaApiError(
         "/api/v1/policies/rst-account-management/mappings",
-        SimpleNamespace(error_code="E0000001"),
+        _OktaError(
+            error_code="E0000001",
+            message="Api validation failed: Policy\nThis operation isn't "
+            "supported in the Okta account management policy.",
+        ),
     )
 
     # Act
@@ -250,3 +259,19 @@ def test_get_first_party_app_names_skips_apps_the_token_cannot_read(mock_get):
 
     # Assert
     assert names == {"0oa-dashboard": "okta_enduser"}
+
+
+@patch.object(cartography.intel.okta.policies, "collect_raw_paginated")
+def test_get_policy_app_ids_raises_other_validation_errors(mock_collect):
+    mock_collect.side_effect = OktaApiError(
+        "/api/v1/policies/rst-default/mappings",
+        _OktaError(error_code="E0000001", message="Api validation failed: limit"),
+    )
+
+    with pytest.raises(OktaApiError):
+        asyncio.run(
+            cartography.intel.okta.policies._get_okta_policy_app_ids(
+                MagicMock(),
+                "rst-default",
+            ),
+        )
