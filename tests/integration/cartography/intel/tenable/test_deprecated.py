@@ -27,14 +27,27 @@ def _drop_cve_list_indexes(neo4j_session) -> None:
         neo4j_session.run(f"DROP INDEX `{name}` IF EXISTS")
 
 
+def _create_legacy_cve_list_index(neo4j_session) -> None:
+    """Create the RANGE index older versions declared, and wait until it is ONLINE.
+
+    Index creation is asynchronous. A write that exceeds the key limit while the
+    index is still POPULATING can fail at commit time and take the whole database
+    down, instead of being rejected cleanly as it is against an ONLINE index - the
+    state every real graph is in. Waiting keeps the tests deterministic and keeps a
+    shared test database alive.
+    """
+    neo4j_session.run(
+        "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
+    )
+    neo4j_session.run("CALL db.awaitIndexes(60)")
+
+
 def test_drop_legacy_cve_list_index(neo4j_session):
     """The legacy RANGE index is dropped; an operator-managed TEXT index survives."""
     _drop_cve_list_indexes(neo4j_session)
     try:
         # The RANGE index older versions created through extra_index=True.
-        neo4j_session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
-        )
+        _create_legacy_cve_list_index(neo4j_session)
         # An index someone added by hand. Only cartography's own RANGE index goes.
         neo4j_session.run(
             f"CREATE TEXT INDEX {OPERATOR_TEXT_INDEX} IF NOT EXISTS "
@@ -57,9 +70,7 @@ def test_drop_legacy_cve_list_index_unblocks_large_cve_lists(neo4j_session):
     """The point of the drop: a CVE list over the index key limit becomes writable."""
     _drop_cve_list_indexes(neo4j_session)
     try:
-        neo4j_session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
-        )
+        _create_legacy_cve_list_index(neo4j_session)
         # Roughly the size of a cumulative OS update plugin's CVE list.
         oversized = [f"CVE-2026-{n:05d}" for n in range(700)]
         write = "CREATE (:TenableFinding {id: 'large', cve_list: $cve_list})"
