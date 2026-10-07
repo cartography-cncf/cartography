@@ -1003,13 +1003,7 @@ class OktaLogStreamMissingOutput(Finding):
 # whose token lacks okta.logStreams.read would look like one with no streams.
 _ORG_WITH_SYNCED_LOG_STREAMS = """
     MATCH (o:OktaOrganization)
-    WHERE EXISTS {
-        MATCH (m:ModuleSyncMetadata)
-        WHERE m.grouptype = 'OktaOrganization'
-          AND m.syncedtype = 'OktaLogStream'
-          AND m.groupid = o.id
-          AND m.lastupdated = o.lastupdated
-    }
+    WHERE o.log_streams_synced = true
 """
 
 okta_system_log_not_streamed = Rule(
@@ -1161,13 +1155,7 @@ okta_api_token_without_network_zone = Rule(
 # user and group roles were synced, so a missing role is not mistaken for none.
 _ORG_WITH_SYNCED_ADMIN_ROLES = """
     MATCH (o:OktaOrganization)
-    WHERE all(synced_type IN ['OktaUserRole', 'OktaGroupRole'] WHERE EXISTS {
-        MATCH (m:ModuleSyncMetadata)
-        WHERE m.grouptype = 'OktaOrganization'
-          AND m.syncedtype = synced_type
-          AND m.groupid = o.id
-          AND m.lastupdated = o.lastupdated
-    })
+    WHERE o.admin_roles_synced = true
 """
 
 _API_TOKEN_OWNED_BY_SUPER_ADMIN = (

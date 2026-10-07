@@ -20,12 +20,9 @@ from cartography.intel.okta.common import raise_for_okta_error
 from cartography.models.okta.user import OktaUserRoleSchema
 from cartography.models.okta.user import OktaUserSchema
 from cartography.models.okta.user import OktaUserTypeSchema
-from cartography.stats import get_stats_client
-from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-stat_handler = get_stats_client(__name__)
 
 
 ####
@@ -138,13 +135,13 @@ def sync_okta_users(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-) -> list[str]:
+) -> tuple[list[str], bool]:
     """
     Sync Okta users
     :param okta_client: An Okta client object
     :param neo4j_session: Session with Neo4j server
     :param common_job_parameters: Settings used by all Okta modules
-    :return: List of user IDs that were synced
+    :return: The synced user IDs, and whether the token could read admin roles
     """
 
     logger.info("Syncing Okta users")
@@ -155,6 +152,7 @@ def sync_okta_users(
     # API returns E0000006 we log and continue so the rest of the sync runs.
     # https://developer.okta.com/docs/reference/error-codes/
     user_roles: list[tuple[str, OktaUserRole]] = []
+    roles_synced = False
     try:
         user_roles = asyncio.run(_get_all_user_roles(okta_client))
         transformed_user_roles = _transform_okta_user_roles(user_roles)
@@ -162,16 +160,7 @@ def sync_okta_users(
             neo4j_session, transformed_user_roles, common_job_parameters
         )
         _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
-        # Record that admin roles were read, so consumers can tell a user with no
-        # roles apart from a token that could not read roles at all.
-        merge_module_sync_metadata(
-            neo4j_session,
-            group_type="OktaOrganization",
-            group_id=common_job_parameters["OKTA_ORG_ID"],
-            synced_type="OktaUserRole",
-            update_tag=common_job_parameters["UPDATE_TAG"],
-            stat_handler=stat_handler,
-        )
+        roles_synced = True
     except OktaApiError as exc:
         if exc.error_code == "E0000006":
             logger.warning(
@@ -188,7 +177,7 @@ def sync_okta_users(
     _cleanup_okta_users(neo4j_session, common_job_parameters)
 
     # Return user IDs for factors sync
-    return [user.id for user in users]
+    return [user.id for user in users], roles_synced
 
 
 @timeit

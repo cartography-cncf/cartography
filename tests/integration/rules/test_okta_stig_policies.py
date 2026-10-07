@@ -12,15 +12,21 @@ ORG_B = "synthetic-org-b"
 # Org A is compliant with nothing; org B is compliant with everything. Each
 # entity's id says which way it should evaluate.
 SEED = """
+// Org A's token could read log streams and admin roles; org B's could only read
+// log streams, so org B's API tokens are not evaluated for super admin owners.
 CREATE (a:OktaOrganization {
     id: $org_a,
     lastupdated: 1,
+    log_streams_synced: true,
+    admin_roles_synced: true,
     admin_console_session_idle_timeout_minutes: 60,
     admin_console_session_max_lifetime_minutes: 720
 })
 CREATE (b:OktaOrganization {
     id: $org_b,
     lastupdated: 1,
+    log_streams_synced: true,
+    admin_roles_synced: false,
     admin_console_session_idle_timeout_minutes: 15,
     admin_console_session_max_lifetime_minutes: 720
 })
@@ -134,25 +140,7 @@ CREATE (b)-[:RESOURCE]->(:OktaPolicy {
     password_max_age_days: 60, password_history_count: 5, lockout_max_attempts: 3
 })
 
-// Admin roles. Only org A synced them, so only org A's tokens are evaluated.
-CREATE (:ModuleSyncMetadata {
-    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaUserRole',
-    lastupdated: 1
-})
-CREATE (:ModuleSyncMetadata {
-    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaGroupRole',
-    lastupdated: 1
-})
-
-// Log streams. Org A and B synced them; the unsynced org did not.
-CREATE (:ModuleSyncMetadata {
-    grouptype: 'OktaOrganization', groupid: $org_a, syncedtype: 'OktaLogStream',
-    lastupdated: 1
-})
-CREATE (:ModuleSyncMetadata {
-    grouptype: 'OktaOrganization', groupid: $org_b, syncedtype: 'OktaLogStream',
-    lastupdated: 1
-})
+// Log streams
 CREATE (a)-[:RESOURCE]->(:OktaLogStream {id: 'stream-inactive', status: 'INACTIVE'})
 CREATE (b)-[:RESOURCE]->(:OktaLogStream {id: 'stream-active', status: 'ACTIVE'})
 
@@ -174,11 +162,9 @@ CREATE (b)-[:RESOURCE]->(:OktaNetworkZone {
 })
 // An org whose zones were not synced is not evaluated.
 CREATE (:OktaOrganization {id: 'synthetic-org-unsynced'})
-// Log streams were synced once but not in the org's latest sync.
-CREATE (:OktaOrganization {id: 'synthetic-org-stale-coverage', lastupdated: 2})
-CREATE (:ModuleSyncMetadata {
-    grouptype: 'OktaOrganization', groupid: 'synthetic-org-stale-coverage',
-    syncedtype: 'OktaLogStream', lastupdated: 1
+// The token could not read log streams in the org's latest sync.
+CREATE (:OktaOrganization {
+    id: 'synthetic-org-stale-coverage', lastupdated: 2, log_streams_synced: false
 })
 
 // API tokens and their owners

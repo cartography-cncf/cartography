@@ -70,7 +70,7 @@ def test_sync_okta_users(mock_get_users, mock_get_roles, neo4j_session):
     common_job_parameters = _create_common_job_parameters()
 
     # Act - Call the main sync function
-    user_ids = cartography.intel.okta.users.sync_okta_users(
+    user_ids, _ = cartography.intel.okta.users.sync_okta_users(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -269,7 +269,7 @@ def test_sync_okta_users_returns_user_ids(
     common_job_parameters = _create_common_job_parameters()
 
     # Act
-    user_ids = cartography.intel.okta.users.sync_okta_users(
+    user_ids, _ = cartography.intel.okta.users.sync_okta_users(
         okta_client,
         neo4j_session,
         common_job_parameters,
@@ -279,50 +279,36 @@ def test_sync_okta_users_returns_user_ids(
     assert set(user_ids) == {"user-state-1", "user-state-2"}
 
 
-def _role_coverage_records(neo4j_session) -> list:
-    return [
-        record["groupid"]
-        for record in neo4j_session.run(
-            """
-            MATCH (m:ModuleSyncMetadata {syncedtype: 'OktaUserRole'})
-            RETURN m.groupid AS groupid
-            """,
-        )
-    ]
-
-
 @patch.object(
     cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
 )
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_records_role_coverage(
+def test_sync_okta_users_reports_role_coverage(
     mock_get_users, mock_get_roles, neo4j_session
 ):
     # Arrange
-    neo4j_session.run("MATCH (m:ModuleSyncMetadata) DETACH DELETE m")
     mock_get_users.return_value = [create_test_user()]
     mock_get_roles.return_value = []
 
     # Act
-    cartography.intel.okta.users.sync_okta_users(
+    _, roles_synced = cartography.intel.okta.users.sync_okta_users(
         MagicMock(),
         neo4j_session,
         _create_common_job_parameters(),
     )
 
     # Assert
-    assert _role_coverage_records(neo4j_session) == [TEST_ORG_ID]
+    assert roles_synced is True
 
 
 @patch.object(
     cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
 )
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_skips_role_coverage_without_admin_rights(
+def test_sync_okta_users_reports_no_role_coverage_without_admin_rights(
     mock_get_users, mock_get_roles, neo4j_session
 ):
     # Arrange
-    neo4j_session.run("MATCH (m:ModuleSyncMetadata) DETACH DELETE m")
     mock_get_users.return_value = [create_test_user()]
     mock_get_roles.side_effect = OktaApiError(
         "list_roles",
@@ -330,11 +316,11 @@ def test_sync_okta_users_skips_role_coverage_without_admin_rights(
     )
 
     # Act
-    cartography.intel.okta.users.sync_okta_users(
+    _, roles_synced = cartography.intel.okta.users.sync_okta_users(
         MagicMock(),
         neo4j_session,
         _create_common_job_parameters(),
     )
 
     # Assert
-    assert _role_coverage_records(neo4j_session) == []
+    assert roles_synced is False

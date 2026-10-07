@@ -40,6 +40,14 @@ class OktaOrganizationNodeProperties(CartographyNodeProperties):
             "does not mean the org has none."
         ),
     )
+    admin_roles_synced: PropertyRef = PropertyRef(
+        "admin_roles_synced",
+        description=(
+            "Whether the last sync could read user and group admin role assignments. "
+            "False when the API token's admin role cannot read them, so a missing "
+            "`OktaUserRole` or `OktaGroupRole` does not mean a user has no admin role."
+        ),
+    )
 
 
 @dataclass(frozen=True)
