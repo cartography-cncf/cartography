@@ -236,10 +236,9 @@ async def test_sync_entra_groups(
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
     load_users(
         neo4j_session,
-        list(transform_users(MOCK_ENTRA_USERS)),
+        list(transform_users(MOCK_ENTRA_USERS, activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
-        activity_available=True,
     )
 
     # Act:
@@ -393,10 +392,9 @@ async def test_sync_entra_groups_skips_404(
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
     load_users(
         neo4j_session,
-        list(transform_users(MOCK_ENTRA_USERS)),
+        list(transform_users(MOCK_ENTRA_USERS, activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
-        activity_available=True,
     )
 
     # Act — should not raise despite the 404

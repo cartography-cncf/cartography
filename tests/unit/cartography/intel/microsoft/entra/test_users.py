@@ -37,7 +37,7 @@ def test_activity_timestamps_and_missing_activity() -> None:
     ]
 
     # Act
-    result = list(transform_users(users))
+    result = list(transform_users(users, activity_available=True))
 
     # Assert
     assert result[0]["last_successful_sign_in_date_time"] == successful

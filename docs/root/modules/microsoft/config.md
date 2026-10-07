@@ -37,13 +37,12 @@ Cartography requests `signInActivity` with the existing user inventory query,
 using pages of up to 500 users and no per-user requests. If the first request
 returns `403 Forbidden`, it logs a warning and retries the inventory without
 activity. Failure of that retry or any later page still propagates and prevents
-cleanup. A successful fallback preserves previously collected activity timestamps
-and sets `sign_in_activity_available` to false. It still refreshes basic user
-inventory and allows its normal cleanup. Availability describes the request, not
-whether each user has signed in. A successful activity-enabled request sets it to
-true even for users with no activity record; their timestamps are null, replacing
-any previous observation. Each page is loaded once using either the full user
-schema or the inventory-only schema on fallback.
+cleanup. A successful fallback sets `sign_in_activity_available` to false and
+clears the activity timestamps, since the sync could not observe them. It still
+refreshes basic user inventory and allows its normal cleanup. Availability
+describes the request, not whether each user has signed in. A successful
+activity-enabled request sets it to true even for users with no activity record;
+their timestamps are null.
 
 The three activity properties on `EntraUser` are native UTC datetimes:
 
@@ -63,8 +62,9 @@ RETURN u.user_principal_name, u.last_successful_sign_in_date_time
 ORDER BY u.last_successful_sign_in_date_time
 ```
 
-Null means unknown, not proof that an account has never signed in. Microsoft
-does not backfill `lastSuccessfulSignInDateTime` before December 1, 2023.
+When `sign_in_activity_available` is true, a null timestamp means Graph has no
+recorded sign-in for that user, not proof that the account never signed in.
+Microsoft does not backfill `lastSuccessfulSignInDateTime` before December 1, 2023.
 To review enabled accounts with **no recorded successful sign-in**, separately
 from accounts with a known sign-in older than 90 days:
 
@@ -81,11 +81,8 @@ created accounts and accounts without backfilled history. Graph can omit
 `signInActivity` entirely for users who never signed in or last signed in before
 April 2020.
 
-`UserAccount._ont_lastactivity` maps to `last_successful_sign_in_date_time`.
-For Entra accounts, both values are native datetimes and may retain an old value
-after a permission fallback. Cross-provider inactivity queries must exclude Entra
-accounts where `sign_in_activity_available` is not true; the ontology timestamp
-alone does not indicate that the latest sync could read activity. Other providers
+`UserAccount._ont_lastactivity` maps to `last_successful_sign_in_date_time`, a
+native datetime that is null whenever activity could not be read. Other providers
 may use different timestamp representations, so normalize them before comparing.
 
 These timestamps measure sign-in recency, not usage frequency or active human

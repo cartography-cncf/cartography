@@ -15,7 +15,6 @@ from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.utils import call_with_retries
 from cartography.models.microsoft.entra.tenant import EntraTenantSchema
 from cartography.models.microsoft.entra.user import EntraUserSchema
-from cartography.models.microsoft.entra.user import EntraUserWithoutActivitySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -135,7 +134,7 @@ async def get_users(
 # The manager reference is now embedded in the user objects courtesy of the
 # `$expand` we added above, so we no longer need a separate `manager_map`.
 def transform_users(
-    users: list[User], *, activity_available: bool = True
+    users: list[User], *, activity_available: bool
 ) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema."""
 
@@ -229,16 +228,10 @@ def load_users(
     users: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
-    *,
-    activity_available: bool,
 ) -> None:
-    # A permission fallback must not erase previously observed activity.
-    schema = (
-        EntraUserSchema() if activity_available else EntraUserWithoutActivitySchema()
-    )
     load(
         neo4j_session,
-        schema,
+        EntraUserSchema(),
         users,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
@@ -291,13 +284,7 @@ async def sync_entra_users(
         transformed_users = list(
             transform_users(users, activity_available=activity_available)
         )
-        load_users(
-            neo4j_session,
-            transformed_users,
-            tenant_id,
-            update_tag,
-            activity_available=activity_available,
-        )
+        load_users(neo4j_session, transformed_users, tenant_id, update_tag)
 
     if not delegated_auth:
         cleanup(neo4j_session, common_job_parameters)

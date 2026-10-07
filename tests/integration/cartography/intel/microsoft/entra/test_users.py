@@ -36,10 +36,8 @@ def isolated_graph(neo4j_session: neo4j.Session) -> Iterator[None]:
         neo4j_session.run("MATCH (n) DETACH DELETE n").consume()
 
 
-@pytest.mark.parametrize("activity_available", [True, False])  # type: ignore[misc]
-def test_manager_links_with_and_without_activity_access(
+def test_manager_links_between_users_with_and_without_activity(
     neo4j_session: neo4j.Session,
-    activity_available: bool,
 ) -> None:
     # Arrange
     users = [
@@ -57,10 +55,9 @@ def test_manager_links_with_and_without_activity_access(
     # Act
     load_users(
         neo4j_session,
-        list(transform_users(users, activity_available=activity_available)),
+        list(transform_users(users, activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
-        activity_available=activity_available,
     )
 
     # Assert
@@ -92,10 +89,9 @@ def test_sign_in_activity_datetimes(neo4j_session: neo4j.Session) -> None:
     # Act
     load_users(
         neo4j_session,
-        list(transform_users([user])),
+        list(transform_users([user], activity_available=True)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
-        activity_available=True,
     )
 
     # Assert: native datetimes support inactivity filtering.
@@ -133,12 +129,12 @@ async def test_successful_activity_read_with_no_recorded_sign_in(
                             ),
                         ),
                     )
-                ]
+                ],
+                activity_available=True,
             )
         ),
         TEST_TENANT_ID,
         1,
-        activity_available=True,
     )
     client = MagicMock()
     client.users.get = AsyncMock(
@@ -186,35 +182,10 @@ async def test_successful_activity_read_with_no_recorded_sign_in(
     assert {row["id"] for row in rows} == {"unknown-user"}
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
-async def test_permission_fallback_preserves_activity_and_cleans_inventory(
-    neo4j_session: neo4j.Session,
-) -> None:
-    # Arrange
-    tenant_id = TEST_TENANT_ID
-    timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    load_tenant(neo4j_session, {"id": tenant_id}, 1)
-    load_users(
-        neo4j_session,
-        list(
-            transform_users(
-                [
-                    User(
-                        id="retained-user",
-                        sign_in_activity=SignInActivity(
-                            last_successful_sign_in_date_time=timestamp,
-                            last_sign_in_date_time=timestamp,
-                            last_non_interactive_sign_in_date_time=timestamp,
-                        ),
-                    ),
-                    User(id="deleted-user"),
-                ]
-            )
-        ),
-        tenant_id,
-        1,
-        activity_available=True,
-    )
+def _graph_client(
+    first_page: UserCollectionResponse,
+    next_page: UserCollectionResponse | None = None,
+) -> MagicMock:
     client = MagicMock()
     client.users.UsersRequestBuilderGetRequestConfiguration = (
         UsersRequestBuilder.UsersRequestBuilderGetRequestConfiguration
@@ -222,28 +193,14 @@ async def test_permission_fallback_preserves_activity_and_cleans_inventory(
     client.users.UsersRequestBuilderGetQueryParameters = (
         UsersRequestBuilder.UsersRequestBuilderGetQueryParameters
     )
+    client.users.get = AsyncMock(return_value=first_page)
+    client.users.with_url.return_value.get = AsyncMock(return_value=next_page)
+    return client
 
-    async def get(
-        *,
-        request_configuration: UsersRequestBuilder.UsersRequestBuilderGetRequestConfiguration,
-    ) -> UserCollectionResponse:
-        if "signInActivity" in request_configuration.query_parameters.select:
-            raise APIError("forbidden", response_status_code=403)
-        return UserCollectionResponse(
-            value=[User(id="new-user")],
-            odata_next_link="https://graph.microsoft.com/v1.0/users?$skiptoken=synthetic",
-        )
 
-    client.users.get = AsyncMock(side_effect=get)
-    client.users.with_url.return_value.get = AsyncMock(
-        return_value=UserCollectionResponse(
-            value=[
-                User(id="retained-user", display_name="Updated synthetic name"),
-            ]
-        )
-    )
-
-    # Act
+async def _sync(
+    neo4j_session: neo4j.Session, client: MagicMock, update_tag: int
+) -> None:
     with patch.object(
         cartography.intel.microsoft.entra.users,
         "GraphServiceClient",
@@ -251,42 +208,102 @@ async def test_permission_fallback_preserves_activity_and_cleans_inventory(
     ):
         await sync_entra_users(
             neo4j_session,
-            tenant_id,
+            TEST_TENANT_ID,
             "synthetic-client",
             "synthetic-secret",
-            2,
-            {"UPDATE_TAG": 2, "TENANT_ID": tenant_id},
+            update_tag,
+            {"UPDATE_TAG": update_tag, "TENANT_ID": TEST_TENANT_ID},
         )
 
-    # Assert
-    rows = list(
-        neo4j_session.run(
-            "MATCH (:AzureTenant {id: $tenant_id})-[:RESOURCE]->(u:EntraUser) "
-            "RETURN u.id AS id, u.display_name AS name, "
-            "u.last_successful_sign_in_date_time AS successful, "
-            "u.last_sign_in_date_time AS interactive, "
-            "u.last_non_interactive_sign_in_date_time AS non_interactive, "
-            "u._ont_lastactivity AS ontology_activity, "
-            "u.sign_in_activity_available AS available ORDER BY id",
-            tenant_id=tenant_id,
-        )
-    )
-    assert [row["id"] for row in rows] == ["new-user", "retained-user"]
-    assert rows[0]["successful"] is None
-    assert all(
-        rows[1][key].to_native() == timestamp
-        for key in ("successful", "interactive", "non_interactive", "ontology_activity")
-    )
-    assert rows[1]["name"] == "Updated synthetic name"
-    assert all(row["available"] is False for row in rows)
 
-    # Act: permission is restored on the next sync.
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_permission_fallback_clears_activity_and_cleans_inventory(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange
+    timestamp = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, 1)
+    load_users(
+        neo4j_session,
+        list(
+            transform_users(
+                [
+                    User(
+                        id="observed-user",
+                        sign_in_activity=SignInActivity(
+                            last_successful_sign_in_date_time=timestamp,
+                            last_sign_in_date_time=timestamp,
+                            last_non_interactive_sign_in_date_time=timestamp,
+                        ),
+                    ),
+                    User(id="deleted-user"),
+                ],
+                activity_available=True,
+            )
+        ),
+        TEST_TENANT_ID,
+        1,
+    )
+    client = _graph_client(
+        UserCollectionResponse(
+            value=[User(id="new-user")],
+            odata_next_link="https://graph.microsoft.com/v1.0/users?$skiptoken=synthetic",
+        ),
+        UserCollectionResponse(
+            value=[User(id="observed-user", display_name="Updated synthetic name")],
+        ),
+    )
+
+    async def deny_activity(
+        *,
+        request_configuration: UsersRequestBuilder.UsersRequestBuilderGetRequestConfiguration,
+    ) -> UserCollectionResponse:
+        if "signInActivity" in request_configuration.query_parameters.select:
+            raise APIError("forbidden", response_status_code=403)
+        return client.users.get.return_value
+
+    client.users.get.side_effect = deny_activity
+
+    # Act
+    await _sync(neo4j_session, client, 2)
+
+    # Assert: inventory refreshes and cleans up; unobservable activity is cleared.
+    assert check_nodes(
+        neo4j_session,
+        "EntraUser",
+        [
+            "id",
+            "display_name",
+            "sign_in_activity_available",
+            "last_successful_sign_in_date_time",
+            "last_sign_in_date_time",
+            "last_non_interactive_sign_in_date_time",
+            "_ont_lastactivity",
+        ],
+    ) == {
+        ("new-user", None, False, None, None, None, None),
+        ("observed-user", "Updated synthetic name", False, None, None, None, None),
+    }
+
+
+@pytest.mark.asyncio  # type: ignore[misc]
+async def test_restored_permission_repopulates_activity(
+    neo4j_session: neo4j.Session,
+) -> None:
+    # Arrange: a previous sync fell back without activity.
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, 1)
+    load_users(
+        neo4j_session,
+        list(transform_users([User(id="observed-user")], activity_available=False)),
+        TEST_TENANT_ID,
+        1,
+    )
     recovered = datetime(2024, 6, 1, tzinfo=timezone.utc)
-    client.users.get = AsyncMock(
-        return_value=UserCollectionResponse(
+    client = _graph_client(
+        UserCollectionResponse(
             value=[
                 User(
-                    id="retained-user",
+                    id="observed-user",
                     sign_in_activity=SignInActivity(
                         last_successful_sign_in_date_time=recovered,
                     ),
@@ -294,23 +311,13 @@ async def test_permission_fallback_preserves_activity_and_cleans_inventory(
             ]
         )
     )
-    with patch.object(
-        cartography.intel.microsoft.entra.users,
-        "GraphServiceClient",
-        return_value=client,
-    ):
-        await sync_entra_users(
-            neo4j_session,
-            tenant_id,
-            "synthetic-client",
-            "synthetic-secret",
-            3,
-            {"UPDATE_TAG": 3, "TENANT_ID": tenant_id},
-        )
+
+    # Act
+    await _sync(neo4j_session, client, 2)
 
     # Assert
     row = neo4j_session.run(
-        "MATCH (u:EntraUser {id: 'retained-user'}) RETURN "
+        "MATCH (u:EntraUser {id: 'observed-user'}) RETURN "
         "u.sign_in_activity_available AS available, "
         "u.last_successful_sign_in_date_time AS successful, "
         "u._ont_lastactivity AS ontology_activity"
@@ -329,10 +336,9 @@ async def test_later_page_failure_preserves_existing_inventory(
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, 1)
     load_users(
         neo4j_session,
-        list(transform_users([User(id="existing-user")])),
+        list(transform_users([User(id="existing-user")], activity_available=True)),
         TEST_TENANT_ID,
         1,
-        activity_available=True,
     )
     client = MagicMock()
     client.users.get = AsyncMock(

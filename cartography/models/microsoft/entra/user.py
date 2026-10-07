@@ -20,7 +20,7 @@ from cartography.models.ontology.labels import USER_ACCOUNT
 
 
 @dataclass(frozen=True)
-class EntraUserBaseNodeProperties(CartographyNodeProperties):
+class EntraUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", description="Entra user ID.")
     user_principal_name: PropertyRef = PropertyRef(
         "user_principal_name", description="User principal name."
@@ -81,15 +81,10 @@ class EntraUserBaseNodeProperties(CartographyNodeProperties):
     )
     sign_in_activity_available: PropertyRef = PropertyRef(
         "sign_in_activity_available",
-        description="Whether the user inventory request included signInActivity "
-        "without a permission fallback. True does not imply a recorded sign-in. "
-        "When false, retained sign-in timestamps may be stale.",
+        description="Whether the latest user inventory request could read "
+        "signInActivity. When false, sign-in timestamps are null because Graph "
+        "denied access, not because the user never signed in.",
     )
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class EntraUserNodeProperties(EntraUserBaseNodeProperties):
     last_sign_in_date_time: PropertyRef = PropertyRef(
         "last_sign_in_date_time",
         extra_index=True,
@@ -106,9 +101,11 @@ class EntraUserNodeProperties(EntraUserBaseNodeProperties):
         "last_successful_sign_in_date_time",
         extra_index=True,
         description="UTC datetime from signInActivity.lastSuccessfulSignInDateTime: "
-        "last successful interactive or non-interactive sign-in. Available since "
-        "December 2023 without backfill; null means unknown, not never signed in.",
+        "last successful interactive or non-interactive sign-in. Not backfilled "
+        "before December 2023. Null when activity was unavailable, or when Graph "
+        "has no recorded successful sign-in for the user.",
     )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -149,7 +146,7 @@ class EntraUserSchema(CartographyNodeSchema):
     """A user account in Microsoft Entra ID."""
 
     label: str = "EntraUser"
-    properties: EntraUserBaseNodeProperties = EntraUserNodeProperties()
+    properties: EntraUserNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -164,10 +161,3 @@ class EntraUserSchema(CartographyNodeSchema):
             ENTRA_PRINCIPAL,
         ]  # UserAccount label is used for ontology mapping
     )
-
-
-@dataclass(frozen=True)
-class EntraUserWithoutActivitySchema(EntraUserSchema):
-    """Refresh Entra user inventory without overwriting unavailable activity."""
-
-    properties: EntraUserBaseNodeProperties = EntraUserBaseNodeProperties()
