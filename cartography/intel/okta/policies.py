@@ -123,6 +123,7 @@ async def _get_okta_first_party_app_names(
 ) -> dict[str, str]:
     """Resolve the name of apps the Applications API does not list."""
     names: dict[str, str] = {}
+    unreadable: list[str] = []
     for app_id in sorted(app_ids):
         try:
             app = await get_raw_json(okta_client, f"/api/v1/apps/{app_id}")
@@ -132,15 +133,17 @@ async def _get_okta_first_party_app_names(
             # Read-only admins cannot read Okta's own apps (Admin Console,
             # Dashboard). The names are enrichment, so keep syncing policies.
             if is_missing_scope_error(exc):
-                logger.warning(
-                    "Unable to read Okta app %s to name the policy it is assigned "
-                    "to - api token needs permission to read Okta first-party apps",
-                    app_id,
-                )
+                unreadable.append(app_id)
                 continue
             raise
         if app and app.get("name"):
             names[app_id] = app["name"]
+    if unreadable:
+        logger.warning(
+            "Unable to read %d Okta first-party apps to name the policies assigned "
+            "to them - api token needs permission to read Okta apps",
+            len(unreadable),
+        )
     return names
 
 
