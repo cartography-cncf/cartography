@@ -91,11 +91,37 @@ data while continuing ingestion.
 | Fine-grained PAT inventory | GitHub App with organization **Personal access tokens: Read**; PAT authentication is not supported | Not available |
 | Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
+| Organization settings: base repository permission, repository creation and forking restrictions, 2FA requirement, and legacy security defaults for new repositories | Organization owner access | Organization owner access and `admin:org` |
+| Verified and approved domains, IP allow list status, and email notification restriction | Organization owner access with organization **Administration: Read** | Organization owner access and `admin:org` |
+| Actions policy: enabled repositories, allowed actions, SHA pinning, and default `GITHUB_TOKEN` permissions | Organization **Administration: Read** | `admin:org` |
+| Copilot policy and seat count | Organization owner access with organization **GitHub Copilot Business: Read** or **Administration: Read** | Organization owner access and `manage_billing:copilot` or `read:org` |
+| Repository secret scanning, push protection, Advanced Security, and Dependabot security updates status | Repository **Administration: Read**, with repository administrator, organization owner, or security manager access | `repo`, with repository administrator, organization owner, or security manager access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
 | SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
 GitHub exposes secret metadata, such as names and timestamps, but never secret
 values.
+
+### Organization and repository security settings
+
+GitHub only returns most organization settings to organization owners, and
+repository `security_and_analysis` settings to repository administrators,
+organization owners, and security managers. When GitHub does not return a
+setting, Cartography leaves the property null, so null means unknown rather than
+disabled. Each source is fetched independently: a missing permission for one,
+such as Copilot, does not affect the others. Domains are only removed from the
+graph after a complete domain list is fetched.
+
+GitHub has deprecated the organization `*_enabled_for_new_repositories` security
+defaults in favor of code security configurations, so they may be null even for
+owners. Use the repository-level `secret_scanning_enabled` and
+`secret_scanning_push_protection_enabled` properties for current coverage.
+
+GitHub does not have an organization default repository visibility setting.
+Repository creation is restricted by visibility through the
+`members_can_create_public_repositories`,
+`members_can_create_private_repositories`, and
+`members_can_create_internal_repositories` properties.
 
 ### SAML identity mapping
 
@@ -226,6 +252,8 @@ the enterprise GraphQL endpoint:
 | No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with **Personal access tokens: Read**. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled. |
 | Missing two-factor authentication status | This status is visible only to organization owners. |
+| Null organization settings, such as `default_repository_permission` or `actions_allowed_actions` | These settings are visible only to organization owners. Classic PATs also need `admin:org`. |
+| Null `secret_scanning_enabled` on repositories | GitHub only reports security settings to repository administrators, organization owners, and security managers. |
 | Rate limiting | Cartography sleeps until the quota resets. |
 
 ## References

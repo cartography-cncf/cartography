@@ -117,6 +117,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                       id
                     }
                     isPrivate
+                    visibility
                     isArchived
                     isDisabled
                     isLocked
@@ -1114,6 +1115,57 @@ def _merge_repos_with_privileged_details(
     return merged_repos, merged_repo_count, repos_missing_privileged_details
 
 
+@timeit
+def get_repo_security_and_analysis_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Return each repository's `security_and_analysis` settings keyed by repository URL.
+
+    GitHub's GraphQL API does not expose these settings, so they come from the
+    REST repository list. GitHub includes them only for repositories where the
+    credential has admin or security manager access; other repositories are
+    omitted and their settings stay unknown.
+    """
+    try:
+        repos = fetch_all_rest_api_pages(
+            token,
+            rest_api_base_url(api_url),
+            f"/orgs/{quote(organization, safe='')}/repos",
+            "",
+            params={"per_page": 100, "type": "all"},
+            raise_on_status=(403, 404),
+        )
+    except requests.exceptions.RequestException:
+        logger.warning(
+            "Failed to fetch GitHub repository security settings for org %s; "
+            "secret scanning and push protection status will be unknown.",
+            organization,
+            exc_info=True,
+        )
+        return {}
+    return {
+        repo["html_url"]: repo["security_and_analysis"]
+        for repo in repos
+        if isinstance(repo.get("html_url"), str)
+        and isinstance(repo.get("security_and_analysis"), dict)
+    }
+
+
+def _security_feature_enabled(
+    security_and_analysis: Optional[Dict[str, Any]],
+    feature: str,
+) -> Optional[bool]:
+    status = ((security_and_analysis or {}).get(feature) or {}).get("status")
+    if status == "enabled":
+        return True
+    if status == "disabled":
+        return False
+    return None
+
+
 def transform(
     repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
@@ -1297,6 +1349,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     # fork whose upstream has been deleted, so we read `isFork` for the boolean rather than
     # inferring it from the parent's presence.
     parent = input_repo_object.get("parent")
+    # Merged in from the REST API by sync(); absent when not visible to the credential.
+    security_and_analysis = input_repo_object.get("securityAndAnalysis")
 
     out_repo_list.append(
         {
@@ -1319,6 +1373,32 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "locked": input_repo_object["isLocked"],
             "fork": input_repo_object.get("isFork", False),
             "parent": parent["url"] if parent else None,
+            "visibility": (
+                visibility.lower()
+                if isinstance(visibility := input_repo_object.get("visibility"), str)
+                else None
+            ),
+            "advanced_security_enabled": _security_feature_enabled(
+                security_and_analysis, "advanced_security"
+            ),
+            "code_security_enabled": _security_feature_enabled(
+                security_and_analysis, "code_security"
+            ),
+            "secret_scanning_enabled": _security_feature_enabled(
+                security_and_analysis, "secret_scanning"
+            ),
+            "secret_scanning_push_protection_enabled": _security_feature_enabled(
+                security_and_analysis, "secret_scanning_push_protection"
+            ),
+            "secret_scanning_non_provider_patterns_enabled": _security_feature_enabled(
+                security_and_analysis, "secret_scanning_non_provider_patterns"
+            ),
+            "secret_scanning_validity_checks_enabled": _security_feature_enabled(
+                security_and_analysis, "secret_scanning_validity_checks"
+            ),
+            "dependabot_security_updates_enabled": _security_feature_enabled(
+                security_and_analysis, "dependabot_security_updates"
+            ),
             "giturl": git_url,
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
@@ -2737,6 +2817,15 @@ def sync(
     for repo in repos_json:
         if repo is not None and repo.get("url") in dep_manifests_by_url:
             repo["dependencyGraphManifests"] = dep_manifests_by_url[repo["url"]]
+
+    security_and_analysis_by_url = get_repo_security_and_analysis_by_url(
+        github_api_key,
+        github_url,
+        organization,
+    )
+    for repo in repos_json:
+        if repo is not None and repo.get("url") in security_and_analysis_by_url:
+            repo["securityAndAnalysis"] = security_and_analysis_by_url[repo["url"]]
 
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     enrich_dependencies_with_lockfile_versions(

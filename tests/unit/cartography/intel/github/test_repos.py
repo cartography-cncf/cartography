@@ -3,6 +3,7 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
+import requests
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
@@ -19,6 +20,7 @@ from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import _transform_rulesets
 from cartography.intel.github.repos import DependencyGraphForbiddenError
 from cartography.intel.github.repos import enrich_dependencies_with_lockfile_versions
+from cartography.intel.github.repos import get_repo_security_and_analysis_by_url
 from cartography.intel.github.repos import reconcile_dependency_version_conflicts
 from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEP_MANIFESTS_BY_URL
@@ -1760,3 +1762,53 @@ def test_sync_continues_when_privileged_fetch_fails(
         None,
         "https://github.com/simpsoncorp",
     )
+
+
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_security_and_analysis_by_url_keeps_only_visible_settings(
+    mock_pages,
+):
+    # Arrange
+    mock_pages.return_value = [
+        {
+            "html_url": "https://github.com/simpsoncorp/admin_repo",
+            "security_and_analysis": {"secret_scanning": {"status": "enabled"}},
+        },
+        # Non-admin repositories omit or null the settings.
+        {"html_url": "https://github.com/simpsoncorp/member_repo"},
+        {
+            "html_url": "https://github.com/simpsoncorp/null_repo",
+            "security_and_analysis": None,
+        },
+    ]
+
+    # Act
+    result = get_repo_security_and_analysis_by_url(
+        "token", "https://api.github.com/graphql", "simpsoncorp"
+    )
+
+    # Assert
+    assert result == {
+        "https://github.com/simpsoncorp/admin_repo": {
+            "secret_scanning": {"status": "enabled"},
+        },
+    }
+    assert mock_pages.call_args.args[2] == "/orgs/simpsoncorp/repos"
+
+
+@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+def test_get_repo_security_and_analysis_by_url_returns_empty_on_forbidden(
+    mock_pages,
+):
+    # Arrange
+    response = requests.Response()
+    response.status_code = 403
+    mock_pages.side_effect = requests.exceptions.HTTPError(response=response)
+
+    # Act
+    result = get_repo_security_and_analysis_by_url(
+        "token", "https://api.github.com/graphql", "simpsoncorp"
+    )
+
+    # Assert
+    assert result == {}

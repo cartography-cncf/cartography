@@ -14,6 +14,7 @@ import cartography.intel.github.container_image_tags
 import cartography.intel.github.container_images
 import cartography.intel.github.dependabot_alerts
 import cartography.intel.github.external_identities
+import cartography.intel.github.organizations
 import cartography.intel.github.packages
 import cartography.intel.github.personal_access_tokens
 import cartography.intel.github.repos
@@ -116,6 +117,14 @@ def start_github_ingestion(
         token: Any = credential
 
         github_users = cartography.intel.github.users.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+        )
+        # Runs after the users sync, which creates the organization node.
+        cartography.intel.github.organizations.sync(
             neo4j_session,
             common_job_parameters,
             token,
