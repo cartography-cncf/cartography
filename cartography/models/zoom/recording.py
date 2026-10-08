@@ -123,8 +123,9 @@ class ZoomRecordingSchema(CartographyNodeSchema):
 
     Contains aggregate file metadata and sharing configuration, never recordings,
     transcripts, passcodes, or URLs. Links to a scheduled meeting when it is ingested.
-    Completely read hosts expire records outside the rolling lookback window.
-    Cleanup is filtered by host (see ``cleanup_hosted``), not schema-wide.
+    Cleanup runs after every eligible host and recording was read, and expires
+    records outside the rolling lookback window. A denied or unread host skips
+    cleanup, so the prior recordings are kept.
     """
 
     label: str = "ZoomRecording"

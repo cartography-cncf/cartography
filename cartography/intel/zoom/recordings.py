@@ -50,15 +50,17 @@ def list_recordings(
 
 
 def get_settings(client: ZoomClient, uuid: str) -> dict[str, Any] | None:
-    """Return sharing settings, or an empty dict while Zoom is still processing it."""
+    """Return sharing settings, or an empty dict when Zoom reports no such recording."""
     try:
         return client.get(settings_path(uuid))
     except requests.HTTPError as exc:
-        # A recording still being processed is new, so there is nothing to keep;
-        # it is skipped until a later sync.
+        # Zoom documents code 3301 as "There is no recording for this meeting": the
+        # recording was deleted after it was listed, or is new and still processing.
+        # Either way there is nothing to keep, so it is not loaded and cleanup removes
+        # any prior copy. The empty dict is dropped by get(), not treated as a read.
         if is_zoom_error(exc, 404, 3301):
             logger.warning(
-                "Zoom recording is still processing (HTTP 404, code 3301); skipping it until a later sync."
+                "Zoom reports no recording (HTTP 404, code 3301); it may be deleted or still processing, so it is not loaded."
             )
             return {}
         raise

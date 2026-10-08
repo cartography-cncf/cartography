@@ -182,9 +182,10 @@ A denied optional endpoint emits a warning and retains the affected snapshot.
 Meetings and recordings belong to the account and link to their current host with
 `HOSTED_BY`. A transfer keeps the resource identity and only the new host
 relationship. Only eligible hosts are read: meetings for active Basic and Licensed
-users, recordings for active Licensed users. A recording whose sharing settings are
-still processing is skipped until a later sync. A host or meeting that Zoom reports
-as removed mid-sync is treated as having nothing to load.
+users, recordings for active Licensed users. A recording that Zoom reports as not
+found when its sharing settings are read (deleted since it was listed, or still
+processing) is not loaded, and cleanup removes any prior copy. A host or meeting
+that Zoom reports as removed mid-sync is treated as having nothing to load.
 Documented not-found responses for a single meeting, role, app or settings owner
 affect only that item. Successful independent sections and owners can still
 refresh. Credential failures, server errors, and incomplete pagination fail
