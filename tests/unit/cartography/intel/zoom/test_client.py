@@ -205,6 +205,50 @@ def test_cli_wires_account_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.zoom_account_id == "account-a"
     assert config.zoom_client_id == "client-id"
     assert config.zoom_client_secret == "secret"
+    assert config.zoom_request_limit == 100000
+
+
+def test_cli_wires_request_limit_to_the_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    monkeypatch.setenv("TEST_ZOOM_SECRET", "secret")
+    cli = CLI(MagicMock(), "test")
+    with patch("cartography.sync.run_with_config", return_value=0) as run:
+        cli.main(
+            [
+                "--neo4j-uri",
+                "bolt://localhost:7687",
+                "--selected-modules",
+                "zoom",
+                "--zoom-account-id",
+                "account-a",
+                "--zoom-client-id",
+                "client-id",
+                "--zoom-client-secret-env-var",
+                "TEST_ZOOM_SECRET",
+                "--zoom-sections",
+                "apps",
+                "--zoom-request-limit",
+                "50",
+            ]
+        )
+    config = run.call_args[0][1]
+
+    # Act
+    with (
+        patch("cartography.intel.zoom.ZoomClient") as client,
+        patch("cartography.intel.zoom.sync", return_value=[]),
+        patch("cartography.intel.zoom.apps.sync") as app_sync,
+        patch("cartography.intel.zoom.cleanup_users"),
+        patch("cartography.intel.zoom.settings.cleanup"),
+    ):
+        start_zoom_ingestion(MagicMock(), config)
+
+    # Assert
+    (budget,) = client.call_args.args[3:]
+    assert budget.remaining == 50
+    app_sync.assert_called_once()
 
 
 def test_unconfigured_module_does_not_request_credentials() -> None:

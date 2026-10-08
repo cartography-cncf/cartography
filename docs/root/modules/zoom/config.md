@@ -58,8 +58,8 @@ Cartography.
 | `user:read:list_users:admin` | `GET /v2/users` for active, inactive, and pending users |
 
 The older `user:read:admin` scope is also accepted by the endpoint, but the
-granular scope above is sufficient. No write, meeting, recording, billing,
-group-list, or role-list scopes are required.
+granular scope above is sufficient for the default user inventory. Additional
+inventories and their read scopes are listed below; no write scopes are required.
 
 ## Configure Cartography
 
@@ -104,7 +104,8 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
   app and verify the app owner's permissions.
 - **429**: Zoom's Users API has the `MEDIUM` rate-limit label. Requests retry
   up to three times, capping each `Retry-After` delay at eight seconds. A sustained
-  rate limit aborts the sync without deleting prior users; retry after the quota resets.
+  rate limit on the user inventory aborts the sync without deleting prior users;
+  on an optional section it preserves that section's data. Retry after the quota resets.
 - **Incomplete/repeated pagination**: Retry the sync. Page tokens expire after
   15 minutes. Each status list has a safety limit of 10,000 pages; hitting it or
   receiving a truncated list aborts the sync before stale-user cleanup.
@@ -116,3 +117,55 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
 - [Server-to-Server OAuth](https://developers.zoom.us/docs/internal-apps/s2s-oauth/)
 - [OAuth scopes](https://developers.zoom.us/docs/integrations/oauth-scopes-overview/)
 - [API rate limits](https://developers.zoom.us/docs/api/rest/rate-limits/)
+
+## Optional inventories
+
+The default sync still needs only the list-users scope. Enable additional
+inventories with `--zoom-sections`, for example:
+
+```bash
+cartography --selected-modules zoom,ontology \
+  --neo4j-uri bolt://localhost:7687 \
+  --zoom-account-id "$ZOOM_ACCOUNT_ID" \
+  --zoom-client-id "$ZOOM_CLIENT_ID" \
+  --zoom-client-secret-env-var ZOOM_CLIENT_SECRET \
+  --zoom-sections groups,roles,settings,apps
+```
+
+Add the scopes for the selected sections to the Server-to-Server OAuth app and
+activate it. All scopes below are read-only; write scopes are unnecessary.
+
+| Section | Additional scopes | Coverage and requirements |
+| --- | --- | --- |
+| `groups` | `group:read:list_groups:admin` | Pro or higher. Groups and memberships from the complete user inventory. |
+| `roles` | `role:read:list_roles:admin`, `role:read:role:admin` | Pro or higher. Common account roles, their privileges and group restrictions; primary user roles come from the user inventory. Select `groups` to link privilege restrictions to groups. |
+| `settings` | `account:read:settings:admin`, `account:read:lock_settings:admin`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls, including account and group lock flags, private chat, recording auto-delete, waiting-room scope, and the account's 2FA group/role lists and inactivity sign-out periods. |
+| `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps, their developer type, and exact OAuth scope identifiers. This does not enumerate individual user installations, account-created apps or restricted apps. |
+
+Settings are separate `configured` and `locked` snapshots. Locked values describe
+whether users can change a control; they are not enabled/disabled policy values.
+The connector does not calculate effective policy inheritance. Fields absent from
+a successful response remain unknown rather than being interpreted as disabled.
+Password values and authentication profiles are not stored.
+
+Per-owner and per-item reads use at most four workers, each with its own HTTP
+session, pooled across all owners of a section. Settings use up to five reads per
+account, four per user/group, and two per locked account/group snapshot; all
+readable snapshots are written in one batch. Pagination is capped at 10,000 pages.
+
+`--zoom-request-limit` (default 100,000) caps logical GET requests per sync. This
+is a Cartography safeguard, not a Zoom quota. Each request keeps the client's
+three-retry limit. An optional section that reaches the limit, or is still rate
+limited after retries, stops further reads for that section, keeps its unread
+snapshots, and lets independent sections continue. The required user inventory
+still fails on a limit or sustained rate limit.
+
+A denied optional endpoint emits a warning and retains the affected snapshot.
+Documented not-found responses for a single role, app or settings owner affect
+only that item. Successful independent sections and owners can still refresh.
+Credential failures, server errors, and incomplete pagination fail explicitly.
+Stale cleanup for a section runs only after a complete read of that section. A
+denied groups, roles or apps section keeps all of its prior data. For settings,
+snapshots that were read are refreshed, unread snapshots are retained, and
+cleanup is skipped. Review warnings as well as the process exit status when
+assessing coverage.

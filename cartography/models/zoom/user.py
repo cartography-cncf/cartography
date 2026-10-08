@@ -55,7 +55,7 @@ class ZoomUserNodeProperties(CartographyNodeProperties):
     )
     role_id: PropertyRef = PropertyRef(
         "role_id",
-        description="Assigned account role ID; role permissions are not ingested.",
+        description="Assigned primary account role ID; the optional roles surface links the user to its role and ingests role privileges.",
     )
     group_ids: PropertyRef = PropertyRef(
         "group_ids", description="IDs of groups where the user is a member."
@@ -63,6 +63,11 @@ class ZoomUserNodeProperties(CartographyNodeProperties):
     login_types: PropertyRef = PropertyRef(
         "login_types",
         description="Provider login method codes; 101 denotes SSO, 100 Zoom work email.",
+    )
+    last_client_version: PropertyRef = PropertyRef(
+        "last_client_version",
+        extra_index=True,
+        description="Users API last_client_version; last observed login client, not a complete device inventory.",
     )
     created_at: PropertyRef = PropertyRef(
         "created_at",

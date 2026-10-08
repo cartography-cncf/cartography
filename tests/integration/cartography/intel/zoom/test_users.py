@@ -9,6 +9,7 @@ import requests
 
 from cartography.intel.ontology.users import sync as sync_ontology_users
 from cartography.intel.zoom.client import ZoomClient
+from cartography.intel.zoom.users import cleanup
 from cartography.intel.zoom.users import sync
 from tests.data.zoom.users import USERS_BY_STATUS
 from tests.integration.util import check_nodes
@@ -32,6 +33,13 @@ def client_for(users_by_status: dict[str, list[dict[str, Any]]]) -> MagicMock:
     return client
 
 
+def sync_users(
+    neo4j_session: neo4j.Session, client: MagicMock, account_id: str, update_tag: int
+) -> None:
+    sync(neo4j_session, client, account_id, update_tag)
+    cleanup(neo4j_session, account_id, update_tag)
+
+
 def test_sync_users_ontology_and_account_scoped_cleanup(
     neo4j_session: neo4j.Session,
 ) -> None:
@@ -39,8 +47,8 @@ def test_sync_users_ontology_and_account_scoped_cleanup(
     initial = client_for(USERS_BY_STATUS)
 
     # Act
-    sync(neo4j_session, initial, "account-a", 1)
-    sync(neo4j_session, initial, "account-b", 1)
+    sync_users(neo4j_session, initial, "account-a", 1)
+    sync_users(neo4j_session, initial, "account-b", 1)
     sync_ontology_users(neo4j_session, ["zoom"], 1, {"UPDATE_TAG": 1})
 
     # Assert
@@ -105,7 +113,7 @@ def test_sync_users_ontology_and_account_scoped_cleanup(
     updated["inactive"] = []
 
     # Act
-    sync(neo4j_session, client_for(updated), "account-a", 2)
+    sync_users(neo4j_session, client_for(updated), "account-a", 2)
     sync_ontology_users(neo4j_session, ["zoom"], 2, {"UPDATE_TAG": 2})
 
     # Assert: stale users and invitations disappear only from the successful account.
@@ -149,7 +157,7 @@ def test_sync_users_ontology_and_account_scoped_cleanup(
     }
 
     # Act: cleanup in the other account must also preserve its peer's users.
-    sync(
+    sync_users(
         neo4j_session,
         client_for({status: [] for status in USERS_BY_STATUS}),
         "account-b",
@@ -173,7 +181,7 @@ def test_later_status_failure_preserves_entire_prior_snapshot(
     neo4j_session: neo4j.Session,
 ) -> None:
     # Arrange
-    sync(neo4j_session, client_for(USERS_BY_STATUS), "account-a", 1)
+    sync_users(neo4j_session, client_for(USERS_BY_STATUS), "account-a", 1)
     failing = MagicMock(spec=ZoomClient)
     failing.get_users_page.side_effect = [
         {"users": []},
@@ -182,7 +190,7 @@ def test_later_status_failure_preserves_entire_prior_snapshot(
 
     # Act and assert
     with pytest.raises(requests.HTTPError):
-        sync(neo4j_session, failing, "account-a", 2)
+        sync_users(neo4j_session, failing, "account-a", 2)
     assert check_nodes(neo4j_session, "ZoomUser", ["id", "lastupdated"]) == {
         ("account-a:user:user-1", 1),
         ("account-a:user:user-2", 1),
@@ -200,7 +208,7 @@ def test_later_status_failure_preserves_entire_prior_snapshot(
     }
 
     # Act: a complete empty inventory is authoritative.
-    sync(
+    sync_users(
         neo4j_session,
         client_for({status: [] for status in USERS_BY_STATUS}),
         "account-a",

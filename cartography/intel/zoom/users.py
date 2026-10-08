@@ -81,6 +81,7 @@ def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, An
             "role_id": user.get("role_id"),
             "group_ids": user.get("group_ids"),
             "login_types": user.get("login_types"),
+            "last_client_version": user.get("last_client_version"),
             "created_at": user.get("user_created_at"),
             "last_login_time": user.get("last_login_time"),
         }
@@ -105,9 +106,9 @@ def transform(users: list[dict[str, Any]], account_id: str) -> list[dict[str, An
 @timeit
 def sync(
     neo4j_session: neo4j.Session, client: ZoomClient, account_id: str, update_tag: int
-) -> None:
+) -> list[dict[str, Any]]:
     logger.info("Syncing Zoom users")
-    # Fetch and validate every status/page before any writes or stale-data cleanup.
+    # Fetch and validate every status/page before any writes; see cleanup().
     data = transform(get(client), account_id)
     load(
         neo4j_session, ZoomAccountSchema(), [{"id": account_id}], lastupdated=update_tag
@@ -119,6 +120,11 @@ def sync(
         lastupdated=update_tag,
         ACCOUNT_ID=account_id,
     )
+    return data
+
+
+@timeit
+def cleanup(neo4j_session: neo4j.Session, account_id: str, update_tag: int) -> None:
     GraphJob.from_node_schema(
         ZoomUserSchema(),
         {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
