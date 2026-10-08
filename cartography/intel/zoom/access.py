@@ -73,8 +73,6 @@ def sync_roles(
 ) -> None:
     response = client.get("/roles")
     roles = response["roles"]
-    if not isinstance(roles, list):
-        raise ValueError("Zoom roles response must contain a list")
     if len(roles) != response.get("total_records", len(roles)):
         raise ValueError("Zoom roles response did not include all records")
     members: dict[str, list[str]] = defaultdict(list)

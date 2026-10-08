@@ -179,7 +179,6 @@ def test_endpoint_errors_match_only_the_documented_status_and_code() -> None:
     assert is_zoom_error(error(404, {"code": 3001}), 404, 3001)
     assert not is_zoom_error(error(404, {"code": 1001}), 404, 3001)
     assert not is_zoom_error(error(400, {"code": 3001}), 404, 3001)
-    assert not is_zoom_error(error(404, ["code", 3001]), 404, 3001)
     assert not is_zoom_error(requests.HTTPError(), 404, 3001)
 
 
@@ -205,16 +204,10 @@ def test_fetch_many_preserves_order_and_closes_worker_sessions() -> None:
     assert all(worker.session.__exit__.call_count == 1 for worker in workers)
 
 
-@pytest.mark.parametrize(  # type: ignore[misc]
-    "payload",
-    [{"roles": None}, {"roles": {}}, {"roles": [], "total_records": 1}],
-)
-def test_roles_reject_incomplete_inventory_before_graph_writes(
-    payload: dict[str, Any],
-) -> None:
+def test_roles_reject_incomplete_inventory_before_graph_writes() -> None:
     # Arrange
     client = MagicMock(spec=ZoomClient)
-    client.get.return_value = payload
+    client.get.return_value = {"roles": [], "total_records": 1}
     session = MagicMock()
 
     # Act and assert

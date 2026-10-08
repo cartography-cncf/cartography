@@ -154,10 +154,7 @@ class ZoomClient:
         seen_tokens: set[str] = set()
         for _ in range(DEFAULT_MAX_PAGES):
             page = self.get(path, query)
-            records = page[key]
-            if not isinstance(records, list):
-                raise ValueError(f"Zoom {key} response must contain a list")
-            result.extend(records)
+            result.extend(page[key])
             token = page.get("next_page_token")
             if not token:
                 if len(result) < page.get("total_records", len(result)):

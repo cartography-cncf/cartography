@@ -147,10 +147,6 @@ def _value(data: dict[str, Any], path: tuple[str, ...]) -> Any:
     for key in path:
         if value is None:
             return None
-        if not isinstance(value, dict):
-            raise ValueError(
-                "Zoom settings response contains a malformed policy section"
-            )
         value = value.get(key)
     return value
 
@@ -164,9 +160,10 @@ def transform(
 ) -> dict[str, Any]:
     default = responses["default"]
     data: dict[str, Any] = {"default": default}
+    # Each option response nests its policy under a key of the same name; locked
+    # snapshots and non-account owners do not request every option.
     for section in ("security", "meeting_security"):
-        response = responses.get(section, {})
-        data[section] = response.get(section, response)
+        data[section] = responses.get(section, {}).get(section)
     for section in ("meeting_authentication", "recording_authentication"):
         if kind == "locked":
             parent = (
@@ -177,7 +174,9 @@ def transform(
             data[section] = {section: _value(default, (parent, section))}
         else:
             response = responses[section]
-            # The Users API documents both top-level and nested auth variants.
+            # Zoom documents authentication_options as a list of profiles and, for
+            # user settings, also as an object nesting both authentication sections.
+            # Otherwise the flags are top-level and the list is not read.
             options = response.get("authentication_options")
             data[section] = (
                 options.get(section, {}) if isinstance(options, dict) else response
@@ -200,49 +199,18 @@ def transform(
         # Configured waiting rooms use in_meeting; locks use meeting_security.
         if field == "waiting_room" and kind == "configured":
             path = ("default", "in_meeting", "waiting_room")
-        value = _value(data, path)
-        if value is not None and not isinstance(value, bool):
-            raise ValueError(f"Zoom settings {field} must be a boolean")
-        result[field] = value
+        result[field] = _value(data, path)
 
-    for field, path, allowed in (
-        (
-            "sign_in_with_two_factor_auth",
-            ("security", "sign_in_with_two_factor_auth"),
-            {"all", "group", "role", "none"},
-        ),
-        (
-            "encryption_type",
-            ("meeting_security", "encryption_type"),
-            {"enhanced_encryption", "e2ee"},
-        ),
-        (
-            "who_can_share_screen",
-            ("default", "in_meeting", "who_can_share_screen"),
-            {"host", "all"},
-        ),
-    ):
-        # Lock endpoints report lock flags, not configured enum values.
-        value = _value(data, path) if kind == "configured" else None
-        if value is not None and (not isinstance(value, str) or value not in allowed):
-            raise ValueError(f"Zoom settings {field} has an unsupported value")
-        result[field] = value
-
-    for field, path in INTEGER_FIELDS.items():
-        value = _value(data, path) if kind == "configured" else None
-        if value is not None and (
-            not isinstance(value, int) or isinstance(value, bool)
-        ):
-            raise ValueError(f"Zoom settings {field} must be an integer")
-        result[field] = value
-    for field, path in ID_LIST_FIELDS.items():
-        value = _value(data, path) if kind == "configured" else None
-        if value is not None and (
-            not isinstance(value, list)
-            or not all(isinstance(item, str) for item in value)
-        ):
-            raise ValueError(f"Zoom settings {field} must be a list of IDs")
-        result[field] = value
+    # Lock endpoints report lock flags, not configured enum, integer or ID values.
+    configured_only = {
+        "sign_in_with_two_factor_auth": ("security", "sign_in_with_two_factor_auth"),
+        "encryption_type": ("meeting_security", "encryption_type"),
+        "who_can_share_screen": ("default", "in_meeting", "who_can_share_screen"),
+        **INTEGER_FIELDS,
+        **ID_LIST_FIELDS,
+    }
+    for field, path in configured_only.items():
+        result[field] = _value(data, path) if kind == "configured" else None
     return result
 
 

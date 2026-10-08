@@ -56,12 +56,11 @@ def optional_call(
             except requests.exceptions.JSONDecodeError:
                 raise exc
             code = error.get("code")
-            message = error.get("message")
+            message = error.get("message", "")
             # These codes also cover missing tokens and other authentication
             # failures. Only this scope-specific message establishes a denial.
             missing_scope = (
                 code in (4700, 4711)
-                and isinstance(message, str)
                 and message.startswith("Invalid access token, does not contain ")
                 and "scope" in message
             )
@@ -89,7 +88,7 @@ def is_zoom_error(exc: requests.HTTPError, status: int, code: int) -> bool:
         body = response.json()
     except requests.exceptions.JSONDecodeError:
         return False
-    return isinstance(body, dict) and body.get("code") == code
+    return body.get("code") == code
 
 
 def fetch_many(

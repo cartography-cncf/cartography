@@ -151,49 +151,6 @@ def test_transform_keeps_two_factor_group_and_role_ids() -> None:
 
 
 @pytest.mark.parametrize(  # type: ignore[misc]
-    "field,path,value",
-    [
-        ("auto_delete_cloud_recordings_days", ("default", "recording"), "90"),
-        ("waiting_room_scope", ("meeting_security", "meeting_security"), True),
-        (
-            "two_factor_auth_group_ids",
-            ("security", "security"),
-            ["group-one", 2],
-        ),
-    ],
-)
-def test_transform_rejects_malformed_non_boolean_values(
-    field: str, path: tuple[str, str], value: Any
-) -> None:
-    # Arrange
-    responses = deepcopy(SETTINGS_RESPONSES)
-    section = responses[path[0]][path[1]]
-    if field == "waiting_room_scope":
-        section["waiting_room_settings"][
-            "participants_to_place_in_waiting_room"
-        ] = value
-    elif field == "two_factor_auth_group_ids":
-        section["sign_in_with_two_factor_auth_groups"] = value
-    else:
-        section["auto_delete_cmr_days"] = value
-
-    # Act and assert
-    with pytest.raises(ValueError, match=field):
-        transform(responses, "account-one", "account", "account-one", "configured")
-
-
-@pytest.mark.parametrize("value", ["false", {}, 1])  # type: ignore[misc]
-def test_transform_rejects_malformed_policy_values(value: Any) -> None:
-    # Arrange
-    responses = deepcopy(SETTINGS_RESPONSES)
-    responses["meeting_security"]["meeting_security"]["pmi_password"] = value
-
-    # Act and assert
-    with pytest.raises(ValueError, match="pmi_passcode_required"):
-        transform(responses, "account-one", "account", "account-one", "configured")
-
-
-@pytest.mark.parametrize(  # type: ignore[misc]
     "scope_type,kind,options",
     [
         (
