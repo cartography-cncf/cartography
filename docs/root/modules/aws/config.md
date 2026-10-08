@@ -96,6 +96,13 @@ the corresponding data.
 - ECR pull through cache rule ingestion requires
   `ecr:DescribePullThroughCacheRules`.
 - AWS Glue connection ingestion requires `glue:GetConnections`.
+- Linking ECR images to the CodeBuild builds that pushed them, and through
+  them to their source repositories, requires `codebuild:ListBuildsForProject`
+  and `codebuild:BatchGetBuilds`. `SecurityAudit` only grants
+  `codebuild:ListProjects` and `codebuild:BatchGetProjects`. Without the two
+  build actions, CodeBuild projects are still ingested but images get no
+  `PACKAGED_BY` or CodeBuild-derived `PACKAGED_FROM` edges. See
+  [Build provenance from CodeBuild](container-images.md#build-provenance-from-codebuild).
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are

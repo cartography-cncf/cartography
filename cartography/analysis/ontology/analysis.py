@@ -805,3 +805,51 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
         ),
     ),
 )
+
+
+def _codebuild_packaged_from_statement(
+    provider: str,
+    target_label: str,
+    target_key: str,
+) -> AnalysisStatement:
+    # Fills gaps only: an image already tied to a repository by provenance, Dockerfile
+    # analysis or another matcher keeps that edge. The CodeBuild PACKAGED_BY edges of one
+    # image (one per account that holds the digest) must agree on the repository.
+    return AnalysisStatement(
+        comment=f"Derive Image PACKAGED_FROM {target_label} from the CodeBuild project that pushed it.",
+        match=(
+            "MATCH (img:Image)-[pb:PACKAGED_BY]->(:AWSCodeBuildProject) "
+            f"WHERE pb.source_provider = '{provider}' AND pb.source_uri IS NOT NULL "
+            "AND NONE(other IN [(img)-[o:PACKAGED_FROM]->() | o] "
+            "WHERE NOT coalesce(other.match_method, '') STARTS WITH 'codebuild_') "
+            "WITH img, collect(pb) AS pbs "
+            "WHERE all(p IN pbs WHERE p.source_uri = pbs[0].source_uri) "
+            "WITH img, pbs[0] AS pb "
+            f"MATCH (repo:{target_label} {{{target_key}: pb.source_uri}})"
+        ),
+        effects=(
+            AddRelationship(
+                "img",
+                "PACKAGED_FROM",
+                "repo",
+                source_label="Image",
+                target_label=target_label,
+                properties={
+                    "match_method": Var("pb.match_method"),
+                    "confidence": Var("pb.confidence"),
+                    "source_revision": Var("pb.source_revision"),
+                },
+                cleanup_where="r.match_method STARTS WITH 'codebuild_'",
+            ),
+        ),
+    )
+
+
+CODEBUILD_IMAGE_PACKAGED_FROM = AnalysisJob(
+    name="Image PACKAGED_FROM repository via AWS CodeBuild",
+    short_name="codebuild_image_packaged_from",
+    statements=(
+        _codebuild_packaged_from_statement("github", "GitHubRepository", "id"),
+        _codebuild_packaged_from_statement("gitlab", "GitLabProject", "web_url"),
+    ),
+)
