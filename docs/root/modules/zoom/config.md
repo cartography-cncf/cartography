@@ -179,20 +179,17 @@ snapshots, and lets independent sections continue. The required user inventory
 still fails on a limit or sustained rate limit.
 
 A denied optional endpoint emits a warning and retains the affected snapshot.
-A recording whose sharing settings are still processing preserves its host's
-prior recording snapshot until a later sync; other hosts still refresh and prune.
 Meetings and recordings belong to the account and link to their current host with
-`HOSTED_BY`. A stale meeting or recording is removed only when its last known host
-was read completely, or when that host is absent from the complete user
-inventory. A transfer keeps the resource identity and only the new host
-relationship. A resource moved to a host that cannot be read while its previous
-host is readable cannot be distinguished from a deletion and is removed until the
-new host is read. Documented not-found responses for a single meeting, role, app or
-settings owner affect only that item. Existing recordings also remain when their
-owner becomes inactive or loses a Licensed seat. Meetings are likewise preserved
-for pending users and users without a Basic/Licensed seat. Cleanup resumes after a
-successful read or removes the snapshot when the owner leaves the account. Successful independent sections and owners
-can still refresh. Credential failures,
-server errors, and incomplete pagination fail explicitly. Stale cleanup requires
-a complete read for the relevant account or owner. Review warnings as well
-as the process exit status when assessing coverage.
+`HOSTED_BY`. A transfer keeps the resource identity and only the new host
+relationship. Only eligible hosts are read: meetings for active Basic and Licensed
+users, recordings for active Licensed users. A recording whose sharing settings are
+still processing is skipped until a later sync. A host or meeting that Zoom reports
+as removed mid-sync is treated as having nothing to load.
+Documented not-found responses for a single meeting, role, app or settings owner
+affect only that item. Successful independent sections and owners can still
+refresh. Credential failures, server errors, and incomplete pagination fail
+explicitly. Stale cleanup for a section runs only after a complete read of that
+section. A denied groups, roles or apps section keeps all of its prior data. For
+settings, meetings and recordings, items that were read are refreshed, unread
+items are retained, and cleanup is skipped. Review warnings as well as the
+process exit status when assessing coverage.
