@@ -17,8 +17,31 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _status_code(err: requests.exceptions.RequestException) -> int | None:
-    return err.response.status_code if err.response is not None else None
+def _get_hooks(
+    token: Any,
+    api_url: str,
+    endpoint: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Return the webhooks listed at `endpoint`, or None when GitHub denies the
+    listing. GitHub answers 403 or 404 when the credential lacks the Webhooks
+    permission or administrator access. Other failures propagate.
+    """
+    try:
+        return fetch_all_rest_api_pages(
+            token,
+            rest_api_base_url(api_url),
+            endpoint,
+            "",
+            params={"per_page": 100},
+            raise_on_status=(403, 404),
+        )
+    except requests.exceptions.HTTPError as err:
+        status = err.response.status_code if err.response is not None else None
+        if status not in (403, 404):
+            raise
+        logger.debug("Could not list GitHub webhooks at %s: HTTP %s", endpoint, status)
+        return None
 
 
 @timeit
@@ -30,26 +53,17 @@ def get_organization_webhooks(
     """
     Fetch organization webhooks. Requires organization owner access with the
     organization **Webhooks: Read** permission or the classic `admin:org_hook`
-    scope. Returns None when the list is unavailable.
+    scope.
     """
-    try:
-        return fetch_all_rest_api_pages(
-            token,
-            rest_api_base_url(api_url),
-            f"/orgs/{quote(organization, safe='')}/hooks",
-            "",
-            params={"per_page": 100},
-            raise_on_status=(403, 404),
-        )
-    except requests.exceptions.RequestException as err:
+    hooks = _get_hooks(token, api_url, f"/orgs/{quote(organization, safe='')}/hooks")
+    if hooks is None:
         logger.warning(
-            "Skipping GitHub organization webhooks for org %s due to HTTP %s. "
-            "This endpoint requires organization owner access with the "
-            "organization Webhooks: Read permission.",
+            "Skipping GitHub organization webhooks for org %s. This endpoint "
+            "requires organization owner access with the organization "
+            "Webhooks: Read permission.",
             organization,
-            _status_code(err),
         )
-        return None
+    return hooks
 
 
 @timeit
@@ -60,45 +74,27 @@ def get_repository_webhooks(
 ) -> list[dict[str, Any]] | None:
     """
     Fetch a repository's webhooks. Requires repository administrator access with
-    the repository **Webhooks: Read** permission. GitHub answers 404 when the
-    credential cannot administer the repository, which is treated as no visible
-    webhooks; 403 and request failures return None.
+    the repository **Webhooks: Read** permission.
     """
     owner, _, name = repo_fullname.partition("/")
-    try:
-        return fetch_all_rest_api_pages(
-            token,
-            rest_api_base_url(api_url),
-            f"/repos/{quote(owner, safe='')}/{quote(name, safe='')}/hooks",
-            "",
-            params={"per_page": 100},
-            raise_on_status=(403, 404),
-        )
-    except requests.exceptions.RequestException as err:
-        if _status_code(err) == 404:
-            return []
-        logger.debug(
-            "Could not list webhooks for GitHub repository %s: HTTP %s",
-            repo_fullname,
-            _status_code(err),
-        )
-        return None
+    return _get_hooks(
+        token,
+        api_url,
+        f"/repos/{quote(owner, safe='')}/{quote(name, safe='')}/hooks",
+    )
 
 
 def transform(
     hook: dict[str, Any],
     organization_id: str | None = None,
     repository_id: str | None = None,
-) -> dict[str, Any] | None:
-    hook_url = hook.get("url")
-    if not hook_url:
-        return None
+) -> dict[str, Any]:
     config = hook.get("config") or {}
     target = config.get("url")
     parsed = urlsplit(target) if target else None
     last_response = hook.get("last_response") or {}
     return {
-        "id": hook_url,
+        "id": hook["url"],
         "hook_id": hook.get("id"),
         "scope": "repository" if repository_id else "organization",
         "name": hook.get("name"),
@@ -141,9 +137,7 @@ def get(
     if org_hooks is None:
         complete = False
     for hook in org_hooks or []:
-        transformed = transform(hook, organization_id=org_url)
-        if transformed:
-            webhooks.append(transformed)
+        webhooks.append(transform(hook, organization_id=org_url))
 
     unavailable_repos = 0
     for repo in repos:
@@ -156,9 +150,7 @@ def get(
             unavailable_repos += 1
             continue
         for hook in repo_hooks:
-            transformed = transform(hook, repository_id=repo_url)
-            if transformed:
-                webhooks.append(transformed)
+            webhooks.append(transform(hook, repository_id=repo_url))
     if unavailable_repos:
         complete = False
         logger.warning(

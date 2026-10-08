@@ -139,11 +139,13 @@ owners, so those repository links are not ingested.
 
 Organization and repository webhooks become `GitHubWebhook` nodes. Webhook
 target URLs often embed credentials, so Cartography stores only the target
-scheme and host, along with TLS verification, secret, and delivery status. GitHub
-never returns webhook secret values. Repositories the credential cannot
-administer return no webhooks. Stale webhooks are only removed after the
-organization list and every repository list were fetched without a permission
-error.
+scheme and host, along with TLS verification and whether a secret is configured.
+Repository webhooks also record their latest delivery status. GitHub never
+returns webhook secret values. Stale webhooks are only removed after the
+organization list and every repository list were fetched: a repository the
+credential cannot administer, or any other denied listing, preserves previously
+synced webhooks. Other request failures stop the GitHub sync for that
+organization.
 
 ### SAML identity mapping
 

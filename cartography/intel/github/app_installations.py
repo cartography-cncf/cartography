@@ -39,13 +39,16 @@ def get(
             params={"per_page": 100},
             raise_on_status=(403, 404),
         )
-    except requests.exceptions.RequestException as err:
+    except requests.exceptions.HTTPError as err:
+        status = err.response.status_code if err.response is not None else None
+        if status not in (403, 404):
+            raise
         logger.warning(
             "Skipping GitHub App installations for org %s due to HTTP %s. This "
             "endpoint requires organization owner access with the organization "
             "Administration: Read permission.",
             organization,
-            err.response.status_code if err.response is not None else None,
+            status,
         )
         return None
 
