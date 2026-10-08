@@ -22,4 +22,5 @@ slack_client = Mock(
         return_value=tests.data.slack.channels.SLACK_CHANNELS_MEMBERSHIPS
     ),
     usergroups_list=Mock(return_value=tests.data.slack.usergroups.SLACK_USERGROUPS),
+    team_accessLogs=Mock(return_value=tests.data.slack.users.SLACK_ACCESS_LOGS),
 )

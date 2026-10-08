@@ -29,6 +29,17 @@ public channels. Discovering every private channel without joining it requires
 Slack Enterprise Grid and the Admin Conversations API, which this module does
 not currently support.
 
+### Optional: user last sign-in
+
+Cartography reads each user's last sign-in time (`SlackUser.last_login`) from
+Slack's [`team.accessLogs`](https://docs.slack.dev/reference/methods/team.accessLogs)
+API. Slack only allows this API with a **user token** that has the `admin` scope,
+and only on paid workspaces. Bot tokens cannot read access logs. To ingest
+last sign-in times, provide a user token (`xoxp-...`) from a workspace admin.
+The token needs the `admin` scope as well as the user-scope versions of the
+scopes listed above. If the token cannot read access logs, Cartography logs a
+warning and leaves `last_login` empty.
+
 ## Configure Cartography
 
 Use `--slack-token-env-var` to provide the name of the environment variable containing the bot token.

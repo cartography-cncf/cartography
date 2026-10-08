@@ -153,3 +153,47 @@ SLACK_MEMBERS = {
 
 # Backward compatibility alias
 SLACK_USERS = SLACK_MEMBERS
+
+# team.accessLogs returns one entry per user, IP address and user agent.
+SLACK_ACCESS_LOGS = {
+    "ok": True,
+    "logins": [
+        {
+            "user_id": "SLACKUSER1",
+            "username": "mbsimpson",
+            "date_first": 1700000000,
+            "date_last": 1767225600,  # 2026-01-01T00:00:00Z
+            "count": 42,
+            "ip": "192.0.2.10",
+            "user_agent": "Slack/4.41.105 (Mac OS X)",
+            "isp": "Example ISP",
+            "country": "US",
+            "region": "California",
+        },
+        {
+            "user_id": "SLACKUSER1",
+            "username": "mbsimpson",
+            "date_first": 1690000000,
+            "date_last": 1735689600,  # 2025-01-01T00:00:00Z
+            "count": 7,
+            "ip": "198.51.100.20",
+            "user_agent": "Mozilla/5.0",
+            "isp": "Example ISP",
+            "country": "US",
+            "region": "California",
+        },
+        {
+            "user_id": "SLACKBOT1",
+            "username": "securitybot",
+            "date_first": 1700000000,
+            "date_last": 1767225600,
+            "count": 3,
+            "ip": "203.0.113.5",
+            "user_agent": "python-requests/2.32",
+            "isp": "Example ISP",
+            "country": "US",
+            "region": "Oregon",
+        },
+    ],
+    "response_metadata": {"next_cursor": ""},
+}

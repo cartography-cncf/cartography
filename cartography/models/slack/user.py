@@ -63,6 +63,13 @@ class SlackUserNodeProperties(CartographyNodeProperties):
     has_mfa: PropertyRef = PropertyRef(
         "has_mfa", description="Whether multi-factor authentication is enabled."
     )
+    last_login: PropertyRef = PropertyRef(
+        "last_login",
+        description=(
+            "Most recent sign-in time from the workspace access logs (UTC). "
+            "Requires a user token with the `admin` scope on a paid workspace."
+        ),
+    )
 
 
 @dataclass(frozen=True)
