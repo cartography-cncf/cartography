@@ -40,13 +40,12 @@ def get(
             raise_on_status=(403, 404),
         )
     except requests.exceptions.RequestException as err:
-        response = getattr(err, "response", None)
         logger.warning(
             "Skipping GitHub App installations for org %s due to HTTP %s. This "
             "endpoint requires organization owner access with the organization "
             "Administration: Read permission.",
             organization,
-            response.status_code if response is not None else None,
+            err.response.status_code if err.response is not None else None,
         )
         return None
 

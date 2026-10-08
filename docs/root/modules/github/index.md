@@ -3,8 +3,8 @@
 The GitHub module ingests organizations, users, teams, repositories, repository
 controls, Actions configuration, dependency data, Dependabot alerts, GitHub
 Container Registry (GHCR) metadata, and organization security posture: security
-settings, verified domains, Actions and Copilot policies, and repository secret
-scanning status. See [configuration](config.md) for
+settings, verified domains, Actions and Copilot policies, repository secret
+scanning status, installed GitHub Apps, and webhooks. See [configuration](config.md) for
 authentication and required permissions, and the generated [schema](schema.md)
 for node fields and relationships.
 

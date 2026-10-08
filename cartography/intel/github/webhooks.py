@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def _status_code(err: requests.exceptions.RequestException) -> int | None:
-    response = getattr(err, "response", None)
-    return response.status_code if response is not None else None
+    return err.response.status_code if err.response is not None else None
 
 
 @timeit
@@ -92,11 +91,11 @@ def transform(
     repository_id: str | None = None,
 ) -> dict[str, Any] | None:
     hook_url = hook.get("url")
-    if not isinstance(hook_url, str) or not hook_url:
+    if not hook_url:
         return None
     config = hook.get("config") or {}
     target = config.get("url")
-    parsed = urlsplit(target) if isinstance(target, str) and target else None
+    parsed = urlsplit(target) if target else None
     last_response = hook.get("last_response") or {}
     return {
         "id": hook_url,
