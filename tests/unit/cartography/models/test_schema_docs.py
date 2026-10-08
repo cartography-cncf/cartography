@@ -404,6 +404,22 @@ def test_mermaid_diagram_only_covers_intra_module_edges():
         assert all(endpoint in module_labels for endpoint in endpoints), line
 
 
+def test_okta_aws_matchlink_renders_in_both_module_schemas():
+    # Arrange
+    model = inspect_data_model()
+
+    for module in ("okta", "aws"):
+        # Act
+        generated = render_module_schema(model, module)
+        mermaid = generated.split("graph LR", 1)[1].split("```", 1)[0]
+
+        # Assert
+        assert "(:OktaGroup)-[:HAS_ROLE]->(:AWSRole)" in generated
+        assert "(:OktaGroup)-[:ALLOWED_BY]->(:AWSRole)" in generated
+        assert "OktaGroup -- HAS_ROLE --> AWSRole" not in mermaid
+        assert "OktaGroup -- ALLOWED_BY --> AWSRole" not in mermaid
+
+
 def test_relationship_property_tables_hide_internal_fields():
     # Arrange
     model = inspect_data_model(gitlab_models)
