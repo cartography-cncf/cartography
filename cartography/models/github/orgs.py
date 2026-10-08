@@ -21,8 +21,9 @@ class GitHubOrganizationNodeProperties(CartographyNodeProperties):
         "login", extra_index=True, description="GitHub organization login."
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # Organization settings. These are only populated by the organization settings
-    # sync, and are null when GitHub does not expose them to the credential. Most
+    # Security settings. The organization settings sync is the only writer of
+    # this node, so a failed settings fetch keeps the previous run's values.
+    # They are null when GitHub does not expose them to the credential; most
     # are only returned to organization owners.
     name: PropertyRef = PropertyRef("name", description="Organization display name.")
     is_verified: PropertyRef = PropertyRef(
@@ -107,17 +108,9 @@ class GitHubOrganizationNodeProperties(CartographyNodeProperties):
         "notification_delivery_restricted",
         description="Whether email notifications may only be delivered to verified or approved domains.",
     )
-    domain_count: PropertyRef = PropertyRef(
-        "domain_count",
-        description="Number of domains configured on the organization. Null when the domain list was unavailable.",
-    )
     verified_domain_count: PropertyRef = PropertyRef(
         "verified_domain_count",
         description="Number of verified domains on the organization. Null when the domain list was unavailable.",
-    )
-    approved_domain_count: PropertyRef = PropertyRef(
-        "approved_domain_count",
-        description="Number of approved, unverified domains on the organization. Null when the domain list was unavailable.",
     )
     actions_enabled_repositories: PropertyRef = PropertyRef(
         "actions_enabled_repositories",

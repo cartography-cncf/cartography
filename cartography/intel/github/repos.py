@@ -32,6 +32,7 @@ from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import handle_rate_limit_sleep
@@ -81,6 +82,9 @@ class GitHubRepoSyncResult:
     repos: list[dict[str, Any]]
     manifests: list[dict[str, Any]]
     manifests_cleanup_safe: bool
+    repos_complete: bool
+    """False when GitHub omitted repositories from the listing (null entries), so
+    syncs that enumerate per-repository resources must not clean up by organization."""
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -1115,6 +1119,19 @@ def _merge_repos_with_privileged_details(
     return merged_repos, merged_repo_count, repos_missing_privileged_details
 
 
+# `security_and_analysis` features whose `status` becomes a boolean
+# `<feature>_enabled` property on the repository.
+_SECURITY_FEATURES = (
+    "advanced_security",
+    "code_security",
+    "secret_scanning",
+    "secret_scanning_push_protection",
+    "secret_scanning_non_provider_patterns",
+    "secret_scanning_validity_checks",
+    "dependabot_security_updates",
+)
+
+
 @timeit
 def get_repo_security_and_analysis_by_url(
     token: str,
@@ -1127,31 +1144,21 @@ def get_repo_security_and_analysis_by_url(
     GitHub's GraphQL API does not expose these settings, so they come from the
     REST repository list. GitHub includes them only for repositories where the
     credential has admin or security manager access; other repositories are
-    omitted and their settings stay unknown.
+    omitted and their settings stay unknown. A denied listing returns an empty
+    mapping; other failures propagate.
     """
-    try:
-        repos = fetch_all_rest_api_pages(
-            token,
-            rest_api_base_url(api_url),
-            f"/orgs/{quote(organization, safe='')}/repos",
-            "",
-            params={"per_page": 100, "type": "all"},
-            raise_on_status=(403, 404),
-        )
-    except requests.exceptions.HTTPError as err:
-        status = err.response.status_code if err.response is not None else None
-        if status not in (403, 404):
-            raise
-        logger.warning(
-            "Skipping GitHub repository security settings for org %s due to "
-            "HTTP %s; secret scanning and push protection status will be unknown.",
-            organization,
-            status,
-        )
-        return {}
+    repos = fetch_all_rest_api_pages_or_none(
+        token,
+        rest_api_base_url(api_url),
+        f"/orgs/{quote(organization, safe='')}/repos",
+        "",
+        "repository security settings",
+        unavailable=(403, 404),
+        params={"per_page": 100, "type": "all"},
+    )
     return {
         repo["html_url"]: repo["security_and_analysis"]
-        for repo in repos
+        for repo in repos or []
         if repo.get("html_url") and repo.get("security_and_analysis")
     }
 
@@ -1161,11 +1168,7 @@ def _security_feature_enabled(
     feature: str,
 ) -> Optional[bool]:
     status = ((security_and_analysis or {}).get(feature) or {}).get("status")
-    if status == "enabled":
-        return True
-    if status == "disabled":
-        return False
-    return None
+    return {"enabled": True, "disabled": False}.get(str(status))
 
 
 def transform(
@@ -1380,27 +1383,12 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
                 if (visibility := input_repo_object.get("visibility"))
                 else None
             ),
-            "advanced_security_enabled": _security_feature_enabled(
-                security_and_analysis, "advanced_security"
-            ),
-            "code_security_enabled": _security_feature_enabled(
-                security_and_analysis, "code_security"
-            ),
-            "secret_scanning_enabled": _security_feature_enabled(
-                security_and_analysis, "secret_scanning"
-            ),
-            "secret_scanning_push_protection_enabled": _security_feature_enabled(
-                security_and_analysis, "secret_scanning_push_protection"
-            ),
-            "secret_scanning_non_provider_patterns_enabled": _security_feature_enabled(
-                security_and_analysis, "secret_scanning_non_provider_patterns"
-            ),
-            "secret_scanning_validity_checks_enabled": _security_feature_enabled(
-                security_and_analysis, "secret_scanning_validity_checks"
-            ),
-            "dependabot_security_updates_enabled": _security_feature_enabled(
-                security_and_analysis, "dependabot_security_updates"
-            ),
+            **{
+                f"{feature}_enabled": _security_feature_enabled(
+                    security_and_analysis, feature
+                )
+                for feature in _SECURITY_FEATURES
+            },
             "giturl": git_url,
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
@@ -2884,4 +2872,5 @@ def sync(
         repos=repo_data["repos"],
         manifests=repo_data["manifests"],
         manifests_cleanup_safe=dep_manifests_cleanup_safe,
+        repos_complete=all(repo is not None for repo in repos_json),
     )

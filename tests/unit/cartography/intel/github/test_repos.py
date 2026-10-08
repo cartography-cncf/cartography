@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.github.repos
+import cartography.intel.github.util
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _fetch_manifest_page
@@ -30,17 +31,6 @@ from tests.data.github.rulesets import RULESET_PRODUCTION
 TEST_UPDATE_TAG = 123456789
 
 _DEFAULT_REPO_URL = "https://github.com/test-org/test-repo"
-
-
-@pytest.fixture(autouse=True)
-def _no_security_and_analysis_fetch():
-    """Keep sync() tests offline: no repository security settings are visible."""
-    with patch.object(
-        cartography.intel.github.repos,
-        "get_repo_security_and_analysis_by_url",
-        return_value={},
-    ):
-        yield
 
 
 def _make_dep(
@@ -1774,7 +1764,7 @@ def test_sync_continues_when_privileged_fetch_fails(
     )
 
 
-@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
+@patch.object(cartography.intel.github.util, "fetch_all_rest_api_pages")
 def test_get_repo_security_and_analysis_by_url_keeps_only_visible_settings(
     mock_pages,
 ):

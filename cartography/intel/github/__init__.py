@@ -116,20 +116,24 @@ def start_github_ingestion(
         # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
         token: Any = credential
 
-        github_users = cartography.intel.github.users.sync(
-            neo4j_session,
-            common_job_parameters,
-            token,
-            api_url,
-            org_name,
+        user_data, owners_data, org_data = (
+            cartography.intel.github.users.get_organization(token, api_url, org_name)
         )
-        # Runs after the users sync, which creates the organization node.
+        # Writes the GitHubOrganization node; every later sync attaches to it.
         cartography.intel.github.organizations.sync(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
+            org_data,
+        )
+        github_users = cartography.intel.github.users.sync(
+            neo4j_session,
+            common_job_parameters,
+            user_data,
+            owners_data,
+            org_data,
         )
         cartography.intel.github.external_identities.sync(
             neo4j_session,

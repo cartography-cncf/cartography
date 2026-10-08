@@ -1,12 +1,3 @@
-ORG_IDENTITY = {
-    "data": {
-        "organization": {
-            "url": "https://github.com/simpsoncorp",
-            "login": "simpsoncorp",
-        },
-    },
-}
-
 ORG_IP_ALLOW_LIST = {
     "data": {"organization": {"ipAllowListEnabledSetting": "DISABLED"}},
 }
@@ -57,6 +48,20 @@ ORG_DOMAINS_PAGE_2 = {
             },
         },
     },
+}
+
+# A resolver error leaves a partial page: GitHub answers 200 with `errors` and a
+# null node. This must not count as a complete domain list.
+ORG_DOMAINS_PARTIAL = {
+    "data": {
+        "organization": {
+            "domains": {
+                "pageInfo": {"endCursor": None, "hasNextPage": False},
+                "nodes": [None],
+            },
+        },
+    },
+    "errors": [{"message": "Something went wrong while executing your query."}],
 }
 
 # GraphQL returns a FORBIDDEN error and nulls the organization for non-owners.

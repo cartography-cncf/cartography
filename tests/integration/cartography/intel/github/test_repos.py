@@ -38,20 +38,6 @@ def _no_lockfile_fetch():
         yield
 
 
-@pytest.fixture(autouse=True)
-def _no_security_and_analysis_fetch():
-    """
-    By default, no repository security settings are visible, so sync() never calls
-    the REST repository list. Tests that need them patch the fetch themselves.
-    """
-    with patch.object(
-        cartography.intel.github.repos,
-        "get_repo_security_and_analysis_by_url",
-        return_value={},
-    ):
-        yield
-
-
 @patch.object(
     cartography.intel.github.repos,
     "_get_dep_manifests_for_repos",

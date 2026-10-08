@@ -11,7 +11,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.helpers import normalize_email_for_matching
 from cartography.intel.github.util import fetch_all
-from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.stats import get_stats_client
@@ -221,21 +220,6 @@ def load_users(
 
 
 @timeit
-def load_organization(
-    neo4j_session: neo4j.Session,
-    node_schema: GitHubOrganizationSchema,
-    org_data: List[Dict[str, Any]],
-    update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        node_schema,
-        org_data,
-        lastupdated=update_tag,
-    )
-
-
-@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -252,30 +236,39 @@ def cleanup(
 
 
 @timeit
-def sync(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+def get_organization(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> list[dict[str, Any]]:
-    logger.info("Syncing GitHub users")
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    """
+    Fetch the organization's members and enterprise owners.
+
+    :return: raw member edges, raw enterprise owner edges, and the organization
+        data (``url`` and ``login``) that identifies its ``GitHubOrganization`` node.
+    """
     user_data, org_data = get_users(github_api_key, github_url, organization)
-    owners_data, org_data = get_enterprise_owners(
-        github_api_key,
-        github_url,
-        organization,
-    )
+    owners_data, _ = get_enterprise_owners(github_api_key, github_url, organization)
+    return user_data, owners_data, org_data
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    user_data: List[Dict],
+    owners_data: List[Dict],
+    org_data: Dict,
+) -> list[dict[str, Any]]:
+    """
+    Load the users fetched by ``get_organization()`` and attach them to the
+    ``GitHubOrganization`` node, which the organization settings sync writes.
+    """
+    logger.info("Syncing GitHub users")
     processed_affiliated_user_data, processed_unaffiliated_user_data = transform_users(
         user_data,
         owners_data,
         org_data,
-    )
-    load_organization(
-        neo4j_session,
-        GitHubOrganizationSchema(),
-        [org_data],
-        common_job_parameters["UPDATE_TAG"],
     )
     load_users(
         neo4j_session,

@@ -4,8 +4,8 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.github.organizations
+import cartography.intel.github.util
 from cartography.intel.github.organizations import GITHUB_ORG_DOMAINS_PAGINATED_GRAPHQL
-from cartography.intel.github.organizations import GITHUB_ORG_IDENTITY_GRAPHQL
 from cartography.intel.github.organizations import GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL
 from cartography.intel.github.organizations import (
     GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL,
@@ -14,8 +14,8 @@ from tests.data.github.organizations import ACTIONS_PERMISSIONS
 from tests.data.github.organizations import COPILOT_BILLING
 from tests.data.github.organizations import ORG_DOMAINS_PAGE_1
 from tests.data.github.organizations import ORG_DOMAINS_PAGE_2
+from tests.data.github.organizations import ORG_DOMAINS_PARTIAL
 from tests.data.github.organizations import ORG_FORBIDDEN
-from tests.data.github.organizations import ORG_IDENTITY
 from tests.data.github.organizations import ORG_IP_ALLOW_LIST
 from tests.data.github.organizations import ORG_NOTIFICATION_RESTRICTION
 from tests.data.github.organizations import ORG_REST
@@ -30,6 +30,7 @@ TEST_GITHUB_URL = "https://api.github.com/graphql"
 TEST_ORGANIZATION = "simpsoncorp"
 FAKE_TOKEN = "fake-pat"
 ORG_URL = "https://github.com/simpsoncorp"
+ORG_DATA = {"url": ORG_URL, "login": TEST_ORGANIZATION}
 
 OWNER_REST_RESPONSES = {
     "/orgs/simpsoncorp": ORG_REST,
@@ -41,8 +42,6 @@ OWNER_REST_RESPONSES = {
 
 
 def _owner_graphql(query, variables, token, api_url):
-    if query == GITHUB_ORG_IDENTITY_GRAPHQL:
-        return ORG_IDENTITY
     if query == GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL:
         return ORG_IP_ALLOW_LIST
     if query == GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL:
@@ -55,8 +54,6 @@ def _owner_graphql(query, variables, token, api_url):
 
 
 def _member_graphql(query, variables, token, api_url):
-    if query == GITHUB_ORG_IDENTITY_GRAPHQL:
-        return ORG_IDENTITY
     return ORG_FORBIDDEN
 
 
@@ -100,17 +97,18 @@ def _reset_and_seed_graph(neo4j_session):
 
 
 @patch.object(cartography.intel.github.organizations, "handle_rate_limit_sleep")
+@patch.object(cartography.intel.github.util, "handle_rate_limit_sleep")
 @patch.object(
-    cartography.intel.github.organizations,
+    cartography.intel.github.util,
     "call_github_rest_api",
     side_effect=_owner_rest,
 )
 @patch.object(
-    cartography.intel.github.organizations,
+    cartography.intel.github.util,
     "call_github_api",
     side_effect=_owner_graphql,
 )
-def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
+def test_sync_organization_settings(mock_graphql, mock_rest, _, __, neo4j_session):
     # Arrange
     _reset_and_seed_graph(neo4j_session)
 
@@ -121,6 +119,7 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
         FAKE_TOKEN,
         TEST_GITHUB_URL,
         TEST_ORGANIZATION,
+        ORG_DATA,
     )
 
     # Assert
@@ -138,9 +137,7 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
             "secret_scanning_push_protection_enabled_for_new_repositories",
             "ip_allow_list_enabled",
             "notification_delivery_restricted",
-            "domain_count",
             "verified_domain_count",
-            "approved_domain_count",
         ],
     ) == {
         (
@@ -154,8 +151,6 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
             False,
             False,
             True,
-            2,
-            1,
             1,
         ),
     }
@@ -223,18 +218,19 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
 
 
 @patch.object(cartography.intel.github.organizations, "handle_rate_limit_sleep")
+@patch.object(cartography.intel.github.util, "handle_rate_limit_sleep")
 @patch.object(
-    cartography.intel.github.organizations,
+    cartography.intel.github.util,
     "call_github_rest_api",
     side_effect=_member_rest,
 )
 @patch.object(
-    cartography.intel.github.organizations,
+    cartography.intel.github.util,
     "call_github_api",
     side_effect=_member_graphql,
 )
 def test_sync_organization_settings_without_owner_access(
-    mock_graphql, mock_rest, _, neo4j_session
+    mock_graphql, mock_rest, _, __, neo4j_session
 ):
     # Arrange
     _reset_and_seed_graph(neo4j_session)
@@ -246,6 +242,7 @@ def test_sync_organization_settings_without_owner_access(
         FAKE_TOKEN,
         TEST_GITHUB_URL,
         TEST_ORGANIZATION,
+        ORG_DATA,
     )
 
     # Assert - unavailable settings are unknown, not false.
@@ -260,10 +257,54 @@ def test_sync_organization_settings_without_owner_access(
             "members_can_create_public_repositories",
             "actions_allowed_actions",
             "copilot_public_code_suggestions",
-            "domain_count",
+            "verified_domain_count",
         ],
     ) == {(ORG_URL, "Simpson Corp", True, None, None, None, None, None)}
     # Assert - an unavailable domain list preserves previously synced domains.
+    assert check_nodes(neo4j_session, "GitHubOrganizationDomain", ["id"]) == {
+        ("VD_stale",),
+    }
+
+
+def _partial_domains_graphql(query, variables, token, api_url):
+    if query == GITHUB_ORG_DOMAINS_PAGINATED_GRAPHQL:
+        return ORG_DOMAINS_PARTIAL
+    return _owner_graphql(query, variables, token, api_url)
+
+
+@patch.object(cartography.intel.github.organizations, "handle_rate_limit_sleep")
+@patch.object(cartography.intel.github.util, "handle_rate_limit_sleep")
+@patch.object(
+    cartography.intel.github.util,
+    "call_github_rest_api",
+    side_effect=_owner_rest,
+)
+@patch.object(
+    cartography.intel.github.util,
+    "call_github_api",
+    side_effect=_partial_domains_graphql,
+)
+def test_sync_organization_settings_partial_domain_page_skips_cleanup(
+    mock_graphql, mock_rest, _, __, neo4j_session
+):
+    # Arrange
+    _reset_and_seed_graph(neo4j_session)
+
+    # Act
+    cartography.intel.github.organizations.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        ORG_DATA,
+    )
+
+    # Assert - a page with resolver errors is not a complete list: the domain
+    # count is unknown and previously synced domains survive.
+    assert check_nodes(
+        neo4j_session, "GitHubOrganization", ["id", "verified_domain_count"]
+    ) == {(ORG_URL, None)}
     assert check_nodes(neo4j_session, "GitHubOrganizationDomain", ["id"]) == {
         ("VD_stale",),
     }

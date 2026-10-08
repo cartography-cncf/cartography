@@ -3,23 +3,21 @@ Sync GitHub organization security settings and domains.
 
 Most of these settings are only visible to organization owners or to
 credentials with organization administration permissions. Each source is
-fetched independently: an unavailable source leaves its properties null
-(unknown) and never fails the GitHub sync.
+fetched independently: a source the credential cannot read leaves its
+properties null (unknown), while any other request failure propagates so a
+transient error never overwrites known settings.
 """
 
-import json
 import logging
 from typing import Any
-from typing import cast
 from urllib.parse import quote
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import call_github_api
-from cartography.intel.github.util import call_github_rest_api
+from cartography.intel.github.util import call_github_rest_api_or_none
+from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.models.github.domains import GitHubOrganizationDomainSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
@@ -28,23 +26,11 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# 403/404: missing permission or scope. 422: the feature cannot be read, such as
-# Copilot on an organization with a billing problem.
-_UNAVAILABLE_STATUSES = (403, 404, 422)
-
-GITHUB_ORG_IDENTITY_GRAPHQL = """
-    query($login: String!) {
-        organization(login: $login) {
-            url
-            login
-        }
-    }
-    """
-
 # Each setting is queried on its own: both fields are non-nullable, so a
-# FORBIDDEN error on one of them nulls the whole organization object.
+# FORBIDDEN error on one of them nulls the whole organization object. $cursor is
+# unused but declared because fetch_page always sends it.
 GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL = """
-    query($login: String!) {
+    query($login: String!, $cursor: String) {
         organization(login: $login) {
             ipAllowListEnabledSetting
         }
@@ -52,7 +38,7 @@ GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL = """
     """
 
 GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL = """
-    query($login: String!) {
+    query($login: String!, $cursor: String) {
         organization(login: $login) {
             notificationDeliveryRestrictionEnabledSetting
         }
@@ -81,6 +67,55 @@ GITHUB_ORG_DOMAINS_PAGINATED_GRAPHQL = """
     }
     """
 
+# REST fields copied onto the node under the same name.
+_ORG_REST_FIELDS = (
+    "name",
+    "is_verified",
+    "two_factor_requirement_enabled",
+    "default_repository_permission",
+    "members_can_create_repositories",
+    "members_can_create_public_repositories",
+    "members_can_create_private_repositories",
+    "members_can_create_internal_repositories",
+    "members_can_fork_private_repositories",
+    "members_can_create_public_pages",
+    "web_commit_signoff_required",
+    "deploy_keys_enabled_for_repositories",
+    "advanced_security_enabled_for_new_repositories",
+    "dependabot_alerts_enabled_for_new_repositories",
+    "dependabot_security_updates_enabled_for_new_repositories",
+    "dependency_graph_enabled_for_new_repositories",
+    "secret_scanning_enabled_for_new_repositories",
+    "secret_scanning_push_protection_enabled_for_new_repositories",
+    "secret_scanning_push_protection_custom_link_enabled",
+)
+
+# (settings source, node property, REST field) for fields that are renamed.
+_PREFIXED_FIELDS = (
+    ("actions_permissions", "actions_enabled_repositories", "enabled_repositories"),
+    ("actions_permissions", "actions_allowed_actions", "allowed_actions"),
+    ("actions_permissions", "actions_sha_pinning_required", "sha_pinning_required"),
+    ("selected_actions", "actions_github_owned_allowed", "github_owned_allowed"),
+    ("selected_actions", "actions_verified_allowed", "verified_allowed"),
+    ("selected_actions", "actions_patterns_allowed", "patterns_allowed"),
+    (
+        "workflow_permissions",
+        "actions_default_workflow_permissions",
+        "default_workflow_permissions",
+    ),
+    (
+        "workflow_permissions",
+        "actions_can_approve_pull_request_reviews",
+        "can_approve_pull_request_reviews",
+    ),
+    ("copilot", "copilot_plan_type", "plan_type"),
+    ("copilot", "copilot_seat_management_setting", "seat_management_setting"),
+    ("copilot", "copilot_public_code_suggestions", "public_code_suggestions"),
+    ("copilot", "copilot_ide_chat", "ide_chat"),
+    ("copilot", "copilot_platform_chat", "platform_chat"),
+    ("copilot", "copilot_cli", "cli"),
+)
+
 
 def _query_organization(
     token: Any,
@@ -91,65 +126,22 @@ def _query_organization(
 ) -> dict[str, Any] | None:
     """
     Run a single-organization GraphQL query and return the organization object,
-    or None if GitHub withheld it, which happens when the credential is not an
-    organization owner. Request failures propagate.
+    or None when GitHub reported any error. A FORBIDDEN error means the
+    credential is not an organization owner; a resolver error can leave the
+    object partially populated, which must not be mistaken for a complete
+    snapshot. Request failures propagate.
     """
-    variables: dict[str, Any] = {"login": organization}
-    if cursor is not None:
-        variables["cursor"] = cursor
-    handle_rate_limit_sleep(token, api_url)
-    response = call_github_api(query, json.dumps(variables), token, api_url)
-    org = (response.get("data") or {}).get("organization")
-    if org is None:
-        messages = "; ".join(
-            str(error.get("message", "")) for error in response.get("errors") or []
-        )
+    response = fetch_page(token, api_url, organization, query, cursor)
+    errors = response.get("errors") or []
+    if errors:
         logger.warning(
             "GitHub did not return organization settings for org %s. "
             "This usually means the credential is not an organization owner. %s",
             organization,
-            messages,
+            "; ".join(str(error.get("message", "")) for error in errors),
         )
         return None
-    return cast(dict[str, Any], org)
-
-
-def _get_rest_object(
-    token: Any,
-    api_url: str,
-    endpoint: str,
-    description: str,
-) -> dict[str, Any] | None:
-    """
-    Return the endpoint's JSON object, or None when GitHub reports the setting
-    as unavailable to the credential. Other failures propagate.
-    """
-    try:
-        return call_github_rest_api(endpoint, token, api_url)
-    except requests.exceptions.HTTPError as err:
-        status = err.response.status_code if err.response is not None else None
-        if status not in _UNAVAILABLE_STATUSES:
-            raise
-        logger.warning(
-            "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
-            "required permission, or the feature is not enabled.",
-            description,
-            endpoint,
-            status,
-        )
-        return None
-
-
-@timeit
-def get_organization_identity(
-    token: Any,
-    api_url: str,
-    organization: str,
-) -> dict[str, Any] | None:
-    """Return the canonical organization `url` and `login`, as used by the users sync."""
-    return _query_organization(
-        token, api_url, organization, GITHUB_ORG_IDENTITY_GRAPHQL
-    )
+    return (response.get("data") or {}).get("organization")
 
 
 @timeit
@@ -190,155 +182,81 @@ def get(
 ) -> dict[str, Any]:
     """Fetch every organization settings source. Unavailable sources are None."""
     org_path = f"/orgs/{quote(organization, safe='')}"
-    actions_permissions = _get_rest_object(
-        token,
-        api_url,
-        f"{org_path}/actions/permissions",
-        "Actions permissions",
-    )
-    selected_actions = None
-    if (actions_permissions or {}).get("allowed_actions") == "selected":
-        selected_actions = _get_rest_object(
-            token,
-            api_url,
-            f"{org_path}/actions/permissions/selected-actions",
-            "Actions allowed-actions list",
-        )
-    ip_allow_list = _query_organization(
-        token, api_url, organization, GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL
-    )
-    notification_restriction = _query_organization(
-        token, api_url, organization, GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL
-    )
-    return {
-        "organization": _get_rest_object(
-            token, api_url, org_path, "organization settings"
+    rest = {
+        "organization": (org_path, "organization settings"),
+        "actions_permissions": (
+            f"{org_path}/actions/permissions",
+            "Actions permissions",
         ),
-        "ip_allow_list": ip_allow_list,
-        "notification_restriction": notification_restriction,
-        "domains": get_domains(token, api_url, organization),
-        "actions_permissions": actions_permissions,
-        "selected_actions": selected_actions,
-        "workflow_permissions": _get_rest_object(
-            token,
-            api_url,
+        "workflow_permissions": (
             f"{org_path}/actions/permissions/workflow",
             "Actions default workflow permissions",
         ),
-        "copilot": _get_rest_object(
+        "copilot": (f"{org_path}/copilot/billing", "Copilot settings"),
+    }
+    settings: dict[str, Any] = {
+        key: call_github_rest_api_or_none(endpoint, token, api_url, description)
+        for key, (endpoint, description) in rest.items()
+    }
+    settings["selected_actions"] = None
+    if (settings["actions_permissions"] or {}).get("allowed_actions") == "selected":
+        settings["selected_actions"] = call_github_rest_api_or_none(
+            f"{org_path}/actions/permissions/selected-actions",
             token,
             api_url,
-            f"{org_path}/copilot/billing",
-            "Copilot settings",
-        ),
-    }
+            "Actions allowed-actions list",
+        )
+    # These queries cost one GraphQL point each, so one budget check covers them.
+    handle_rate_limit_sleep(token, api_url)
+    settings["ip_allow_list"] = _query_organization(
+        token, api_url, organization, GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL
+    )
+    settings["notification_restriction"] = _query_organization(
+        token, api_url, organization, GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL
+    )
+    settings["domains"] = get_domains(token, api_url, organization)
+    return settings
 
 
 def _enabled_setting(value: Any) -> bool | None:
-    if value == "ENABLED":
-        return True
-    if value == "DISABLED":
-        return False
-    return None
+    return {"ENABLED": True, "DISABLED": False}.get(value)
 
 
 def transform_organization(
-    identity: dict[str, Any],
+    org_data: dict[str, Any],
     settings: dict[str, Any],
 ) -> dict[str, Any]:
+    """
+    :param org_data: The organization's ``url`` and ``login`` as reported by
+        GitHub GraphQL; ``url`` is the node ID every other GitHub sync attaches to.
+    """
     org = settings.get("organization") or {}
-    actions = settings.get("actions_permissions") or {}
-    selected = settings.get("selected_actions") or {}
-    workflow = settings.get("workflow_permissions") or {}
-    copilot = settings.get("copilot") or {}
     domains = settings.get("domains")
-    ip_allow_list = settings.get("ip_allow_list") or {}
-    notification_restriction = settings.get("notification_restriction") or {}
-    return {
-        "url": identity["url"],
-        "login": identity["login"],
-        "name": org.get("name"),
-        "is_verified": org.get("is_verified"),
-        "two_factor_requirement_enabled": org.get("two_factor_requirement_enabled"),
-        "default_repository_permission": org.get("default_repository_permission"),
-        "members_can_create_repositories": org.get("members_can_create_repositories"),
-        "members_can_create_public_repositories": org.get(
-            "members_can_create_public_repositories"
-        ),
-        "members_can_create_private_repositories": org.get(
-            "members_can_create_private_repositories"
-        ),
-        "members_can_create_internal_repositories": org.get(
-            "members_can_create_internal_repositories"
-        ),
-        "members_can_fork_private_repositories": org.get(
-            "members_can_fork_private_repositories"
-        ),
-        "members_can_create_public_pages": org.get("members_can_create_public_pages"),
-        "web_commit_signoff_required": org.get("web_commit_signoff_required"),
-        "deploy_keys_enabled_for_repositories": org.get(
-            "deploy_keys_enabled_for_repositories"
-        ),
-        "advanced_security_enabled_for_new_repositories": org.get(
-            "advanced_security_enabled_for_new_repositories"
-        ),
-        "dependabot_alerts_enabled_for_new_repositories": org.get(
-            "dependabot_alerts_enabled_for_new_repositories"
-        ),
-        "dependabot_security_updates_enabled_for_new_repositories": org.get(
-            "dependabot_security_updates_enabled_for_new_repositories"
-        ),
-        "dependency_graph_enabled_for_new_repositories": org.get(
-            "dependency_graph_enabled_for_new_repositories"
-        ),
-        "secret_scanning_enabled_for_new_repositories": org.get(
-            "secret_scanning_enabled_for_new_repositories"
-        ),
-        "secret_scanning_push_protection_enabled_for_new_repositories": org.get(
-            "secret_scanning_push_protection_enabled_for_new_repositories"
-        ),
-        "secret_scanning_push_protection_custom_link_enabled": org.get(
-            "secret_scanning_push_protection_custom_link_enabled"
-        ),
-        "ip_allow_list_enabled": _enabled_setting(
-            ip_allow_list.get("ipAllowListEnabledSetting")
-        ),
-        "notification_delivery_restricted": _enabled_setting(
-            notification_restriction.get(
-                "notificationDeliveryRestrictionEnabledSetting"
-            )
-        ),
-        "domain_count": len(domains) if domains is not None else None,
-        "verified_domain_count": (
-            sum(1 for domain in domains if domain.get("isVerified"))
-            if domains is not None
-            else None
-        ),
-        "approved_domain_count": (
-            sum(1 for domain in domains if domain.get("isApproved"))
-            if domains is not None
-            else None
-        ),
-        "actions_enabled_repositories": actions.get("enabled_repositories"),
-        "actions_allowed_actions": actions.get("allowed_actions"),
-        "actions_sha_pinning_required": actions.get("sha_pinning_required"),
-        "actions_github_owned_allowed": selected.get("github_owned_allowed"),
-        "actions_verified_allowed": selected.get("verified_allowed"),
-        "actions_patterns_allowed": selected.get("patterns_allowed"),
-        "actions_default_workflow_permissions": workflow.get(
-            "default_workflow_permissions"
-        ),
-        "actions_can_approve_pull_request_reviews": workflow.get(
-            "can_approve_pull_request_reviews"
-        ),
-        "copilot_plan_type": copilot.get("plan_type"),
-        "copilot_seat_management_setting": copilot.get("seat_management_setting"),
-        "copilot_seat_count": (copilot.get("seat_breakdown") or {}).get("total"),
-        "copilot_public_code_suggestions": copilot.get("public_code_suggestions"),
-        "copilot_ide_chat": copilot.get("ide_chat"),
-        "copilot_platform_chat": copilot.get("platform_chat"),
-        "copilot_cli": copilot.get("cli"),
-    }
+    transformed: dict[str, Any] = {"url": org_data["url"], "login": org_data["login"]}
+    transformed.update({field: org.get(field) for field in _ORG_REST_FIELDS})
+    for source, prop, field in _PREFIXED_FIELDS:
+        transformed[prop] = (settings.get(source) or {}).get(field)
+    transformed.update(
+        {
+            "ip_allow_list_enabled": _enabled_setting(
+                (settings.get("ip_allow_list") or {}).get("ipAllowListEnabledSetting")
+            ),
+            "notification_delivery_restricted": _enabled_setting(
+                (settings.get("notification_restriction") or {}).get(
+                    "notificationDeliveryRestrictionEnabledSetting"
+                )
+            ),
+            "verified_domain_count": (
+                sum(1 for domain in domains if domain.get("isVerified"))
+                if domains is not None
+                else None
+            ),
+            "copilot_seat_count": (
+                (settings.get("copilot") or {}).get("seat_breakdown") or {}
+            ).get("total"),
+        }
+    )
+    return transformed
 
 
 def transform_domains(domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -355,7 +273,6 @@ def transform_domains(domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "updated_at": domain.get("updatedAt"),
         }
         for domain in domains
-        if domain.get("id")
     ]
 
 
@@ -408,20 +325,22 @@ def sync(
     token: Any,
     api_url: str,
     organization: str,
+    org_data: dict[str, Any],
 ) -> None:
-    identity = get_organization_identity(token, api_url, organization)
-    if not identity or not identity.get("url") or not identity.get("login"):
-        logger.warning(
-            "Skipping GitHub organization settings for org %s: could not "
-            "resolve the organization.",
-            organization,
-        )
-        return
+    """
+    Load the organization node with its security settings and domains.
+
+    This is the only sync that writes the ``GitHubOrganization`` node, so it runs
+    before every sync that attaches resources to it.
+
+    :param org_data: The organization's ``url`` and ``login`` from GitHub GraphQL.
+    """
     update_tag = common_job_parameters["UPDATE_TAG"]
+    org_url = org_data["url"]
     settings = get(token, api_url, organization)
     load_organization(
         neo4j_session,
-        transform_organization(identity, settings),
+        transform_organization(org_data, settings),
         update_tag,
     )
     domains = settings["domains"]
@@ -432,10 +351,5 @@ def sync(
             organization,
         )
         return
-    load_domains(
-        neo4j_session,
-        transform_domains(domains),
-        identity["url"],
-        update_tag,
-    )
-    cleanup_domains(neo4j_session, identity["url"], update_tag)
+    load_domains(neo4j_session, transform_domains(domains), org_url, update_tag)
+    cleanup_domains(neo4j_session, org_url, update_tag)
