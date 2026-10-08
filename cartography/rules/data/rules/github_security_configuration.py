@@ -72,7 +72,7 @@ _repository_secret_scanning_disabled = Fact(
     RETURN n.fullname AS asset_name, n.id AS asset_id,
         split(n.fullname, '/')[0] AS organization,
         'repository_secret_scanning_disabled' AS issue,
-        n.visibility AS current_value
+        'Secret scanning disabled on ' + coalesce(n.visibility, 'unknown visibility') + ' repository' AS current_value
     """,
     cypher_visual_query="""
     MATCH (n:GitHubRepository)
@@ -106,7 +106,7 @@ _repository_push_protection_disabled = Fact(
     RETURN n.fullname AS asset_name, n.id AS asset_id,
         split(n.fullname, '/')[0] AS organization,
         'repository_push_protection_disabled' AS issue,
-        n.visibility AS current_value
+        'Push protection disabled on ' + coalesce(n.visibility, 'unknown visibility') + ' repository' AS current_value
     """,
     cypher_visual_query="""
     MATCH (n:GitHubRepository)
@@ -309,9 +309,12 @@ _actions_all_actions_allowed = _organization_setting_fact(
     ),
     condition=(
         "n.actions_allowed_actions = 'all' "
-        "AND coalesce(n.actions_enabled_repositories, '') <> 'none'"
+        "AND n.actions_enabled_repositories IN ['all', 'selected']"
     ),
-    evaluated="n.actions_allowed_actions IS NOT NULL",
+    evaluated=(
+        "n.actions_allowed_actions IS NOT NULL "
+        "AND n.actions_enabled_repositories IS NOT NULL"
+    ),
     current_value="n.actions_allowed_actions",
 )
 

@@ -234,6 +234,8 @@ _SAFE_WEBHOOK = {
                     "actions_enabled_repositories": "none",
                 },
                 {"actions_allowed_actions": None},
+                # Unknown enablement is not a finding.
+                {"actions_allowed_actions": "all"},
             ],
             3,
         ),
