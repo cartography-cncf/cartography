@@ -11,6 +11,7 @@ from typing import cast
 
 import backoff
 from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.exceptions import MethodNotImplemented
 from google.api_core.exceptions import NotFound
 from google.api_core.exceptions import PermissionDenied
 from google.api_core.exceptions import ServerError
@@ -29,6 +30,101 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_VERTEX_AI_LOCATION_WORKERS = 8
 
+# Locations known to expose Vertex AI regional GAPIC endpoints
+# (`{location}-aiplatform.googleapis.com`). Mirrors AWS
+# `filter_regions_to_supported_service_regions`: locations.list can over-report
+# regions where Model/Endpoint/Dataset services still return HTTP 404 mapped to
+# gRPC UNIMPLEMENTED. Keep this set updated when Google launches regions; the
+# MethodNotImplemented handler below is the safety net for drift in both
+# directions.
+VERTEX_AI_SUPPORTED_LOCATIONS: frozenset[str] = frozenset(
+    {
+        "africa-south1",
+        "asia-east1",
+        "asia-east2",
+        "asia-northeast1",
+        "asia-northeast2",
+        "asia-northeast3",
+        "asia-south1",
+        "asia-south2",
+        "asia-southeast1",
+        "asia-southeast2",
+        "australia-southeast1",
+        "australia-southeast2",
+        "europe-central2",
+        "europe-north1",
+        "europe-north2",
+        "europe-southwest1",
+        "europe-west1",
+        "europe-west2",
+        "europe-west3",
+        "europe-west4",
+        "europe-west6",
+        "europe-west8",
+        "europe-west9",
+        "europe-west10",
+        "europe-west12",
+        "europe-west15",
+        "me-central1",
+        "me-central2",
+        "me-west1",
+        "northamerica-northeast1",
+        "northamerica-northeast2",
+        "southamerica-east1",
+        "southamerica-west1",
+        "us-central1",
+        "us-central2",
+        "us-east1",
+        "us-east4",
+        "us-east5",
+        "us-east7",
+        "us-south1",
+        "us-west1",
+        "us-west2",
+        "us-west3",
+        "us-west4",
+        "us-west8",
+    }
+)
+
+
+def filter_locations_to_supported_vertex_locations(
+    locations: list[str],
+    *,
+    available_locations: frozenset[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """
+    Filter candidate Vertex AI locations to the subset with known GAPIC support.
+
+    Returns a tuple of:
+    - filtered locations supported by Vertex AI regional GAPIC clients
+    - candidate locations skipped as unsupported
+
+    If no available-location metadata is provided and the default set is empty,
+    fall back to the original candidates (same contract as AWS
+    ``filter_regions_to_supported_service_regions``).
+    """
+    if not locations:
+        return [], []
+
+    supported = (
+        available_locations
+        if available_locations is not None
+        else VERTEX_AI_SUPPORTED_LOCATIONS
+    )
+    if not supported:
+        logger.debug(
+            "Could not determine available Vertex AI locations. "
+            "Continuing with requested locations.",
+        )
+        return locations, []
+
+    filtered_locations = [location for location in locations if location in supported]
+    unsupported_locations = [
+        location for location in locations if location not in supported
+    ]
+    return filtered_locations, unsupported_locations
+
 
 def get_vertex_credentials(aiplatform_or_credentials: Any) -> GoogleCredentials:
     credentials = getattr(
@@ -43,6 +139,9 @@ def get_vertex_credentials(aiplatform_or_credentials: Any) -> GoogleCredentials:
     backoff.expo,
     (ServerError, TooManyRequests),
     max_tries=GCP_API_MAX_RETRIES,
+    # MethodNotImplemented is a ServerError (HTTP 501) but means the regional
+    # endpoint is unavailable; retrying only burns quota and latency.
+    giveup=lambda exc: isinstance(exc, MethodNotImplemented),
     on_backoff=gcp_api_backoff_handler,
     on_giveup=gcp_api_giveup_handler,
     logger=None,
@@ -69,6 +168,18 @@ def list_vertex_ai_resources_for_location(
             location,
             project_id,
             resource_type,
+        )
+        return []
+    except MethodNotImplemented as e:
+        # Google maps some unsupported regional Vertex endpoints to gRPC
+        # UNIMPLEMENTED with details like "Received http2 header with status: 404".
+        # Treat like AWS EndpointConnectionError: skip the location and continue.
+        logger.warning(
+            "Vertex AI %s are not available in %s for project %s (%s). Skipping location.",
+            resource_type,
+            location,
+            project_id,
+            e,
         )
         return []
     except PermissionDenied:
@@ -110,7 +221,18 @@ def fetch_vertex_ai_resources_for_locations(
     max_workers: int = DEFAULT_VERTEX_AI_LOCATION_WORKERS,
 ) -> list[dict]:
     deduped_locations = list(dict.fromkeys(locations))
-    if not deduped_locations:
+    supported_locations, unsupported_locations = (
+        filter_locations_to_supported_vertex_locations(deduped_locations)
+    )
+    if unsupported_locations:
+        logger.warning(
+            "Skipping Vertex AI %s for project %s in unsupported locations: %s",
+            resource_type,
+            project_id,
+            ", ".join(unsupported_locations),
+        )
+
+    if not supported_locations:
         logger.info(
             "No Vertex AI locations to query for %s in project %s.",
             resource_type,
@@ -118,11 +240,11 @@ def fetch_vertex_ai_resources_for_locations(
         )
         return []
 
-    worker_count = min(max_workers, len(deduped_locations))
+    worker_count = min(max_workers, len(supported_locations))
     logger.info(
         "Fetching Vertex AI %s across %s cached locations for project %s with max_workers=%s.",
         resource_type,
-        len(deduped_locations),
+        len(supported_locations),
         project_id,
         worker_count,
     )
@@ -130,7 +252,7 @@ def fetch_vertex_ai_resources_for_locations(
     if worker_count <= 1:
         all_resources = []
         nonempty_locations = 0
-        for location in deduped_locations:
+        for location in supported_locations:
             location_resources = fetch_for_location(location)
             if location_resources:
                 nonempty_locations += 1
@@ -140,7 +262,7 @@ def fetch_vertex_ai_resources_for_locations(
             len(all_resources),
             resource_type,
             nonempty_locations,
-            len(deduped_locations),
+            len(supported_locations),
             project_id,
         )
         return all_resources
@@ -149,7 +271,7 @@ def fetch_vertex_ai_resources_for_locations(
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
         futures = {
             executor.submit(fetch_for_location, location): location
-            for location in deduped_locations
+            for location in supported_locations
         }
         for future in as_completed(futures):
             location = futures[future]
@@ -157,7 +279,7 @@ def fetch_vertex_ai_resources_for_locations(
 
     all_resources = []
     nonempty_locations = 0
-    for location in deduped_locations:
+    for location in supported_locations:
         location_resources = resources_by_location[location]
         if location_resources:
             nonempty_locations += 1
@@ -168,7 +290,7 @@ def fetch_vertex_ai_resources_for_locations(
         len(all_resources),
         resource_type,
         nonempty_locations,
-        len(deduped_locations),
+        len(supported_locations),
         project_id,
     )
     return all_resources
