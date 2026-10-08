@@ -56,7 +56,7 @@ def optional_call(
             except requests.exceptions.JSONDecodeError:
                 raise exc
             code = error.get("code")
-            message = error.get("message", "")
+            message = error.get("message") or ""
             # These codes also cover missing tokens and other authentication
             # failures. Only this scope-specific message establishes a denial.
             missing_scope = (

@@ -22,7 +22,7 @@ def get_detail(client: ZoomClient, path: str) -> dict[str, Any]:
 
 def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> None:
     # Arrange
-    def failure(status: int, code: int, message: str = "") -> None:
+    def failure(status: int, code: int, message: str | None = "") -> None:
         raise requests.HTTPError(
             response=response(status, {"code": code, "message": message})
         )
@@ -37,8 +37,10 @@ def test_optional_permissions_are_not_successful_empty_or_bad_credentials() -> N
         (400, 4700, ""),
         (400, 4700, "Token cannot be empty."),
         (400, 4700, "Exception message"),
+        (400, 4700, None),
         (400, 4711, "Refresh token invalid."),
         (400, 4711, ""),
+        (400, 4711, None),
     ):
         with pytest.raises(requests.HTTPError):
             optional_call("roles", lambda: failure(status, code, message))
