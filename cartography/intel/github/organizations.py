@@ -8,6 +8,7 @@ properties null (unknown), while any other request failure propagates so a
 transient error never overwrites known settings.
 """
 
+import json
 import logging
 from typing import Any
 from urllib.parse import quote
@@ -16,8 +17,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.github.util import call_github_api
 from cartography.intel.github.util import call_github_rest_api_or_none
-from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.models.github.domains import GitHubOrganizationDomainSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
@@ -27,10 +28,9 @@ logger = logging.getLogger(__name__)
 
 
 # Each setting is queried on its own: both fields are non-nullable, so a
-# FORBIDDEN error on one of them nulls the whole organization object. $cursor is
-# unused but declared because fetch_page always sends it.
+# FORBIDDEN error on one of them nulls the whole organization object.
 GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL = """
-    query($login: String!, $cursor: String) {
+    query($login: String!) {
         organization(login: $login) {
             ipAllowListEnabledSetting
         }
@@ -38,7 +38,7 @@ GITHUB_ORG_IP_ALLOW_LIST_GRAPHQL = """
     """
 
 GITHUB_ORG_NOTIFICATION_RESTRICTION_GRAPHQL = """
-    query($login: String!, $cursor: String) {
+    query($login: String!) {
         organization(login: $login) {
             notificationDeliveryRestrictionEnabledSetting
         }
@@ -131,7 +131,12 @@ def _query_organization(
     object partially populated, which must not be mistaken for a complete
     snapshot. Request failures propagate.
     """
-    response = fetch_page(token, api_url, organization, query, cursor)
+    # GitHub rejects a declared-but-unused variable, so only the paginated
+    # domains query takes a cursor.
+    variables: dict[str, Any] = {"login": organization}
+    if cursor is not None or "$cursor" in query:
+        variables["cursor"] = cursor
+    response = call_github_api(query, json.dumps(variables), token, api_url)
     errors = response.get("errors") or []
     if errors:
         logger.warning(

@@ -104,7 +104,7 @@ def _reset_and_seed_graph(neo4j_session):
     side_effect=_owner_rest,
 )
 @patch.object(
-    cartography.intel.github.util,
+    cartography.intel.github.organizations,
     "call_github_api",
     side_effect=_owner_graphql,
 )
@@ -225,7 +225,7 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, __, neo4j_sessio
     side_effect=_member_rest,
 )
 @patch.object(
-    cartography.intel.github.util,
+    cartography.intel.github.organizations,
     "call_github_api",
     side_effect=_member_graphql,
 )
@@ -280,7 +280,7 @@ def _partial_domains_graphql(query, variables, token, api_url):
     side_effect=_owner_rest,
 )
 @patch.object(
-    cartography.intel.github.util,
+    cartography.intel.github.organizations,
     "call_github_api",
     side_effect=_partial_domains_graphql,
 )
