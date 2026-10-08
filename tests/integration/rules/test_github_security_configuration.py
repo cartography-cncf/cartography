@@ -120,7 +120,6 @@ _SAFE_WEBHOOK = {
     "active": True,
     "has_secret": True,
     "insecure_ssl": False,
-    "uses_https": True,
 }
 
 
@@ -184,39 +183,12 @@ _SAFE_WEBHOOK = {
             2,
         ),
         (
-            "github_org_members_can_fork_private_repositories",
-            _load_orgs,
-            {"members_can_fork_private_repositories": True},
-            [
-                {"members_can_fork_private_repositories": False},
-                {"members_can_fork_private_repositories": None},
-            ],
-            2,
-        ),
-        (
-            "github_org_no_verified_domain",
-            _load_orgs,
-            {"verified_domain_count": 0},
-            [{"verified_domain_count": 1}, {"verified_domain_count": None}],
-            2,
-        ),
-        (
             "github_org_notifications_not_restricted",
             _load_orgs,
             {"notification_delivery_restricted": False},
             [
                 {"notification_delivery_restricted": True},
                 {"notification_delivery_restricted": None},
-            ],
-            2,
-        ),
-        (
-            "github_org_copilot_public_code_suggestions",
-            _load_orgs,
-            {"copilot_public_code_suggestions": "allow"},
-            [
-                {"copilot_public_code_suggestions": "block"},
-                {"copilot_public_code_suggestions": None},
             ],
             2,
         ),
@@ -242,22 +214,43 @@ _SAFE_WEBHOOK = {
         (
             "github_org_actions_default_token_write",
             _load_orgs,
-            {"actions_default_workflow_permissions": "write"},
+            {
+                "actions_default_workflow_permissions": "write",
+                "actions_enabled_repositories": "all",
+            },
             [
-                {"actions_default_workflow_permissions": "read"},
+                {
+                    "actions_default_workflow_permissions": "read",
+                    "actions_enabled_repositories": "all",
+                },
                 {"actions_default_workflow_permissions": None},
+                # Actions disabled org-wide: no workflow can use the token.
+                {
+                    "actions_default_workflow_permissions": "write",
+                    "actions_enabled_repositories": "none",
+                },
             ],
-            2,
+            3,
         ),
         (
             "github_org_actions_can_approve_pull_requests",
             _load_orgs,
-            {"actions_can_approve_pull_request_reviews": True},
+            {
+                "actions_can_approve_pull_request_reviews": True,
+                "actions_enabled_repositories": "selected",
+            },
             [
-                {"actions_can_approve_pull_request_reviews": False},
+                {
+                    "actions_can_approve_pull_request_reviews": False,
+                    "actions_enabled_repositories": "all",
+                },
                 {"actions_can_approve_pull_request_reviews": None},
+                {
+                    "actions_can_approve_pull_request_reviews": True,
+                    "actions_enabled_repositories": "none",
+                },
             ],
-            2,
+            3,
         ),
         (
             "github_app_installation_sensitive_write_permissions",
@@ -296,11 +289,11 @@ _SAFE_WEBHOOK = {
         (
             "github_webhook_not_https",
             _load_webhooks,
-            {**_SAFE_WEBHOOK, "uses_https": False, "target_scheme": "http"},
+            {**_SAFE_WEBHOOK, "target_scheme": "http"},
             [
                 _SAFE_WEBHOOK,
-                {**_SAFE_WEBHOOK, "uses_https": None},
-                {**_SAFE_WEBHOOK, "uses_https": False, "active": False},
+                {**_SAFE_WEBHOOK, "target_scheme": None},
+                {**_SAFE_WEBHOOK, "target_scheme": "http", "active": False},
             ],
             2,
         ),

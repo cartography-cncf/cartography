@@ -58,73 +58,72 @@ def _organization_setting_fact(
 
 # Repository secret protection
 
-_repository_secret_scanning_disabled = Fact(
-    id="github_repository_secret_scanning_disabled",
+
+def _repository_setting_fact(
+    issue: str,
+    name: str,
+    description: str,
+    prop: str,
+    label: str,
+) -> Fact:
+    """
+    Build a fact over a boolean `GitHubRepository` security setting that fails
+    when `prop` is false. Archived repositories are skipped, and repositories
+    whose setting is unknown are not evaluated.
+    """
+    return Fact(
+        id=f"github_repository_{issue}",
+        name=name,
+        description=description,
+        cypher_query=f"""
+        MATCH (n:GitHubRepository)
+        WHERE n.{prop} = false AND coalesce(n.archived, false) = false
+        RETURN n.fullname AS asset_name, n.id AS asset_id,
+            split(n.fullname, '/')[0] AS organization,
+            'repository_{issue}' AS issue,
+            '{label} disabled on ' + coalesce(n.visibility, 'unknown visibility')
+                + ' repository' AS current_value
+        """,
+        cypher_visual_query=f"""
+        MATCH (n:GitHubRepository)
+        WHERE n.{prop} = false AND coalesce(n.archived, false) = false
+        RETURN n
+        """,
+        cypher_count_query=f"""
+        MATCH (n:GitHubRepository)
+        WHERE n.{prop} IS NOT NULL AND coalesce(n.archived, false) = false
+        RETURN count(n) AS count
+        """,
+        asset_label="GitHubRepository",
+        asset_id_field="asset_id",
+        identity_fields=("asset_id", "issue"),
+        module=Module.GITHUB,
+        maturity=Maturity.EXPERIMENTAL,
+    )
+
+
+_repository_secret_scanning_disabled = _repository_setting_fact(
+    issue="secret_scanning_disabled",
     name="Repositories without secret scanning",
     description=(
         "Unarchived repositories where GitHub reports secret scanning as disabled. "
         "Repositories whose settings are not visible to the credential are not "
         "evaluated."
     ),
-    cypher_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_enabled = false AND coalesce(n.archived, false) = false
-    RETURN n.fullname AS asset_name, n.id AS asset_id,
-        split(n.fullname, '/')[0] AS organization,
-        'repository_secret_scanning_disabled' AS issue,
-        'Secret scanning disabled on ' + coalesce(n.visibility, 'unknown visibility') + ' repository' AS current_value
-    """,
-    cypher_visual_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_enabled = false AND coalesce(n.archived, false) = false
-    RETURN n
-    """,
-    cypher_count_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_enabled IS NOT NULL AND coalesce(n.archived, false) = false
-    RETURN count(n) AS count
-    """,
-    asset_label="GitHubRepository",
-    asset_id_field="asset_id",
-    identity_fields=("asset_id", "issue"),
-    module=Module.GITHUB,
-    maturity=Maturity.EXPERIMENTAL,
+    prop="secret_scanning_enabled",
+    label="Secret scanning",
 )
 
-_repository_push_protection_disabled = Fact(
-    id="github_repository_push_protection_disabled",
+_repository_push_protection_disabled = _repository_setting_fact(
+    issue="push_protection_disabled",
     name="Repositories without secret scanning push protection",
     description=(
         "Unarchived repositories where GitHub reports push protection as disabled, "
         "so pushes containing supported secrets are not blocked. Repositories whose "
         "settings are not visible to the credential are not evaluated."
     ),
-    cypher_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_push_protection_enabled = false
-        AND coalesce(n.archived, false) = false
-    RETURN n.fullname AS asset_name, n.id AS asset_id,
-        split(n.fullname, '/')[0] AS organization,
-        'repository_push_protection_disabled' AS issue,
-        'Push protection disabled on ' + coalesce(n.visibility, 'unknown visibility') + ' repository' AS current_value
-    """,
-    cypher_visual_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_push_protection_enabled = false
-        AND coalesce(n.archived, false) = false
-    RETURN n
-    """,
-    cypher_count_query="""
-    MATCH (n:GitHubRepository)
-    WHERE n.secret_scanning_push_protection_enabled IS NOT NULL
-        AND coalesce(n.archived, false) = false
-    RETURN count(n) AS count
-    """,
-    asset_label="GitHubRepository",
-    asset_id_field="asset_id",
-    identity_fields=("asset_id", "issue"),
-    module=Module.GITHUB,
-    maturity=Maturity.EXPERIMENTAL,
+    prop="secret_scanning_push_protection_enabled",
+    label="Push protection",
 )
 
 github_secret_scanning_disabled = Rule(
@@ -194,31 +193,6 @@ _members_can_create_public_repositories = _organization_setting_fact(
     current_value="'Members can create public repositories'",
 )
 
-_members_can_fork_private_repositories = _organization_setting_fact(
-    issue="members_can_fork_private_repositories",
-    name="Organizations where members can fork private repositories",
-    description=(
-        "Organizations that let members fork private and internal repositories, "
-        "which copies code into forks the organization does not manage."
-    ),
-    condition="n.members_can_fork_private_repositories = true",
-    evaluated="n.members_can_fork_private_repositories IS NOT NULL",
-    current_value="'Members can fork private repositories'",
-)
-
-_no_verified_domain = _organization_setting_fact(
-    issue="no_verified_domain",
-    name="Organizations without a verified domain",
-    description=(
-        "Organizations with no verified domain. A verified domain proves ownership "
-        "on the organization profile and is needed to restrict email notifications "
-        "to company addresses."
-    ),
-    condition="n.verified_domain_count = 0",
-    evaluated="n.verified_domain_count IS NOT NULL",
-    current_value="'No verified domains'",
-)
-
 _notifications_not_restricted = _organization_setting_fact(
     issue="notifications_not_restricted",
     name="Organizations that send notifications to unverified email domains",
@@ -232,37 +206,22 @@ _notifications_not_restricted = _organization_setting_fact(
     current_value="'Notifications not restricted to verified domains'",
 )
 
-_copilot_public_code_suggestions = _organization_setting_fact(
-    issue="copilot_public_code_suggestions",
-    name="Organizations allowing Copilot suggestions that match public code",
-    description=(
-        "Organizations whose Copilot policy allows suggestions that match public "
-        "code, which can bring code with incompatible licenses into repositories."
-    ),
-    condition="n.copilot_public_code_suggestions = 'allow'",
-    evaluated="n.copilot_public_code_suggestions IS NOT NULL",
-    current_value="n.copilot_public_code_suggestions",
-)
-
 github_organization_security_settings = Rule(
     id="github_organization_security_settings",
     name="GitHub Organization Security Settings",
     description=(
         "Reviews GitHub organization settings: two-factor enforcement, base "
-        "repository permission, public repository creation, private forking, "
-        "verified domains, notification restriction and the Copilot public code "
-        "policy. Most settings are only visible to organization owners; a check "
-        "whose evaluated count is zero had no data to test."
+        "repository permission, public repository creation and notification "
+        "restriction to verified domains. Most settings are only visible to "
+        "organization owners; a check whose evaluated count is zero had no data "
+        "to test."
     ),
     output_model=GitHubSecurityConfigurationOutput,
     facts=(
         _two_factor_not_required,
         _base_permission_write,
         _members_can_create_public_repositories,
-        _members_can_fork_private_repositories,
-        _no_verified_domain,
         _notifications_not_restricted,
-        _copilot_public_code_suggestions,
     ),
     tags=(
         "github",
@@ -285,14 +244,6 @@ github_organization_security_settings = Rule(
         RuleReference(
             text="Restricting repository creation in your organization",
             url="https://docs.github.com/en/organizations/managing-organization-settings/restricting-repository-creation-in-your-organization",
-        ),
-        RuleReference(
-            text="Verifying or approving a domain for your organization",
-            url="https://docs.github.com/en/organizations/managing-organization-settings/verifying-or-approving-a-domain-for-your-organization",
-        ),
-        RuleReference(
-            text="Managing policies for Copilot in your organization",
-            url="https://docs.github.com/en/copilot/managing-copilot/managing-github-copilot-in-your-organization/managing-policies-for-copilot-in-your-organization",
         ),
     ],
 )
@@ -322,12 +273,18 @@ _actions_default_token_write = _organization_setting_fact(
     issue="actions_default_token_write",
     name="Organizations granting workflows a write GITHUB_TOKEN by default",
     description=(
-        "Organizations whose default `GITHUB_TOKEN` permission is read and write, so "
-        "any workflow that does not declare permissions can modify repository "
-        "contents."
+        "Organizations with Actions enabled whose default `GITHUB_TOKEN` permission "
+        "is read and write, so any workflow that does not declare permissions can "
+        "modify repository contents."
     ),
-    condition="n.actions_default_workflow_permissions = 'write'",
-    evaluated="n.actions_default_workflow_permissions IS NOT NULL",
+    condition=(
+        "n.actions_default_workflow_permissions = 'write' "
+        "AND n.actions_enabled_repositories IN ['all', 'selected']"
+    ),
+    evaluated=(
+        "n.actions_default_workflow_permissions IS NOT NULL "
+        "AND n.actions_enabled_repositories IS NOT NULL"
+    ),
     current_value="n.actions_default_workflow_permissions",
 )
 
@@ -335,11 +292,17 @@ _actions_can_approve_pull_requests = _organization_setting_fact(
     issue="actions_can_approve_pull_requests",
     name="Organizations letting workflows approve pull requests",
     description=(
-        "Organizations that let GitHub Actions create or approve pull requests, "
-        "which lets a workflow satisfy required reviews."
+        "Organizations with Actions enabled that let workflows create or approve "
+        "pull requests, which lets a workflow satisfy required reviews."
     ),
-    condition="n.actions_can_approve_pull_request_reviews = true",
-    evaluated="n.actions_can_approve_pull_request_reviews IS NOT NULL",
+    condition=(
+        "n.actions_can_approve_pull_request_reviews = true "
+        "AND n.actions_enabled_repositories IN ['all', 'selected']"
+    ),
+    evaluated=(
+        "n.actions_can_approve_pull_request_reviews IS NOT NULL "
+        "AND n.actions_enabled_repositories IS NOT NULL"
+    ),
     current_value="'Workflows can approve pull requests'",
 )
 
@@ -472,12 +435,6 @@ github_app_sensitive_permissions = Rule(
 
 # Webhooks
 
-_WEBHOOK_RETURN = """
-    RETURN coalesce(n.target_host, toString(n.hook_id)) AS asset_name, n.id AS asset_id,
-        o.username AS organization, '{issue}' AS issue,
-        n.scope + ' webhook to ' + coalesce(n.target_scheme + '://' + n.target_host, 'unknown target') AS current_value
-"""
-
 
 def _webhook_fact(
     issue: str,
@@ -493,7 +450,11 @@ def _webhook_fact(
         cypher_query=f"""
         MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubWebhook)
         WHERE n.active = true AND {condition}
-        {_WEBHOOK_RETURN.format(issue=issue)}
+        RETURN coalesce(n.target_host, toString(n.hook_id)) AS asset_name,
+            n.id AS asset_id, o.username AS organization, '{issue}' AS issue,
+            n.scope + ' webhook to '
+                + coalesce(n.target_scheme + '://' + n.target_host, 'unknown target')
+                AS current_value
         """,
         cypher_visual_query=f"""
         MATCH (o:GitHubOrganization)-[:RESOURCE]->(n:GitHubWebhook)
@@ -540,8 +501,8 @@ _webhook_not_https = _webhook_fact(
     issue="not_https",
     name="Webhooks delivering over plain HTTP",
     description="Active webhooks that send payloads to a non-HTTPS URL.",
-    condition="n.uses_https = false",
-    evaluated="n.uses_https IS NOT NULL",
+    condition="n.target_scheme <> 'https'",
+    evaluated="n.target_scheme IS NOT NULL",
 )
 
 github_webhook_insecure_delivery = Rule(
