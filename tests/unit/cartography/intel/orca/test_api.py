@@ -148,6 +148,7 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
         side_effect=[
             {"data": [{"id": "1"}, {"id": "2"}], "total_items": 3},
             {"data": [{"id": "3"}]},
+            {"data": []},
         ],
     )
 
@@ -166,10 +167,12 @@ def test_iter_serving_layer_pages_advances_offset_and_count(mocker) -> None:
     assert pages == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
     first_payload = query_call.call_args_list[0].args[2]
     second_payload = query_call.call_args_list[1].args[2]
+    third_payload = query_call.call_args_list[2].args[2]
     assert first_payload["start_at_index"] == 0
     assert first_payload["get_results_and_count"] is True
     assert second_payload["start_at_index"] == 2
     assert second_payload["get_results_and_count"] is False
+    assert third_payload["start_at_index"] == 3
     assert "limit" not in query
 
 
@@ -195,13 +198,49 @@ def test_iter_serving_layer_pages_requires_a_count_for_the_first_response(
         )
 
 
-def test_iter_serving_layer_pages_uses_short_page_when_count_changes(mocker) -> None:
+def test_iter_serving_layer_pages_continues_after_short_midstream_page(
+    mocker,
+) -> None:
+    # Arrange: Orca can return a short page before the true end of results.
+    query_call = mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}, {"id": "2"}], "total_items": 4},
+            {"data": [{"id": "3"}]},
+            {"data": [{"id": "4"}]},
+            {"data": []},
+        ],
+    )
+
+    # Act
+    pages = list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["Alert"]}},
+            page_size=2,
+            result_name="alerts",
+        ),
+    )
+
+    # Assert
+    assert pages == [
+        [{"id": "1"}, {"id": "2"}],
+        [{"id": "3"}],
+        [{"id": "4"}],
+    ]
+    assert query_call.call_count == 4
+    assert query_call.call_args_list[2].args[2]["start_at_index"] == 3
+
+
+def test_iter_serving_layer_pages_tolerates_drifting_count(mocker) -> None:
     # Arrange
     query_call = mocker.patch(
         "cartography.intel.orca.api.serving_layer_query",
         side_effect=[
             {"data": [{"id": "1"}, {"id": "2"}], "total_items": 1},
             {"data": [{"id": "3"}], "total_items": 3},
+            {"data": []},
         ],
     )
 
@@ -218,7 +257,30 @@ def test_iter_serving_layer_pages_uses_short_page_when_count_changes(mocker) -> 
 
     # Assert
     assert pages == [[{"id": "1"}, {"id": "2"}], [{"id": "3"}]]
-    assert query_call.call_count == 2
+    assert query_call.call_count == 3
+
+
+def test_iter_serving_layer_pages_rejects_truncated_fetch(mocker) -> None:
+    # Arrange
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": "1"}], "total_items": 10},
+            {"data": []},
+        ],
+    )
+
+    # Act and assert
+    with pytest.raises(RuntimeError, match="pagination stopped at 1 of 10"):
+        list(
+            api.iter_serving_layer_pages(
+                MagicMock(),
+                "https://api.orcasecurity.example",
+                {"query": {"models": ["Alert"]}},
+                page_size=1,
+                result_name="alerts",
+            ),
+        )
 
 
 def test_iter_serving_layer_pages_rejects_repeated_page(mocker) -> None:
