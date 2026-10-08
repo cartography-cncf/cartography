@@ -228,7 +228,7 @@ def test_cli_wires_request_limit_to_the_client(
                 "--zoom-client-secret-env-var",
                 "TEST_ZOOM_SECRET",
                 "--zoom-sections",
-                "apps",
+                "client_versions",
                 "--zoom-request-limit",
                 "50",
             ]
@@ -239,7 +239,7 @@ def test_cli_wires_request_limit_to_the_client(
     with (
         patch("cartography.intel.zoom.ZoomClient") as client,
         patch("cartography.intel.zoom.sync", return_value=[]),
-        patch("cartography.intel.zoom.apps.sync") as app_sync,
+        patch("cartography.intel.zoom.client_versions.sync") as versions,
         patch("cartography.intel.zoom.cleanup_users"),
         patch("cartography.intel.zoom.settings.cleanup"),
     ):
@@ -248,7 +248,7 @@ def test_cli_wires_request_limit_to_the_client(
     # Assert
     (budget,) = client.call_args.args[3:]
     assert budget.remaining == 50
-    app_sync.assert_called_once()
+    versions.assert_called_once()
 
 
 def test_unconfigured_module_does_not_request_credentials() -> None:

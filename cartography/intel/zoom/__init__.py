@@ -5,6 +5,9 @@ import neo4j
 from cartography.config import Config
 from cartography.intel.zoom import access
 from cartography.intel.zoom import apps
+from cartography.intel.zoom import client_versions
+from cartography.intel.zoom import meetings
+from cartography.intel.zoom import recordings
 from cartography.intel.zoom import settings
 from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
@@ -42,9 +45,14 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "roles",
         "settings",
         "apps",
+        "meetings",
+        "recordings",
+        "client_versions",
     }
     if unknown:
         raise ValueError(f"Unknown Zoom sections: {sorted(unknown)}")
+    if not 1 <= config.zoom_lookback_days <= 30:
+        raise ValueError("Zoom lookback days must be between 1 and 30")
     account_id, tag = config.zoom_account_id, config.update_tag
     with client.session:
         users = sync(neo4j_session, client, account_id, tag)
@@ -71,6 +79,17 @@ def start_zoom_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         if "apps" in sections:
             optional_call(
                 "apps", lambda: apps.sync(neo4j_session, client, account_id, tag)
+            )
+        if "meetings" in sections:
+            meetings.sync(neo4j_session, client, account_id, tag, users)
+        if "recordings" in sections:
+            recordings.sync(
+                neo4j_session, client, account_id, tag, users, config.zoom_lookback_days
+            )
+        if "client_versions" in sections:
+            optional_call(
+                "client_versions",
+                lambda: client_versions.sync(neo4j_session, client, account_id, tag),
             )
         cleanup_users(neo4j_session, account_id, tag)
         if settings_complete:

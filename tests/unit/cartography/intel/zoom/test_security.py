@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -9,6 +11,7 @@ from cartography.intel.zoom.access import sync_roles
 from cartography.intel.zoom.client import RequestBudget
 from cartography.intel.zoom.client import ZoomClient
 from cartography.intel.zoom.client import ZoomRequestLimitError
+from cartography.intel.zoom.util import date_windows
 from cartography.intel.zoom.util import fetch_many
 from cartography.intel.zoom.util import is_zoom_error
 from cartography.intel.zoom.util import optional_call
@@ -204,6 +207,19 @@ def test_fetch_many_preserves_order_and_closes_worker_sessions() -> None:
     assert result == [{"path": path} for path in paths]
     assert len(workers) <= 4
     assert all(worker.session.__exit__.call_count == 1 for worker in workers)
+
+
+def test_date_windows_split_month_boundaries() -> None:
+    # Arrange
+    with patch("cartography.intel.zoom.util.datetime") as clock:
+        clock.now.return_value = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        # Act
+        windows = date_windows(7)
+    # Assert
+    assert windows == [
+        {"from": "2026-09-26", "to": "2026-09-30"},
+        {"from": "2026-10-01", "to": "2026-10-02"},
+    ]
 
 
 def test_roles_reject_incomplete_inventory_before_graph_writes() -> None:

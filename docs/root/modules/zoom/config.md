@@ -106,6 +106,9 @@ Cleanup is scoped to the configured account. This module targets Zoom's commerci
   up to three times, capping each `Retry-After` delay at eight seconds. A sustained
   rate limit on the user inventory aborts the sync without deleting prior users;
   on an optional section it preserves that section's data. Retry after the quota resets.
+- **403 with code 2306 on meetings**: Zoom documents this when **Display
+  meetings scheduled for others** is disabled in the account settings. The
+  affected host's meetings are preserved; other hosts still refresh.
 - **Incomplete/repeated pagination**: Retry the sync. Page tokens expire after
   15 minutes. Each status list has a safety limit of 10,000 pages; hitting it or
   receiving a truncated list aborts the sync before stale-user cleanup.
@@ -129,7 +132,8 @@ cartography --selected-modules zoom,ontology \
   --zoom-account-id "$ZOOM_ACCOUNT_ID" \
   --zoom-client-id "$ZOOM_CLIENT_ID" \
   --zoom-client-secret-env-var ZOOM_CLIENT_SECRET \
-  --zoom-sections groups,roles,settings,apps
+  --zoom-sections groups,roles,settings,apps,meetings,recordings,client_versions \
+  --zoom-lookback-days 7
 ```
 
 Add the scopes for the selected sections to the Server-to-Server OAuth app and
@@ -141,12 +145,26 @@ activate it. All scopes below are read-only; write scopes are unnecessary.
 | `roles` | `role:read:list_roles:admin`, `role:read:role:admin` | Pro or higher. Common account roles, their privileges and group restrictions; primary user roles come from the user inventory. Select `groups` to link privilege restrictions to groups. |
 | `settings` | `account:read:settings:admin`, `account:read:lock_settings:admin`, `group:read:list_groups:admin`, `group:read:settings:admin`, `group:read:lock_settings:admin`, `user:read:settings:admin` | Paid account. Account, group and user security controls, including account and group lock flags, private chat, recording auto-delete, waiting-room scope, and the account's 2FA group/role lists and inactivity sign-out periods. |
 | `apps` | `marketplace:read:list_apps:admin`, `marketplace:read:app:admin` | Account-added and approved Marketplace apps, their developer type, and exact OAuth scope identifiers. This does not enumerate individual user installations, account-created apps or restricted apps. |
+| `meetings` | `meeting:read:list_meetings:admin`, `meeting:read:meeting:admin` | Unexpired scheduled meetings and recurring series of Basic/Licensed users. Instant meetings and per-occurrence exceptions are not included. |
+| `recordings` | `cloud_recording:read:list_user_recordings:admin`, `cloud_recording:read:recording_settings:admin` | Pro or higher with cloud recording enabled. Active Licensed users' recorded meeting instances and sharing/protection controls. The app's authorizing role must allow viewing recording content to read these settings. |
+| `client_versions` | `dashboard:read:client_versions:admin` | Business or higher with the Dashboard enabled. One account-wide count per client version; counts are not attributed to users or devices. Zoom labels this endpoint Heavy, and it is read once per sync. |
 
 Settings are separate `configured` and `locked` snapshots. Locked values describe
 whether users can change a control; they are not enabled/disabled policy values.
 The connector does not calculate effective policy inheritance. Fields absent from
 a successful response remain unknown rather than being interpreted as disabled.
-Password values and authentication profiles are not stored.
+Meeting and recording passcodes become protection flags; passwords, access URLs,
+media, and transcripts are not stored. Sign-in, administrative and meeting audit
+events, and per-meeting participant activity, are not ingested; use a SIEM for
+those logs.
+
+`--zoom-lookback-days` accepts 1–30 UTC calendar days (default 7) for recordings.
+The current day is included, and requests are split at month boundaries, since Zoom
+limits a recordings query to a one-month range. Each successful scan replaces the
+recordings rolling window; older recordings leave the graph. This is not a
+historical archive. The scheduled-meeting inventory is independent of this
+lookback. Data may arrive late. `ZoomUser.last_client_version` is the last login
+client reported by the Users API, not every client used by the account.
 
 Per-owner and per-item reads use at most four workers, each with its own HTTP
 session, pooled across all owners of a section. Settings use up to five reads per
@@ -161,11 +179,18 @@ snapshots, and lets independent sections continue. The required user inventory
 still fails on a limit or sustained rate limit.
 
 A denied optional endpoint emits a warning and retains the affected snapshot.
-Documented not-found responses for a single role, app or settings owner affect
-only that item. Successful independent sections and owners can still refresh.
-Credential failures, server errors, and incomplete pagination fail explicitly.
-Stale cleanup for a section runs only after a complete read of that section. A
-denied groups, roles or apps section keeps all of its prior data. For settings,
-snapshots that were read are refreshed, unread snapshots are retained, and
-cleanup is skipped. Review warnings as well as the process exit status when
-assessing coverage.
+Meetings and recordings belong to the account and link to their current host with
+`HOSTED_BY`. A transfer keeps the resource identity and only the new host
+relationship. Only eligible hosts are read: meetings for active Basic and Licensed
+users, recordings for active Licensed users. A recording that Zoom reports as not
+found when its sharing settings are read (deleted since it was listed, or still
+processing) is not loaded, and cleanup removes any prior copy. A host or meeting
+that Zoom reports as removed mid-sync is treated as having nothing to load.
+Documented not-found responses for a single meeting, role, app or settings owner
+affect only that item. Successful independent sections and owners can still
+refresh. Credential failures, server errors, and incomplete pagination fail
+explicitly. Stale cleanup for a section runs only after a complete read of that
+section. A denied groups, roles or apps section keeps all of its prior data. For
+settings, meetings and recordings, items that were read are refreshed, unread
+items are retained, and cleanup is skipped. Review warnings as well as the
+process exit status when assessing coverage.
