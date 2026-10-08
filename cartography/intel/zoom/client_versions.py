@@ -12,8 +12,6 @@ def sync(
     session: neo4j.Session, client: ZoomClient, account_id: str, update_tag: int
 ) -> None:
     versions = client.get("/metrics/client_versions")["client_versions"]
-    if not isinstance(versions, list):
-        raise ValueError("Zoom client_versions response must contain a list")
     data = {
         f"{account_id}:client_version:{version['client_version']}": {
             "id": f"{account_id}:client_version:{version['client_version']}",
