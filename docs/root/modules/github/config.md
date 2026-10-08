@@ -267,6 +267,24 @@ the enterprise GraphQL endpoint:
 }
 ```
 
+## Security rules
+
+These experimental rules check the GitHub security posture ingested above. Run
+them against the graph with `cartography-rules run <rule>`:
+
+| Rule | Checks | Data it needs |
+|------|--------|---------------|
+| `github_secret_scanning_disabled` | Unarchived repositories without secret scanning or push protection | Repository security settings |
+| `github_organization_security_settings` | 2FA not required, write or admin base permission, members can create public repositories or fork private ones, no verified domain, notifications not restricted to verified domains, Copilot suggestions matching public code | Organization settings, domains, and Copilot policy |
+| `github_actions_permissive_policy` | Any action allowed, a write `GITHUB_TOKEN` by default, workflows that can approve pull requests | Actions policy |
+| `github_app_sensitive_permissions` | Active GitHub Apps with write access to code, workflows, secrets, webhooks, runners, members, or administration | Installed GitHub Apps |
+| `github_webhook_insecure_delivery` | Active webhooks without a signing secret, without TLS certificate verification, or over plain HTTP | Organization and repository webhooks |
+
+Unknown values are skipped, so a check that evaluated no assets had nothing to
+test, which does not mean the organization is secure. Grant the matching
+optional permissions above for full coverage. See
+[Running Rules](../../usage/rules.md) for connection options.
+
 ## Troubleshooting
 
 | Issue | Solution |
