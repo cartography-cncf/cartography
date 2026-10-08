@@ -92,9 +92,11 @@ _account_meeting_defaults = Fact(
     id="zoom_account_meeting_defaults",
     name="Account defaults without meeting admission controls",
     description=(
-        "Configured account defaults explicitly disable every collected meeting "
-        "admission control. Group or user overrides and lock flags are not treated as "
-        "effective account policy."
+        "Configured account defaults explicitly disable the meeting passcode, waiting "
+        "room, participant authentication and the requirement that every meeting use "
+        "at least one security option. Zoom lets only Enterprise, ISV, large Business "
+        "and Education accounts disable that requirement. Group or user overrides and "
+        "lock flags are not treated as effective account policy."
     ),
     cypher_query="""
     MATCH (n:ZoomSecuritySettings)
@@ -118,6 +120,48 @@ _account_meeting_defaults = Fact(
     WHERE n.scope_type = 'account' AND n.kind = 'configured'
         AND n.meeting_passcode_required IS NOT NULL AND n.waiting_room IS NOT NULL
         AND n.meeting_authentication IS NOT NULL AND n.auto_security IS NOT NULL
+    RETURN count(n) AS count
+    """,
+    asset_label="ZoomSecuritySettings",
+    asset_id_field="asset_id",
+    identity_fields=("asset_id", "issue"),
+    module=Module.ZOOM,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+
+_account_pmi_defaults = Fact(
+    id="zoom_account_pmi_defaults",
+    name="Account defaults leave the Personal Meeting ID open",
+    description=(
+        "Configured account defaults explicitly disable the Personal Meeting ID "
+        "passcode, the waiting room and participant authentication. A Personal "
+        "Meeting ID is a fixed, reusable meeting link, so anyone who has it can "
+        "rejoin at any time. Group or user overrides and lock flags are not treated "
+        "as effective account policy."
+    ),
+    cypher_query="""
+    MATCH (n:ZoomSecuritySettings)
+    WHERE n.scope_type = 'account' AND n.kind = 'configured'
+        AND n.pmi_passcode_required = false AND n.waiting_room = false
+        AND n.meeting_authentication = false
+    RETURN 'Personal Meeting ID defaults for ' + n.account_id AS asset_name,
+        n.id AS asset_id, n.account_id AS account_id,
+        'account_pmi_defaults' AS issue,
+        'Personal Meeting ID passcode, waiting room and authentication disabled' AS current_value
+    """,
+    cypher_visual_query="""
+    MATCH (n:ZoomSecuritySettings)
+    WHERE n.scope_type = 'account' AND n.kind = 'configured'
+        AND n.pmi_passcode_required = false AND n.waiting_room = false
+        AND n.meeting_authentication = false
+    RETURN n
+    """,
+    cypher_count_query="""
+    MATCH (n:ZoomSecuritySettings)
+    WHERE n.scope_type = 'account' AND n.kind = 'configured'
+        AND n.pmi_passcode_required IS NOT NULL AND n.waiting_room IS NOT NULL
+        AND n.meeting_authentication IS NOT NULL
     RETURN count(n) AS count
     """,
     asset_label="ZoomSecuritySettings",
@@ -171,38 +215,46 @@ _native_signin_two_factor_policy = Fact(
 )
 
 
-_unrestricted_edit_roles = Fact(
-    id="zoom_unrestricted_edit_roles",
-    name="Assigned roles with unrestricted edit privileges",
+_stale_privileged_users = Fact(
+    id="zoom_stale_privileged_users",
+    name="Active users with unrestricted edit privileges and no recent sign-in",
     description=(
-        "Assigned roles grant edit privileges without a reported group restriction. "
-        "Review least privilege; this is an administration surface, not evidence that "
-        "the assignment is unauthorized."
+        "Active users whose primary role grants edit privileges without a reported "
+        "group restriction, and whose known last sign-in is older than 90 days. "
+        "Zoom's built-in Owner and Admin roles hold such privileges by design, so only "
+        "dormant holders are reported. Missing timestamps are unknown, not evidence of "
+        "inactivity. Zoom reports the sign-in time with a three-day buffer."
     ),
     cypher_query="""
-    MATCH (n:ZoomRole)
-    WHERE EXISTS { MATCH (:ZoomUser)-[:HAS_ROLE]->(n) }
-        AND EXISTS { MATCH (n)-[:GRANTS]->(p:ZoomRolePrivilege)
+    MATCH (n:ZoomUser)-[:HAS_ROLE]->(r:ZoomRole)
+    WHERE n.status = 'active'
+        AND n.last_login_time < datetime() - duration('P90D')
+        AND EXISTS { MATCH (r)-[:GRANTS]->(p:ZoomRolePrivilege)
             WHERE p.restricted_to_groups = false AND p.privilege ENDS WITH ':Edit' }
-    RETURN coalesce(n.name, n.id) AS asset_name,
+    WITH n, collect(DISTINCT coalesce(r.name, r.id)) AS roles
+    RETURN coalesce(n.display_name, n.email, n.id) AS asset_name,
         n.id AS asset_id, n.account_id AS account_id,
-        'unrestricted_edit_roles' AS issue,
-        'Assigned role has edit privileges without group restrictions' AS current_value
+        'stale_privileged_users' AS issue,
+        reduce(text = '', role IN roles |
+            text + CASE WHEN text = '' THEN '' ELSE ', ' END + role)
+            + ', last sign-in ' + toString(n.last_login_time) AS current_value
     """,
     cypher_visual_query="""
-    MATCH (n:ZoomRole)
-    WHERE EXISTS { MATCH (:ZoomUser)-[:HAS_ROLE]->(n) }
-        AND EXISTS { MATCH (n)-[:GRANTS]->(p:ZoomRolePrivilege)
+    MATCH (n:ZoomUser)-[:HAS_ROLE]->(r:ZoomRole)
+    WHERE n.status = 'active'
+        AND n.last_login_time < datetime() - duration('P90D')
+        AND EXISTS { MATCH (r)-[:GRANTS]->(p:ZoomRolePrivilege)
             WHERE p.restricted_to_groups = false AND p.privilege ENDS WITH ':Edit' }
-    RETURN n
+    RETURN n, r
     """,
     cypher_count_query="""
-    MATCH (n:ZoomRole)
-    WHERE EXISTS { MATCH (:ZoomUser)-[:HAS_ROLE]->(n) }
-        AND EXISTS { MATCH (n)-[:GRANTS]->(:ZoomRolePrivilege) }
+    MATCH (n:ZoomUser)-[:HAS_ROLE]->(r:ZoomRole)
+    WHERE n.status = 'active' AND n.last_login_time IS NOT NULL
+        AND EXISTS { MATCH (r)-[:GRANTS]->(p:ZoomRolePrivilege)
+            WHERE p.restricted_to_groups = false AND p.privilege ENDS WITH ':Edit' }
     RETURN count(n) AS count
     """,
-    asset_label="ZoomRole",
+    asset_label="ZoomUser",
     asset_id_field="asset_id",
     identity_fields=("asset_id", "issue"),
     module=Module.ZOOM,
@@ -214,26 +266,35 @@ _third_party_admin_write_scopes = Fact(
     id="zoom_third_party_admin_write_scopes",
     name="Installed third-party apps with administrative write scopes",
     description=(
-        "Account-added third-party apps with reported admin scopes for write, create, "
-        "update or delete operations. Review whether the scopes are needed; "
+        "Account-added third-party apps with reported admin or master scopes for "
+        "write, create, update or delete operations; every matching scope is listed "
+        "(the first five in the finding). Review whether the scopes are needed; "
         "installation and scopes do not prove an active token or malicious behavior."
     ),
     cypher_query="""
     MATCH (n:ZoomApp)
     WHERE n.installed = true AND n.developer_type = 'THIRD_PARTY'
-        AND any(scope IN n.app_scopes WHERE scope ENDS WITH ':admin'
-            AND split(scope, ':')[1] IN ['write', 'create', 'update', 'delete'])
+        AND n.app_scopes IS NOT NULL
+    WITH n, [scope IN n.app_scopes
+        WHERE (scope ENDS WITH ':admin' OR scope ENDS WITH ':master')
+            AND split(scope, ':')[1] IN ['write', 'create', 'update', 'delete']] AS matches
+    WHERE size(matches) > 0
     RETURN coalesce(n.name, n.app_id, n.id) AS asset_name,
         n.id AS asset_id, n.account_id AS account_id,
         'third_party_admin_write_scopes' AS issue,
-        head([scope IN n.app_scopes WHERE scope ENDS WITH ':admin'
-            AND split(scope, ':')[1] IN ['write', 'create', 'update', 'delete']]) AS current_value
+        toString(size(matches)) + ' administrative write scopes: '
+            + reduce(text = '', scope IN matches[..5] |
+                text + CASE WHEN text = '' THEN '' ELSE ', ' END + scope)
+            + CASE WHEN size(matches) > 5 THEN ', ...' ELSE '' END AS current_value
     """,
     cypher_visual_query="""
     MATCH (n:ZoomApp)
     WHERE n.installed = true AND n.developer_type = 'THIRD_PARTY'
-        AND any(scope IN n.app_scopes WHERE scope ENDS WITH ':admin'
-            AND split(scope, ':')[1] IN ['write', 'create', 'update', 'delete'])
+        AND n.app_scopes IS NOT NULL
+    WITH n, [scope IN n.app_scopes
+        WHERE (scope ENDS WITH ':admin' OR scope ENDS WITH ':master')
+            AND split(scope, ':')[1] IN ['write', 'create', 'update', 'delete']] AS matches
+    WHERE size(matches) > 0
     RETURN n
     """,
     cypher_count_query="""
@@ -289,18 +350,24 @@ zoom_security_review = Rule(
     id="zoom_security_review",
     name="Zoom Security Review",
     description=(
-        "Reviews observed Zoom configuration, administrative access and stale licensed "
+        "Reviews observed Zoom configuration, administrative access and dormant "
         "accounts. Missing fields are unknown. Findings reflect the last successfully "
-        "collected snapshot, not live reachability or effective policy inheritance."
+        "collected snapshot, not live reachability or effective policy inheritance. "
+        "Only the stale licensed users check works on the default sync; the others "
+        "need the matching optional inventory (settings, roles, apps, meetings or "
+        "recordings, see --zoom-sections), and recordings cover only the configured "
+        "lookback window. A check whose evaluated count is zero had no data to test, "
+        "which does not mean the tenant is secure."
     ),
     output_model=ZoomSecurityReviewOutput,
     facts=(
         _meeting_admission_controls,
         _recording_viewer_controls,
         _account_meeting_defaults,
+        _account_pmi_defaults,
         _native_signin_two_factor_policy,
-        _unrestricted_edit_roles,
         _third_party_admin_write_scopes,
+        _stale_privileged_users,
         _stale_licensed_users,
     ),
     tags=("zoom", "identity", "data", "attack_surface"),
@@ -309,6 +376,18 @@ zoom_security_review = Rule(
         RuleReference(
             text="Zoom REST API reference",
             url="https://developers.zoom.us/docs/api/",
+        ),
+        RuleReference(
+            text="Zoom two-factor authentication",
+            url="https://support.zoom.us/hc/en-us/articles/360038247071",
+        ),
+        RuleReference(
+            text="Zoom role-based access control",
+            url="https://support.zoom.us/hc/en-us/articles/115001078646-Role-Based-Access-Control",
+        ),
+        RuleReference(
+            text="Zoom authentication profiles for meetings and webinars",
+            url="https://support.zoom.us/hc/en-us/articles/360037117472-Authentication-Profiles-for-Meetings-and-Webinars",
         ),
     ],
 )

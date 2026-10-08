@@ -198,9 +198,15 @@ process exit status when assessing coverage.
 ## Security review
 
 Run `cartography-rules run zoom_security_review` against the ingested graph to
-check meeting/recording protections, account policies, privileged roles, app
-scopes and stale licensed users. Select the corresponding inventories above.
-These experimental checks use the last collected snapshot, skip unknown values,
-and identify access worth reviewing; they do not infer individual MFA enrollment
-or verify public reachability. See [Running Rules](../../usage/rules.md) for
-connection options.
+check meeting and recording protections, account meeting and Personal Meeting ID
+defaults, native sign-in policy, third-party app scopes, and dormant privileged and
+licensed users. These experimental checks use the last collected snapshot, skip
+unknown values, and identify access worth reviewing; they do not infer individual
+MFA enrollment or verify public reachability.
+
+Only the stale licensed users check works on the default sync. The others need the
+matching optional inventory (`settings`, `roles`, `apps`, `meetings` or
+`recordings`), and the recording check only sees recordings inside
+`--zoom-lookback-days`. A check that evaluated no assets had nothing to test,
+which does not mean the tenant is secure. See [Running Rules](../../usage/rules.md)
+for connection options.

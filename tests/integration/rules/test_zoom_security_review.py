@@ -96,6 +96,26 @@ def _assert_fact(neo4j_session, issue, expected_count):
             6,
         ),
         (
+            "account_pmi_defaults",
+            ZoomSecuritySettingsSchema(),
+            {
+                "scope_type": "account",
+                "kind": "configured",
+                "pmi_passcode_required": False,
+                "waiting_room": False,
+                "meeting_authentication": False,
+            },
+            [
+                {"scope_type": "user"},
+                {"kind": "locked"},
+                {"pmi_passcode_required": True},
+                {"waiting_room": True},
+                {"meeting_authentication": True},
+                {"pmi_passcode_required": None},
+            ],
+            5,
+        ),
+        (
             "native_signin_two_factor_policy",
             ZoomSecuritySettingsSchema(),
             {
@@ -123,7 +143,11 @@ def _assert_fact(neo4j_session, issue, expected_count):
             {
                 "installed": True,
                 "developer_type": "THIRD_PARTY",
-                "app_scopes": ["user:write:admin", "role:update:role:admin"],
+                "app_scopes": [
+                    "user:write:admin",
+                    "role:update:role:admin",
+                    "meeting:delete:meeting:master",
+                ],
                 "name": "Synthetic app",
             },
             [
@@ -131,10 +155,11 @@ def _assert_fact(neo4j_session, issue, expected_count):
                 {"developer_type": "INTERNAL"},
                 {"app_scopes": ["user:read:user:admin"]},
                 {"app_scopes": ["meeting:write"]},
+                {"app_scopes": ["user:write:user"]},
                 {"app_scopes": []},
                 {"app_scopes": None},
             ],
-            5,
+            6,
         ),
         (
             "stale_licensed_users",
@@ -179,49 +204,76 @@ def test_zoom_facts_skip_protected_and_unknown_snapshots(
     _assert_fact(neo4j_session, issue, expected_count)
 
 
-def test_zoom_role_fact_respects_direction_restrictions_and_deduplicates(neo4j_session):
+def test_zoom_stale_privileged_users_fact_needs_dormancy_and_an_unrestricted_edit_role(
+    neo4j_session,
+):
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    fresh = datetime(2999, 1, 1, tzinfo=timezone.utc)
     for account in ("a", "b"):
-        load(
-            neo4j_session,
-            ZoomUserSchema(),
-            [{"id": f"{account}:user"}],
-            ACCOUNT_ID=account,
-            lastupdated=1,
-        )
-        roles = [
+        users = [
             {
                 "id": f"{account}:positive",
-                "name": "Synthetic administrator",
-                "member_ids": [f"{account}:user"],
+                "display_name": "Synthetic administrator",
+                "status": "active",
+                "last_login_time": stale,
             }
         ]
+        admins = [f"{account}:positive"]
+        roles = []
         privileges = [
             {
-                "id": f"{account}:edit:{i}",
-                "role_node_id": f"{account}:positive",
+                "id": f"{account}:admin:{i}",
+                "role_node_id": f"{account}:admin",
                 "privilege": privilege,
                 "restricted_to_groups": False,
             }
             for i, privilege in enumerate(("User:Edit", "AccountSetting:Edit"))
         ]
         if account == "a":
-            for name, privilege, restricted, members in (
-                ("reader", "User:Read", False, ["a:user"]),
-                ("scoped", "User:Edit", True, ["a:user"]),
-                ("unknown", "User:Edit", None, ["a:user"]),
-                ("unassigned", "User:Edit", False, []),
+            # Same privileged role, but not dormant, unknown, or not active.
+            users += [
+                {"id": "a:fresh", "status": "active", "last_login_time": fresh},
+                {"id": "a:unknown", "status": "active", "last_login_time": None},
+                {"id": "a:inactive", "status": "inactive", "last_login_time": stale},
+            ]
+            admins += ["a:fresh", "a:unknown", "a:inactive"]
+            # Dormant users whose role has no unrestricted edit privilege.
+            for name, privilege, restricted in (
+                ("reader", "User:Read", False),
+                ("scoped", "User:Edit", True),
+                ("undetermined", "User:Edit", None),
             ):
-                roles.append({"id": f"a:{name}", "name": name, "member_ids": members})
+                users.append(
+                    {"id": f"a:{name}", "status": "active", "last_login_time": stale}
+                )
+                roles.append(
+                    {
+                        "id": f"a:{name}-role",
+                        "name": name,
+                        "member_ids": [f"a:{name}"],
+                    }
+                )
                 privileges.append(
                     {
-                        "id": f"a:{name}:privilege",
-                        "role_node_id": f"a:{name}",
+                        "id": f"a:{name}-role:privilege",
+                        "role_node_id": f"a:{name}-role",
                         "privilege": privilege,
                         "restricted_to_groups": restricted,
                     }
                 )
+            users.append(
+                {"id": "a:no-role", "status": "active", "last_login_time": stale}
+            )
+        roles.append(
+            {
+                "id": f"{account}:admin",
+                "name": "Synthetic role",
+                "member_ids": admins,
+            }
+        )
+        load(neo4j_session, ZoomUserSchema(), users, ACCOUNT_ID=account, lastupdated=1)
         load(neo4j_session, ZoomRoleSchema(), roles, ACCOUNT_ID=account, lastupdated=1)
         load(
             neo4j_session,
@@ -231,5 +283,63 @@ def test_zoom_role_fact_respects_direction_restrictions_and_deduplicates(neo4j_s
             lastupdated=1,
         )
 
-    # Act and assert
-    _assert_fact(neo4j_session, "unrestricted_edit_roles", 5)
+    # Act and assert: the evaluated population is active users with a known sign-in
+    # time and an unrestricted edit role (two positives and the non-dormant user).
+    _assert_fact(neo4j_session, "stale_privileged_users", 3)
+    fact = next(
+        f for f in zoom_security_review.facts if f.id == "zoom_stale_privileged_users"
+    )
+    values = {
+        row["current_value"] for row in neo4j_session.run(fact.cypher_query).data()
+    }
+    assert all(
+        value.startswith("Synthetic role, last sign-in 2000-01-01") for value in values
+    )
+
+
+def test_zoom_app_fact_lists_every_matching_scope(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    many = [f"user:write:{i}:admin" for i in range(7)]
+    apps = [
+        {
+            "id": "a:many",
+            "name": "Many scopes",
+            "installed": True,
+            "developer_type": "THIRD_PARTY",
+            "app_scopes": [*many, "user:read:admin"],
+        },
+        {
+            "id": "a:few",
+            "name": "Few scopes",
+            "installed": True,
+            "developer_type": "THIRD_PARTY",
+            "app_scopes": [
+                "user:read:admin",
+                "role:update:role:admin",
+                "meeting:delete:meeting:master",
+            ],
+        },
+    ]
+    load(neo4j_session, ZoomAppSchema(), apps, ACCOUNT_ID="a", lastupdated=1)
+    fact = next(
+        f
+        for f in zoom_security_review.facts
+        if f.id == "zoom_third_party_admin_write_scopes"
+    )
+
+    # Act
+    rows = neo4j_session.run(fact.cypher_query).data()
+
+    # Assert: the count is exact, and long lists are shortened after five scopes.
+    values = {row["asset_id"]: row["current_value"] for row in rows}
+    assert values == {
+        "a:many": (
+            "7 administrative write scopes: user:write:0:admin, user:write:1:admin, "
+            "user:write:2:admin, user:write:3:admin, user:write:4:admin, ..."
+        ),
+        "a:few": (
+            "2 administrative write scopes: role:update:role:admin, "
+            "meeting:delete:meeting:master"
+        ),
+    }
