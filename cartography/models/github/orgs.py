@@ -115,6 +115,10 @@ class GitHubOrganizationNodeProperties(CartographyNodeProperties):
         "verified_domain_count",
         description="Number of verified domains on the organization. Null when the domain list was unavailable.",
     )
+    approved_domain_count: PropertyRef = PropertyRef(
+        "approved_domain_count",
+        description="Number of approved, unverified domains on the organization. Null when the domain list was unavailable.",
+    )
     actions_enabled_repositories: PropertyRef = PropertyRef(
         "actions_enabled_repositories",
         description="Repositories where GitHub Actions may run: `all`, `none` or `selected`.",

@@ -28,6 +28,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+# 403/404: missing permission or scope. 422: the feature cannot be read, such as
+# Copilot on an organization with a billing problem.
+_UNAVAILABLE_STATUSES = (403, 404, 422)
+
 GITHUB_ORG_IDENTITY_GRAPHQL = """
     query($login: String!) {
         organization(login: $login) {
@@ -87,19 +91,14 @@ def _query_organization(
 ) -> dict[str, Any] | None:
     """
     Run a single-organization GraphQL query and return the organization object,
-    or None if GitHub did not return it (missing permission or request failure).
+    or None if GitHub withheld it, which happens when the credential is not an
+    organization owner. Request failures propagate.
     """
     variables: dict[str, Any] = {"login": organization}
     if cursor is not None:
         variables["cursor"] = cursor
-    try:
-        handle_rate_limit_sleep(token, api_url)
-        response = call_github_api(query, json.dumps(variables), token, api_url)
-    except requests.exceptions.RequestException as err:
-        logger.warning(
-            "GitHub GraphQL request for org %s failed: %s", organization, err
-        )
-        return None
+    handle_rate_limit_sleep(token, api_url)
+    response = call_github_api(query, json.dumps(variables), token, api_url)
     org = (response.get("data") or {}).get("organization")
     if org is None:
         messages = "; ".join(
@@ -121,10 +120,16 @@ def _get_rest_object(
     endpoint: str,
     description: str,
 ) -> dict[str, Any] | None:
+    """
+    Return the endpoint's JSON object, or None when GitHub reports the setting
+    as unavailable to the credential. Other failures propagate.
+    """
     try:
         return call_github_rest_api(endpoint, token, api_url)
-    except requests.exceptions.RequestException as err:
+    except requests.exceptions.HTTPError as err:
         status = err.response.status_code if err.response is not None else None
+        if status not in _UNAVAILABLE_STATUSES:
+            raise
         logger.warning(
             "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
             "required permission, or the feature is not enabled.",
@@ -306,6 +311,11 @@ def transform_organization(
         "domain_count": len(domains) if domains is not None else None,
         "verified_domain_count": (
             sum(1 for domain in domains if domain.get("isVerified"))
+            if domains is not None
+            else None
+        ),
+        "approved_domain_count": (
+            sum(1 for domain in domains if domain.get("isApproved"))
             if domains is not None
             else None
         ),

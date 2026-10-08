@@ -140,6 +140,7 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
             "notification_delivery_restricted",
             "domain_count",
             "verified_domain_count",
+            "approved_domain_count",
         ],
     ) == {
         (
@@ -154,6 +155,7 @@ def test_sync_organization_settings(mock_graphql, mock_rest, _, neo4j_session):
             False,
             True,
             2,
+            1,
             1,
         ),
     }

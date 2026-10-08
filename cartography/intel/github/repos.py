@@ -1138,12 +1138,15 @@ def get_repo_security_and_analysis_by_url(
             params={"per_page": 100, "type": "all"},
             raise_on_status=(403, 404),
         )
-    except requests.exceptions.RequestException:
+    except requests.exceptions.HTTPError as err:
+        status = err.response.status_code if err.response is not None else None
+        if status not in (403, 404):
+            raise
         logger.warning(
-            "Failed to fetch GitHub repository security settings for org %s; "
-            "secret scanning and push protection status will be unknown.",
+            "Skipping GitHub repository security settings for org %s due to "
+            "HTTP %s; secret scanning and push protection status will be unknown.",
             organization,
-            exc_info=True,
+            status,
         )
         return {}
     return {

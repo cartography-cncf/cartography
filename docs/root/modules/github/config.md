@@ -109,7 +109,9 @@ repository `security_and_analysis` settings to repository administrators,
 organization owners, and security managers. When GitHub does not return a
 setting, Cartography leaves the property null, so null means unknown rather than
 disabled. Each source is fetched independently: a missing permission for one,
-such as Copilot, does not affect the others. Domains are only removed from the
+such as Copilot, does not affect the others. Other request failures, such as
+server errors or timeouts, stop the GitHub sync for that organization instead of
+overwriting known settings with null. Domains are only removed from the
 graph after a complete domain list is fetched.
 
 GitHub has deprecated the organization `*_enabled_for_new_repositories` security
