@@ -1149,8 +1149,7 @@ def get_repo_security_and_analysis_by_url(
     return {
         repo["html_url"]: repo["security_and_analysis"]
         for repo in repos
-        if isinstance(repo.get("html_url"), str)
-        and isinstance(repo.get("security_and_analysis"), dict)
+        if repo.get("html_url") and repo.get("security_and_analysis")
     }
 
 
@@ -1375,7 +1374,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "parent": parent["url"] if parent else None,
             "visibility": (
                 visibility.lower()
-                if isinstance(visibility := input_repo_object.get("visibility"), str)
+                if (visibility := input_repo_object.get("visibility"))
                 else None
             ),
             "advanced_security_enabled": _security_feature_enabled(

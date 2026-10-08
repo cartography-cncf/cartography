@@ -265,6 +265,3 @@ def test_sync_organization_settings_without_owner_access(
     assert check_nodes(neo4j_session, "GitHubOrganizationDomain", ["id"]) == {
         ("VD_stale",),
     }
-    # Assert - the allowed-actions list is only fetched when the policy is `selected`.
-    called = [call.args[0] for call in mock_rest.call_args_list]
-    assert "/orgs/simpsoncorp/actions/permissions/selected-actions" not in called

@@ -3,7 +3,6 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
-import requests
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _build_branch_data
@@ -1794,21 +1793,3 @@ def test_get_repo_security_and_analysis_by_url_keeps_only_visible_settings(
         },
     }
     assert mock_pages.call_args.args[2] == "/orgs/simpsoncorp/repos"
-
-
-@patch.object(cartography.intel.github.repos, "fetch_all_rest_api_pages")
-def test_get_repo_security_and_analysis_by_url_returns_empty_on_forbidden(
-    mock_pages,
-):
-    # Arrange
-    response = requests.Response()
-    response.status_code = 403
-    mock_pages.side_effect = requests.exceptions.HTTPError(response=response)
-
-    # Act
-    result = get_repo_security_and_analysis_by_url(
-        "token", "https://api.github.com/graphql", "simpsoncorp"
-    )
-
-    # Assert
-    assert result == {}

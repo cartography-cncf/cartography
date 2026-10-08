@@ -124,8 +124,7 @@ def _get_rest_object(
     try:
         return call_github_rest_api(endpoint, token, api_url)
     except requests.exceptions.RequestException as err:
-        response = getattr(err, "response", None)
-        status = response.status_code if response is not None else None
+        status = err.response.status_code if err.response is not None else None
         logger.warning(
             "Skipping GitHub %s (%s): HTTP %s. The credential may lack the "
             "required permission, or the feature is not enabled.",
