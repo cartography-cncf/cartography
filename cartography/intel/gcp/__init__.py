@@ -22,6 +22,7 @@ from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp import apikeys
 from cartography.intel.gcp import artifact_registry
+from cartography.intel.gcp import audit_config
 from cartography.intel.gcp import bigquery_connection
 from cartography.intel.gcp import bigquery_dataset
 from cartography.intel.gcp import bigquery_routine
@@ -42,6 +43,7 @@ from cartography.intel.gcp import gcf
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import kms
+from cartography.intel.gcp import log_sink
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
@@ -929,6 +931,22 @@ def start_gcp_ingestion(
             exclude_org_root_projects=config.gcp_exclude_org_root_projects,
         )
 
+        if requested_syncs is None or "audit_config" in requested_syncs:
+            resourcemanager_client = build_client(
+                "cloudresourcemanager",
+                "v3",
+                credentials=credentials,
+            )
+            audit_config.sync_gcp_audit_configs(
+                neo4j_session,
+                resourcemanager_client,
+                org_resource_name,
+                folders,
+                projects,
+                config.update_tag,
+                common_job_parameters,
+            )
+
         # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
         # This is done before project resources so that roles exist when policy bindings are created.
         # Gate behind iam or policy_bindings since these are the only modules that need role nodes.
@@ -962,6 +980,20 @@ def start_gcp_ingestion(
             requested_syncs=requested_syncs,
             org_role_permissions_by_name=org_role_permissions_by_name,
         )
+
+        # Run log sinks after project resources so BigQuery dataset destinations
+        # collected in this sync already exist before DELIVERS_TO relationships are matched.
+        if requested_syncs is None or "log_sinks" in requested_syncs:
+            logging_client = build_client("logging", "v2", credentials=credentials)
+            log_sink.sync_gcp_log_sinks(
+                neo4j_session,
+                logging_client,
+                org_resource_name,
+                folders,
+                projects,
+                config.update_tag,
+                common_job_parameters,
+            )
 
         policy_bindings_requested = (
             requested_syncs is None or "policy_bindings" in requested_syncs

@@ -107,9 +107,15 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if ip_config.get("authorizedNetworks"):
             authorized_networks_json = json.dumps(ip_config.get("authorizedNetworks"))
 
+        database_flags = settings.get("databaseFlags", []) or []
         database_flags_json = None
-        if settings.get("databaseFlags"):
-            database_flags_json = json.dumps(settings.get("databaseFlags"))
+        if database_flags:
+            database_flags_json = json.dumps(database_flags)
+        flags_by_name = {
+            flag["name"]: flag.get("value")
+            for flag in database_flags
+            if flag.get("name")
+        }
 
         # Normalize privateNetwork to match GCPVpc ID format
         # Cloud SQL API returns: /projects/.../global/networks/...
@@ -149,6 +155,13 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
                 "authorized_networks": authorized_networks_json,
                 "backup_configuration": backup_config_json,
                 "database_flags": database_flags_json,
+                "flag_cloudsql_enable_pgaudit": flags_by_name.get(
+                    "cloudsql.enable_pgaudit"
+                ),
+                "flag_log_checkpoints": flags_by_name.get("log_checkpoints"),
+                "flag_log_connections": flags_by_name.get("log_connections"),
+                "flag_log_disconnections": flags_by_name.get("log_disconnections"),
+                "flag_log_lock_waits": flags_by_name.get("log_lock_waits"),
                 "project_id": project_id,
                 "userLabels": settings.get("userLabels", {}),
             },
