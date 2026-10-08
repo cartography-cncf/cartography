@@ -32,6 +32,17 @@ TEST_UPDATE_TAG = 123456789
 _DEFAULT_REPO_URL = "https://github.com/test-org/test-repo"
 
 
+@pytest.fixture(autouse=True)
+def _no_security_and_analysis_fetch():
+    """Keep sync() tests offline: no repository security settings are visible."""
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_repo_security_and_analysis_by_url",
+        return_value={},
+    ):
+        yield
+
+
 def _make_dep(
     dep_id,
     name,
