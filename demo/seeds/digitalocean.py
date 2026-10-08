@@ -2,8 +2,10 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.digitalocean.compute
+import cartography.intel.digitalocean.firewall
 import cartography.intel.digitalocean.management
 import tests.data.digitalocean.compute
+import tests.data.digitalocean.firewall
 import tests.data.digitalocean.management
 import tests.data.digitalocean.platform
 from demo.seeds.base import Seed
@@ -34,9 +36,13 @@ class DigitalOceanSeed(Seed):
         mock_client.projects.list_resources.return_value = (
             tests.data.digitalocean.management.PROJECT_RESOURCES_RESPONSE
         )
+        mock_client.firewalls.list.return_value = (
+            tests.data.digitalocean.firewall.FIREWALLS_RESPONSE
+        )
         self._seed_platform(mock_client)
         self._seed_management(mock_client)
         self._seed_compute(mock_client)
+        self._seed_firewall(mock_client)
 
     def _seed_platform(self, mock_client) -> None:
         cartography.intel.digitalocean.platform.sync(
@@ -67,6 +73,18 @@ class DigitalOceanSeed(Seed):
                     }
                 ],
             },
+            self.update_tag,
+            {
+                "UPDATE_TAG": self.update_tag,
+                "ACCOUNT_ID": ACCOUNT_ID,
+            },
+        )
+
+    def _seed_firewall(self, mock_client) -> None:
+        cartography.intel.digitalocean.firewall.sync(
+            self.neo4j_session,
+            mock_client,
+            ACCOUNT_ID,
             self.update_tag,
             {
                 "UPDATE_TAG": self.update_tag,
