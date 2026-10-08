@@ -7,6 +7,7 @@ from typing import cast
 import neo4j
 
 import cartography.intel.github.actions
+import cartography.intel.github.app_installations
 import cartography.intel.github.codeowners
 import cartography.intel.github.commits
 import cartography.intel.github.container_image_attestations
@@ -21,6 +22,7 @@ import cartography.intel.github.repos
 import cartography.intel.github.supply_chain
 import cartography.intel.github.teams
 import cartography.intel.github.users
+import cartography.intel.github.webhooks
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.intel.github.app_auth import make_credential
@@ -155,6 +157,21 @@ def start_github_ingestion(
             token,
             api_url,
             org_name,
+        )
+        cartography.intel.github.app_installations.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+        )
+        cartography.intel.github.webhooks.sync(
+            neo4j_session,
+            common_job_parameters,
+            token,
+            api_url,
+            org_name,
+            repo_sync_result.repos,
         )
         cartography.intel.github.dependabot_alerts.sync(
             neo4j_session,

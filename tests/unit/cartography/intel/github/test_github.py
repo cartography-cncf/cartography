@@ -46,8 +46,16 @@ def posture_syncs():
             ),
         ),
         patch("cartography.intel.github.organizations.sync") as organizations_sync,
+        patch(
+            "cartography.intel.github.app_installations.sync"
+        ) as app_installations_sync,
+        patch("cartography.intel.github.webhooks.sync") as webhooks_sync,
     ):
-        yield {"organizations": organizations_sync}
+        yield {
+            "organizations": organizations_sync,
+            "app_installations": app_installations_sync,
+            "webhooks": webhooks_sync,
+        }
 
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
@@ -161,6 +169,8 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
     assert posture_syncs["organizations"].call_count == 2
+    assert posture_syncs["app_installations"].call_count == 2
+    assert posture_syncs["webhooks"].call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
     assert mock_codeowners_sync.call_count == 2
     assert mock_codeowners_sync.call_args_list[0].args[-2:] == (

@@ -96,6 +96,9 @@ data while continuing ingestion.
 | Actions policy: enabled repositories, allowed actions, SHA pinning, and default `GITHUB_TOKEN` permissions | Organization **Administration: Read** | `admin:org` |
 | Copilot policy and seat count | Organization owner access with organization **GitHub Copilot Business: Read** or **Administration: Read** | Organization owner access and `manage_billing:copilot` or `read:org` |
 | Repository secret scanning, push protection, Advanced Security, and Dependabot security updates status | Repository **Administration: Read**, with repository administrator, organization owner, or security manager access | `repo`, with repository administrator, organization owner, or security manager access |
+| Installed GitHub Apps and their permissions | Organization owner access with organization **Administration: Read** | Organization owner access and `read:org` |
+| Organization webhooks | Organization owner access with organization **Webhooks: Read** | Organization owner access and `admin:org_hook` |
+| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `read:repo_hook`, with repository administrator access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
 | SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
@@ -124,6 +127,23 @@ Repository creation is restricted by visibility through the
 `members_can_create_public_repositories`,
 `members_can_create_private_repositories`, and
 `members_can_create_internal_repositories` properties.
+
+### GitHub Apps and webhooks
+
+Each installed GitHub App becomes a `GitHubAppInstallation` node, which also has
+the `ThirdPartyApp` ontology label. Its `read_permissions`, `write_permissions`,
+and `admin_permissions` lists summarize the granted access, and `permissions`
+keeps the full grant as JSON. GitHub does not list which repositories an
+installation with `repository_selection: selected` can access to organization
+owners, so those repository links are not ingested.
+
+Organization and repository webhooks become `GitHubWebhook` nodes. Webhook
+target URLs often embed credentials, so Cartography stores only the target
+scheme and host, along with TLS verification, secret, and delivery status. GitHub
+never returns webhook secret values. Repositories the credential cannot
+administer return no webhooks. Stale webhooks are only removed after the
+organization list and every repository list were fetched without a permission
+error.
 
 ### SAML identity mapping
 
@@ -256,6 +276,7 @@ the enterprise GraphQL endpoint:
 | Missing two-factor authentication status | This status is visible only to organization owners. |
 | Null organization settings, such as `default_repository_permission` or `actions_allowed_actions` | These settings are visible only to organization owners. Classic PATs also need `admin:org`. |
 | Null `secret_scanning_enabled` on repositories | GitHub only reports security settings to repository administrators, organization owners, and security managers. |
+| No `GitHubAppInstallation` or `GitHubWebhook` nodes | These require organization owner access and the permissions listed under Optional Permissions. Repository webhooks also require administrator access on each repository. |
 | Rate limiting | Cartography sleeps until the quota resets. |
 
 ## References

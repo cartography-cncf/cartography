@@ -286,7 +286,30 @@ zoom_mapping = OntologyMapping(
     ],
 )
 
+github_mapping = OntologyMapping(
+    module_name="github",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GitHubAppInstallation",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="client_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="app_slug", required=True
+                ),
+                OntologyFieldMapping(ontology_field="enabled", node_field="enabled"),
+                # native_app/protocol: GitHub Apps are server-side integrations and
+                # the installation does not report an OAuth protocol.
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "github": github_mapping,
     "zoom": zoom_mapping,
     "googleworkspace": googleworkspace_mapping,
     "salesforce": salesforce_mapping,
