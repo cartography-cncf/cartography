@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws import route53_domains
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
@@ -564,4 +565,12 @@ def sync(
         update_tag,
     )
     link_sub_zones(neo4j_session, update_tag, current_aws_account_id)
+    # Registered domains match AWSDNSZone by name; load them after zones exist.
+    route53_domains.sync(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
     cleanup_route53(neo4j_session, current_aws_account_id, update_tag)
