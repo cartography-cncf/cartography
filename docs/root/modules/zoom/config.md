@@ -194,3 +194,19 @@ section. A denied groups, roles or apps section keeps all of its prior data. For
 settings, meetings and recordings, items that were read are refreshed, unread
 items are retained, and cleanup is skipped. Review warnings as well as the
 process exit status when assessing coverage.
+
+## Security review
+
+Run `cartography-rules run zoom_security_review` against the ingested graph to
+check meeting and recording protections, account meeting and Personal Meeting ID
+defaults, native sign-in policy, third-party app scopes, and dormant privileged and
+licensed users. These experimental checks use the last collected snapshot, skip
+unknown values, and identify access worth reviewing; they do not infer individual
+MFA enrollment or verify public reachability.
+
+Only the stale licensed users check works on the default sync. The others need the
+matching optional inventory (`settings`, `roles`, `apps`, `meetings` or
+`recordings`), and the recording check only sees recordings inside
+`--zoom-lookback-days`. A check that evaluated no assets had nothing to test,
+which does not mean the tenant is secure. See [Running Rules](../../usage/rules.md)
+for connection options.
