@@ -114,6 +114,7 @@ EXPECTED_SOC2_REQUIREMENTS = {
     "kubernetes_containers_allowing_privilege_escalation": {"CC7.1"},
     "kubernetes_containers_using_hostports": {"CC6.6", "CC7.1"},
     "kubernetes_control_plane_exposed": {"CC6.6"},
+    "kubernetes_service_exposed": {"CC6.6"},
     "kubernetes_csr_approval_subresource_access": {"CC6.1"},
     "kubernetes_default_service_account_bindings": {"CC6.3"},
     "kubernetes_node_proxy_subresource_access": {"CC6.3"},
