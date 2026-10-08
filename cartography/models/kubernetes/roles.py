@@ -32,6 +32,10 @@ class KubernetesRoleNodeProperties(CartographyNodeProperties):
         "resource_version",
         description="The resource version of the Role for optimistic concurrency control.",
     )
+    rules: PropertyRef = PropertyRef(
+        "rules",
+        description="JSON policy rules retaining the coupling between API groups, resources, verbs, resource names and non-resource URLs. Flattened fields alone cannot determine effective access.",
+    )
     api_groups: PropertyRef = PropertyRef(
         "api_groups",
         description='List of API groups that this Role grants access to (e.g. `["core", "apps"]`).',
