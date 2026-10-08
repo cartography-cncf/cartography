@@ -33,6 +33,13 @@ def deterministic_jitter():
         yield
 
 
+@pytest.fixture(autouse=True)
+def posture_syncs():
+    """Stub the organization posture syncs so ingestion tests never call GitHub."""
+    with patch("cartography.intel.github.organizations.sync") as organizations_sync:
+        yield {"organizations": organizations_sync}
+
+
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
 @patch("cartography.intel.github.repos.cleanup_global_resources")
 @patch("cartography.intel.github.users.cleanup")
@@ -85,6 +92,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     mock_users_cleanup: Mock,
     mock_cleanup_global_resources: Mock,
     mock_cleanup_orphaned_branches: Mock,
+    posture_syncs: dict[str, Mock],
 ) -> None:
     github_config = {
         "organization": [
@@ -142,6 +150,7 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_users_sync.call_count == 2
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
+    assert posture_syncs["organizations"].call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
     assert mock_codeowners_sync.call_count == 2
     assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
