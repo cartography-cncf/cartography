@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 import cartography.intel.slack.teams
 import cartography.intel.slack.users
 from tests.integration.cartography.intel.slack.utils import slack_client
@@ -79,18 +82,17 @@ def test_load_slack_user_last_login(neo4j_session):
     Ensure the latest access-log timestamp is stored on each SlackUser and
     exposed through the UserAccount ontology field.
     """
+    # Act
     _sync_teams_and_users(neo4j_session)
 
-    result = neo4j_session.run(
-        """
-        MATCH (u:SlackUser:UserAccount)
-        RETURN u.id AS id, toString(u.last_login) AS last_login,
-               toString(u._ont_lastactivity) AS ont_lastactivity
-        """,
-    )
-    actual = {(r["id"], r["last_login"], r["ont_lastactivity"]) for r in result}
-    assert actual == {
-        ("SLACKUSER1", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+    # Assert
+    last_login = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert check_nodes(
+        neo4j_session,
+        "UserAccount",
+        ["id", "last_login", "_ont_lastactivity"],
+    ) == {
+        ("SLACKUSER1", last_login, last_login),
         ("SLACKUSER2", None, None),
     }
 

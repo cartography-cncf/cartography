@@ -1,5 +1,3 @@
-from datetime import datetime
-from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -7,9 +5,7 @@ import pytest
 from slack_sdk.errors import SlackApiError
 
 from cartography.intel.slack.users import get_last_logins
-from cartography.intel.slack.users import transform
 from tests.data.slack.users import SLACK_ACCESS_LOGS
-from tests.data.slack.users import SLACK_MEMBERS
 
 
 @patch(
@@ -67,18 +63,3 @@ def test_get_last_logins_raises_unexpected_errors(mock_slack_paginate):
     # Act / Assert
     with pytest.raises(SlackApiError):
         get_last_logins(Mock(), "T123")
-
-
-def test_transform_sets_last_login_on_users_only():
-    # Act
-    users, bots = transform(
-        SLACK_MEMBERS["members"],
-        {"SLACKUSER1": 1767225600, "SLACKBOT1": 1767225600},
-    )
-
-    # Assert
-    assert {u["id"]: u["last_login"] for u in users} == {
-        "SLACKUSER1": datetime(2026, 1, 1, tzinfo=timezone.utc),
-        "SLACKUSER2": None,
-    }
-    assert all("last_login" not in b for b in bots)

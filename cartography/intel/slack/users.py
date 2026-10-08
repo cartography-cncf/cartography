@@ -93,10 +93,9 @@ def get_last_logins(slack_client: WebClient, team_id: str) -> dict[str, int]:
 
 def transform(
     members: list[dict[str, Any]],
-    last_logins: dict[str, int] | None = None,
+    last_logins: dict[str, int],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Split Slack members into human users and bots."""
-    last_logins = last_logins or {}
     users = []
     bots = []
     for member in members:
