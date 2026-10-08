@@ -4,6 +4,7 @@ import pytest
 import requests
 
 import cartography.intel.github.app_installations
+import cartography.intel.github.util
 import cartography.intel.github.webhooks
 
 
@@ -32,7 +33,11 @@ def _http_error(status):
 )
 def test_unexpected_errors_propagate_instead_of_skipping(module, call):
     # Arrange
-    with patch.object(module, "fetch_all_rest_api_pages", side_effect=_http_error(502)):
+    with patch.object(
+        cartography.intel.github.util,
+        "fetch_all_rest_api_pages",
+        side_effect=_http_error(502),
+    ):
         # Act and assert
         with pytest.raises(requests.exceptions.HTTPError):
             call()

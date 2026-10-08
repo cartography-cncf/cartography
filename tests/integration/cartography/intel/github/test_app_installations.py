@@ -3,6 +3,7 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.github.app_installations
+import cartography.intel.github.util
 from tests.data.github.app_installations import APP_INSTALLATIONS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -31,7 +32,7 @@ def _reset_and_seed_graph(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.github.app_installations,
+    cartography.intel.github.util,
     "fetch_all_rest_api_pages",
     return_value=APP_INSTALLATIONS,
 )
@@ -71,7 +72,6 @@ def test_sync_app_installations(mock_pages, neo4j_session):
         """
         MATCH (i:GitHubAppInstallation:ThirdPartyApp)
         RETURN i.app_slug AS slug, i.write_permissions AS write,
-            i.admin_permissions AS admin, i.read_permissions AS read,
             i.suspended_by AS suspended_by
         ORDER BY slug
         """,
@@ -80,15 +80,11 @@ def test_sync_app_installations(mock_pages, neo4j_session):
         {
             "slug": "legacy-admin-bot",
             "write": ["administration", "organization_administration"],
-            "admin": ["organization_administration"],
-            "read": ["members", "metadata"],
             "suspended_by": "mbsimpson",
         },
         {
             "slug": "renovate",
             "write": ["checks", "contents", "pull_requests", "workflows"],
-            "admin": [],
-            "read": ["metadata"],
             "suspended_by": None,
         },
     ]
@@ -102,7 +98,7 @@ def test_sync_app_installations(mock_pages, neo4j_session):
     ) == {(ORG_URL, "renovate"), (ORG_URL, "legacy-admin-bot")}
 
 
-@patch.object(cartography.intel.github.app_installations, "fetch_all_rest_api_pages")
+@patch.object(cartography.intel.github.util, "fetch_all_rest_api_pages")
 def test_sync_app_installations_forbidden_preserves_data(mock_pages, neo4j_session):
     # Arrange
     _reset_and_seed_graph(neo4j_session)

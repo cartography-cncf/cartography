@@ -4,11 +4,10 @@ from urllib.parse import quote
 from urllib.parse import urlsplit
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.webhooks import GitHubWebhookSchema
@@ -27,21 +26,15 @@ def _get_hooks(
     listing. GitHub answers 403 or 404 when the credential lacks the Webhooks
     permission or administrator access. Other failures propagate.
     """
-    try:
-        return fetch_all_rest_api_pages(
-            token,
-            rest_api_base_url(api_url),
-            endpoint,
-            "",
-            params={"per_page": 100},
-            raise_on_status=(403, 404),
-        )
-    except requests.exceptions.HTTPError as err:
-        status = err.response.status_code if err.response is not None else None
-        if status not in (403, 404):
-            raise
-        logger.debug("Could not list GitHub webhooks at %s: HTTP %s", endpoint, status)
-        return None
+    return fetch_all_rest_api_pages_or_none(
+        token,
+        rest_api_base_url(api_url),
+        endpoint,
+        "",
+        "webhooks",
+        unavailable=(403, 404),
+        params={"per_page": 100},
+    )
 
 
 @timeit
@@ -103,7 +96,6 @@ def transform(
         "content_type": config.get("content_type"),
         "target_scheme": parsed.scheme.lower() if parsed else None,
         "target_host": parsed.hostname if parsed else None,
-        "uses_https": parsed.scheme.lower() == "https" if parsed else None,
         "insecure_ssl": (
             str(config["insecure_ssl"]) == "1" if "insecure_ssl" in config else None
         ),
@@ -131,11 +123,8 @@ def get(
     """
     org_url = github_org_url(api_url, organization)
     webhooks: list[dict[str, Any]] = []
-    complete = True
 
     org_hooks = get_organization_webhooks(token, api_url, organization)
-    if org_hooks is None:
-        complete = False
     for hook in org_hooks or []:
         webhooks.append(transform(hook, organization_id=org_url))
 
@@ -152,7 +141,6 @@ def get(
         for hook in repo_hooks:
             webhooks.append(transform(hook, repository_id=repo_url))
     if unavailable_repos:
-        complete = False
         logger.warning(
             "Could not list webhooks for %d of %d GitHub repositories in org %s. "
             "Repository webhooks require the repository Webhooks: Read permission.",
@@ -160,7 +148,7 @@ def get(
             len(repos),
             organization,
         )
-    return webhooks, complete
+    return webhooks, org_hooks is not None and unavailable_repos == 0
 
 
 @timeit
@@ -199,12 +187,17 @@ def sync(
     api_url: str,
     organization: str,
     repos: list[dict[str, Any]],
+    repos_complete: bool = True,
 ) -> None:
+    """
+    :param repos_complete: Whether `repos` is the organization's full repository
+        list. A listing GitHub truncated must not drive organization-wide cleanup.
+    """
     org_url = github_org_url(api_url, organization)
     update_tag = common_job_parameters["UPDATE_TAG"]
     webhooks, complete = get(token, api_url, organization, repos)
     load_webhooks(neo4j_session, webhooks, org_url, update_tag)
-    if complete:
+    if complete and repos_complete:
         cleanup(neo4j_session, org_url, update_tag)
     else:
         logger.warning(

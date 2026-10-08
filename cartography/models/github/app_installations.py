@@ -43,15 +43,9 @@ class GitHubAppInstallationNodeProperties(CartographyNodeProperties):
         "permissions",
         description="Granted permissions and access levels encoded as JSON.",
     )
-    read_permissions: PropertyRef = PropertyRef(
-        "read_permissions", description="Permissions granted with `read` access."
-    )
     write_permissions: PropertyRef = PropertyRef(
         "write_permissions",
         description="Permissions granted with `write` or `admin` access.",
-    )
-    admin_permissions: PropertyRef = PropertyRef(
-        "admin_permissions", description="Permissions granted with `admin` access."
     )
     events: PropertyRef = PropertyRef(
         "events", description="Webhook events the App subscribes to."

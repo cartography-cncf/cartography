@@ -131,8 +131,8 @@ Repository creation is restricted by visibility through the
 ### GitHub Apps and webhooks
 
 Each installed GitHub App becomes a `GitHubAppInstallation` node, which also has
-the `ThirdPartyApp` ontology label. Its `read_permissions`, `write_permissions`,
-and `admin_permissions` lists summarize the granted access, and `permissions`
+the `ThirdPartyApp` ontology label. Its `write_permissions` list names the
+permissions granted with write or admin access, and `permissions`
 keeps the full grant as JSON. GitHub does not list which repositories an
 installation with `repository_selection: selected` can access to organization
 owners, so those repository links are not ingested.

@@ -82,6 +82,9 @@ class GitHubRepoSyncResult:
     repos: list[dict[str, Any]]
     manifests: list[dict[str, Any]]
     manifests_cleanup_safe: bool
+    repos_complete: bool
+    """False when GitHub omitted repositories from the listing (null entries), so
+    syncs that enumerate per-repository resources must not clean up by organization."""
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
@@ -2869,4 +2872,5 @@ def sync(
         repos=repo_data["repos"],
         manifests=repo_data["manifests"],
         manifests_cleanup_safe=dep_manifests_cleanup_safe,
+        repos_complete=all(repo is not None for repo in repos_json),
     )

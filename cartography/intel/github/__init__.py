@@ -172,6 +172,7 @@ def start_github_ingestion(
             api_url,
             org_name,
             repo_sync_result.repos,
+            repos_complete=repo_sync_result.repos_complete,
         )
         cartography.intel.github.dependabot_alerts.sync(
             neo4j_session,

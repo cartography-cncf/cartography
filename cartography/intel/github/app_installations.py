@@ -4,11 +4,10 @@ from typing import Any
 from urllib.parse import quote
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.app_installations import GitHubAppInstallationSchema
@@ -30,27 +29,23 @@ def get(
     permission (fine-grained PAT or GitHub App) or the `read:org` scope (classic
     PAT). Returns None when the list is unavailable so stale data is preserved.
     """
-    try:
-        return fetch_all_rest_api_pages(
-            token,
-            rest_api_base_url(api_url),
-            f"/orgs/{quote(organization, safe='')}/installations",
-            "installations",
-            params={"per_page": 100},
-            raise_on_status=(403, 404),
-        )
-    except requests.exceptions.HTTPError as err:
-        status = err.response.status_code if err.response is not None else None
-        if status not in (403, 404):
-            raise
+    installations = fetch_all_rest_api_pages_or_none(
+        token,
+        rest_api_base_url(api_url),
+        f"/orgs/{quote(organization, safe='')}/installations",
+        "installations",
+        "App installations",
+        unavailable=(403, 404),
+        params={"per_page": 100},
+    )
+    if installations is None:
         logger.warning(
-            "Skipping GitHub App installations for org %s due to HTTP %s. This "
-            "endpoint requires organization owner access with the organization "
-            "Administration: Read permission.",
+            "Skipping GitHub App installations for org %s. This endpoint requires "
+            "organization owner access with the organization Administration: "
+            "Read permission.",
             organization,
-            status,
         )
-        return None
+    return installations
 
 
 def transform(
@@ -74,16 +69,10 @@ def transform(
                 "target_type": installation.get("target_type"),
                 "repository_selection": installation.get("repository_selection"),
                 "permissions": json.dumps(permissions, sort_keys=True),
-                "read_permissions": sorted(
-                    name for name, level in permissions.items() if level == "read"
-                ),
                 "write_permissions": sorted(
                     name
                     for name, level in permissions.items()
                     if level in ("write", "admin")
-                ),
-                "admin_permissions": sorted(
-                    name for name, level in permissions.items() if level == "admin"
                 ),
                 "events": installation.get("events") or [],
                 "enabled": installation.get("suspended_at") is None,

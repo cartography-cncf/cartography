@@ -44,9 +44,6 @@ class GitHubWebhookNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="Host of the delivery target. The path and query are not stored because they often contain credentials.",
     )
-    uses_https: PropertyRef = PropertyRef(
-        "uses_https", description="Whether payloads are delivered over HTTPS."
-    )
     insecure_ssl: PropertyRef = PropertyRef(
         "insecure_ssl",
         description="Whether TLS certificate verification is disabled for deliveries.",

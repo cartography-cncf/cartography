@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import requests
 
+import cartography.intel.github.util
 import cartography.intel.github.webhooks
 from tests.data.github.webhooks import ORG_WEBHOOKS
 from tests.data.github.webhooks import REPO_WEBHOOKS
@@ -61,7 +62,7 @@ def _reset_and_seed_graph(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.github.webhooks,
+    cartography.intel.github.util,
     "fetch_all_rest_api_pages",
     side_effect=_pages,
 )
@@ -88,7 +89,6 @@ def test_sync_webhooks(mock_pages, neo4j_session):
             "scope",
             "target_scheme",
             "target_host",
-            "uses_https",
             "insecure_ssl",
             "has_secret",
             "last_response_code",
@@ -99,7 +99,6 @@ def test_sync_webhooks(mock_pages, neo4j_session):
             "organization",
             "https",
             "siem.simpsoncorp.example",
-            True,
             False,
             True,
             None,
@@ -109,7 +108,6 @@ def test_sync_webhooks(mock_pages, neo4j_session):
             "repository",
             "http",
             "jenkins.simpsoncorp.example",
-            False,
             True,
             False,
             200,
@@ -146,7 +144,7 @@ def test_sync_webhooks(mock_pages, neo4j_session):
 
 
 @patch.object(
-    cartography.intel.github.webhooks,
+    cartography.intel.github.util,
     "fetch_all_rest_api_pages",
     side_effect=_pages_repo_forbidden,
 )
@@ -165,6 +163,35 @@ def test_sync_webhooks_incomplete_inventory_skips_cleanup(mock_pages, neo4j_sess
     )
 
     # Assert - visible hooks load, and the stale hook survives.
+    assert check_nodes(neo4j_session, "GitHubWebhook", ["id"]) == {
+        (STALE_ID,),
+        ("https://api.github.com/orgs/simpsoncorp/hooks/501",),
+        ("https://api.github.com/repos/simpsoncorp/sample_repo/hooks/601",),
+    }
+
+
+@patch.object(
+    cartography.intel.github.util,
+    "fetch_all_rest_api_pages",
+    side_effect=_pages,
+)
+def test_sync_webhooks_truncated_repo_listing_skips_cleanup(mock_pages, neo4j_session):
+    # Arrange - GitHub omitted a repository from the listing, so its webhooks
+    # were never checked.
+    _reset_and_seed_graph(neo4j_session)
+
+    # Act
+    cartography.intel.github.webhooks.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_TOKEN,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+        REPOS[:1],
+        repos_complete=False,
+    )
+
+    # Assert - the stale hook survives an organization-wide cleanup.
     assert check_nodes(neo4j_session, "GitHubWebhook", ["id"]) == {
         (STALE_ID,),
         ("https://api.github.com/orgs/simpsoncorp/hooks/501",),
