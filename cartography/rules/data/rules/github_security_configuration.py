@@ -141,7 +141,7 @@ github_secret_scanning_disabled = Rule(
         _repository_secret_scanning_disabled,
         _repository_push_protection_disabled,
     ),
-    tags=("github", "secrets", "supply_chain"),
+    tags=("github", "secrets", "supply_chain", "stride:information_disclosure"),
     version="0.1.0",
     references=[
         RuleReference(
@@ -264,7 +264,14 @@ github_organization_security_settings = Rule(
         _notifications_not_restricted,
         _copilot_public_code_suggestions,
     ),
-    tags=("github", "identity", "data", "attack_surface"),
+    tags=(
+        "github",
+        "identity",
+        "access_control",
+        "configuration",
+        "stride:spoofing",
+        "stride:elevation_of_privilege",
+    ),
     version="0.1.0",
     references=[
         RuleReference(
@@ -348,7 +355,13 @@ github_actions_permissive_policy = Rule(
         _actions_default_token_write,
         _actions_can_approve_pull_requests,
     ),
-    tags=("github", "supply_chain", "cicd"),
+    tags=(
+        "github",
+        "supply_chain",
+        "configuration",
+        "stride:tampering",
+        "stride:elevation_of_privilege",
+    ),
     version="0.1.0",
     references=[
         RuleReference(
@@ -434,7 +447,12 @@ github_app_sensitive_permissions = Rule(
     ),
     output_model=GitHubSecurityConfigurationOutput,
     facts=(_app_sensitive_write_permissions,),
-    tags=("github", "third_party", "supply_chain"),
+    tags=(
+        "github",
+        "supply_chain",
+        "privileged_access",
+        "stride:elevation_of_privilege",
+    ),
     version="0.1.0",
     references=[
         RuleReference(
@@ -533,7 +551,12 @@ github_webhook_insecure_delivery = Rule(
     ),
     output_model=GitHubSecurityConfigurationOutput,
     facts=(_webhook_without_secret, _webhook_insecure_ssl, _webhook_not_https),
-    tags=("github", "data", "attack_surface"),
+    tags=(
+        "github",
+        "transport_security",
+        "stride:information_disclosure",
+        "stride:tampering",
+    ),
     version="0.1.0",
     references=[
         RuleReference(
