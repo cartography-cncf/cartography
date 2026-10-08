@@ -2,6 +2,7 @@ from datetime import datetime
 from datetime import timezone
 from unittest.mock import MagicMock
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.circleci.supply_chain import _run_older_than
 from cartography.intel.circleci.supply_chain import build_revision_targets
 from cartography.intel.circleci.supply_chain import CIRCLECI_TAG_REVISION_CONFIDENCE
@@ -136,7 +137,7 @@ def test_run_older_than():
 
 def test_get_unmatched_candidate_images_limits_before_tag_expansion():
     neo4j_session = MagicMock()
-    neo4j_session.run.return_value = []
+    neo4j_session.execute_read.return_value = []
 
     get_unmatched_circleci_candidate_images(
         neo4j_session,
@@ -145,7 +146,8 @@ def test_get_unmatched_candidate_images_limits_before_tag_expansion():
         limit=10,
     )
 
-    query = neo4j_session.run.call_args.args[0]
+    tx_func, query = neo4j_session.execute_read.call_args.args[:2]
+    assert tx_func is read_list_of_dicts_tx
     assert (
         query.index("ORDER BY img.digest")
         < query.index("LIMIT 10")
