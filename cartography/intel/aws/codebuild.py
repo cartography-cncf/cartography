@@ -135,12 +135,14 @@ def sync(
             region,
         )
 
+    project_names_by_region: Dict[str, set[str]] = {}
     for region in codebuild_regions:
         logger.info(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )
 
         projects = get_all_codebuild_projects(boto3_session, region)
+        project_names_by_region[region] = {project["name"] for project in projects}
         transformed_projects = transform_codebuild_projects(projects, region)
 
         load_codebuild_projects(
@@ -156,6 +158,7 @@ def sync(
     codebuild_supply_chain.sync(
         neo4j_session,
         boto3_session,
+        project_names_by_region,
         current_aws_account_id,
         update_tag,
     )

@@ -285,3 +285,48 @@ def test_analysis_skips_images_whose_codebuild_repositories_disagree(neo4j_sessi
         ).single()["n"]
         == 0
     )
+
+
+def test_project_name_fallback_clears_build_revision(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (account:AWSAccount {id: $account_id})
+        CREATE (account)-[:RESOURCE]->(:AWSCodeBuildProject {
+            id: 'frontend-project', name: 'frontend-build', region: $region,
+            source_provider: 'github', source_repo_url: $repo_url
+        })
+        CREATE (account)-[:RESOURCE]->(:AWSECRRepository {
+            id: 'frontend-repo', name: 'frontend-build', region: $region
+        })-[:REPO_IMAGE]->(:AWSECRRepositoryImage {id: 'frontend:dev', tag: 'dev'})
+          -[:IMAGE]->(img:AWSECRImage:Image {id: 'sha256:a', digest: 'sha256:a'})
+        CREATE (img)-[:PACKAGED_FROM {
+            match_method: 'codebuild_build_id_tag', source_revision: $revision,
+            lastupdated: $stale_tag
+        }]->(:GitHubRepository {id: $repo_url})
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        region=TEST_REGION,
+        repo_url=FRONTEND_REPO,
+        revision=FRONTEND_REVISION,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    run_typed_analysis_job(
+        CODEBUILD_IMAGE_PACKAGED_FROM,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (:Image {digest: 'sha256:a'})-[r:PACKAGED_FROM]->(:GitHubRepository)
+        RETURN r.match_method AS method, r.source_revision AS revision
+        """
+        ).data()
+        == [{"method": "codebuild_project_name", "revision": None}]
+    )

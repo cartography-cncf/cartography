@@ -34,8 +34,6 @@ SOURCE_PROVIDERS = {
 
 _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
-# BatchGetBuilds rejects the whole request when one ID is not a valid project name.
-_PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-_]{1,254}$")
 
 
 def linkable_source(source: dict[str, Any]) -> tuple[str, str] | None:
@@ -49,20 +47,38 @@ def linkable_source(source: dict[str, Any]) -> tuple[str, str] | None:
 
 def candidate_build_ids(
     ecr_images: set[tuple[str, str, str, str, str]],
-) -> dict[str, dict[str, set[str]]]:
+    project_names: set[str],
+) -> dict[str, set[str]]:
     """
-    Map region -> candidate build ID -> image digests, from build-ID image tags.
+    Map candidate build ID -> image digests, from build-ID image tags.
 
     A tag carries only the UUID of CODEBUILD_BUILD_ID (`<project>:<uuid>`). The project
     is taken to share the ECR repository's name, which BatchGetBuilds then confirms.
     """
-    candidates: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
-    for region, tag, _uri, repo_name, digest in ecr_images:
-        if not tag or not _PROJECT_NAME_RE.match(repo_name):
+    candidates: dict[str, set[str]] = defaultdict(set)
+    for _region, tag, _uri, repo_name, digest in ecr_images:
+        if not tag or repo_name not in project_names:
             continue
         for uuid in _UUID_RE.findall(tag.lower()):
-            candidates[region][f"{repo_name}:{uuid}"].add(digest)
+            candidates[f"{repo_name}:{uuid}"].add(digest)
     return candidates
+
+
+def build_ids_by_region(
+    build_ids: set[str],
+    project_names_by_region: dict[str, set[str]],
+) -> dict[str, list[str]]:
+    """Route each candidate build ID to every region holding a project of its name."""
+    routed: dict[str, list[str]] = {}
+    for region, project_names in sorted(project_names_by_region.items()):
+        region_build_ids = sorted(
+            build_id
+            for build_id in build_ids
+            if build_id.split(":", 1)[0] in project_names
+        )
+        if region_build_ids:
+            routed[region] = region_build_ids
+    return routed
 
 
 @timeit
@@ -155,29 +171,35 @@ def match_images_to_builds(
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
+    project_names_by_region: dict[str, set[str]],
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
     Link ECR images tagged with a CodeBuild build ID to the project that built them.
 
-    Builds are read transiently and never stored as nodes. The ontology stage derives
-    (:Image)-[:PACKAGED_FROM]->(repository) from these edges. Stale edges are cleaned up
-    only when every region was read, so a permission or regional outage never deletes
-    edges it cannot re-derive.
+    Builds are looked up in every region holding the same-named project, since a build
+    can push to a registry in another region. They are read transiently and never
+    stored as nodes. The ontology stage derives (:Image)-[:PACKAGED_FROM]->(repository)
+    from these edges. Stale edges are cleaned up only when every lookup succeeded, so a
+    permission or regional outage never deletes edges it cannot re-derive.
     """
-    candidates_by_region = candidate_build_ids(
-        get_ecr_images(neo4j_session, current_aws_account_id)
+    candidates = candidate_build_ids(
+        get_ecr_images(neo4j_session, current_aws_account_id),
+        set().union(*project_names_by_region.values()),
     )
 
-    rows: list[dict[str, Any]] = []
+    builds: list[dict[str, Any]] = []
     unreadable_regions: list[str] = []
-    for region, candidates in sorted(candidates_by_region.items()):
-        builds = get_builds(boto3_session, region, sorted(candidates))
-        if builds is None:
+    for region, build_ids in build_ids_by_region(
+        set(candidates), project_names_by_region
+    ).items():
+        region_builds = get_builds(boto3_session, region, build_ids)
+        if region_builds is None:
             unreadable_regions.append(region)
             continue
-        rows.extend(match_images_to_builds(candidates, transform_builds(builds)))
+        builds.extend(transform_builds(region_builds))
+    rows = match_images_to_builds(candidates, builds)
 
     logger.info(
         "Matched %d ECR image(s) to CodeBuild builds in account %s.",

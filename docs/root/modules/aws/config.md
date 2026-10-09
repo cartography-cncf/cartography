@@ -99,8 +99,9 @@ the corresponding data.
 - Confirming the CodeBuild build named by an ECR image's build ID tag requires
   `codebuild:BatchGetBuilds`, which `SecurityAudit` does not grant. Without it,
   images are still linked to their source through CodeBuild labels on the image
-  or the same-named CodeBuild project, but no new build-confirmed edges are
-  created, and edges from earlier syncs are left in place. See
+  or the same-named CodeBuild project, but no build-confirmed edges are created.
+  When the build lookup is attempted and denied, build-confirmed edges from
+  earlier syncs are left in place. See
   [Build provenance from CodeBuild](container-images.md#build-provenance-from-codebuild).
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.

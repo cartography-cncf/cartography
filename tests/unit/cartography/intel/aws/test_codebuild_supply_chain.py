@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import botocore.exceptions
 
 from cartography.intel.aws import codebuild_supply_chain
+from cartography.intel.aws.codebuild_supply_chain import build_ids_by_region
 from cartography.intel.aws.codebuild_supply_chain import candidate_build_ids
 from cartography.intel.aws.codebuild_supply_chain import (
     CODEBUILD_BUILD_ID_TAG_CONFIDENCE,
@@ -28,7 +29,7 @@ def test_linkable_source():
     assert linkable_source({"type": "CODECOMMIT", "location": "https://x"}) is None
 
 
-def test_candidate_build_ids_pairs_uuid_tags_with_repository_name():
+def test_candidate_build_ids_pairs_uuid_tags_with_project_named_repository():
     ecr_images = {
         (
             "eu-west-1",
@@ -39,7 +40,7 @@ def test_candidate_build_ids_pairs_uuid_tags_with_repository_name():
         ),
         ("eu-west-1", "latest", "u2", "frontend-build", "sha256:a"),
         ("eu-west-1", None, "u3", "frontend-build", "sha256:b"),
-        # A repository name CodeBuild cannot use as a project name is never sent.
+        # No CodeBuild project shares this repository's name.
         (
             "eu-west-1",
             f"build-{FRONTEND_BUILD_UUID}",
@@ -49,8 +50,27 @@ def test_candidate_build_ids_pairs_uuid_tags_with_repository_name():
         ),
     }
 
-    assert candidate_build_ids(ecr_images) == {
-        "eu-west-1": {FRONTEND_BUILD_ID: {"sha256:a"}},
+    assert candidate_build_ids(ecr_images, {"frontend-build"}) == {
+        FRONTEND_BUILD_ID: {"sha256:a"},
+    }
+
+
+def test_build_ids_are_looked_up_where_the_project_lives():
+    routed = build_ids_by_region(
+        {FRONTEND_BUILD_ID, "backend-deploy:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c"},
+        {
+            "us-east-1": {"frontend-build"},
+            "eu-west-1": {"frontend-build", "backend-deploy"},
+            "ap-south-1": {"unrelated"},
+        },
+    )
+
+    assert routed == {
+        "eu-west-1": [
+            "backend-deploy:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c",
+            FRONTEND_BUILD_ID,
+        ],
+        "us-east-1": [FRONTEND_BUILD_ID],
     }
 
 

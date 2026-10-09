@@ -895,6 +895,7 @@ def _codebuild_project_name_statement(
                 {
                     "match_method": "codebuild_project_name",
                     "confidence": CODEBUILD_PROJECT_NAME_CONFIDENCE,
+                    "source_revision": None,
                 },
             ),
         ),

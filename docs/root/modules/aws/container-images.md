@@ -176,7 +176,8 @@ GitHub or GitLab repository with the first of these signals that applies.
 2. **A build ID tag.** A common buildspec convention tags images with the UUID
    part of `CODEBUILD_BUILD_ID` (`<project>:<uuid>`), for example
    `build-<uuid>`. The CodeBuild sync pairs that UUID with the ECR repository's
-   name, confirms the build with `BatchGetBuilds`, and creates a `PACKAGED_BY`
+   name, confirms the build with `BatchGetBuilds` in every region holding a
+   project of that name, and creates a `PACKAGED_BY`
    edge carrying the build ID, the resolved commit and the repository URL.
 
 3. **A same-named CodeBuild project.** Without a confirmed build, an image in an
@@ -199,7 +200,7 @@ The ontology stage derives the second and third rungs' `PACKAGED_FROM` edges,
 for the tagged image and, when it is a manifest list, its platform images. An
 image that already has a `PACKAGED_FROM` edge from provenance, Dockerfile
 analysis or another matcher keeps it. Builds are read on every sync and never
-stored as nodes. When some region's builds cannot be read, `PACKAGED_BY` edges
+stored as nodes. When a build lookup is attempted and fails, `PACKAGED_BY` edges
 from earlier syncs are kept. See the optional CodeBuild permission in the AWS
 configuration guide.
 
