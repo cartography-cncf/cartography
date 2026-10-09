@@ -606,6 +606,21 @@ def fetch_all_rest_api_pages(
     return results
 
 
+def parse_github_timestamp(value: str | None) -> datetime | None:
+    """
+    Parse an ISO 8601 timestamp as GitHub returns it, such as
+    ``2024-01-02T03:04:05Z``, into a timezone-aware datetime so Neo4j stores a
+    native temporal value. Returns None for a missing or unparseable value.
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        logger.debug("Could not parse GitHub timestamp %r as ISO 8601.", value)
+        return None
+
+
 # GitHub answers 403 or 404 when the credential lacks the permission or scope for
 # a resource, and 422 when a feature cannot be read, such as Copilot billing on an
 # organization with a payment problem. Callers treat these as "unavailable" and

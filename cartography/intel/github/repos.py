@@ -1134,7 +1134,7 @@ def get_repo_security_and_analysis_by_url(
     token: str,
     api_url: str,
     organization: str,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """
     Return each repository's `security_and_analysis` settings keyed by repository URL.
 
@@ -1161,9 +1161,9 @@ def get_repo_security_and_analysis_by_url(
 
 
 def _security_feature_enabled(
-    security_and_analysis: Optional[Dict[str, Any]],
+    security_and_analysis: dict[str, Any] | None,
     feature: str,
-) -> Optional[bool]:
+) -> bool | None:
     status = ((security_and_analysis or {}).get(feature) or {}).get("status")
     return {"enabled": True, "disabled": False}.get(str(status))
 

@@ -20,6 +20,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_api
 from cartography.intel.github.util import call_github_rest_api_or_none
 from cartography.intel.github.util import handle_rate_limit_sleep
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.models.github.domains import GitHubOrganizationDomainSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.util import timeit
@@ -274,8 +275,8 @@ def transform_domains(domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "is_required_for_policy_enforcement": domain.get(
                 "isRequiredForPolicyEnforcement"
             ),
-            "created_at": domain.get("createdAt"),
-            "updated_at": domain.get("updatedAt"),
+            "created_at": parse_github_timestamp(domain.get("createdAt")),
+            "updated_at": parse_github_timestamp(domain.get("updatedAt")),
         }
         for domain in domains
     ]
