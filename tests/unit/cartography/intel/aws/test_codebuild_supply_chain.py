@@ -1,9 +1,15 @@
+from unittest.mock import MagicMock
+
+import botocore.exceptions
+
+from cartography.intel.aws import codebuild_supply_chain
 from cartography.intel.aws.codebuild_supply_chain import (
     CODEBUILD_BUILD_ID_TAG_CONFIDENCE,
 )
 from cartography.intel.aws.codebuild_supply_chain import (
     CODEBUILD_TAG_REVISION_CONFIDENCE,
 )
+from cartography.intel.aws.codebuild_supply_chain import get_recent_builds
 from cartography.intel.aws.codebuild_supply_chain import match_images_to_builds
 from cartography.intel.aws.codebuild_supply_chain import projects_with_linkable_source
 from cartography.intel.aws.codebuild_supply_chain import transform_builds
@@ -169,3 +175,46 @@ def test_images_without_evidence_are_not_reevaluated():
 
     assert rows == []
     assert evidenced == set()
+
+
+def test_revision_matching_off_keeps_build_id_matches_only():
+    images = [
+        {"digest": "sha256:a", "tags": [f"build-{FRONTEND_BUILD_UUID}"]},
+        {"digest": "sha256:b", "tags": [FRONTEND_PREVIOUS_REVISION]},
+    ]
+
+    rows, evidenced = match_images_to_builds(
+        images, transform_builds(GET_BUILDS), match_revisions=False
+    )
+
+    assert [(row["image_digest"], row["match_method"]) for row in rows] == [
+        ("sha256:a", "codebuild_build_id_tag"),
+    ]
+    assert evidenced == {"sha256:a"}
+
+
+def _access_denied() -> botocore.exceptions.ClientError:
+    return botocore.exceptions.ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
+        "ListBuildsForProject",
+    )
+
+
+def test_get_recent_builds_reports_unreadable_region(mocker):
+    client = MagicMock()
+    client.list_builds_for_project.side_effect = _access_denied()
+    mocker.patch.object(
+        codebuild_supply_chain, "create_boto3_client", return_value=client
+    )
+
+    assert get_recent_builds(MagicMock(), "eu-west-1", ["frontend-build"]) is None
+
+
+def test_get_recent_builds_returns_empty_list_for_region_without_builds(mocker):
+    client = MagicMock()
+    client.list_builds_for_project.return_value = {"ids": []}
+    mocker.patch.object(
+        codebuild_supply_chain, "create_boto3_client", return_value=client
+    )
+
+    assert get_recent_builds(MagicMock(), "eu-west-1", ["frontend-build"]) == []

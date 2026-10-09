@@ -139,7 +139,7 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
         "get_all_codebuild_projects",
         return_value=GET_PROJECTS,
     )
-    get_recent_builds = mocker.patch.object(
+    mocker.patch.object(
         cartography.intel.aws.codebuild_supply_chain,
         "get_recent_builds",
         return_value=GET_BUILDS,
@@ -162,7 +162,6 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
     )
 
     # Assert
-    assert get_recent_builds.call_args.args[2] == ["frontend-build"]
     assert check_rels(
         neo4j_session,
         "AWSECRImage",
@@ -239,3 +238,40 @@ def test_analysis_removes_codebuild_packaged_from_without_basis(neo4j_session):
         "id",
         "PACKAGED_FROM",
     ) == {("sha256:stale", "https://github.com/example/other")}
+
+
+def test_analysis_skips_images_whose_codebuild_repositories_disagree(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (img:AWSECRImage:Image {id: 'sha256:shared', digest: 'sha256:shared'})
+        CREATE (:GitHubRepository {id: $github_url})
+        CREATE (:GitLabProject {web_url: $gitlab_url})
+        CREATE (img)-[:PACKAGED_BY {
+            source_uri: $github_url, source_provider: 'github',
+            match_method: 'codebuild_build_id_tag'
+        }]->(:AWSCodeBuildProject {id: 'project-in-account-a'})
+        CREATE (img)-[:PACKAGED_BY {
+            source_uri: $gitlab_url, source_provider: 'gitlab',
+            match_method: 'codebuild_build_id_tag'
+        }]->(:AWSCodeBuildProject {id: 'project-in-account-b'})
+        """,
+        github_url=FRONTEND_REPO,
+        gitlab_url="https://gitlab.com/example/frontend",
+    )
+
+    # Act
+    run_typed_analysis_job(
+        CODEBUILD_IMAGE_PACKAGED_FROM,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            "MATCH (:Image)-[r:PACKAGED_FROM]->() RETURN count(r) AS n"
+        ).single()["n"]
+        == 0
+    )

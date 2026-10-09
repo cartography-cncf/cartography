@@ -100,8 +100,9 @@ the corresponding data.
   them to their source repositories, requires `codebuild:ListBuildsForProject`
   and `codebuild:BatchGetBuilds`. `SecurityAudit` only grants
   `codebuild:ListProjects` and `codebuild:BatchGetProjects`. Without the two
-  build actions, CodeBuild projects are still ingested but images get no
-  `PACKAGED_BY` or CodeBuild-derived `PACKAGED_FROM` edges. See
+  build actions, CodeBuild projects are still ingested but no new `PACKAGED_BY`
+  or CodeBuild-derived `PACKAGED_FROM` edges are created, and edges from earlier
+  syncs are left in place. See
   [Build provenance from CodeBuild](container-images.md#build-provenance-from-codebuild).
 - Allowlisted AWS-managed public SSM parameters require
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.

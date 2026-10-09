@@ -54,12 +54,32 @@ def projects_with_linkable_source(projects: list[dict[str, Any]]) -> list[str]:
 
 
 @timeit
-@aws_handle_regions
 def get_recent_builds(
     boto3_session: boto3.Session,
     region: str,
     project_names: list[str],
     max_builds_per_project: int = MAX_BUILDS_PER_PROJECT,
+) -> list[dict[str, Any]] | None:
+    """
+    Return the region's recent builds, or None when the region could not be read.
+
+    aws_handle_regions reports a skipped region as an empty list, which a region with
+    no builds also returns, so the builds are wrapped to keep the two apart.
+    """
+    pages = _get_recent_builds(
+        boto3_session, region, project_names, max_builds_per_project
+    )
+    if not pages:
+        return None
+    return pages[0]["builds"]
+
+
+@aws_handle_regions
+def _get_recent_builds(
+    boto3_session: boto3.Session,
+    region: str,
+    project_names: list[str],
+    max_builds_per_project: int,
 ) -> list[dict[str, Any]]:
     client = create_boto3_client(
         boto3_session, "codebuild", region_name=region, config=get_botocore_config()
@@ -90,7 +110,7 @@ def get_recent_builds(
             ids=build_ids[i : i + _BATCH_GET_BUILDS_LIMIT]
         )
         builds.extend(response.get("builds", []))
-    return builds
+    return [{"builds": builds}]
 
 
 def _project_arn_from_build_arn(build_arn: str) -> str:
@@ -104,10 +124,10 @@ def transform_builds(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
         source = build.get("source") or {}
         provider = SOURCE_PROVIDERS.get(source.get("type", ""))
         location = source.get("location")
-        build_id = build.get("id")
-        build_arn = build.get("arn")
-        if not provider or not location or not build_id or not build_arn:
+        if not provider or not location:
             continue
+        build_id = build["id"]
+        build_arn = build["arn"]
         uuid_match = _UUID_RE.search(build_id.rsplit(":", 1)[-1].lower())
         revision = (build.get("resolvedSourceVersion") or "").strip().lower()
         transformed.append(
@@ -236,12 +256,17 @@ def _match_revision_tags(
 def match_images_to_builds(
     images: list[dict[str, Any]],
     builds: list[dict[str, Any]],
+    match_revisions: bool = True,
 ) -> tuple[list[dict[str, Any]], set[str]]:
     """
     Tie images to the builds that pushed them.
 
     Returns the PACKAGED_BY rows and the digests the current builds carry evidence for,
     matched or not. Only those digests are eligible for stale-edge cleanup.
+
+    match_revisions is off when some region's builds could not be read: a build ID is
+    unique on its own, but a commit can look unambiguous only because the other
+    projects that built it were not visible.
     """
     builds_by_uuid = _builds_by_uuid(builds)
     targets_by_revision = _targets_by_revision(builds)
@@ -255,7 +280,7 @@ def match_images_to_builds(
         has_build_id_evidence = any(
             uuid in builds_by_uuid for tag in tags for uuid in _UUID_RE.findall(tag)
         )
-        has_revision_evidence = any(
+        has_revision_evidence = match_revisions and any(
             _SHA_RE.match(tag) and _revision_targets_for_tag(tag, targets_by_revision)
             for tag in tags
         )
@@ -317,18 +342,30 @@ def sync(
     then derives (:Image)-[:PACKAGED_FROM]->(repository) from these edges.
     """
     builds: list[dict[str, Any]] = []
+    unreadable_regions: list[str] = []
     for region, projects in projects_by_region.items():
         project_names = projects_with_linkable_source(projects)
         if not project_names:
             continue
-        builds.extend(
-            transform_builds(get_recent_builds(boto3_session, region, project_names))
-        )
+        region_builds = get_recent_builds(boto3_session, region, project_names)
+        if region_builds is None:
+            unreadable_regions.append(region)
+            continue
+        builds.extend(transform_builds(region_builds))
     if not builds:
         return
+    if unreadable_regions:
+        logger.warning(
+            "CodeBuild builds could not be read in %s for account %s; matching images "
+            "by build ID only.",
+            ", ".join(unreadable_regions),
+            current_aws_account_id,
+        )
 
     images = get_account_ecr_images(neo4j_session, current_aws_account_id)
-    rows, evidenced = match_images_to_builds(images, builds)
+    rows, evidenced = match_images_to_builds(
+        images, builds, match_revisions=not unreadable_regions
+    )
     logger.info(
         "Matched %d ECR image(s) to CodeBuild builds in account %s.",
         len(rows),

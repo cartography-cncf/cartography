@@ -180,7 +180,9 @@ Dockerfile analysis or another matcher.
 
 Builds are read on every sync and never stored as nodes. An image whose build
 is older than the most recent 50 builds of its project keeps the edge from an
-earlier sync. See the optional CodeBuild permissions in the AWS configuration
+earlier sync. When the builds of some region cannot be read, only the build ID
+rung runs, because a commit can look unique only while the other projects that
+built it are out of view. See the optional CodeBuild permissions in the AWS configuration
 guide.
 
 ### Lambda container images
