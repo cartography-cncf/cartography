@@ -153,6 +153,38 @@ LIMIT 1
 Layer-prefix inference is a heuristic. Restrict the candidate repository and
 prefer explicit provenance when available.
 
+### Build provenance from CodeBuild
+
+Images pushed by a CodeBuild build without provenance attestations can still
+be traced to their source. The CodeBuild sync reads the most recent builds of
+every project whose source is GitHub, GitHub Enterprise, GitLab or GitLab
+self-managed, and matches them against the tags of the account's ECR images:
+
+| match_method | Signal | Confidence |
+|--------------|--------|------------|
+| `codebuild_build_id_tag` | A tag contains the UUID part of a build ID (`<project>:<uuid>`), for example `build-<uuid>`. | high (`0.9`) |
+| `codebuild_tag_revision` | A tag equals, or is a 7+ character prefix of, the commit a build resolved (`resolvedSourceVersion`), and every build of that commit belongs to one project. | medium (`0.5`) |
+
+A match creates a `PACKAGED_BY` edge to the project. It carries the build ID,
+the resolved commit and the normalized repository URL, and the platform images
+of a matched manifest list receive the same edge. The ontology stage then
+derives `PACKAGED_FROM` to the `GitHubRepository` or `GitLabProject` with that
+URL, unless the image already has a `PACKAGED_FROM` edge from provenance,
+Dockerfile analysis or another matcher.
+
+```cypher
+(:AWSECRImage)-[:PACKAGED_BY]->(:AWSCodeBuildProject)
+(:Image)-[:PACKAGED_FROM]->(:GitHubRepository)
+(:Image)-[:PACKAGED_FROM]->(:GitLabProject)
+```
+
+Builds are read on every sync and never stored as nodes. An image whose build
+is older than the most recent 50 builds of its project keeps the edge from an
+earlier sync. When the builds of some region cannot be read, only the build ID
+rung runs, because a commit can look unique only while the other projects that
+built it are out of view. See the optional CodeBuild permissions in the AWS configuration
+guide.
+
 ### Lambda container images
 
 For Lambda functions with `packagetype="Image"`, `image_uri` stores the
