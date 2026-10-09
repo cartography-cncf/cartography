@@ -14,7 +14,8 @@ TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 def _seed_organization(neo4j_session):
     """The GitHubOrganization node is written by the organization settings sync."""
     neo4j_session.run(
-        "MERGE (:GitHubOrganization {id: $url, username: $login})",
+        "MERGE (org:GitHubOrganization {id: $url}) "
+        "SET org.username = coalesce(org.username, $login)",
         url=GITHUB_ORG_DATA["url"],
         login=GITHUB_ORG_DATA["login"],
     )
