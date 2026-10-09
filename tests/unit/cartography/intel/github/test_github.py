@@ -23,6 +23,7 @@ from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import github_org_url
 from cartography.intel.github.util import handle_rate_limit_sleep
 from cartography.intel.github.util import is_github_dotcom_api_url
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import sleep_with_jitter
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
@@ -844,3 +845,27 @@ def test_retry_jitter_never_shortens_provider_wait(mock_sleep, mock_random, dela
         mock_sleep.assert_not_called()
     else:
         mock_sleep.assert_called_once_with(delay * 1.125)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["2024-01-02T03:04:05Z", "2024-01-02T03:04:05z", "2024-01-01T20:04:05.000-07:00"],
+)
+def test_parse_github_timestamp_accepts_rfc3339(value):
+    # Act
+    parsed = parse_github_timestamp(value)
+
+    # Assert - every form GitHub sends resolves to the same aware instant.
+    assert parsed == datetime(2024, 1, 2, 3, 4, 5, tzinfo=tz.utc)
+
+
+def test_parse_github_timestamp_missing_is_none_but_malformed_raises():
+    # Act and assert - absence is unknown; a format change must not look like absence.
+    assert parse_github_timestamp(None) is None
+    assert parse_github_timestamp("") is None
+    with pytest.raises(ValueError):
+        parse_github_timestamp("yesterday")
+    with pytest.raises(ValueError):
+        parse_github_timestamp("2024-01-02T03:04:05")  # no UTC offset
+    with pytest.raises(TypeError):
+        parse_github_timestamp(0)
