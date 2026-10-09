@@ -65,6 +65,7 @@ def transform_codebuild_projects(
             f"{var.get('name')}={var.get('value') if var.get('type') == 'PLAINTEXT' else '<REDACTED>'}"
             for var in env_vars
         ]
+        source = codebuild_supply_chain.linkable_source(project.get("source", {}))
         transformed_project = {
             "arn": project["arn"],
             "name": project.get("name"),
@@ -72,6 +73,8 @@ def transform_codebuild_projects(
             "environmentVariables": env_var_strings,
             "sourceType": project.get("source", {}).get("type"),
             "sourceLocation": project.get("source", {}).get("location"),
+            "sourceProvider": source[0] if source else None,
+            "sourceRepoUrl": source[1] if source else None,
         }
         transformed_codebuild_projects.append(transformed_project)
 
@@ -132,14 +135,14 @@ def sync(
             region,
         )
 
-    projects_by_region: Dict[str, List[Dict[str, Any]]] = {}
+    project_names_by_region: Dict[str, set[str]] = {}
     for region in codebuild_regions:
         logger.info(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )
 
         projects = get_all_codebuild_projects(boto3_session, region)
-        projects_by_region[region] = projects
+        project_names_by_region[region] = {project["name"] for project in projects}
         transformed_projects = transform_codebuild_projects(projects, region)
 
         load_codebuild_projects(
@@ -155,7 +158,7 @@ def sync(
     codebuild_supply_chain.sync(
         neo4j_session,
         boto3_session,
-        projects_by_region,
+        project_names_by_region,
         current_aws_account_id,
         update_tag,
     )

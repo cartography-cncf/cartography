@@ -6,6 +6,7 @@ from cartography.analysis.ontology.analysis import CODEBUILD_IMAGE_PACKAGED_FROM
 from cartography.intel.aws.codebuild import sync
 from cartography.util import run_typed_analysis_job
 from tests.data.aws.codebuild import FRONTEND_BUILD_UUID
+from tests.data.aws.codebuild import FRONTEND_PREVIOUS_BUILD_UUID
 from tests.data.aws.codebuild import FRONTEND_PREVIOUS_REVISION
 from tests.data.aws.codebuild import FRONTEND_REVISION
 from tests.data.aws.codebuild import GET_BUILDS
@@ -32,7 +33,7 @@ def test_sync_cloudwatch(mocker, neo4j_session):
     )
     mocker.patch.object(
         cartography.intel.aws.codebuild_supply_chain,
-        "get_recent_builds",
+        "get_builds",
         return_value=[],
     )
 
@@ -81,8 +82,8 @@ def _create_ecr_images(neo4j_session):
     neo4j_session.run(
         """
         MATCH (account:AWSAccount {id: $account_id})
-        MERGE (account)-[:RESOURCE]->(repo:AWSECRRepository {id: 'frontend-repo'})
-        SET repo.region = $region
+        MERGE (account)-[:RESOURCE]->(repo:AWSECRRepository {id: 'frontend-build-repo'})
+        SET repo.name = 'frontend-build', repo.region = $region
         WITH repo
         UNWIND $images AS image
         MERGE (img:AWSECRImage:Image {id: image.digest})
@@ -100,20 +101,26 @@ def _create_ecr_images(neo4j_session):
                 "tag": f"build-{FRONTEND_BUILD_UUID}",
             },
             {
-                "digest": "sha256:revision-tagged",
-                "uri": "frontend:revision",
-                "tag": FRONTEND_PREVIOUS_REVISION[:7],
+                "digest": "sha256:previous-build",
+                "uri": "frontend:previous",
+                "tag": f"build-{FRONTEND_PREVIOUS_BUILD_UUID}",
             },
             {
                 "digest": "sha256:provenance-matched",
                 "uri": "frontend:latest",
-                "tag": FRONTEND_REVISION,
+                "tag": "latest",
             },
             {"digest": "sha256:untraced", "uri": "frontend:dev", "tag": "dev"},
         ],
     )
     neo4j_session.run(
         """
+        MATCH (list:AWSECRImage {id: 'sha256:build-id-tagged'})
+        REMOVE list:Image
+        SET list:ImageManifestList, list.type = 'manifest_list'
+        MERGE (list)-[:CONTAINS_IMAGE]->(:AWSECRImage:Image {
+            id: 'sha256:build-id-amd64', digest: 'sha256:build-id-amd64', type: 'image'
+        })
         MERGE (repo:GitHubRepository {id: $repo_url})
         MERGE (other:GitHubRepository {id: 'https://github.com/example/other'})
         WITH other
@@ -141,7 +148,7 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
     )
     mocker.patch.object(
         cartography.intel.aws.codebuild_supply_chain,
-        "get_recent_builds",
+        "get_builds",
         return_value=GET_BUILDS,
     )
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
@@ -171,8 +178,7 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
         "PACKAGED_BY",
     ) == {
         ("sha256:build-id-tagged", FRONTEND_PROJECT_ARN),
-        ("sha256:revision-tagged", FRONTEND_PROJECT_ARN),
-        ("sha256:provenance-matched", FRONTEND_PROJECT_ARN),
+        ("sha256:previous-build", FRONTEND_PROJECT_ARN),
     }
     packaged_from = neo4j_session.run(
         """
@@ -182,18 +188,22 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
         """
     ).data()
     assert {tuple(row.values()) for row in packaged_from} == {
+        # The tag points at a manifest list, which is not an Image; its platform
+        # image inherits the match.
         (
-            "sha256:build-id-tagged",
+            "sha256:build-id-amd64",
             FRONTEND_REPO,
             "codebuild_build_id_tag",
             FRONTEND_REVISION,
         ),
         (
-            "sha256:revision-tagged",
+            "sha256:previous-build",
             FRONTEND_REPO,
-            "codebuild_tag_revision",
+            "codebuild_build_id_tag",
             FRONTEND_PREVIOUS_REVISION,
         ),
+        # No build ID tag: the same-named project supplies the repository.
+        ("sha256:untraced", FRONTEND_REPO, "codebuild_project_name", None),
         # A stronger matcher already claimed this image, so CodeBuild does not add a second repo.
         (
             "sha256:provenance-matched",
@@ -274,4 +284,49 @@ def test_analysis_skips_images_whose_codebuild_repositories_disagree(neo4j_sessi
             "MATCH (:Image)-[r:PACKAGED_FROM]->() RETURN count(r) AS n"
         ).single()["n"]
         == 0
+    )
+
+
+def test_project_name_fallback_clears_build_revision(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run(
+        """
+        CREATE (account:AWSAccount {id: $account_id})
+        CREATE (account)-[:RESOURCE]->(:AWSCodeBuildProject {
+            id: 'frontend-project', name: 'frontend-build', region: $region,
+            source_provider: 'github', source_repo_url: $repo_url
+        })
+        CREATE (account)-[:RESOURCE]->(:AWSECRRepository {
+            id: 'frontend-repo', name: 'frontend-build', region: $region
+        })-[:REPO_IMAGE]->(:AWSECRRepositoryImage {id: 'frontend:dev', tag: 'dev'})
+          -[:IMAGE]->(img:AWSECRImage:Image {id: 'sha256:a', digest: 'sha256:a'})
+        CREATE (img)-[:PACKAGED_FROM {
+            match_method: 'codebuild_build_id_tag', source_revision: $revision,
+            lastupdated: $stale_tag
+        }]->(:GitHubRepository {id: $repo_url})
+        """,
+        account_id=TEST_ACCOUNT_ID,
+        region=TEST_REGION,
+        repo_url=FRONTEND_REPO,
+        revision=FRONTEND_REVISION,
+        stale_tag=TEST_UPDATE_TAG - 1,
+    )
+
+    # Act
+    run_typed_analysis_job(
+        CODEBUILD_IMAGE_PACKAGED_FROM,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert (
+        neo4j_session.run(
+            """
+        MATCH (:Image {digest: 'sha256:a'})-[r:PACKAGED_FROM]->(:GitHubRepository)
+        RETURN r.match_method AS method, r.source_revision AS revision
+        """
+        ).data()
+        == [{"method": "codebuild_project_name", "revision": None}]
     )

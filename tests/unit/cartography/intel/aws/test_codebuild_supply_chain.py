@@ -3,45 +3,80 @@ from unittest.mock import MagicMock
 import botocore.exceptions
 
 from cartography.intel.aws import codebuild_supply_chain
+from cartography.intel.aws.codebuild_supply_chain import build_ids_by_region
+from cartography.intel.aws.codebuild_supply_chain import candidate_build_ids
 from cartography.intel.aws.codebuild_supply_chain import (
     CODEBUILD_BUILD_ID_TAG_CONFIDENCE,
 )
-from cartography.intel.aws.codebuild_supply_chain import (
-    CODEBUILD_TAG_REVISION_CONFIDENCE,
-)
-from cartography.intel.aws.codebuild_supply_chain import get_recent_builds
+from cartography.intel.aws.codebuild_supply_chain import get_builds
+from cartography.intel.aws.codebuild_supply_chain import linkable_source
 from cartography.intel.aws.codebuild_supply_chain import match_images_to_builds
-from cartography.intel.aws.codebuild_supply_chain import projects_with_linkable_source
 from cartography.intel.aws.codebuild_supply_chain import transform_builds
 from tests.data.aws.codebuild import FRONTEND_BUILD_UUID
-from tests.data.aws.codebuild import FRONTEND_PREVIOUS_REVISION
+from tests.data.aws.codebuild import FRONTEND_PREVIOUS_BUILD_UUID
 from tests.data.aws.codebuild import FRONTEND_REVISION
 from tests.data.aws.codebuild import GET_BUILDS
-from tests.data.aws.codebuild import GET_PROJECTS
 
 FRONTEND_PROJECT_ARN = "arn:aws:codebuild:eu-west-1:123456789012:project/frontend-build"
 FRONTEND_REPO = "https://github.com/example/frontend"
+FRONTEND_BUILD_ID = f"frontend-build:{FRONTEND_BUILD_UUID}"
 
 
-def _build(project: str, uuid: str, revision: str, location: str) -> dict:
-    return {
-        "id": f"{project}:{uuid}",
-        "arn": f"arn:aws:codebuild:eu-west-1:123456789012:build/{project}:{uuid}",
-        "resolvedSourceVersion": revision,
-        "source": {"type": "GITHUB", "location": location},
+def test_linkable_source():
+    assert linkable_source(
+        {"type": "GITHUB", "location": "https://github.com/example/frontend.git"}
+    ) == ("github", FRONTEND_REPO)
+    assert linkable_source({"type": "CODECOMMIT", "location": "https://x"}) is None
+
+
+def test_candidate_build_ids_pairs_uuid_tags_with_project_named_repository():
+    ecr_images = {
+        (
+            "eu-west-1",
+            f"build-{FRONTEND_BUILD_UUID}",
+            "u1",
+            "frontend-build",
+            "sha256:a",
+        ),
+        ("eu-west-1", "latest", "u2", "frontend-build", "sha256:a"),
+        ("eu-west-1", None, "u3", "frontend-build", "sha256:b"),
+        # No CodeBuild project shares this repository's name.
+        (
+            "eu-west-1",
+            f"build-{FRONTEND_BUILD_UUID}",
+            "u4",
+            "team/frontend",
+            "sha256:c",
+        ),
+    }
+
+    assert candidate_build_ids(ecr_images, {"frontend-build"}) == {
+        FRONTEND_BUILD_ID: {"sha256:a"},
     }
 
 
-def test_projects_with_linkable_source_skips_codecommit():
-    assert projects_with_linkable_source(GET_PROJECTS) == ["frontend-build"]
+def test_build_ids_are_looked_up_where_the_project_lives():
+    routed = build_ids_by_region(
+        {FRONTEND_BUILD_ID, "backend-deploy:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c"},
+        {
+            "us-east-1": {"frontend-build"},
+            "eu-west-1": {"frontend-build", "backend-deploy"},
+            "ap-south-1": {"unrelated"},
+        },
+    )
+
+    assert routed == {
+        "eu-west-1": [
+            "backend-deploy:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c",
+            FRONTEND_BUILD_ID,
+        ],
+        "us-east-1": [FRONTEND_BUILD_ID],
+    }
 
 
 def test_transform_builds():
-    builds = transform_builds(GET_BUILDS)
-
-    assert builds[0] == {
-        "build_id": f"frontend-build:{FRONTEND_BUILD_UUID}",
-        "build_uuid": FRONTEND_BUILD_UUID,
+    assert transform_builds(GET_BUILDS)[0] == {
+        "build_id": FRONTEND_BUILD_ID,
         "project_arn": FRONTEND_PROJECT_ARN,
         "source_revision": FRONTEND_REVISION,
         "source_uri": FRONTEND_REPO,
@@ -57,12 +92,7 @@ def test_transform_builds_skips_unlinkable_sources_and_non_sha_revisions():
                 "arn": "arn:aws:codebuild:eu-west-1:123456789012:build/backend-deploy:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c",
                 "source": {"type": "CODECOMMIT", "location": "https://example"},
             },
-            _build(
-                "frontend-build",
-                FRONTEND_BUILD_UUID,
-                "refs/heads/main",
-                "https://github.com/example/frontend.git",
-            ),
+            {**GET_BUILDS[0], "resolvedSourceVersion": "refs/heads/main"},
         ]
     )
 
@@ -70,151 +100,69 @@ def test_transform_builds_skips_unlinkable_sources_and_non_sha_revisions():
     assert builds[0]["source_revision"] is None
 
 
-def test_build_id_tag_matches_manifest_list_and_children():
-    images = [
-        {
-            "digest": "sha256:list",
-            "tags": [f"build-{FRONTEND_BUILD_UUID}", "latest"],
-            "child_digests": ["sha256:amd64", "sha256:arm64"],
-        },
-    ]
-
-    rows, evidenced = match_images_to_builds(images, transform_builds(GET_BUILDS))
-
-    assert {row["image_digest"] for row in rows} == {
-        "sha256:list",
-        "sha256:amd64",
-        "sha256:arm64",
-    }
-    assert rows[0] == {
-        "image_digest": "sha256:list",
-        "project_arn": FRONTEND_PROJECT_ARN,
-        "build_id": f"frontend-build:{FRONTEND_BUILD_UUID}",
-        "source_revision": FRONTEND_REVISION,
-        "source_uri": FRONTEND_REPO,
-        "source_provider": "github",
-        "match_method": "codebuild_build_id_tag",
-        "confidence": CODEBUILD_BUILD_ID_TAG_CONFIDENCE,
-    }
-    assert evidenced == {"sha256:list", "sha256:amd64", "sha256:arm64"}
-
-
-def test_short_sha_tag_matches_revision():
-    images = [{"digest": "sha256:a", "tags": [FRONTEND_PREVIOUS_REVISION[:7]]}]
-
-    rows, _ = match_images_to_builds(images, transform_builds(GET_BUILDS))
+def test_match_images_to_builds():
+    rows = match_images_to_builds(
+        {FRONTEND_BUILD_ID: {"sha256:a"}}, transform_builds(GET_BUILDS)
+    )
 
     assert rows == [
         {
             "image_digest": "sha256:a",
+            "build_id": FRONTEND_BUILD_ID,
             "project_arn": FRONTEND_PROJECT_ARN,
-            "build_id": None,
-            "source_revision": FRONTEND_PREVIOUS_REVISION,
+            "source_revision": FRONTEND_REVISION,
             "source_uri": FRONTEND_REPO,
             "source_provider": "github",
-            "match_method": "codebuild_tag_revision",
-            "confidence": CODEBUILD_TAG_REVISION_CONFIDENCE,
+            "match_method": "codebuild_build_id_tag",
+            "confidence": CODEBUILD_BUILD_ID_TAG_CONFIDENCE,
         }
     ]
 
 
-def test_revision_built_by_two_projects_is_ambiguous():
-    builds = transform_builds(
-        [
-            *GET_BUILDS,
-            _build(
-                "frontend-build-staging",
-                "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
-                FRONTEND_REVISION,
-                "https://github.com/example/frontend.git",
-            ),
-        ]
-    )
-    images = [{"digest": "sha256:a", "tags": [FRONTEND_REVISION]}]
+def test_image_tagged_with_two_builds_is_ambiguous():
+    candidates = {
+        FRONTEND_BUILD_ID: {"sha256:a"},
+        f"frontend-build:{FRONTEND_PREVIOUS_BUILD_UUID}": {"sha256:a"},
+    }
 
-    rows, evidenced = match_images_to_builds(images, builds)
-
-    assert rows == []
-    assert evidenced == {"sha256:a"}
+    assert match_images_to_builds(candidates, transform_builds(GET_BUILDS)) == []
 
 
-def test_tags_naming_two_builds_are_ambiguous():
-    images = [
-        {
-            "digest": "sha256:a",
-            "tags": [
-                f"build-{FRONTEND_BUILD_UUID}",
-                f"build-{GET_BUILDS[1]['id'].split(':')[1]}",
-            ],
-        }
-    ]
+def test_image_with_an_unread_candidate_build_is_not_confirmed():
+    other_build_id = "frontend-build:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c"
+    candidates = {
+        FRONTEND_BUILD_ID: {"sha256:a", "sha256:b"},
+        other_build_id: {"sha256:a"},
+    }
 
-    rows, evidenced = match_images_to_builds(images, transform_builds(GET_BUILDS))
-
-    assert rows == []
-    assert evidenced == {"sha256:a"}
-
-
-def test_unknown_build_id_falls_through_to_revision():
-    images = [
-        {
-            "digest": "sha256:a",
-            "tags": ["build-11111111-2222-4333-8444-555555555555", FRONTEND_REVISION],
-        }
-    ]
-
-    rows, _ = match_images_to_builds(images, transform_builds(GET_BUILDS))
-
-    assert [row["match_method"] for row in rows] == ["codebuild_tag_revision"]
-
-
-def test_images_without_evidence_are_not_reevaluated():
-    images = [{"digest": "sha256:a", "tags": ["latest", "deadbeefcafe"]}]
-
-    rows, evidenced = match_images_to_builds(images, transform_builds(GET_BUILDS))
-
-    assert rows == []
-    assert evidenced == set()
-
-
-def test_revision_matching_off_keeps_build_id_matches_only():
-    images = [
-        {"digest": "sha256:a", "tags": [f"build-{FRONTEND_BUILD_UUID}"]},
-        {"digest": "sha256:b", "tags": [FRONTEND_PREVIOUS_REVISION]},
-    ]
-
-    rows, evidenced = match_images_to_builds(
-        images, transform_builds(GET_BUILDS), match_revisions=False
+    rows = match_images_to_builds(
+        candidates, transform_builds(GET_BUILDS), {other_build_id}
     )
 
-    assert [(row["image_digest"], row["match_method"]) for row in rows] == [
-        ("sha256:a", "codebuild_build_id_tag"),
-    ]
-    assert evidenced == {"sha256:a"}
+    assert [row["image_digest"] for row in rows] == ["sha256:b"]
 
 
-def _access_denied() -> botocore.exceptions.ClientError:
-    return botocore.exceptions.ClientError(
+def test_get_builds_reports_unreadable_region(mocker):
+    client = MagicMock()
+    client.batch_get_builds.side_effect = botocore.exceptions.ClientError(
         {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
-        "ListBuildsForProject",
+        "BatchGetBuilds",
     )
-
-
-def test_get_recent_builds_reports_unreadable_region(mocker):
-    client = MagicMock()
-    client.list_builds_for_project.side_effect = _access_denied()
     mocker.patch.object(
         codebuild_supply_chain, "create_boto3_client", return_value=client
     )
 
-    assert get_recent_builds(MagicMock(), "eu-west-1", ["frontend-build"]) is None
+    assert get_builds(MagicMock(), "eu-west-1", [FRONTEND_BUILD_ID]) is None
 
 
-def test_get_recent_builds_returns_empty_list_for_region_without_builds(mocker):
+def test_get_builds_returns_empty_list_when_no_build_is_found(mocker):
     client = MagicMock()
-    client.list_builds_for_project.return_value = {"ids": []}
+    client.batch_get_builds.return_value = {
+        "builds": [],
+        "buildsNotFound": [FRONTEND_BUILD_ID],
+    }
     mocker.patch.object(
         codebuild_supply_chain, "create_boto3_client", return_value=client
     )
 
-    assert get_recent_builds(MagicMock(), "eu-west-1", ["frontend-build"]) == []
+    assert get_builds(MagicMock(), "eu-west-1", [FRONTEND_BUILD_ID]) == []

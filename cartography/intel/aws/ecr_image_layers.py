@@ -123,6 +123,10 @@ MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
 CIRCLECI_LABEL_SOURCE_URI = "CIRCLE_REPOSITORY_URL"
 CIRCLECI_LABEL_SOURCE_REVISION = "CIRCLE_SHA1"
 CIRCLECI_LABEL_SOURCE_FILE = "DOCKERFILE"
+# CodeBuild exposes these to every build but never writes them onto the image; a
+# buildspec can pass them through, e.g. --label CODEBUILD_SOURCE_REPO_URL=...
+CODEBUILD_LABEL_SOURCE_URI = "CODEBUILD_SOURCE_REPO_URL"
+CODEBUILD_LABEL_SOURCE_REVISION = "CODEBUILD_RESOLVED_SOURCE_VERSION"
 ATTESTATION_PROVENANCE_FIELD = "_from_attestation"
 
 
@@ -149,7 +153,7 @@ def _get_label_value(labels: dict[str, Any], label_name: str) -> str | None:
 
     if len(matching_nonempty_keys) > 1:
         logger.warning(
-            "Skipping ambiguous CircleCI image label %s because multiple label keys matched by suffix: %s",
+            "Skipping ambiguous CI image label %s because multiple label keys matched by suffix: %s",
             label_name,
             ", ".join(matching_nonempty_keys),
         )
@@ -174,26 +178,48 @@ def _normalize_git_repository_url(url: str) -> str:
     return url.rstrip("/")
 
 
-def _extract_circleci_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
-    labels = _get_config_labels(config_json)
-    if not labels:
-        return {}
-
+def _extract_label_provenance(
+    labels: dict[str, Any],
+    source_uri_label: str,
+    source_revision_label: str,
+) -> dict[str, str]:
     provenance: dict[str, str] = {}
-    source_uri = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_URI)
+    source_uri = _get_label_value(labels, source_uri_label)
     if source_uri:
         provenance["source_uri"] = _normalize_git_repository_url(source_uri)
 
-    source_revision = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_REVISION)
+    source_revision = _get_label_value(labels, source_revision_label)
     if source_revision:
         provenance["source_revision"] = source_revision
 
-    if source_uri or source_revision:
+    if provenance:
         source_file = _get_label_value(labels, CIRCLECI_LABEL_SOURCE_FILE)
         if source_file:
             provenance["source_file"] = source_file
 
     return provenance
+
+
+def _extract_circleci_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
+    return _extract_label_provenance(
+        _get_config_labels(config_json),
+        CIRCLECI_LABEL_SOURCE_URI,
+        CIRCLECI_LABEL_SOURCE_REVISION,
+    )
+
+
+def _extract_codebuild_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
+    return _extract_label_provenance(
+        _get_config_labels(config_json),
+        CODEBUILD_LABEL_SOURCE_URI,
+        CODEBUILD_LABEL_SOURCE_REVISION,
+    )
+
+
+def _extract_ci_label_provenance(config_json: dict[str, Any]) -> dict[str, str]:
+    return _extract_circleci_label_provenance(
+        config_json
+    ) or _extract_codebuild_label_provenance(config_json)
 
 
 def _mark_attestation_provenance(provenance: dict[str, Any]) -> dict[str, Any]:
@@ -572,7 +598,7 @@ async def _diff_ids_for_manifest(
     if not cfg_json:
         return {}, {}, {}
 
-    label_provenance = _extract_circleci_label_provenance(cfg_json)
+    label_provenance = _extract_ci_label_provenance(cfg_json)
 
     # Docker API uses inconsistent casing - check for known variations
     rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}

@@ -27,7 +27,7 @@ class ECRImagePackagedByCodeBuildProjectMatchLinkProperties(CartographyRelProper
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     match_method: PropertyRef = PropertyRef(
         "match_method",
-        description="How the image was tied to the build: `codebuild_build_id_tag` or `codebuild_tag_revision`.",
+        description="How the image was tied to the build: `codebuild_build_id_tag`.",
     )
     confidence: PropertyRef = PropertyRef(
         "confidence",
@@ -35,7 +35,7 @@ class ECRImagePackagedByCodeBuildProjectMatchLinkProperties(CartographyRelProper
     )
     build_id: PropertyRef = PropertyRef(
         "build_id",
-        description="ID of the CodeBuild build that pushed the image, when a single build is identified.",
+        description="ID of the CodeBuild build that pushed the image.",
     )
     source_revision: PropertyRef = PropertyRef(
         "source_revision",
@@ -56,9 +56,8 @@ class ECRImagePackagedByCodeBuildProjectMatchLink(CartographyRelSchema):
     """
     Links an ECR image to the CodeBuild project whose build pushed it.
 
-    Derived from the project's recent builds: an image tag that carries a build ID, or
-    that equals the commit a build resolved, identifies the build. Platform images in a
-    manifest list share the match of the tagged manifest list.
+    Derived from an image tag that carries the UUID of a build ID, confirmed against
+    the CodeBuild project that shares the ECR repository's name.
     """
 
     target_node_label: str = "AWSCodeBuildProject"
