@@ -456,8 +456,10 @@ def sync(
     accounts: dict[str, str],
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    account_partitions: dict[str, str],
+    account_partitions: dict[str, str] | None = None,
 ) -> None:
+    if account_partitions is None:
+        account_partitions = {account_id: "aws" for account_id in accounts.values()}
     load_aws_accounts(
         neo4j_session,
         accounts,

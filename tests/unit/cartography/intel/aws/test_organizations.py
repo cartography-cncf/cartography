@@ -12,6 +12,57 @@ from tests.data.aws.organizations import TEST_ORGANIZATION_ROOTS
 from tests.data.aws.organizations import TEST_ORGANIZATIONAL_UNITS
 
 
+def test_sync_defaults_account_partitions_for_legacy_callers():
+    # Arrange
+    session = mock.Mock()
+    accounts = {"first": "111111111111", "second": "222222222222"}
+    parameters = {"UPDATE_TAG": 123}
+    with mock.patch.object(
+        cartography.intel.aws.organizations,
+        "load_aws_accounts",
+    ) as load_accounts:
+        # Act
+        cartography.intel.aws.organizations.sync(session, accounts, 123, parameters)
+
+        # Assert
+        load_accounts.assert_called_once_with(
+            session,
+            accounts,
+            123,
+            parameters,
+            {"111111111111": "aws", "222222222222": "aws"},
+        )
+
+
+def test_sync_preserves_explicit_account_partitions():
+    # Arrange
+    session = mock.Mock()
+    accounts = {"govcloud": "111111111111"}
+    parameters = {"UPDATE_TAG": 123}
+    partitions = {"111111111111": "aws-us-gov"}
+    with mock.patch.object(
+        cartography.intel.aws.organizations,
+        "load_aws_accounts",
+    ) as load_accounts:
+        # Act
+        cartography.intel.aws.organizations.sync(
+            session,
+            accounts,
+            123,
+            parameters,
+            partitions,
+        )
+
+        # Assert
+        load_accounts.assert_called_once_with(
+            session,
+            accounts,
+            123,
+            parameters,
+            partitions,
+        )
+
+
 def test_transform_aws_organization_keeps_expected_describe_organization_shape():
     # Act
     result = cartography.intel.aws.organizations.transform_aws_organization(
