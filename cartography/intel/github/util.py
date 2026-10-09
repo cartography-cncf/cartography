@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import requests
+from dateutil.parser import isoparse
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
@@ -608,17 +609,14 @@ def fetch_all_rest_api_pages(
 
 def parse_github_timestamp(value: str | None) -> datetime | None:
     """
-    Parse an ISO 8601 timestamp as GitHub returns it, such as
+    Parse an RFC 3339 timestamp as GitHub returns it, such as
     ``2024-01-02T03:04:05Z``, into a timezone-aware datetime so Neo4j stores a
-    native temporal value. Returns None for a missing or unparseable value.
+    native temporal value. A missing value is None; a malformed one raises, so
+    a change in GitHub's format is never mistaken for an absent field.
     """
     if not value:
         return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        logger.debug("Could not parse GitHub timestamp %r as ISO 8601.", value)
-        return None
+    return isoparse(value)
 
 
 # GitHub answers 403 or 404 when the credential lacks the permission or scope for
