@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.github.repos
+import cartography.intel.github.util
 from cartography.intel.github.repos import _build_branch_data
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _fetch_manifest_page

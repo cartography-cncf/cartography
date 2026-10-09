@@ -254,6 +254,21 @@ from cartography.rules.data.rules.device_security_posture_gaps import (
 )
 from cartography.rules.data.rules.device_security_posture_gaps import device_update_gaps
 from cartography.rules.data.rules.eol_software import eol_software
+from cartography.rules.data.rules.github_security_configuration import (
+    github_actions_permissive_policy,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_app_sensitive_permissions,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_organization_security_settings,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_secret_scanning_disabled,
+)
+from cartography.rules.data.rules.github_security_configuration import (
+    github_webhook_insecure_delivery,
+)
 from cartography.rules.data.rules.guardduty_active_threat import guardduty_active_threat
 from cartography.rules.data.rules.iam_role_external_account_trust import (
     iam_role_external_account_trust,
@@ -369,6 +384,12 @@ from cartography.rules.data.rules.zoom_security_review import zoom_security_revi
 # Rule registry - all available rules
 RULES = {
     zoom_security_review.id: zoom_security_review,
+    # GitHub Rules
+    github_secret_scanning_disabled.id: github_secret_scanning_disabled,
+    github_organization_security_settings.id: github_organization_security_settings,
+    github_actions_permissive_policy.id: github_actions_permissive_policy,
+    github_app_sensitive_permissions.id: github_app_sensitive_permissions,
+    github_webhook_insecure_delivery.id: github_webhook_insecure_delivery,
     # Databricks Rules
     databricks_pat_never_expires.id: databricks_pat_never_expires,
     databricks_ip_access_list_allows_all.id: databricks_ip_access_list_allows_all,

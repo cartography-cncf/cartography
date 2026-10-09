@@ -91,11 +91,61 @@ data while continuing ingestion.
 | Fine-grained PAT inventory | GitHub App with organization **Personal access tokens: Read**; PAT authentication is not supported | Not available |
 | Classic PAT inventory | Not available | SAML SSO credential authorizations on SAML-enabled organizations, organization owner access, and `read:org` |
 | Two-factor authentication status | Organization owner access | Organization owner access |
+| Organization settings: base repository permission, repository creation and forking restrictions, 2FA requirement, and legacy security defaults for new repositories | Organization owner access | Organization owner access and `admin:org` |
+| Verified and approved domains, IP allow list status, and email notification restriction | Organization owner access with organization **Administration: Read** | Organization owner access and `admin:org` |
+| Actions policy: enabled repositories, allowed actions, SHA pinning, and default `GITHUB_TOKEN` permissions | Organization **Administration: Read** | `admin:org` |
+| Copilot policy and seat count | Organization owner access with organization **GitHub Copilot Business: Read** or **Administration: Read** | Organization owner access and `manage_billing:copilot` or `read:org` |
+| Repository secret scanning, push protection, Advanced Security, and Dependabot security updates status | Repository **Administration: Read**, with repository administrator, organization owner, or security manager access | `repo`, with repository administrator, organization owner, or security manager access |
+| Installed GitHub Apps and their permissions | Organization owner access with organization **Administration: Read** | Organization owner access and `read:org` |
+| Organization webhooks | Organization owner access with organization **Webhooks: Read** | Organization owner access and `admin:org_hook` |
+| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `read:repo_hook`, with repository administrator access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
 | SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
 GitHub exposes secret metadata, such as names and timestamps, but never secret
 values.
+
+### Organization and repository security settings
+
+GitHub only returns most organization settings to organization owners, and
+repository `security_and_analysis` settings to repository administrators,
+organization owners, and security managers. When GitHub does not return a
+setting, Cartography leaves the property null, so null means unknown rather than
+disabled. Each source is fetched independently: a missing permission for one,
+such as Copilot, does not affect the others. Other request failures, such as
+server errors or timeouts, stop the GitHub sync for that organization instead of
+overwriting known settings with null. Domains are only removed from the
+graph after a complete domain list is fetched.
+
+GitHub has deprecated the organization `*_enabled_for_new_repositories` security
+defaults in favor of code security configurations, so they may be null even for
+owners. Use the repository-level `secret_scanning_enabled` and
+`secret_scanning_push_protection_enabled` properties for current coverage.
+
+GitHub does not have an organization default repository visibility setting.
+Repository creation is restricted by visibility through the
+`members_can_create_public_repositories`,
+`members_can_create_private_repositories`, and
+`members_can_create_internal_repositories` properties.
+
+### GitHub Apps and webhooks
+
+Each installed GitHub App becomes a `GitHubAppInstallation` node, which also has
+the `ThirdPartyApp` ontology label. Its `write_permissions` list names the
+permissions granted with write or admin access, and `permissions`
+keeps the full grant as JSON. GitHub does not list which repositories an
+installation with `repository_selection: selected` can access to organization
+owners, so those repository links are not ingested.
+
+Organization and repository webhooks become `GitHubWebhook` nodes. Webhook
+target URLs often embed credentials, so Cartography stores only the target
+scheme and host, along with TLS verification and whether a secret is configured.
+Repository webhooks also record their latest delivery status. GitHub never
+returns webhook secret values. Stale webhooks are only removed after the
+organization list and every repository list were fetched: a repository the
+credential cannot administer, or any other denied listing, preserves previously
+synced webhooks. Other request failures stop the GitHub sync for that
+organization.
 
 ### SAML identity mapping
 
@@ -217,6 +267,24 @@ the enterprise GraphQL endpoint:
 }
 ```
 
+## Security rules
+
+These experimental rules check the GitHub security posture ingested above. Run
+them against the graph with `cartography-rules run <rule>`:
+
+| Rule | Checks | Data it needs |
+|------|--------|---------------|
+| `github_secret_scanning_disabled` | Unarchived repositories without secret scanning or push protection | Repository security settings |
+| `github_organization_security_settings` | 2FA not required, write or admin base permission, members can create public repositories, notifications not restricted to verified domains | Organization settings |
+| `github_actions_permissive_policy` | With Actions enabled: any action allowed, a write `GITHUB_TOKEN` by default, workflows that can approve pull requests | Actions policy |
+| `github_app_sensitive_permissions` | Active GitHub Apps with write access to code, workflows, secrets, webhooks, runners, members, or administration | Installed GitHub Apps |
+| `github_webhook_insecure_delivery` | Active webhooks without a signing secret, without TLS certificate verification, or over plain HTTP | Organization and repository webhooks |
+
+Unknown values are skipped, so a check that evaluated no assets had nothing to
+test, which does not mean the organization is secure. Grant the matching
+optional permissions above for full coverage. See
+[Running Rules](../../usage/rules.md) for connection options.
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -226,6 +294,9 @@ the enterprise GraphQL endpoint:
 | No `GitHubPersonalAccessToken` nodes | Fine-grained PAT inventory requires GitHub App authentication with **Personal access tokens: Read**. Classic PAT metadata is limited to SAML SSO credential authorizations on SAML-enabled organizations. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled. |
 | Missing two-factor authentication status | This status is visible only to organization owners. |
+| Null organization settings, such as `default_repository_permission` or `actions_allowed_actions` | These settings are visible only to organization owners. Classic PATs also need `admin:org`. |
+| Null `secret_scanning_enabled` on repositories | GitHub only reports security settings to repository administrators, organization owners, and security managers. |
+| No `GitHubAppInstallation` or `GitHubWebhook` nodes | These require organization owner access and the permissions listed under Optional Permissions. Repository webhooks also require administrator access on each repository. |
 | Rate limiting | Cartography sleeps until the quota resets. |
 
 ## References
