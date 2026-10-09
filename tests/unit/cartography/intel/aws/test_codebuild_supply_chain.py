@@ -128,6 +128,20 @@ def test_image_tagged_with_two_builds_is_ambiguous():
     assert match_images_to_builds(candidates, transform_builds(GET_BUILDS)) == []
 
 
+def test_image_with_an_unread_candidate_build_is_not_confirmed():
+    other_build_id = "frontend-build:0b6a1f3c-5d2e-4f7a-9c8b-1d2e3f4a5b6c"
+    candidates = {
+        FRONTEND_BUILD_ID: {"sha256:a", "sha256:b"},
+        other_build_id: {"sha256:a"},
+    }
+
+    rows = match_images_to_builds(
+        candidates, transform_builds(GET_BUILDS), {other_build_id}
+    )
+
+    assert [row["image_digest"] for row in rows] == ["sha256:b"]
+
+
 def test_get_builds_reports_unreadable_region(mocker):
     client = MagicMock()
     client.batch_get_builds.side_effect = botocore.exceptions.ClientError(

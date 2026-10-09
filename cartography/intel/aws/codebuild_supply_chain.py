@@ -1,6 +1,7 @@
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Set as AbstractSet
 from typing import Any
 
 import boto3
@@ -145,8 +146,17 @@ def transform_builds(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def match_images_to_builds(
     candidates: dict[str, set[str]],
     builds: list[dict[str, Any]],
+    unread_build_ids: AbstractSet[str] = frozenset(),
 ) -> list[dict[str, Any]]:
-    """Return PACKAGED_BY rows for images whose tags name exactly one confirmed build."""
+    """
+    Return PACKAGED_BY rows for images whose tags name exactly one confirmed build.
+
+    An image with a candidate build in an unreadable region is skipped: the unread
+    build could make its match ambiguous.
+    """
+    unconfirmable = {
+        digest for build_id in unread_build_ids for digest in candidates[build_id]
+    }
     builds_by_digest: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for build in builds:
         for digest in candidates.get(build["build_id"], ()):
@@ -154,7 +164,7 @@ def match_images_to_builds(
 
     rows = []
     for digest, digest_builds in sorted(builds_by_digest.items()):
-        if len(digest_builds) != 1:
+        if len(digest_builds) != 1 or digest in unconfirmable:
             continue
         rows.append(
             {
@@ -191,15 +201,17 @@ def sync(
 
     builds: list[dict[str, Any]] = []
     unreadable_regions: list[str] = []
+    unread_build_ids: set[str] = set()
     for region, build_ids in build_ids_by_region(
         set(candidates), project_names_by_region
     ).items():
         region_builds = get_builds(boto3_session, region, build_ids)
         if region_builds is None:
             unreadable_regions.append(region)
+            unread_build_ids.update(build_ids)
             continue
         builds.extend(transform_builds(region_builds))
-    rows = match_images_to_builds(candidates, builds)
+    rows = match_images_to_builds(candidates, builds, unread_build_ids)
 
     logger.info(
         "Matched %d ECR image(s) to CodeBuild builds in account %s.",
