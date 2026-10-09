@@ -51,6 +51,10 @@ def build_query() -> dict[str, Any]:
                 ],
             },
         },
+        # Offset pagination drifts without an order. VulnerabilityV2 has no
+        # CreatedAt and no sortable unique id; FirstSeen is immutable, so new
+        # findings append instead of shifting earlier pages.
+        "order_by[]": ["FirstSeen", "CveId"],
         "additional_models[]": ["InstalledPackage", "Inventory"],
         "flat_json": True,
         "full_graph_fetch": {"enabled": True},
