@@ -14,6 +14,7 @@ import cartography.intel.github.container_image_tags
 import cartography.intel.github.container_images
 import cartography.intel.github.dependabot_alerts
 import cartography.intel.github.external_identities
+import cartography.intel.github.organizations
 import cartography.intel.github.packages
 import cartography.intel.github.personal_access_tokens
 import cartography.intel.github.repos
@@ -115,12 +116,24 @@ def start_github_ingestion(
         # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
         token: Any = credential
 
-        github_users = cartography.intel.github.users.sync(
+        user_data, owners_data, org_data = (
+            cartography.intel.github.users.get_organization(token, api_url, org_name)
+        )
+        # Writes the GitHubOrganization node; every later sync attaches to it.
+        cartography.intel.github.organizations.sync(
             neo4j_session,
             common_job_parameters,
             token,
             api_url,
             org_name,
+            org_data,
+        )
+        github_users = cartography.intel.github.users.sync(
+            neo4j_session,
+            common_job_parameters,
+            user_data,
+            owners_data,
+            org_data,
         )
         cartography.intel.github.external_identities.sync(
             neo4j_session,

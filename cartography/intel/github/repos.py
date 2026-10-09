@@ -32,6 +32,7 @@ from cartography.intel.github.lockfiles import parse_uv_lock
 from cartography.intel.github.util import call_github_rest_api
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import fetch_page
 from cartography.intel.github.util import get_file_content
 from cartography.intel.github.util import handle_rate_limit_sleep
@@ -117,6 +118,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                       id
                     }
                     isPrivate
+                    visibility
                     isArchived
                     isDisabled
                     isLocked
@@ -1114,6 +1116,58 @@ def _merge_repos_with_privileged_details(
     return merged_repos, merged_repo_count, repos_missing_privileged_details
 
 
+# `security_and_analysis` features whose `status` becomes a boolean
+# `<feature>_enabled` property on the repository.
+_SECURITY_FEATURES = (
+    "advanced_security",
+    "code_security",
+    "secret_scanning",
+    "secret_scanning_push_protection",
+    "secret_scanning_non_provider_patterns",
+    "secret_scanning_validity_checks",
+    "dependabot_security_updates",
+)
+
+
+@timeit
+def get_repo_security_and_analysis_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> dict[str, dict[str, Any]]:
+    """
+    Return each repository's `security_and_analysis` settings keyed by repository URL.
+
+    GitHub's GraphQL API does not expose these settings, so they come from the
+    REST repository list. GitHub includes them only for repositories where the
+    credential has admin or security manager access; other repositories are
+    omitted and their settings stay unknown. A denied listing returns an empty
+    mapping; other failures propagate.
+    """
+    repos = fetch_all_rest_api_pages_or_none(
+        token,
+        rest_api_base_url(api_url),
+        f"/orgs/{quote(organization, safe='')}/repos",
+        "",
+        "repository security settings",
+        unavailable=(403, 404),
+        params={"per_page": 100, "type": "all"},
+    )
+    return {
+        repo["html_url"]: repo["security_and_analysis"]
+        for repo in repos or []
+        if repo.get("html_url") and repo.get("security_and_analysis")
+    }
+
+
+def _security_feature_enabled(
+    security_and_analysis: dict[str, Any] | None,
+    feature: str,
+) -> bool | None:
+    status = ((security_and_analysis or {}).get(feature) or {}).get("status")
+    return {"enabled": True, "disabled": False}.get(str(status))
+
+
 def transform(
     repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
@@ -1297,6 +1351,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     # fork whose upstream has been deleted, so we read `isFork` for the boolean rather than
     # inferring it from the parent's presence.
     parent = input_repo_object.get("parent")
+    # Merged in from the REST API by sync(); absent when not visible to the credential.
+    security_and_analysis = input_repo_object.get("securityAndAnalysis")
 
     out_repo_list.append(
         {
@@ -1319,6 +1375,17 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "locked": input_repo_object["isLocked"],
             "fork": input_repo_object.get("isFork", False),
             "parent": parent["url"] if parent else None,
+            "visibility": (
+                visibility.lower()
+                if (visibility := input_repo_object.get("visibility"))
+                else None
+            ),
+            **{
+                f"{feature}_enabled": _security_feature_enabled(
+                    security_and_analysis, feature
+                )
+                for feature in _SECURITY_FEATURES
+            },
             "giturl": git_url,
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
@@ -2737,6 +2804,15 @@ def sync(
     for repo in repos_json:
         if repo is not None and repo.get("url") in dep_manifests_by_url:
             repo["dependencyGraphManifests"] = dep_manifests_by_url[repo["url"]]
+
+    security_and_analysis_by_url = get_repo_security_and_analysis_by_url(
+        github_api_key,
+        github_url,
+        organization,
+    )
+    for repo in repos_json:
+        if repo is not None and repo.get("url") in security_and_analysis_by_url:
+            repo["securityAndAnalysis"] = security_and_analysis_by_url[repo["url"]]
 
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     enrich_dependencies_with_lockfile_versions(

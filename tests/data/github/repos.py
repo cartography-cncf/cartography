@@ -81,6 +81,7 @@ GET_REPOS: List[dict[str, Any]] = [
             "id": "branch_ref_id==",
         },
         "isPrivate": True,
+        "visibility": "PRIVATE",
         "isArchived": False,
         "isDisabled": False,
         "isLocked": True,
@@ -131,6 +132,7 @@ GET_REPOS: List[dict[str, Any]] = [
             "id": "other_branch_ref_id==",
         },
         "isPrivate": False,
+        "visibility": "PUBLIC",
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
@@ -166,6 +168,7 @@ GET_REPOS: List[dict[str, Any]] = [
             "id": "putsomethinghere",
         },
         "isPrivate": False,
+        "visibility": "PUBLIC",
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
@@ -216,6 +219,7 @@ GET_REPOS_CIRCLECI_PROVENANCE: list[dict[str, Any]] = [
         "languages": {"totalCount": 1, "nodes": [{"name": "Python"}]},
         "defaultBranchRef": {"name": "main", "id": "branch_ref_id=="},
         "isPrivate": False,
+        "visibility": "PUBLIC",
         "isArchived": False,
         "isDisabled": False,
         "isLocked": False,
@@ -363,4 +367,24 @@ DIRECT_COLLABORATORS: dict[str, List[UserAffiliationAndRepoPermission]] = {
             affiliation="DIRECT",
         ),
     ],
+}
+
+
+# REST /orgs/{org}/repos `security_and_analysis`, keyed by repository URL.
+# SampleRepo2 is absent: GitHub omits the settings when the credential is not
+# a repository administrator, so its status stays unknown.
+REPO_SECURITY_AND_ANALYSIS_BY_URL = {
+    "https://github.com/simpsoncorp/sample_repo": {
+        "advanced_security": {"status": "enabled"},
+        "secret_scanning": {"status": "enabled"},
+        "secret_scanning_push_protection": {"status": "disabled"},
+        "secret_scanning_non_provider_patterns": {"status": "disabled"},
+        "secret_scanning_validity_checks": {"status": "enabled"},
+        "dependabot_security_updates": {"status": "enabled"},
+    },
+    "https://github.com/cartography-cncf/cartography": {
+        "secret_scanning": {"status": "disabled"},
+        "secret_scanning_push_protection": {"status": "disabled"},
+        "dependabot_security_updates": {"status": "enabled"},
+    },
 }

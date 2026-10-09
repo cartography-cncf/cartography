@@ -731,6 +731,11 @@ def test_sync_built_from_relationship(
 # retry backoff before the sync swallows the error.
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_security_and_analysis_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
     return_value={},
 )
@@ -748,6 +753,7 @@ def test_sync_circleci_label_provenance_links_github_repository(
     mock_get_repo_collaborators,
     mock_get_dep_manifests,
     mock_get_privileged_details,
+    mock_get_security_and_analysis,
     mock_get_ecr_repo_images,
     mock_get_ecr_repos,
     neo4j_session,
