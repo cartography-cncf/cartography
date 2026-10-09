@@ -36,6 +36,7 @@
 - [ ] The linter passes locally (`make test_lint`).
 - [ ] I have added/updated tests that prove my fix is effective or my feature works.
 - [ ] Every commit includes a DCO `Signed-off-by` trailer.
+- [ ] If this change adds parallel or incremental ingestion, I followed the [parallelism guide](https://docs.cartography.dev/dev/parallelism.html) and documented worker limits, partial results, cleanup, and checkpoints.
 
 #### Proof of functionality
 <!-- Provide at least one of the following to help reviewers verify your changes: -->
