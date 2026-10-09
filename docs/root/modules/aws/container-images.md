@@ -163,7 +163,7 @@ self-managed, and matches them against the tags of the account's ECR images:
 | match_method | Signal | Confidence |
 |--------------|--------|------------|
 | `codebuild_build_id_tag` | A tag contains the UUID part of a build ID (`<project>:<uuid>`), for example `build-<uuid>`. | high (`0.9`) |
-| `codebuild_tag_revision` | A tag equals, or is a 7+ character prefix of, the commit a fetched build resolved (`resolvedSourceVersion`), and every fetched build of that commit belongs to one project. Fetched builds are each project's 50 most recent builds plus older builds named by a build ID tag. | medium (`0.5`) |
+| `codebuild_tag_revision` | A tag equals, or is a 7+ character prefix of, the commit a fetched build resolved (`resolvedSourceVersion`). The image's SHA tags must resolve to exactly one full commit, built by one project from one repository; a prefix that matches several commits, or a commit built by several projects or from several repositories, produces no edge. Fetched builds are each project's 50 most recent builds plus older builds named by a build ID tag. | medium (`0.5`) |
 
 A match creates a `PACKAGED_BY` edge from the tagged image to the project. It
 carries the build ID, the resolved commit and the normalized repository URL.
