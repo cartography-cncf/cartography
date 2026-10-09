@@ -32,7 +32,7 @@ def test_sync_cloudwatch(mocker, neo4j_session):
     )
     mocker.patch.object(
         cartography.intel.aws.codebuild_supply_chain,
-        "get_recent_builds",
+        "get_builds",
         return_value=[],
     )
 
@@ -114,6 +114,10 @@ def _create_ecr_images(neo4j_session):
     )
     neo4j_session.run(
         """
+        MATCH (list:AWSECRImage {id: 'sha256:build-id-tagged'})
+        MERGE (list)-[:CONTAINS_IMAGE]->(:AWSECRImage:Image {
+            id: 'sha256:build-id-amd64', digest: 'sha256:build-id-amd64'
+        })
         MERGE (repo:GitHubRepository {id: $repo_url})
         MERGE (other:GitHubRepository {id: 'https://github.com/example/other'})
         WITH other
@@ -141,7 +145,7 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
     )
     mocker.patch.object(
         cartography.intel.aws.codebuild_supply_chain,
-        "get_recent_builds",
+        "get_builds",
         return_value=GET_BUILDS,
     )
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
@@ -184,6 +188,13 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
     assert {tuple(row.values()) for row in packaged_from} == {
         (
             "sha256:build-id-tagged",
+            FRONTEND_REPO,
+            "codebuild_build_id_tag",
+            FRONTEND_REVISION,
+        ),
+        # Platform images inherit the match of their tagged manifest list.
+        (
+            "sha256:build-id-amd64",
             FRONTEND_REPO,
             "codebuild_build_id_tag",
             FRONTEND_REVISION,

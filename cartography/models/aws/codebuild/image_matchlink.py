@@ -56,9 +56,8 @@ class ECRImagePackagedByCodeBuildProjectMatchLink(CartographyRelSchema):
     """
     Links an ECR image to the CodeBuild project whose build pushed it.
 
-    Derived from the project's recent builds: an image tag that carries a build ID, or
-    that equals the commit a build resolved, identifies the build. Platform images in a
-    manifest list share the match of the tagged manifest list.
+    Derived from the project's builds: an image tag that carries a build ID, or that
+    equals the commit a recent build resolved, identifies the build.
     """
 
     target_node_label: str = "AWSCodeBuildProject"

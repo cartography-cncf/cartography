@@ -7,6 +7,7 @@ from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 
 from cartography.intel.aws import codebuild
+from cartography.intel.aws import codebuild_supply_chain
 from tests.data.aws.codebuild import GET_PROJECTS
 
 
@@ -59,6 +60,7 @@ def test_get_all_codebuild_projects_invalid_token_error_raises():
         codebuild.get_all_codebuild_projects(boto3_session, "us-east-1")
 
 
+@patch.object(codebuild_supply_chain, "sync")
 @patch.object(codebuild, "cleanup")
 @patch.object(codebuild, "load_codebuild_projects")
 @patch.object(codebuild, "get_all_codebuild_projects", return_value=GET_PROJECTS)
@@ -66,6 +68,7 @@ def test_sync_skips_unsupported_region(
     mock_get_all_codebuild_projects,
     mock_load_codebuild_projects,
     mock_cleanup,
+    mock_supply_chain_sync,
 ):
     boto3_session = MagicMock()
     boto3_session.get_partition_for_region.return_value = "aws"
@@ -83,3 +86,4 @@ def test_sync_skips_unsupported_region(
     mock_get_all_codebuild_projects.assert_called_once_with(boto3_session, "us-east-1")
     mock_load_codebuild_projects.assert_called_once()
     mock_cleanup.assert_called_once()
+    assert mock_supply_chain_sync.call_args.args[2] == {"us-east-1": GET_PROJECTS}
