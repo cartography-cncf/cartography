@@ -255,7 +255,7 @@ _SAFE_WEBHOOK = {
         (
             "github_app_installation_sensitive_write_permissions",
             _load_installations,
-            {"enabled": True, "write_permissions": ["checks", "contents"]},
+            {"enabled": True, "write_permissions": ["checks", "contents", "workflows"]},
             [
                 {"enabled": True, "write_permissions": ["checks", "issues"]},
                 {"enabled": True, "write_permissions": []},
@@ -325,27 +325,7 @@ def test_github_security_configuration_fact(
     assert finding.organization
     assert finding.current_value
     assert finding.source == "GitHub"
-
-
-def test_github_app_sensitive_permissions_lists_matching_permissions(neo4j_session):
-    # Arrange
-    _reset(neo4j_session)
-    _load_installations(
-        neo4j_session,
-        [
-            {
-                "enabled": True,
-                "write_permissions": ["checks", "contents", "workflows"],
-            },
-        ],
-    )
-    rule, fact = _fact("github_app_installation_sensitive_write_permissions")
-
-    # Act
-    findings = rule.parse_results(fact, neo4j_session.run(fact.cypher_query).data())
-
-    # Assert
-    assert len(findings) == 1
-    assert findings[0].current_value == "contents, workflows"
-    assert findings[0].repository_selection == "all"
-    assert findings[0].organization == "simpsoncorp-0"
+    if fact_id == "github_app_installation_sensitive_write_permissions":
+        # Only the sensitive permissions are listed, joined for display.
+        assert finding.current_value == "contents, workflows"
+        assert finding.repository_selection == "all"
