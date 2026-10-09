@@ -46,8 +46,16 @@ def posture_syncs():
             ),
         ),
         patch("cartography.intel.github.organizations.sync") as organizations_sync,
+        patch(
+            "cartography.intel.github.app_installations.sync"
+        ) as app_installations_sync,
+        patch("cartography.intel.github.webhooks.sync") as webhooks_sync,
     ):
-        yield {"organizations": organizations_sync}
+        yield {
+            "organizations": organizations_sync,
+            "app_installations": app_installations_sync,
+            "webhooks": webhooks_sync,
+        }
 
 
 @patch("cartography.intel.github.repos.cleanup_orphaned_github_branches")
@@ -120,11 +128,13 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
             repos=[{"id": "https://github.com/org-1/repo"}],
             manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
             manifests_cleanup_safe=True,
+            repos_complete=True,
         ),
         GitHubRepoSyncResult(
             repos=[{"id": "https://github.com/org-2/repo"}],
             manifests=[{"id": "https://github.com/org-2/repo#/package.json"}],
             manifests_cleanup_safe=False,
+            repos_complete=True,
         ),
     ]
     github_users_by_org = [
@@ -161,6 +171,8 @@ def test_start_github_ingestion_defers_global_cleanup_until_after_all_orgs(
     assert mock_repos_sync.call_count == 2
     assert mock_personal_access_tokens_sync.call_count == 2
     assert posture_syncs["organizations"].call_count == 2
+    assert posture_syncs["app_installations"].call_count == 2
+    assert posture_syncs["webhooks"].call_count == 2
     assert mock_dependabot_alerts_sync.call_count == 2
     assert mock_codeowners_sync.call_count == 2
     assert mock_codeowners_sync.call_args_list[0].args[-2:] == (
@@ -264,6 +276,7 @@ def test_start_github_ingestion_can_skip_unscoped_cleanup(
         repos=[{"id": "https://github.com/org-1/repo"}],
         manifests=[{"id": "https://github.com/org-1/repo#/package.json"}],
         manifests_cleanup_safe=True,
+        repos_complete=True,
     )
     mock_repos_sync.return_value = repo_sync_result
     github_users = [{"login": "owner-1", "url": "https://github.com/owner-1"}]
@@ -778,7 +791,9 @@ def test_identity_failure_does_not_stop_later_resources_or_organizations() -> No
                 later_stages[name] = stack.enter_context(
                     patch(f"cartography.intel.github.{name}", return_value=[])
                 )
-            later_stages["repos.sync"].return_value = GitHubRepoSyncResult([], [], True)
+            later_stages["repos.sync"].return_value = GitHubRepoSyncResult(
+                [], [], True, True
+            )
             later_stages["packages.sync_packages"].return_value = (
                 cartography.intel.github.packages.ContainerPackagesFetchResult(
                     [], False
