@@ -865,3 +865,7 @@ def test_parse_github_timestamp_missing_is_none_but_malformed_raises():
     assert parse_github_timestamp("") is None
     with pytest.raises(ValueError):
         parse_github_timestamp("yesterday")
+    with pytest.raises(ValueError):
+        parse_github_timestamp("2024-01-02T03:04:05")  # no UTC offset
+    with pytest.raises(TypeError):
+        parse_github_timestamp(0)

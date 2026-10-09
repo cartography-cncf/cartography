@@ -611,12 +611,16 @@ def parse_github_timestamp(value: str | None) -> datetime | None:
     """
     Parse an RFC 3339 timestamp as GitHub returns it, such as
     ``2024-01-02T03:04:05Z``, into a timezone-aware datetime so Neo4j stores a
-    native temporal value. A missing value is None; a malformed one raises, so
-    a change in GitHub's format is never mistaken for an absent field.
+    native temporal value. A missing value is None; a malformed value, a value
+    of another type, or one without a UTC offset raises, so a change in
+    GitHub's format is never mistaken for an absent field.
     """
-    if not value:
+    if value is None or value == "":
         return None
-    return isoparse(value)
+    parsed = isoparse(value)
+    if parsed.tzinfo is None:
+        raise ValueError(f"GitHub timestamp {value!r} has no UTC offset")
+    return parsed
 
 
 # GitHub answers 403 or 404 when the credential lacks the permission or scope for
