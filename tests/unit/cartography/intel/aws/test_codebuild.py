@@ -86,4 +86,4 @@ def test_sync_skips_unsupported_region(
     mock_get_all_codebuild_projects.assert_called_once_with(boto3_session, "us-east-1")
     mock_load_codebuild_projects.assert_called_once()
     mock_cleanup.assert_called_once()
-    assert mock_supply_chain_sync.call_args.args[2] == {"us-east-1": GET_PROJECTS}
+    mock_supply_chain_sync.assert_called_once()

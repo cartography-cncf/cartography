@@ -6,6 +6,7 @@ from cartography.analysis.ontology.analysis import CODEBUILD_IMAGE_PACKAGED_FROM
 from cartography.intel.aws.codebuild import sync
 from cartography.util import run_typed_analysis_job
 from tests.data.aws.codebuild import FRONTEND_BUILD_UUID
+from tests.data.aws.codebuild import FRONTEND_PREVIOUS_BUILD_UUID
 from tests.data.aws.codebuild import FRONTEND_PREVIOUS_REVISION
 from tests.data.aws.codebuild import FRONTEND_REVISION
 from tests.data.aws.codebuild import GET_BUILDS
@@ -81,8 +82,8 @@ def _create_ecr_images(neo4j_session):
     neo4j_session.run(
         """
         MATCH (account:AWSAccount {id: $account_id})
-        MERGE (account)-[:RESOURCE]->(repo:AWSECRRepository {id: 'frontend-repo'})
-        SET repo.region = $region
+        MERGE (account)-[:RESOURCE]->(repo:AWSECRRepository {id: 'frontend-build-repo'})
+        SET repo.name = 'frontend-build', repo.region = $region
         WITH repo
         UNWIND $images AS image
         MERGE (img:AWSECRImage:Image {id: image.digest})
@@ -100,14 +101,14 @@ def _create_ecr_images(neo4j_session):
                 "tag": f"build-{FRONTEND_BUILD_UUID}",
             },
             {
-                "digest": "sha256:revision-tagged",
-                "uri": "frontend:revision",
-                "tag": FRONTEND_PREVIOUS_REVISION[:7],
+                "digest": "sha256:previous-build",
+                "uri": "frontend:previous",
+                "tag": f"build-{FRONTEND_PREVIOUS_BUILD_UUID}",
             },
             {
                 "digest": "sha256:provenance-matched",
                 "uri": "frontend:latest",
-                "tag": FRONTEND_REVISION,
+                "tag": "latest",
             },
             {"digest": "sha256:untraced", "uri": "frontend:dev", "tag": "dev"},
         ],
@@ -177,8 +178,7 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
         "PACKAGED_BY",
     ) == {
         ("sha256:build-id-tagged", FRONTEND_PROJECT_ARN),
-        ("sha256:revision-tagged", FRONTEND_PROJECT_ARN),
-        ("sha256:provenance-matched", FRONTEND_PROJECT_ARN),
+        ("sha256:previous-build", FRONTEND_PROJECT_ARN),
     }
     packaged_from = neo4j_session.run(
         """
@@ -197,11 +197,13 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
             FRONTEND_REVISION,
         ),
         (
-            "sha256:revision-tagged",
+            "sha256:previous-build",
             FRONTEND_REPO,
-            "codebuild_tag_revision",
+            "codebuild_build_id_tag",
             FRONTEND_PREVIOUS_REVISION,
         ),
+        # No build ID tag: the same-named project supplies the repository.
+        ("sha256:untraced", FRONTEND_REPO, "codebuild_project_name", None),
         # A stronger matcher already claimed this image, so CodeBuild does not add a second repo.
         (
             "sha256:provenance-matched",
