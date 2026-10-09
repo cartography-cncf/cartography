@@ -7,9 +7,9 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.client.aws.ecr import get_ecr_images
 from cartography.client.core.tx import load_matchlinks
-from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.supply_chain import normalize_vcs_url
@@ -27,9 +27,11 @@ logger = logging.getLogger(__name__)
 CODEBUILD_BUILD_ID_TAG_CONFIDENCE = 0.9
 CODEBUILD_TAG_REVISION_CONFIDENCE = 0.5
 
-# ListBuildsForProject returns the newest builds first. Images that outlive this many
-# builds of their project keep the edge from an earlier sync (see _cleanup_reevaluated).
-MAX_BUILDS_PER_PROJECT = 50
+# ListBuildsForProject returns the newest builds first. Build IDs are cheap to list, so a
+# long history is scanned for the build IDs found in image tags; only the most recent
+# builds are fetched in full to resolve commit SHA tags.
+MAX_LISTED_BUILDS_PER_PROJECT = 1000
+MAX_RECENT_BUILDS_PER_PROJECT = 50
 _BATCH_GET_BUILDS_LIMIT = 100
 
 # Source types whose location names a repository we can link to.
@@ -54,43 +56,64 @@ def projects_with_linkable_source(projects: list[dict[str, Any]]) -> list[str]:
 
 
 @timeit
-def get_recent_builds(
+def get_builds(
     boto3_session: boto3.Session,
     region: str,
     project_names: list[str],
-    max_builds_per_project: int = MAX_BUILDS_PER_PROJECT,
+    tagged_build_uuids: set[str],
 ) -> list[dict[str, Any]] | None:
     """
-    Return the region's recent builds, or None when the region could not be read.
+    Return each project's recent builds plus any older build named by an image tag, or
+    None when the region could not be read.
 
     aws_handle_regions reports a skipped region as an empty list, which a region with
     no builds also returns, so the builds are wrapped to keep the two apart.
     """
-    pages = _get_recent_builds(
-        boto3_session, region, project_names, max_builds_per_project
-    )
+    pages = _get_builds(boto3_session, region, project_names, tagged_build_uuids)
     if not pages:
         return None
     return pages[0]["builds"]
 
 
+def _build_uuid(build_id: str) -> str | None:
+    uuid_match = _UUID_RE.search(build_id.rsplit(":", 1)[-1].lower())
+    return uuid_match.group(0) if uuid_match else None
+
+
+def select_build_ids(
+    listed_build_ids: list[str],
+    tagged_build_uuids: set[str],
+) -> list[str]:
+    recent = listed_build_ids[:MAX_RECENT_BUILDS_PER_PROJECT]
+    tagged = [
+        build_id
+        for build_id in listed_build_ids[MAX_RECENT_BUILDS_PER_PROJECT:]
+        if _build_uuid(build_id) in tagged_build_uuids
+    ]
+    return recent + tagged
+
+
 @aws_handle_regions
-def _get_recent_builds(
+def _get_builds(
     boto3_session: boto3.Session,
     region: str,
     project_names: list[str],
-    max_builds_per_project: int,
+    tagged_build_uuids: set[str],
 ) -> list[dict[str, Any]]:
     client = create_boto3_client(
         boto3_session, "codebuild", region_name=region, config=get_botocore_config()
     )
+    paginator = client.get_paginator("list_builds_for_project")
     build_ids: list[str] = []
     for project_name in project_names:
+        listed: list[str] = []
         try:
-            response = client.list_builds_for_project(
+            for page in paginator.paginate(
                 projectName=project_name,
                 sortOrder="DESCENDING",
-            )
+                PaginationConfig={"MaxItems": MAX_LISTED_BUILDS_PER_PROJECT},
+            ):
+                listed.extend(page.get("ids", []))
         except botocore.exceptions.ClientError as error:
             if (
                 error.response.get("Error", {}).get("Code")
@@ -102,7 +125,7 @@ def _get_recent_builds(
                 )
                 continue
             raise
-        build_ids.extend(response.get("ids", [])[:max_builds_per_project])
+        build_ids.extend(select_build_ids(listed, tagged_build_uuids))
 
     builds: list[dict[str, Any]] = []
     for i in range(0, len(build_ids), _BATCH_GET_BUILDS_LIMIT):
@@ -128,12 +151,11 @@ def transform_builds(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         build_id = build["id"]
         build_arn = build["arn"]
-        uuid_match = _UUID_RE.search(build_id.rsplit(":", 1)[-1].lower())
         revision = (build.get("resolvedSourceVersion") or "").strip().lower()
         transformed.append(
             {
                 "build_id": build_id,
-                "build_uuid": uuid_match.group(0) if uuid_match else None,
+                "build_uuid": _build_uuid(build_id),
                 "project_arn": _project_arn_from_build_arn(build_arn),
                 "source_revision": revision if _SHA_RE.match(revision) else None,
                 "source_uri": normalize_vcs_url(location),
@@ -143,28 +165,27 @@ def transform_builds(builds: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return transformed
 
 
-@timeit
-def get_account_ecr_images(
-    neo4j_session: neo4j.Session,
-    account_id: str,
+def group_tags_by_digest(
+    ecr_images: set[tuple[str, str, str, str, str]],
 ) -> list[dict[str, Any]]:
-    """
-    Return each ECR image in the account with its tags and, for a manifest list, the
-    digests of the platform images it contains.
-    """
-    query = """
-        MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(:AWSECRRepository)
-              -[:REPO_IMAGE]->(repo_img:AWSECRRepositoryImage)-[:IMAGE]->(img:AWSECRImage)
-        WHERE repo_img.tag IS NOT NULL
-        WITH img, collect(DISTINCT repo_img.tag) AS tags
-        OPTIONAL MATCH (img)-[:CONTAINS_IMAGE]->(child:AWSECRImage)
-        RETURN img.digest AS digest, tags, collect(DISTINCT child.digest) AS child_digests
-    """
-    return neo4j_session.execute_read(read_list_of_dicts_tx, query, AWS_ID=account_id)
+    """Group the (region, tag, uri, repo_name, digest) rows of get_ecr_images."""
+    tags_by_digest: dict[str, set[str]] = defaultdict(set)
+    for _region, tag, _uri, _repo_name, digest in ecr_images:
+        if tag:
+            tags_by_digest[digest].add(tag.strip().lower())
+    return [
+        {"digest": digest, "tags": sorted(tags)}
+        for digest, tags in sorted(tags_by_digest.items())
+    ]
 
 
-def _normalized_tags(image: dict[str, Any]) -> list[str]:
-    return [tag.strip().lower() for tag in image.get("tags") or [] if tag]
+def tagged_build_uuids(images: list[dict[str, Any]]) -> set[str]:
+    return {
+        uuid
+        for image in images
+        for tag in image["tags"]
+        for uuid in _UUID_RE.findall(tag)
+    }
 
 
 def _builds_by_uuid(builds: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -257,12 +278,9 @@ def match_images_to_builds(
     images: list[dict[str, Any]],
     builds: list[dict[str, Any]],
     match_revisions: bool = True,
-) -> tuple[list[dict[str, Any]], set[str]]:
+) -> list[dict[str, Any]]:
     """
-    Tie images to the builds that pushed them.
-
-    Returns the PACKAGED_BY rows and the digests the current builds carry evidence for,
-    matched or not. Only those digests are eligible for stale-edge cleanup.
+    Tie images to the builds that pushed them and return the PACKAGED_BY rows.
 
     match_revisions is off when some region's builds could not be read: a build ID is
     unique on its own, but a commit can look unambiguous only because the other
@@ -272,58 +290,20 @@ def match_images_to_builds(
     targets_by_revision = _targets_by_revision(builds)
 
     rows: list[dict[str, Any]] = []
-    evidenced: set[str] = set()
     for image in images:
-        tags = _normalized_tags(image)
-        digests = [image["digest"], *(image.get("child_digests") or [])]
-
+        tags = image["tags"]
         has_build_id_evidence = any(
             uuid in builds_by_uuid for tag in tags for uuid in _UUID_RE.findall(tag)
         )
-        has_revision_evidence = match_revisions and any(
-            _SHA_RE.match(tag) and _revision_targets_for_tag(tag, targets_by_revision)
-            for tag in tags
-        )
-        if not has_build_id_evidence and not has_revision_evidence:
-            continue
-        evidenced.update(digests)
-
-        match = _match_build_id_tags(tags, builds_by_uuid)
-        if match is None and not has_build_id_evidence:
+        if has_build_id_evidence:
+            match = _match_build_id_tags(tags, builds_by_uuid)
+        elif match_revisions:
             match = _match_revision_tags(tags, targets_by_revision)
-        if match is None:
-            continue
-        rows.extend({"image_digest": digest, **match} for digest in digests)
-    return rows, evidenced
-
-
-def _cleanup_reevaluated(
-    neo4j_session: neo4j.Session,
-    digests: set[str],
-    account_id: str,
-    update_tag: int,
-) -> None:
-    """
-    Remove this account's stale CodeBuild PACKAGED_BY edges, but only for images the
-    current builds re-evaluated. An image whose build fell out of the recent-build window
-    keeps its edge; deleting the image or the project removes it.
-    """
-    if not digests:
-        return
-    run_write_query(
-        neo4j_session,
-        """
-        UNWIND $digests AS digest
-        MATCH (:AWSECRImage {id: digest})-[r:PACKAGED_BY]->(:AWSCodeBuildProject)
-        WHERE r._sub_resource_label = 'AWSAccount'
-          AND r._sub_resource_id = $account_id
-          AND r.lastupdated <> $update_tag
-        DELETE r
-        """,
-        digests=list(digests),
-        account_id=account_id,
-        update_tag=update_tag,
-    )
+        else:
+            match = None
+        if match is not None:
+            rows.append({"image_digest": image["digest"], **match})
+    return rows
 
 
 @timeit
@@ -340,30 +320,33 @@ def sync(
     Builds are read transiently and never stored as nodes. Matching runs once across all
     regions because a build can push to a registry in another region. The ontology stage
     then derives (:Image)-[:PACKAGED_FROM]->(repository) from these edges.
+
+    Stale edges are cleaned up only when every region was read, so a permission or
+    regional outage never deletes edges it cannot re-derive.
     """
+    images = group_tags_by_digest(get_ecr_images(neo4j_session, current_aws_account_id))
+    build_uuids = tagged_build_uuids(images)
+
     builds: list[dict[str, Any]] = []
     unreadable_regions: list[str] = []
     for region, projects in projects_by_region.items():
         project_names = projects_with_linkable_source(projects)
         if not project_names:
             continue
-        region_builds = get_recent_builds(boto3_session, region, project_names)
+        region_builds = get_builds(boto3_session, region, project_names, build_uuids)
         if region_builds is None:
             unreadable_regions.append(region)
             continue
         builds.extend(transform_builds(region_builds))
-    if not builds:
-        return
     if unreadable_regions:
         logger.warning(
             "CodeBuild builds could not be read in %s for account %s; matching images "
-            "by build ID only.",
+            "by build ID only and keeping existing edges.",
             ", ".join(unreadable_regions),
             current_aws_account_id,
         )
 
-    images = get_account_ecr_images(neo4j_session, current_aws_account_id)
-    rows, evidenced = match_images_to_builds(
+    rows = match_images_to_builds(
         images, builds, match_revisions=not unreadable_regions
     )
     logger.info(
@@ -380,4 +363,10 @@ def sync(
             _sub_resource_label="AWSAccount",
             _sub_resource_id=current_aws_account_id,
         )
-    _cleanup_reevaluated(neo4j_session, evidenced, current_aws_account_id, update_tag)
+    if not unreadable_regions:
+        GraphJob.from_matchlink(
+            ECRImagePackagedByCodeBuildProjectMatchLink(),
+            "AWSAccount",
+            current_aws_account_id,
+            update_tag,
+        ).run(neo4j_session)
