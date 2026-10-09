@@ -24,9 +24,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
-# Same rationale as vulnerability cleanup: each batch rescans the organization
-# RESOURCE fan-out, so larger batches reduce fixed scan overhead.
-CLEANUP_ITERATION_SIZE = 100_000
 
 
 def build_query() -> dict[str, Any]:
@@ -211,8 +208,6 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(
-        OrcaAlertSchema(),
-        common_job_parameters,
-        iterationsize=CLEANUP_ITERATION_SIZE,
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(OrcaAlertSchema(), common_job_parameters).run(
+        neo4j_session,
+    )

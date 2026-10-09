@@ -23,9 +23,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 1000
-# Each cleanup batch rescans the organization RESOURCE fan-out to find stale
-# nodes. Larger batches cut that fixed scan cost when many findings go stale.
-CLEANUP_ITERATION_SIZE = 100_000
 VULNERABILITY_MODEL = "VulnerabilityV2"
 
 
@@ -317,5 +314,4 @@ def cleanup(
     GraphJob.from_node_schema(
         OrcaVulnerabilityFindingSchema(),
         common_job_parameters,
-        iterationsize=CLEANUP_ITERATION_SIZE,
     ).run(neo4j_session)

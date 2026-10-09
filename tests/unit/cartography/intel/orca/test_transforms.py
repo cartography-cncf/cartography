@@ -1,7 +1,6 @@
 from copy import deepcopy
 from datetime import datetime
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -61,42 +60,6 @@ def test_vulnerability_query_requests_deterministic_order() -> None:
 
     # Assert
     assert query["order_by[]"] == ["FirstSeen", "CveId"]
-
-
-def test_vulnerability_cleanup_uses_large_batch_size(mocker) -> None:
-    # Arrange
-    from_node_schema = mocker.patch(
-        "cartography.intel.orca.vulnerabilities.GraphJob.from_node_schema",
-    )
-    from_node_schema.return_value.run = mocker.Mock()
-
-    # Act
-    vulnerabilities.cleanup(
-        MagicMock(), {"UPDATE_TAG": 1, "ORCA_ORGANIZATION_ID": "org"}
-    )
-
-    # Assert
-    assert (
-        from_node_schema.call_args.kwargs["iterationsize"]
-        == vulnerabilities.CLEANUP_ITERATION_SIZE
-    )
-
-
-def test_alert_cleanup_uses_large_batch_size(mocker) -> None:
-    # Arrange
-    from_node_schema = mocker.patch(
-        "cartography.intel.orca.alerts.GraphJob.from_node_schema",
-    )
-    from_node_schema.return_value.run = mocker.Mock()
-
-    # Act
-    alerts.cleanup(MagicMock(), {"UPDATE_TAG": 1, "ORCA_ORGANIZATION_ID": "org"})
-
-    # Assert
-    assert (
-        from_node_schema.call_args.kwargs["iterationsize"]
-        == alerts.CLEANUP_ITERATION_SIZE
-    )
 
 
 def test_alert_transform_retains_exact_target_context_and_missing_target(
