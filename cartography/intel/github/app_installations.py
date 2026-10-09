@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import github_org_url
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.app_installations import GitHubAppInstallationSchema
 from cartography.util import timeit
@@ -54,9 +55,7 @@ def transform(
 ) -> list[dict[str, Any]]:
     result = []
     for installation in installations:
-        installation_id = installation.get("id")
-        if installation_id is None:
-            continue
+        installation_id = installation["id"]
         permissions = installation.get("permissions") or {}
         suspended_by = installation.get("suspended_by") or {}
         result.append(
@@ -76,11 +75,13 @@ def transform(
                 ),
                 "events": installation.get("events") or [],
                 "enabled": installation.get("suspended_at") is None,
-                "suspended_at": installation.get("suspended_at"),
+                "suspended_at": parse_github_timestamp(
+                    installation.get("suspended_at")
+                ),
                 "suspended_by": suspended_by.get("login"),
                 "html_url": installation.get("html_url"),
-                "created_at": installation.get("created_at"),
-                "updated_at": installation.get("updated_at"),
+                "created_at": parse_github_timestamp(installation.get("created_at")),
+                "updated_at": parse_github_timestamp(installation.get("updated_at")),
             },
         )
     return result

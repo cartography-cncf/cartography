@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all_rest_api_pages_or_none
 from cartography.intel.github.util import github_org_url
+from cartography.intel.github.util import parse_github_timestamp
 from cartography.intel.github.util import rest_api_base_url
 from cartography.models.github.webhooks import GitHubWebhookSchema
 from cartography.util import timeit
@@ -103,8 +104,8 @@ def transform(
         "has_secret": bool(config.get("secret")),
         "last_response_code": last_response.get("code"),
         "last_response_status": last_response.get("status"),
-        "created_at": hook.get("created_at"),
-        "updated_at": hook.get("updated_at"),
+        "created_at": parse_github_timestamp(hook.get("created_at")),
+        "updated_at": parse_github_timestamp(hook.get("updated_at")),
         "organization_id": organization_id,
         "repository_id": repository_id,
     }
@@ -116,30 +117,28 @@ def get(
     api_url: str,
     organization: str,
     repos: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], bool]:
     """
-    Return transformed organization and repository webhooks, and whether the
-    inventory is complete enough to safely clean up stale webhooks.
-    """
-    org_url = github_org_url(api_url, organization)
-    webhooks: list[dict[str, Any]] = []
+    Fetch organization and repository webhooks.
 
+    :return: the raw organization hooks, the raw repository hooks keyed by
+        repository URL, and whether the inventory is complete enough to safely
+        clean up stale webhooks.
+    """
     org_hooks = get_organization_webhooks(token, api_url, organization)
-    for hook in org_hooks or []:
-        webhooks.append(transform(hook, organization_id=org_url))
 
+    repo_hooks: dict[str, list[dict[str, Any]]] = {}
     unavailable_repos = 0
     for repo in repos:
         fullname = repo.get("fullname")
         repo_url = repo.get("url")
         if not fullname or not repo_url:
             continue
-        repo_hooks = get_repository_webhooks(token, api_url, fullname)
-        if repo_hooks is None:
+        hooks = get_repository_webhooks(token, api_url, fullname)
+        if hooks is None:
             unavailable_repos += 1
             continue
-        for hook in repo_hooks:
-            webhooks.append(transform(hook, repository_id=repo_url))
+        repo_hooks[repo_url] = hooks
     if unavailable_repos:
         logger.warning(
             "Could not list webhooks for %d of %d GitHub repositories in org %s. "
@@ -148,7 +147,19 @@ def get(
             len(repos),
             organization,
         )
-    return webhooks, org_hooks is not None and unavailable_repos == 0
+    return org_hooks or [], repo_hooks, org_hooks is not None and unavailable_repos == 0
+
+
+def transform_webhooks(
+    org_hooks: list[dict[str, Any]],
+    repo_hooks: dict[str, list[dict[str, Any]]],
+    org_url: str,
+) -> list[dict[str, Any]]:
+    return [transform(hook, organization_id=org_url) for hook in org_hooks] + [
+        transform(hook, repository_id=repo_url)
+        for repo_url, hooks in repo_hooks.items()
+        for hook in hooks
+    ]
 
 
 @timeit
@@ -195,7 +206,8 @@ def sync(
     """
     org_url = github_org_url(api_url, organization)
     update_tag = common_job_parameters["UPDATE_TAG"]
-    webhooks, complete = get(token, api_url, organization, repos)
+    org_hooks, repo_hooks, complete = get(token, api_url, organization, repos)
+    webhooks = transform_webhooks(org_hooks, repo_hooks, org_url)
     load_webhooks(neo4j_session, webhooks, org_url, update_tag)
     if complete and repos_complete:
         cleanup(neo4j_session, org_url, update_tag)
