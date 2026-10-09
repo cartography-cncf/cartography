@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws import codebuild_supply_chain
 from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.service_regions import (
@@ -131,12 +132,14 @@ def sync(
             region,
         )
 
+    projects_by_region: Dict[str, List[Dict[str, Any]]] = {}
     for region in codebuild_regions:
         logger.info(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )
 
         projects = get_all_codebuild_projects(boto3_session, region)
+        projects_by_region[region] = projects
         transformed_projects = transform_codebuild_projects(projects, region)
 
         load_codebuild_projects(
@@ -148,3 +151,11 @@ def sync(
         )
 
     cleanup(neo4j_session, common_job_parameters)
+
+    codebuild_supply_chain.sync(
+        neo4j_session,
+        boto3_session,
+        projects_by_region,
+        current_aws_account_id,
+        update_tag,
+    )
