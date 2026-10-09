@@ -115,8 +115,10 @@ def _create_ecr_images(neo4j_session):
     neo4j_session.run(
         """
         MATCH (list:AWSECRImage {id: 'sha256:build-id-tagged'})
+        REMOVE list:Image
+        SET list:ImageManifestList, list.type = 'manifest_list'
         MERGE (list)-[:CONTAINS_IMAGE]->(:AWSECRImage:Image {
-            id: 'sha256:build-id-amd64', digest: 'sha256:build-id-amd64'
+            id: 'sha256:build-id-amd64', digest: 'sha256:build-id-amd64', type: 'image'
         })
         MERGE (repo:GitHubRepository {id: $repo_url})
         MERGE (other:GitHubRepository {id: 'https://github.com/example/other'})
@@ -186,13 +188,8 @@ def test_sync_links_images_to_codebuild_projects(mocker, neo4j_session):
         """
     ).data()
     assert {tuple(row.values()) for row in packaged_from} == {
-        (
-            "sha256:build-id-tagged",
-            FRONTEND_REPO,
-            "codebuild_build_id_tag",
-            FRONTEND_REVISION,
-        ),
-        # Platform images inherit the match of their tagged manifest list.
+        # The tag points at a manifest list, which is not an Image; its platform
+        # image inherits the match.
         (
             "sha256:build-id-amd64",
             FRONTEND_REPO,

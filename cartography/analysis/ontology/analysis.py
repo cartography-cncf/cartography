@@ -816,11 +816,12 @@ def _codebuild_packaged_from_statement(
     # analysis or another matcher keeps that edge. All CodeBuild PACKAGED_BY edges of one
     # image (one per account that holds the digest) must agree on the repository before
     # the provider is chosen, so disagreeing GitHub and GitLab builds yield no edge.
-    # Tags point at a manifest list, so its platform images inherit the list's edge.
+    # A tag can point at a manifest list, which is labeled ImageManifestList rather than
+    # Image, so its platform images inherit the list's edge through CONTAINS_IMAGE.
     return AnalysisStatement(
         comment=f"Derive Image PACKAGED_FROM {target_label} from the CodeBuild project that pushed it.",
         match=(
-            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-(:Image)"
+            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-()"
             "-[pb:PACKAGED_BY]->(:AWSCodeBuildProject) "
             "WHERE pb.source_uri IS NOT NULL "
             "AND NONE(other IN [(img)-[o:PACKAGED_FROM]->() | o] "
