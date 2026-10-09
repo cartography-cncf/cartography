@@ -47,6 +47,7 @@ modules/openai/index
 modules/orca/index
 modules/pagerduty/index
 modules/railway/index
+modules/runpod/index
 modules/salesforce/index
 modules/scaleway/index
 modules/semgrep/index

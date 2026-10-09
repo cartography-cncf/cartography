@@ -107,6 +107,7 @@ PANEL_RAILWAY = "Railway Options"
 PANEL_NETLIFY = "Netlify Options"
 PANEL_CIRCLECI = "CircleCI Options"
 PANEL_MODAL = "Modal Options"
+PANEL_RUNPOD = "RunPod Options"
 PANEL_SNOWFLAKE = "Snowflake Options"
 PANEL_ZENDESK = "Zendesk Options"
 PANEL_STATSD = "StatsD Metrics"
@@ -178,6 +179,7 @@ MODULE_PANELS = {
     "netlify": PANEL_NETLIFY,
     "circleci": PANEL_CIRCLECI,
     "modal": PANEL_MODAL,
+    "runpod": PANEL_RUNPOD,
     "snowflake": PANEL_SNOWFLAKE,
     "zendesk": PANEL_ZENDESK,
     "analysis": PANEL_ANALYSIS,
@@ -2885,6 +2887,39 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # RunPod Options
+            # =================================================================
+            runpod_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--runpod-api-key-env-var",
+                    help="Environment variable name containing a RunPod API key.",
+                    rich_help_panel=PANEL_RUNPOD,
+                    hidden=PANEL_RUNPOD not in visible_panels,
+                ),
+            ] = None,
+            runpod_account_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--runpod-account-id",
+                    help=(
+                        "Stable RunPod account identifier to use as the Cartography "
+                        "tenant root."
+                    ),
+                    rich_help_panel=PANEL_RUNPOD,
+                    hidden=PANEL_RUNPOD not in visible_panels,
+                ),
+            ] = None,
+            runpod_base_url: Annotated[
+                str,
+                typer.Option(
+                    "--runpod-base-url",
+                    help="RunPod API v2 base URL.",
+                    rich_help_panel=PANEL_RUNPOD,
+                    hidden=PANEL_RUNPOD not in visible_panels,
+                ),
+            ] = "https://api.runpod.io/v2",
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -3447,6 +3482,15 @@ class CLI:
                 else None
             )
 
+            # Read RunPod API key
+            runpod_api_key = None
+            if runpod_api_key_env_var:
+                logger.debug(
+                    "Reading RunPod API key from environment variable %s",
+                    runpod_api_key_env_var,
+                )
+                runpod_api_key = os.environ.get(runpod_api_key_env_var)
+
             # Read Cloudflare token
             cloudflare_token = None
             if cloudflare_token_env_var:
@@ -3942,6 +3986,9 @@ class CLI:
                 modal_token_id=modal_token_id,
                 modal_token_secret=modal_token_secret,
                 modal_environments=modal_environment_list,
+                runpod_api_key=runpod_api_key,
+                runpod_account_id=runpod_account_id,
+                runpod_base_url=runpod_base_url,
                 cloudflare_token=cloudflare_token,
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
