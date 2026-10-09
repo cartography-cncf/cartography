@@ -17,10 +17,11 @@ REQUEST_TIMEOUT = (CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
 SERVING_LAYER_PATH = "/api/serving-layer/query"
 ORGANIZATION_PATH = "/api/user/action"
 MAX_PAGES = 10_000
-# Fail the sync (and skip cleanup) when pagination ends far below the advisory
-# count. Modest drift is expected; catastrophic under-fetch must not look like
-# success or cleanup will delete findings that Orca still reports.
-_MIN_COMPLETION_RATIO = 0.9
+# Fail the sync (and skip cleanup) when pagination ends below the advisory count.
+# Complete fetches on large orgs drift well under 0.1% from total_items, while a
+# 10% shortfall on a multi-million-row org is hundreds of thousands of findings
+# that cleanup would delete.
+_MIN_COMPLETION_RATIO = 0.99
 _PROGRESS_PAGE_INTERVAL = 10
 _RETRY_STATUS_CODES = (408, 429, 502, 503, 504)
 

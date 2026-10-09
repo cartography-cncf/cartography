@@ -283,6 +283,40 @@ def test_iter_serving_layer_pages_rejects_truncated_fetch(mocker) -> None:
         )
 
 
+def _fetch_single_page(mocker, fetched: int) -> list[list[dict[str, str]]]:
+    mocker.patch(
+        "cartography.intel.orca.api.serving_layer_query",
+        side_effect=[
+            {"data": [{"id": str(i)} for i in range(fetched)], "total_items": 100},
+            {"data": []},
+        ],
+    )
+    return list(
+        api.iter_serving_layer_pages(
+            MagicMock(),
+            "https://api.orcasecurity.example",
+            {"query": {"models": ["VulnerabilityV2"]}},
+            page_size=100,
+            result_name="vulnerabilities",
+        ),
+    )
+
+
+def test_iter_serving_layer_pages_accepts_one_percent_shortfall(mocker) -> None:
+    # Act
+    pages = _fetch_single_page(mocker, 99)
+
+    # Assert
+    assert sum(len(page) for page in pages) == 99
+
+
+def test_iter_serving_layer_pages_rejects_few_percent_shortfall(mocker) -> None:
+    # A few percent of a multi-million-row org is enough for cleanup to delete
+    # hundreds of thousands of live findings.
+    with pytest.raises(RuntimeError, match="pagination stopped at 98 of 100"):
+        _fetch_single_page(mocker, 98)
+
+
 def test_iter_serving_layer_pages_rejects_repeated_page(mocker) -> None:
     # Arrange
     mocker.patch(
