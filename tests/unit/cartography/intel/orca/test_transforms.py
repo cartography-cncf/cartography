@@ -60,7 +60,7 @@ def test_vulnerability_query_requests_deterministic_order() -> None:
     query = vulnerabilities.build_query()
 
     # Assert
-    assert query["order_by[]"] == ["CreatedAt"]
+    assert query["order_by[]"] == ["FirstSeen", "CveId"]
 
 
 def test_vulnerability_cleanup_uses_large_batch_size(mocker) -> None:
