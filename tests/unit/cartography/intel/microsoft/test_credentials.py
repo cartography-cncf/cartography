@@ -2,6 +2,7 @@ import time
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import jwt
 import pytest
 from azure.core.credentials import AccessToken
 from azure.identity import ClientSecretCredential
@@ -153,4 +154,63 @@ def test_make_credential_rejects_mixed_authentication_modes() -> None:
             "client-id",
             "client-secret",
             delegated_auth=True,
+        )
+
+
+def _graph_token(tenant_id: str = "tenant-id", **claims) -> str:
+    return jwt.encode(
+        {
+            "aud": "https://graph.microsoft.com",
+            "tid": tenant_id,
+            "exp": int(time.time()) + 3600,
+            **claims,
+        },
+        "test-signing-key-not-verified-by-cartography",
+        "HS256",
+    )
+
+
+def test_make_credential_uses_access_token_for_delegated_auth() -> None:
+    token = _graph_token()
+
+    credential = credentials.make_credential(
+        "tenant-id",
+        None,
+        None,
+        delegated_auth=True,
+        access_token=token,
+    )
+
+    assert credential.get_token("https://graph.microsoft.com/.default").token == token
+
+
+def test_make_credential_rejects_access_token_for_other_tenant() -> None:
+    with pytest.raises(ValueError, match="different tenant"):
+        credentials.make_credential(
+            "tenant-id",
+            None,
+            None,
+            delegated_auth=True,
+            access_token=_graph_token("other-tenant-id"),
+        )
+
+
+def test_make_credential_rejects_arm_access_token() -> None:
+    with pytest.raises(ValueError, match="not issued for Microsoft Graph"):
+        credentials.make_credential(
+            "tenant-id",
+            None,
+            None,
+            delegated_auth=True,
+            access_token=_graph_token(aud="https://management.azure.com"),
+        )
+
+
+def test_make_credential_requires_delegated_auth_for_access_token() -> None:
+    with pytest.raises(ValueError, match="requires delegated authentication"):
+        credentials.make_credential(
+            "tenant-id",
+            "client-id",
+            "client-secret",
+            access_token=_graph_token(),
         )

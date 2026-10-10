@@ -256,6 +256,7 @@ async def sync_entra_users(
     common_job_parameters: dict[str, Any],
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync Entra users and tenant information
@@ -265,7 +266,9 @@ async def sync_entra_users(
     :param client_secret: Entra application client secret
     :param update_tag: Timestamp used to determine data freshness
     :param common_job_parameters: dict of other job parameters to carry to sub-jobs
-    :param delegated_auth: Use the current Azure CLI user and skip cleanup
+    :param delegated_auth: Use a user's identity and skip cleanup
+    :param access_token: Pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     :return: None
     """
     # Initialize Graph client
@@ -274,6 +277,7 @@ async def sync_entra_users(
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]

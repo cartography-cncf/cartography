@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.key_vaults as key_vaults
-from cartography.intel.azure.util.credentials import UnsupportedTokenScopeError
+from cartography.intel.common.access_token import UnsupportedTokenScopeError
 from tests.data.azure.key_vaults import MOCK_CERTIFICATES
 from tests.data.azure.key_vaults import MOCK_KEYS
 from tests.data.azure.key_vaults import MOCK_SECRETS

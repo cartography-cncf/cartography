@@ -181,6 +181,7 @@ async def sync_service_principals(
     common_job_parameters: dict[str, Any],
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync Entra service principals to the graph.
@@ -191,7 +192,9 @@ async def sync_service_principals(
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
     :param common_job_parameters: Common job parameters for cleanup
-    :param delegated_auth: Use the current Azure CLI user and skip cleanup and analysis
+    :param delegated_auth: Use a user's identity and skip cleanup and analysis
+    :param access_token: Pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     """
     # Create credentials and client
     credential = credentials.make_credential(
@@ -199,6 +202,7 @@ async def sync_service_principals(
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
 
     client = GraphServiceClient(

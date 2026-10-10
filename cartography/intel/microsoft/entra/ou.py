@@ -102,6 +102,7 @@ async def sync_entra_ous(
     common_job_parameters: dict[str, Any],
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync Entra OUs, preserving stale data for delegated authentication.
@@ -112,6 +113,7 @@ async def sync_entra_ous(
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]

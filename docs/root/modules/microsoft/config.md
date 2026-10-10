@@ -161,9 +161,12 @@ permissions. It isn't a replacement for application authentication.
 - Cartography disables cleanup and derived federation analysis. A delegated run
   doesn't delete existing Entra data, so records that the user can't see can
   remain in the graph.
-- Cartography reads the local Azure CLI token cache. Use this mode only for an
-  attended, one-time run on a trusted workstation. Don't use it for hosted or
-  unattended inventory collection.
+- With `--microsoft-delegated-auth` alone, Cartography reads the local Azure
+  CLI token cache. Use that only for an attended, one-time run on a trusted
+  workstation. Don't use it for hosted or unattended inventory collection.
+- With `--microsoft-access-token-env-var`, the token can't be refreshed. Graph
+  access tokens typically last 60 to 90 minutes, and the sync fails once the
+  token expires, so mint it immediately before the run.
 
 A run that reports no denied datasets can still be incomplete. Microsoft Graph
 can filter results based on the signed-in user's effective visibility without
@@ -194,6 +197,29 @@ when you evaluate this mode.
 
 Do not pass `--microsoft-client-id` or
 `--microsoft-client-secret-env-var` with delegated authentication.
+
+### Run with an access token
+
+Instead of the local Azure CLI session, Cartography can use a pre-issued
+Microsoft Graph access token, for example one minted on another machine or by
+your own delegated sign-in flow. `--microsoft-access-token-env-var` implies
+`--microsoft-delegated-auth`, with the same limitations.
+
+The token must be issued for Microsoft Graph (`https://graph.microsoft.com`)
+and for the tenant passed in `--microsoft-tenant-id`. An Azure Resource Manager
+token is rejected: use `--azure-access-token-env-var` for the Azure module.
+
+```bash
+az login --tenant '<TENANT_ID>' --allow-no-subscriptions
+export MICROSOFT_ACCESS_TOKEN="$(az account get-access-token \
+  --resource https://graph.microsoft.com \
+  --query accessToken --output tsv)"
+
+cartography \
+  --selected-modules microsoft \
+  --microsoft-tenant-id '<TENANT_ID>' \
+  --microsoft-access-token-env-var MICROSOFT_ACCESS_TOKEN
+```
 
 ## References
 

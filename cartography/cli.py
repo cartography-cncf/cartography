@@ -264,6 +264,18 @@ def _resolve_report_source_option(
         raise typer.BadParameter(str(exc)) from exc
 
 
+def _read_access_token_env_var(product: str, env_var: str) -> str:
+    logger.debug(
+        "Reading access token for %s from environment variable %s", product, env_var
+    )
+    access_token = os.environ.get(env_var)
+    if not access_token:
+        raise typer.BadParameter(
+            f"Environment variable {env_var} is not set or is empty."
+        )
+    return access_token
+
+
 def _resolve_microsoft_credential_options(
     *,
     microsoft_delegated_auth: bool,
@@ -827,6 +839,19 @@ class CLI:
                     hidden=PANEL_MICROSOFT not in visible_panels,
                 ),
             ] = False,
+            microsoft_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--microsoft-access-token-env-var",
+                    help=(
+                        "EXPERIMENTAL: environment variable name containing a "
+                        "Microsoft Graph access token, such as a signed-in user's "
+                        "delegated token. Implies --microsoft-delegated-auth."
+                    ),
+                    rich_help_panel=PANEL_MICROSOFT,
+                    hidden=PANEL_MICROSOFT not in visible_panels,
+                ),
+            ] = None,
             microsoft_requested_syncs: Annotated[
                 str | None,
                 typer.Option(
@@ -3046,16 +3071,16 @@ class CLI:
                         "--azure-access-token-env-var cannot be combined with "
                         "--azure-sp-auth.",
                     )
-                logger.debug(
-                    "Reading access token for Azure from environment variable %s",
-                    azure_access_token_env_var,
+                azure_access_token = _read_access_token_env_var(
+                    "Azure", azure_access_token_env_var
                 )
-                azure_access_token = os.environ.get(azure_access_token_env_var)
-                if not azure_access_token:
-                    raise typer.BadParameter(
-                        f"Environment variable {azure_access_token_env_var} "
-                        "is not set or is empty.",
-                    )
+
+            microsoft_access_token = None
+            if microsoft_access_token_env_var:
+                microsoft_access_token = _read_access_token_env_var(
+                    "Microsoft", microsoft_access_token_env_var
+                )
+                microsoft_delegated_auth = True
 
             (
                 microsoft_tenant_id,
@@ -3854,6 +3879,7 @@ class CLI:
                 microsoft_client_secret=microsoft_client_secret,
                 microsoft_delegated_auth=microsoft_delegated_auth,
                 microsoft_requested_syncs=microsoft_requested_syncs,
+                microsoft_access_token=microsoft_access_token,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
                 analysis_job_directory=analysis_job_directory,

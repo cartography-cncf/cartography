@@ -3,7 +3,7 @@ Credential construction for the Microsoft intel modules.
 
 Microsoft syncs normally use a service principal built from a tenant ID, client
 ID, and client secret. The experimental delegated Entra mode instead uses the
-current Azure CLI user. Credential construction lives here so every Entra
+current Azure CLI user, or a pre-issued Microsoft Graph access token. Credential construction lives here so every Entra
 dataset follows the selected authentication mode consistently.
 
 Call sites import this module and call ``credentials.make_credential(...)``
@@ -20,6 +20,9 @@ from azure.core.credentials import AccessToken
 from azure.core.credentials import TokenCredential
 from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
+
+from cartography.intel.common.access_token import make_static_credential
+from cartography.intel.common.access_token import MICROSOFT_GRAPH
 
 
 class CachingTokenCredential:
@@ -51,6 +54,7 @@ def make_credential(
     client_secret: str | None,
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> TokenCredential:
     """
     Build the credential used to authenticate against Microsoft Graph.
@@ -58,15 +62,27 @@ def make_credential(
     :param tenant_id: Microsoft Entra tenant ID
     :param client_id: Application (client) ID of the registered application
     :param client_secret: Client secret of the registered application
-    :param delegated_auth: Use the current Azure CLI user instead of an application
+    :param delegated_auth: Use a user's identity instead of an application
+    :param access_token: A pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     :return: A credential the Graph clients can authenticate with
     """
+    if access_token and not delegated_auth:
+        raise ValueError("A Microsoft access token requires delegated authentication")
     if delegated_auth:
         if client_id or client_secret:
             raise ValueError(
                 "Microsoft delegated authentication cannot be combined with "
                 "application credentials",
             )
+        if access_token:
+            credential, claims = make_static_credential(access_token, MICROSOFT_GRAPH)
+            if claims.tenant_id != tenant_id:
+                raise ValueError(
+                    "The Microsoft access token belongs to a different tenant "
+                    "than the configured Microsoft tenant ID",
+                )
+            return credential
         return CachingTokenCredential(AzureCliCredential(tenant_id=tenant_id))
     if not client_id or not client_secret:
         raise ValueError(

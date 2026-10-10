@@ -148,6 +148,9 @@ class Config:
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_delegated_auth: bool
     :param microsoft_delegated_auth: If True, use the current Azure CLI user for a best-effort Entra-only sync. Optional.
+    :type microsoft_access_token: str | None
+    :param microsoft_access_token: A pre-issued Microsoft Graph access token, such as a signed-in
+        user's delegated token. Implies microsoft_delegated_auth. Optional.
     :type microsoft_requested_syncs: str
     :param microsoft_requested_syncs: Comma-separated list of Microsoft resources to sync. Optional.
     :type entra_tenant_id: str
@@ -799,6 +802,7 @@ class Config:
         zoom_lookback_days=7,
         zoom_request_limit=100000,
         azure_access_token: str | None = None,
+        microsoft_access_token: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -850,6 +854,9 @@ class Config:
         self.entra_tenant_id = self.microsoft_tenant_id
         self.entra_client_id = self.microsoft_client_id
         self.entra_client_secret = self.microsoft_client_secret
+        microsoft_delegated_auth = microsoft_delegated_auth or bool(
+            microsoft_access_token
+        )
         if microsoft_delegated_auth:
             if not self.microsoft_tenant_id:
                 raise ValueError(
@@ -862,6 +869,7 @@ class Config:
                     "a Microsoft client ID or client secret.",
                 )
         self.microsoft_delegated_auth = microsoft_delegated_auth
+        self.microsoft_access_token = microsoft_access_token
         self.microsoft_requested_syncs = microsoft_requested_syncs
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold

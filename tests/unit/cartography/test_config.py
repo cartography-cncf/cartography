@@ -248,3 +248,25 @@ def test_jira_config_preserves_legacy_positional_slots() -> None:
         parameters.index(name) > parameters.index("zoom_client_secret")
         for name in ("jira_cloud_id", "jira_email", "jira_api_token", "jira_site_url")
     )
+
+
+def test_microsoft_access_token_implies_delegated_auth() -> None:
+    config = Config(
+        neo4j_uri="bolt://localhost:7687",
+        microsoft_tenant_id="tenant-id",
+        microsoft_access_token="graph-token",
+    )
+
+    assert config.microsoft_delegated_auth is True
+    assert config.microsoft_access_token == "graph-token"
+
+
+def test_config_rejects_microsoft_access_token_with_application_credentials() -> None:
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Config(
+            neo4j_uri="bolt://localhost:7687",
+            microsoft_tenant_id="tenant-id",
+            microsoft_client_id="client-id",
+            microsoft_client_secret="client-secret",
+            microsoft_access_token="graph-token",
+        )
