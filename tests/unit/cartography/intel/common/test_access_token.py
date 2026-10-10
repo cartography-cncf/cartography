@@ -34,8 +34,10 @@ def _token(**claims) -> str:
     ],
 )
 def test_parse_access_token_accepts_matching_audience(audience, token_audience):
+    # Act
     claims = parse_access_token(_token(aud=token_audience), audience)
 
+    # Assert
     assert claims.tenant_id == TEST_TENANT_ID
 
 
@@ -47,22 +49,25 @@ def test_parse_access_token_accepts_matching_audience(audience, token_audience):
     ],
 )
 def test_parse_access_token_rejects_other_audience(audience, token_audience):
+    # Act and assert
     with pytest.raises(ValueError, match=f"not issued for {audience.name}"):
         parse_access_token(_token(aud=token_audience), audience)
 
 
 def test_static_credential_serves_both_arm_scope_forms():
+    # Arrange
     credential = StaticAccessTokenCredential(
         "token", int(time.time()) + 3600, AZURE_RESOURCE_MANAGER
     )
 
-    assert credential.get_token("https://management.azure.com/.default").token == (
-        "token"
-    )
-    assert (
-        credential.get_token("https://management.core.windows.net//.default").token
-        == "token"
-    )
+    # Act
+    tokens = {
+        credential.get_token("https://management.azure.com/.default").token,
+        credential.get_token("https://management.core.windows.net//.default").token,
+    }
+
+    # Assert
+    assert tokens == {"token"}
 
 
 @pytest.mark.parametrize(
@@ -74,17 +79,23 @@ def test_static_credential_serves_both_arm_scope_forms():
     ],
 )
 def test_static_credential_refuses_other_audiences(audience, scope):
+    # Arrange
     credential = StaticAccessTokenCredential("token", int(time.time()) + 3600, audience)
 
+    # Act and assert
     with pytest.raises(UnsupportedTokenScopeError):
         credential.get_token(scope)
 
 
 def test_static_credential_fails_once_expired():
+    # Arrange
     credential = StaticAccessTokenCredential(
         "token", int(time.time()) - 1, MICROSOFT_GRAPH
     )
 
+    # Act
     with pytest.raises(ClientAuthenticationError, match="expired") as excinfo:
         credential.get_token("https://graph.microsoft.com/.default")
+
+    # Assert
     assert not isinstance(excinfo.value, UnsupportedTokenScopeError)

@@ -251,17 +251,20 @@ def test_jira_config_preserves_legacy_positional_slots() -> None:
 
 
 def test_microsoft_access_token_implies_delegated_auth() -> None:
+    # Act
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         microsoft_tenant_id="tenant-id",
         microsoft_access_token="graph-token",
     )
 
+    # Assert
     assert config.microsoft_delegated_auth is True
     assert config.microsoft_access_token == "graph-token"
 
 
 def test_config_rejects_microsoft_access_token_with_application_credentials() -> None:
+    # Act and assert
     with pytest.raises(ValueError, match="cannot be combined"):
         Config(
             neo4j_uri="bolt://localhost:7687",

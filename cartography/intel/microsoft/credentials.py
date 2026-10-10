@@ -77,7 +77,7 @@ def make_credential(
             )
         if access_token:
             credential, claims = make_static_credential(access_token, MICROSOFT_GRAPH)
-            if claims.tenant_id != tenant_id:
+            if claims.tenant_id.lower() != tenant_id.lower():
                 raise ValueError(
                     "The Microsoft access token belongs to a different tenant "
                     "than the configured Microsoft tenant ID",

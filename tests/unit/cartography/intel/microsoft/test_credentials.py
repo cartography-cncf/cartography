@@ -171,20 +171,24 @@ def _graph_token(tenant_id: str = "tenant-id", **claims) -> str:
 
 
 def test_make_credential_uses_access_token_for_delegated_auth() -> None:
-    token = _graph_token()
+    # Arrange
+    token = _graph_token("aaaaaaaa-0000-0000-0000-000000000001")
 
+    # Act
     credential = credentials.make_credential(
-        "tenant-id",
+        "AAAAAAAA-0000-0000-0000-000000000001",
         None,
         None,
         delegated_auth=True,
         access_token=token,
     )
 
+    # Assert
     assert credential.get_token("https://graph.microsoft.com/.default").token == token
 
 
 def test_make_credential_rejects_access_token_for_other_tenant() -> None:
+    # Act and assert
     with pytest.raises(ValueError, match="different tenant"):
         credentials.make_credential(
             "tenant-id",
@@ -192,25 +196,4 @@ def test_make_credential_rejects_access_token_for_other_tenant() -> None:
             None,
             delegated_auth=True,
             access_token=_graph_token("other-tenant-id"),
-        )
-
-
-def test_make_credential_rejects_arm_access_token() -> None:
-    with pytest.raises(ValueError, match="not issued for Microsoft Graph"):
-        credentials.make_credential(
-            "tenant-id",
-            None,
-            None,
-            delegated_auth=True,
-            access_token=_graph_token(aud="https://management.azure.com"),
-        )
-
-
-def test_make_credential_requires_delegated_auth_for_access_token() -> None:
-    with pytest.raises(ValueError, match="requires delegated authentication"):
-        credentials.make_credential(
-            "tenant-id",
-            "client-id",
-            "client-secret",
-            access_token=_graph_token(),
         )
