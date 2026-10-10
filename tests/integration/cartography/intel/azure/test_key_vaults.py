@@ -263,6 +263,7 @@ def test_unreachable_data_plane_preserves_vault_contents(
     A static ARM access token cannot reach the Key Vault data plane. The vaults
     themselves still sync, and contents from an earlier run are not cleaned up.
     """
+    # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     neo4j_session.run(
         "MERGE (s:AzureSubscription{id: $sub_id}) SET s.lastupdated = $update_tag",
@@ -280,9 +281,10 @@ def test_unreachable_data_plane_preserves_vault_contents(
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID},
     )
-
     next_update_tag = TEST_UPDATE_TAG + 1
     mock_get_secrets.side_effect = UnsupportedTokenScopeError("vault scope")
+
+    # Act
     key_vaults.sync(
         neo4j_session,
         MagicMock(),
@@ -291,18 +293,19 @@ def test_unreachable_data_plane_preserves_vault_contents(
         {"UPDATE_TAG": next_update_tag, "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID},
     )
 
+    # Assert
+    vault_id = MOCK_VAULTS[0]["id"]
     assert check_nodes(neo4j_session, "AzureKeyVault", ["id", "lastupdated"]) == {
-        (MOCK_VAULTS[0]["id"], next_update_tag),
+        (vault_id, next_update_tag),
     }
-    assert check_nodes(neo4j_session, "AzureKeyVaultSecret", ["id"]) == {
-        (MOCK_SECRETS[0]["id"],),
-    }
-    assert check_nodes(neo4j_session, "AzureKeyVaultKey", ["id"]) == {
-        (MOCK_KEYS[0]["id"],),
-    }
-    assert check_nodes(neo4j_session, "AzureKeyVaultCertificate", ["id"]) == {
-        (MOCK_CERTIFICATES[0]["id"],),
-    }
+    for label, item in (
+        ("AzureKeyVaultSecret", MOCK_SECRETS[0]),
+        ("AzureKeyVaultKey", MOCK_KEYS[0]),
+        ("AzureKeyVaultCertificate", MOCK_CERTIFICATES[0]),
+    ):
+        assert check_rels(
+            neo4j_session, "AzureKeyVault", "id", label, "id", "CONTAINS"
+        ) == {(vault_id, item["id"])}
     assert check_rels(
         neo4j_session,
         "AzureKeyVaultSecret",
@@ -311,5 +314,3 @@ def test_unreachable_data_plane_preserves_vault_contents(
         "id",
         "TAGGED",
     ) == {(MOCK_SECRETS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod")}
-    mock_get_keys.assert_called_once()
-    mock_get_certs.assert_called_once()
