@@ -131,17 +131,20 @@ class StaticAccessTokenCredential:
         return self._token
 
 
-def make_static_credential(
-    access_token: str,
-    audience: TokenAudience,
-) -> tuple[StaticAccessTokenCredential, AccessTokenClaims]:
-    claims = parse_access_token(access_token, audience)
+def log_token_lifetime(audience: TokenAudience, claims: AccessTokenClaims) -> None:
     logger.info(
         "Using a static %s access token; it expires in %d minutes and cannot be "
         "refreshed.",
         audience.name,
         (claims.expires_on - int(time.time())) // 60,
     )
+
+
+def make_static_credential(
+    access_token: str,
+    audience: TokenAudience,
+) -> tuple[StaticAccessTokenCredential, AccessTokenClaims]:
+    claims = parse_access_token(access_token, audience)
     return (
         StaticAccessTokenCredential(access_token, claims.expires_on, audience),
         claims,

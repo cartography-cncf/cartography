@@ -8,6 +8,9 @@ from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.common.access_token import log_token_lifetime
+from cartography.intel.common.access_token import MICROSOFT_GRAPH
+from cartography.intel.common.access_token import parse_access_token
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
@@ -153,6 +156,11 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "Using experimental delegated Entra authentication. Results "
                 "reflect only the current user's visibility, may be incomplete, "
                 "and will not delete existing Entra data.",
+            )
+        if access_token:
+            log_token_lifetime(
+                MICROSOFT_GRAPH,
+                parse_access_token(access_token, MICROSOFT_GRAPH),
             )
 
         await sync_tenant(

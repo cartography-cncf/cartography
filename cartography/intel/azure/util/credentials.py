@@ -8,6 +8,7 @@ from azure.identity import ClientSecretCredential
 from azure.mgmt.resource.subscriptions import SubscriptionClient
 
 from cartography.intel.common.access_token import AZURE_RESOURCE_MANAGER
+from cartography.intel.common.access_token import log_token_lifetime
 from cartography.intel.common.access_token import make_static_credential
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,7 @@ class Authenticator:
             access_token,
             AZURE_RESOURCE_MANAGER,
         )
+        log_token_lifetime(AZURE_RESOURCE_MANAGER, claims)
         subscription_id = _first_subscription_id(credential)
         if not subscription_id:
             raise RuntimeError(

@@ -164,9 +164,10 @@ permissions. It isn't a replacement for application authentication.
 - With `--microsoft-delegated-auth` alone, Cartography reads the local Azure
   CLI token cache. Use that only for an attended, one-time run on a trusted
   workstation. Don't use it for hosted or unattended inventory collection.
-- With `--microsoft-access-token-env-var`, the token can't be refreshed. Graph
-  access tokens typically last 60 to 90 minutes, and the sync fails once the
-  token expires, so mint it immediately before the run.
+- With `--microsoft-access-token-env-var`, the token can't be refreshed, and
+  the sync fails once it expires. Token lifetime depends on the issuing client
+  and tenant policy; Cartography logs the remaining lifetime when the sync
+  starts. Mint the token immediately before the run.
 
 A run that reports no denied datasets can still be incomplete. Microsoft Graph
 can filter results based on the signed-in user's effective visibility without
