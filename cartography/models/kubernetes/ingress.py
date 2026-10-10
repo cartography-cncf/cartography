@@ -49,6 +49,10 @@ class KubernetesIngressNodeProperties(CartographyNodeProperties):
     host_names: PropertyRef = PropertyRef(
         "host_names", description="Hostnames configured by the ingress rules."
     )
+    host_names_normalized: PropertyRef = PropertyRef(
+        "host_names_normalized",
+        description="Normalized hostnames from ingress rules.",
+    )
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME",
         set_in_kwargs=True,
