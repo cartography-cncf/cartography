@@ -12,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import GraphStatement
 from cartography.intel.azure.util.tag import transform_tags
+from cartography.intel.common.access_token import UnsupportedTokenScopeError
 from cartography.models.azure.key_vault import AzureKeyVaultSchema
 from cartography.models.azure.key_vault_certificate import (
     AzureKeyVaultCertificateSchema,
@@ -24,7 +25,6 @@ from cartography.models.azure.tags.key_vault_secret_tag import (
 from cartography.util import timeit
 
 from .util.credentials import Credentials
-from .util.credentials import UnsupportedTokenScopeError
 
 logger = logging.getLogger(__name__)
 

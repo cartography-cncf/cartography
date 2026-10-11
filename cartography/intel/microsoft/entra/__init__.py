@@ -8,6 +8,9 @@ from kiota_abstractions.api_error import APIError
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.common.access_token import log_token_lifetime
+from cartography.intel.common.access_token import MICROSOFT_GRAPH
+from cartography.intel.common.access_token import parse_access_token
 from cartography.intel.microsoft import credentials
 from cartography.intel.microsoft.entra.app_role_assignments import (
     sync_app_role_assignments,
@@ -50,6 +53,7 @@ async def sync_tenant(
     update_tag: int,
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """
     Sync tenant information as a prerequisite for all other Entra resource syncs.
@@ -59,13 +63,16 @@ async def sync_tenant(
     :param client_id: Azure application client ID
     :param client_secret: Azure application client secret
     :param update_tag: Update tag for tracking data freshness
-    :param delegated_auth: Use the current Azure CLI user
+    :param delegated_auth: Use a user's identity
+    :param access_token: Pre-issued Graph access token for delegated auth; the
+        current Azure CLI user is used when it is not set
     """
     credential = credentials.make_credential(
         tenant_id,
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
@@ -94,6 +101,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     client_id = config.microsoft_client_id
     client_secret = config.microsoft_client_secret
     delegated_auth = config.microsoft_delegated_auth
+    access_token = config.microsoft_access_token
     if not tenant_id or (not delegated_auth and (not client_id or not client_secret)):
         logger.info(
             "Entra import is not configured - skipping this module. "
@@ -149,6 +157,11 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                 "reflect only the current user's visibility, may be incomplete, "
                 "and will not delete existing Entra data.",
             )
+        if access_token:
+            log_token_lifetime(
+                MICROSOFT_GRAPH,
+                parse_access_token(access_token, MICROSOFT_GRAPH),
+            )
 
         await sync_tenant(
             neo4j_session,
@@ -157,6 +170,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             client_secret,
             config.update_tag,
             delegated_auth=delegated_auth,
+            access_token=access_token,
         )
 
         sync_args = (
@@ -170,40 +184,50 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         await run_dataset(
             "users",
             "users",
-            lambda: sync_entra_users(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_users(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "groups",
             "groups",
-            lambda: sync_entra_groups(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_groups(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "administrative_units",
             "administrative units",
-            lambda: sync_entra_ous(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_ous(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "applications",
             "applications",
-            lambda: sync_entra_applications(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_entra_applications(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "service_principals",
             "service principals",
-            lambda: sync_service_principals(*sync_args, delegated_auth=delegated_auth),
+            lambda: sync_service_principals(
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
+            ),
         )
         await run_dataset(
             "app_role_assignments",
             "app role assignments",
             lambda: sync_app_role_assignments(
-                *sync_args, delegated_auth=delegated_auth
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
             ),
         )
         await run_dataset(
             "directory_roles",
             "directory roles",
             lambda: sync_entra_directory_roles(
-                *sync_args, delegated_auth=delegated_auth
+                *sync_args, delegated_auth=delegated_auth, access_token=access_token
             ),
             allow_application_auth_denial=True,
         )

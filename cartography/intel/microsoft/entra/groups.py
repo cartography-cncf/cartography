@@ -164,6 +164,7 @@ async def sync_entra_groups(
     common_job_parameters: dict[str, Any],
     *,
     delegated_auth: bool = False,
+    access_token: str | None = None,
 ) -> None:
     """Sync Entra groups, preserving stale data for delegated authentication."""
     credential = credentials.make_credential(
@@ -171,6 +172,7 @@ async def sync_entra_groups(
         client_id,
         client_secret,
         delegated_auth=delegated_auth,
+        access_token=access_token,
     )
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]

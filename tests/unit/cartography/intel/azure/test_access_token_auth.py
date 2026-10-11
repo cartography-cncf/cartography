@@ -4,13 +4,10 @@ from unittest.mock import patch
 
 import jwt
 import pytest
-from azure.core.exceptions import ClientAuthenticationError
 
 from cartography.config import Config
 from cartography.intel.azure import start_azure_ingestion
 from cartography.intel.azure.util.credentials import Authenticator
-from cartography.intel.azure.util.credentials import StaticAccessTokenCredential
-from cartography.intel.azure.util.credentials import UnsupportedTokenScopeError
 
 TEST_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 TEST_SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000002"
@@ -84,41 +81,6 @@ def test_authenticate_access_token_requires_a_visible_subscription(
     # Act and assert
     with pytest.raises(RuntimeError, match="No Azure subscriptions found"):
         Authenticator().authenticate_access_token(_token())
-
-
-def test_static_credential_serves_both_arm_scope_forms():
-    # Arrange
-    credential = StaticAccessTokenCredential("token", int(time.time()) + 3600)
-
-    # Act
-    tokens = {
-        credential.get_token(ARM_SCOPE).token,
-        credential.get_token("https://management.core.windows.net//.default").token,
-    }
-
-    # Assert
-    assert tokens == {"token"}
-
-
-def test_static_credential_refuses_other_audiences():
-    # Arrange
-    credential = StaticAccessTokenCredential("token", int(time.time()) + 3600)
-
-    # Act and assert
-    with pytest.raises(UnsupportedTokenScopeError, match="vault.azure.net"):
-        credential.get_token("https://vault.azure.net/.default")
-
-
-def test_static_credential_fails_once_expired():
-    # Arrange
-    credential = StaticAccessTokenCredential("token", int(time.time()) - 1)
-
-    # Act
-    with pytest.raises(ClientAuthenticationError, match="expired") as excinfo:
-        credential.get_token(ARM_SCOPE)
-
-    # Assert
-    assert not isinstance(excinfo.value, UnsupportedTokenScopeError)
 
 
 @patch.object(Authenticator, "authenticate_access_token")

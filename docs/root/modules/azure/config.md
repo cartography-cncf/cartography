@@ -67,10 +67,10 @@ delegated sign-in flow in another tool):
 
 Limitations:
 
-- The token cannot be refreshed. ARM access tokens typically last 60 to 90
-  minutes, and the sync fails once the token expires, so mint it immediately
-  before the run. For subscriptions that take longer to sync, use a service
-  principal.
+- The token cannot be refreshed, and the sync fails once it expires. ARM access
+  tokens typically last 60 to 90 minutes; Cartography logs the remaining
+  lifetime when the sync starts. Mint the token immediately before the run, and
+  use a service principal for subscriptions that take longer to sync.
 - The token only reaches ARM. Key Vault secrets, keys, and certificates, and
   Synapse pipelines and linked services, are served by separate data-plane
   audiences, so they are not synced and a warning is logged. Existing Key Vault

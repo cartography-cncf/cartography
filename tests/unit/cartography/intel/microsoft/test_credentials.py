@@ -2,6 +2,7 @@ import time
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import jwt
 import pytest
 from azure.core.credentials import AccessToken
 from azure.identity import ClientSecretCredential
@@ -153,4 +154,46 @@ def test_make_credential_rejects_mixed_authentication_modes() -> None:
             "client-id",
             "client-secret",
             delegated_auth=True,
+        )
+
+
+def _graph_token(tenant_id: str = "tenant-id", **claims) -> str:
+    return jwt.encode(
+        {
+            "aud": "https://graph.microsoft.com",
+            "tid": tenant_id,
+            "exp": int(time.time()) + 3600,
+            **claims,
+        },
+        "test-signing-key-not-verified-by-cartography",
+        "HS256",
+    )
+
+
+def test_make_credential_uses_access_token_for_delegated_auth() -> None:
+    # Arrange
+    token = _graph_token("aaaaaaaa-0000-0000-0000-000000000001")
+
+    # Act
+    credential = credentials.make_credential(
+        "AAAAAAAA-0000-0000-0000-000000000001",
+        None,
+        None,
+        delegated_auth=True,
+        access_token=token,
+    )
+
+    # Assert
+    assert credential.get_token("https://graph.microsoft.com/.default").token == token
+
+
+def test_make_credential_rejects_access_token_for_other_tenant() -> None:
+    # Act and assert
+    with pytest.raises(ValueError, match="different tenant"):
+        credentials.make_credential(
+            "tenant-id",
+            None,
+            None,
+            delegated_auth=True,
+            access_token=_graph_token("other-tenant-id"),
         )
