@@ -87,8 +87,10 @@ _aws_account_without_cloudtrail = Fact(
         "Detects AWS accounts that have no CloudTrail trail and therefore lack "
         "account-level API activity logging."
     ),
+    # Only accounts this sync covers: an out-of-scope account (a trusted external
+    # account, say) never has its trails synced, so it would always look trail-less.
     cypher_query="""
-    MATCH (a:AWSAccount)
+    MATCH (a:AWSAccount {inscope: true})
     WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
     RETURN
         null AS trail_name,
@@ -99,12 +101,12 @@ _aws_account_without_cloudtrail = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH (a:AWSAccount)
+    MATCH (a:AWSAccount {inscope: true})
     WHERE NOT (a)-[:RESOURCE]->(:AWSCloudTrailTrail)
     RETURN a
     """,
     cypher_count_query="""
-    MATCH (a:AWSAccount)
+    MATCH (a:AWSAccount {inscope: true})
     RETURN COUNT(a) AS count
     """,
     asset_label="AWSAccount",
@@ -127,7 +129,7 @@ aws_cloudtrail_multi_region = Rule(
         _aws_account_without_cloudtrail,
     ),
     tags=("logging", "cloudtrail", "stride:repudiation"),
-    version="1.0.0",
+    version="1.0.1",
     references=CIS_REFERENCES,
     frameworks=(
         cis_aws("4.1"),
