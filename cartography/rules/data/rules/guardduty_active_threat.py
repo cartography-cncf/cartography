@@ -34,12 +34,18 @@ aws_guardduty_active_threat = Fact(
         "UnauthorizedAccess). These represent evidence of an active "
         "compromise or attacker activity rather than reconnaissance."
     ),
+    # A GuardDuty delegated administrator lists its member accounts' findings, so a
+    # finding synced from both accounts hangs off each of them by RESOURCE. Walking
+    # that edge would return the finding once per syncing account, attributed to
+    # whichever account listed it. `f.accountid` is the account the finding is in.
     cypher_query=f"""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE f.severity >= 7
       AND coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
       AND ({_ACTIVE_THREAT_WHERE})
+    OPTIONAL MATCH (a:AWSAccount {{id: f.accountid}})
+    WITH f, head(collect(a.name)) AS account_name
     RETURN
         f.id AS finding_id,
         f.arn AS finding_arn,
@@ -49,8 +55,8 @@ aws_guardduty_active_threat = Fact(
         f.region AS region,
         f.resource_type AS resource_type,
         f.resource_id AS resource_id,
-        a.id AS account_id,
-        a.name AS account_name
+        f.accountid AS account_id,
+        account_name
     ORDER BY f.severity DESC, f.eventlastseen DESC
     """,
     cypher_visual_query=f"""
@@ -66,7 +72,7 @@ aws_guardduty_active_threat = Fact(
     # evaluated population, not the failing subset. Sample findings are excluded
     # here too so they never count toward the pass rate.
     cypher_count_query="""
-    MATCH (:AWSAccount)-[:RESOURCE]->(f:AWSGuardDutyFinding)
+    MATCH (f:AWSGuardDutyFinding)
     WHERE coalesce(f.archived, false) = false
       AND coalesce(f.sample, false) = false
     RETURN COUNT(f) AS count
@@ -113,7 +119,7 @@ guardduty_active_threat = Rule(
         "stride:elevation_of_privilege",
     ),
     facts=(aws_guardduty_active_threat,),
-    version="0.1.1",
+    version="0.1.2",
     frameworks=(
         iso27001_annex_a("8.16"),
         soc2_tsc("CC7.2"),
