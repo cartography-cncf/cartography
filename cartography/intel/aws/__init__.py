@@ -796,6 +796,16 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    # DEPRECATED: cleanup for pre-data-model AWS nodes with no sub-resource edge,
+    # which no module's cleanup reaches; remove in v1.0.0 with AWS_LABEL_MIGRATIONS.
+    run_analysis_and_ensure_deps(
+        "aws_legacy_node_cleanup.json",
+        set(),
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         dependencies = AWS_EC2_ASSET_EXPOSURE_DEPS
         if job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:

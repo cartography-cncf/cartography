@@ -10,6 +10,8 @@ from cartography.intel.aws import label_migrations
 REPOSITORY_ROOT = Path(__file__).parents[5]
 LEGACY_LABEL_SCAN_ALLOWLIST = {
     Path("cartography/intel/aws/label_migrations.py"),
+    Path("cartography/data/jobs/analysis/aws_legacy_node_cleanup.json"),
+    Path("tests/integration/cartography/intel/aws/test_legacy_node_cleanup.py"),
     Path("tests/integration/cartography/intel/aws/test_label_migrations.py"),
     Path("tests/unit/cartography/intel/aws/test_label_migrations.py"),
 }
