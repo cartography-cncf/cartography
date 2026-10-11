@@ -248,11 +248,15 @@ LATEST_TAILSCALE_DEVICE_PER_HOSTNAME = """
     WITH tailnet, hostname, collect(registration.id)[0] AS current_registration_id
     MATCH (tailnet)-[:RESOURCE]->(device:TailscaleDevice {id: current_registration_id})
 """
-# The compliance denominator counts machines the same way, one per tailnet and hostname.
-TAILSCALE_HOSTNAME_COUNT = """
-    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
-    RETURN COUNT(DISTINCT [tailnet.id, coalesce(device.hostname, device.name, device.id)]) AS count
+# The compliance denominator counts machines the same way: one current registration
+# per tailnet and hostname. Counting that node, rather than a (tailnet, hostname)
+# pair, keeps the count scopable by consumers that narrow it to a set of assets.
+TAILSCALE_HOSTNAME_COUNT = (
+    LATEST_TAILSCALE_DEVICE_PER_HOSTNAME
+    + """
+    RETURN COUNT(DISTINCT device) AS count
 """
+)
 
 
 _tailscale_device_posture_gaps = Fact(
