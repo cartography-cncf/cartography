@@ -796,6 +796,16 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    # Nodes written before AWS intel moved to the node-schema data model carry no
+    # _module_name and no sub-resource edge, so no module's cleanup ever reaches them.
+    run_analysis_and_ensure_deps(
+        "aws_legacy_node_cleanup.json",
+        set(),
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     for job in AWS_EC2_ASSET_EXPOSURE_JOBS:
         dependencies = AWS_EC2_ASSET_EXPOSURE_DEPS
         if job is AWS_EC2_ASSET_EXPOSURE_AUTO_SCALING_GROUP:
