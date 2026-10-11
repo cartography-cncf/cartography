@@ -59,6 +59,10 @@ def test_deletes_only_unstamped_legacy_label_sets(neo4j_session):
         // the root principal that came with it.
         CREATE (stub:AWSAccount {id: '999999999999', foreign: true, lastupdated: $stale})
         CREATE (stub)-[:RESOURCE]->(:AWSPrincipal {id: 'stub-root', lastupdated: $stale})
+        // Also owned by a live account, so it outlives the stub.
+        CREATE (shared:AWSPrincipal {id: 'shared-principal', lastupdated: $stale})
+        CREATE (stub)-[:RESOURCE]->(shared)
+        CREATE (:AWSAccount {id: '333333333333', inscope: true, _module_name: 'cartography:aws', lastupdated: $tag})-[:RESOURCE]->(shared)
         // Still in scope: the removed-account purge, not this job, decides about it.
         CREATE (:AWSAccount {id: '111111111111', inscope: true, lastupdated: $stale})
         // Unstamped, but something current still hangs off it.
@@ -90,6 +94,8 @@ def test_deletes_only_unstamped_legacy_label_sets(neo4j_session):
         "111111111111",
         "222222222222",
         "live-root",
+        "333333333333",
+        "shared-principal",
     }
     assert neo4j_session.run(
         "MATCH (:AWSRole {id: 'live-role'})-[:POLICY]->(p) RETURN collect(p.id) AS ids"
