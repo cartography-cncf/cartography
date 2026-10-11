@@ -378,7 +378,17 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
 
-    if config.azure_sp_auth:
+    credentials: Credentials | None
+    if config.azure_access_token:
+        if config.azure_sp_auth:
+            raise ValueError(
+                "Azure access token authentication cannot be combined with "
+                "Service Principal authentication.",
+            )
+        credentials = Authenticator().authenticate_access_token(
+            config.azure_access_token,
+        )
+    elif config.azure_sp_auth:
         if not (
             config.azure_tenant_id
             and config.azure_client_id

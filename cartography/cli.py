@@ -763,6 +763,19 @@ class CLI:
                     hidden=PANEL_AZURE not in visible_panels,
                 ),
             ] = None,
+            azure_access_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--azure-access-token-env-var",
+                    help=(
+                        "Environment variable name containing an Azure Resource "
+                        "Manager access token, such as a signed-in user's "
+                        "delegated token. Cannot be combined with --azure-sp-auth."
+                    ),
+                    rich_help_panel=PANEL_AZURE,
+                    hidden=PANEL_AZURE not in visible_panels,
+                ),
+            ] = None,
             azure_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -3026,6 +3039,24 @@ class CLI:
                 )
                 azure_client_secret = os.environ.get(azure_client_secret_env_var)
 
+            azure_access_token = None
+            if azure_access_token_env_var:
+                if azure_sp_auth:
+                    raise typer.BadParameter(
+                        "--azure-access-token-env-var cannot be combined with "
+                        "--azure-sp-auth.",
+                    )
+                logger.debug(
+                    "Reading access token for Azure from environment variable %s",
+                    azure_access_token_env_var,
+                )
+                azure_access_token = os.environ.get(azure_access_token_env_var)
+                if not azure_access_token:
+                    raise typer.BadParameter(
+                        f"Environment variable {azure_access_token_env_var} "
+                        "is not set or is empty.",
+                    )
+
             (
                 microsoft_tenant_id,
                 microsoft_client_id,
@@ -3816,6 +3847,7 @@ class CLI:
                 azure_tenant_id=azure_tenant_id,
                 azure_client_id=azure_client_id,
                 azure_client_secret=azure_client_secret,
+                azure_access_token=azure_access_token,
                 azure_subscription_id=azure_subscription_id,
                 microsoft_tenant_id=microsoft_tenant_id,
                 microsoft_client_id=microsoft_client_id,

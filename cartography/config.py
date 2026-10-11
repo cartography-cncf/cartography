@@ -136,6 +136,10 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type azure_subscription_id: str | None
     :param azure_subscription_id: The Azure Subscription ID to sync.
+    :type azure_access_token: str | None
+    :param azure_access_token: A pre-issued Azure Resource Manager access token, such as a signed-in
+        user's delegated token. When set, Azure sync uses it instead of CLI or Service Principal
+        authentication. Optional.
     :type microsoft_tenant_id: str
     :param microsoft_tenant_id: Tenant Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_id: str
@@ -794,6 +798,7 @@ class Config:
         zoom_sections="",
         zoom_lookback_days=7,
         zoom_request_limit=100000,
+        azure_access_token: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -826,6 +831,7 @@ class Config:
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
+        self.azure_access_token = azure_access_token
         (
             self.microsoft_tenant_id,
             self.microsoft_client_id,

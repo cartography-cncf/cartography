@@ -24,6 +24,7 @@ from cartography.models.azure.tags.key_vault_secret_tag import (
 from cartography.util import timeit
 
 from .util.credentials import Credentials
+from .util.credentials import UnsupportedTokenScopeError
 
 logger = logging.getLogger(__name__)
 
@@ -384,16 +385,34 @@ def sync(
     )
 
     all_secrets: list[dict[str, Any]] = []
-    for vault in transformed_vaults:
-        vault_id = vault["id"]
-        vault_uri = vault.get("vault_uri")
-        if vault_uri:
-            # Sync secrets, keys, and certificates for this vault
-            # Per AGENTS.md: Let errors propagate to surface systemic failures
-            # Only catch ResourceNotFoundError for vaults that were deleted between list and access
-            try:
-                all_secrets.extend(
-                    sync_secrets(
+    try:
+        for vault in transformed_vaults:
+            vault_id = vault["id"]
+            vault_uri = vault.get("vault_uri")
+            if vault_uri:
+                # Sync secrets, keys, and certificates for this vault
+                # Per AGENTS.md: Let errors propagate to surface systemic failures
+                # Only catch ResourceNotFoundError for vaults that were deleted between list and access
+                try:
+                    all_secrets.extend(
+                        sync_secrets(
+                            neo4j_session,
+                            credentials,
+                            subscription_id,
+                            vault_id,
+                            vault_uri,
+                            update_tag,
+                            common_job_parameters,
+                        )
+                    )
+                except ResourceNotFoundError:
+                    logger.warning(
+                        f"Vault {vault_id} not found when syncing secrets, likely deleted. Skipping."
+                    )
+                    continue
+
+                try:
+                    sync_keys(
                         neo4j_session,
                         credentials,
                         subscription_id,
@@ -402,43 +421,37 @@ def sync(
                         update_tag,
                         common_job_parameters,
                     )
-                )
-            except ResourceNotFoundError:
-                logger.warning(
-                    f"Vault {vault_id} not found when syncing secrets, likely deleted. Skipping."
-                )
-                continue
+                except ResourceNotFoundError:
+                    logger.warning(
+                        f"Vault {vault_id} not found when syncing keys, likely deleted. Skipping."
+                    )
+                    continue
 
-            try:
-                sync_keys(
-                    neo4j_session,
-                    credentials,
-                    subscription_id,
-                    vault_id,
-                    vault_uri,
-                    update_tag,
-                    common_job_parameters,
-                )
-            except ResourceNotFoundError:
-                logger.warning(
-                    f"Vault {vault_id} not found when syncing keys, likely deleted. Skipping."
-                )
-                continue
-
-            try:
-                sync_certificates(
-                    neo4j_session,
-                    credentials,
-                    subscription_id,
-                    vault_id,
-                    vault_uri,
-                    update_tag,
-                    common_job_parameters,
-                )
-            except ResourceNotFoundError:
-                logger.warning(
-                    f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
-                )
+                try:
+                    sync_certificates(
+                        neo4j_session,
+                        credentials,
+                        subscription_id,
+                        vault_id,
+                        vault_uri,
+                        update_tag,
+                        common_job_parameters,
+                    )
+                except ResourceNotFoundError:
+                    logger.warning(
+                        f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
+                    )
+    except UnsupportedTokenScopeError as e:
+        # A static ARM access token cannot reach the Key Vault data plane. Leave
+        # existing secrets, keys, certificates and their tags untouched rather
+        # than cleaning them up as if the vaults were empty.
+        logger.warning(
+            "Skipping Azure Key Vault secrets, keys, and certificates for "
+            "subscription %s: %s",
+            subscription_id,
+            e,
+        )
+        return
 
     # Load and clean secret tags once per subscription, after every vault's secrets
     # are loaded, so cleanup never removes tags belonging to a not-yet-synced vault.

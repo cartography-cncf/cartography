@@ -2,8 +2,8 @@
 
 ## Authentication
 
-Cartography supports Azure CLI authentication and service principal
-authentication.
+Cartography supports Azure CLI authentication, service principal
+authentication, and access token authentication.
 
 ### Azure CLI
 
@@ -30,6 +30,56 @@ Store the returned `tenant`, `appId`, and `password` values in environment
 variables such as `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and
 `AZURE_CLIENT_SECRET`.
 
+### Access token
+
+Access token authentication runs the sync with a pre-issued Azure Resource
+Manager (ARM) access token, typically a signed-in user's delegated token. It
+needs no service principal and no Azure CLI session in the environment that
+runs Cartography, which suits directories where only delegated (user) sign-in
+is allowed.
+
+The token must be issued for ARM (`https://management.azure.com`). A Microsoft
+Graph token is rejected: ARM and Graph are separate audiences, and a token for
+one is never accepted by the other.
+
+To mint one from a signed-in Azure CLI session:
+
+```bash
+az login
+export AZURE_ACCESS_TOKEN="$(az account get-access-token \
+  --resource https://management.azure.com \
+  --query accessToken --output tsv)"
+```
+
+To mint one from your own app registration instead (for example, a
+delegated sign-in flow in another tool):
+
+1. In **App registrations > your app > API permissions**, add the delegated
+   permission **Azure Service Management > `user_impersonation`**. It is the
+   only delegated permission ARM exposes.
+2. Grant consent for it: either the signed-in user consents on first sign-in,
+   or an administrator selects **Grant admin consent** where user consent is
+   restricted.
+3. Request the token for the scope
+   `https://management.azure.com/user_impersonation` (or
+   `https://management.azure.com/.default`). Request it separately from any
+   Microsoft Graph token.
+
+Limitations:
+
+- The token cannot be refreshed. ARM access tokens typically last 60 to 90
+  minutes, and the sync fails once the token expires, so mint it immediately
+  before the run. For subscriptions that take longer to sync, use a service
+  principal.
+- The token only reaches ARM. Key Vault secrets, keys, and certificates, and
+  Synapse pipelines and linked services, are served by separate data-plane
+  audiences, so they are not synced and a warning is logged. Existing Key Vault
+  contents in the graph are left in place; Synapse pipelines and linked
+  services are treated as empty, as with any identity that cannot read them.
+  Key vaults and Synapse workspaces themselves still sync.
+- Coverage is limited to what the token's identity can read through its Azure
+  RBAC role assignments, exactly as with any other identity.
+
 ## Required Permissions
 
 Grant the authenticated identity the built-in Azure
@@ -46,13 +96,15 @@ cover the management groups that Cartography should sync.
 - Omit `--azure-sp-auth` to use the active Azure CLI session.
 - Set `--azure-sp-auth` to use the tenant ID, client ID, and client secret
   options.
+- Set `--azure-access-token-env-var` to the name of an environment variable
+  holding an ARM access token. It cannot be combined with `--azure-sp-auth`.
 - Set `--azure-subscription-id` to sync one specific subscription.
 - Set `--azure-sync-all-subscriptions` to discover and sync every subscription
   visible to the authenticated identity.
 
-When neither subscription option is set, Azure CLI authentication selects the
-first subscription returned by the Azure subscription API, which may not be
-the CLI's current subscription. Service principal authentication has no
+When neither subscription option is set, Azure CLI and access token
+authentication select the first subscription returned by the Azure
+subscription API, which may not be the CLI's current subscription. Service principal authentication has no
 default subscription ID and cannot sync a single subscription without
 `--azure-subscription-id`.
 
@@ -78,4 +130,13 @@ cartography \
   --azure-tenant-id "$AZURE_TENANT_ID" \
   --azure-client-id "$AZURE_CLIENT_ID" \
   --azure-client-secret-env-var AZURE_CLIENT_SECRET
+```
+
+With an ARM access token and all visible subscriptions:
+
+```bash
+cartography \
+  --selected-modules azure \
+  --azure-sync-all-subscriptions \
+  --azure-access-token-env-var AZURE_ACCESS_TOKEN
 ```
