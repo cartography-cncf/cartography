@@ -236,6 +236,20 @@ _jamf_mobile_device_posture_gaps = Fact(
 )
 
 
+# A machine can hold several live registrations under one hostname: a node that
+# re-registers (an ephemeral node reconnecting, a re-created host) keeps its old
+# registration until that expires. Facts keyed on hostname take the most recently
+# seen one, so the machine gets one finding and it reflects its current state.
+LATEST_TAILSCALE_DEVICE_PER_HOSTNAME = """
+    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(registration:TailscaleDevice)
+    WITH tailnet, registration,
+        coalesce(registration.hostname, registration.name, registration.id) AS hostname
+    ORDER BY coalesce(registration.last_seen, '') DESC, registration.id
+    WITH tailnet, hostname, collect(registration.id)[0] AS current_registration_id
+    MATCH (tailnet)-[:RESOURCE]->(device:TailscaleDevice {id: current_registration_id})
+"""
+
+
 _tailscale_device_posture_gaps = Fact(
     id="tailscale_device_posture_gaps",
     name="Tailscale devices with data protection gaps",
@@ -243,8 +257,8 @@ _tailscale_device_posture_gaps = Fact(
         "Detects Tailscale devices with explicit encryption or firewall posture "
         "failures from Tailscale device posture data."
     ),
-    cypher_query="""
-    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    cypher_query=LATEST_TAILSCALE_DEVICE_PER_HOSTNAME
+    + """
     OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
     WITH tailnet, device, user,
         [
@@ -538,8 +552,9 @@ _device_update_gaps = Fact(
     id="device_update_gaps",
     name="Devices with available security updates",
     description="Detects Tailscale devices with an explicitly available update.",
-    cypher_query="""
-    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    cypher_query=LATEST_TAILSCALE_DEVICE_PER_HOSTNAME
+    + """
+    WITH tailnet, device
     WHERE device.update_available = true
     OPTIONAL MATCH (user:TailscaleUser)-[:OWNS]->(device)
     RETURN
@@ -737,7 +752,7 @@ device_security_posture_gaps = Rule(
         _tailscale_device_posture_gaps,
     ),
     tags=("device", "endpoint", "encryption", "compliance", "stride:tampering"),
-    version="0.3.1",
+    version="0.3.2",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.9"),
@@ -786,7 +801,7 @@ device_update_gaps = Rule(
     output_model=DeviceSecurityPostureGapOutput,
     facts=(_device_update_gaps,),
     tags=("device", "endpoint", "patching", "vulnerability"),
-    version="0.1.0",
+    version="0.1.1",
     frameworks=(
         iso27001_annex_a("8.1"),
         iso27001_annex_a("8.8"),

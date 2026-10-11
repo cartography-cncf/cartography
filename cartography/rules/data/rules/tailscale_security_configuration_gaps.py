@@ -1,5 +1,8 @@
 from cartography.rules.data.frameworks.iso27001 import iso27001_annex_a
 from cartography.rules.data.frameworks.soc2 import soc2_tsc
+from cartography.rules.data.rules.device_security_posture_gaps import (
+    LATEST_TAILSCALE_DEVICE_PER_HOSTNAME,
+)
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -148,8 +151,9 @@ _tailscale_device_key_expiry_disabled = Fact(
     id="tailscale_device_key_expiry_disabled",
     name="Tailscale devices with key expiry disabled",
     description="Detects Tailscale devices where key expiry is disabled.",
-    cypher_query="""
-    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    cypher_query=LATEST_TAILSCALE_DEVICE_PER_HOSTNAME
+    + """
+    WITH tailnet, device
     WHERE device.key_expiry_disabled = true
     RETURN
         tailnet.id AS tailnet_id,
@@ -237,7 +241,7 @@ tailscale_device_key_expiry_disabled = Rule(
     output_model=TailscaleSecurityConfigurationGapOutput,
     facts=(_tailscale_device_key_expiry_disabled,),
     tags=("device", "authentication", "compliance", "stride:spoofing"),
-    version="0.2.0",
+    version="0.2.1",
     frameworks=(
         iso27001_annex_a("5.17"),
         soc2_tsc("CC6.1"),
