@@ -248,6 +248,11 @@ LATEST_TAILSCALE_DEVICE_PER_HOSTNAME = """
     WITH tailnet, hostname, collect(registration.id)[0] AS current_registration_id
     MATCH (tailnet)-[:RESOURCE]->(device:TailscaleDevice {id: current_registration_id})
 """
+# The compliance denominator counts machines the same way, one per tailnet and hostname.
+TAILSCALE_HOSTNAME_COUNT = """
+    MATCH (tailnet:TailscaleTailnet)-[:RESOURCE]->(device:TailscaleDevice)
+    RETURN COUNT(DISTINCT [tailnet.id, coalesce(device.hostname, device.name, device.id)]) AS count
+"""
 
 
 _tailscale_device_posture_gaps = Fact(
@@ -298,10 +303,7 @@ _tailscale_device_posture_gaps = Fact(
        OR device.posture_intune_is_encrypted = false
     RETURN device
     """,
-    cypher_count_query="""
-    MATCH (device:TailscaleDevice)
-    RETURN COUNT(device) AS count
-    """,
+    cypher_count_query=TAILSCALE_HOSTNAME_COUNT,
     asset_label="TailscaleDevice",
     asset_id_field="device_id",
     # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
@@ -572,10 +574,7 @@ _device_update_gaps = Fact(
     WHERE device.update_available = true
     RETURN device
     """,
-    cypher_count_query="""
-    MATCH (device:TailscaleDevice)
-    RETURN COUNT(device) AS count
-    """,
+    cypher_count_query=TAILSCALE_HOSTNAME_COUNT,
     asset_label="TailscaleDevice",
     asset_id_field="device_id",
     identity_fields=("tailnet_id", "device_name", "issue"),

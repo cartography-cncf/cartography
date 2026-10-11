@@ -59,3 +59,11 @@ def test_a_reregistered_hostname_reports_only_its_current_registration(
     ]
 
     assert _rows(neo4j_session, _tailscale_device_posture_gaps) == []
+
+    # Two machines, not three registrations, make up the compliance denominator.
+    for fact in (
+        _tailscale_device_key_expiry_disabled,
+        _device_update_gaps,
+        _tailscale_device_posture_gaps,
+    ):
+        assert neo4j_session.run(fact.cypher_count_query).single()["count"] == 2

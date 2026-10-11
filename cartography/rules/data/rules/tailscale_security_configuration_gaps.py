@@ -3,6 +3,9 @@ from cartography.rules.data.frameworks.soc2 import soc2_tsc
 from cartography.rules.data.rules.device_security_posture_gaps import (
     LATEST_TAILSCALE_DEVICE_PER_HOSTNAME,
 )
+from cartography.rules.data.rules.device_security_posture_gaps import (
+    TAILSCALE_HOSTNAME_COUNT,
+)
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -168,10 +171,7 @@ _tailscale_device_key_expiry_disabled = Fact(
     WHERE device.key_expiry_disabled = true
     RETURN *
     """,
-    cypher_count_query="""
-    MATCH (device:TailscaleDevice)
-    RETURN COUNT(device) AS count
-    """,
+    cypher_count_query=TAILSCALE_HOSTNAME_COUNT,
     asset_label="TailscaleDevice",
     asset_id_field="asset_id",
     # Key on tailnet + stable hostname, not device.id: Tailscale ephemeral nodes get
