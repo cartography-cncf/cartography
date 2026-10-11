@@ -796,8 +796,8 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
-    # Nodes written before AWS intel moved to the node-schema data model carry no
-    # _module_name and no sub-resource edge, so no module's cleanup ever reaches them.
+    # DEPRECATED: cleanup for pre-data-model AWS nodes with no sub-resource edge,
+    # which no module's cleanup reaches; remove in v1.0.0 with AWS_LABEL_MIGRATIONS.
     run_analysis_and_ensure_deps(
         "aws_legacy_node_cleanup.json",
         set(),
