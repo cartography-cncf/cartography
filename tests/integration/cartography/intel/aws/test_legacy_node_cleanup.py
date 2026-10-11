@@ -54,6 +54,18 @@ def test_deletes_only_unstamped_legacy_label_sets(neo4j_session):
         CREATE (:AWSDNSRecord:DNSRecord {id: 'es-dns-record', lastupdated: $stale})
 
         CREATE (:KMSAlias {id: 'refreshed-alias', lastupdated: $tag})
+
+        // Out-of-scope account written before load() stamped _module_name, with
+        // the root principal that came with it.
+        CREATE (stub:AWSAccount {id: '999999999999', foreign: true, lastupdated: $stale})
+        CREATE (stub)-[:RESOURCE]->(:AWSPrincipal {id: 'stub-root', lastupdated: $stale})
+        // Still in scope: the removed-account purge, not this job, decides about it.
+        CREATE (:AWSAccount {id: '111111111111', inscope: true, lastupdated: $stale})
+        // Unstamped, but something current still hangs off it.
+        CREATE (referenced:AWSAccount {id: '222222222222', lastupdated: $stale})
+        CREATE (referenced)-[:RESOURCE]->(:AWSRootPrincipal {
+            id: 'live-root', _module_name: 'cartography:aws', lastupdated: $tag
+        })
         """,
         tag=COMMON_JOB_PARAMETERS["UPDATE_TAG"],
         stale=STALE_TAG,
@@ -75,6 +87,9 @@ def test_deletes_only_unstamped_legacy_label_sets(neo4j_session):
         "refreshed-alias",
         "123456789012",
         "parented-alias",
+        "111111111111",
+        "222222222222",
+        "live-root",
     }
     assert neo4j_session.run(
         "MATCH (:AWSRole {id: 'live-role'})-[:POLICY]->(p) RETURN collect(p.id) AS ids"

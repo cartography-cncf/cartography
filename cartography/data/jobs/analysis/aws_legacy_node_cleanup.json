@@ -120,6 +120,18 @@
       "query": "MATCH (n:S3PolicyStatement) WHERE size(labels(n)) = 1 AND n._module_name IS NULL AND NOT (n)<-[:RESOURCE]-(:AWSAccount) AND n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
       "iterative": true,
       "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. Principals owned only by an out-of-scope AWSAccount written before load() stamped _module_name. Any account a current sync still references is re-stamped by load(), so these are unreachable.",
+      "query": "MATCH (a:AWSAccount) WHERE a._module_name IS NULL AND coalesce(a.inscope, false) = false AND a.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (a)--(m) WHERE m._module_name IS NOT NULL } MATCH (a)-[:RESOURCE]->(child) WHERE child._module_name IS NULL WITH child LIMIT $LIMIT_SIZE DETACH DELETE child",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "DEPRECATED: delete in v1.0.0 with AWS_LABEL_MIGRATIONS. The out-of-scope AWSAccount stubs themselves.",
+      "query": "MATCH (a:AWSAccount) WHERE a._module_name IS NULL AND coalesce(a.inscope, false) = false AND a.lastupdated <> $UPDATE_TAG AND NOT EXISTS { MATCH (a)--(m) WHERE m._module_name IS NOT NULL } WITH a LIMIT $LIMIT_SIZE DETACH DELETE a",
+      "iterative": true,
+      "iterationsize": 1000
     }
   ]
 }
