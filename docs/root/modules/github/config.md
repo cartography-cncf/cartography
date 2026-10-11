@@ -98,7 +98,7 @@ data while continuing ingestion.
 | Repository secret scanning, push protection, Advanced Security, and Dependabot security updates status | Repository **Administration: Read**, with repository administrator, organization owner, or security manager access | `repo`, with repository administrator, organization owner, or security manager access |
 | Installed GitHub Apps and their permissions | Organization owner access with organization **Administration: Read** | Organization owner access and `read:org` |
 | Organization webhooks | Organization owner access with organization **Webhooks: Read** | Organization owner access and `admin:org_hook` |
-| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `read:repo_hook`, with repository administrator access |
+| Repository webhooks | Repository **Webhooks: Read**, with repository administrator access | `repo`, with repository administrator access |
 | Enterprise owners | Appropriate GitHub Enterprise permissions | Appropriate GitHub Enterprise permissions |
 | SAML external identities | GitHub App installation token with organization **Members: Read**; fine-grained PATs are not supported by this GraphQL field | Organization owner access and `read:org` or `admin:org` |
 
