@@ -1,3 +1,5 @@
+import copy
+
 import cartography.intel.tenable.assets
 import cartography.intel.tenable.findings
 from tests.data.tenable.assets import ASSET_ID_1
@@ -132,23 +134,6 @@ def test_sync_cves(neo4j_session, mocker):
     assert record["ontology_source"] == "tenable"
 
 
-def _cve_list_index_names(neo4j_session):
-    rows = neo4j_session.run(
-        """
-        SHOW INDEXES YIELD name, labelsOrTypes, properties, entityType
-        WHERE entityType = 'NODE'
-          AND labelsOrTypes = ['TenableFinding'] AND properties = ['cve_list']
-        RETURN name
-        """
-    )
-    return {row["name"] for row in rows}
-
-
-def _drop_cve_list_indexes(neo4j_session):
-    for name in _cve_list_index_names(neo4j_session):
-        neo4j_session.run(f"DROP INDEX `{name}` IF EXISTS")
-
-
 def test_sync_cves_correlate_with_nvd_through_ontology(neo4j_session, mocker):
     """Test that TenableCve lines up with NVD data through _ont_cve_id, with no edge.
 
@@ -205,61 +190,51 @@ def test_sync_cves_correlate_with_nvd_through_ontology(neo4j_session, mocker):
     assert record["severity"] == "high"
 
 
-def test_sync_findings_removes_legacy_cve_state(neo4j_session, mocker):
-    """Test that the first sync after upgrading cleans up what older versions left.
+def test_sync_findings_with_a_cumulative_update_cve_list(neo4j_session, mocker):
+    """Regression test: a plugin naming hundreds of CVEs must not fail the sync.
 
-    Older versions indexed TenableFinding.cve_list and put :CVE plus _ont_* on the
-    finding. Cartography never removes either on its own, and the index would still
-    reject large cve_list values, so sync must clear them before loading.
+    cve_list used to be indexed, and Neo4j rejects index keys over ~8 KB.
     """
-    _drop_cve_list_indexes(neo4j_session)
+    # Arrange: roughly the size of a cumulative OS update plugin's CVE list.
+    cve_ids = [f"CVE-2026-{n:05d}" for n in range(700)]
+    data = copy.deepcopy(FINDINGS_DATA[:1])
+    data[0]["finding_id"] = "large-cve-list"
+    data[0]["plugin"]["id"] = 999999
+    data[0]["plugin"]["cve"] = cve_ids
+    _load_assets(neo4j_session, mocker)
+
     try:
-        # Arrange: the index and a finding exactly as an older version left them.
-        neo4j_session.run(
-            "CREATE INDEX IF NOT EXISTS FOR (n:TenableFinding) ON (n.cve_list)"
-        )
-        # Index creation is asynchronous; real graphs have it ONLINE.
-        neo4j_session.run("CALL db.awaitIndexes(60)")
-        neo4j_session.run(
-            """
-            MERGE (f:TenableFinding {id: $finding_id})
-            SET f:CVE, f.lastupdated = $old_tag,
-                f._ont_source = 'tenable', f._ont_cve_id = $cve_id,
-                f._ont_base_severity = 'high', f._ont_vuln_status = 'open'
-            """,
-            finding_id=FINDING_ID_1,
-            cve_id=CVE_ID_1,
-            old_tag=TEST_UPDATE_TAG - 1000,
-        )
-        assert _cve_list_index_names(neo4j_session)
-        _load_assets(neo4j_session, mocker)
-
         # Act
-        _sync_findings(neo4j_session, mocker)
+        _sync_findings(neo4j_session, mocker, data)
 
-        # Assert: the index is gone, and the finding lost the legacy label and
-        # ontology properties but carries this sync's data.
-        assert _cve_list_index_names(neo4j_session) == set()
+        # Assert: every CVE is linked, and nothing indexes the list.
         record = neo4j_session.run(
             """
-            MATCH (f:TenableFinding {id: $finding_id})
-            RETURN f:CVE AS has_cve_label, f._ont_source AS ont_source,
-                   f._ont_cve_id AS ont_cve_id,
-                   f._ont_base_severity AS ont_severity,
-                   f._ont_vuln_status AS ont_status,
-                   f.severity AS severity, f.lastupdated AS lastupdated
-            """,
-            finding_id=FINDING_ID_1,
+            MATCH (f:TenableFinding {id: 'large-cve-list'})
+            RETURN size(f.cve_list) AS listed,
+                   COUNT { (f)-[:HAS_CVE]->(:TenableCve) } AS linked
+            """
         ).single(strict=True)
-        assert record["has_cve_label"] is False
-        assert record["ont_source"] is None
-        assert record["ont_cve_id"] is None
-        assert record["ont_severity"] is None
-        assert record["ont_status"] is None
-        assert record["severity"] == "high"
-        assert record["lastupdated"] == TEST_UPDATE_TAG
+        assert record["listed"] == 700
+        assert record["linked"] == 700
+        indexes = neo4j_session.run(
+            """
+            SHOW INDEXES YIELD labelsOrTypes, properties
+            WHERE labelsOrTypes = ['TenableFinding'] AND properties = ['cve_list']
+            RETURN count(*) AS n
+            """
+        ).single(strict=True)["n"]
+        assert indexes == 0
     finally:
-        _drop_cve_list_indexes(neo4j_session)
+        neo4j_session.run(
+            """
+            MATCH (n)
+            WHERE (n:TenableFinding AND n.id = 'large-cve-list')
+               OR (n:TenablePlugin AND n.id = 999999)
+               OR (n:TenableCve AND n.cve_id STARTS WITH 'CVE-2026-')
+            DETACH DELETE n
+            """
+        )
 
 
 def test_sync_findings_has_cve_rel(neo4j_session, mocker):
