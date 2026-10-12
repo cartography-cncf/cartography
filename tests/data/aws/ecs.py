@@ -451,6 +451,67 @@ GET_ECS_TASKS = [
     },
 ]
 
+# A standalone task (not started by a service) that stopped after its network
+# interface was collected. ECS has already deleted the interface attachment.
+STOPPED_TASK_ARN = "arn:aws:ecs:us-east-1:000000000000:task/test_cluster/11111111111111111111111111111111"
+STOPPED_TASK_ENI_ID = "eni-11111111111111111"
+STOPPED_TASK_ATTACHMENT_ID = "11111111-1111-1111-1111-111111111111"
+GET_ECS_STOPPED_TASK = {
+    "attachments": [
+        {
+            "id": STOPPED_TASK_ATTACHMENT_ID,
+            "type": "ElasticNetworkInterface",
+            "status": "DELETED",
+            "details": [
+                {"name": "subnetId", "value": "subnet-11111111111111111"},
+                {"name": "networkInterfaceId", "value": STOPPED_TASK_ENI_ID},
+                {"name": "macAddress", "value": "00:00:00:00:00:11"},
+                {"name": "privateIPv4Address", "value": "10.0.1.11"},
+            ],
+        },
+    ],
+    "availabilityZone": "us-east-1a",
+    "clusterArn": "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
+    "containers": [
+        {
+            "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/test_cluster/11111111111111111111111111111111/11111111-1111-1111-1111-111111111111",  # noqa:E501
+            "taskArn": STOPPED_TASK_ARN,
+            "name": "update",
+            "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-update:latest",
+            "lastStatus": "STOPPED",
+            "exitCode": 0,
+        },
+    ],
+    "cpu": "256",
+    "createdAt": datetime.datetime(2021, 12, 28, 6, 40, 0, tzinfo=tz.utc),
+    "desiredStatus": "STOPPED",
+    "group": "family:example-update",
+    "lastStatus": "STOPPED",
+    "launchType": "FARGATE",
+    "memory": "512",
+    "startedAt": datetime.datetime(2021, 12, 28, 6, 40, 30, tzinfo=tz.utc),
+    "stoppedAt": datetime.datetime(2021, 12, 28, 6, 45, 0, tzinfo=tz.utc),
+    "stopCode": "EssentialContainerExited",
+    "stoppedReason": "Essential container in task exited",
+    "taskArn": STOPPED_TASK_ARN,
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:000000000000:task-definition/example-update:1",
+    "version": 4,
+}
+# The interface the stopped task used, as DescribeNetworkInterfaces returned it
+# before the task stopped. ECS names the attachment in the description.
+GET_STOPPED_TASK_NETWORK_INTERFACE = {
+    "NetworkInterfaceId": STOPPED_TASK_ENI_ID,
+    "Description": f"arn:aws:ecs:us-east-1:000000000000:attachment/{STOPPED_TASK_ATTACHMENT_ID}",
+    "InterfaceType": "interface",
+    "MacAddress": "00:00:00:00:00:11",
+    "RequesterManaged": True,
+    "SourceDestCheck": True,
+    "Status": "in-use",
+    "SubnetId": "subnet-11111111111111111",
+    "PrivateIpAddress": "10.0.1.11",
+    "PrivateIpAddresses": [{"PrivateIpAddress": "10.0.1.11", "Primary": True}],
+}
+
 # Redacted from live aws ecs describe-tasks/describe-task-definition payloads.
 GET_ECS_TASKS_LIVE_REDACTED = [
     {

@@ -1,10 +1,17 @@
 import copy
+from unittest.mock import MagicMock
 from unittest.mock import patch
+
+import pytest
 
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
 from cartography.analysis.aws.analysis import AWS_ECS_ASSET_EXPOSURE
 from cartography.intel.aws import AWS_ECS_ASSET_EXPOSURE_DEPS
+from cartography.intel.aws.ec2.network_interfaces import load_network_data
+from cartography.intel.aws.ec2.network_interfaces import (
+    transform_network_interface_data,
+)
 from cartography.util import run_typed_analysis_and_ensure_deps
 from cartography.util import run_typed_analysis_job
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -1084,7 +1091,7 @@ def test_sync_ecs_comprehensive(
     }, "ECSServices"
 
 
-def _build_ecs_direct_exposure_chain(neo4j_session, suffix):
+def _build_ecs_direct_exposure_chain(neo4j_session, suffix, last_status=None):
     """
     Build 0.0.0.0/0 -> IpPermissionInbound -> SecurityGroup <- ENI (public IP) <- Task -> Container
     with per-test-unique node ids (the module-scoped neo4j_session is shared across tests with no
@@ -1100,7 +1107,7 @@ def _build_ecs_direct_exposure_chain(neo4j_session, suffix):
         MERGE (sg:AWSEC2SecurityGroup{id: 'sg-' + $suffix, groupid: 'sg-' + $suffix}) SET sg.lastupdated = $tag
         MERGE (ni:AWSNetworkInterface{id: 'eni-' + $suffix}) SET ni.lastupdated = $tag, ni.public_ip = '52.9.8.7'
         MERGE (task:AWSECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task-' + $suffix})
-            SET task.lastupdated = $tag
+            SET task.lastupdated = $tag, task.last_status = $last_status
         MERGE (c:AWSECSContainer{id: $container_id}) SET c.lastupdated = $tag, c.name = 'web'
         MERGE (r)-[:MEMBER_OF_IP_RULE]->(perm)
         MERGE (perm)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg)
@@ -1111,6 +1118,7 @@ def _build_ecs_direct_exposure_chain(neo4j_session, suffix):
         tag=TEST_UPDATE_TAG,
         suffix=suffix,
         container_id=container_id,
+        last_status=last_status,
     )
     return container_id
 
@@ -1173,3 +1181,173 @@ def test_ecs_direct_exposure_skipped_when_security_group_not_synced(neo4j_sessio
     ran = _get_container_exposure(neo4j_session, container_id)
     assert ran["exposed"] is True
     assert "direct" in ran["types"]
+
+
+def test_ecs_direct_exposure_skips_stopped_tasks(neo4j_session):
+    """
+    A task collected after it stopped (--aws-ecs-include-stopped-tasks) still links to the
+    interface collected before it stopped, but runs nothing: its containers are not exposed.
+    """
+    # Arrange
+    running_container = _build_ecs_direct_exposure_chain(
+        neo4j_session, "still-running", last_status="RUNNING"
+    )
+    stopped_container = _build_ecs_direct_exposure_chain(
+        neo4j_session, "stopped", last_status="STOPPED"
+    )
+
+    # Act
+    run_typed_analysis_job(
+        AWS_ECS_ASSET_EXPOSURE,
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    assert _get_container_exposure(neo4j_session, running_container)["exposed"] is True
+    stopped = _get_container_exposure(neo4j_session, stopped_container)
+    assert stopped["exposed"] is None
+    assert stopped["types"] is None
+
+
+def _ecs_session_listing(running_arns, stopped_arns, described):
+    """A boto3 session whose ECS client lists tasks by desiredStatus (unset means RUNNING)."""
+    pages = {
+        None: [{"taskArns": running_arns}],
+        "RUNNING": [{"taskArns": running_arns}],
+        "STOPPED": [{"taskArns": stopped_arns}],
+    }
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.side_effect = lambda **kwargs: pages[
+        kwargs.get("desiredStatus")
+    ]
+    client.describe_tasks.side_effect = lambda cluster, tasks: {
+        "tasks": [copy.deepcopy(described[arn]) for arn in tasks],
+        "failures": [],
+    }
+    session = MagicMock()
+    session.client.return_value = client
+    return session
+
+
+@pytest.mark.parametrize("include_stopped", [True, False])
+@patch.object(
+    cartography.intel.aws.ecs,
+    "get_ecs_task_definitions",
+    return_value=tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS,
+)
+@patch.object(cartography.intel.aws.ecs, "get_ecs_services", return_value=[])
+@patch.object(cartography.intel.aws.ecs, "get_ecs_container_instances", return_value=[])
+@patch.object(
+    cartography.intel.aws.ecs,
+    "get_ecs_clusters",
+    return_value=tests.data.aws.ecs.GET_ECS_CLUSTERS,
+)
+@patch.object(
+    cartography.intel.aws.ecs, "get_ecs_cluster_arns", return_value=[CLUSTER_ARN]
+)
+def test_sync_ecs_collects_recently_stopped_tasks(
+    mock_get_cluster_arns,
+    mock_get_clusters,
+    mock_get_container_instances,
+    mock_get_services,
+    mock_get_task_definitions,
+    neo4j_session,
+    include_stopped,
+):
+    """
+    The network interface stage runs before ECS. A standalone task that stopped in between is
+    only visible with --aws-ecs-include-stopped-tasks; when collected it links to the interface
+    collected earlier, keeps its attachment identity, and is parented by its cluster.
+    """
+    # Arrange: the interface was collected while the task still ran.
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    interfaces = transform_network_interface_data(
+        [copy.deepcopy(tests.data.aws.ecs.GET_STOPPED_TASK_NETWORK_INTERFACE)],
+        TEST_REGION,
+    )
+    load_network_data(
+        neo4j_session,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        **interfaces._asdict(),
+    )
+    running = tests.data.aws.ecs.GET_ECS_TASKS[0]
+    stopped = tests.data.aws.ecs.GET_ECS_STOPPED_TASK
+    boto3_session = _ecs_session_listing(
+        [running["taskArn"]],
+        [stopped["taskArn"]],
+        {running["taskArn"]: running, stopped["taskArn"]: stopped},
+    )
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+        "aws_ecs_include_stopped_tasks": include_stopped,
+    }
+
+    # Act
+    cartography.intel.aws.ecs.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert
+    running_node = (
+        running["taskArn"],
+        "RUNNING",
+        "00000000-0000-0000-0000-000000000000",
+        "ATTACHED",
+        "subnet-00000000000000000",
+        "00.00.0.000",
+    )
+    stopped_node = (
+        stopped["taskArn"],
+        "STOPPED",
+        tests.data.aws.ecs.STOPPED_TASK_ATTACHMENT_ID,
+        "DELETED",
+        "subnet-11111111111111111",
+        "10.0.1.11",
+    )
+    assert check_nodes(
+        neo4j_session,
+        "AWSECSTask",
+        [
+            "id",
+            "last_status",
+            "network_interface_attachment_id",
+            "network_interface_attachment_status",
+            "network_interface_subnet_id",
+            "network_interface_private_ip",
+        ],
+    ) == ({running_node, stopped_node} if include_stopped else {running_node})
+    stopped_links = {
+        (stopped["taskArn"], tests.data.aws.ecs.STOPPED_TASK_ENI_ID),
+    }
+    assert check_rels(
+        neo4j_session,
+        "AWSECSTask",
+        "id",
+        "AWSNetworkInterface",
+        "id",
+        "NETWORK_INTERFACE",
+        rel_direction_right=True,
+    ) == (stopped_links if include_stopped else set())
+    assert check_rels(
+        neo4j_session,
+        "AWSECSTask",
+        "id",
+        "AWSECSCluster",
+        "id",
+        "WORKLOAD_PARENT",
+        rel_direction_right=True,
+    ) >= ({(stopped["taskArn"], CLUSTER_ARN)} if include_stopped else set())
+    paginate = boto3_session.client.return_value.get_paginator.return_value.paginate
+    assert [c.kwargs.get("desiredStatus") for c in paginate.call_args_list] == (
+        ["RUNNING", "STOPPED"] if include_stopped else [None]
+    )

@@ -877,6 +877,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
         "aws_guardduty_severity_threshold": config.aws_guardduty_severity_threshold,
+        "aws_ecs_include_stopped_tasks": config.aws_ecs_include_stopped_tasks,
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,

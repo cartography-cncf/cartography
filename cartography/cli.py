@@ -678,6 +678,20 @@ class CLI:
                     hidden=PANEL_AWS not in visible_panels,
                 ),
             ] = None,
+            aws_ecs_include_stopped_tasks: Annotated[
+                bool,
+                typer.Option(
+                    "--aws-ecs-include-stopped-tasks",
+                    help=(
+                        "Also collect recently stopped ECS tasks (ListTasks with desiredStatus=STOPPED). "
+                        "ECS keeps stopped task details for at least an hour, so a network interface "
+                        "collected earlier in the same sync can still be attributed to a task that has "
+                        "since stopped. Stopped tasks carry last_status STOPPED. Default: off."
+                    ),
+                    rich_help_panel=PANEL_AWS,
+                    hidden=PANEL_AWS not in visible_panels,
+                ),
+            ] = False,
             experimental_aws_inspector_batch: Annotated[
                 int,
                 typer.Option(
@@ -3882,6 +3896,7 @@ class CLI:
                 microsoft_access_token=microsoft_access_token,
                 aws_requested_syncs=aws_requested_syncs,
                 aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
+                aws_ecs_include_stopped_tasks=aws_ecs_include_stopped_tasks,
                 analysis_job_directory=analysis_job_directory,
                 oci_sync_all_profiles=oci_sync_all_profiles,
                 okta_org_id=okta_org_id,

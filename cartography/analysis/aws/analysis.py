@@ -59,6 +59,9 @@ AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
             # Expand only this balancer's registrations, not every target in the batch.
             # Each registration must resolve to one ENI-specific IP identity; several
             # candidates mean overlapping addresses remain ambiguous, not multiple targets.
+            # A stopped ECS task's address is not a target identity (and counting it would
+            # make a reused address look ambiguous), so the ECS branch skips STOPPED and
+            # DELETED tasks.
             match="""
             MATCH (lb:AWSLoadBalancerV2)
             UNWIND $IP_TARGETS_BY_LB[lb.id] AS target
@@ -74,9 +77,10 @@ AWS_LB_IP_TARGET_EXPOSURE = AnalysisJob(
                 WITH target, lb
                 MATCH (:AWSELBV2TargetGroup {id: target.TargetGroupArn})
                       -[:TARGETS]->(:AWSECSService)
-                      <-[:WORKLOAD_PARENT]-(:AWSECSTask)
+                      <-[:WORKLOAD_PARENT]-(task:AWSECSTask)
                       -[:NETWORK_INTERFACE]->(:AWSNetworkInterface)
                       -[:PRIVATE_IP_ADDRESS]->(ip:AWSEC2PrivateIp {private_ip_address: target.TargetId})
+                WHERE NOT coalesce(task.last_status, '') IN ['STOPPED', 'DELETED']
                 RETURN ip
             }
             WITH lb, target, collect(DISTINCT ip) AS candidates
@@ -116,7 +120,8 @@ AWS_LB_CONTAINER_EXPOSURE = AnalysisJob(
     # Kubernetes LB->container edges (KubernetesContainer is a :Container but not an :AWSECSContainer).
     statements=(
         AnalysisStatement(
-            match="MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer)",
+            # Stopped tasks (collected with --aws-ecs-include-stopped-tasks) run nothing to expose.
+            match="MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(c:AWSECSContainer) WHERE NOT coalesce(task.last_status, '') IN ['STOPPED', 'DELETED']",
             effects=(
                 AddRelationship(
                     "lb",
@@ -345,10 +350,13 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
     short_name="aws_ecs_asset_exposure",
     cleanup_iterationsize=1000,
     statements=(
+        # Both statements skip tasks whose last observed status is STOPPED or DELETED
+        # (collected with --aws-ecs-include-stopped-tasks): they run nothing to expose.
         # Exposed via an internet-facing load balancer.
         AnalysisStatement(
             match="""
             MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:AWSEC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
+            WHERE NOT coalesce(task.last_status, '') IN ['STOPPED', 'DELETED']
             WITH DISTINCT container
             """,
             effects=(
@@ -370,6 +378,7 @@ AWS_ECS_ASSET_EXPOSURE = AnalysisJob(
             match="""
             MATCH (:AWSIpRange {id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:AWSIpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:AWSEC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ni:AWSNetworkInterface)<-[:NETWORK_INTERFACE]-(task:AWSECSTask)-[:HAS_CONTAINER]->(container:AWSECSContainer)
             WHERE ni.public_ip IS NOT NULL
+              AND NOT coalesce(task.last_status, '') IN ['STOPPED', 'DELETED']
             WITH DISTINCT container
             """,
             effects=(
