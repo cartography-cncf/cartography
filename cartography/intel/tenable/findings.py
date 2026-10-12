@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 _FINDING_EXPORT_PATH = "vulns/export"
 _FINDING_RESULT_BASE = "vulns/export"
 # :TenableCve ids are namespaced because the `cve` module MERGEs its NVD records on
-# (:CVE {id}). A bare id would make it adopt :TenableCve nodes as its own, so the
-# two modules' cleanups would delete each other's data. Mirrors Ubuntu's `USV|`.
+# (:CVE {id}). With a bare id it would write NVD data onto :TenableCve nodes, and
+# Tenable's cleanup would delete that data with the node. Mirrors Ubuntu's `USV|`.
 _CVE_ID_PREFIX = "TNB|"
 _FINDING_EXPORT_PARAMS: dict[str, Any] = {"num_assets": 500}
 _FINDING_EXPORT_STATES = ["OPEN", "REOPENED", "FIXED"]
@@ -60,6 +60,11 @@ def get(
     )
 
 
+def _cve_ids(plugin: dict[str, Any]) -> list[str]:
+    # Blank entries name no CVE, and Neo4j cannot store a null inside a list.
+    return [cve_id for cve_id in plugin.get("cve") or [] if cve_id]
+
+
 def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for finding in raw_findings:
@@ -76,7 +81,7 @@ def transform(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "and a non-null plugin.id"
             )
 
-        cve_ids: list[str] = plugin.get("cve") or []
+        cve_ids = _cve_ids(plugin)
 
         result.append(
             {
@@ -120,6 +125,7 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
             continue
         seen.add(plugin_id)
         vpr = plugin.get("vpr") or {}
+        cve_ids = _cve_ids(plugin)
         result.append(
             {
                 "id": plugin_id,
@@ -150,10 +156,8 @@ def transform_plugins(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]
                 "cvss4_base_score": plugin.get("cvss4_base_score"),
                 "vpr_score": vpr.get("score"),
                 "epss_score": plugin.get("epss_score"),
-                "cve_list": plugin.get("cve") or [],
-                "cve_node_ids": [
-                    _CVE_ID_PREFIX + cve_id for cve_id in (plugin.get("cve") or [])
-                ],
+                "cve_list": cve_ids,
+                "cve_node_ids": [_CVE_ID_PREFIX + cve_id for cve_id in cve_ids],
                 "type": plugin.get("type"),
             }
         )
@@ -178,8 +182,8 @@ def transform_cves(raw_findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for finding in raw_findings:
         plugin = finding.get("plugin") or {}
-        for cve_id in plugin.get("cve") or []:
-            if not cve_id or cve_id in seen:
+        for cve_id in _cve_ids(plugin):
+            if cve_id in seen:
                 continue
             seen.add(cve_id)
             result.append({"id": _CVE_ID_PREFIX + cve_id, "cve_id": cve_id})
