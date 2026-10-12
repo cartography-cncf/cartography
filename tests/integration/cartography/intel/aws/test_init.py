@@ -15,6 +15,7 @@ import cartography.config
 import cartography.intel.aws
 import cartography.util
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
+from tests.integration.util import check_nodes
 
 # These unit tests are a sanity check for start*() and sync*() functions.
 
@@ -243,6 +244,7 @@ def test_sync_multiple_accounts(
     mock_sync_orgs,
     neo4j_session,
 ):
+    mock_boto3_session.return_value.region_name = "us-east-1"
     call_order = []
     mock_sync_organizations_for_accounts.side_effect = (
         lambda *args, **kwargs: call_order.append("organizations") or []
@@ -703,6 +705,7 @@ def test_sync_multiple_accounts_single_profile_uses_profile_name(
     mock_sync_orgs,
     neo4j_session,
 ):
+    mock_boto3_session.return_value.region_name = "us-east-1"
     # Regression for #1142 and #1185: single explicit profile must not fall back to the default session.
     single_account = {"spoke1": "000000000099"}
 
@@ -751,6 +754,7 @@ def test_sync_multiple_accounts_default_path_uses_default_session(
     mock_sync_orgs,
     neo4j_session,
 ):
+    mock_boto3_session.return_value.region_name = "us-east-1"
     # Without --aws-sync-all-profiles the default session must be used (preserves #1042 fix for env-var-only creds).
     default_account = {"default": "000000000000"}
 
@@ -834,6 +838,90 @@ def test_sync_multiple_accounts_profile_session_is_usable(
     # honored, this would fail with NoCredentialsError (empty creds file).
     identity = session.client("sts", region_name="us-east-1").get_caller_identity()
     assert "Account" in identity
+
+
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+def test_sync_multiple_accounts_govcloud_profile_root_principal(
+    mock_cleanup,
+    mock_sync_organizations_for_accounts,
+    mock_sync_one,
+    neo4j_session,
+    monkeypatch,
+    tmp_path,
+):
+    # A configured account whose profile is in a GovCloud region gets an aws-us-gov root
+    # principal, which matches the "arn:aws-us-gov:iam::<account>:root" in trust policies.
+    # Arrange
+    neo4j_session.run("MATCH (n:AWSRootPrincipal) DETACH DELETE n")
+    config_file = tmp_path / "config"
+    config_file.write_text("[profile example-gov]\nregion = us-gov-west-1\n")
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(config_file))
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+
+    # Act
+    cartography.intel.aws._sync_multiple_accounts(
+        neo4j_session,
+        {"example-gov": "111122223333"},
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_best_effort_mode=False,
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
+        ("arn:aws-us-gov:iam::111122223333:root",),
+    }
+
+
+@mock.patch.object(cartography.intel.aws, "_sync_one_account", return_value=None)
+@mock.patch.object(
+    cartography.intel.aws,
+    "_sync_aws_organizations_for_accounts",
+    return_value=[],
+)
+@mock.patch.object(cartography.intel.aws, "run_cleanup_job", return_value=None)
+def test_sync_multiple_accounts_root_principal_uses_aws_regions(
+    mock_cleanup,
+    mock_sync_organizations_for_accounts,
+    mock_sync_one,
+    neo4j_session,
+    monkeypatch,
+    tmp_path,
+):
+    # With --aws-regions set, iam.sync builds the root principal with the partition of
+    # those regions. The account loop must use the same partition even when the profile's
+    # region is in another one, or the account ends up with two root principals.
+    # Arrange
+    neo4j_session.run("MATCH (n:AWSRootPrincipal) DETACH DELETE n")
+    config_file = tmp_path / "config"
+    config_file.write_text("[profile example]\nregion = us-east-1\n")
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(config_file))
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+
+    # Act
+    cartography.intel.aws._sync_multiple_accounts(
+        neo4j_session,
+        {"example": "111122223333"},
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        aws_best_effort_mode=False,
+        regions=["us-gov-west-1"],
+        use_explicit_profile=True,
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
+        ("arn:aws-us-gov:iam::111122223333:root",),
+    }
 
 
 @mock.patch("cartography.intel.aws.aioboto3.Session")
@@ -1058,6 +1146,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     neo4j_session,
 ):
     # Arrange
+    mock_boto3.return_value.region_name = "us-east-1"
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -1107,6 +1196,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     neo4j_session,
 ):
     # Arrange
+    mock_boto3.return_value.region_name = "us-east-1"
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
@@ -1153,6 +1243,7 @@ def test_start_aws_ingestion_does_cleanup(
     neo4j_session,
 ):
     # Arrange
+    mock_boto3.return_value.region_name = "us-east-1"
     test_config = cartography.config.Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,

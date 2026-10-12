@@ -136,12 +136,23 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type azure_subscription_id: str | None
     :param azure_subscription_id: The Azure Subscription ID to sync.
+    :type azure_access_token: str | None
+    :param azure_access_token: A pre-issued Azure Resource Manager access token, such as a signed-in
+        user's delegated token. When set, Azure sync uses it instead of CLI or Service Principal
+        authentication. Optional.
     :type microsoft_tenant_id: str
     :param microsoft_tenant_id: Tenant Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_id: str
     :param microsoft_client_id: Client Id for connecting to Microsoft Graph via Service Principal Authentication. Optional.
     :type microsoft_client_secret: str
     :param microsoft_client_secret: Client Secret for connecting to Microsoft Graph via Service Principal Authentication. Optional.
+    :type microsoft_delegated_auth: bool
+    :param microsoft_delegated_auth: If True, use the current Azure CLI user for a best-effort Entra-only sync. Optional.
+    :type microsoft_access_token: str | None
+    :param microsoft_access_token: A pre-issued Microsoft Graph access token, such as a signed-in
+        user's delegated token. Implies microsoft_delegated_auth. Optional.
+    :type microsoft_requested_syncs: str
+    :param microsoft_requested_syncs: Comma-separated list of Microsoft resources to sync. Optional.
     :type entra_tenant_id: str
     :param entra_tenant_id: DEPRECATED compatibility alias for microsoft_tenant_id. Optional.
     :type entra_client_id: str
@@ -178,6 +189,8 @@ class Config:
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
     :param github_config: Base64 encoded config object for GitHub ingestion. Optional.
+    :type notion_config: str
+    :param notion_config: Base64 encoded config object for Notion ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
     :type digitalocean_token: str
@@ -244,6 +257,14 @@ class Config:
     :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
     :type googleworkspace_config: str
     :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type jira_cloud_id: str
+    :param jira_cloud_id: Jira Cloud ID, used to scope all resource IDs. Optional.
+    :type jira_email: str
+    :param jira_email: Email address of the Jira API-token owner. Optional.
+    :type jira_api_token: str
+    :param jira_api_token: Jira API token. Optional.
+    :type jira_site_url: str
+    :param jira_site_url: HTTPS site origin for unscoped API tokens. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -512,6 +533,18 @@ class Config:
     :param zizmor_source: Report source locator for the Zizmor repository mapping file.
         Accepts a local file, s3://bucket/key, gs://bucket/object, or
         azblob://account/container/blob. Optional.
+    :type zoom_account_id: str
+    :param zoom_account_id: Zoom account ID for server-to-server OAuth. Optional.
+    :type zoom_client_id: str
+    :param zoom_client_id: Zoom server-to-server OAuth client ID. Optional.
+    :type zoom_client_secret: str
+    :param zoom_client_secret: Zoom server-to-server OAuth client secret. Optional.
+    :type zoom_sections: str
+    :param zoom_sections: Comma-separated optional Zoom inventories. Empty syncs users only.
+    :type zoom_lookback_days: int
+    :param zoom_lookback_days: UTC calendar days of recordings to inventory, from 1 to 30.
+    :type zoom_request_limit: int
+    :param zoom_request_limit: Maximum logical Zoom GET requests per sync. Optional.
     :type jumpcloud_api_key: str
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
@@ -520,6 +553,10 @@ class Config:
     :param orca_api_endpoint: Region-specific Orca Security API origin. Optional.
     :type orca_api_token: str
     :param orca_api_token: Orca Security API token. Optional.
+    :type zendesk_subdomain: str
+    :param zendesk_subdomain: Zendesk account subdomain, e.g. acme. Optional.
+    :type zendesk_oauth_token: str
+    :param zendesk_oauth_token: OAuth access token used to authenticate Zendesk ingestion. Optional.
     """
 
     def __init__(
@@ -752,6 +789,23 @@ class Config:
         gcp_exclude_org_root_projects=False,
         orca_api_endpoint=None,
         orca_api_token=None,
+        microsoft_delegated_auth=False,
+        zoom_account_id=None,
+        zoom_client_id=None,
+        zoom_client_secret=None,
+        jira_cloud_id=None,
+        jira_email=None,
+        jira_api_token=None,
+        jira_site_url=None,
+        zendesk_subdomain=None,
+        zendesk_oauth_token=None,
+        notion_config=None,
+        microsoft_requested_syncs=None,
+        zoom_sections="",
+        zoom_lookback_days=7,
+        zoom_request_limit=100000,
+        azure_access_token: str | None = None,
+        microsoft_access_token: str | None = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -784,6 +838,7 @@ class Config:
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
         self.azure_subscription_id = azure_subscription_id
+        self.azure_access_token = azure_access_token
         (
             self.microsoft_tenant_id,
             self.microsoft_client_id,
@@ -802,6 +857,23 @@ class Config:
         self.entra_tenant_id = self.microsoft_tenant_id
         self.entra_client_id = self.microsoft_client_id
         self.entra_client_secret = self.microsoft_client_secret
+        microsoft_delegated_auth = microsoft_delegated_auth or bool(
+            microsoft_access_token
+        )
+        if microsoft_delegated_auth:
+            if not self.microsoft_tenant_id:
+                raise ValueError(
+                    "Microsoft delegated authentication requires a Microsoft "
+                    "tenant ID.",
+                )
+            if self.microsoft_client_id or self.microsoft_client_secret:
+                raise ValueError(
+                    "Microsoft delegated authentication cannot be combined with "
+                    "a Microsoft client ID or client secret.",
+                )
+        self.microsoft_delegated_auth = microsoft_delegated_auth
+        self.microsoft_access_token = microsoft_access_token
+        self.microsoft_requested_syncs = microsoft_requested_syncs
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
@@ -812,6 +884,7 @@ class Config:
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
+        self.notion_config = notion_config
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
@@ -859,6 +932,10 @@ class Config:
         self.gsuite_config = gsuite_config
         self.googleworkspace_auth_method = googleworkspace_auth_method
         self.googleworkspace_config = googleworkspace_config
+        self.jira_cloud_id = jira_cloud_id
+        self.jira_email = jira_email
+        self.jira_api_token = jira_api_token
+        self.jira_site_url = jira_site_url
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username
@@ -1023,6 +1100,12 @@ class Config:
         self.zizmor_source = zizmor_source
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
+        self.zoom_account_id = zoom_account_id
+        self.zoom_client_id = zoom_client_id
+        self.zoom_client_secret = zoom_client_secret
+        self.zoom_sections = zoom_sections
+        self.zoom_lookback_days = zoom_lookback_days
+        self.zoom_request_limit = zoom_request_limit
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
         self.socketdev_token = socketdev_token
@@ -1036,3 +1119,5 @@ class Config:
         self.snowflake_databases = snowflake_databases
         self.orca_api_endpoint = orca_api_endpoint
         self.orca_api_token = orca_api_token
+        self.zendesk_subdomain = zendesk_subdomain
+        self.zendesk_oauth_token = zendesk_oauth_token

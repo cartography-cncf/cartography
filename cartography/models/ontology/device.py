@@ -199,6 +199,18 @@ class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:OktaDevice) via serial_number
+@dataclass(frozen=True)
+class DeviceToOktaDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "OktaDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # (:Device)-[:OBSERVED_AS]->(:S1Agent) via serial_number
 @dataclass(frozen=True)
 class DeviceToS1AgentBySerialRel(CartographyRelSchema):
@@ -294,6 +306,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToSnipeitAssetBySerialRel(),
             DeviceToTailscaleDeviceBySerialRel(),
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
+            DeviceToOktaDeviceBySerialRel(),
             DeviceToS1AgentBySerialRel(),
             DeviceToHuntressAgentBySerialRel(),
             DeviceToIntuneManagedDeviceBySerialRel(),

@@ -1,0 +1,81 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.ontology.labels import THIRD_PARTY_APP
+from cartography.models.zoom.resource import ZoomAccountResourceRel
+
+
+@dataclass(frozen=True)
+class ZoomAppProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef(
+        "id", description="Account-scoped Marketplace app ID."
+    )
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    account_id: PropertyRef = PropertyRef(
+        "ACCOUNT_ID",
+        set_in_kwargs=True,
+        extra_index=True,
+        description="Owning Zoom account ID.",
+    )
+    app_id: PropertyRef = PropertyRef(
+        "app_id", description="Marketplace app_id.", extra_index=False
+    )
+    name: PropertyRef = PropertyRef(
+        "name", description="Marketplace app_name.", extra_index=True
+    )
+    installed: PropertyRef = PropertyRef(
+        "installed",
+        description="Present in the account_added list; does not enumerate individual user installations.",
+        extra_index=True,
+    )
+    approved: PropertyRef = PropertyRef(
+        "approved", description="Present in the approved_apps list.", extra_index=True
+    )
+    approval_type: PropertyRef = PropertyRef(
+        "approval_type",
+        description="approval_info.approved_type, such as forAllUser or forSpecificUser.",
+        extra_index=False,
+    )
+    approval_required: PropertyRef = PropertyRef(
+        "approval_required",
+        description="Inverse of approval_info.app_approval_closed, when provided.",
+        extra_index=False,
+    )
+    app_status: PropertyRef = PropertyRef(
+        "app_status",
+        description="Detail app_status is publication status, not installation state.",
+        extra_index=False,
+    )
+    app_type: PropertyRef = PropertyRef(
+        "app_type", description="Detail app_type.", extra_index=False
+    )
+    developer_type: PropertyRef = PropertyRef(
+        "developer_type",
+        description="List app_developer_type: THIRD_PARTY, ZOOM or INTERNAL; unknown if omitted.",
+        extra_index=False,
+    )
+    app_scopes: PropertyRef = PropertyRef(
+        "app_scopes",
+        description="Exact OAuth scope identifiers from app_scopes; unknown if omitted, empty if explicitly returned empty.",
+        extra_index=False,
+    )
+
+
+@dataclass(frozen=True)
+class ZoomAppSchema(CartographyNodeSchema):
+    """An account-added or approved Marketplace app. Approval and installation are independent states.
+
+    > **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable
+    cross-platform queries for third-party applications.
+
+    `_ont_client_id` uses the Marketplace app ID as a surrogate identifier, not
+    an OAuth client ID. Publication status does not imply enabled state or protocol.
+    """
+
+    label: str = "ZoomApp"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([THIRD_PARTY_APP])
+    properties: ZoomAppProperties = ZoomAppProperties()
+    sub_resource_relationship: ZoomAccountResourceRel = ZoomAccountResourceRel()

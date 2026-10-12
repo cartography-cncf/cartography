@@ -449,6 +449,23 @@ slack_mapping = OntologyMapping(
     ],
 )
 
+# Notion
+notion_mapping = OntologyMapping(
+    module_name="notion",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="NotionWorkspace",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+            ],
+        ),
+    ],
+)
+
 # Duo
 # DuoApiHost: No field to map in DuoApiHost (minimal properties)
 
@@ -807,7 +824,50 @@ orca_mapping = OntologyMapping(
     ],
 )
 
+zendesk_mapping = OntologyMapping(
+    module_name="zendesk",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="ZendeskTenant",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="id", required=True
+                ),
+                OntologyFieldMapping(ontology_field="domain", node_field="domain"),
+            ],
+        ),
+    ],
+)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "jira": OntologyMapping(
+        module_name="jira",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="JiraTenant",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="name", required=True
+                    ),
+                    OntologyFieldMapping(ontology_field="domain", node_field="domain"),
+                ],
+            )
+        ],
+    ),
+    "zoom": OntologyMapping(
+        module_name="zoom",
+        nodes=[
+            OntologyNodeMapping(
+                node_label="ZoomAccount",
+                fields=[
+                    OntologyFieldMapping(
+                        ontology_field="name", node_field="id", required=True
+                    )
+                ],
+            )
+        ],
+    ),
+    "zendesk": zendesk_mapping,
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,
     "circleci": circleci_mapping,
@@ -832,6 +892,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "miradore": miradore_mapping,
     "orca": orca_mapping,
     "slack": slack_mapping,
+    "notion": notion_mapping,
     "spacelift": spacelift_mapping,
     "subimage": subimage_mapping,
     "socketdev": socketdev_mapping,

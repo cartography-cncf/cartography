@@ -437,7 +437,7 @@ def start_snowflake_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
 
     # Grants last: they read every principal and grantable object from the graph,
     # so running here means the edges resolve on the first pass.
-    grants_complete = grants.sync(
+    grants_complete, role_assignments_complete, inherited_grants_complete = grants.sync(
         neo4j_session,
         client,
         role_list,
@@ -456,10 +456,11 @@ def start_snowflake_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     # Grant edges are MatchLinks with their own scoped cleanup. Both grant sources
     # write the same HAS_PRIVILEGE edge, so the shared cleanup only runs when both
     # were read in full; otherwise it would delete edges the other source still owns.
-    if grants_complete and account_grants_complete:
-        grants.cleanup(neo4j_session, client.account_id, config.update_tag)
-    else:
-        logger.warning(
-            "Skipping Snowflake grant cleanup: the grant walk was incomplete, so "
-            "still-valid privilege edges are kept rather than deleted.",
-        )
+    grants.cleanup(
+        neo4j_session,
+        client.account_id,
+        config.update_tag,
+        object_grants_complete=grants_complete and account_grants_complete,
+        role_assignments_complete=role_assignments_complete,
+        inherited_grants_complete=inherited_grants_complete,
+    )

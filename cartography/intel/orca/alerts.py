@@ -23,7 +23,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-PAGE_SIZE = 100
+PAGE_SIZE = 1000
 
 
 def build_query() -> dict[str, Any]:

@@ -1,6 +1,7 @@
 from cartography.graph.analysis import AddRelationship
 from cartography.graph.analysis import AnalysisJob
 from cartography.graph.analysis import AnalysisStatement
+from cartography.graph.analysis import CypherValue
 from cartography.graph.analysis import IncrementalMatch
 from cartography.graph.analysis import RawCypher
 from cartography.graph.analysis import SetProperty
@@ -37,6 +38,9 @@ AWS_USER_PROJECTION = AnalysisJob(
         ),
     ),
 )
+# TODO: Normalize CrowdStrike and Jamf source emails during ingestion before
+# moving their device ownership joins to User.normalized_email; test Unicode
+# whitespace consistently on both sides and cleanup across update tags.
 DEVICE_OWNS_LINKING = AnalysisJob(
     name="Ontology - Devices OWNS relationship linking",
     short_name="ontology_devices_linking",
@@ -88,6 +92,15 @@ DEVICE_OWNS_LINKING = AnalysisJob(
         ),
         AnalysisStatement(
             match="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[obs:OBSERVED_AS]-(d:Device)",
+            effects=(
+                AddRelationship(
+                    "u", "OWNS", "d", source_label="User", target_label="Device"
+                ),
+            ),
+            incremental_on=("d", IncrementalMatch("obs", relationship=True)),
+        ),
+        AnalysisStatement(
+            match="MATCH (u:User)-[:HAS_ACCOUNT]->(:OktaUser)-[:OWNS]->(:OktaDevice)<-[obs:OBSERVED_AS]-(d:Device)",
             effects=(
                 AddRelationship(
                     "u", "OWNS", "d", source_label="User", target_label="Device"
@@ -582,6 +595,31 @@ USER_HAS_GITHUB_ACCOUNT = AnalysisJob(
                 ),
             ),
         ),
+        AnalysisStatement(
+            match=(
+                "MATCH (g:GitHubUser)-[:MEMBER_OF]->(org:GitHubOrganization)"
+                "-[:RESOURCE]->(identity:GitHubExternalIdentity)<-[:HAS_IDENTITY]-(g) "
+                "MATCH (u:User {normalized_email: identity.saml_name_id_normalized}) "
+                "WHERE u.normalized_email CONTAINS '@' "
+                "WITH g, collect(DISTINCT u) AS candidates "
+                "WHERE size(candidates) = 1 "
+                "WITH g, candidates[0] AS u "
+                "WHERE g.normalized_emails IS NOT NULL "
+                "AND NOT EXISTS { "
+                "UNWIND g.normalized_emails AS email "
+                "MATCH (other:User {normalized_email: email}) "
+                "WHERE other <> u }"
+            ),
+            effects=(
+                AddRelationship(
+                    "u",
+                    "HAS_ACCOUNT",
+                    "g",
+                    source_label="User",
+                    target_label="GitHubUser",
+                ),
+            ),
+        ),
     ),
 )
 USER_OWNS_API_KEY = AnalysisJob(
@@ -766,5 +804,111 @@ SUPPLY_CHAIN_SOURCE_FILE = AnalysisJob(
                 ),
             ),
         ),
+    ),
+)
+
+
+# Image PACKAGED_FROM repository via CodeBuild fills gaps only: an image already tied to a
+# repository by provenance (including CodeBuild variables passed as image labels),
+# Dockerfile analysis or another matcher keeps that edge. A tag can point at a manifest
+# list, which is labeled ImageManifestList rather than Image, so its platform images
+# inherit the list's match through CONTAINS_IMAGE.
+_CODEBUILD_GAPS_ONLY = (
+    "NONE(other IN [(img)-[o:PACKAGED_FROM]->() | o] "
+    "WHERE NOT coalesce(other.match_method, '') STARTS WITH 'codebuild_')"
+)
+CODEBUILD_PROJECT_NAME_CONFIDENCE = 0.4
+
+
+def _codebuild_packaged_from(
+    target_label: str, properties: dict[str, CypherValue]
+) -> AddRelationship:
+    return AddRelationship(
+        "img",
+        "PACKAGED_FROM",
+        "repo",
+        source_label="Image",
+        target_label=target_label,
+        properties=properties,
+        cleanup_where="r.match_method STARTS WITH 'codebuild_'",
+    )
+
+
+def _codebuild_build_statement(
+    provider: str,
+    target_label: str,
+    target_key: str,
+) -> AnalysisStatement:
+    # All CodeBuild PACKAGED_BY edges of one image (one per account that holds the digest)
+    # must agree on the repository before the provider is chosen.
+    return AnalysisStatement(
+        comment=f"Derive Image PACKAGED_FROM {target_label} from the CodeBuild build that pushed it.",
+        match=(
+            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-()"
+            "-[pb:PACKAGED_BY]->(:AWSCodeBuildProject) "
+            f"WHERE pb.source_uri IS NOT NULL AND {_CODEBUILD_GAPS_ONLY} "
+            "WITH img, collect(pb) AS pbs "
+            "WHERE all(p IN pbs WHERE p.source_uri = pbs[0].source_uri) "
+            "WITH img, pbs[0] AS pb "
+            f"WHERE pb.source_provider = '{provider}' "
+            f"MATCH (repo:{target_label} {{{target_key}: pb.source_uri}})"
+        ),
+        effects=(
+            _codebuild_packaged_from(
+                target_label,
+                {
+                    "match_method": Var("pb.match_method"),
+                    "confidence": Var("pb.confidence"),
+                    "source_revision": Var("pb.source_revision"),
+                },
+            ),
+        ),
+    )
+
+
+def _codebuild_project_name_statement(
+    provider: str,
+    target_label: str,
+    target_key: str,
+) -> AnalysisStatement:
+    # Needs no build history: the convention that a project pushes to the ECR
+    # repository of the same name, in the same account and region, names the source.
+    return AnalysisStatement(
+        comment=f"Derive Image PACKAGED_FROM {target_label} from the same-named CodeBuild project.",
+        match=(
+            "MATCH (account:AWSAccount)-[:RESOURCE]->(ecr_repo:AWSECRRepository)"
+            "-[:REPO_IMAGE]->(:AWSECRRepositoryImage)-[:IMAGE]->(tagged) "
+            "MATCH (account)-[:RESOURCE]->(project:AWSCodeBuildProject {name: ecr_repo.name}) "
+            "WHERE project.region = ecr_repo.region AND project.source_repo_url IS NOT NULL "
+            "MATCH (img:Image)<-[:CONTAINS_IMAGE*0..1]-(tagged) "
+            "WHERE NOT exists((img)<-[:CONTAINS_IMAGE*0..1]-()-[:PACKAGED_BY]->(:AWSCodeBuildProject)) "
+            f"AND {_CODEBUILD_GAPS_ONLY} "
+            "WITH img, collect(DISTINCT [project.source_repo_url, project.source_provider]) AS sources "
+            "WHERE size(sources) = 1 "
+            "WITH img, sources[0][0] AS source_uri, sources[0][1] AS source_provider "
+            f"WHERE source_provider = '{provider}' "
+            f"MATCH (repo:{target_label} {{{target_key}: source_uri}})"
+        ),
+        effects=(
+            _codebuild_packaged_from(
+                target_label,
+                {
+                    "match_method": "codebuild_project_name",
+                    "confidence": CODEBUILD_PROJECT_NAME_CONFIDENCE,
+                    "source_revision": None,
+                },
+            ),
+        ),
+    )
+
+
+CODEBUILD_IMAGE_PACKAGED_FROM = AnalysisJob(
+    name="Image PACKAGED_FROM repository via AWS CodeBuild",
+    short_name="codebuild_image_packaged_from",
+    statements=(
+        _codebuild_build_statement("github", "GitHubRepository", "id"),
+        _codebuild_build_statement("gitlab", "GitLabProject", "web_url"),
+        _codebuild_project_name_statement("github", "GitHubRepository", "id"),
+        _codebuild_project_name_statement("gitlab", "GitLabProject", "web_url"),
     ),
 )

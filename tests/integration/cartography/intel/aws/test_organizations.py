@@ -193,6 +193,7 @@ def test_sync_aws_accounts(neo4j_session):
         accounts,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws" for account_id in accounts.values()},
     )
 
     # Assert
@@ -243,6 +244,7 @@ def test_sync_aws_accounts_removes_stale_foreign_flag(neo4j_session):
         {account_name: account_id},
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws"},
     )
 
     # Assert
@@ -716,6 +718,7 @@ def test_sync_aws_organization_cleanup_preserves_configured_account_scope(
         TEST_ACCOUNTS,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
+        {account_id: "aws" for account_id in TEST_ACCOUNTS.values()},
     )
     _sync_organization(neo4j_session, _make_organizations_client())
     organizational_units_without_nested_ou = {
@@ -800,3 +803,31 @@ def test_sync_aws_organization_cleans_ous_before_stale_roots(neo4j_session):
         ).single()["rel_count"]
         == 0
     )
+
+
+def test_sync_aws_organization_govcloud_root_principals(neo4j_session):
+    """
+    In AWS GovCloud (US), organization ARNs use the aws-us-gov partition, and so must the
+    root principals of the member accounts. Trust policies name them that way.
+    """
+    # Arrange
+    gov_organization = deepcopy(TEST_ORGANIZATION)
+    gov_organization["Arn"] = gov_organization["Arn"].replace(
+        "arn:aws:", "arn:aws-us-gov:", 1
+    )
+    organizations_client = FakeOrganizationsClient(
+        gov_organization,
+        TEST_ORGANIZATION_ROOTS,
+        TEST_ORGANIZATIONAL_UNITS,
+        TEST_ACCOUNTS_FOR_PARENT,
+    )
+
+    # Act
+    _sync_organization(neo4j_session, organizations_client)
+
+    # Assert
+    assert check_nodes(neo4j_session, "AWSRootPrincipal", ["arn"]) == {
+        ("arn:aws-us-gov:iam::111111111111:root",),
+        ("arn:aws-us-gov:iam::222222222222:root",),
+        ("arn:aws-us-gov:iam::444444444444:root",),
+    }

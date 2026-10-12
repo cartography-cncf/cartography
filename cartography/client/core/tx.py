@@ -1,9 +1,12 @@
 import logging
 import time
 from functools import partial
+from itertools import chain
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -29,6 +32,22 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 T = TypeVar("T")
+
+
+def _nonempty_iterable(items: Iterable[T]) -> Iterator[T] | None:
+    """
+    Return a lazy iterator over ``items`` if it contains at least one element.
+
+    Distinguishes empty lists from empty generators without calling ``len()``.
+    Consumes only the first item; the rest stay unevaluated.
+    """
+    iterator = iter(items)
+    try:
+        first = next(iterator)
+    except StopIteration:
+        return None
+    return chain((first,), iterator)
+
 
 _MAX_NETWORK_RETRIES = 5
 _MAX_ENTITY_NOT_FOUND_RETRIES = 5
@@ -638,10 +657,10 @@ def write_matchlink_cartesian_product_tx(
 def load_graph_data(
     neo4j_session: neo4j.Session,
     query: str,
-    dict_list: List[Dict[str, Any]],
+    dict_list: Iterable[Dict[str, Any]],
     batch_size: int = 10000,
     **kwargs,
-) -> None:
+) -> int:
     """
     Load data to the graph using batched operations.
 
@@ -665,8 +684,9 @@ def load_graph_data(
         query (str): The Neo4j write query to execute. This query should be generated
             using ``cartography.graph.querybuilder.build_ingestion_query()`` rather
             than being handwritten to ensure proper formatting and security.
-        dict_list (List[Dict[str, Any]]): The data to load to the graph, represented
-            as a list of dictionaries. Each dictionary represents one record to process.
+        dict_list (Iterable[Dict[str, Any]]): The data to load to the graph, represented
+            as an iterable of dictionaries. Each dictionary represents one record to
+            process. Lists and generators are both accepted.
         batch_size (int): The number of items to process per transaction. Defaults to 10000.
         **kwargs: Additional keyword arguments passed to the Neo4j query.
 
@@ -682,12 +702,15 @@ def load_graph_data(
     Note:
         - Data is processed in batches of 10,000 records to optimize memory usage
           and transaction performance.
+        - Returns the number of records written, counted while batching so callers
+          do not need ``len()`` on the input iterable.
         - This function is typically called by higher-level functions like ``load()``
           rather than directly by user code.
     """
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
 
+    loaded = 0
     for data_batch in batch(dict_list, size=batch_size):
         execute_write_with_retry(
             neo4j_session,
@@ -696,6 +719,8 @@ def load_graph_data(
             DictList=data_batch,
             **kwargs,
         )
+        loaded += len(data_batch)
+    return loaded
 
 
 def ensure_indexes(
@@ -784,7 +809,7 @@ def ensure_indexes_for_matchlinks(
 def load(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
-    dict_list: List[Dict[str, Any]],
+    dict_list: Iterable[Dict[str, Any]],
     batch_size: int = 10000,
     **kwargs,
 ) -> None:
@@ -799,9 +824,9 @@ def load(
         neo4j_session (neo4j.Session): The Neo4j session for database operations.
         node_schema (CartographyNodeSchema): The node schema object that defines
             the structure of the data being loaded and generates the ingestion query.
-        dict_list (List[Dict[str, Any]]): The data to load to the graph, represented
-            as a list of dictionaries. Each dictionary represents one node to create
-            or update.
+        dict_list (Iterable[Dict[str, Any]]): The data to load to the graph,
+            represented as an iterable of dictionaries. Each dictionary represents
+            one node to create or update. Lists and generators are both accepted.
         batch_size (int): The number of items to process per transaction. Defaults to 10000.
         **kwargs: Additional keyword arguments passed to the Neo4j query, such as
             timestamps, update tags, or other metadata.
@@ -823,23 +848,24 @@ def load(
 
     Note:
         - If ``dict_list`` is empty, the function returns early to save processing time.
+          Empty generators are treated the same as empty lists.
         - The function automatically creates necessary indexes before loading data.
         - The ingestion query is generated automatically from the node schema.
         - Data is processed in batches for optimal performance.
     """
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
-    if len(dict_list) == 0:
+    rows = _nonempty_iterable(dict_list)
+    if rows is None:
         # If there is no data to load, save some time.
         return
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
-    load_graph_data(
-        neo4j_session, ingestion_query, dict_list, batch_size=batch_size, **kwargs
+    node_count = load_graph_data(
+        neo4j_session, ingestion_query, rows, batch_size=batch_size, **kwargs
     )
 
     # Emit metrics for loaded nodes
-    node_count = len(dict_list)
     stat_handler.incr(f"node.{node_schema.label.lower()}.loaded", node_count)
     logger.info("Loaded %d %s nodes", node_count, node_schema.label)
 
@@ -847,7 +873,7 @@ def load(
 def load_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
-    dict_list: list[dict[str, Any]],
+    dict_list: Iterable[dict[str, Any]],
     batch_size: int = 10000,
     **kwargs,
 ) -> None:
@@ -862,9 +888,10 @@ def load_matchlinks(
         neo4j_session (neo4j.Session): The Neo4j session for database operations.
         rel_schema (CartographyRelSchema): The relationship schema object used to
             generate the query and define the relationship structure.
-        dict_list (list[dict[str, Any]]): The data for creating relationships,
-            represented as a list of dictionaries. Each dictionary must contain
-            the source and target node identifiers.
+        dict_list (Iterable[dict[str, Any]]): The data for creating relationships,
+            represented as an iterable of dictionaries. Each dictionary must contain
+            the source and target node identifiers. Lists and generators are both
+            accepted.
         batch_size (int): The number of items to process per transaction. Defaults to 10000.
         **kwargs: Additional keyword arguments passed to the Neo4j query.
             Must include ``_sub_resource_label`` and ``_sub_resource_id`` for
@@ -876,12 +903,14 @@ def load_matchlinks(
 
     Note:
         - If ``dict_list`` is empty, the function returns early to save processing time.
+          Empty generators are treated the same as empty lists.
         - The function automatically ensures that required indexes exist for efficient
           relationship creation.
     """
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
-    if len(dict_list) == 0:
+    rows = _nonempty_iterable(dict_list)
+    if rows is None:
         # If there is no data to load, save some time.
         return
 
@@ -900,12 +929,9 @@ def load_matchlinks(
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
     matchlink_query = build_matchlink_query(rel_schema)
     logger.debug(f"Matchlink query: {matchlink_query}")
-    load_graph_data(
-        neo4j_session, matchlink_query, dict_list, batch_size=batch_size, **kwargs
+    rel_count = load_graph_data(
+        neo4j_session, matchlink_query, rows, batch_size=batch_size, **kwargs
     )
-
-    # Emit metrics for loaded relationships
-    rel_count = len(dict_list)
     src_label = (rel_schema.source_node_label or "unknown").lower()
     tgt_label = rel_schema.target_node_label.lower()
     stat_handler.incr(

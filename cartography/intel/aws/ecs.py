@@ -1,10 +1,16 @@
 import logging
+from functools import wraps
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -26,13 +32,45 @@ from cartography.models.aws.ecs.services import ECSServiceSchema
 from cartography.models.aws.ecs.task_definitions import ECSTaskDefinitionSchema
 from cartography.models.aws.ecs.tasks import ECSTaskSchema
 from cartography.util import aws_handle_regions
+from cartography.util import AWSGetFunc
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
+class ECSTransientRegionFailure(Exception):
+    """ECS collection failure that must not be interpreted as empty inventory."""
+
+
+def _raise_on_transient_failure(func: AWSGetFunc) -> AWSGetFunc:
+    # Keep this below aws_handle_regions: that decorator still owns API retries,
+    # access-denial handling, and InvalidToken guidance. Preserve failures that
+    # it would otherwise swallow as empty inventories.
+    @wraps(func)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except ClientError as error:
+            # The shared decorator treats this server error as a regional skip.
+            if (
+                error.response.get("Error", {}).get("Code")
+                == "InternalServerErrorException"
+            ):
+                raise ECSTransientRegionFailure(func.__name__) from error
+            raise
+        except (
+            EndpointConnectionError,
+            ConnectTimeoutError,
+            ReadTimeoutError,
+        ) as error:
+            raise ECSTransientRegionFailure(func.__name__) from error
+
+    return cast(AWSGetFunc, wrapped)
+
+
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_cluster_arns(
     boto3_session: boto3.session.Session,
     region: str,
@@ -47,6 +85,7 @@ def get_ecs_cluster_arns(
 
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_clusters(
     boto3_session: boto3.session.Session,
     region: str,
@@ -69,6 +108,7 @@ def get_ecs_clusters(
 
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_container_instances(
     cluster_arn: str,
     boto3_session: boto3.session.Session,
@@ -96,6 +136,7 @@ def get_ecs_container_instances(
 
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_services(
     cluster_arn: str,
     boto3_session: boto3.session.Session,
@@ -119,6 +160,7 @@ def get_ecs_services(
 
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_task_definitions(
     boto3_session: boto3.session.Session,
     region: str,
@@ -149,6 +191,7 @@ def _get_container_defs_from_task_definitions(
 
 @timeit
 @aws_handle_regions
+@_raise_on_transient_failure
 def get_ecs_tasks(
     cluster_arn: str,
     boto3_session: boto3.session.Session,
@@ -591,42 +634,52 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    cleanup_safe = True
     for region in regions:
         logger.info(
             f"Syncing ECS for region '{region}' in account '{current_aws_account_id}'.",
         )
-        cluster_arns = get_ecs_cluster_arns(boto3_session, region)
-        _sync_ecs_cluster_arns(
-            neo4j_session,
-            boto3_session,
-            cluster_arns,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
-        for cluster_arn in cluster_arns:
-            _sync_ecs_container_instances(
+        try:
+            cluster_arns = get_ecs_cluster_arns(boto3_session, region)
+            _sync_ecs_cluster_arns(
                 neo4j_session,
                 boto3_session,
-                cluster_arn,
+                cluster_arns,
                 region,
                 current_aws_account_id,
                 update_tag,
             )
-            _sync_ecs_task_and_container_defns(
-                neo4j_session,
-                boto3_session,
-                cluster_arn,
-                region,
-                current_aws_account_id,
-                update_tag,
+            for cluster_arn in cluster_arns:
+                _sync_ecs_container_instances(
+                    neo4j_session,
+                    boto3_session,
+                    cluster_arn,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+                _sync_ecs_task_and_container_defns(
+                    neo4j_session,
+                    boto3_session,
+                    cluster_arn,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+                _sync_ecs_services(
+                    neo4j_session,
+                    boto3_session,
+                    cluster_arn,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+        except ECSTransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping ECS region %s after a transient failure in %s.", region, error
             )
-            _sync_ecs_services(
-                neo4j_session,
-                boto3_session,
-                cluster_arn,
-                region,
-                current_aws_account_id,
-                update_tag,
-            )
-    cleanup_ecs(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup_ecs(neo4j_session, common_job_parameters)
+    else:
+        logger.warning("Skipping ECS cleanup because a region had a transient failure.")

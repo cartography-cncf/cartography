@@ -12,6 +12,7 @@ from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
+from tests.data.github.repos import REPO_SECURITY_AND_ANALYSIS_BY_URL
 from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -1226,3 +1227,84 @@ def test_sync_github_python_requirements(
         "REQUIRES",
     )
     assert expected_requires_rels.issubset(actual_requires_rels)
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_dep_manifests_for_repos",
+    return_value=({}, True),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "get",
+    return_value=GET_REPOS,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+def test_sync_github_repo_security_and_analysis(
+    mock_get_collabs, mock_get_repos, mock_get_dep_manifests, neo4j_session
+):
+    # Arrange
+    neo4j_session.run("MATCH (n:GitHubRepository) DETACH DELETE n")
+
+    # Act
+    with patch.object(
+        cartography.intel.github.repos,
+        "get_repo_security_and_analysis_by_url",
+        return_value=REPO_SECURITY_AND_ANALYSIS_BY_URL,
+    ):
+        cartography.intel.github.repos.sync(
+            neo4j_session,
+            TEST_JOB_PARAMS,
+            FAKE_API_KEY,
+            TEST_GITHUB_URL,
+            TEST_GITHUB_ORG,
+        )
+
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "GitHubRepository",
+        [
+            "id",
+            "visibility",
+            "advanced_security_enabled",
+            "secret_scanning_enabled",
+            "secret_scanning_push_protection_enabled",
+            "secret_scanning_validity_checks_enabled",
+            "dependabot_security_updates_enabled",
+        ],
+    ) == {
+        (
+            "https://github.com/simpsoncorp/sample_repo",
+            "private",
+            True,
+            True,
+            False,
+            True,
+            True,
+        ),
+        # Not visible to the credential: settings stay unknown.
+        (
+            "https://github.com/simpsoncorp/SampleRepo2",
+            "public",
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+        # Public repositories do not report Advanced Security.
+        (
+            "https://github.com/cartography-cncf/cartography",
+            "public",
+            None,
+            False,
+            False,
+            None,
+            True,
+        ),
+    }
