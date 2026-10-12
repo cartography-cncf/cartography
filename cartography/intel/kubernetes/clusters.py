@@ -90,6 +90,7 @@ def load_kubernetes_cluster(
 #     )
 
 
+@timeit
 def get_service_account_oidc(client: K8sClient) -> dict[str, str]:
     # Read the raw JSON: some Kubernetes client versions coerce this endpoint's
     # declared `str` response into a Python dict repr during deserialization.
