@@ -43,10 +43,6 @@ class GCPPolicyBindingNodeProperties(CartographyNodeProperties):
         "raw_members",
         description="Every IAM member string from the policy binding's `members` field, unmodified (e.g. `principal://...`, `principalSet://...`, `serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/NAME]`).",
     )
-    gke_workload_pools: PropertyRef = PropertyRef(
-        "gke_workload_pools",
-        description="GKE workload pools (`PROJECT_ID.svc.id.goog`) referenced by legacy `serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/NAME]` members of this binding.",
-    )
     wif_pools: PropertyRef = PropertyRef(
         "wif_pools",
         description="A list of Workload Identity Federation pool resource names (`projects/{N}/locations/global/workloadIdentityPools/{POOL}`) referenced by `principal://` or `principalSet://` members of this binding.",

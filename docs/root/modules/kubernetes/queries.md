@@ -60,7 +60,9 @@ RETURN pod.name, ksa.namespace, ksa.name, binding.role, grant.matched_members,
        binding.condition_expression, labels(resource), resource.id
 ```
 
-Annotated service accounts that cannot impersonate their Google service account:
+Annotated service accounts with no verified impersonation grant in the graph. Missing
+IAM policy inventory produces the same result, so check GCP policy-binding coverage
+before treating these as misconfigured:
 
 ```cypher
 MATCH (ksa:KubernetesServiceAccount)-[:ANNOTATED_SERVICE_ACCOUNT]->(gsa:GCPServiceAccount)

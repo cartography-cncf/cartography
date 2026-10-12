@@ -161,14 +161,6 @@ def sync_gke_clusters(
             lastupdated=gcp_update_tag,
             PROJECT_ID=project_id,
         )
-    sync_labels(
-        neo4j_session,
-        clusters,
-        "gke_cluster",
-        project_id,
-        gcp_update_tag,
-        common_job_parameters,
-    )
     node_pools = transform_node_pools(gke_res)
     if node_pools:
         load(
@@ -180,12 +172,22 @@ def sync_gke_clusters(
         )
     if gke_res.get("missingZones"):
         # An unreachable zone is not an empty zone: keep clusters we could not see.
+        # Label sync also cleans up, so it waits for a complete listing too.
         logger.warning(
-            "GKE cluster listing for project %s is missing zones %s; skipping cleanup.",
+            "GKE cluster listing for project %s is missing zones %s; skipping "
+            "label sync and cleanup.",
             project_id,
             gke_res["missingZones"],
         )
         return
+    sync_labels(
+        neo4j_session,
+        clusters,
+        "gke_cluster",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gke_clusters(neo4j_session, common_job_parameters)
 
 

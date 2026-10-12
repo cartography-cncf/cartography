@@ -205,7 +205,8 @@ K8S_GKE_WORKLOAD_IDENTITY_POLICY = AnalysisJob(
             MATCH (k)<-[:MAPS_TO]-(:GKECluster)
                   -[:USES_WORKLOAD_IDENTITY_POOL]->(pool:GCPWorkloadIdentityPool)
             MATCH (b:GCPPolicyBinding)
-            WHERE pool.id IN b.wif_pools OR pool.pool_id IN b.gke_workload_pools
+            WHERE pool.id IN b.wif_pools
+               OR any(m IN b.raw_members WHERE m STARTS WITH 'serviceAccount:' + pool.pool_id + '[')
             WITH accounts, k, pool, b,
                  'principal://iam.googleapis.com/' + pool.id AS principal,
                  'principalSet://iam.googleapis.com/' + pool.id AS principal_set

@@ -871,7 +871,7 @@ def test_sync_project_resources_attempts_policy_bindings_without_target_project_
     assert result.policy_bindings_cleanup_safe is False
 
 
-def test_legacy_gke_member_keeps_binding_and_records_workload_pool():
+def test_legacy_gke_member_keeps_binding():
     # Arrange
     member = "serviceAccount:example-project.svc.id.goog[namespace/service-account]"
     data = _policy_results_with_members([member])
@@ -883,7 +883,6 @@ def test_legacy_gke_member_keeps_binding_and_records_workload_pool():
     assert len(bindings) == 1
     assert bindings[0]["raw_members"] == [member]
     assert bindings[0]["members"] == []
-    assert bindings[0]["gke_workload_pools"] == ["example-project.svc.id.goog"]
     assert bindings[0]["wif_pools"] == []
 
 
@@ -903,4 +902,3 @@ def test_direct_gke_wif_member_keeps_binding_and_records_pool():
     assert bindings[0]["raw_members"] == [member]
     assert bindings[0]["members"] == []
     assert bindings[0]["wif_pools"] == [pool]
-    assert bindings[0]["gke_workload_pools"] == []
