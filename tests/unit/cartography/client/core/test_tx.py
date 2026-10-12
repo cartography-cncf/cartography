@@ -9,8 +9,10 @@ from cartography.client.core.tx import _buffer_error_backoff_handler
 from cartography.client.core.tx import _entity_not_found_backoff_handler
 from cartography.client.core.tx import _is_retryable_buffer_error
 from cartography.client.core.tx import _is_retryable_client_error
+from cartography.client.core.tx import _run_index_queries
 from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
+from cartography.client.core.tx import ensure_indexes_for_matchlinks
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load_matchlinks_cartesian_product
 from cartography.models.core.common import PropertyRef
@@ -748,6 +750,44 @@ def test_run_index_query_succeeds_normally():
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
     mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
+
+
+# Tests for ensure_indexes_for_matchlinks / _run_index_queries
+
+
+def test_index_queries_run_once_per_session():
+    # Arrange
+    session = MagicMock()
+    other_session = MagicMock()
+    rel_schema = PrincipalToS3BucketCartesianProductRel()
+
+    # Act
+    ensure_indexes_for_matchlinks(session, rel_schema)
+    ensure_indexes_for_matchlinks(session, rel_schema)
+    ensure_indexes_for_matchlinks(other_session, rel_schema)
+
+    # Assert: a second call on the same session issues nothing; a new session does.
+    queries = [call.args[0] for call in session.run.call_args_list]
+    assert queries
+    assert len(queries) == len(set(queries))
+    assert [call.args[0] for call in other_session.run.call_args_list] == queries
+
+
+def test_failed_index_query_is_retried_on_next_call():
+    # Arrange
+    session = MagicMock()
+    session.run.side_effect = [
+        _create_client_error("Neo.ClientError.Statement.SyntaxError", "boom"),
+        MagicMock(),
+    ]
+
+    # Act
+    with pytest.raises(neo4j.exceptions.ClientError):
+        _run_index_queries(session, ["CREATE INDEX IF NOT EXISTS q"])
+    _run_index_queries(session, ["CREATE INDEX IF NOT EXISTS q"])
+
+    # Assert: the failure was not cached as done.
+    assert session.run.call_count == 2
 
 
 # Tests for _is_retryable_buffer_error
