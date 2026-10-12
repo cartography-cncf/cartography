@@ -45,6 +45,7 @@ modules/okta/index
 modules/ontology/index
 modules/openai/index
 modules/orca/index
+modules/opsgenie/index
 modules/pagerduty/index
 modules/railway/index
 modules/salesforce/index

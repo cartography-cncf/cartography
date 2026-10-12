@@ -3,14 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.labels import CVE
 
 
 @dataclass(frozen=True)
@@ -70,10 +68,12 @@ class TenableFindingNodeProperties(CartographyNodeProperties):
         extra_index=True,
         description="First CVE ID associated with the finding.",
     )
+    # Deliberately not indexed: Neo4j keys a list property under a single index
+    # entry and rejects values over ~8 KB, which a cumulative-update plugin's CVE
+    # list exceeds. Look CVEs up over :HAS_CVE instead.
     cve_list: PropertyRef = PropertyRef(
         "cve_list",
-        extra_index=True,
-        description="CVE IDs associated with the finding.",
+        description="CVE IDs associated with the finding. Prefer the :HAS_CVE edge.",
     )
     has_cve: PropertyRef = PropertyRef(
         "has_cve", description='Whether the finding has a CVE ID, as "true" or "false".'
@@ -163,11 +163,29 @@ class TenableFindingToScanRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TenableFindingToCveRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# (:TenableFinding)-[:HAS_CVE]->(:TenableCve)
+@dataclass(frozen=True)
+class TenableFindingToCveRel(CartographyRelSchema):
+    """Links a Tenable finding to every CVE its plugin reports."""
+
+    target_node_label: str = "TenableCve"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("cve_node_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_CVE"
+    properties: TenableFindingToCveRelProperties = TenableFindingToCveRelProperties()
+
+
+@dataclass(frozen=True)
 class TenableFindingSchema(CartographyNodeSchema):
     """A vulnerability finding detected by Tenable on an asset."""
 
     label: str = "TenableFinding"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([CVE.when(has_cve="true")])
     properties: TenableFindingNodeProperties = TenableFindingNodeProperties()
     sub_resource_relationship: TenableFindingToTenantRel = TenableFindingToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -175,5 +193,6 @@ class TenableFindingSchema(CartographyNodeSchema):
             TenableFindingToAssetRel(),
             TenableFindingToPluginRel(),
             TenableFindingToScanRel(),
+            TenableFindingToCveRel(),
         ]
     )
