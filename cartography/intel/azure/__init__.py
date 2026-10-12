@@ -44,6 +44,7 @@ from . import synapse
 from . import tenant
 from . import workload_identity
 from .data_factory_util import AzureDataFactoryTransientError
+from .util.common import requested_azure_syncs
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
 
@@ -109,196 +110,225 @@ def _sync_one_subscription(
     subscription_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    requested_syncs: set[str] | None = None,
 ) -> None:
-    compute.sync(
-        neo4j_session,
-        credentials.credential,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    cosmosdb.sync(
-        neo4j_session,
-        credentials.credential,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    app_service.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    functions.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    event_grid.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    logic_apps.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    rbac.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    # Runs after compute/functions (identity principal ids) and rbac (role
-    # assignments) so it can join them into the canonical ASSUMES edges.
-    workload_identity.sync(
-        neo4j_session,
-        subscription_id,
-        update_tag,
-    )
-    sql.sync(
-        neo4j_session,
-        credentials.credential,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    storage.sync(
-        neo4j_session,
-        credentials.credential,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    resource_groups.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    key_vaults.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    aks.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    namespaces = event_hub_namespace.sync_event_hub_namespaces(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    event_hub.sync_event_hubs(
-        neo4j_session,
-        credentials,
-        namespaces,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    _sync_data_factory(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    data_lake.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    network.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    group_containers.sync_group_containers(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    container_instances.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    firewall.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    load_balancers.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    application_gateways.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    synapse.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    monitor.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    security_center.sync(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
-    permission_relationships.sync(
-        neo4j_session,
-        subscription_id,
-        update_tag,
-        common_job_parameters,
-    )
+    def is_requested(resource: str) -> bool:
+        return requested_syncs is None or resource in requested_syncs
+
+    if is_requested("compute"):
+        compute.sync(
+            neo4j_session,
+            credentials.credential,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("cosmosdb"):
+        cosmosdb.sync(
+            neo4j_session,
+            credentials.credential,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("app_service"):
+        app_service.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("functions"):
+        functions.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("event_grid"):
+        event_grid.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("logic_apps"):
+        logic_apps.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("rbac"):
+        rbac.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("workload_identity"):
+        # Runs after compute/functions (identity principal ids) and rbac (role
+        # assignments) so it can join them into the canonical ASSUMES edges.
+        workload_identity.sync(
+            neo4j_session,
+            subscription_id,
+            update_tag,
+        )
+    if is_requested("sql"):
+        sql.sync(
+            neo4j_session,
+            credentials.credential,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("storage"):
+        storage.sync(
+            neo4j_session,
+            credentials.credential,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("resource_groups"):
+        resource_groups.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("key_vaults"):
+        key_vaults.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("aks"):
+        aks.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("event_hub"):
+        namespaces = event_hub_namespace.sync_event_hub_namespaces(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        event_hub.sync_event_hubs(
+            neo4j_session,
+            credentials,
+            namespaces,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("data_factory"):
+        _sync_data_factory(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("data_lake"):
+        data_lake.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("network"):
+        network.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("container_instances"):
+        group_containers.sync_group_containers(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+        container_instances.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("firewall"):
+        firewall.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("load_balancers"):
+        load_balancers.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("application_gateways"):
+        application_gateways.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("synapse"):
+        synapse.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("monitor"):
+        monitor.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("security_center"):
+        security_center.sync(
+            neo4j_session,
+            credentials,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    if is_requested("permission_relationships"):
+        permission_relationships.sync(
+            neo4j_session,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
 
 
 def _sync_tenant(
@@ -340,6 +370,7 @@ def _sync_multiple_subscriptions(
     subscriptions: list[dict],
     update_tag: int,
     common_job_parameters: dict,
+    requested_syncs: set[str] | None = None,
 ) -> None:
     logger.info("Syncing Azure subscriptions")
 
@@ -365,6 +396,7 @@ def _sync_multiple_subscriptions(
                 sub["subscriptionId"],
                 update_tag,
                 common_job_parameters,
+                requested_syncs,
             )
     finally:
         common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)
@@ -413,6 +445,14 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
     common_job_parameters["TENANT_ID"] = credentials.tenant_id
+    requested_syncs = requested_azure_syncs(config)
+    if requested_syncs is not None:
+        logger.info(
+            "Azure selective sync enabled for: %s", ", ".join(sorted(requested_syncs))
+        )
+    sync_management_groups = (
+        requested_syncs is None or "management_groups" in requested_syncs
+    )
 
     _sync_tenant(
         neo4j_session,
@@ -429,19 +469,20 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # fails, skip management-group cleanup for this run to preserve prior data.
     management_groups_synced = False
     management_group_data: list[dict] = []
-    try:
-        management_group_data = _sync_management_groups(
-            neo4j_session,
-            credentials,
-            config.update_tag,
-            common_job_parameters,
-        )
-        management_groups_synced = True
-    except RuntimeError as e:
-        logger.warning(
-            "Skipping Azure management groups sync. Details: %s",
-            e,
-        )
+    if sync_management_groups:
+        try:
+            management_group_data = _sync_management_groups(
+                neo4j_session,
+                credentials,
+                config.update_tag,
+                common_job_parameters,
+            )
+            management_groups_synced = True
+        except RuntimeError as e:
+            logger.warning(
+                "Skipping Azure management groups sync. Details: %s",
+                e,
+            )
     if credentials.tenant_id:
         if config.azure_sync_all_subscriptions:
             subscriptions = subscription.get_all_azure_subscriptions(credentials)
@@ -465,6 +506,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             subscriptions,
             config.update_tag,
             common_job_parameters,
+            requested_syncs,
         )
         if management_groups_synced:
             rbac.sync_management_group_role_assignments_for_management_groups(
