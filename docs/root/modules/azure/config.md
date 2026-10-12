@@ -140,3 +140,35 @@ cartography \
   --azure-sync-all-subscriptions \
   --azure-access-token-env-var AZURE_ACCESS_TOKEN
 ```
+
+## Sync selected resources
+
+Use `--azure-requested-syncs` to sync only some Azure resources, for example to
+pull RBAC role assignments on their own, or to isolate a slow or failing
+resource type in a large estate:
+
+```bash
+cartography \
+  --selected-modules azure \
+  --azure-sync-all-subscriptions \
+  --azure-requested-syncs rbac,compute
+```
+
+`rbac` covers role assignments scoped to subscriptions and the resources in
+them. Add `management_groups` to also sync management groups and the role
+assignments scoped to them.
+
+Valid values are `management_groups`, `compute`, `cosmosdb`, `app_service`,
+`functions`, `event_grid`, `logic_apps`, `rbac`, `workload_identity`, `sql`,
+`storage`, `resource_groups`, `key_vaults`, `aks`, `event_hub`, `data_factory`,
+`data_lake`, `network`, `container_instances`, `firewall`, `load_balancers`,
+`application_gateways`, `synapse`, `monitor`, `security_center`, and
+`permission_relationships`. The tenant and its subscriptions always sync because
+every other Azure node relates to them.
+
+A resource that isn't requested is neither synced nor cleaned up, so its
+existing graph data stays as it was. `workload_identity` and
+`permission_relationships` are derived from data that other resources load, and
+relationships to resources that aren't requested are created only when those
+resources are already in the graph, so run the full sync at least once before
+syncing selected resources.
