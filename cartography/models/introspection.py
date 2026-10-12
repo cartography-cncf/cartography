@@ -782,7 +782,8 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
                 )
             target_label = raw_definition.get("target_label")
             relationship_name = raw_definition.get("relationship_name")
-            permissions = raw_definition.get("permissions")
+            permissions = raw_definition.get("permissions", [])
+            data_permissions = raw_definition.get("data_permissions", [])
             target_precondition = _parse_target_precondition(
                 raw_definition.get("target_precondition"),
                 relative_path,
@@ -792,7 +793,12 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
                 not isinstance(target_label, str)
                 or not isinstance(relationship_name, str)
                 or not isinstance(permissions, list)
-                or not all(isinstance(permission, str) for permission in permissions)
+                or not isinstance(data_permissions, list)
+                or not (permissions or data_permissions)
+                or not all(
+                    isinstance(permission, str)
+                    for permission in permissions + data_permissions
+                )
             ):
                 raise ValueError(
                     f"Permission relationship file {relative_path} contains "
@@ -805,7 +811,7 @@ def iter_permission_relationships() -> Iterator[PermissionRelationshipDefinition
                         source_label=source_label,
                         target_label=target_label,
                         relationship_name=relationship_name,
-                        permissions=tuple(permissions),
+                        permissions=tuple(permissions + data_permissions),
                         config_path=relative_path.as_posix(),
                         target_precondition=target_precondition,
                     )

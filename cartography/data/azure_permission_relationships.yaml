@@ -2,6 +2,11 @@
 # create an (:EntraUser|EntraGroup|EntraServicePrincipal)-[:CAN_MANAGE]->(:AzureSQLServer) relationship
 # for principals that have a role assignment with _any_ of the below
 # permissions. Similar logic applies for the other entries in this file.
+#
+# `permissions` holds control-plane operations (a role's Actions).
+# `data_permissions` holds data-plane operations (a role's DataActions) and is
+# matched only against DataActions, because Azure never lets an Actions
+# wildcard such as Reader's `*/read` grant a data operation.
 - target_label: AzureSQLServer
   permissions:
   - Microsoft.Sql/servers/delete
@@ -18,3 +23,144 @@
   permissions:
   - Microsoft.Sql/servers/write
   relationship_name: CAN_WRITE
+
+# Map principals that can read data in an Azure Storage Account, either
+# through the data plane or by listing the account keys (which grant full
+# shared-key access to every service in the account).
+- target_label: AzureStorageAccount
+  permissions:
+  - Microsoft.Storage/storageAccounts/listKeys/action
+  data_permissions:
+  - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read
+  - Microsoft.Storage/storageAccounts/fileServices/fileshares/files/read
+  - Microsoft.Storage/storageAccounts/queueServices/queues/messages/read
+  - Microsoft.Storage/storageAccounts/tableServices/tables/entities/read
+  relationship_name: CAN_READ
+
+# Map principals that can write data to an Azure Storage Account.
+- target_label: AzureStorageAccount
+  permissions:
+  - Microsoft.Storage/storageAccounts/listKeys/action
+  data_permissions:
+  - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write
+  - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/add/action
+  - Microsoft.Storage/storageAccounts/fileServices/fileshares/files/write
+  - Microsoft.Storage/storageAccounts/queueServices/queues/messages/write
+  - Microsoft.Storage/storageAccounts/queueServices/queues/messages/add/action
+  - Microsoft.Storage/storageAccounts/tableServices/tables/entities/write
+  - Microsoft.Storage/storageAccounts/tableServices/tables/entities/add/action
+  - Microsoft.Storage/storageAccounts/tableServices/tables/entities/update/action
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete an Azure Storage Account or the data in it.
+- target_label: AzureStorageAccount
+  permissions:
+  - Microsoft.Storage/storageAccounts/delete
+  data_permissions:
+  - Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete
+  - Microsoft.Storage/storageAccounts/fileServices/fileshares/files/delete
+  - Microsoft.Storage/storageAccounts/queueServices/queues/messages/delete
+  - Microsoft.Storage/storageAccounts/tableServices/tables/entities/delete
+  relationship_name: CAN_DELETE
+
+# Map principals that can read secret values from an Azure Key Vault.
+- target_label: AzureKeyVault
+  data_permissions:
+  - Microsoft.KeyVault/vaults/secrets/getSecret/action
+  relationship_name: CAN_READ
+
+# Map principals that can set secret values in an Azure Key Vault.
+- target_label: AzureKeyVault
+  data_permissions:
+  - Microsoft.KeyVault/vaults/secrets/setSecret/action
+  relationship_name: CAN_WRITE
+
+# Map principals that can decrypt or unwrap data with keys in an Azure Key Vault.
+- target_label: AzureKeyVault
+  data_permissions:
+  - Microsoft.KeyVault/vaults/keys/decrypt/action
+  - Microsoft.KeyVault/vaults/keys/unwrap/action
+  relationship_name: CAN_DECRYPT
+
+# Map principals that can change who has access to an Azure Key Vault. On a
+# vault that uses access policies, this lets the principal grant itself access
+# to every secret, key, and certificate in it.
+- target_label: AzureKeyVault
+  permissions:
+  - Microsoft.KeyVault/vaults/write
+  - Microsoft.KeyVault/vaults/accessPolicies/write
+  relationship_name: CAN_ADMINISTER
+
+# Map principals that can run code on an Azure VM.
+- target_label: AzureVirtualMachine
+  permissions:
+  - Microsoft.Compute/virtualMachines/runCommand/action
+  - Microsoft.Compute/virtualMachines/runCommands/write
+  - Microsoft.Compute/virtualMachines/extensions/write
+  relationship_name: CAN_EXEC
+
+# Map principals that can sign in to an Azure VM with their Entra ID identity.
+- target_label: AzureVirtualMachine
+  data_permissions:
+  - Microsoft.Compute/virtualMachines/login/action
+  - Microsoft.Compute/virtualMachines/loginAsAdmin/action
+  relationship_name: CAN_LOGIN
+
+# Map principals that can fetch cluster-admin credentials for an AKS cluster.
+- target_label: AzureKubernetesCluster
+  permissions:
+  - Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action
+  relationship_name: CAN_ADMINISTER
+
+# Map principals that can run commands against an AKS cluster's API server.
+- target_label: AzureKubernetesCluster
+  permissions:
+  - Microsoft.ContainerService/managedClusters/runCommand/action
+  relationship_name: CAN_EXEC
+
+# Map principals that can exec into containers in an Azure Container Instances group.
+- target_label: AzureGroupContainer
+  permissions:
+  - Microsoft.ContainerInstance/containerGroups/containers/exec/action
+  relationship_name: CAN_EXEC
+
+# Map principals that can deploy code to, or change the configuration of, an
+# Azure Function App. Either one runs code as the app's managed identity.
+- target_label: AzureFunctionApp
+  permissions:
+  - Microsoft.Web/sites/write
+  - Microsoft.Web/sites/publishxml/action
+  - Microsoft.Web/sites/extensions/write
+  relationship_name: CAN_EXEC
+
+# Map principals that can deploy code to, or change the configuration of, an
+# Azure App Service app.
+- target_label: AzureAppService
+  permissions:
+  - Microsoft.Web/sites/write
+  - Microsoft.Web/sites/publishxml/action
+  - Microsoft.Web/sites/extensions/write
+  relationship_name: CAN_EXEC
+
+# Map principals that can read data in an Azure Cosmos DB account by listing
+# its keys or connection strings.
+- target_label: AzureCosmosDBAccount
+  permissions:
+  - Microsoft.DocumentDB/databaseAccounts/listKeys/action
+  - Microsoft.DocumentDB/databaseAccounts/readonlykeys/action
+  - Microsoft.DocumentDB/databaseAccounts/listConnectionStrings/action
+  relationship_name: CAN_READ
+
+# Map principals that can write data in an Azure Cosmos DB account by listing
+# its read-write keys or connection strings.
+- target_label: AzureCosmosDBAccount
+  permissions:
+  - Microsoft.DocumentDB/databaseAccounts/listKeys/action
+  - Microsoft.DocumentDB/databaseAccounts/listConnectionStrings/action
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete an Azure Cosmos DB account.
+- target_label: AzureCosmosDBAccount
+  permissions:
+  - Microsoft.DocumentDB/databaseAccounts/delete
+  relationship_name: CAN_DELETE
