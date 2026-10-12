@@ -47,15 +47,38 @@ single index entry and rejects values over ~8 KB, so a plugin for a cumulative O
 update naming hundreds of CVEs failed the whole sync. `TenableFinding` also carried
 the `CVE` label itself.
 
-On a graph synced by an earlier version, the first sync after upgrading drops the old
-`cve_list` index and removes the `CVE` label and `_ont_*` properties from
-`TenableFinding`. No manual step is needed.
-
 `cve_list` is still written on both nodes for backwards compatibility, but it is no
 longer indexed, so a predicate like `'CVE-2026-12345' IN f.cve_list` is a label scan
 (a range index on a list only answers whole-array equality, so it never served that
 query). Use `HAS_CVE` instead.
 ```
+
+## Upgrading from an earlier version
+
+Cartography never removes an index, label or property it no longer declares, so a
+graph synced by an earlier version keeps two things this version no longer uses.
+Remove them once, after upgrading: an earlier version recreates both on every sync.
+
+First, drop the old `cve_list` index. `cve_list` is still written, so while the index
+exists a large CVE list still fails the sync. Find its name:
+
+    SHOW INDEXES YIELD name, type, labelsOrTypes, properties
+    WHERE type = 'RANGE' AND labelsOrTypes = ['TenableFinding'] AND properties = ['cve_list']
+    RETURN name
+
+and drop it:
+
+    DROP INDEX `<name>` IF EXISTS
+
+Then remove the `CVE` label and `_ont_*` properties from `TenableFinding`. Nothing
+updates them any more, so they go stale, and `CVE` queries would count Tenable data
+twice. Run this until it returns 0:
+
+    MATCH (f:TenableFinding)
+    WHERE f:CVE OR f._ont_source = 'tenable'
+    WITH f LIMIT 10000
+    REMOVE f:CVE, f._ont_source, f._ont_cve_id, f._ont_base_severity, f._ont_vuln_status
+    RETURN count(f) AS removed
 
 See [configuration](config.md) for connection and scoping options, and the
 generated [schema](schema.md) for fields and relationships.

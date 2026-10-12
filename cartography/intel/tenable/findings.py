@@ -7,8 +7,6 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.tenable.api import export_and_download
-from cartography.intel.tenable.deprecated import drop_legacy_cve_list_index
-from cartography.intel.tenable.deprecated import remove_legacy_finding_cve_ontology
 from cartography.models.tenable.cve import TenableCveSchema
 from cartography.models.tenable.findings import TenableFindingSchema
 from cartography.models.tenable.plugins import TenablePluginSchema
@@ -292,11 +290,6 @@ def sync(
         tenant_id,
         lookback_days,
     )
-    # DEPRECATED: remove in v1.0.0 along with cartography/intel/tenable/deprecated.py.
-    # Must run before load_findings: the legacy index rejects large cve_list values.
-    drop_legacy_cve_list_index(neo4j_session)
-    remove_legacy_finding_cve_ontology(neo4j_session)
-
     since_epoch = update_tag - (lookback_days * 86400)
     raw_findings = get(session, base_url, since_epoch)
     findings = transform(raw_findings)
