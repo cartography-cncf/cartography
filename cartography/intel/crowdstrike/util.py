@@ -25,10 +25,14 @@ def get_response_body(response: dict[str, Any], operation: str) -> dict[str, Any
     the truncated sync did not see.
     """
     status_code = response.get("status_code")
-    body = response.get("body") or {}
+    body = response.get("body")
     if status_code is None or not 200 <= status_code < 300:
-        messages = [error.get("message") for error in body.get("errors") or []]
+        messages = [error.get("message") for error in (body or {}).get("errors") or []]
         raise CrowdstrikeAPIError(
             f"CrowdStrike {operation} failed with HTTP {status_code}: {messages}",
+        )
+    if not body:
+        raise CrowdstrikeAPIError(
+            f"CrowdStrike {operation} returned HTTP {status_code} with no body",
         )
     return body

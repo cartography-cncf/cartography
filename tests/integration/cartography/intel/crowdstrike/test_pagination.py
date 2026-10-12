@@ -112,9 +112,10 @@ def test_sync_loads_every_page(neo4j_session):
     "failed_page",
     [
         _response([], status_code=429),
+        {"status_code": 200},
         _response([VULN_IDS[0]], after="cursor-1"),
     ],
-    ids=["http-error", "repeated-cursor"],
+    ids=["http-error", "missing-body", "repeated-cursor"],
 )
 def test_failed_page_aborts_before_cleanup(neo4j_session, failed_page):
     # Arrange
