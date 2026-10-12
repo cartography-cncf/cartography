@@ -9,7 +9,8 @@ from falconpy.hosts import Hosts
 from falconpy.oauth2 import OAuth2
 
 from cartography.client.core.tx import load
-from cartography.intel.crowdstrike.util import get_response_body
+from cartography.intel.crowdstrike.util import call_with_retries
+from cartography.intel.crowdstrike.util import REQUEST_TIMEOUT_SECONDS
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.util import timeit
@@ -23,7 +24,7 @@ def sync_hosts(
     update_tag: int,
     authorization: OAuth2,
 ) -> None:
-    client = Hosts(auth_object=authorization)
+    client = Hosts(auth_object=authorization, timeout=REQUEST_TIMEOUT_SECONDS)
     for ids in get_host_ids(client):
         host_data = get_hosts(client, ids)
         load_host_data(neo4j_session, host_data, update_tag)
@@ -87,8 +88,8 @@ def get_host_ids(
     }
     seen = 0
     while True:
-        body = get_response_body(
-            client.QueryDevicesByFilterScroll(parameters=parameters),
+        body = call_with_retries(
+            lambda: client.QueryDevicesByFilterScroll(parameters=parameters),
             "QueryDevicesByFilterScroll",
         )
         resources = body.get("resources") or []
@@ -107,7 +108,7 @@ def get_host_ids(
 
 
 def get_hosts(client: Hosts, ids: List[str]) -> List[Dict]:
-    body = get_response_body(
-        client.GetDeviceDetails(ids=",".join(ids)), "GetDeviceDetails"
+    body = call_with_retries(
+        lambda: client.GetDeviceDetails(ids=",".join(ids)), "GetDeviceDetails"
     )
     return body.get("resources", [])

@@ -51,19 +51,16 @@ def _hosts_client() -> MagicMock:
     return client
 
 
-def _spotlight_client(second_page: dict[str, Any]) -> MagicMock:
+def _spotlight_client(*later_pages: dict[str, Any]) -> MagicMock:
     client = MagicMock()
-    client.queryVulnerabilities.side_effect = [
-        _response([VULN_IDS[0]], after="cursor-1"),
-        second_page,
+    client.combinedQueryVulnerabilities.side_effect = [
+        _response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1"),
+        *later_pages,
     ]
-    client.getVulnerabilities.side_effect = lambda ids: _response(
-        [VULNERABILITIES[i] for i in ids.split(",")],
-    )
     return client
 
 
-def _ingest(neo4j_session, update_tag: int, second_vuln_page: dict[str, Any]) -> None:
+def _ingest(neo4j_session, update_tag: int, *later_vuln_pages: dict[str, Any]) -> None:
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=update_tag,
@@ -80,8 +77,9 @@ def _ingest(neo4j_session, update_tag: int, second_vuln_page: dict[str, Any]) ->
         patch.object(
             cartography.intel.crowdstrike.spotlight,
             "Spotlight_Vulnerabilities",
-            return_value=_spotlight_client(second_vuln_page),
+            return_value=_spotlight_client(*later_vuln_pages),
         ),
+        patch("cartography.intel.crowdstrike.util.time.sleep"),
     ):
         cartography.intel.crowdstrike.start_crowdstrike_ingestion(
             neo4j_session,
@@ -91,7 +89,7 @@ def _ingest(neo4j_session, update_tag: int, second_vuln_page: dict[str, Any]) ->
 
 def test_sync_loads_every_page(neo4j_session):
     # Act
-    _ingest(neo4j_session, 1, _response([VULN_IDS[1]]))
+    _ingest(neo4j_session, 1, _response([VULNERABILITIES[VULN_IDS[1]]]))
 
     # Assert
     assert check_nodes(neo4j_session, "CrowdstrikeHost", ["id"]) == {
@@ -108,22 +106,38 @@ def test_sync_loads_every_page(neo4j_session):
     ) == set(zip(HOST_IDS, VULN_IDS))
 
 
+def test_transient_failure_is_retried(neo4j_session):
+    # Act
+    _ingest(
+        neo4j_session,
+        1,
+        _response([], status_code=503),
+        _response([VULNERABILITIES[VULN_IDS[1]]]),
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id"]) == {
+        (vuln_id,) for vuln_id in VULN_IDS
+    }
+
+
 @pytest.mark.parametrize(
-    "failed_page",
+    "failed_pages",
     [
-        _response([], status_code=429),
-        {"status_code": 200},
-        _response([VULN_IDS[0]], after="cursor-1"),
+        [_response([], status_code=400)],
+        [_response([], status_code=429)] * 4,
+        [{"status_code": 200}],
+        [_response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1")],
     ],
-    ids=["http-error", "missing-body", "repeated-cursor"],
+    ids=["http-error", "retries-exhausted", "missing-body", "repeated-cursor"],
 )
-def test_failed_page_aborts_before_cleanup(neo4j_session, failed_page):
+def test_failed_page_aborts_before_cleanup(neo4j_session, failed_pages):
     # Arrange
-    _ingest(neo4j_session, 10, _response([VULN_IDS[1]]))
+    _ingest(neo4j_session, 10, _response([VULNERABILITIES[VULN_IDS[1]]]))
 
     # Act and assert
-    with pytest.raises(CrowdstrikeAPIError, match="queryVulnerabilities"):
-        _ingest(neo4j_session, 11, failed_page)
+    with pytest.raises(CrowdstrikeAPIError, match="combinedQueryVulnerabilities"):
+        _ingest(neo4j_session, 11, *failed_pages)
 
     # Assert
     assert check_nodes(

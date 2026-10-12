@@ -1,21 +1,30 @@
 import logging
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from typing import Iterable
 from typing import Iterator
+from typing import TypeVar
 
 import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 
 from cartography.client.core.tx import load
+from cartography.intel.crowdstrike.util import call_with_retries
 from cartography.intel.crowdstrike.util import CrowdstrikeAPIError
-from cartography.intel.crowdstrike.util import get_response_body
+from cartography.intel.crowdstrike.util import REQUEST_TIMEOUT_SECONDS
 from cartography.models.crowdstrike.spotlight import CrowdstrikeCVESchema
 from cartography.models.crowdstrike.spotlight import SpotlightVulnerabilitySchema
 from cartography.models.crowdstrike.tenant import CrowdstrikeTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
+
+SPOTLIGHT_FILTER = 'status:["open","reopen"]'
+SPOTLIGHT_PAGE_SIZE = 5000
+SPOTLIGHT_FACETS = ["cve", "host_info", "remediation"]
 
 
 @timeit
@@ -24,12 +33,30 @@ def sync_vulnerabilities(
     update_tag: int,
     authorization: OAuth2,
 ) -> None:
-    client = Spotlight_Vulnerabilities(auth_object=authorization)
-    for ids in get_spotlight_vulnerability_ids(client):
-        vulnerability_data = get_spotlight_vulnerabilities(client, ids)
+    client = Spotlight_Vulnerabilities(
+        auth_object=authorization,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    for vulnerability_data in _prefetch(get_spotlight_vulnerabilities(client)):
         vulns, cves = transform(vulnerability_data)
         load_vulnerability_data(neo4j_session, vulns, update_tag)
         load_cve_data(neo4j_session, cves, update_tag)
+
+
+def _prefetch(pages: Iterable[T]) -> Iterator[T]:
+    """
+    Fetch the next page while the caller loads the current one.
+
+    Each Spotlight page costs several seconds of API time, so overlapping it with
+    the Neo4j load keeps a tens-of-millions sync inside a daily schedule. At most
+    two pages are held in memory.
+    """
+    page_iterator = iter(pages)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(next, page_iterator, None)
+        while (page := future.result()) is not None:
+            future = executor.submit(next, page_iterator, None)
+            yield page
 
 
 def transform(data: list[dict]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -47,10 +74,8 @@ def transform(data: list[dict]) -> tuple[list[dict[str, Any]], list[dict[str, An
             "updated_timestamp",
         ]:
             vuln[key] = item.get(key)
-        vuln["remediation_ids"] = item.get("remediation", {}).get("ids", [])
-        vuln["app_product_name_version"] = item.get("app", {}).get(
-            "product_name_version",
-        )
+        vuln["remediation_ids"] = _remediation_ids(item)
+        vuln["app_product_name_version"] = _app(item).get("product_name_version")
         cve = item.get("cve", {})
         vuln["cve_id"] = cve.get("id")
         if cve:
@@ -59,6 +84,24 @@ def transform(data: list[dict]) -> tuple[list[dict[str, Any]], list[dict[str, An
         vuln["host_info_local_ip"] = item.get("host_info", {}).get("local_ip")
         vulns.append(vuln)
     return vulns, cves
+
+
+def _remediation_ids(item: dict[str, Any]) -> list[str]:
+    # combinedQueryVulnerabilities returns the remediation entities without the
+    # `ids` shortcut that getVulnerabilities adds.
+    remediation = item.get("remediation") or {}
+    if "ids" in remediation:
+        return remediation["ids"]
+    return [entity["id"] for entity in remediation.get("entities") or []]
+
+
+def _app(item: dict[str, Any]) -> dict[str, Any]:
+    # combinedQueryVulnerabilities has no `app` facet; the affected app is the
+    # first entry of `apps`, which is what getVulnerabilities reports as `app`.
+    if item.get("app"):
+        return item["app"]
+    apps = item.get("apps") or []
+    return apps[0] if apps else {}
 
 
 def load_vulnerability_data(
@@ -115,28 +158,35 @@ def load_cve_data(
     )
 
 
-def get_spotlight_vulnerability_ids(
+def get_spotlight_vulnerabilities(
     client: Spotlight_Vulnerabilities,
-) -> Iterator[list[str]]:
+) -> Iterator[list[dict]]:
     """
-    Yield non-closed vulnerability IDs one page at a time.
+    Yield open and reopened vulnerabilities one page at a time.
 
-    A tenant can have millions of open vulnerabilities, so the caller loads each
-    page before the next one is fetched instead of holding every ID in memory.
+    A tenant can have tens of millions of these, so the caller loads each page
+    before the next one is fetched. The combined endpoint returns 5,000 full
+    records per call; querying IDs then fetching details caps at 400 per two
+    calls, which made a large tenant's sync take days. Expired vulnerabilities
+    are excluded because Spotlight no longer evaluates them.
     """
-    parameters = {"filter": 'status:!"closed"', "limit": 400}
+    parameters: dict[str, Any] = {
+        "filter": SPOTLIGHT_FILTER,
+        "limit": SPOTLIGHT_PAGE_SIZE,
+        "facet": SPOTLIGHT_FACETS,
+    }
     seen_cursors: set[str] = set()
     first_page = True
     while True:
-        body = get_response_body(
-            client.queryVulnerabilities(parameters=parameters),
-            "queryVulnerabilities",
+        body = call_with_retries(
+            lambda: client.combinedQueryVulnerabilities(parameters=parameters),
+            "combinedQueryVulnerabilities",
         )
         resources = body.get("resources") or []
         if not resources:
             if first_page:
                 logger.warning(
-                    "No vulnerability IDs in spotlight queryVulnerabilities."
+                    "No vulnerabilities in spotlight combinedQueryVulnerabilities."
                 )
             return
         first_page = False
@@ -146,19 +196,8 @@ def get_spotlight_vulnerability_ids(
             return
         if after in seen_cursors:
             raise CrowdstrikeAPIError(
-                "CrowdStrike queryVulnerabilities returned a pagination cursor it "
-                "already returned; refusing to page forever.",
+                "CrowdStrike combinedQueryVulnerabilities returned a pagination cursor "
+                "it already returned; refusing to page forever.",
             )
         seen_cursors.add(after)
         parameters["after"] = after
-
-
-def get_spotlight_vulnerabilities(
-    client: Spotlight_Vulnerabilities,
-    ids: list[str],
-) -> list[dict]:
-    body = get_response_body(
-        client.getVulnerabilities(ids=",".join(ids)),
-        "getVulnerabilities",
-    )
-    return body.get("resources", [])
