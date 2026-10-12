@@ -15,14 +15,23 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def resolve_azure_scope(scope: str) -> str:
+MANAGEMENT_GROUP_SCOPE_PREFIX = "/providers/microsoft.management/managementgroups/"
+
+
+def resolve_azure_scope(scope: str, subscription_id: str | None = None) -> str:
     """
     Resolve Azure scope to follow the standard hierarchy pattern:
     /subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{providerName}/{resourceType}/{resourceSubType1}/{resourceSubType2}/{resourceName}/
 
+    A management group scope covers every subscription under the group. Listing a
+    subscription's role assignments only returns management group assignments
+    inherited by that subscription, so such a scope matches everything in it.
     If providers is given in scope, return as is. Meaning its already resource level.
     If not, add /* to the end to match any resource under that scope.
     """
+    if subscription_id and scope.lower().startswith(MANAGEMENT_GROUP_SCOPE_PREFIX):
+        return f"/subscriptions/{subscription_id}/*"
+
     if "/providers/" in scope:
         return scope
 
@@ -221,7 +230,9 @@ def get_principals_for_subscription(
 
         # Compile permissions from nodes
         compiled_permissions = compile_permissions_from_nodes(permissions_nodes)
-        compiled_scope = compile_azure_regex(resolve_azure_scope(assignment_scope))
+        compiled_scope = compile_azure_regex(
+            resolve_azure_scope(assignment_scope, subscription_id)
+        )
 
         principals[principal_id][assignment_id] = {
             "permissions": compiled_permissions,

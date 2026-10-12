@@ -95,3 +95,54 @@ def test_data_permissions_only_match_data_actions(role, assignment, expected):
 )
 def test_rpr_needs_permissions_or_data_permissions(rpr, expected):
     assert permission_relationships.is_valid_azure_rpr(rpr) is expected
+
+
+@pytest.mark.parametrize(
+    ("scope", "expected"),
+    [
+        (
+            "/providers/Microsoft.Management/managementGroups/platform",
+            f"{SUBSCRIPTION_SCOPE}/*",
+        ),
+        ("/", "/*"),
+        (
+            f"{SUBSCRIPTION_SCOPE}/resourceGroups/rg",
+            f"{SUBSCRIPTION_SCOPE}/resourceGroups/rg/*",
+        ),
+        (STORAGE_ACCOUNT_ID, STORAGE_ACCOUNT_ID),
+    ],
+)
+def test_resolve_azure_scope(scope, expected):
+    subscription_id = SUBSCRIPTION_SCOPE.removeprefix("/subscriptions/")
+    assert (
+        permission_relationships.resolve_azure_scope(scope, subscription_id) == expected
+    )
+
+
+def test_management_group_assignment_reaches_resources_in_subscription():
+    subscription_id = SUBSCRIPTION_SCOPE.removeprefix("/subscriptions/")
+    assignment = {
+        "assignment": {
+            "permissions": permission_relationships.compile_permissions(
+                {
+                    "actions": ["*"],
+                    "not_actions": [],
+                    "data_actions": [],
+                    "not_data_actions": [],
+                },
+            ),
+            "scope": permission_relationships.compile_azure_regex(
+                permission_relationships.resolve_azure_scope(
+                    "/providers/Microsoft.Management/managementGroups/platform",
+                    subscription_id,
+                ),
+            ),
+            "principal_type": "User",
+        },
+    }
+
+    assert permission_relationships.principal_allowed_on_resource(
+        assignment,
+        STORAGE_ACCOUNT_ID,
+        ["Microsoft.Storage/storageAccounts/listKeys/action"],
+    )
