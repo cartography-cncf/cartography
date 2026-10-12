@@ -316,18 +316,54 @@ def test_transform_cves_tolerates_absent_cve_lists(raw_finding):
     assert transform_cves([raw_finding]) == []
 
 
-def test_transform_cves_skips_empty_identifiers():
+@pytest.mark.parametrize("blank", ["", None])
+def test_transforms_skip_blank_cve_identifiers(blank):
+    """A blank entry names no CVE, so no transform may pass it on.
+
+    A null would abort the whole load, since Neo4j cannot store one inside a list,
+    and an empty string would leave a HAS_CVE matcher id with no node behind it.
+    """
     # Arrange
     raw = [
         {
             "finding_id": "f1",
             "asset": {"uuid": "a"},
-            "plugin": {"id": 1, "cve": ["", CVE_ID_1]},
+            "plugin": {"id": 1, "cve": [blank, CVE_ID_1]},
         }
     ]
 
-    # Act and assert
-    assert transform_cves(raw) == [{"id": f"TNB|{CVE_ID_1}", "cve_id": CVE_ID_1}]
+    # Act
+    finding = transform(raw)[0]
+    plugin = transform_plugins(raw)[0]
+    cves = transform_cves(raw)
+
+    # Assert
+    for record in (finding, plugin):
+        assert record["cve_list"] == [CVE_ID_1]
+        assert record["cve_node_ids"] == [f"TNB|{CVE_ID_1}"]
+    assert finding["cve_id"] == CVE_ID_1
+    assert finding["has_cve"] == "true"
+    assert cves == [{"id": f"TNB|{CVE_ID_1}", "cve_id": CVE_ID_1}]
+
+
+def test_transform_only_blank_cve_identifiers_means_no_cve():
+    # Arrange
+    raw = [
+        {
+            "finding_id": "f1",
+            "asset": {"uuid": "a"},
+            "plugin": {"id": 1, "cve": ["", None]},
+        }
+    ]
+
+    # Act
+    finding = transform(raw)[0]
+
+    # Assert
+    assert finding["cve_id"] is None
+    assert finding["cve_list"] == []
+    assert finding["cve_node_ids"] == []
+    assert finding["has_cve"] == "false"
 
 
 def test_transform_cves_empty_input():
@@ -339,8 +375,8 @@ def test_transform_cves_namespaces_node_ids_away_from_nvd_records():
     """Node ids must never equal a bare CVE id.
 
     A :TenableCve carries the :CVE label, and the `cve` module MERGEs its NVD records
-    on (:CVE {id}). A bare id would make it adopt :TenableCve nodes as its own, and
-    the two modules' cleanups would then delete each other's data.
+    on (:CVE {id}). With a bare id it would write NVD data onto :TenableCve nodes,
+    and Tenable's tenant-scoped cleanup would delete that data with the node.
     """
     # Act
     cves = transform_cves(FINDINGS_DATA)

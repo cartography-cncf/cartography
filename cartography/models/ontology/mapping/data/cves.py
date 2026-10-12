@@ -398,11 +398,11 @@ sentinelone_mapping = OntologyMapping(
 # reachable from the CVE over :HAS_CVE.
 #
 # Note the shape differs from most scanners. Trivy, Inspector, SentinelOne, Orca and
-# Wiz put :CVE on the finding, so their _ont_vuln_status is a detection status.
-# Tenable puts :CVE on the vulnerability record, like the NVD (`cve`), Ubuntu and
-# CrowdStrike mappings. Those feeds score each CVE; Tenable's does not, so it
-# contributes no _ont_base_severity or _ont_vuln_status. Queries filtering :CVE on
-# those fields will not return Tenable data.
+# Wiz put :CVE on the finding; of those, only Trivy maps _ont_vuln_status, as a
+# detection status. Tenable puts :CVE on the vulnerability record, like the NVD
+# (`cve`), Ubuntu and CrowdStrike mappings. Those feeds score each CVE; Tenable's
+# does not, so it contributes no _ont_base_severity or _ont_vuln_status. Queries
+# filtering :CVE on those fields will not return Tenable data.
 tenable_mapping = OntologyMapping(
     module_name="tenable",
     nodes=[
