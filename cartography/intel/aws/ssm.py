@@ -232,11 +232,13 @@ def get_ssm_parameter_tags(
     Add each private SSM parameter's tags under the "Tags" key.
 
     Not decorated with aws_handle_regions: it would replace the whole parameter
-    list with [] on AccessDenied, and the SSM cleanup would then delete every
-    parameter. A parameter whose tags cannot be read is still returned, without
-    a "Tags" key.
+    list with [] on AccessDenied or a timeout, and the SSM cleanup would then
+    delete every parameter. A parameter whose tags cannot be read is still
+    returned, without a "Tags" key, so its tags property is null rather than
+    "[]" (no tags).
     """
     client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    denied_count = 0
     for parameter in parameters:
         try:
             response = client.list_tags_for_resource(
@@ -253,14 +255,19 @@ def get_ssm_parameter_tags(
                 )
                 continue
             if error_code in ("AccessDenied", "AccessDeniedException"):
-                logger.warning(
-                    "Access denied to ssm:ListTagsForResource in region '%s'; "
-                    "loading SSM parameters without tags.",
-                    region,
-                )
-                break
+                # IAM can deny this per parameter, so keep trying the others.
+                denied_count += 1
+                continue
             raise
         parameter["Tags"] = response.get("TagList", [])
+    if denied_count:
+        logger.warning(
+            "Access denied to ssm:ListTagsForResource for %d of %d SSM parameters "
+            "in region '%s'; loading them without tags.",
+            denied_count,
+            len(parameters),
+            region,
+        )
     return parameters
 
 

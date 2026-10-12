@@ -77,8 +77,9 @@ Center and Identity Store actions that Cartography calls: `sso:ListInstances`,
 `identitystore:ListGroups`, and `identitystore:ListGroupMemberships`.
 
 `SecurityAudit` also includes `ssm:ListTagsForResource`, which Cartography
-calls once per SSM parameter to read its tags. If a custom policy denies it,
-parameters are still ingested but their `tags` property is empty.
+calls once per private SSM parameter to read its tags. If a custom policy
+denies it for a parameter, that parameter is still ingested and its `tags`
+property is null.
 
 Full AWS Organizations hierarchy enumeration requires credentials from the
 management account or a delegated administrator account. Grant

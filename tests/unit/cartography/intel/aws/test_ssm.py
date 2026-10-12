@@ -176,18 +176,23 @@ def test_get_ssm_parameter_tags_skips_deleted_parameter() -> None:
 def test_get_ssm_parameter_tags_keeps_parameters_on_access_denied() -> None:
     # Arrange
     client = MagicMock()
-    client.list_tags_for_resource.side_effect = _client_error("AccessDeniedException")
+    client.list_tags_for_resource.side_effect = [
+        _client_error("AccessDeniedException"),
+        {"TagList": SSM_PARAMETER_TAGS},
+    ]
     boto3_session = MagicMock()
     boto3_session.client.return_value = client
-    parameters = [{"Name": "/first"}, {"Name": "/second"}]
+    parameters = [{"Name": "/denied"}, {"Name": "/allowed"}]
 
     # Act
     wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
     result = wrapped_get_ssm_parameter_tags(boto3_session, "us-east-1", parameters)
 
     # Assert
-    assert result == [{"Name": "/first"}, {"Name": "/second"}]
-    client.list_tags_for_resource.assert_called_once()
+    assert result == [
+        {"Name": "/denied"},
+        {"Name": "/allowed", "Tags": SSM_PARAMETER_TAGS},
+    ]
 
 
 def test_get_ssm_parameter_tags_raises_unexpected_errors() -> None:
