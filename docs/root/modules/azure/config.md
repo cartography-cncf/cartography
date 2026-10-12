@@ -154,6 +154,10 @@ cartography \
   --azure-requested-syncs rbac,compute
 ```
 
+`rbac` covers role assignments scoped to subscriptions and the resources in
+them. Add `management_groups` to also sync management groups and the role
+assignments scoped to them.
+
 Valid values are `management_groups`, `compute`, `cosmosdb`, `app_service`,
 `functions`, `event_grid`, `logic_apps`, `rbac`, `workload_identity`, `sql`,
 `storage`, `resource_groups`, `key_vaults`, `aks`, `event_hub`, `data_factory`,
