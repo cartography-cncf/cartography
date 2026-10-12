@@ -309,6 +309,8 @@ def is_valid_azure_rpr(rpr: dict[str, Any]) -> bool:
     data_permissions = rpr.get("data_permissions", [])
     if not isinstance(permissions, list) or not isinstance(data_permissions, list):
         return False
+    if not all(isinstance(p, str) for p in permissions + data_permissions):
+        return False
     return bool(permissions or data_permissions)
 
 
