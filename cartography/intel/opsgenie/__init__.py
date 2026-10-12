@@ -44,10 +44,12 @@ def start_opsgenie_ingestion(
             ),
         ),
     )
+    common_job_parameters = {"UPDATE_TAG": config.update_tag}
     sync(
         neo4j_session,
         api_session,
         config.opsgenie_api_url.rstrip("/"),
         config.opsgenie_request_timeout,
         config.update_tag,
+        common_job_parameters,
     )

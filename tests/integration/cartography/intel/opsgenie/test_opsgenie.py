@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import patch
 
 import requests
@@ -11,51 +12,54 @@ TEST_UPDATE_TAG = 123456789
 TEST_BASE_URL = "https://api.opsgenie.com"
 
 
-@patch.object(
-    cartography.intel.opsgenie.resources,
-    "get_account",
-    return_value=tests.data.opsgenie.data.ACCOUNT,
-)
-@patch.object(
-    cartography.intel.opsgenie.resources,
-    "get_teams",
-    return_value=tests.data.opsgenie.data.TEAMS,
-)
-@patch.object(
-    cartography.intel.opsgenie.resources,
-    "get_team_members",
-    side_effect=lambda _session, _base_url, _timeout, team_id: (
-        tests.data.opsgenie.data.TEAM_MEMBERS[team_id]
-    ),
-)
-@patch.object(
-    cartography.intel.opsgenie.resources,
-    "get_users",
-    return_value=tests.data.opsgenie.data.USERS,
-)
-@patch.object(
-    cartography.intel.opsgenie.resources,
-    "get_schedules",
-    return_value=tests.data.opsgenie.data.SCHEDULES,
-)
-def test_sync_opsgenie(
-    mock_schedules,
-    mock_users,
-    mock_team_members,
-    mock_teams,
-    mock_account,
+def _sync(
     neo4j_session,
-):
+    update_tag: int,
+    teams: list[dict[str, Any]],
+    team_members: dict[str, list[dict[str, Any]]],
+    users: list[dict[str, Any]],
+    schedules: list[dict[str, Any]],
+) -> None:
+    resources = cartography.intel.opsgenie.resources
+    with (
+        patch.object(
+            resources,
+            "get_account",
+            return_value=tests.data.opsgenie.data.ACCOUNT,
+        ),
+        patch.object(resources, "get_teams", return_value=teams),
+        patch.object(
+            resources,
+            "get_team_members",
+            side_effect=lambda _session, _base_url, _timeout, team_id: team_members[
+                team_id
+            ],
+        ),
+        patch.object(resources, "get_users", return_value=users),
+        patch.object(resources, "get_schedules", return_value=schedules),
+    ):
+        resources.sync(
+            neo4j_session,
+            requests.Session(),
+            TEST_BASE_URL,
+            60,
+            update_tag,
+            {"UPDATE_TAG": update_tag},
+        )
+
+
+def test_sync_opsgenie(neo4j_session):
     # Arrange
-    api_session = requests.Session()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
     # Act
-    cartography.intel.opsgenie.resources.sync(
+    _sync(
         neo4j_session,
-        api_session,
-        TEST_BASE_URL,
-        60,
         TEST_UPDATE_TAG,
+        tests.data.opsgenie.data.TEAMS,
+        tests.data.opsgenie.data.TEAM_MEMBERS,
+        tests.data.opsgenie.data.USERS,
+        tests.data.opsgenie.data.SCHEDULES,
     )
 
     # Assert
@@ -85,33 +89,6 @@ def test_sync_opsgenie(
     }
     assert check_rels(
         neo4j_session,
-        "OpsgenieSchedule",
-        "id",
-        "OpsgenieTeam",
-        "id",
-        "OWNED_BY",
-    ) == {("schedule-1", "team-1"), ("schedule-2", "team-2")}
-    assert check_rels(
-        neo4j_session,
-        "OpsgenieAccount",
-        "id",
-        "OpsgenieSchedule",
-        "id",
-        "RESOURCE",
-    ) == {
-        ("example-account", "schedule-1"),
-        ("example-account", "schedule-2"),
-    }
-    assert check_rels(
-        neo4j_session,
-        "OpsgenieUser",
-        "id",
-        "OpsgenieTeam",
-        "id",
-        "MEMBER_OF",
-    ) == {("user-1", "team-1"), ("user-2", "team-1"), ("user-2", "team-2")}
-    assert check_rels(
-        neo4j_session,
         "OpsgenieAccount",
         "id",
         "OpsgenieTeam",
@@ -126,3 +103,69 @@ def test_sync_opsgenie(
         "id",
         "RESOURCE",
     ) == {("example-account", "user-1"), ("example-account", "user-2")}
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieAccount",
+        "id",
+        "OpsgenieSchedule",
+        "id",
+        "RESOURCE",
+    ) == {
+        ("example-account", "schedule-1"),
+        ("example-account", "schedule-2"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieSchedule",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "OWNED_BY",
+    ) == {("schedule-1", "team-1"), ("schedule-2", "team-2")}
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieUser",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "MEMBER_OF",
+    ) == {("user-1", "team-1"), ("user-2", "team-1"), ("user-2", "team-2")}
+
+
+def test_sync_opsgenie_removes_stale_data(neo4j_session):
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    data = tests.data.opsgenie.data
+    _sync(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        data.TEAMS,
+        data.TEAM_MEMBERS,
+        data.USERS,
+        data.SCHEDULES,
+    )
+
+    # Act
+    _sync(
+        neo4j_session,
+        TEST_UPDATE_TAG + 1,
+        data.TEAMS[:1],
+        {"team-1": data.TEAM_MEMBERS["team-1"][:1]},
+        data.USERS[:1],
+        data.SCHEDULES[:1],
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OpsgenieTeam", ["id"]) == {("team-1",)}
+    assert check_nodes(neo4j_session, "OpsgenieUser", ["id"]) == {("user-1",)}
+    assert check_nodes(neo4j_session, "OpsgenieSchedule", ["id"]) == {
+        ("schedule-1",),
+    }
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieUser",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "MEMBER_OF",
+    ) == {("user-1", "team-1")}

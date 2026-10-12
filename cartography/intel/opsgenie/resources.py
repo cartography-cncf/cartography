@@ -162,20 +162,17 @@ def _load_and_cleanup(
     neo4j_session: neo4j.Session,
     schema: OpsgenieTeamSchema | OpsgenieUserSchema | OpsgenieScheduleSchema,
     data: list[dict[str, Any]],
-    account_id: str,
     update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     load(
         neo4j_session,
         schema,
         data,
         lastupdated=update_tag,
-        ACCOUNT_ID=account_id,
+        ACCOUNT_ID=common_job_parameters["ACCOUNT_ID"],
     )
-    GraphJob.from_node_schema(
-        schema,
-        {"UPDATE_TAG": update_tag, "ACCOUNT_ID": account_id},
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(schema, common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -185,10 +182,11 @@ def sync(
     base_url: str,
     timeout: int,
     update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Starting Opsgenie sync")
     account = transform_account(get_account(api_session, base_url, timeout))
-    account_id = account[0]["id"]
+    account_job_parameters = {**common_job_parameters, "ACCOUNT_ID": account[0]["id"]}
     logger.debug("Loading Opsgenie account")
     load(
         neo4j_session,
@@ -204,8 +202,8 @@ def sync(
         neo4j_session,
         OpsgenieTeamSchema(),
         teams,
-        account_id,
         update_tag,
+        account_job_parameters,
     )
 
     team_members = {
@@ -218,8 +216,8 @@ def sync(
         neo4j_session,
         OpsgenieUserSchema(),
         users,
-        account_id,
         update_tag,
+        account_job_parameters,
     )
 
     schedules = transform_schedules(get_schedules(api_session, base_url, timeout))
@@ -228,7 +226,7 @@ def sync(
         neo4j_session,
         OpsgenieScheduleSchema(),
         schedules,
-        account_id,
         update_tag,
+        account_job_parameters,
     )
     logger.info("Completed Opsgenie sync")
