@@ -51,16 +51,29 @@ def _hosts_client() -> MagicMock:
     return client
 
 
-def _spotlight_client(*later_pages: dict[str, Any]) -> MagicMock:
+def _spotlight_client(
+    requested_cursors: list[str | None],
+    *later_pages: dict[str, Any],
+) -> MagicMock:
+    pages = iter(
+        [_response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1"), *later_pages],
+    )
+
+    def combined_query(parameters: dict[str, Any]) -> dict[str, Any]:
+        requested_cursors.append(parameters.get("after"))
+        return next(pages)
+
     client = MagicMock()
-    client.combinedQueryVulnerabilities.side_effect = [
-        _response([VULNERABILITIES[VULN_IDS[0]]], after="cursor-1"),
-        *later_pages,
-    ]
+    client.combinedQueryVulnerabilities.side_effect = combined_query
     return client
 
 
-def _ingest(neo4j_session, update_tag: int, *later_vuln_pages: dict[str, Any]) -> None:
+def _ingest(
+    neo4j_session,
+    update_tag: int,
+    *later_vuln_pages: dict[str, Any],
+) -> list[str | None]:
+    requested_cursors: list[str | None] = []
     config = Config(
         neo4j_uri="bolt://localhost:7687",
         update_tag=update_tag,
@@ -77,7 +90,7 @@ def _ingest(neo4j_session, update_tag: int, *later_vuln_pages: dict[str, Any]) -
         patch.object(
             cartography.intel.crowdstrike.spotlight,
             "Spotlight_Vulnerabilities",
-            return_value=_spotlight_client(*later_vuln_pages),
+            return_value=_spotlight_client(requested_cursors, *later_vuln_pages),
         ),
         patch("cartography.intel.crowdstrike.util.time.sleep"),
     ):
@@ -85,6 +98,7 @@ def _ingest(neo4j_session, update_tag: int, *later_vuln_pages: dict[str, Any]) -
             neo4j_session,
             config,
         )
+    return requested_cursors
 
 
 def test_sync_loads_every_page(neo4j_session):
@@ -108,7 +122,7 @@ def test_sync_loads_every_page(neo4j_session):
 
 def test_transient_failure_is_retried(neo4j_session):
     # Act
-    _ingest(
+    requested_cursors = _ingest(
         neo4j_session,
         1,
         _response([], status_code=503),
@@ -116,6 +130,7 @@ def test_transient_failure_is_retried(neo4j_session):
     )
 
     # Assert
+    assert requested_cursors == [None, "cursor-1", "cursor-1"]
     assert check_nodes(neo4j_session, "CrowdstrikeSpotlightVulnerability", ["id"]) == {
         (vuln_id,) for vuln_id in VULN_IDS
     }
