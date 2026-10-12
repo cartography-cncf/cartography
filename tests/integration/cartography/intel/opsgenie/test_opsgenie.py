@@ -145,19 +145,28 @@ def test_sync_opsgenie_removes_stale_data(neo4j_session):
         data.SCHEDULES,
     )
 
-    # Act
+    # Act: user-2 leaves team-1 but both still exist, and schedule-2 is deleted.
     _sync(
         neo4j_session,
         TEST_UPDATE_TAG + 1,
-        data.TEAMS[:1],
-        {"team-1": data.TEAM_MEMBERS["team-1"][:1]},
-        data.USERS[:1],
+        data.TEAMS,
+        {
+            "team-1": data.TEAM_MEMBERS["team-1"][:1],
+            "team-2": data.TEAM_MEMBERS["team-2"],
+        },
+        data.USERS,
         data.SCHEDULES[:1],
     )
 
     # Assert
-    assert check_nodes(neo4j_session, "OpsgenieTeam", ["id"]) == {("team-1",)}
-    assert check_nodes(neo4j_session, "OpsgenieUser", ["id"]) == {("user-1",)}
+    assert check_nodes(neo4j_session, "OpsgenieTeam", ["id"]) == {
+        ("team-1",),
+        ("team-2",),
+    }
+    assert check_nodes(neo4j_session, "OpsgenieUser", ["id"]) == {
+        ("user-1",),
+        ("user-2",),
+    }
     assert check_nodes(neo4j_session, "OpsgenieSchedule", ["id"]) == {
         ("schedule-1",),
     }
@@ -168,4 +177,4 @@ def test_sync_opsgenie_removes_stale_data(neo4j_session):
         "OpsgenieTeam",
         "id",
         "MEMBER_OF",
-    ) == {("user-1", "team-1")}
+    ) == {("user-1", "team-1"), ("user-2", "team-2")}
