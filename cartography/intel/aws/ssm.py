@@ -204,6 +204,8 @@ def transform_ssm_parameters(
     for param in raw_parameters_data:
         param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
         param["PoliciesJson"] = json.dumps(param.get("Policies", []))
+        if "Tags" in param:
+            param["TagsJson"] = json.dumps(param["Tags"])
         # AWSKMSKey uses shorter UUID as their primary id
         # SSM Parameters, when encrypted, reference KMS keys using their full ARNs in the KeyId field
         # Adding a param to match on the id property of the target node
@@ -217,6 +219,24 @@ def transform_ssm_parameters(
             param["KMSKeyIdShort"] = None
         transformed_list.append(param)
     return transformed_list
+
+
+@timeit
+@aws_handle_regions
+def get_ssm_parameter_tags(
+    boto3_session: boto3.session.Session,
+    region: str,
+    parameters: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Fetch tags for private SSM parameters."""
+    client = create_boto3_client(boto3_session, "ssm", region_name=region)
+    for parameter in parameters:
+        response = client.list_tags_for_resource(
+            ResourceType="Parameter",
+            ResourceId=parameter["Name"],
+        )
+        parameter["Tags"] = response.get("TagList", [])
+    return parameters
 
 
 @timeit
@@ -363,6 +383,7 @@ def sync(
         )
 
         data = get_ssm_parameters(boto3_session, region)
+        data = get_ssm_parameter_tags(boto3_session, region, data)
         data = transform_ssm_parameters(data)
         load_ssm_parameters(
             neo4j_session,

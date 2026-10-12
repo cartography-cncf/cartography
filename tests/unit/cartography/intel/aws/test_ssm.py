@@ -9,6 +9,7 @@ from unittest.mock import patch
 from cartography.intel.aws.ssm import _minimize_allowlisted_prefixes
 from cartography.intel.aws.ssm import _normalize_allowlisted_prefixes
 from cartography.intel.aws.ssm import get_public_ssm_parameters_by_path
+from cartography.intel.aws.ssm import get_ssm_parameter_tags
 from cartography.intel.aws.ssm import sync_public_parameters
 from cartography.intel.aws.ssm import transform_ssm_parameters
 
@@ -96,6 +97,7 @@ def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
                 "Name": "/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
                 "ARN": "arn:aws:ssm:us-east-1::parameter/aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id",
                 "Type": "String",
+                "Tags": [{"Key": "Environment", "Value": "prod"}],
                 "Version": 3,
                 "Value": "ami-abc123",
                 "LastModifiedDate": datetime(2025, 1, 2, tzinfo=timezone.utc),
@@ -107,6 +109,34 @@ def test_transform_ssm_parameters_preserves_arn_identity_and_dates() -> None:
         "aws-k8s-1.30/x86_64/latest/image_id"
     )
     assert transformed[0]["LastModifiedDate"] == 1735776000
+    assert transformed[0]["TagsJson"] == '[{"Key": "Environment", "Value": "prod"}]'
+
+
+def test_get_ssm_parameter_tags() -> None:
+    # Arrange
+    client = MagicMock()
+    client.list_tags_for_resource.return_value = {
+        "TagList": [{"Key": "Environment", "Value": "prod"}],
+    }
+    boto3_session = MagicMock()
+    boto3_session.client.return_value = client
+    parameters = [{"Name": "/my/app/config/db-host"}]
+
+    # Act
+    wrapped_get_ssm_parameter_tags = cast(Any, get_ssm_parameter_tags).__wrapped__
+    result = wrapped_get_ssm_parameter_tags(boto3_session, "us-east-1", parameters)
+
+    # Assert
+    assert result == [
+        {
+            "Name": "/my/app/config/db-host",
+            "Tags": [{"Key": "Environment", "Value": "prod"}],
+        },
+    ]
+    client.list_tags_for_resource.assert_called_once_with(
+        ResourceType="Parameter",
+        ResourceId="/my/app/config/db-host",
+    )
 
 
 @patch("cartography.intel.aws.ssm.cleanup_public_ssm_parameters")

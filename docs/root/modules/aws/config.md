@@ -107,6 +107,7 @@ the corresponding data.
   `ssm:GetParametersByPath` for the applicable `/aws/service/...` paths.
   `AWSPublicSSMParameter` nodes represent shared regional catalog data and are
   not resources owned by the account performing the sync.
+- SSM parameter tag ingestion requires `ssm:ListTagsForResource`.
 
 ## Configure Cartography
 
