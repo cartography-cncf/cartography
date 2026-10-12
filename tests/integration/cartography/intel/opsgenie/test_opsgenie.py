@@ -178,3 +178,25 @@ def test_sync_opsgenie_removes_stale_data(neo4j_session):
         "id",
         "MEMBER_OF",
     ) == {("user-1", "team-1"), ("user-2", "team-2")}
+
+    # Act: team-2 and user-2 are deleted.
+    _sync(
+        neo4j_session,
+        TEST_UPDATE_TAG + 2,
+        data.TEAMS[:1],
+        {"team-1": data.TEAM_MEMBERS["team-1"][:1]},
+        data.USERS[:1],
+        data.SCHEDULES[:1],
+    )
+
+    # Assert
+    assert check_nodes(neo4j_session, "OpsgenieTeam", ["id"]) == {("team-1",)}
+    assert check_nodes(neo4j_session, "OpsgenieUser", ["id"]) == {("user-1",)}
+    assert check_rels(
+        neo4j_session,
+        "OpsgenieUser",
+        "id",
+        "OpsgenieTeam",
+        "id",
+        "MEMBER_OF",
+    ) == {("user-1", "team-1")}
