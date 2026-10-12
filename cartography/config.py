@@ -167,6 +167,11 @@ class Config:
     :type aws_guardduty_severity_threshold: str
     :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
         severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
+    :type aws_ecs_include_stopped_tasks: bool
+    :param aws_ecs_include_stopped_tasks: If True, the ECS sync also collects recently stopped tasks
+        (ListTasks with desiredStatus=STOPPED, retained by ECS for at least an hour), so network interfaces
+        collected earlier in the sync can be attributed to tasks that have since stopped. Default is False.
+        Optional.
     :type experimental_aws_inspector_batch: int
     :param experimental_aws_inspector_batch: EXPERIMENTAL: Batch size for AWS Inspector findings sync. Controls how
         many findings are fetched, processed and cleaned up at a time. Default is 1000. Optional.
@@ -803,6 +808,7 @@ class Config:
         zoom_request_limit=100000,
         azure_access_token: str | None = None,
         microsoft_access_token: str | None = None,
+        aws_ecs_include_stopped_tasks: bool = False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -873,6 +879,7 @@ class Config:
         self.microsoft_requested_syncs = microsoft_requested_syncs
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
+        self.aws_ecs_include_stopped_tasks = aws_ecs_include_stopped_tasks
         self.analysis_job_directory = analysis_job_directory
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id

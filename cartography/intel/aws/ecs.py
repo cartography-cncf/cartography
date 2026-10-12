@@ -168,9 +168,15 @@ def get_ecs_task_definitions(
 ) -> List[Dict[str, Any]]:
     client = create_boto3_client(boto3_session, "ecs", region_name=region)
     task_definitions: List[Dict[str, Any]] = []
+    # Many tasks share one task definition; describe each definition once.
+    seen_task_definition_arns: set[str] = set()
     for task in tasks:
+        task_definition_arn = task["taskDefinitionArn"]
+        if task_definition_arn in seen_task_definition_arns:
+            continue
+        seen_task_definition_arns.add(task_definition_arn)
         task_definition = client.describe_task_definition(
-            taskDefinition=task["taskDefinitionArn"],
+            taskDefinition=task_definition_arn,
         )
         task_definitions.append(task_definition["taskDefinition"])
     return task_definitions
@@ -189,6 +195,33 @@ def _get_container_defs_from_task_definitions(
     return container_defs
 
 
+def _check_describe_tasks_failures(
+    cluster_arn: str,
+    failures: List[Dict[str, Any]],
+) -> None:
+    unexpected = []
+    for failure in failures:
+        if failure.get("reason") == "MISSING":
+            # Listed, then expired before DescribeTasks: expected for tasks
+            # that stopped a while ago.
+            logger.info(
+                "ECS task %s in cluster %s was listed but is no longer available to describe.",
+                failure.get("arn"),
+                cluster_arn,
+            )
+        else:
+            unexpected.append(failure)
+    if unexpected:
+        # A partial description is not a complete inventory; keep cleanup from
+        # treating the undescribed tasks as deleted.
+        details = ", ".join(
+            f"{failure.get('arn')}: {failure.get('reason')}" for failure in unexpected
+        )
+        raise ECSTransientRegionFailure(
+            f"describe_tasks failed for {len(unexpected)} task(s) in {cluster_arn}: {details}",
+        )
+
+
 @timeit
 @aws_handle_regions
 @_raise_on_transient_failure
@@ -196,21 +229,44 @@ def get_ecs_tasks(
     cluster_arn: str,
     boto3_session: boto3.session.Session,
     region: str,
+    include_stopped: bool = False,
 ) -> List[Dict[str, Any]]:
+    """
+    Get the tasks of an ECS cluster.
+
+    ListTasks returns only RUNNING tasks unless asked for STOPPED ones. With
+    include_stopped, recently stopped tasks are collected as well (ECS keeps
+    their details for at least an hour), so a network interface collected
+    earlier in the same sync can still be attributed to a task that has since
+    stopped. Each task's lastStatus from DescribeTasks is its observed state;
+    the list it came from only reflects its desired status.
+    """
     client = create_boto3_client(boto3_session, "ecs", region_name=region)
     paginator = client.get_paginator("list_tasks")
-    tasks: List[Dict[str, Any]] = []
-    task_arns: List[str] = []
-    for page in paginator.paginate(cluster=cluster_arn):
-        task_arns.extend(page.get("taskArns", []))
-    for i in range(0, len(task_arns), 100):
-        task_arn_chunk = task_arns[i : i + 100]
+    desired_statuses: List[str | None] = (
+        ["RUNNING", "STOPPED"] if include_stopped else [None]
+    )
+    # A task can stop between the two listings and so appear in both.
+    task_arns: Dict[str, None] = {}
+    for desired_status in desired_statuses:
+        list_kwargs: Dict[str, Any] = {"cluster": cluster_arn}
+        if desired_status:
+            list_kwargs["desiredStatus"] = desired_status
+        for page in paginator.paginate(**list_kwargs):
+            for task_arn in page.get("taskArns", []):
+                task_arns.setdefault(task_arn, None)
+    task_arn_list = list(task_arns)
+    tasks: Dict[str, Dict[str, Any]] = {}
+    for i in range(0, len(task_arn_list), 100):
+        task_arn_chunk = task_arn_list[i : i + 100]
         task_chunk = client.describe_tasks(
             cluster=cluster_arn,
             tasks=task_arn_chunk,
         )
-        tasks.extend(task_chunk.get("tasks", []))
-    return tasks
+        _check_describe_tasks_failures(cluster_arn, task_chunk.get("failures", []))
+        for task in task_chunk.get("tasks", []):
+            tasks.setdefault(task["taskArn"], task)
+    return list(tasks.values())
 
 
 def _get_task_definition_architecture(
@@ -280,14 +336,23 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not task.get("serviceName"):
             task["_workload_parent_cluster_arn"] = task.get("clusterArn")
 
-        # Extract network interface ID from task attachments
+        # Extract the network interface and its attachment from task attachments.
+        # The attachment id is what ECS writes into the interface's description
+        # (arn:aws:ecs:<region>:<account>:attachment/<id>), and the attachment
+        # status says whether ECS still holds the interface or has deleted it.
         for attachment in task.get("attachments", []):
             if attachment.get("type") == "ElasticNetworkInterface":
+                task["networkInterfaceAttachmentId"] = attachment.get("id")
+                task["networkInterfaceAttachmentStatus"] = attachment.get("status")
                 details = attachment.get("details", [])
                 for detail in details:
-                    if detail.get("name") == "networkInterfaceId":
+                    name = detail.get("name")
+                    if name == "networkInterfaceId":
                         task["networkInterfaceId"] = detail.get("value")
-                        break
+                    elif name == "subnetId":
+                        task["networkInterfaceSubnetId"] = detail.get("value")
+                    elif name == "privateIPv4Address":
+                        task["networkInterfacePrivateIpv4Address"] = detail.get("value")
                 break
 
         # ECS task attributes can contain the runtime cpu architecture.
@@ -578,11 +643,13 @@ def _sync_ecs_task_and_container_defns(
     region: str,
     current_aws_account_id: str,
     update_tag: int,
+    include_stopped_tasks: bool = False,
 ) -> None:
     tasks = get_ecs_tasks(
         cluster_arn,
         boto3_session,
         region,
+        include_stopped=include_stopped_tasks,
     )
     tasks = transform_ecs_tasks(tasks)
     task_definitions = get_ecs_task_definitions(
@@ -634,6 +701,9 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    include_stopped_tasks = bool(
+        common_job_parameters.get("aws_ecs_include_stopped_tasks", False),
+    )
     cleanup_safe = True
     for region in regions:
         logger.info(
@@ -665,6 +735,7 @@ def sync(
                     region,
                     current_aws_account_id,
                     update_tag,
+                    include_stopped_tasks=include_stopped_tasks,
                 )
                 _sync_ecs_services(
                     neo4j_session,

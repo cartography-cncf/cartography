@@ -134,6 +134,28 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
         "networkInterfaceId",
         description="The network interface ID for tasks running in awsvpc network mode.",
     )
+    network_interface_attachment_id: PropertyRef = PropertyRef(
+        "networkInterfaceAttachmentId",
+        description=(
+            "The ID of the task's ElasticNetworkInterface attachment. ECS records it in the "
+            "network interface's description as arn:aws:ecs:<region>:<account>:attachment/<id>."
+        ),
+    )
+    network_interface_attachment_status: PropertyRef = PropertyRef(
+        "networkInterfaceAttachmentStatus",
+        description=(
+            "The status of the task's ElasticNetworkInterface attachment, for example ATTACHED "
+            "or DELETED."
+        ),
+    )
+    network_interface_subnet_id: PropertyRef = PropertyRef(
+        "networkInterfaceSubnetId",
+        description="The subnet ID recorded on the task's ElasticNetworkInterface attachment.",
+    )
+    network_interface_private_ip: PropertyRef = PropertyRef(
+        "networkInterfacePrivateIpv4Address",
+        description="The private IPv4 address recorded on the task's ElasticNetworkInterface attachment.",
+    )
     region: PropertyRef = PropertyRef(
         "Region", set_in_kwargs=True, description="The region of the task."
     )

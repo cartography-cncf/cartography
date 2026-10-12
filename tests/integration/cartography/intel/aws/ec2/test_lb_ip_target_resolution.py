@@ -61,7 +61,9 @@ def _elb_client(vpc="vpc-local"):
     return client
 
 
-def _load_workload(session, name, account, vpc, registered=False, region=REGION):
+def _load_workload(
+    session, name, account, vpc, registered=False, region=REGION, last_status=None
+):
     create_test_account(session, account, 1)
     load_subnets(
         session, [{"SubnetId": f"subnet-{name}", "VpcId": vpc}], region, account, 1
@@ -107,6 +109,7 @@ def _load_workload(session, name, account, vpc, registered=False, region=REGION)
                 "clusterArn": "cluster",
                 "serviceName": name,
                 "networkInterfaceId": f"eni-{name}",
+                "lastStatus": last_status,
             }
         ],
         region,
@@ -620,3 +623,58 @@ def test_ip_target_batches_preserve_each_balancers_targets(neo4j_session):
         (f"lb-{i % 2}.example.invalid", f"eni-{i}:{address}")
         for i, address in enumerate(addresses)
     }
+
+
+def test_stopped_ecs_task_does_not_make_registered_target_ambiguous(neo4j_session):
+    # Arrange: a running task and a recently stopped one hold the same address in
+    # another VPC, and both services are registered with the target group, so only
+    # the explicit ECS registration can resolve the target's identity.
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, ACCOUNT, 1)
+    lb_session = MagicMock()
+    lb_session.client.return_value = _elb_client("vpc-local")
+    data = elbv2.get_loadbalancer_v2_data(lb_session, REGION)
+    elbv2.load_load_balancer_v2s(neo4j_session, data, REGION, ACCOUNT, 1)
+    _load_workload(neo4j_session, "current", ACCOUNT, "vpc-remote", registered=True)
+    _load_workload(
+        neo4j_session,
+        "stopped",
+        ACCOUNT,
+        "vpc-remote",
+        registered=True,
+        last_status="STOPPED",
+    )
+
+    # Act
+    elbv2.sync_load_balancer_v2_expose(
+        neo4j_session,
+        lb_session,
+        [REGION],
+        ACCOUNT,
+        2,
+        {"AWS_ID": ACCOUNT, "UPDATE_TAG": 2},
+    )
+    _analyze(neo4j_session, 2)
+
+    # Assert: the stopped task neither claims the address nor blocks the running one.
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "AWSEC2PrivateIp",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {(LB, f"eni-current:{IP}")}
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "AWSECSContainer",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {(LB, "container-current")}
+    assert check_nodes(
+        neo4j_session, "AWSECSContainer", ["id", "exposed_internet"]
+    ) == {("container-current", True), ("container-stopped", None)}

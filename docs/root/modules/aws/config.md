@@ -182,6 +182,32 @@ export AWS_SSM_PUBLIC_PARAMETER_PREFIX_ALLOWLIST="/aws/service/eks/optimized-ami
 cartography --selected-modules aws --aws-requested-syncs ssm
 ```
 
+### Recently Stopped ECS Tasks
+
+By default the ECS sync collects running tasks only, which is what ECS
+`ListTasks` returns when no status is requested. Network interfaces are synced
+earlier in the same run, so a short-lived task can stop between the two stages.
+Its interface is then in the graph without the task that owned it.
+
+Pass `--aws-ecs-include-stopped-tasks` to also list tasks with
+`desiredStatus=STOPPED`. ECS keeps stopped task details for at least an hour, so
+tasks that stopped shortly before the ECS stage are collected and linked to the
+interfaces they used. This is not a history of every task: older stopped tasks
+are not returned and are removed by the normal cleanup.
+
+```bash
+cartography --selected-modules aws --aws-ecs-include-stopped-tasks
+```
+
+Stopped tasks carry `last_status` `STOPPED` (or `DELETED`) together with
+`stopped_at`, `stop_code` and `stopped_reason`. Their containers are excluded
+from the ECS internet-exposure analysis. Queries that want only active workloads
+should filter on `last_status`. `AWSECSTask` also records the task's network
+interface attachment (`network_interface_attachment_id`,
+`network_interface_attachment_status`, `network_interface_subnet_id`,
+`network_interface_private_ip`); ECS writes the attachment ID into the network
+interface's description as `arn:aws:ecs:<region>:<account>:attachment/<id>`.
+
 ### Retry and Timeout Settings
 
 Cartography-managed AWS clients use these environment variables:
